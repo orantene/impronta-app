@@ -47,6 +47,8 @@ import {
   type InquiryUnitType, type InquiryRecord, toInquiry,
   useProto,
   ROSTER_AGENCY, ROSTER_FREE,
+  meetsRole,
+  TENANT,
 } from "./_state";
 
 /**
@@ -85,8 +87,567 @@ const stageStyle = (stage: string): { bg: string; fg: string } => {
   }
 };
 
-const ageLabel = (hrs: number) =>
+export const ageLabel = (hrs: number) =>
   hrs < 1 ? "now" : hrs < 24 ? `${hrs}h` : `${Math.floor(hrs / 24)}d`;
+
+// Active-row scroll-into-view. Pass the active flag; returns a ref to
+// attach to the row's outer button. When active flips true, the row
+// scrolls itself into the visible area of its scroll container with a
+// gentle "nearest" alignment (no jarring center-snap).
+function useScrollIntoViewWhenActive(active: boolean) {
+  const ref = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!active || !ref.current) return;
+    const el = ref.current;
+    // requestAnimationFrame so layout has settled — otherwise the
+    // newly-mounted row hasn't been positioned yet on conv switch.
+    const r = requestAnimationFrame(() => {
+      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(r);
+  }, [active]);
+  return ref;
+}
+
+// Bucket a row into a temporal group ("Today" / "Yesterday" / "This
+// week" / "Older"). Used to render group headers in the inbox so the
+// eye can scan the chronology without doing math on every age label.
+function dateGroupKey(hrs: number): "today" | "yesterday" | "week" | "older" {
+  if (hrs < 24) return "today";
+  if (hrs < 48) return "yesterday";
+  if (hrs < 24 * 7) return "week";
+  return "older";
+}
+const DATE_GROUP_LABEL: Record<ReturnType<typeof dateGroupKey>, string> = {
+  today: "Today",
+  yesterday: "Yesterday",
+  week: "This week",
+  older: "Older",
+};
+
+// Render group headers above clusters of rows that share a date bucket.
+// Pass an array, a getter that returns ageHrs for each item, and a row
+// renderer; returns an interleaved list of headers + rows. Eats no
+// height when an item's bucket matches the previous one.
+function renderWithDateGroups<T>(
+  items: T[],
+  getAgeHrs: (item: T) => number,
+  renderRow: (item: T) => React.ReactNode,
+): React.ReactNode {
+  const out: React.ReactNode[] = [];
+  let lastBucket: ReturnType<typeof dateGroupKey> | null = null;
+  // Track how many times each bucket has appeared so duplicate
+  // headers (e.g. when a custom sort puts a "today" item below a
+  // "yesterday" one) get unique keys instead of collapsing.
+  const bucketSeen: Record<string, number> = {};
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const b = dateGroupKey(getAgeHrs(item));
+    if (b !== lastBucket) {
+      bucketSeen[b] = (bucketSeen[b] ?? 0) + 1;
+      const headerKey = bucketSeen[b] === 1 ? `hdr-${b}` : `hdr-${b}-${i}`;
+      out.push(
+        <div key={headerKey} data-tulala-inbox-group-header style={{
+          padding: "10px 14px 4px",
+          fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
+          textTransform: "uppercase", color: COLORS.inkMuted,
+          background: "#fff",
+          position: "sticky", top: 0, zIndex: 1,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+        }}>
+          {DATE_GROUP_LABEL[b]}
+        </div>,
+      );
+      lastBucket = b;
+    }
+    out.push(renderRow(item));
+  }
+  return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SYSTEM USER (workspace identity) — Phase 1 of the System User direction
+// ════════════════════════════════════════════════════════════════════
+//
+// The System User represents the workspace itself (Atelier Roma /
+// Acme Models / etc.) as a participant in chats and as an outbound
+// sender for automated events. Why we need it:
+//   • Coordinator handoffs would otherwise leave conversations with
+//     orphaned sender attribution ("Sara said X" → Sara left, who do
+//     I respond to?). System User absorbs that continuity.
+//   • Booking confirmations + offer-sent + reassign events should
+//     read as workspace-issued, not coordinator-issued.
+//   • Lets coords optionally post AS the workspace when they want to
+//     speak with the agency's voice rather than their own (Phase 4).
+//
+// Tier behavior:
+//   • Free   → System User identity = the owner-talent. Single voice,
+//              no abstraction (the owner IS the workspace).
+//   • Studio → Workspace brand (e.g. "Atelier Roma"). Owner + 1-2 coords
+//              can post as it.
+//   • Agency → Workspace brand. Owner + admin + coordinators can post
+//              as it. Permissioned via WorkspaceRole.
+//   • Network → One System User per agency in the federation; cross-
+//              agency referrals can show both.
+export type WorkspaceIdentity = {
+  /** Display name shown in chat bubbles + lists. */
+  name: string;
+  /** 2-letter avatar fallback. */
+  initials: string;
+  /** Optional logo URL. When absent, the avatar uses tone:"ink" with initials. */
+  logoUrl?: string;
+  /** Plan tier — drives which features the workspace can use as a
+   *  System User (e.g. Free can't post as workspace because the owner
+   *  IS the workspace). */
+  planTier: "free" | "studio" | "agency" | "network";
+  /** Workspace slug — used for routing to the workspace profile page. */
+  slug: string;
+  /** Outbound voice signature appended to system-routed messages. */
+  signature?: string;
+};
+
+// Demo workspaces — production reads from `state.workspaceName` +
+// `state.plan` + a workspace-settings record we don't ship yet. The
+// WORKSPACE_REGISTRY is keyed by the agency name we already use in
+// Conversation.agency so it's a 1:1 lookup from existing data.
+const WORKSPACE_REGISTRY: Record<string, WorkspaceIdentity> = {
+  "Atelier Roma": {
+    name: "Atelier Roma", initials: "AR", planTier: "agency",
+    slug: "atelier-roma", signature: "Sent on behalf of Atelier Roma",
+  },
+  "Acme Models": {
+    name: "Acme Models", initials: "AM", planTier: "agency",
+    slug: "acme-models", signature: "Sent on behalf of Acme Models",
+  },
+  "Praline London": {
+    name: "Praline London", initials: "PL", planTier: "studio",
+    slug: "praline-london", signature: "Sent by Praline London",
+  },
+  "Reyes Movement Studio": {
+    name: "Reyes Movement Studio", initials: "RM", planTier: "studio",
+    slug: "reyes-movement", signature: "Sent by Reyes Movement Studio",
+  },
+};
+
+/**
+ * Resolve a workspace identity from an agency name. Falls back to a
+ * synthesized identity built from the name when there's no entry — keeps
+ * the chat bubble renderable for any agency the demo introduces without
+ * us having to register them all up front.
+ */
+export function getWorkspaceIdentity(agencyName: string): WorkspaceIdentity {
+  const hit = WORKSPACE_REGISTRY[agencyName];
+  if (hit) return hit;
+  return {
+    name: agencyName,
+    initials: agencyName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "AG",
+    planTier: "agency",
+    slug: agencyName.toLowerCase().replace(/\s+/g, "-"),
+  };
+}
+
+// ── Presence layer ──
+// Live online/away/offline indicator for coordinators + workspace
+// members. Production reads from a presence service (websocket
+// heartbeat); the prototype derives a deterministic mock from the
+// person's name so the same coord always reads the same status —
+// keeps screenshots stable across refreshes.
+export type Presence = "online" | "away" | "offline";
+export function usePresence(name: string | null | undefined): Presence {
+  // Hash the name into one of three buckets. Deterministic for the
+  // demo — Marta is always "online", Sara always "away" etc.
+  if (!name) return "offline";
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  const bucket = Math.abs(h) % 5;
+  // 3/5 chance online, 1/5 away, 1/5 offline — mostly-active feel
+  if (bucket < 3) return "online";
+  if (bucket === 3) return "away";
+  return "offline";
+}
+const PRESENCE_PALETTE: Record<Presence, { color: string; label: string }> = {
+  online:  { color: COLORS.success,         label: "Online" },
+  away:    { color: COLORS.amber,           label: "Away" },
+  offline: { color: "rgba(11,11,13,0.20)",  label: "Offline" },
+};
+// Small dot overlay — wraps an Avatar when used as `<div style={{position:"relative"}}><Avatar/><PresenceDot/></div>`.
+function PresenceDot({ name, size = 9 }: { name: string | null | undefined; size?: number }) {
+  const p = usePresence(name);
+  if (p === "offline") return null; // no need to render an offline marker
+  const palette = PRESENCE_PALETTE[p];
+  return (
+    <span
+      title={`${name} · ${palette.label}`}
+      aria-label={`${name ?? "User"} is ${palette.label.toLowerCase()}`}
+      style={{
+        position: "absolute",
+        right: -1, bottom: -1,
+        width: size, height: size, borderRadius: "50%",
+        background: palette.color,
+        border: "1.5px solid #fff",
+        boxShadow: "0 0 0 0.5px rgba(11,11,13,0.04)",
+      }}
+    />
+  );
+}
+
+// ── Coord workload pill — admin-side signal that surfaces how busy a
+// coordinator currently is (active project count). Used inline next to
+// the coord name on the AdminBookingTab Coordinator card so admins can
+// gauge load before assigning. Production reads from coordinator's
+// workspace metrics; mock derives a stable deterministic count from
+// the coord's name. ──
+function getCoordWorkload(name: string | null | undefined): number {
+  if (!name) return 0;
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 17 + name.charCodeAt(i)) | 0;
+  return (Math.abs(h) % 12) + 1; // 1-12 active projects
+}
+function CoordWorkloadPill({ name }: { name: string }) {
+  const count = getCoordWorkload(name);
+  const tone = count >= 10 ? "heavy" : count >= 6 ? "balanced" : "light";
+  const palette = tone === "heavy"
+    ? { bg: `${COLORS.coral}14`, fg: COLORS.coralDeep }
+    : tone === "balanced"
+    ? { bg: `${COLORS.amber}1a`, fg: COLORS.amber }
+    : { bg: COLORS.successSoft, fg: COLORS.successDeep ?? COLORS.success };
+  return (
+    <span
+      title={`${count} active project${count === 1 ? "" : "s"} on ${name}'s plate · ${tone} load`}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 3,
+        padding: "1px 6px", borderRadius: 999,
+        background: palette.bg, color: palette.fg,
+        fontSize: 9.5, fontWeight: 700,
+        textTransform: "uppercase", letterSpacing: 0.4,
+        flexShrink: 0,
+      }}>
+      <svg width="8" height="8" viewBox="0 0 10 10" fill="none" aria-hidden>
+        <rect x="1.5" y="1.5" width="2.5" height="7" rx="0.5" stroke="currentColor" strokeWidth="1"/>
+        <rect x="6" y="3.5" width="2.5" height="5" rx="0.5" stroke="currentColor" strokeWidth="1"/>
+      </svg>
+      {count}
+    </span>
+  );
+}
+
+// ── Inbox row hover quick-actions ──
+// Reveals Pin / Mark unread / Archive buttons on the right edge of an
+// inbox row when hovered (desktop) or focused. Each button uses
+// stopPropagation so clicking it doesn't open the row. Mobile users
+// won't see hover but the keyboard tab order still surfaces them.
+//
+// Mock implementation — actions resolve to a toast in the prototype.
+// Production wires to a per-conv mutation store (pin to top, flip
+// seen→unread, archive into a separate bucket).
+function InboxRowHoverActions({
+  rowId, label,
+}: {
+  rowId: string;
+  label: string;
+}) {
+  const { toast } = useProto();
+  // Subscribe so the Pin / Unread buttons re-render their on/off
+  // state immediately when toggled.
+  useFlagsSubscription();
+  const pinned = isPinned(rowId);
+  const manualUnread = isManualUnread(rowId);
+  const stop = (e: React.MouseEvent | React.KeyboardEvent) => { e.stopPropagation(); e.preventDefault(); };
+  const btn = (
+    title: string,
+    active: boolean,
+    glyph: React.ReactNode,
+    onAct: () => void,
+  ) => (
+    <span
+      role="button"
+      tabIndex={0}
+      title={title}
+      aria-label={`${title} ${label}`}
+      aria-pressed={active}
+      onClick={(e) => { stop(e); onAct(); }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { stop(e); onAct(); } }}
+      style={{
+        width: 22, height: 22, borderRadius: 6,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        color: active ? COLORS.accentDeep : COLORS.inkMuted,
+        cursor: "pointer", flexShrink: 0,
+        background: active ? COLORS.accentSoft : "transparent",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          (e.currentTarget as HTMLSpanElement).style.background = "rgba(11,11,13,0.06)";
+          (e.currentTarget as HTMLSpanElement).style.color = COLORS.ink;
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          (e.currentTarget as HTMLSpanElement).style.background = "transparent";
+          (e.currentTarget as HTMLSpanElement).style.color = COLORS.inkMuted;
+        }
+      }}
+    >
+      {glyph}
+    </span>
+  );
+  return (
+    <div
+      data-tulala-row-hover-actions
+      style={{
+        position: "absolute",
+        right: 8, top: "50%", transform: "translateY(-50%)",
+        // Pinned conv keeps its actions visible (so the user can
+        // unpin without re-hovering); other rows reveal on hover.
+        display: pinned ? "flex" : "none",
+        alignItems: "center", gap: 2,
+        padding: "2px 4px", borderRadius: 8,
+        background: "#fff",
+        boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
+        border: `1px solid ${COLORS.borderSoft}`,
+        zIndex: 1,
+      }}
+    >
+      {btn("Pin", pinned, (
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+          <path d="M9 1L13 5L9 5L9 9L11 11H3L5 9V5H1L5 1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill={pinned ? "currentColor" : "none"} fillOpacity={pinned ? 0.18 : 0}/>
+        </svg>
+      ), () => { togglePin(rowId); toast(pinned ? `Unpinned · ${label}` : `Pinned · ${label}`); })}
+      {btn("Mark unread", manualUnread, (
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.4" fill="currentColor"/>
+        </svg>
+      ), () => { toggleManualUnread(rowId); toast(manualUnread ? `Marked read · ${label}` : `Marked unread · ${label}`); })}
+      {btn("Archive", false, (
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+          <rect x="1.5" y="3" width="11" height="2.5" rx="0.5" stroke="currentColor" strokeWidth="1.3"/>
+          <path d="M2.5 5.5v6.5h9V5.5M5.5 8h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        </svg>
+      ), () => toast(`Archived · ${label}`))}
+    </div>
+  );
+}
+
+// CSS injected once that wires the hover-show behavior. The row
+// component sets `data-tulala-inbox-row` so the rule scope is narrow.
+// Pinned rows always show actions (they're rendered with display:flex
+// inline by the component itself, so the rule below is for the rest).
+const HOVER_ACTIONS_CSS = `
+[data-tulala-inbox-row]:hover [data-tulala-row-hover-actions],
+[data-tulala-inbox-row]:focus-within [data-tulala-row-hover-actions] {
+  display: flex !important;
+}
+`;
+function HoverActionsCss() {
+  return <style dangerouslySetInnerHTML={{ __html: HOVER_ACTIONS_CSS }} />;
+}
+
+// ── CoordAvatarPopover — hover/focus mini-card on coord avatars ──
+// Wraps an avatar with a small popover showing the coord's name,
+// role, presence, workload, and a Message CTA. Renders on hover
+// (desktop) or long-press (mobile, future). Replaces the old
+// "avatar is decorative" pattern with a tactile context drop-in.
+function CoordAvatarPopover({
+  name, initials, role,
+  size = 36, photoUrl,
+  withPresence = true,
+  withWorkload = false,
+}: {
+  name: string;
+  initials: string;
+  role?: string;
+  size?: number;
+  photoUrl?: string;
+  withPresence?: boolean;
+  withWorkload?: boolean;
+}) {
+  const { toast } = useProto();
+  const [open, setOpen] = useState(false);
+  const presence = usePresence(name);
+  const workload = getCoordWorkload(name);
+  const presencePalette = PRESENCE_PALETTE[presence];
+  return (
+    <span
+      style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+      tabIndex={0}
+    >
+      <Avatar size={size} tone={role === "owner" || role === "coordinator" ? "ink" : "auto"} hashSeed={name} initials={initials} photoUrl={photoUrl} />
+      {withPresence && <PresenceDot name={name} />}
+      {open && (
+        <div role="tooltip" style={{
+          position: "absolute",
+          left: "50%", transform: "translateX(-50%)",
+          top: `calc(100% + 6px)`,
+          zIndex: 50,
+          minWidth: 220, maxWidth: 260,
+          padding: 12,
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          boxShadow: "0 12px 32px -8px rgba(11,11,13,0.18), 0 4px 8px rgba(11,11,13,0.06)",
+          fontFamily: FONTS.body, color: COLORS.ink,
+          textAlign: "left",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <Avatar size={32} tone="ink" hashSeed={name} initials={initials} photoUrl={photoUrl} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {name}
+              </div>
+              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "capitalize" }}>
+                {role === "owner" ? "Workspace owner" : role || "Coordinator"}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: COLORS.inkMuted, marginBottom: withWorkload ? 6 : 10 }}>
+            <span aria-hidden style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: presencePalette.color,
+            }} />
+            <span style={{ fontWeight: 600, color: COLORS.ink }}>{presencePalette.label}</span>
+            <span aria-hidden style={{ opacity: 0.4 }}>·</span>
+            <span>last seen {presence === "online" ? "now" : presence === "away" ? "12m ago" : "2h ago"}</span>
+          </div>
+          {withWorkload && (
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 10 }}>
+              <strong style={{ color: COLORS.ink, fontWeight: 600 }}>{workload}</strong> active project{workload === 1 ? "" : "s"}
+              {" · "}
+              {workload >= 10 ? "heavy load" : workload >= 6 ? "balanced load" : "light load"}
+            </div>
+          )}
+          <button type="button"
+            onClick={(e) => { e.stopPropagation(); toast(`Messaging ${name}…`); }}
+            style={{
+              width: "100%", padding: "6px 10px", borderRadius: 8,
+              border: `1px solid ${COLORS.border}`, background: "transparent",
+              color: COLORS.ink, cursor: "pointer",
+              fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
+            }}>
+            Message {name.split(" ")[0]}
+          </button>
+        </div>
+      )}
+    </span>
+  );
+}
+
+// ── First-time conversation banner ──
+// Shown at the top of the message stream when this is the first
+// conversation the user has had with this client. Big personality
+// boost + actionable context: "what's the typical brief / pay range
+// / things to ask". Production reads from a CRM signal (no prior
+// conversation exists between sender + recipient); the prototype
+// uses a hardcoded "new clients" list keyed by client name.
+const FIRST_TIME_CLIENTS = new Set([
+  "Aesop", "Lacoste", "Tequila Olmeca", "Praline London",
+  "Eden Hotel", "Lyra Skincare", "Estudio Roca",
+]);
+function isFirstConvWith(clientName: string | null | undefined): boolean {
+  if (!clientName) return false;
+  return FIRST_TIME_CLIENTS.has(clientName);
+}
+function FirstConvBanner({
+  clientName, audience = "talent",
+}: {
+  clientName: string;
+  /** "talent" or "admin" framing. The hint copy adjusts. */
+  audience?: "talent" | "admin" | "client";
+}) {
+  const hint = audience === "admin"
+    ? "First inquiry from this client. Confirm scope + budget early — no priors to anchor on."
+    : audience === "client"
+    ? "Welcome — first project together. Let your coordinator know your usual cadence + must-haves."
+    : "First time you'll work with this client. Lock the brief + usage scope early.";
+  return (
+    <div style={{
+      display: "flex", alignItems: "flex-start", gap: 10,
+      padding: "10px 12px", margin: "0 14px 8px",
+      background: `linear-gradient(135deg, rgba(46,125,91,0.08) 0%, ${COLORS.surfaceAlt} 100%)`,
+      border: `1px solid rgba(46,125,91,0.22)`,
+      borderRadius: 10,
+      fontFamily: FONTS.body,
+    }}>
+      <span aria-hidden style={{
+        flexShrink: 0,
+        width: 24, height: 24, borderRadius: 6,
+        background: "rgba(46,125,91,0.16)", color: COLORS.successDeep ?? COLORS.success,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        marginTop: 1,
+      }}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <path d="M7 1.5l1.7 3.6 3.8.5-2.8 2.6.7 3.8L7 10.2 3.6 12l.7-3.8L1.5 5.6l3.8-.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+        </svg>
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
+          textTransform: "uppercase", color: COLORS.successDeep ?? COLORS.success,
+        }}>
+          First time with {clientName}
+        </div>
+        <div style={{
+          fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5,
+        }}>
+          {hint}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── CoordRoleBadge — small inline pill that surfaces when the
+// coordinator on a project is ALSO the workspace owner / admin (not a
+// regular team coordinator). Visible to talent + clients on the
+// coordinator card so they know they're talking to the person who
+// owns the workspace, not just any coord.
+//
+// Why an explicit signal?
+//   • Trust: bigger jobs / sensitive asks land more confidently with
+//     "the buck stops here" coords than with handoff-prone middle layers.
+//   • Authority: talent who escalate know they don't need to ask for
+//     a manager — they're already on the line.
+//   • Workspace-side counterpart to ClientTrustBadge (which surfaces
+//     trust on the OTHER party). Together they give both sides a quick
+//     read on who they're dealing with.
+//
+// Currently keyed off `role === "owner"`. Future: extend to "admin"
+// (non-owner with admin permissions) using a different label/color, and
+// to a "Founder" tier on solo workspaces.
+function CoordRoleBadge({
+  role, compact = false,
+}: {
+  role?: string;
+  /** When true, hides the text label and just renders the star icon
+   *  — useful inside dense rows / message bubble headers. */
+  compact?: boolean;
+}) {
+  if (role !== "owner") return null;
+  return (
+    <span
+      title="Workspace owner — runs this workspace"
+      aria-label="Workspace owner"
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 3,
+        padding: compact ? "1px 4px" : "1px 6px",
+        borderRadius: 999,
+        background: COLORS.indigoSoft,
+        color: COLORS.indigoDeep,
+        fontSize: 9.5, fontWeight: 700,
+        letterSpacing: 0.4, textTransform: "uppercase",
+        flexShrink: 0,
+        verticalAlign: "middle",
+      }}
+    >
+      <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
+        <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+      </svg>
+      {!compact && "Owner"}
+    </span>
+  );
+}
 
 // SLA freshness — fresh=green / aging=amber / overdue=red.
 // Thresholds tuned for prototype demo: <4h fresh, <24h aging, else overdue
@@ -251,10 +812,11 @@ function SearchPill({ value, onChange, placeholder }: { value: string; onChange:
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Escape" && value) onChange(""); }}
         placeholder={placeholder}
         style={{
           width: "100%", boxSizing: "border-box",
-          padding: "8px 12px 8px 32px", borderRadius: 999,
+          padding: "8px 32px 8px 32px", borderRadius: 999,
           border: `1px solid ${COLORS.border}`, background: "rgba(11,11,13,0.04)",
           fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
         }}
@@ -262,7 +824,26 @@ function SearchPill({ value, onChange, placeholder }: { value: string; onChange:
       <div style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)" }}>
         <Icon name="search" size={13} color={COLORS.inkDim} />
       </div>
-      {!value && (
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Clear search"
+          title="Clear (Esc)"
+          style={{
+            position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+            width: 22, height: 22, borderRadius: "50%",
+            border: "none", background: "rgba(11,11,13,0.08)",
+            color: COLORS.inkMuted, cursor: "pointer",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            padding: 0,
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+            <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          </svg>
+        </button>
+      ) : (
         <kbd aria-hidden style={{
           position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
           fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 600,
@@ -356,6 +937,9 @@ export function setRowOverride(convId: string, rowId: string, patch: Partial<Lin
   const key = `${convId}:${rowId}`;
   __rowOverrides[key] = { ...__rowOverrides[key], ...patch };
   __rowOverrideSubscribers.forEach(fn => fn());
+  // Notify offer-stash subscribers too so any consumer of
+  // getEffectiveOffer re-renders when row overrides change.
+  __offerSubscribers.forEach(fn => fn());
 }
 export function clearRowOverrides(convId: string) {
   for (const key of Object.keys(__rowOverrides)) {
@@ -386,6 +970,84 @@ function useRowOverrideSubscription() {
   }, []);
 }
 
+// ── Module-level offer-override store ──
+// Talent-side rate submissions, client-side approvals, admin-side
+// stage transitions all write into this single store, keyed by conv
+// id. Every shell reads through `getEffectiveOffer(convId)` instead
+// of `MOCK_OFFER_FOR_CONV` directly, so a mutation made by talent
+// is visible to client + admin in real time (within a session).
+type OfferOverride = {
+  /** Local stage override — wins over the seed offer.stage. */
+  stage?: Offer["stage"];
+  /** Per-row patches keyed by row.id. */
+  rows?: Record<string, Partial<LineupRow>>;
+  /** Extra timeline events appended after the seed timeline. */
+  appendedTimeline?: TimelineEvent[];
+};
+const __offerOverrides: Record<string, OfferOverride> = {};
+const __offerSubscribers = new Set<() => void>();
+export function getEffectiveOffer(convId: string): Offer | undefined {
+  const seed = MOCK_OFFER_FOR_CONV[convId] ?? MOCK_OFFER_FOR_CONV[RICH_OFFER_ALIAS[convId] ?? ""];
+  if (!seed) return undefined;
+  const ov = __offerOverrides[convId];
+  // Layer 1 — apply offer-level overrides (stage + new timeline events).
+  const withOfferOv: Offer = ov ? {
+    ...seed,
+    stage: ov.stage ?? seed.stage,
+    rows: ov.rows
+      ? seed.rows.map(r => ov.rows?.[r.id] ? { ...r, ...ov.rows[r.id] } as LineupRow : r)
+      : seed.rows,
+    timeline: ov.appendedTimeline
+      ? [...seed.timeline, ...ov.appendedTimeline]
+      : seed.timeline,
+  } : seed;
+  // Layer 2 — apply per-row overrides (the older talent-shell store).
+  // Both stores can be writing to the same conv, e.g. talent submits a
+  // rate (→ __rowOverrides) and client approves (→ __offerOverrides).
+  return applyRowOverrides(convId, withOfferOv);
+}
+export function applyOfferOverride(convId: string, patch: OfferOverride): void {
+  const prev = __offerOverrides[convId] ?? {};
+  __offerOverrides[convId] = {
+    stage: patch.stage ?? prev.stage,
+    rows: patch.rows ? { ...(prev.rows ?? {}), ...patch.rows } : prev.rows,
+    appendedTimeline: patch.appendedTimeline
+      ? [...(prev.appendedTimeline ?? []), ...patch.appendedTimeline]
+      : prev.appendedTimeline,
+  };
+  __offerSubscribers.forEach(fn => fn());
+}
+function useOfferStashSubscription(): void {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const fn = () => force(n => n + 1);
+    __offerSubscribers.add(fn);
+    return () => { __offerSubscribers.delete(fn); };
+  }, []);
+}
+
+// ── Per-conv "My notes" store ──
+// TalentBookingTab + ClientProjectViewTab both render a notes
+// textarea. Without per-conv keying the same draft showed on every
+// conversation. Now keyed by conv.id so each project has its own.
+const __notesStash: Record<string, string> = {};
+const __notesSubscribers = new Set<() => void>();
+export function readConvNote(convId: string): string {
+  return __notesStash[convId] ?? "";
+}
+export function writeConvNote(convId: string, text: string): void {
+  __notesStash[convId] = text;
+  __notesSubscribers.forEach(fn => fn());
+}
+function useNotesSubscription(): void {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const fn = () => force(n => n + 1);
+    __notesSubscribers.add(fn);
+    return () => { __notesSubscribers.delete(fn); };
+  }, []);
+}
+
 // ── Local message stash ──
 // Module-level appendable store of "messages I just sent" keyed by
 // thread id (e.g. "c1:talent" / "c7:client" / bare "c1"). Composer
@@ -393,15 +1055,19 @@ function useRowOverrideSubscription() {
 // stashed when reading. Survives unmount/remount within a session;
 // resets on full reload. Lets the demo "send → see your bubble"
 // without a backend.
-type StashedMsg = { id: string; body: string; ts: string; sender: "you" };
+// Sender on a stashed message — supports both "you" (default — sent
+// as the individual user) and "workspace" (Phase 4 of System User
+// direction — sent on behalf of the workspace, e.g. "Atelier Roma:
+// Booking confirmed").
+type StashedMsg = { id: string; body: string; ts: string; sender: "you" | "workspace" };
 const __localMsgStash: Record<string, StashedMsg[]> = {};
 const __msgSubscribers = new Set<() => void>();
-export function appendLocalMessage(threadKey: string, body: string) {
+export function appendLocalMessage(threadKey: string, body: string, sender: "you" | "workspace" = "you") {
   const trimmed = body.trim();
   if (!trimmed) return;
   const arr = __localMsgStash[threadKey] ?? [];
   const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  arr.push({ id: `local-${threadKey}-${arr.length + 1}`, body: trimmed, ts: `Just now · ${stamp}`, sender: "you" });
+  arr.push({ id: `local-${threadKey}-${arr.length + 1}`, body: trimmed, ts: `Just now · ${stamp}`, sender });
   __localMsgStash[threadKey] = arr;
   __msgSubscribers.forEach(fn => fn());
 }
@@ -417,17 +1083,147 @@ function useMessageStashSubscription() {
   }, []);
 }
 
+// ── Conv flags store (pinned + manual-unread) ──
+// User-curated row state that persists across reloads. Pinning floats
+// a conv to the top of the inbox; manual-unread flips the row's seen
+// state back to unseen so the user can come back to it later. Both
+// signals live in one store keyed by conv id, persisted to
+// localStorage so they survive refresh.
+type ConvFlags = { pinned?: boolean; manualUnread?: boolean };
+const __FLAGS_STORAGE_KEY = "tulala.proto.convFlags.v1";
+const __convFlags: Record<string, ConvFlags> = (() => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(__FLAGS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as Record<string, ConvFlags>;
+  } catch { return {}; }
+})();
+function __persistFlags() {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(__FLAGS_STORAGE_KEY, JSON.stringify(__convFlags)); } catch { /* ignore */ }
+}
+const __flagsSubscribers = new Set<() => void>();
+export function isPinned(id: string): boolean {
+  return !!__convFlags[id]?.pinned;
+}
+export function isManualUnread(id: string): boolean {
+  return !!__convFlags[id]?.manualUnread;
+}
+export function togglePin(id: string) {
+  const cur = __convFlags[id] ?? {};
+  __convFlags[id] = { ...cur, pinned: !cur.pinned };
+  __persistFlags();
+  __flagsSubscribers.forEach(fn => fn());
+}
+export function toggleManualUnread(id: string) {
+  const cur = __convFlags[id] ?? {};
+  __convFlags[id] = { ...cur, manualUnread: !cur.manualUnread };
+  // When marking manual-unread, also remove from the locally-seen
+  // set so the NEW pill / coral wash returns. When clearing, leave
+  // locally-seen alone (the user already saw it once).
+  if (__convFlags[id]?.manualUnread) {
+    __locallySeenConvs.delete(id);
+    __persistSeen();
+    __seenSubscribers.forEach(fn => fn());
+  }
+  __persistFlags();
+  __flagsSubscribers.forEach(fn => fn());
+}
+function useFlagsSubscription(): void {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const fn = () => force(n => n + 1);
+    __flagsSubscribers.add(fn);
+    return () => { __flagsSubscribers.delete(fn); };
+  }, []);
+}
+// Sort items so pinned ones float to the top while preserving the
+// caller's existing order otherwise. Stable across rerenders.
+function sortPinnedFirst<T extends { id: string }>(items: T[]): T[] {
+  // Use a partition to avoid in-place sort allocating; keeps original
+  // order within each bucket which matters because filters sort the
+  // input by recency / SLA before this point.
+  const pinned: T[] = [];
+  const rest: T[] = [];
+  for (const i of items) {
+    if (isPinned(i.id)) pinned.push(i); else rest.push(i);
+  }
+  return pinned.length === 0 ? items : [...pinned, ...rest];
+}
+
+// ── Handoff queue store ──
+// Module-level log of coordinator reassignments. When a Reassign
+// happens, we push an entry here so the receiving coord sees an
+// "Incoming handoff" badge on the affected inbox row + can filter to
+// just their incoming queue. Clears when the receiving coord opens
+// the row (clearHandoff).
+type HandoffEntry = {
+  inquiryId: string;
+  fromCoordName: string;
+  toCoordName: string;
+  note: string;
+  ts: number;
+};
+const __handoffStash: HandoffEntry[] = [];
+const __handoffSubscribers = new Set<() => void>();
+export function recordHandoff(entry: Omit<HandoffEntry, "ts">) {
+  __handoffStash.push({ ...entry, ts: Date.now() });
+  __handoffSubscribers.forEach(fn => fn());
+}
+export function clearHandoff(inquiryId: string, toCoordName: string) {
+  const before = __handoffStash.length;
+  for (let i = __handoffStash.length - 1; i >= 0; i--) {
+    const h = __handoffStash[i]!;
+    if (h.inquiryId === inquiryId && h.toCoordName === toCoordName) {
+      __handoffStash.splice(i, 1);
+    }
+  }
+  if (__handoffStash.length !== before) __handoffSubscribers.forEach(fn => fn());
+}
+export function getIncomingHandoffs(coordName: string): HandoffEntry[] {
+  return __handoffStash.filter(h => h.toCoordName === coordName);
+}
+function useHandoffSubscription(): void {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const fn = () => force(n => n + 1);
+    __handoffSubscribers.add(fn);
+    return () => { __handoffSubscribers.delete(fn); };
+  }, []);
+}
+
 // ── Seen-state store ──
-// Tracks which "brand-new" conversations the talent has opened in
-// this session. Conversations seeded with `seen: false` (c11 Aesop,
-// c12 Lacoste) start in the unseen set; clicking into one removes it,
-// dropping the NEW pill + coral row tint. Module-scoped so the state
-// survives unmount/remount within a session — refresh resets to seed.
-const __locallySeenConvs = new Set<string>();
+// Tracks which "brand-new" conversations the user has opened. Started
+// as a session-only Set; now persisted to localStorage so the demo
+// doesn't re-pill every fresh session (a row that's been opened stays
+// opened). Falls back to in-memory only when localStorage isn't
+// available (SSR, private browsing, sandboxed previews).
+const __SEEN_STORAGE_KEY = "tulala.proto.seenConvs.v1";
+const __locallySeenConvs: Set<string> = (() => {
+  if (typeof window === "undefined") return new Set<string>();
+  try {
+    const raw = window.localStorage.getItem(__SEEN_STORAGE_KEY);
+    if (!raw) return new Set<string>();
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? new Set(parsed.filter((x): x is string => typeof x === "string")) : new Set<string>();
+  } catch {
+    return new Set<string>();
+  }
+})();
+function __persistSeen() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(__SEEN_STORAGE_KEY, JSON.stringify(Array.from(__locallySeenConvs)));
+  } catch { /* quota / private mode — keep in-memory copy */ }
+}
 const __seenSubscribers = new Set<() => void>();
 export function markConvSeen(id: string) {
   if (__locallySeenConvs.has(id)) return;
   __locallySeenConvs.add(id);
+  __persistSeen();
   __seenSubscribers.forEach(fn => fn());
 }
 export function isLocallySeen(id: string): boolean {
@@ -514,17 +1310,19 @@ export function MessagesShell({ pov }: { pov: MessagesPov }) {
 // need. The admin's job: flip between Client thread / Talent group /
 // Files (the existing tabs) and use the rail to drive the deal forward.
 
-type AdminFilter = "all" | "needs-me" | "unread" | "inquiry" | "hold" | "booked" | "past";
+type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past";
 
 function AdminOperationsShell() {
   const inquiries = RICH_INQUIRIES;
+  // Re-render on seen-state changes so the inbox re-sorts the moment
+  // a row gets clicked (NEW pill drops, unseen tier loses that row).
+  useSeenSubscription();
   // Pin-aware initial state — same pattern as the other shells. The pin
   // can carry either a conv id (cN) OR an inquiry id (RI-XXX); we map
   // through INQUIRY_TO_CONV reverse if needed.
   const { initialId, fromPin } = (() => {
     const pending = consumePendingConversation();
     if (!pending) return { initialId: inquiries[0]?.id ?? "", fromPin: false };
-    // Match RI-* directly first; otherwise try the reverse alias from cN.
     if (inquiries.some(i => i.id === pending)) return { initialId: pending, fromPin: true };
     const reverseFromConv: Record<string, string> = { c1: "RI-201", c2: "RI-202", c3: "RI-203" };
     const ri = reverseFromConv[pending];
@@ -532,6 +1330,12 @@ function AdminOperationsShell() {
     return { initialId: inquiries[0]?.id ?? "", fromPin: false };
   })();
   const [activeId, setActiveId] = useState<string>(initialId);
+  // Initial conv counts as seen on mount so the user never sees a NEW
+  // pill on the conv they're currently viewing.
+  useEffect(() => {
+    if (initialId) markConvSeen(initialId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<AdminFilter>("needs-me");
   const [mobilePane, setMobilePane] = useState<"list" | "thread">(fromPin ? "thread" : "list");
@@ -543,17 +1347,54 @@ function AdminOperationsShell() {
     return "past";
   };
 
+  // talent_coord lens — inquiries where the current user (Marta) is
+  // the coordinator on the lineup. Surfaces the dedicated "I'm
+  // running this" view for talent who manage their own studios.
+  const isCoordOnInquiry = (i: RichInquiry) =>
+    i.coordinator?.name === "Marta Reyes"
+    || i.requirementGroups.some(g => g.talents.some(t => t.name === "Marta Reyes"));
+
+  // Pre-compute incoming handoff inquiry-id set so the row filter can
+  // do a quick membership check without re-querying the store per row.
+  const handoffIds = new Set(getIncomingHandoffs("Marta Reyes").map(h => h.inquiryId));
   const filtered = inquiries.filter(i => {
     const bucket = stageBucket(i.stage);
     if (filter === "needs-me" && i.nextActionBy !== "coordinator") return false;
     if (filter === "unread" && i.unreadGroup === 0 && i.unreadPrivate === 0) return false;
-    if (filter !== "all" && filter !== "needs-me" && filter !== "unread" && bucket !== filter) return false;
+    if (filter === "coordinating" && !isCoordOnInquiry(i)) return false;
+    if (filter === "handoffs" && !handoffIds.has(i.id)) return false;
+    if (filter !== "all" && filter !== "needs-me" && filter !== "unread" && filter !== "coordinating" && filter !== "handoffs" && bucket !== filter) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      if (!i.clientName.toLowerCase().includes(q) && !i.brief.toLowerCase().includes(q)) return false;
+      // Search across all the things an admin would scan for: client
+      // name, brief, agency, coordinator name, location/city, and the
+      // brief inquiry source label. Used to be client+brief only —
+      // searching for "Sara" or "Lisbon" returned nothing.
+      const haystack = [
+        i.clientName,
+        i.brief,
+        i.agencyName,
+        i.coordinator?.name,
+        i.location,
+        i.source.kind === "hub" ? i.source.hubName : "",
+        i.source.kind === "direct" ? i.source.domain : "",
+      ].filter(Boolean).join(" ").toLowerCase();
+      if (!haystack.includes(q)) return false;
     }
     return true;
-  }).sort((a, b) => a.lastActivityHrs - b.lastActivityHrs);
+  }).sort((a, b) => {
+    // Same chronological model as the talent + client inboxes:
+    //   Tier 1 — unseen / brand-new inquiries first (most urgent)
+    //   Tier 2 — needs-me first (admin owes a reply)
+    //   Tier 3 — recency (lower ageHrs = more recent → top)
+    const aNew = (a.seen === false && !isLocallySeen(a.id)) ? 1 : 0;
+    const bNew = (b.seen === false && !isLocallySeen(b.id)) ? 1 : 0;
+    if (aNew !== bNew) return bNew - aNew;
+    const aMine = a.nextActionBy === "coordinator" ? 1 : 0;
+    const bMine = b.nextActionBy === "coordinator" ? 1 : 0;
+    if (aMine !== bMine) return bMine - aMine;
+    return a.lastActivityHrs - b.lastActivityHrs;
+  });
 
   const active = inquiries.find(i => i.id === activeId) ?? filtered[0] ?? inquiries[0];
   const totalUnread = inquiries.reduce((s, i) => s + i.unreadGroup + i.unreadPrivate, 0);
@@ -561,24 +1402,45 @@ function AdminOperationsShell() {
 
   return (
     <>
-      {/* Page header removed — the inbox header inside the shell already
-          carries the title + count, so the outer header was redundant
-          chrome on every viewport. */}
       <div
         data-tulala-messages-shell
         data-mobile-pane={mobilePane}
         style={{
           display: "grid",
-          gridTemplateColumns: "340px 1fr",
+          ["--tulala-shell-cols" as never]: "340px 1fr",
+          gridTemplateColumns: "var(--tulala-shell-cols)",
           background: "#fff",
           border: `1px solid ${COLORS.borderSoft}`,
           borderRadius: 14,
           overflow: "hidden",
           height: "min(calc(100vh - var(--proto-cbar, 50px) - 56px - 200px), 820px)",
           minHeight: 560,
+          minWidth: 0,
+          maxWidth: "100%",
           fontFamily: FONTS.body,
         }}
       >
+        {/* Same fixed-position mobile pattern as the talent + client
+            shells. Shell pins to viewport between identity bar (top)
+            and bottom nav, panes stack via grid + slide between via
+            translateX (CSS lives in page.tsx). */}
+        <style dangerouslySetInnerHTML={{ __html:
+          "@media (max-width: 720px){"
+          + "[data-tulala-messages-shell]{"
+          + "position:fixed!important;"
+          + "left:0!important;right:0!important;"
+          + "width:100vw!important;max-width:100vw!important;"
+          + "grid-template-columns:1fr!important;"
+          + "top:calc(var(--proto-cbar, 50px) + 56px)!important;"
+          + "bottom:80px!important;"
+          + "height:calc(100dvh - var(--proto-cbar, 50px) - 56px - 80px)!important;"
+          + "min-height:0!important;max-height:none!important;"
+          + "border-radius:0!important;border-left:0!important;border-right:0!important;"
+          + "z-index:10!important;"
+          + "}"
+          + "[data-tulala-messages-shell] > *{min-width:0!important;max-width:100%!important}"
+          + "}"
+        }} />
         <AdminInboxList
           inquiries={filtered}
           activeId={active?.id ?? ""}
@@ -594,6 +1456,12 @@ function AdminOperationsShell() {
           {active ? <AdminInquiryDetail inquiry={active} onBack={() => setMobilePane("list")} /> : <EmptyDetail label="No inquiry selected" />}
         </div>
       </div>
+      {mobilePane === "thread" && (
+        <MobileInboxTab
+          unreadCount={totalUnread}
+          onOpen={() => setMobilePane("list")}
+        />
+      )}
     </>
   );
 }
@@ -604,16 +1472,26 @@ function AdminOperationsShell() {
 // progress dots. The "⚡ needs you" chip only appears when the chip
 // would tell you something the filter doesn't already (i.e. NOT shown
 // when the active filter is itself "needs-me").
+// AdminInquiryRow uses the SAME 4-row template as ClientProjectRow so
+// the inbox reads with one design language across all three roles. The
+// only differences are admin-specific signals folded into the same
+// slots:
+//   • Row 1 title is the brief (the project), not the client name
+//   • Row 2 leads with the client + lineup count "0/1" (admin
+//     operational data) instead of the client's "via Agency"
+//   • Row 3 status line speaks admin's voice ("Awaiting your reply",
+//     "3 talents pending") rather than the client's ("Coordinator
+//     preparing your shortlist")
+//   • Row 4 right slot is the coordinator-owner avatar+name (same
+//     as client's, just sourced differently)
+//   • Avatar carries the ClientTrustBadge — admin-only signal
 function AdminInquiryRow({
   inquiry, active, onClick, hideNeedsYouChip,
 }: { inquiry: RichInquiry; active: boolean; onClick: () => void; hideNeedsYouChip: boolean }) {
-  const lastMsg = inquiry.messages[inquiry.messages.length - 1];
-  const preview = lastMsg ? (lastMsg.isYou ? "You: " : "") + lastMsg.body.slice(0, 64) : "No messages yet";
   const totalUnread = inquiry.unreadGroup + inquiry.unreadPrivate;
   const allTalents = inquiry.requirementGroups.flatMap(g => g.talents);
   const lineupTotal = allTalents.length;
   const lineupAccepted = allTalents.filter(t => t.status === "accepted").length;
-  const lineupPending = allTalents.filter(t => t.status === "pending").length;
   const stageBucket: "inquiry" | "hold" | "booked" | "past" =
       inquiry.stage === "draft" || inquiry.stage === "submitted" || inquiry.stage === "coordination" ? "inquiry"
     : inquiry.stage === "offer_pending" ? "hold"
@@ -621,120 +1499,254 @@ function AdminInquiryRow({
     : "past";
   const sc = stageStyle(stageBucket);
   const needsMe = inquiry.nextActionBy === "coordinator";
-  const showNeedsYou = needsMe && !hideNeedsYouChip;
-  // Inline budget — derived from offer when present
-  const budget = inquiry.offer?.total ?? null;
-  // Coordinator initials — admin needs to know "who owns this" at a glance
-  const coordInitials = inquiry.coordinator?.initials ?? null;
-  const coordName = inquiry.coordinator?.name ?? null;
+  // hideNeedsYouChip is set when the user is already filtering by
+  // needs-me — we drop the redundant cue from the row in that case.
+  const surfaceNeedsMe = needsMe && !hideNeedsYouChip;
+  // Coordinator owner — admin needs to know "who owns this" at a glance
+  const coord = inquiry.coordinator;
+
+  // Map to client-row's 4-row vocabulary. "Title" = the project brief.
+  // "Subtitle" = client + date + city, comma-joined, ellipsised.
+  const cityLabel = inquiry.location?.split(" · ")[0] ?? null;
+  const briefMentionsCity = cityLabel && inquiry.brief.toLowerCase().includes(cityLabel.toLowerCase());
+  const subtitleParts = [
+    inquiry.clientName,
+    inquiry.date ? withWeekday(inquiry.date) : null,
+    !briefMentionsCity ? cityLabel : null,
+  ].filter(Boolean);
+
+  // Status line — admin's voice. Action-needed cases pull a coral
+  // bullet (same affordance as ClientProjectRow's `isActionNeeded`).
+  const lastMsg = inquiry.messages[inquiry.messages.length - 1];
+  const statusLine = (() => {
+    if (surfaceNeedsMe && lastMsg && !lastMsg.isYou) return `${(lastMsg.body || "").slice(0, 64)}`;
+    if (inquiry.stage === "draft")          return "Draft · not yet sent to talent";
+    if (inquiry.stage === "submitted")      return "Inviting talent to the shortlist";
+    if (inquiry.stage === "coordination")   return lineupAccepted < lineupTotal ? `Coordinating · ${lineupAccepted}/${lineupTotal} confirmed` : "All talent confirmed · drafting offer";
+    if (inquiry.stage === "offer_pending")  return inquiry.offer?.total ? `Offer ${inquiry.offer.total} · awaiting client` : "Offer with client · awaiting approval";
+    if (inquiry.stage === "approved")       return "Client approved · prep production";
+    if (inquiry.stage === "booked")         return inquiry.offer?.total ? `Booked · ${inquiry.offer.total}` : "Booked · schedule confirmed";
+    if (inquiry.stage === "rejected")       return "Rejected by client";
+    if (inquiry.stage === "expired")        return "Expired · client never replied";
+    if (lastMsg) return (lastMsg.isYou ? "You: " : "") + (lastMsg.body || "").slice(0, 64);
+    return "No messages yet";
+  })();
+  const isActionNeeded = surfaceNeedsMe;
+
+  // Stage word — uppercase pipeline label that lives next to the funnel
+  // dots in row 4. Mirrors ClientProjectRow's stageWord pattern.
+  const stageWord = inquiry.stage === "offer_pending" ? "Offer"
+    : inquiry.stage === "approved"     ? "Approved"
+    : inquiry.stage === "coordination" ? "Coordinating"
+    : inquiry.stage === "submitted"    ? "Inquiry"
+    : inquiry.stage === "draft"        ? "Draft"
+    : inquiry.stage === "rejected"     ? "Rejected"
+    : inquiry.stage === "expired"      ? "Expired"
+    : inquiry.stage.charAt(0).toUpperCase() + inquiry.stage.slice(1);
+
+  // Same seen + tint logic as the talent + client inboxes so the
+  // row pattern reads identically across all three roles.
+  // Manual-unread (user toggled "Mark unread" in hover actions)
+  // overrides the locally-seen state so the row reads as unseen
+  // even if it was opened before.
+  const isUnseen = isManualUnread(inquiry.id) || (inquiry.seen === false && !isLocallySeen(inquiry.id));
+  const stageBg: string =
+    active ? "rgba(11,11,13,0.045)"
+    : isUnseen ? "rgba(176,48,58,0.05)"
+    : isActionNeeded ? "rgba(176,48,58,0.04)"
+    : stageBucket === "booked" ? "rgba(46,125,91,0.045)"
+    : "transparent";
+
+  const rowRef = useScrollIntoViewWhenActive(active);
+
+  // Build a "source"-shaped chip from inquiry.source so we can reuse
+  // sourceChipMeta. RichInquiry.source.kind uses the canonical schema
+  // names ("hub" / "direct" / "manual" / "marketplace" / "talent-page");
+  // sourceChipMeta speaks the conversation-side shape ("tulala-hub" /
+  // "direct" / "agency-referral" / "instagram-dm" / "email"). Map
+  // here so the same chip component renders for both surfaces.
+  const sourceMeta = (() => {
+    const src = inquiry.source;
+    if (!src) return null;
+    if (src.kind === "hub")          return sourceChipMeta({ kind: "tulala-hub", label: src.hubName });
+    if (src.kind === "direct")       return sourceChipMeta({ kind: "direct", label: src.domain });
+    if (src.kind === "manual")       return sourceChipMeta({ kind: src.channel === "email" ? "email" : "direct" });
+    if (src.kind === "marketplace")  return sourceChipMeta({ kind: "tulala-hub", label: src.platform });
+    if (src.kind === "talent-page")  return sourceChipMeta({ kind: "direct", label: src.customDomain ?? src.talentSlug });
+    return null;
+  })();
 
   return (
     <button
+      ref={rowRef}
       type="button"
       onClick={onClick}
+      data-tulala-inbox-row
       style={{
         display: "flex", alignItems: "flex-start", gap: 10,
-        width: "100%", padding: "11px 14px",
-        background: active ? "rgba(11,11,13,0.045)" : "transparent",
-        borderLeft: active ? `3px solid ${COLORS.accent}` : "3px solid transparent",
-        border: "none", borderBottom: `1px solid ${COLORS.borderSoft}`,
+        width: "100%", padding: "12px 14px",
+        background: stageBg,
+        borderLeft: active ? `3px solid ${COLORS.accent}`
+          : isUnseen ? `3px solid ${COLORS.coral}`
+          : isActionNeeded ? `3px solid ${COLORS.coral}88`
+          : "3px solid transparent",
+        // Longhand to silence React's shorthand-vs-longhand warning.
+        borderTop: "none", borderRight: "none",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
         cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
         position: "relative",
       }}
     >
-      <div style={{ position: "relative", flexShrink: 0 }}>
-        <Avatar size={36} tone="auto" hashSeed={inquiry.clientName} initials={initialsOf(inquiry.clientName)} />
+      <InboxRowHoverActions rowId={inquiry.id} label={inquiry.clientName} />
+      {/* Project avatar — initial of the brief (matches client row's
+          choice to lead with the project, not the client). Trust badge
+          stays as an avatar overlay because it's an admin-only signal
+          we don't want to surface elsewhere. */}
+      <div style={{ position: "relative", flexShrink: 0, marginTop: 2 }}>
+        <Avatar
+          size={36}
+          tone="auto"
+          hashSeed={inquiry.brief + inquiry.clientName}
+          initials={initialsOf(inquiry.brief.split(" ").slice(0, 2).join(" "))}
+        />
         <ClientTrustBadge level={inquiry.clientTrust} />
-        {/* SLA freshness dot — only when this side owes a reply */}
-        {(() => {
-          const t = freshnessTone(inquiry.lastActivityHrs, needsMe);
-          return t ? (
-            <span aria-label={`SLA: ${t.label}`} style={{
-              position: "absolute", top: -2, left: -2,
-              width: 10, height: 10, borderRadius: "50%",
-              background: t.color, boxShadow: "0 0 0 2px #fff",
-            }} />
-          ) : null;
-        })()}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Row 1: stage pill + client + age */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: sc.bg, color: sc.fg, flexShrink: 0, textTransform: "capitalize", letterSpacing: 0.3 }}>
-            {stageBucket}
+
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+        {/* Row 1 — project (brief) + NEW pill + age */}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
+          <span title={inquiry.brief} style={{
+            fontSize: 14, fontWeight: 700, color: COLORS.ink,
+            flex: 1, minWidth: 0,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            lineHeight: 1.25, letterSpacing: -0.1,
+          }}>
+            {inquiry.brief}
           </span>
-          <span style={{ fontSize: 13, fontWeight: totalUnread > 0 ? 700 : 600, color: COLORS.ink, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {inquiry.clientName}
-          </span>
-          {showNeedsYou && (
-            <span aria-label="Action required" style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.coral, flexShrink: 0 }}>⚡</span>
+          {isUnseen && (
+            <span style={{
+              flexShrink: 0,
+              fontSize: 9, fontWeight: 800, letterSpacing: 0.6,
+              padding: "2px 6px", borderRadius: 999,
+              background: COLORS.coral, color: "#fff",
+              textTransform: "uppercase",
+              boxShadow: `0 0 0 2px ${COLORS.coral}1f`,
+            }}>NEW</span>
           )}
-          <span style={{ fontSize: 10.5, color: totalUnread > 0 ? COLORS.ink : COLORS.inkDim, fontWeight: totalUnread > 0 ? 600 : 400, flexShrink: 0 }}>
+          <span style={{ flexShrink: 0, fontSize: 10.5, color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>
             {ageLabel(inquiry.lastActivityHrs)}
           </span>
         </div>
-        {/* Row 2: brief */}
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {inquiry.brief}
-        </div>
-        {/* Row 3: inline ops signals — date · budget · lineup dots */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5, fontSize: 11, color: COLORS.inkMuted }}>
-          {inquiry.date && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><rect x="1" y="2.5" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M1 5h10M3.5 1.5v2M8.5 1.5v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-              {inquiry.date}
+
+        {/* Row 2 — client + date + city + tiny lineup count + source chip.
+            Lineup count is admin-specific operational signal that lives
+            INLINE in this row (rather than the old separate ops-meta
+            row) so the row is no taller than the client's. */}
+        {(subtitleParts.length > 0 || sourceMeta || lineupTotal > 0) && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4,
+            minWidth: 0,
+          }}>
+            <span style={{
+              minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
+              whiteSpace: "nowrap", flex: 1,
+            }}>
+              {subtitleParts.join(" · ")}
             </span>
+            {lineupTotal > 0 && (() => {
+              // Tone ladder: red at 0/N (nobody on yet — needs urgent
+              // outreach), amber while partially accepted (still chasing),
+              // green at full (locked in). Drives quick scanning of the
+              // pipeline health column without reading numbers.
+              const tone = lineupAccepted === 0 ? "red"
+                : lineupAccepted < lineupTotal ? "amber"
+                : "green";
+              const palette = tone === "red"
+                ? { bg: `${COLORS.coral}15`, fg: COLORS.coralDeep }
+                : tone === "amber"
+                ? { bg: `${COLORS.amber}1c`, fg: COLORS.amber }
+                : { bg: COLORS.successSoft, fg: COLORS.successDeep };
+              return (
+                <span aria-label={`${lineupAccepted} of ${lineupTotal} talent accepted`} style={{
+                  flexShrink: 0,
+                  fontSize: 10, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+                  padding: "1px 6px", borderRadius: 999,
+                  background: palette.bg, color: palette.fg,
+                }}>{lineupAccepted}/{lineupTotal}</span>
+              );
+            })()}
+            {sourceMeta && (
+              <span title={sourceMeta.tooltip} style={{
+                flexShrink: 0,
+                display: "inline-flex", alignItems: "center", gap: 3,
+                padding: "1px 6px", borderRadius: 999,
+                background: sourceMeta.bg, color: sourceMeta.fg,
+                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
+                textTransform: "uppercase",
+              }}>
+                <span aria-hidden style={{ display: "inline-flex" }}>{sourceMeta.icon}</span>
+                {sourceMeta.label}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Row 3 — status line (admin voice) + unread badge. Coral
+            bullet appears when the row needs admin action, mirroring
+            the client row's action-needed treatment. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+          {isActionNeeded && (
+            <span aria-hidden style={{
+              flexShrink: 0,
+              width: 6, height: 6, borderRadius: "50%",
+              background: COLORS.coral,
+            }} />
           )}
-          {budget && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, flexShrink: 0, fontWeight: 600, color: COLORS.ink }}>
-              {budget}
-            </span>
-          )}
-          {/* Lineup as filled/empty dots — quickly scannable */}
-          {lineupTotal > 0 && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, flexShrink: 0 }} aria-label={`${lineupAccepted} of ${lineupTotal} talent accepted`}>
-              {Array.from({ length: lineupTotal }, (_, i) => (
-                <span key={i} aria-hidden style={{
-                  width: 6, height: 6, borderRadius: "50%",
-                  background: i < lineupAccepted ? COLORS.success
-                    : i < lineupAccepted + lineupPending ? COLORS.amber
-                    : "rgba(11,11,13,0.15)",
-                }} />
-              ))}
-              <span style={{ marginLeft: 2, fontWeight: 600, color: COLORS.ink, fontSize: 10.5 }}>{lineupAccepted}/{lineupTotal}</span>
-            </span>
-          )}
-          {/* Coordinator owner — pushed to right edge */}
-          {coordInitials && (
-            <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }} title={coordName ?? undefined}>
-              <span aria-hidden style={{
-                width: 16, height: 16, borderRadius: "50%",
-                background: COLORS.fill, color: "#fff",
-                fontSize: 8.5, fontWeight: 700,
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                letterSpacing: 0.2,
-              }}>{coordInitials}</span>
-            </span>
-          )}
-        </div>
-        {/* Row 4: preview message + unread */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-          <span style={{ fontSize: 11, color: COLORS.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>
-            {preview}
+          <span style={{
+            flex: 1, minWidth: 0,
+            fontSize: 11.5,
+            color: isActionNeeded ? COLORS.coralDeep : totalUnread > 0 ? COLORS.ink : COLORS.inkMuted,
+            fontWeight: isActionNeeded ? 600 : totalUnread > 0 ? 500 : 400,
+            lineHeight: 1.4,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {statusLine}
           </span>
           {totalUnread > 0 && (
             <span style={{
-              minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
-              background: COLORS.accent, color: "#fff", fontSize: 9.5, fontWeight: 700,
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0,
+              minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, boxSizing: "border-box",
+              background: COLORS.accent, color: "#fff",
+              fontSize: 9.5, fontWeight: 700,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
             }}>{totalUnread}</span>
           )}
         </div>
-        {/* Row 5: compact stage funnel — same pipeline cue as the
-            talent + client shells. One visual language across roles. */}
-        <div style={{ marginTop: 5 }}>
-          <JobStageFunnel currentStage={inquiry.stage} compact={true} />
+
+        {/* Row 4 — funnel dots + stage word + coordinator owner chip. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+          <span style={{ flex: "0 0 auto", maxWidth: 130 }}>
+            <JobStageFunnel currentStage={inquiry.stage} compact={true} />
+          </span>
+          <span style={{
+            fontSize: 10, fontWeight: 700,
+            color: sc.fg, letterSpacing: 0.3, textTransform: "uppercase",
+            flexShrink: 0,
+          }}>
+            {stageWord}
+          </span>
+          <span style={{ flex: 1 }} />
+          {coord && (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              flexShrink: 0,
+              fontSize: 10.5, color: COLORS.inkMuted,
+            }} title={coord.name}>
+              <Avatar size={14} tone="ink" hashSeed={coord.name} initials={coord.initials} />
+              {coord.name.split(" ")[0]}
+            </span>
+          )}
         </div>
       </div>
     </button>
@@ -751,38 +1763,253 @@ function AdminInboxList({
   filter: AdminFilter; onFilterChange: (f: AdminFilter) => void;
   totalUnread: number; needsMe: number;
 }) {
-  const chips: { id: AdminFilter; label: string }[] = [
+  // "Coordinating" surfaces the talent_coord lens — inquiries where
+  // the user is the coordinator on the lineup (their own studio's
+  // bookings). Pinned with a small star so it reads as a saved view.
+  const coordCount = inquiries.filter(i =>
+    i.coordinator?.name === "Marta Reyes"
+    || i.requirementGroups.some(g => g.talents.some(t => t.name === "Marta Reyes")),
+  ).length;
+  // Subscribe to handoff store + count the user's incoming handoffs.
+  // The "Handoffs" chip only renders when the queue is non-empty so
+  // the inbox doesn't carry dead chrome in steady state.
+  useHandoffSubscription();
+  // Subscribe to pin/manual-unread flags so the inbox re-orders +
+  // re-tints when those toggle from a row's hover actions.
+  useFlagsSubscription();
+  const incomingHandoffs = getIncomingHandoffs("Marta Reyes");
+  const handoffCount = incomingHandoffs.length;
+  // Saved views — "Coordinating" + "Handoffs" are the canonical
+  // saved views in the prototype; production would let users build
+  // and pin their own (filter + search + sort). They appear at the
+  // start of the chip row with a star pin so they read as
+  // first-class user-curated entry points, not just filters.
+  const chips: { id: AdminFilter; label: string; count?: number; pin?: boolean }[] = [
     { id: "all", label: "All" },
     { id: "needs-me", label: `Needs me${needsMe > 0 ? ` (${needsMe})` : ""}` },
     { id: "unread", label: `Unread${totalUnread > 0 ? ` (${totalUnread})` : ""}` },
+    ...(handoffCount > 0 ? [{ id: "handoffs" as const, label: "Handoffs", count: handoffCount, pin: true }] : []),
+    ...(coordCount > 0 ? [{ id: "coordinating" as const, label: "Coordinating", count: coordCount, pin: true }] : []),
     { id: "inquiry", label: "Inquiry" },
     { id: "hold", label: "Offer pending" },
     { id: "booked", label: "Booked" },
     { id: "past", label: "Past" },
   ];
 
+  // Bulk-select state — flipping into bulk mode reveals row checkboxes
+  // + a floating action bar at the bottom of the inbox. Single-select
+  // is the default (just opens the row); bulk mode is the explicit
+  // gesture for multi-row operations (nudge / archive / reassign).
+  // Operations are admin+ only — Coord/Editor see the bulk button
+  // hidden so they don't get a no-op toggle.
+  const { toast: toastBulk } = useProto();
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const exitBulk = () => { setBulkMode(false); setSelectedIds(new Set()); };
+
   return (
-    <aside data-tulala-list-pane style={{ display: "flex", flexDirection: "column", borderRight: `1px solid ${COLORS.borderSoft}`, background: "#fff", minHeight: 0 }}>
-      <div style={{ padding: "14px 14px 8px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+    <aside data-tulala-list-pane style={{
+      display: "flex", flexDirection: "column",
+      borderRight: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+      minHeight: 0, minWidth: 0, maxWidth: "100%",
+    }}>
+      <HoverActionsCss />
+      <div data-tulala-inbox-header style={{
+        padding: "14px 14px 8px",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        minWidth: 0, maxWidth: "100%",
+      }}>
         <div data-tulala-list-header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
           <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, margin: 0 }}>Inbox</h3>
-          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{inquiries.length} thread{inquiries.length === 1 ? "" : "s"}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{inquiries.length} thread{inquiries.length === 1 ? "" : "s"}</span>
+            {/* Bulk-select toggle — admin+ only. Visible chevron pill
+                so the affordance reads as "switch into bulk mode" not
+                some hidden gesture. */}
+            <button type="button"
+              onClick={() => setBulkMode(b => !b)}
+              title={bulkMode ? "Exit bulk select" : "Select multiple threads"}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "3px 9px", borderRadius: 999,
+                border: `1px solid ${bulkMode ? COLORS.accent : COLORS.borderSoft}`,
+                background: bulkMode ? COLORS.accentSoft : "transparent",
+                color: bulkMode ? COLORS.accentDeep : COLORS.inkMuted,
+                fontSize: 10.5, fontWeight: 700, cursor: "pointer",
+                fontFamily: FONTS.body, textTransform: "uppercase", letterSpacing: 0.4,
+              }}>
+              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <rect x="1.5" y="1.5" width="3.5" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                <rect x="7" y="1.5" width="3.5" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                <rect x="1.5" y="7" width="3.5" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                <rect x="7" y="7" width="3.5" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+              </svg>
+              {bulkMode ? "Done" : "Select"}
+            </button>
+          </div>
         </div>
-        <style>{`@media (max-width: 720px) { [data-tulala-list-header] { display: none !important; } }`}</style>
-        <div style={{ marginBottom: 10 }}>
+        <style>{`
+          @media (max-width: 720px) {
+            [data-tulala-list-header] { display: none !important; }
+            [data-tulala-inbox-header],
+            [data-tulala-inbox-search],
+            [data-tulala-inbox-chips],
+            [data-tulala-inbox-scroll] {
+              min-width: 0 !important;
+              max-width: 100% !important;
+              box-sizing: border-box !important;
+            }
+            [data-tulala-inbox-chips] {
+              overflow-x: auto !important;
+              scrollbar-width: none !important;
+            }
+            [data-tulala-inbox-chips]::-webkit-scrollbar { display: none !important; }
+          }
+        `}</style>
+        <div data-tulala-inbox-search style={{ marginBottom: 10 }}>
           <SearchPill value={search} onChange={onSearchChange} placeholder="Search clients, briefs…" />
         </div>
-        <div style={{ display: "flex", gap: 5, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
-          {chips.map(c => <FilterChip key={c.id} id={c.id} label={c.label} active={filter === c.id} onClick={() => onFilterChange(c.id)} />)}
+        <div data-tulala-inbox-chips style={{ display: "flex", gap: 5, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
+          {chips.map(c => (
+            <FilterChip
+              key={c.id} id={c.id} label={c.label}
+              active={filter === c.id}
+              count={c.count}
+              icon={c.pin ? (
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                </svg>
+              ) : undefined}
+              onClick={() => onFilterChange(c.id)}
+            />
+          ))}
         </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+      <div data-tulala-inbox-scroll style={{
+        flex: 1, overflowY: "auto", minHeight: 0,
+        minWidth: 0, maxWidth: "100%",
+      }}>
         {inquiries.length === 0 ? (
-          <div style={{ padding: "32px 16px", textAlign: "center", color: COLORS.inkDim, fontSize: 12 }}>No inquiries match.</div>
-        ) : inquiries.map(i => (
-          <AdminInquiryRow key={i.id} inquiry={i} active={i.id === activeId} onClick={() => onSelect(i.id)} hideNeedsYouChip={filter === "needs-me"} />
-        ))}
+          <div style={{
+            padding: "32px 18px", textAlign: "center",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+          }}>
+            <div aria-hidden style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              marginBottom: 4,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "Nothing in this view"}
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4, maxWidth: 240 }}>
+              {search.trim() ? "Try a different keyword, or clear the search." : <>Try the <strong>All</strong> filter or clear your search.</>}
+            </div>
+            {search.trim() && (
+              <button type="button" onClick={() => onSearchChange("")} style={{
+                marginTop: 6, padding: "5px 12px", borderRadius: 999,
+                border: `1px solid ${COLORS.border}`, background: "transparent",
+                color: COLORS.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>Clear search</button>
+            )}
+          </div>
+        ) : renderWithDateGroups(
+            sortPinnedFirst(inquiries),
+            i => i.lastActivityHrs,
+            i => (
+              // In bulk mode, wrap each row with a checkbox lane on the
+              // left. The row click toggles selection (instead of opening
+              // the conv) so the gesture stays consistent.
+              bulkMode ? (
+                <div key={i.id} style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  paddingLeft: 8,
+                  background: selectedIds.has(i.id) ? COLORS.accentSoft : "transparent",
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(i.id)}
+                    onChange={() => toggleSelect(i.id)}
+                    aria-label={`Select ${i.clientName}`}
+                    style={{ width: 14, height: 14, cursor: "pointer", flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <AdminInquiryRow inquiry={i} active={false} onClick={() => toggleSelect(i.id)} hideNeedsYouChip={filter === "needs-me"} />
+                  </div>
+                </div>
+              ) : (
+                <AdminInquiryRow key={i.id} inquiry={i} active={i.id === activeId} onClick={() => onSelect(i.id)} hideNeedsYouChip={filter === "needs-me"} />
+              )
+            ),
+          )}
       </div>
+      {/* Bulk action bar — sticky bottom strip when one+ rows selected.
+          Counts the selection + shows the three primary bulk operations
+          (Nudge / Archive / Reassign). Reassign is admin+; the others
+          are coord+. All resolve to a toast in the prototype but the
+          underlying selectedIds set is real. */}
+      {bulkMode && selectedIds.size > 0 && (
+        <div style={{
+          flexShrink: 0,
+          padding: "10px 14px",
+          background: COLORS.fill, color: "#fff",
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", alignItems: "center", gap: 10,
+          fontFamily: FONTS.body, fontSize: 12,
+        }}>
+          <span style={{ fontWeight: 700 }}>
+            {selectedIds.size} selected
+          </span>
+          <span style={{ flex: 1 }} />
+          <button type="button"
+            onClick={() => { toastBulk(`Nudged ${selectedIds.size} thread${selectedIds.size === 1 ? "" : "s"}`); exitBulk(); }}
+            style={{
+              padding: "5px 10px", borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.25)",
+              background: "transparent", color: "#fff",
+              fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}>
+            Nudge
+          </button>
+          <button type="button"
+            onClick={() => { toastBulk(`Archived ${selectedIds.size} thread${selectedIds.size === 1 ? "" : "s"}`); exitBulk(); }}
+            style={{
+              padding: "5px 10px", borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.25)",
+              background: "transparent", color: "#fff",
+              fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}>
+            Archive
+          </button>
+          <button type="button"
+            onClick={() => { toastBulk(`Reassign ${selectedIds.size} thread${selectedIds.size === 1 ? "" : "s"}`); exitBulk(); }}
+            style={{
+              padding: "5px 12px", borderRadius: 999,
+              border: "none",
+              background: "#fff", color: COLORS.fill,
+              fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}>
+            Reassign
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
@@ -794,8 +2021,13 @@ function AdminInboxList({
 // Tab bar: Client thread · Talent group · Files · Details (admin sees ALL — no locks)
 // Tab content adapts per active tab.
 function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
-  const { toast } = useProto();
+  const { toast, state } = useProto();
   const [activeTab, setActiveTab] = useState<ThreadTabId>("client");
+  // Plan tier drives admin-only affordances inside the booking tab
+  // (e.g. Free hides Reassign coordinator). The state plan uses
+  // "network" — map to AdminBookingTab's "hub-network" key.
+  const planTier: "free" | "studio" | "agency" | "hub-network" =
+    state.plan === "network" ? "hub-network" : state.plan;
 
   const stageBucket: "inquiry" | "hold" | "booked" | "past" =
       inquiry.stage === "draft" || inquiry.stage === "submitted" || inquiry.stage === "coordination" ? "inquiry"
@@ -884,40 +2116,45 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
             }}>{offerLabel}</span>
           );
         })()}
-      />
-      {/* Lineup summary strip — admin needs the lineup state visible
-          at-a-glance (X/Y accepted) since it drives the next action. */}
-      {lineupTotal > 0 && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "8px 12px",
-          background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: RADIUS.md, fontFamily: FONTS.body, fontSize: 11.5,
-          color: COLORS.inkMuted,
-        }}>
-          <span aria-hidden style={{
-            display: "inline-flex", alignItems: "center", gap: 4,
-            color: COLORS.success, fontWeight: 700,
-          }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS.success }} />
-            {lineupAccepted}/{lineupTotal} accepted
-          </span>
-          {lineupPending > 0 && (
-            <>
-              <span aria-hidden style={{ opacity: 0.4 }}>·</span>
-              <span style={{ color: COLORS.amber, fontWeight: 600 }}>
-                {lineupPending} pending
+        // Admin's lineup + coord signals — folded into the header instead
+        // of a separate floating strip below, so the workspace detail
+        // matches the client/talent header silhouette (single card).
+        metaExtras={lineupTotal > 0 || inquiry.coordinator ? (
+          <>
+            {lineupTotal > 0 && (() => {
+              const tone = lineupAccepted === 0 ? "red"
+                : lineupAccepted < lineupTotal ? "amber"
+                : "green";
+              const palette = tone === "red"
+                ? { dot: COLORS.coral, fg: COLORS.coralDeep }
+                : tone === "amber"
+                ? { dot: COLORS.amber, fg: COLORS.amber }
+                : { dot: COLORS.success, fg: COLORS.successDeep ?? COLORS.success };
+              return (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  fontWeight: 700, color: palette.fg,
+                }}>
+                  <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: palette.dot }} />
+                  {lineupAccepted}/{lineupTotal} accepted
+                </span>
+              );
+            })()}
+            {lineupPending > 0 && (
+              <>
+                <span aria-hidden style={{ opacity: 0.35 }}>·</span>
+                <span style={{ color: COLORS.amber, fontWeight: 600 }}>{lineupPending} pending</span>
+              </>
+            )}
+            {inquiry.coordinator && (
+              <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <Avatar size={16} tone="ink" hashSeed={inquiry.coordinator.name} initials={inquiry.coordinator.initials} />
+                <span style={{ color: COLORS.ink, fontWeight: 600 }}>{inquiry.coordinator.name}</span>
               </span>
-            </>
-          )}
-          {inquiry.coordinator && (
-            <>
-              <span aria-hidden style={{ opacity: 0.4, marginLeft: "auto" }}>·</span>
-              <span>Coord: <strong style={{ color: COLORS.ink, fontWeight: 600 }}>{inquiry.coordinator.name}</strong></span>
-            </>
-          )}
-        </div>
-      )}
+            )}
+          </>
+        ) : undefined}
+      />
 
       {/* TAB BAR — admin sees all 4 tabs unlocked. Lineup + Offer summaries
           live inside the Offer tab now (single source of truth). The hero
@@ -937,20 +2174,46 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
             unread: { client: inquiry.unreadPrivate, talent: inquiry.unreadGroup, files: fileCount },
             offerNeedsAttention: getOffer(inquiry.id)?.stage === "countered",
             paymentDue: inquiry.stage === "booked",
+            planTier,
           })}
         />
-        {activeTab === "client" && (
-          <AdminMessageStream
-            messages={clientMessages}
-            placeholder={`Reply to ${inquiry.clientName}…`}
-          />
-        )}
-        {activeTab === "talent" && (
-          <AdminMessageStream
-            messages={talentMessages}
-            placeholder="Message talent group…"
-          />
-        )}
+        {/* Stage-aware smart-reply context — pipeline position drives
+            which suggestion set the composer surfaces. */}
+        {(() => {
+          const adminSmartCtx = stageBucket === "inquiry" ? "inquiry"
+            : stageBucket === "hold" ? "hold"
+            : stageBucket === "booked" ? "offer"
+            : "default";
+          return (
+            <>
+              {activeTab === "client" && (
+                <AdminMessageStream
+                  messages={clientMessages}
+                  placeholder={`Reply to ${inquiry.clientName}…`}
+                  threadKey={`admin:${inquiry.id}:client`}
+                  smartReplyContext={adminSmartCtx}
+                  firstTimeClientName={isFirstConvWith(inquiry.clientName) ? inquiry.clientName : undefined}
+                  closed={inquiry.stage === "rejected" || inquiry.stage === "expired"}
+                  closedNotice={inquiry.stage === "rejected"
+                    ? "Closed · the client passed on this offer."
+                    : "Closed · auto-expired (no client response in the window)."}
+                />
+              )}
+              {activeTab === "talent" && (
+                <AdminMessageStream
+                  messages={talentMessages}
+                  placeholder="Message talent group…"
+                  threadKey={`admin:${inquiry.id}:talent`}
+                  smartReplyContext={adminSmartCtx}
+                  closed={inquiry.stage === "rejected" || inquiry.stage === "expired"}
+                  closedNotice={inquiry.stage === "rejected"
+                    ? "Closed · the client passed on this project."
+                    : "Closed · auto-expired."}
+                />
+              )}
+            </>
+          );
+        })()}
         {activeTab === "offer" && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             <OfferTab conv={{ id: inquiry.id } as Conversation} pov={{ kind: "admin" }} />
@@ -971,9 +2234,14 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
             <FilesTab conv={{ id: inquiry.id } as Conversation} povCanSeeTalentFiles={true} />
           </div>
         )}
-        {activeTab === "details" && (
+        {/* Merged Project tab — admin now uses the same `booking` tab id
+            as talent + client so all three povs route the polished
+            card-grid view through the same key. Older `details` id is
+            kept as a fallback for any external callers that still pin
+            it (e.g. notification deep-links) until they migrate. */}
+        {(activeTab === "booking" || activeTab === "details") && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            <DetailsPanel inquiry={toInquiry(inquiry)} pov="admin" />
+            <AdminBookingTab inquiry={toInquiry(inquiry)} planTier={planTier} />
           </div>
         )}
       </div>
@@ -982,65 +2250,166 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
   );
 }
 
-// Stream renderer for admin (richer than ConversationTab — it knows
-// about senderRole, threadType, and shows a sender avatar per bubble).
+// Stream renderer for admin. Reads from RichInquiry.messages directly
+// (different shape from MOCK_THREAD that ConversationTab consumes), but
+// matches ConversationTab's design language: per-bubble sender avatar +
+// role tag, day separators, mine/theirs alignment, double-check ts,
+// closure-aware footer that swaps the composer for a closed-conv notice
+// when the inquiry is past / cancelled / rejected / expired.
 function AdminMessageStream({
-  messages, placeholder,
+  messages, placeholder, closed, closedNotice, threadKey, smartReplyContext = "default",
+  firstTimeClientName,
 }: {
   messages: RichInquiry["messages"];
   placeholder: string;
+  /** When true, the composer is replaced with a closure pill — same
+   *  pattern ConversationTab uses for past/cancelled convs. */
+  closed?: boolean;
+  closedNotice?: string;
+  /** Stable key that identifies which thread a sent message belongs to.
+   *  Used for the local-stash so admin's "Just now" sends echo back into
+   *  the stream without a backend. */
+  threadKey: string;
+  /** Stage-flavored smart-reply set ("inquiry" / "hold" / "offer" /
+   *  "default"). Maps to SMART_REPLIES_FOR_LAST so admin's chip
+   *  suggestions match the conversation's pipeline position rather
+   *  than always falling back to the generic default. */
+  smartReplyContext?: string;
+  /** When set, render the "First time with {client}" banner at the
+   *  top of the stream. Caller computes the first-time signal so the
+   *  stream stays presentation-only. */
+  firstTimeClientName?: string;
 }) {
-  const { toast } = useProto();
+  const { toast, state } = useProto();
+  // Subscribe so locally-sent messages re-render the stream.
+  useMessageStashSubscription();
+  const localMessages = readLocalMessages(threadKey);
+  // Phase 4 of System User direction — workspace identity available
+  // to the composer when the user is coord+ on a paid tier. The
+  // workspace name comes from the Tulala TENANT identity. Free
+  // workspaces don't surface the toggle (no abstraction to choose).
+  const wsName = TENANT.name;
+  const canSendAsWs = meetsRole(state.role, "coordinator") && state.plan !== "free";
+  const allMessages: Array<{
+    id: string;
+    body: string;
+    ts: string;
+    isYou: boolean;
+    senderName: string;
+    senderRole: string;
+    senderInitials: string;
+  }> = [
+    ...messages.map(m => ({
+      id: m.id, body: m.body, ts: m.ts, isYou: !!m.isYou,
+      // RichInquiry messages carry senderRole — when it's the
+      // synthetic "workspace" role we coerce the rendered name to
+      // the workspace identity so the bubble reads as System User.
+      senderName: m.senderRole === "workspace"
+        ? (m.senderName || "Workspace")
+        : m.senderName,
+      senderRole: m.senderRole as string,
+      senderInitials: m.senderInitials,
+    })),
+    // Stashed sends honor the per-message sender so workspace-attributed
+    // posts render as System User bubbles (not "you" bubbles). When
+    // sender is "workspace", we use the workspace identity for the name
+    // + initials so the bubble carries the agency voice.
+    ...localMessages.map(m => {
+      const isWs = m.sender === "workspace";
+      return {
+        id: m.id, body: m.body, ts: m.ts,
+        // Workspace sends are attributed to the workspace, not "you" —
+        // even though THIS user is the one who pushed the button. The
+        // bubble visually aligns left (theirs side) so the workspace
+        // identity reads as a third-party participant.
+        isYou: !isWs,
+        senderName: isWs ? wsName : "You",
+        senderRole: isWs ? "workspace" : "coordinator",
+        senderInitials: isWs ? wsName.slice(0, 2).toUpperCase() : "ME",
+      };
+    }),
+  ];
   return (
     <div style={{
       display: "flex", flexDirection: "column",
       flex: 1, minHeight: 0,
       fontFamily: FONTS.body,
     }}>
+      {firstTimeClientName && (
+        <div style={{ paddingTop: 10 }}>
+          <FirstConvBanner clientName={firstTimeClientName} audience="admin" />
+        </div>
+      )}
       <div style={{
         flex: 1, minHeight: 0, overflowY: "auto",
         padding: "14px 14px 4px",
         display: "flex", flexDirection: "column", gap: 10,
       }}>
-        {messages.map((m) => {
+        {allMessages.length === 0 ? (
+          <div style={{ fontSize: 12, color: COLORS.inkDim, fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>
+            No messages in this thread yet.
+          </div>
+        ) : allMessages.map((m, idx) => {
           const mine = m.isYou;
+          const prevDay = idx > 0 ? dayKey(allMessages[idx - 1]!.ts) : null;
+          const thisDay = dayKey(m.ts);
+          const showDay = thisDay !== prevDay;
           return (
-            <div key={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-end", flexDirection: mine ? "row-reverse" : "row" }}>
-              {!mine && (
-                <Avatar size={26} tone={m.senderRole === "coordinator" ? "ink" : "auto"} hashSeed={m.senderName} initials={m.senderInitials} />
-              )}
-              <div style={{
-                maxWidth: "78%",
-                background: mine ? COLORS.fill : COLORS.surfaceAlt,
-                color: mine ? "#fff" : COLORS.ink,
-                padding: "9px 12px",
-                borderRadius: mine ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
-                fontSize: 13, lineHeight: 1.45,
-              }}>
+            <React.Fragment key={m.id}>
+              {showDay && <DaySeparator label={thisDay} />}
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexDirection: mine ? "row-reverse" : "row" }}>
                 {!mine && (
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 2 }}>
-                    {m.senderName} <span style={{ fontWeight: 500 }}>· {m.senderRole}</span>
-                  </div>
+                  <Avatar
+                    size={26}
+                    tone={m.senderRole === "coordinator" || m.senderRole === "workspace" ? "ink" : "auto"}
+                    hashSeed={m.senderName}
+                    initials={m.senderInitials}
+                  />
                 )}
-                {m.body}
-                <div style={{ fontSize: 10, color: mine ? "rgba(255,255,255,0.55)" : COLORS.inkDim, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  {m.ts}
-                  {mine && (
-                    <span aria-hidden style={{ display: "inline-flex" }}>
-                      <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
-                        <path d="M1 4.8L3.5 7L7 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M5 4.8L7.5 7L11 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </span>
+                <div style={{
+                  maxWidth: "78%",
+                  background: mine ? COLORS.fill : COLORS.surfaceAlt,
+                  color: mine ? "#fff" : COLORS.ink,
+                  padding: "9px 12px",
+                  borderRadius: mine ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+                  fontSize: 13, lineHeight: 1.45,
+                }}>
+                  {!mine && (
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 2, display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                      <span>{m.senderName} <span style={{ fontWeight: 500 }}>· {m.senderRole}</span></span>
+                      {m.senderRole === "workspace" && (
+                        <span title="Workspace System User" style={{
+                          display: "inline-flex", alignItems: "center", gap: 3,
+                          padding: "0 5px", borderRadius: 999,
+                          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+                          fontSize: 8.5, fontWeight: 700,
+                          textTransform: "uppercase", letterSpacing: 0.4,
+                        }}>
+                          <svg width="7" height="7" viewBox="0 0 8 8" fill="none" aria-hidden>
+                            <path d="M2 1.5h4l1 1.5v3l-1 1.5H2l-1-1.5v-3l1-1.5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+                          </svg>
+                          System
+                        </span>
+                      )}
+                    </div>
                   )}
+                  {m.body}
+                  <div style={{ fontSize: 10, color: mine ? "rgba(255,255,255,0.55)" : COLORS.inkDim, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    {m.ts}
+                    {mine && (
+                      <span aria-hidden style={{ display: "inline-flex" }}>
+                        <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
+                          <path d="M1 4.8L3.5 7L7 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M5 4.8L7.5 7L11 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            </React.Fragment>
           );
         })}
-        {messages.length === 0 && (
-          <div style={{ fontSize: 12, color: COLORS.inkDim, fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>No messages in this thread yet.</div>
-        )}
       </div>
       <div style={{
         flexShrink: 0,
@@ -1048,7 +2417,38 @@ function AdminMessageStream({
         background: "#fff",
         borderTop: `1px solid ${COLORS.borderSoft}`,
       }}>
-        <MiniComposer placeholder={placeholder} onSend={() => toast("Message sent")} />
+        {closed ? (
+          <div style={{
+            padding: "10px 14px",
+            borderRadius: 999,
+            background: COLORS.surfaceAlt,
+            border: `1px solid ${COLORS.borderSoft}`,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
+              <rect x="3" y="6.5" width="8" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M5 6.5V5a2 2 0 014 0v1.5" stroke="currentColor" strokeWidth="1.4"/>
+            </svg>
+            {closedNotice ?? "Conversation closed."}
+          </div>
+        ) : (
+          <DraftComposer
+            threadKey={threadKey}
+            placeholder={placeholder}
+            smartReplyContext={smartReplyContext}
+            onSend={(text) => {
+              appendLocalMessage(threadKey, text);
+              toast("Message sent");
+            }}
+            workspaceName={wsName}
+            canSendAsWorkspace={canSendAsWs}
+            onSendAsWorkspace={(text) => {
+              appendLocalMessage(threadKey, text, "workspace");
+              toast(`Sent as ${wsName}`);
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -1363,7 +2763,16 @@ function TalentJobShell() {
     }
     if (search.trim()) {
       const q = search.toLowerCase();
-      if (!c.client.toLowerCase().includes(q) && !c.brief.toLowerCase().includes(q)) return false;
+      // Wider haystack than just client+brief so "Sara", "Madrid",
+      // "Hub", or an agency name actually finds the right job.
+      const haystack = [
+        c.client, c.brief, c.agency,
+        c.leader?.name, c.location, c.date,
+        c.source?.kind === "tulala-hub" ? c.source.label : "",
+        c.source?.kind === "direct" ? c.source.label : "",
+        c.lastMessage.preview,
+      ].filter(Boolean).join(" ").toLowerCase();
+      if (!haystack.includes(q)) return false;
     }
     return true;
   }).sort((a, b) => {
@@ -1525,8 +2934,15 @@ function TalentJobRow({
 
   // Active-stage word — appears inline next to funnel dots. Drops the
   // separate uppercase stage label that was duplicating it on row 4.
+  // Cancelled rows surface the outcome reason in place of the generic
+  // "Cancelled" — talent reads "Client cancelled" / "Rejected" /
+  // "Expired" inline without opening the conv to find out why.
   const stageWord = conv.stage === "past" ? "Wrapped"
     : conv.stage === "hold" ? "Offer"
+    : conv.stage === "cancelled" && conv.outcome === "client_cancelled" ? "Client cancelled"
+    : conv.stage === "cancelled" && conv.outcome === "client_rejected" ? "Rejected"
+    : conv.stage === "cancelled" && conv.outcome === "client_no_response" ? "Expired"
+    : conv.stage === "cancelled" && conv.outcome === "talent_declined" ? "You declined"
     : conv.stage.charAt(0).toUpperCase() + conv.stage.slice(1);
   const ageLbl = ageLabel(conv.lastMessage.ageHrs);
   const slaTone = freshnessTone(conv.lastMessage.ageHrs, myStatus === "pending");
@@ -1545,17 +2961,22 @@ function TalentJobRow({
   // `seen: false` flips to true once the user opens the conv in this
   // session (markConvSeen). Module-level seen-set means the NEW pill
   // disappears the moment they click in.
-  const isUnseen = conv.seen === false && !isLocallySeen(conv.id);
+  // Manual-unread overrides the locally-seen state — see AdminInquiryRow.
+  const isUnseen = isManualUnread(conv.id) || (conv.seen === false && !isLocallySeen(conv.id));
   const stageBg: string =
     active ? "rgba(11,11,13,0.045)"
     : isUnseen ? "rgba(176,48,58,0.05)"     // coral-soft = brand-new inquiry
     : conv.stage === "booked" ? "rgba(46,125,91,0.045)" // success-soft = locked
     : "transparent";
 
+  const rowRef = useScrollIntoViewWhenActive(active);
+
   return (
     <button
+      ref={rowRef}
       type="button"
       onClick={onClick}
+      data-tulala-inbox-row
       style={{
         display: "flex", alignItems: "flex-start", gap: 10,
         width: "100%", padding: "12px 14px",
@@ -1563,13 +2984,17 @@ function TalentJobRow({
         borderLeft: active ? `3px solid ${COLORS.accent}`
           : isUnseen ? `3px solid ${COLORS.coral}`
           : "3px solid transparent",
-        border: "none", borderBottom: `1px solid ${COLORS.borderSoft}`,
+        // Longhand to silence React's shorthand-vs-longhand warning
+        // when borderLeft flips between active / unseen / default.
+        borderTop: "none", borderRight: "none",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
         cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
         // Slight emphasis when unseen — bumps weight to the row level,
         // not just text — so the eye registers "new" before reading.
         position: "relative",
       }}
     >
+      <InboxRowHoverActions rowId={conv.id} label={conv.client} />
       {/* Client avatar — initial in deterministic auto-tint per client
           name. Most clients are brands (Mango, Bvlgari, Vogue), so
           a colored initial reads cleaner than a generic logo would.
@@ -1622,13 +3047,39 @@ function TalentJobRow({
           )}
         </div>
 
-        {/* Row 2 — brief · date · city.  Single ellipsized line. */}
+        {/* Row 2 — brief · date · city · source. Single ellipsized line.
+            Source chip appears inline (small dot + label) so the
+            talent reads where the inquiry came from without opening
+            the conv. */}
         {subtitleParts.length > 0 && (
           <div style={{
+            display: "flex", alignItems: "center", gap: 6,
             fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4,
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            minWidth: 0,
           }}>
-            {subtitleParts.join(" · ")}
+            <span style={{
+              minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
+              whiteSpace: "nowrap", flex: 1,
+            }}>
+              {subtitleParts.join(" · ")}
+            </span>
+            {(() => {
+              const sm = conv.source ? sourceChipMeta(conv.source) : null;
+              if (!sm) return null;
+              return (
+                <span title={sm.tooltip} style={{
+                  flexShrink: 0,
+                  display: "inline-flex", alignItems: "center", gap: 3,
+                  padding: "1px 6px", borderRadius: 999,
+                  background: sm.bg, color: sm.fg,
+                  fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
+                  textTransform: "uppercase",
+                }}>
+                  <span aria-hidden style={{ display: "inline-flex" }}>{sm.icon}</span>
+                  {sm.label}
+                </span>
+              );
+            })()}
           </div>
         )}
 
@@ -1655,7 +3106,7 @@ function TalentJobRow({
             {conv.unreadCount > 0 && (
               <span style={{
                 flexShrink: 0,
-                minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
+                minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, boxSizing: "border-box",
                 background: COLORS.accent, color: "#fff",
                 fontSize: 9.5, fontWeight: 700,
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -1728,6 +3179,9 @@ function TalentJobInbox({
    *  button in the inbox header. Hosting shell controls the width. */
   onCollapse?: () => void;
 }) {
+  // Subscribe to pin/manual-unread flags so the inbox re-orders +
+  // re-tints when those toggle from a row's hover actions.
+  useFlagsSubscription();
   // "Coordinating" only appears in the strip when there's at least one
   // job where Marta runs her own workspace. Hides for talents with no
   // coord work — keeps the strip lean for the common case.
@@ -1751,6 +3205,7 @@ function TalentJobInbox({
       // it inside the shell at every viewport.
       minWidth: 0, maxWidth: "100%",
     }}>
+      <HoverActionsCss />
       <div data-tulala-inbox-header style={{
         padding: "14px 14px 8px",
         borderBottom: `1px solid ${COLORS.borderSoft}`,
@@ -1846,15 +3301,27 @@ function TalentJobInbox({
               </svg>
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-              Nothing in this view
+              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "Nothing in this view"}
             </div>
             <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4, maxWidth: 240 }}>
-              Try the <strong>All jobs</strong> filter or clear your search to see everything.
+              {search.trim() ? "Try a different keyword, or clear the search." : <>Try the <strong>All jobs</strong> filter or clear your search to see everything.</>}
             </div>
+            {search.trim() && (
+              <button type="button" onClick={() => onSearchChange("")} style={{
+                marginTop: 6, padding: "5px 12px", borderRadius: 999,
+                border: `1px solid ${COLORS.border}`, background: "transparent",
+                color: COLORS.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>Clear search</button>
+            )}
           </div>
-        ) : conversations.map(c => (
-          <TalentJobRow key={c.id} conv={c} active={c.id === activeId} onClick={() => onSelect(c.id)} />
-        ))}
+        ) : renderWithDateGroups(
+            sortPinnedFirst(conversations),
+            c => c.lastMessage.ageHrs,
+            c => (
+              <TalentJobRow key={c.id} conv={c} active={c.id === activeId} onClick={() => onSelect(c.id)} />
+            ),
+          )}
       </div>
     </aside>
   );
@@ -2138,7 +3605,7 @@ type ShellHeaderInput = {
 };
 
 function ShellHeader({
-  conv, onBack, backLabel, rightSlot, primaryChip, showCoordPill = true,
+  conv, onBack, backLabel, rightSlot, primaryChip, showCoordPill = true, metaExtras,
 }: {
   conv: ShellHeaderInput;
   onBack: () => void;
@@ -2151,6 +3618,10 @@ function ShellHeader({
   primaryChip?: React.ReactNode;
   /** Whether to render the "You're coord" pill. Hidden on admin. */
   showCoordPill?: boolean;
+  /** Optional row rendered below the funnel — used by admin to surface
+   *  lineup count + coord owner inside the same header card so the
+   *  detail view doesn't grow a second floating chip strip below. */
+  metaExtras?: React.ReactNode;
 }) {
   const sc = stageStyle(conv.stage);
   const stageLabel = conv.stage === "past" ? "Wrapped"
@@ -2255,6 +3726,17 @@ function ShellHeader({
         </div>
       </div>
       <JobStageFunnel currentStage={conv.stage} compact={false} />
+      {metaExtras && (
+        <div style={{
+          paddingTop: 8,
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", alignItems: "center", gap: 10,
+          fontSize: 11.5, color: COLORS.inkMuted,
+          flexWrap: "wrap",
+        }}>
+          {metaExtras}
+        </div>
+      )}
     </header>
   );
 }
@@ -2581,7 +4063,75 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
 
 type ClientFilter = "all" | "waiting-agency" | "action-needed" | "booked" | "past";
 
-const CLIENT_NEXT_ACTION_FOR_CONV: Record<string, { label: string; primary?: boolean } | null> = {
+// Derived next-action — reads offer.stage + conv.stage so adding a
+// new conversation no longer requires updating a hand-rolled map.
+// Static overrides below win when the derived label doesn't carry
+// enough context (e.g. payment-blocker reasons unique to one conv).
+function deriveClientNextAction(conv: Conversation): { label: string; primary?: boolean } | null {
+  const offer = getOffer(conv.id);
+  const ofStage = offer?.stage;
+  // Booked + offer accepted → next-action depends on what's left.
+  if (conv.stage === "booked") {
+    // Mock the deposit/balance signal off the conv.amountToYou string
+    // (production reads from a real invoice ledger).
+    if (conv.amountToYou && /balance.*owed|balance.*due|€\d+ balance/i.test(conv.amountToYou)) {
+      const m = conv.amountToYou.match(/€[\d,]+ balance/);
+      return { label: m ? `Pay ${m[0]}` : "Pay balance", primary: true };
+    }
+    return { label: "Sign call sheet" };
+  }
+  if (conv.stage === "past") return null;
+  if (conv.stage === "cancelled") return null;
+  // Inquiry / hold — depends on offer stage.
+  if (ofStage === "sent" || ofStage === "reviewing") {
+    const total = offer ? offer.rows.reduce((s, r) => s + r.clientRate * r.units, 0) + offer.agencyFee : 0;
+    const currency = offer?.clientBudget?.currency ?? "EUR";
+    return { label: total > 0 ? `Approve offer (${fmtMoney(total, currency)})` : "Approve offer", primary: true };
+  }
+  if (ofStage === "countered") return { label: "Review counter", primary: true };
+  if (ofStage === "accepted") return { label: "Sign booking" };
+  if (conv.stage === "hold") {
+    return { label: `Confirm ${conv.date ?? "hold"}`, primary: true };
+  }
+  if (conv.stage === "inquiry") {
+    if (ofStage === "no_offer" || ofStage === "client_budget") return { label: "Add a brief", primary: true };
+    return { label: "Review profiles" };
+  }
+  return null;
+}
+
+// Static fallbacks — used only when deriveClientNextAction can't infer
+// the right label (KYC blockers, post-cancellation notes, etc.). Most
+// conversations get their CTA derived; this map is for edge cases.
+const CLIENT_NEXT_ACTION_OVERRIDES: Record<string, { label: string; primary?: boolean } | null> = {
+  g1: { label: "Verify card on file", primary: true },
+  g3: { label: "Verify card to unlock profiles", primary: true },
+};
+
+// Compatibility shim — the existing call sites use bracket access
+// (`CLIENT_NEXT_ACTION_FOR_CONV[conv.id]`). Proxied so the lookup
+// runs derive-then-override at call time. Pass the conv-id key, get
+// the right computed action.
+const CLIENT_NEXT_ACTION_FOR_CONV: Record<string, { label: string; primary?: boolean } | null> = new Proxy({}, {
+  get(_t, convId: string) {
+    if (CLIENT_NEXT_ACTION_OVERRIDES[convId]) return CLIENT_NEXT_ACTION_OVERRIDES[convId];
+    // Find the conv across both client-profile maps.
+    for (const list of Object.values(CLIENT_MOCK_CONVERSATIONS_BY_PROFILE)) {
+      const c = list.find(c => c.id === convId);
+      if (c) return deriveClientNextAction(c);
+    }
+    // Fall back to MOCK_CONVERSATIONS for talent-side ids that share
+    // the same conv (preserves the c1 / c2 / c3 entries' behavior).
+    const c = MOCK_CONVERSATIONS.find(c => c.id === convId);
+    if (c) return deriveClientNextAction(c);
+    return null;
+  },
+}) as Record<string, { label: string; primary?: boolean } | null>;
+
+// Old hand-rolled map kept as a backstop reference (no longer the
+// source of truth). The Proxy above wins. Useful for documenting
+// what the legacy values were when something looks wrong.
+const _LEGACY_CLIENT_NEXT_ACTION: Record<string, { label: string; primary?: boolean } | null> = {
   // Mock client-side next-action per conversation. Production reads
   // from the inquiry record; null = no action needed.
   c1: null,
@@ -2589,16 +4139,24 @@ const CLIENT_NEXT_ACTION_FOR_CONV: Record<string, { label: string; primary?: boo
   c3: { label: "Approve offer (€8,000)", primary: true },
   c4: { label: "Reply to coordinator" },
   c5: { label: "Pay invoice (€3,200)", primary: true },
-  // Martina profile — 5 projects across stages
+  // Martina profile — 8 projects across stages (5 seeded + 3 new
+  // for richer demo: 2 brand-new inquiries with NEW pill, 1 in-flight
+  // hold awaiting approval).
   m1: { label: "Approve talent (Marta + 2 alts)", primary: true }, // inquiry · awaiting client decision
   m2: { label: "Sign call sheet" },                                // booked · routine confirmation
   m3: null,                                                         // wrapped, paid
   m4: { label: "Confirm Sep 6 hold", primary: true },              // hold · client owes a yes
   m5: null,                                                         // cancelled
-  // Gringo profile — 2 projects
+  m6: { label: "Review brief + budget" },                           // brand-new inquiry, agency replying first
+  m7: { label: "Review profiles" },                                 // brand-new inquiry from referral agency
+  m8: { label: "Approve sunset shoot (€4,200)", primary: true },   // hold · approval needed
+  // Gringo profile — 4 projects (2 seeded + 2 new for variety).
   g1: { label: "Verify card on file", primary: true },             // inquiry · KYC blocker
   g2: null,                                                         // past
+  g3: { label: "Verify card to unlock profiles", primary: true },  // brand-new inquiry, KYC blocker
+  g4: { label: "Pay €1,200 balance", primary: true },              // booked · balance due
 };
+void _LEGACY_CLIENT_NEXT_ACTION;
 
 function ClientProjectShell() {
   // Each client profile sees only THEIR commissioned projects — not
@@ -2607,6 +4165,10 @@ function ClientProjectShell() {
   const { state } = useProto();
   const profileId = state.clientProfile;
   const conversations = CLIENT_MOCK_CONVERSATIONS_BY_PROFILE[profileId] ?? [];
+  // Re-render on seen-state changes so the inbox re-sorts the moment
+  // a row is clicked (the NEW pill drops, the unseen sort tier loses
+  // that conv, and it re-ranks into the recency sort).
+  useSeenSubscription();
   // Pin the conversation that the caller requested via pinNextConversation
   // (e.g. the Today bookings row). One-shot consumption — refresh won't
   // re-pin, so the user can navigate freely after.
@@ -2635,9 +4197,26 @@ function ClientProjectShell() {
     if (filter === "past" && c.stage !== "past") return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      if (!c.client.toLowerCase().includes(q) && !c.brief.toLowerCase().includes(q)) return false;
+      const haystack = [
+        c.client, c.brief, c.agency,
+        c.leader?.name, c.location, c.date,
+        c.lastMessage.preview,
+      ].filter(Boolean).join(" ").toLowerCase();
+      if (!haystack.includes(q)) return false;
     }
     return true;
+  }).sort((a, b) => {
+    // Same chronological model as the talent inbox: unseen tier
+    // first, then by recency (freshest first). Action-needed acts
+    // as a secondary tier-1 boost so projects waiting on the
+    // client's decision (Approve / Sign / Pay) bubble up too.
+    const aNew = (a.seen === false && !isLocallySeen(a.id)) ? 1 : 0;
+    const bNew = (b.seen === false && !isLocallySeen(b.id)) ? 1 : 0;
+    if (aNew !== bNew) return bNew - aNew;
+    const aAct = CLIENT_NEXT_ACTION_FOR_CONV[a.id]?.primary ? 1 : 0;
+    const bAct = CLIENT_NEXT_ACTION_FOR_CONV[b.id]?.primary ? 1 : 0;
+    if (aAct !== bAct) return bAct - aAct;
+    return a.lastMessage.ageHrs - b.lastMessage.ageHrs;
   });
 
   const active = conversations.find(c => c.id === activeId) ?? filtered[0] ?? conversations[0];
@@ -2650,16 +4229,43 @@ function ClientProjectShell() {
         data-mobile-pane={mobilePane}
         style={{
           display: "grid",
-          gridTemplateColumns: "340px 1fr",
+          // CSS variable drives the desktop 2-track layout; mobile
+          // override in <style> below collapses to 1fr unambiguously.
+          ["--tulala-shell-cols" as never]: "340px 1fr",
+          gridTemplateColumns: "var(--tulala-shell-cols)",
           background: "#fff",
           border: `1px solid ${COLORS.borderSoft}`,
           borderRadius: 14,
           overflow: "hidden",
           height: "min(calc(100vh - var(--proto-cbar, 50px) - 56px - 200px), 820px)",
           minHeight: 560,
+          minWidth: 0,
+          maxWidth: "100%",
           fontFamily: FONTS.body,
         }}
       >
+        {/* Same fixed-position mobile pattern as the talent shell —
+            shell pins to viewport between identity bar (top) and bottom
+            nav, panes stack via grid + slide between via translateX
+            (CSS lives in page.tsx). 1fr override is repeated here for
+            specificity safety. */}
+        <style dangerouslySetInnerHTML={{ __html:
+          "@media (max-width: 720px){"
+          + "[data-tulala-messages-shell]{"
+          + "position:fixed!important;"
+          + "left:0!important;right:0!important;"
+          + "width:100vw!important;max-width:100vw!important;"
+          + "grid-template-columns:1fr!important;"
+          + "top:calc(var(--proto-cbar, 50px) + 56px)!important;"
+          + "bottom:80px!important;"
+          + "height:calc(100dvh - var(--proto-cbar, 50px) - 56px - 80px)!important;"
+          + "min-height:0!important;max-height:none!important;"
+          + "border-radius:0!important;border-left:0!important;border-right:0!important;"
+          + "z-index:10!important;"
+          + "}"
+          + "[data-tulala-messages-shell] > *{min-width:0!important;max-width:100%!important}"
+          + "}"
+        }} />
         <ClientProjectInbox
           conversations={filtered}
           activeId={active?.id ?? ""}
@@ -2671,84 +4277,233 @@ function ClientProjectShell() {
           {active ? <ClientProjectDetail conv={active} onBack={() => setMobilePane("list")} /> : <EmptyDetail label="No project selected" />}
         </div>
       </div>
+      {/* Mobile-only: thin tab on left edge to reopen the inbox while
+          a thread is open. Same handle pattern as the talent shell. */}
+      {mobilePane === "thread" && (
+        <MobileInboxTab
+          unreadCount={conversations.reduce((s, c) => s + c.unreadCount, 0)}
+          onOpen={() => setMobilePane("list")}
+        />
+      )}
     </>
   );
 }
 
 // ── Client: project-flavored row ──
-// Shows: project + status + plain-language status line + coordinator name
+// Mirrors the TalentJobRow pattern (avatar + name + brief + funnel)
+// but client-shaped: instead of "your take-home", the right-side
+// signal is the next-action chip (Approve / Sign / Pay), and the
+// preview line is plain-language project status. Stage-tinted
+// background + NEW pill for unseen rows match the talent inbox so
+// the eye reads both surfaces the same way.
 function ClientProjectRow({
   conv, active, onClick,
 }: { conv: Conversation; active: boolean; onClick: () => void }) {
   const sc = stageStyle(conv.stage);
   const next = CLIENT_NEXT_ACTION_FOR_CONV[conv.id];
+  const dateLabel = conv.date;
+  const cityLabel = conv.location ? conv.location.split(" · ")[0] : null;
+  const briefMentionsCity = cityLabel && conv.brief.toLowerCase().includes(cityLabel.toLowerCase());
+  const subtitleParts = [
+    conv.brief,
+    dateLabel ? withWeekday(dateLabel) : null,
+    !briefMentionsCity ? cityLabel : null,
+  ].filter(Boolean);
+
+  // Plain-language status — what's happening on the project today.
+  // Action items come from CLIENT_NEXT_ACTION_FOR_CONV; otherwise
+  // the message uses the stage-shape phrasing the client expects.
   const statusLine = (() => {
     if (next?.primary) return next.label;
-    if (conv.stage === "inquiry") return "Waiting on coordinator to respond";
-    if (conv.stage === "hold") return "Coordinator preparing offer";
+    if (conv.stage === "inquiry") return "Coordinator preparing your shortlist";
+    if (conv.stage === "hold") return "Hold confirmed · finalising offer";
     if (conv.stage === "booked") return "Booked · schedule confirmed";
-    if (conv.stage === "past") return "Wrapped · paid in full";
+    if (conv.stage === "past") return "Wrapped · invoice closed";
+    if (conv.stage === "cancelled") return conv.outcome === "client_cancelled" ? "Cancelled by you" : "Cancelled";
     return conv.lastMessage.preview;
   })();
 
+  const stageWord = conv.stage === "past" ? "Wrapped"
+    : conv.stage === "hold" ? "Hold"
+    : conv.stage === "cancelled" && conv.outcome === "client_cancelled" ? "Cancelled by you"
+    : conv.stage === "cancelled" && conv.outcome === "client_rejected" ? "Offer rejected"
+    : conv.stage === "cancelled" && conv.outcome === "client_no_response" ? "Expired · no reply"
+    : conv.stage === "cancelled" ? "Cancelled"
+    : conv.stage.charAt(0).toUpperCase() + conv.stage.slice(1);
+
+  // Same seen + tint logic as the talent inbox so the row pattern
+  // reads identically across roles.
+  // Manual-unread overrides the locally-seen state — see AdminInquiryRow.
+  const isUnseen = isManualUnread(conv.id) || (conv.seen === false && !isLocallySeen(conv.id));
+  const isActionNeeded = !!next?.primary;
+  const stageBg: string =
+    active ? "rgba(11,11,13,0.045)"
+    : isUnseen ? "rgba(176,48,58,0.05)"
+    : isActionNeeded ? "rgba(176,48,58,0.04)"
+    : conv.stage === "booked" ? "rgba(46,125,91,0.045)"
+    : "transparent";
+
+  const rowRef = useScrollIntoViewWhenActive(active);
+
   return (
     <button
+      ref={rowRef}
       type="button"
       onClick={onClick}
+      data-tulala-inbox-row
       style={{
-        display: "flex", flexDirection: "column", gap: 6,
-        width: "100%", padding: "14px 14px",
-        background: active ? "rgba(11,11,13,0.045)" : "transparent",
-        borderLeft: active ? `3px solid ${COLORS.accent}` : "3px solid transparent",
-        border: "none", borderBottom: `1px solid ${COLORS.borderSoft}`,
+        display: "flex", alignItems: "flex-start", gap: 10,
+        width: "100%", padding: "12px 14px",
+        background: stageBg,
+        borderLeft: active ? `3px solid ${COLORS.accent}`
+          : isUnseen ? `3px solid ${COLORS.coral}`
+          : isActionNeeded ? `3px solid ${COLORS.coral}88`
+          : "3px solid transparent",
+        // Longhand keeps React from warning when borderLeft flips
+        // between active / unseen / action-needed / default.
+        borderTop: "none", borderRight: "none",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
         cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
+        position: "relative",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: sc.bg, color: sc.fg, textTransform: "capitalize", letterSpacing: 0.4 }}>
-          {conv.stage}
-        </span>
-        <span style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {conv.client}
-        </span>
-        {(() => {
-          const t = freshnessTone(conv.lastMessage.ageHrs, !!next?.primary);
-          return t ? (
-            <span aria-label={`SLA: ${t.label}`} style={{ width: 7, height: 7, borderRadius: "50%", background: t.color, flexShrink: 0 }} />
-          ) : null;
-        })()}
-        <span style={{ fontSize: 10.5, color: COLORS.inkMuted, flexShrink: 0 }}>
-          {ageLabel(conv.lastMessage.ageHrs)}
-        </span>
-      </div>
-      <div style={{ fontSize: 12, color: COLORS.inkMuted }}>{conv.brief}</div>
-      <div style={{
-        marginTop: 4, padding: "8px 10px", borderRadius: 8,
-        background: next?.primary ? `${COLORS.coral}10` : "rgba(11,11,13,0.03)",
-        display: "flex", alignItems: "center", gap: 8,
-      }}>
-        {next?.primary && (
-          <span aria-hidden style={{ color: COLORS.coral, display: "inline-flex" }}>
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v6M5.5 8.5v.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+      <InboxRowHoverActions rowId={conv.id} label={conv.brief} />
+      {/* Project avatar — initial of the project / brand they're
+          commissioning. Colored by hash so each project is visually
+          distinct. */}
+      <span style={{ flexShrink: 0, marginTop: 2 }}>
+        <Avatar
+          initials={initialsOf(conv.brief.split(" ").slice(0, 2).join(" "))}
+          hashSeed={conv.brief + conv.client}
+          tone="auto"
+          size={36}
+        />
+      </span>
+
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+        {/* Row 1 — project name (brief) + NEW pill + age */}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
+          <span
+            title={conv.brief}
+            style={{
+              fontSize: 14, fontWeight: 700, color: COLORS.ink,
+              flex: 1, minWidth: 0,
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              lineHeight: 1.25, letterSpacing: -0.1,
+            }}
+          >
+            {conv.brief}
           </span>
-        )}
-        <span style={{ fontSize: 12, color: next?.primary ? COLORS.coral : COLORS.ink, fontWeight: next?.primary ? 600 : 500, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {statusLine}
-        </span>
-        {conv.unreadCount > 0 && (
-          <span style={{ minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, background: COLORS.accent, color: "#fff", fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-            {conv.unreadCount}
+          {isUnseen && (
+            <span style={{
+              flexShrink: 0,
+              fontSize: 9, fontWeight: 800, letterSpacing: 0.6,
+              padding: "2px 6px", borderRadius: 999,
+              background: COLORS.coral, color: "#fff",
+              textTransform: "uppercase",
+              boxShadow: `0 0 0 2px ${COLORS.coral}1f`,
+            }}>NEW</span>
+          )}
+          <span style={{ flexShrink: 0, fontSize: 10.5, color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>
+            {ageLabel(conv.lastMessage.ageHrs)}
           </span>
+        </div>
+
+        {/* Row 2 — agency / coordinator + city + date + source chip.
+            Source chip surfaces whether the inquiry routed through
+            Tulala Hub, IG DM, agency referral, etc. — same triage
+            signal the talent gets in their inbox. */}
+        {subtitleParts.length > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4,
+            minWidth: 0,
+          }}>
+            <span style={{
+              minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
+              whiteSpace: "nowrap", flex: 1,
+            }}>
+              via {conv.agency}
+              {subtitleParts.length > 1 && " · "}
+              {subtitleParts.slice(1).join(" · ")}
+            </span>
+            {(() => {
+              const sm = conv.source ? sourceChipMeta(conv.source) : null;
+              if (!sm) return null;
+              return (
+                <span title={sm.tooltip} style={{
+                  flexShrink: 0,
+                  display: "inline-flex", alignItems: "center", gap: 3,
+                  padding: "1px 6px", borderRadius: 999,
+                  background: sm.bg, color: sm.fg,
+                  fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
+                  textTransform: "uppercase",
+                }}>
+                  <span aria-hidden style={{ display: "inline-flex" }}>{sm.icon}</span>
+                  {sm.label}
+                </span>
+              );
+            })()}
+          </div>
         )}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-        <Avatar size={16} tone="ink" hashSeed={conv.leader.name} initials={conv.leader.initials} />
-        <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{conv.leader.name} · {conv.agency}</span>
-      </div>
-      {/* Compact stage funnel — same at-a-glance pipeline cue used in
-          the talent + admin shells. Premium consistency across roles. */}
-      <div style={{ marginTop: 4 }}>
-        <JobStageFunnel currentStage={conv.stage} compact={true} />
+
+        {/* Row 3 — status line · unread badge. When action is needed
+            the line gets a coral tint + bullet so the eye flags it. */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6, marginTop: 2,
+        }}>
+          {isActionNeeded && (
+            <span aria-hidden style={{
+              flexShrink: 0,
+              width: 6, height: 6, borderRadius: "50%",
+              background: COLORS.coral,
+            }} />
+          )}
+          <span style={{
+            flex: 1, minWidth: 0,
+            fontSize: 11.5,
+            color: isActionNeeded ? COLORS.coralDeep : conv.unreadCount > 0 ? COLORS.ink : COLORS.inkMuted,
+            fontWeight: isActionNeeded ? 600 : conv.unreadCount > 0 ? 500 : 400,
+            lineHeight: 1.4,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {statusLine}
+          </span>
+          {conv.unreadCount > 0 && (
+            <span style={{
+              flexShrink: 0,
+              minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999, boxSizing: "border-box",
+              background: COLORS.accent, color: "#fff",
+              fontSize: 9.5, fontWeight: 700,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+            }}>{conv.unreadCount}</span>
+          )}
+        </div>
+
+        {/* Row 4 — funnel dots + stage word + coordinator chip */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+          <span style={{ flex: "0 0 auto", maxWidth: 130 }}>
+            <JobStageFunnel currentStage={conv.stage} compact={true} />
+          </span>
+          <span style={{
+            fontSize: 10, fontWeight: 700,
+            color: sc.fg, letterSpacing: 0.3, textTransform: "uppercase",
+            flexShrink: 0,
+          }}>
+            {stageWord}
+          </span>
+          <span style={{ flex: 1 }} />
+          {/* Coordinator owner — small avatar so the client knows
+              who's handling their project at a glance. */}
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            flexShrink: 0,
+            fontSize: 10.5, color: COLORS.inkMuted,
+          }} title={`${conv.leader.name} · ${conv.agency}`}>
+            <Avatar size={14} tone="ink" hashSeed={conv.leader.name} initials={conv.leader.initials} />
+            {conv.leader.name.split(" ")[0]}
+          </span>
+        </div>
       </div>
     </button>
   );
@@ -2763,34 +4518,106 @@ function ClientProjectInbox({
   search: string; onSearchChange: (s: string) => void;
   filter: ClientFilter; onFilterChange: (f: ClientFilter) => void;
 }) {
-  const chips: { id: ClientFilter; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "action-needed", label: "Action needed" },
-    { id: "waiting-agency", label: "Waiting on agency" },
+  // Subscribe to pin/manual-unread flags so the inbox re-orders +
+  // re-tints when those toggle from a row's hover actions.
+  useFlagsSubscription();
+  const chips: { id: ClientFilter; label: string; count?: number }[] = [
+    { id: "all", label: "All projects" },
+    { id: "action-needed", label: "Needs you", count: conversations.filter(c => CLIENT_NEXT_ACTION_FOR_CONV[c.id]?.primary).length },
+    { id: "waiting-agency", label: "In flight" },
     { id: "booked", label: "Booked" },
     { id: "past", label: "Past" },
   ];
   return (
-    <aside data-tulala-list-pane style={{ display: "flex", flexDirection: "column", borderRight: `1px solid ${COLORS.borderSoft}`, background: "#fff", minHeight: 0 }}>
-      <div style={{ padding: "14px 14px 8px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+    <aside data-tulala-list-pane style={{
+      display: "flex", flexDirection: "column",
+      borderRight: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+      minHeight: 0, minWidth: 0, maxWidth: "100%",
+    }}>
+      <HoverActionsCss />
+      <div data-tulala-inbox-header style={{
+        padding: "14px 14px 8px",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        minWidth: 0, maxWidth: "100%",
+      }}>
         <div data-tulala-list-header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
           <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, margin: 0 }}>Projects</h3>
           <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{conversations.length}</span>
         </div>
-        <style>{`@media (max-width: 720px) { [data-tulala-list-header] { display: none !important; } }`}</style>
-        <div style={{ marginBottom: 10 }}>
+        <style>{`
+          @media (max-width: 720px) {
+            [data-tulala-list-header] { display: none !important; }
+            [data-tulala-inbox-header],
+            [data-tulala-inbox-search],
+            [data-tulala-inbox-chips],
+            [data-tulala-inbox-scroll] {
+              min-width: 0 !important;
+              max-width: 100% !important;
+              box-sizing: border-box !important;
+            }
+            [data-tulala-inbox-chips] {
+              overflow-x: auto !important;
+              scrollbar-width: none !important;
+            }
+            [data-tulala-inbox-chips]::-webkit-scrollbar { display: none !important; }
+          }
+        `}</style>
+        <div data-tulala-inbox-search style={{ marginBottom: 10 }}>
           <SearchPill value={search} onChange={onSearchChange} placeholder="Search projects…" />
         </div>
-        <div style={{ display: "flex", gap: 5, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
-          {chips.map(c => <FilterChip key={c.id} id={c.id} label={c.label} active={filter === c.id} onClick={() => onFilterChange(c.id)} />)}
+        <div data-tulala-inbox-chips style={{ display: "flex", gap: 5, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
+          {chips.map(c => (
+            <FilterChip
+              key={c.id} id={c.id} label={c.label}
+              active={filter === c.id}
+              count={c.count}
+              onClick={() => onFilterChange(c.id)}
+            />
+          ))}
         </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+      <div data-tulala-inbox-scroll style={{
+        flex: 1, overflowY: "auto", minHeight: 0,
+        minWidth: 0, maxWidth: "100%",
+      }}>
         {conversations.length === 0 ? (
-          <div style={{ padding: "32px 16px", textAlign: "center", color: COLORS.inkDim, fontSize: 12 }}>No projects match.</div>
-        ) : conversations.map(c => (
-          <ClientProjectRow key={c.id} conv={c} active={c.id === activeId} onClick={() => onSelect(c.id)} />
-        ))}
+          <div style={{
+            padding: "32px 18px", textAlign: "center",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+          }}>
+            <div aria-hidden style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              marginBottom: 4,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "Nothing in this view"}
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4, maxWidth: 240 }}>
+              {search.trim() ? "Try a different keyword, or clear the search." : <>Try the <strong>All projects</strong> filter or clear your search.</>}
+            </div>
+            {search.trim() && (
+              <button type="button" onClick={() => onSearchChange("")} style={{
+                marginTop: 6, padding: "5px 12px", borderRadius: 999,
+                border: `1px solid ${COLORS.border}`, background: "transparent",
+                color: COLORS.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>Clear search</button>
+            )}
+          </div>
+        ) : renderWithDateGroups(
+            sortPinnedFirst(conversations),
+            c => c.lastMessage.ageHrs,
+            c => (
+              <ClientProjectRow key={c.id} conv={c} active={c.id === activeId} onClick={() => onSelect(c.id)} />
+            ),
+          )}
       </div>
     </aside>
   );
@@ -2937,6 +4764,14 @@ function ClientTabsBlock({
       {activeTab === "details" && (
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
           <DetailsPanel inquiry={convToInquiry(conv)} pov="client" />
+        </div>
+      )}
+      {/* Merged "Project" tab — replaces Details + Logistics for client.
+          Same surface pattern as the talent's "Details" tab so the
+          design language is consistent across roles. */}
+      {activeTab === "booking" && (
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <ClientProjectViewTab conv={conv} inquiry={convToInquiry(conv)} />
         </div>
       )}
       <ShellNextActionBar {...resolveShellAction(conv, "client", toast)} />
@@ -3117,8 +4952,11 @@ export function buildInquiryTabs(opts: {
   unread?: { client?: number; talent?: number; files?: number };
   offerNeedsAttention?: boolean;
   paymentDue?: boolean;
+  /** Workspace plan tier — hides team-only surfaces on Free
+   *  (no team to coordinate with). Admin-only. */
+  planTier?: "free" | "studio" | "agency" | "hub-network" | "network";
 }): TabDef[] {
-  const { status, pov, unread = {}, offerNeedsAttention, paymentDue } = opts;
+  const { status, pov, unread = {}, offerNeedsAttention, paymentDue, planTier } = opts;
   const tabs: TabDef[] = [];
 
   // Client thread — visible to admin/client/talent_coord. Hidden entirely
@@ -3137,13 +4975,19 @@ export function buildInquiryTabs(opts: {
   // talent) instead of the technical "Talent group". Coordinator-talents
   // also get this label so they don't see two different names for the
   // same channel.
-  tabs.push({
-    id: "talent",
-    label: (pov === "talent" || pov === "talent_coord") ? "Booking team" : "Talent group",
-    state: pov === "client" ? "locked" : "active",
-    lockedReason: pov === "client" ? "Internal coordination" : undefined,
-    badge: unread.talent && unread.talent > 0 ? unread.talent : undefined,
-  });
+  //
+  // Free-tier exception: solo workspace has no team to coordinate with,
+  // so the Talent group tab adds zero value and clutters the bar. Hide.
+  const hideTalentGroupOnFree = pov === "admin" && planTier === "free";
+  if (!hideTalentGroupOnFree) {
+    tabs.push({
+      id: "talent",
+      label: (pov === "talent" || pov === "talent_coord") ? "Booking team" : "Talent group",
+      state: pov === "client" ? "locked" : "active",
+      lockedReason: pov === "client" ? "Internal coordination" : undefined,
+      badge: unread.talent && unread.talent > 0 ? unread.talent : undefined,
+    });
+  }
   // Inquiry-stage commercial tab.
   if (status === "inquiry") {
     tabs.push({
@@ -3161,8 +5005,21 @@ export function buildInquiryTabs(opts: {
   // talent always knows where to find the details. Admin and client
   // keep the legacy split (Logistics call-sheet editor + Details) since
   // they need different controls per stage.
+  // Talent + client both get a single MERGED info tab — talent calls
+  // it "Details" (carries the full booking + project context), client
+  // calls it "Project" (project status + lineup + when/where + coord).
+  // Admin now uses the same merged tab pattern (AdminBookingTab); the
+  // dedicated Logistics call-sheet editor is still surfaced separately
+  // for admin only because they're orchestrating across both threads
+  // and need a focused editor surface for the call sheet.
   const isTalentPov = pov === "talent" || pov === "talent_coord";
-  if (status === "booked" && !isTalentPov) {
+  const isClientPov = pov === "client";
+  const isAdminPov = pov === "admin";
+  // All three povs now get a merged info tab (the polished card grid).
+  // Admin additionally keeps the dedicated Logistics editor at booked
+  // stage; talent's logistics info is folded into the merged tab.
+  const useMergedInfoTab = true;
+  if (status === "booked" && isAdminPov) {
     tabs.push({ id: "logistics", label: "Logistics", state: "active" });
   }
   tabs.push({
@@ -3184,14 +5041,22 @@ export function buildInquiryTabs(opts: {
       badge: paymentDue ? "!" : undefined,
     });
   }
-  // Single merged info tab for talent (any stage). Non-talent keeps
-  // the classic "Details" tab since it pairs with their own Logistics
-  // editor at booked stage.
-  if (isTalentPov) {
-    tabs.push({ id: "booking", label: "Details", state: "active" });
+  if (useMergedInfoTab) {
+    // Tab labels: client = "Project" (their language), admin =
+    // "Project" (mirrors client now that admin renders the same card-
+    // grid view), talent = "Details" (industry term — they're inside
+    // the booking, not commissioning a project).
+    const mergedLabel = isClientPov || isAdminPov ? "Project" : "Details";
+    tabs.push({
+      id: "booking",
+      label: mergedLabel,
+      state: "active",
+    });
   } else {
     tabs.push({ id: "details", label: "Details", state: "active" });
   }
+  // Suppress unused warning — kept for future per-pov diverging logic.
+  void isTalentPov;
   return tabs;
 }
 
@@ -3325,6 +5190,12 @@ function TalentBookingTab({
   const days = countdownLabel(inquiry.schedule.start);
   const coord = inquiry.coordinators[0];
   const teammates = inquiry.talent.length > 1;
+  // Solo-coord case: when isCoordinator AND there's only 1 talent (the
+  // coord themselves), we still render the lineup card so the coord has
+  // an obvious surface to invite a teammate from. Without this they'd
+  // get no affordance at all.
+  const soloCoord = isCoordinator && inquiry.talent.length <= 1;
+  const showLineupCard = teammates || soloCoord;
   const showCoord = !!coord;
   const hotel = (pinned as { hotel?: string }).hotel;
   // Historical offer reference — only at booked / past stages, when
@@ -3383,17 +5254,19 @@ function TalentBookingTab({
           so the booking-tab grids stay 2-up. Paddings + gaps tighten so
           cards still breathe at 360px. */}
       <style dangerouslySetInnerHTML={{ __html:
-        // Force 2-col at every viewport — wins over the page-wide
-        // single-column override because of the data-tulala-booking-tab
-        // ancestor selector (more specific).
-        ".tulala-shell [data-tulala-booking-tab] [data-booking-grid]{grid-template-columns:1fr 1fr!important}"
-        + "@media (max-width: 720px){"
+        "@media (max-width: 720px){"
         + "[data-tulala-booking-tab]{padding:10px!important;gap:7px!important}"
         + "[data-tulala-booking-tab] [data-booking-grid]{gap:7px!important}"
         + "[data-tulala-booking-tab] [data-booking-card]{padding:9px 10px!important}"
         + "[data-tulala-booking-tab] [data-booking-section-title]{font-size:9.5px!important;margin-bottom:5px!important}"
         + "[data-tulala-booking-tab] [data-booking-card] h1,"
         + "[data-tulala-booking-tab] [data-booking-card] [data-booking-headline]{font-size:13px!important}"
+        + "}"
+        // Below 480px every booking-grid row collapses to one column —
+        // when the column track drops under ~160px the LocationMapTile
+        // and the lineup card both truncate badly.
+        + "@media (max-width: 480px){"
+        + "[data-tulala-booking-tab] [data-booking-grid]{grid-template-columns:1fr!important}"
         + "}"
       }} />
 
@@ -3688,15 +5561,17 @@ function TalentBookingTab({
       {/* Who's on this job + Coordinator — 2-up when both present.
           Lineup shows ALL teammates (not just self) with state pills so
           the talent reads the team's health at a glance. */}
-      {(teammates || showCoord) && (
+      {(showLineupCard || showCoord) && (
         <div data-booking-grid style={{
           display: "grid",
-          gridTemplateColumns: teammates && showCoord ? "1.4fr 1fr" : "1fr",
+          gridTemplateColumns: showLineupCard && showCoord ? "1.4fr 1fr" : "1fr",
           gap: 10,
         }}>
-          {teammates && (
+          {showLineupCard && (
             <div data-booking-card style={cardStyle}>
-              <div data-booking-section-title style={sectionTitle}>Who's on this job</div>
+              <div data-booking-section-title style={sectionTitle}>
+                {soloCoord && !teammates ? "On this job" : "Who's on this job"}
+              </div>
               {inquiry.talent.map(t => (
                 <RosterMemberRow
                   key={t.talentId}
@@ -3705,6 +5580,11 @@ function TalentBookingTab({
                   stagePast={inquiry.status === "wrapped" || inquiry.status === "cancelled"}
                 />
               ))}
+              {soloCoord && inquiry.talent.length === 0 && (
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "8px 0" }}>
+                  No talent on this job yet.
+                </div>
+              )}
               {/* Edit / view lineup affordance — opens the same lineup
                   drawer the conversation tab's TeamStrip uses, so the
                   user gets one canonical surface for adding/removing
@@ -3730,7 +5610,7 @@ function TalentBookingTab({
                       <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
                         <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                       </svg>
-                      Edit lineup · add or remove talent
+                      {soloCoord && !teammates ? "Invite a teammate" : "Edit lineup · add or remove talent"}
                     </>
                   ) : (
                     <>
@@ -3751,12 +5631,21 @@ function TalentBookingTab({
                   button so the card never has to fit avatar + name +
                   button on a single 42%-of-viewport horizontal track. */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
+                <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+                  <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
+                  <PresenceDot name={coord.name} />
+                </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontSize: 13, fontWeight: 700, color: COLORS.ink,
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                  }}>{coord.name}</div>
+                    display: "flex", alignItems: "center", gap: 6,
+                    minWidth: 0,
+                  }}>
+                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {coord.name}
+                    </span>
+                    <CoordRoleBadge role={coord.role} />
+                  </div>
                   <div style={{
                     fontSize: 11, color: COLORS.inkMuted,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
@@ -3787,14 +5676,17 @@ function TalentBookingTab({
         </div>
       )}
 
-      {/* My notes — personal scratchpad. Saves to local state in the
-          prototype; production: per-talent-per-job notes. Last so the
-          talent has all the context above before scribbling. */}
+      {/* My notes — personal scratchpad. Keyed by conv.id so each job
+          has its own draft (no more shared note bleeding across all
+          conversations). Saves on blur into the module-level notes
+          stash; survives tab + conv switches within the session. */}
       <div data-booking-card style={cardStyle}>
         <div data-booking-section-title style={sectionTitle}>My notes</div>
         <textarea
+          key={conv.id}
+          defaultValue={readConvNote(conv.id)}
           placeholder="Things to bring, contacts, reminders…"
-          onBlur={() => toast("Note saved")}
+          onBlur={(e) => { writeConvNote(conv.id, e.currentTarget.value); toast("Note saved"); }}
           style={{
             width: "100%", minHeight: 64, resize: "vertical",
             padding: 10, borderRadius: 8,
@@ -3809,6 +5701,1460 @@ function TalentBookingTab({
           prop list so future tweaks (e.g. coord-only billing summary)
           have it without re-threading from the parent. */}
       {void isCoordinator}
+    </div>
+  );
+}
+
+// ── ClientProjectViewTab ──
+// Client-flavored mirror of TalentBookingTab. Same 2-column card grid
+// pattern (so the look/feel reads identically across roles) but the
+// content shifts to what a client cares about:
+//   • Project status hero — what's happening NOW + the next decision
+//     they own (Approve / Sign / Pay / Add note)
+//   • The project — title, brief, source where the inquiry came in
+//   • When + Where 2-up
+//   • Your talent (commissioned lineup) + Your contact (coordinator)
+//   • Files + your notes
+//
+// No "submit rate" flow (talent-only) and no commercial breakdown
+// (handled by the dedicated Offer tab when they're approving / paying).
+function ClientProjectViewTab({
+  conv, inquiry,
+}: {
+  conv: Conversation;
+  inquiry: InquiryRecord;
+}) {
+  const { toast } = useProto();
+  const pinned = conv.pinned ?? {};
+  const days = countdownLabel(inquiry.schedule.start);
+  const coord = inquiry.coordinators[0];
+  const lineup = inquiry.talent;
+  const teammates = lineup.length > 0;
+  const showCoord = !!coord;
+  const action = CLIENT_NEXT_ACTION_FOR_CONV[conv.id];
+  // Subscribe to offer-stash + notes so this view re-renders when
+  // the client approves something or edits their notes.
+  useOfferStashSubscription();
+  useNotesSubscription();
+  const offer = getOffer(conv.id);
+  // Action sheet state — opens when the client clicks the Do it now
+  // hero CTA. Kind is inferred from the action label (Approve / Sign
+  // / Pay / Verify card) so each hero has the right confirmation flow.
+  const [actionSheetOpen, setActionSheetOpen] = useState(false);
+  // Lineup drawer — opens from the "Add talent" footer button or from
+  // the per-row swap button. Same drawer the coordinator uses, but
+  // with the client's pov so picker tabs read "Favorites / Recent /
+  // All Tulala" and edits are framed as "request changes".
+  const [lineupOpen, setLineupOpen] = useState(false);
+  // Change-coordinator sheet — opens from the "Manage" overflow on
+  // the Your-contact card. Lets the client request a re-assign, ask
+  // for a backup coordinator, or send a private note to the agency.
+  const [coordSheetOpen, setCoordSheetOpen] = useState(false);
+  const actionKind: ClientActionKind | null = (() => {
+    if (!action?.primary) return null;
+    const l = action.label.toLowerCase();
+    if (l.includes("approve")) return "approve";
+    if (l.includes("sign")) return "sign";
+    if (l.includes("pay")) return "pay";
+    if (l.includes("verify")) return "verify-card";
+    return "approve";
+  })();
+
+  // Same compact card surface as the talent's TalentBookingTab so
+  // the patterns look identical across roles.
+  const cardStyle: CSSProperties = {
+    background: "#fff",
+    border: `1px solid ${COLORS.borderSoft}`,
+    borderRadius: 12,
+    padding: "12px 14px",
+    boxShadow: "0 1px 0 rgba(11,11,13,0.02)",
+    minWidth: 0,
+    maxWidth: "100%",
+    overflow: "hidden",
+    boxSizing: "border-box",
+  };
+  const sectionTitle: CSSProperties = {
+    fontSize: 10.5,
+    fontWeight: 700,
+    color: COLORS.inkMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  };
+
+  return (
+    <div data-tulala-booking-tab style={{
+      padding: 14,
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+      fontFamily: FONTS.body,
+    }}>
+      <style dangerouslySetInnerHTML={{ __html:
+        "@media (max-width: 720px){"
+        + "[data-tulala-booking-tab]{padding:10px!important;gap:7px!important}"
+        + "[data-tulala-booking-tab] [data-booking-grid]{gap:7px!important}"
+        + "[data-tulala-booking-tab] [data-booking-card]{padding:9px 10px!important}"
+        + "[data-tulala-booking-tab] [data-booking-section-title]{font-size:9.5px!important;margin-bottom:5px!important}"
+        + "}"
+        // Below 480px the side-by-side cards squash to <160px wide and
+        // the LocationMapTile + talent rows truncate aggressively. Stack
+        // every booking-grid row to a single column so each card gets
+        // the full width. !important is needed because the inline
+        // gridTemplateColumns (e.g. "1.4fr 1fr") on the JSX would
+        // otherwise win.
+        + "@media (max-width: 480px){"
+        + "[data-tulala-booking-tab] [data-booking-grid]{grid-template-columns:1fr!important}"
+        + "}"
+      }} />
+
+      {/* Action hero — when the client owes a decision, this banner
+          carries it front-and-center so they can act without hunting
+          for the right tab. Replaces the talent's "On set in N days"
+          countdown (which doesn't apply for client). When no action,
+          falls back to the countdown for booked projects. */}
+      {action?.primary ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          padding: "12px 14px",
+          background: `linear-gradient(135deg, ${COLORS.coral}14 0%, ${COLORS.surfaceAlt} 100%)`,
+          border: `1px solid ${COLORS.coral}40`,
+          borderRadius: 12,
+        }}>
+          <span aria-hidden style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 36, height: 36, borderRadius: 10,
+            background: `${COLORS.coral}28`,
+            color: COLORS.coral, flexShrink: 0,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M8 4.5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.coral }}>
+              Needs your decision
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>
+              {action.label}
+            </div>
+          </div>
+          <button type="button" onClick={() => setActionSheetOpen(true)} style={{
+            flexShrink: 0,
+            padding: "8px 14px", borderRadius: 999,
+            background: COLORS.coral, color: "#fff",
+            border: "none", cursor: "pointer",
+            fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
+          }}>
+            Do it now
+          </button>
+        </div>
+      ) : days ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          padding: "12px 14px",
+          background: days.urgent
+            ? `linear-gradient(135deg, ${COLORS.amber}18 0%, ${COLORS.amber}08 100%)`
+            : `linear-gradient(135deg, ${COLORS.successSoft} 0%, ${COLORS.surfaceAlt} 100%)`,
+          border: `1px solid ${days.urgent ? `${COLORS.amber}40` : `${COLORS.success}30`}`,
+          borderRadius: 12,
+        }}>
+          <span aria-hidden style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 36, height: 36, borderRadius: 10,
+            background: days.urgent ? `${COLORS.amber}28` : `${COLORS.success}20`,
+            color: days.urgent ? COLORS.amber : (COLORS.successDeep ?? COLORS.success),
+            flexShrink: 0,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M2.5 6.5h11M5 2v3M11 2v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: days.urgent ? COLORS.amber : (COLORS.successDeep ?? COLORS.success) }}>
+              {days.headline}
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              {days.subhead}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* The project — title + brief + source. Client wants context:
+          what they commissioned, who's doing it, what stage it's at. */}
+      <div data-booking-card style={cardStyle}>
+        <div data-booking-section-title style={sectionTitle}>The project</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, lineHeight: 1.35 }}>
+          {inquiry.title}
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>
+          With {conv.agency} · {conv.leader.name} coordinating
+        </div>
+        {(() => {
+          const sourceMeta = conv.source ? sourceChipMeta(conv.source) : null;
+          if (!sourceMeta) return null;
+          return (
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{
+                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
+                textTransform: "uppercase", color: COLORS.inkDim,
+              }}>You sent this via</span>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 9px", borderRadius: 999,
+                background: sourceMeta.bg, color: sourceMeta.fg,
+                fontSize: 11, fontWeight: 700,
+              }}>
+                <span aria-hidden style={{ display: "inline-flex" }}>{sourceMeta.icon}</span>
+                {sourceMeta.label}
+              </span>
+            </div>
+          );
+        })()}
+        {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
+          <div style={{ fontSize: 12.5, color: COLORS.ink, marginTop: 8, lineHeight: 1.55 }}>
+            {inquiry.brief.summary}
+          </div>
+        )}
+        {/* Coordinator's note for the client — same atom as talent's
+            "Sara's read" + admin's "Sara's read", framed for the
+            client as a personal note from the coord rather than an
+            internal-team read. Pulls from the same conv.pinned.
+            coordinatorNote source so a coord writes once and both
+            audiences see it (with appropriate framing). */}
+        {conv.pinned?.coordinatorNote && coord && (
+          <div style={{
+            marginTop: 10,
+            display: "flex", gap: 9,
+            padding: "10px 12px",
+            background: COLORS.indigoSoft,
+            border: `1px solid rgba(91,107,160,0.18)`,
+            borderRadius: 10,
+          }}>
+            <span aria-hidden style={{ flexShrink: 0, marginTop: 1, color: COLORS.indigoDeep }}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M3 3h3v3H4l-1 2v-2H3V3zm5 0h3v3H9l-1 2v-2H8V3z" fill="currentColor"/>
+              </svg>
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
+                textTransform: "uppercase", color: COLORS.indigoDeep,
+                marginBottom: 2,
+              }}>
+                {coord.name.split(" ")[0]}'s note for you
+              </div>
+              <div style={{
+                fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5,
+                fontStyle: "italic",
+              }}>
+                "{conv.pinned.coordinatorNote}"
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* When + Where — same 2-up layout the talent gets so the
+          patterns mirror across roles. */}
+      <div data-booking-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div data-booking-card style={cardStyle}>
+          <div data-booking-section-title style={sectionTitle}>When</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>
+            {inquiry.schedule.start}
+            {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
+          </div>
+          {pinned.callTime && (
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
+              Call · <span style={{ color: COLORS.ink, fontWeight: 600 }}>{pinned.callTime}</span>
+            </div>
+          )}
+        </div>
+        <div data-booking-card style={{ ...cardStyle, padding: 0 }}>
+          <div data-booking-section-title style={{ ...sectionTitle, padding: "12px 14px 0" }}>Where</div>
+          {(inquiry.location.city || inquiry.location.venue || inquiry.location.address) ? (
+            <div style={{ padding: "8px 14px 12px" }}>
+              <LocationMapTile
+                venue={inquiry.location.venue}
+                address={inquiry.location.address}
+                city={inquiry.location.city}
+                onOpenMaps={() => toast("Open map")}
+              />
+            </div>
+          ) : (
+            <div style={{ padding: "0 14px 12px", fontSize: 12, color: COLORS.inkMuted }}>
+              Location TBC.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Your talent + Your contact — 2-up. Lineup uses the
+          ClientTalentCard component (which has add-talent + swap
+          affordances baked in). Coordinator card shows who's running
+          this with a Message CTA. */}
+      {(teammates || showCoord) && (
+        <div data-booking-grid style={{
+          display: "grid",
+          gridTemplateColumns: teammates && showCoord ? "1.4fr 1fr" : "1fr",
+          gap: 10,
+        }}>
+          {teammates && (
+            <div data-booking-card style={cardStyle}>
+              <div data-booking-section-title style={sectionTitle}>Your talent</div>
+              {lineup
+                .filter(t => {
+                  const s = (t.state ?? "").toLowerCase();
+                  if (inquiry.status === "submitted" || inquiry.status === "coordinating") {
+                    return s === "accepted" || s === "confirmed" || s === "booked";
+                  }
+                  return s !== "declined" && s !== "rejected" && s !== "withdrew";
+                })
+                .map(t => (
+                  <ClientTalentCard
+                    key={t.talentId} talent={t}
+                    stagePast={inquiry.status === "wrapped"}
+                    canEdit={inquiry.status !== "wrapped" && inquiry.status !== "cancelled"}
+                    onSwap={() => setLineupOpen(true)}
+                  />
+                ))}
+              {/* Add-talent footer — only when this lineup is still
+                  editable (not past / cancelled). Opens the same drawer
+                  the coordinator uses, with the client's "Favorites /
+                  Recent / All Tulala" tab labels via the picker pov. */}
+              {inquiry.status !== "wrapped" && inquiry.status !== "cancelled" && (
+                <button type="button" onClick={() => setLineupOpen(true)} style={{
+                  marginTop: 4, width: "100%",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  padding: "8px 10px", borderRadius: 8,
+                  border: `1px dashed ${COLORS.border}`,
+                  background: "transparent", color: COLORS.ink,
+                  cursor: "pointer", fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
+                }}>
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+                    <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                  </svg>
+                  Add talent
+                </button>
+              )}
+            </div>
+          )}
+          {showCoord && (
+            <div data-booking-card data-booking-coord style={cardStyle}>
+              <div data-booking-section-title style={sectionTitle}>Your contact</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+                  <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
+                  <PresenceDot name={coord.name} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 13, fontWeight: 700, color: COLORS.ink,
+                    display: "flex", alignItems: "center", gap: 6,
+                    minWidth: 0,
+                  }}>
+                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {coord.name}
+                    </span>
+                    <CoordRoleBadge role={(coord as { role?: string }).role} />
+                  </div>
+                  <div style={{
+                    fontSize: 11, color: COLORS.inkMuted,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>
+                    {(coord as { role?: string }).role === "owner"
+                      ? `Workspace owner · ${conv.agency}`
+                      : `Coordinator · ${conv.agency}`}
+                  </div>
+                </div>
+                {/* "Manage" overflow — opens the change-coordinator
+                    sheet (request reassign / add backup / private
+                    note). Uses the same kebab pattern the rest of the
+                    app uses for secondary row actions. */}
+                {inquiry.status !== "wrapped" && inquiry.status !== "cancelled" && (
+                  <button type="button"
+                    onClick={() => setCoordSheetOpen(true)}
+                    aria-label="Manage coordinator"
+                    style={{
+                      flexShrink: 0,
+                      width: 28, height: 28, borderRadius: 8,
+                      border: `1px solid ${COLORS.borderSoft}`,
+                      background: "transparent", color: COLORS.inkMuted,
+                      cursor: "pointer",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                      <circle cx="3" cy="7" r="1" fill="currentColor"/>
+                      <circle cx="7" cy="7" r="1" fill="currentColor"/>
+                      <circle cx="11" cy="7" r="1" fill="currentColor"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <button type="button" onClick={() => toast(`Messaging ${coord.name}…`)} style={{
+                marginTop: 10, width: "100%",
+                padding: "7px 10px", borderRadius: 8,
+                border: `1px solid ${COLORS.border}`, background: "transparent",
+                color: COLORS.ink, cursor: "pointer",
+                fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
+                display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}>
+                <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden>
+                  <path d="M2 3.5h10v6H6L3 12v-2.5H2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                </svg>
+                Message
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Files preview — top 3 client-thread files so the client can
+          spot a callsheet / contract / selects link without leaving the
+          Project tab. "View all" jumps to the dedicated Files tab. */}
+      {(() => {
+        const clientFiles = (MOCK_FILES_FOR_CONV[conv.id] ?? []).filter(f => f.thread === "client");
+        if (clientFiles.length === 0) return null;
+        const preview = clientFiles.slice(0, 3);
+        return (
+          <div data-booking-card style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+              <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Files</div>
+              <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>
+                {clientFiles.length} file{clientFiles.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {preview.map((f) => (
+                <button key={f.name} type="button"
+                  onClick={() => toast(`Opening ${f.name}`)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 9,
+                    padding: "7px 9px", borderRadius: 8,
+                    background: COLORS.surfaceAlt,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
+                  }}>
+                  <span aria-hidden style={{
+                    flexShrink: 0,
+                    width: 24, height: 24, borderRadius: 6,
+                    background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    color: COLORS.inkMuted,
+                  }}>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                      <path d="M3 1h4l2 2v8H3V1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                      <path d="M7 1v2h2" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                    </svg>
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 12, fontWeight: 600, color: COLORS.ink,
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}>{f.name}</div>
+                    <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                      {f.size} · added by {f.addedBy} · {f.addedAt}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            {clientFiles.length > preview.length && (
+              <button type="button"
+                onClick={() => toast("Open Files tab")}
+                style={{
+                  marginTop: 8, width: "100%",
+                  padding: "6px 10px", borderRadius: 8,
+                  border: `1px solid ${COLORS.borderSoft}`, background: "transparent",
+                  color: COLORS.ink, cursor: "pointer",
+                  fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
+                }}>
+                View all {clientFiles.length} files
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Your notes — reminders for the brand contact ("ask about
+          shoot prep call", "remind to share selects by Fri"). Keyed
+          by conv.id so each project has its own note. */}
+      <div data-booking-card style={cardStyle}>
+        <div data-booking-section-title style={sectionTitle}>Your notes</div>
+        <textarea
+          key={conv.id}
+          defaultValue={readConvNote(conv.id)}
+          placeholder="Reminders, follow-ups, things to ask the coordinator…"
+          onBlur={(e) => { writeConvNote(conv.id, e.currentTarget.value); toast("Note saved"); }}
+          style={{
+            width: "100%", minHeight: 64, resize: "vertical",
+            padding: 10, borderRadius: 8,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: COLORS.surfaceAlt,
+            fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+            outline: "none", boxSizing: "border-box",
+          }}
+        />
+      </div>
+      {/* Action sheet — opens from the Do-it-now CTA. Confirms the
+          action, advances the offer stage in the module store, and
+          appends a timeline event so all 3 povs see the change. */}
+      {actionKind && (
+        <ClientActionSheet
+          open={actionSheetOpen}
+          onClose={() => setActionSheetOpen(false)}
+          conv={conv}
+          kind={actionKind}
+          offer={offer}
+        />
+      )}
+      {/* Lineup drawer — same component the coordinator sees, but with
+          the client's pov so picker tabs read "Favorites / Recent /
+          All Tulala". Add / swap / remove all flow through here. */}
+      <LineupDrawer
+        open={lineupOpen}
+        onClose={() => setLineupOpen(false)}
+        conv={conv}
+        inquiry={inquiry}
+        canEdit={inquiry.status !== "wrapped" && inquiry.status !== "cancelled"}
+        povCanSeeOffers={true}
+        povCanSeeCoordNote={false}
+        pickerPov="client"
+      />
+      {/* Change-coordinator sheet — three soft options that don't put
+          the agency relationship at risk: request a re-assign (escalates
+          to agency owner), add a backup (parallel coordinator for
+          coverage), or send a private note. */}
+      <ChangeCoordinatorSheet
+        open={coordSheetOpen}
+        onClose={() => setCoordSheetOpen(false)}
+        coordName={coord?.name ?? ""}
+        agency={conv.agency}
+      />
+    </div>
+  );
+}
+
+// ── ChangeCoordinatorSheet — small modal that lives off the Your-contact
+// kebab on the client's project view. Three soft actions that respect
+// the agency relationship (no "fire your coordinator" surface — that
+// happens off-platform). All three resolve to a toast in the prototype;
+// production would write a request to the agency-ops queue. ──
+function ChangeCoordinatorSheet({
+  open, onClose, coordName, agency,
+}: {
+  open: boolean;
+  onClose: () => void;
+  coordName: string;
+  agency: string;
+}) {
+  const { toast } = useProto();
+  if (!open) return null;
+  const options: { id: string; label: string; sub: string; tone: "neutral" | "warning"; onPick: () => void }[] = [
+    {
+      id: "reassign",
+      label: "Request a different coordinator",
+      sub: `Sends a private note to ${agency}'s ops team. ${coordName} won't be notified directly.`,
+      tone: "warning",
+      onPick: () => { toast("Reassign request sent to agency ops"); onClose(); },
+    },
+    {
+      id: "backup",
+      label: "Add a backup coordinator",
+      sub: "Asks for a second coordinator on the project for coverage during holidays / handoffs.",
+      tone: "neutral",
+      onPick: () => { toast("Backup-coordinator request sent"); onClose(); },
+    },
+    {
+      id: "note",
+      label: "Send a private note to the agency",
+      sub: "Goes to the agency owner — not your coordinator. Use for sensitive feedback.",
+      tone: "neutral",
+      onPick: () => { toast("Private note opened"); onClose(); },
+    },
+  ];
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Change coordinator" style={{
+      position: "fixed", inset: 0, zIndex: 9999, fontFamily: FONTS.body,
+    }}>
+      <div onClick={onClose} style={{
+        position: "absolute", inset: 0, background: "rgba(11,11,13,0.45)",
+      }} />
+      <style dangerouslySetInnerHTML={{ __html:
+        "@media (max-width: 720px){"
+        + "[data-tulala-coord-sheet]{"
+        + "left:0!important;right:0!important;top:auto!important;bottom:0!important;"
+        + "transform:none!important;width:auto!important;max-width:none!important;"
+        + "border-radius:16px 16px 0 0!important;"
+        + "}}"
+      }} />
+      <aside data-tulala-coord-sheet style={{
+        position: "absolute",
+        top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+        width: 420, maxWidth: "calc(100vw - 32px)",
+        background: "#fff", borderRadius: 14,
+        boxShadow: "0 32px 80px -16px rgba(11,11,13,0.40), 0 8px 24px rgba(11,11,13,0.10)",
+        overflow: "hidden",
+      }}>
+        <div style={{
+          padding: "14px 16px", borderBottom: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", alignItems: "flex-start", gap: 10,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{
+              margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 700,
+              color: COLORS.ink, letterSpacing: -0.2,
+            }}>Change coordinator</h2>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>
+              {coordName} is your point of contact at {agency}.
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            flexShrink: 0,
+            width: 28, height: 28, borderRadius: 8,
+            border: "none", background: "transparent",
+            color: COLORS.inkMuted, cursor: "pointer", fontSize: 18, lineHeight: 1,
+          }}>×</button>
+        </div>
+        <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+          {options.map(o => (
+            <button key={o.id} type="button" onClick={o.onPick} style={{
+              display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3,
+              padding: "11px 14px", borderRadius: 10,
+              background: "#fff", color: COLORS.ink,
+              border: `1px solid ${o.tone === "warning" ? `${COLORS.coral}40` : COLORS.borderSoft}`,
+              cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: o.tone === "warning" ? COLORS.coralDeep : COLORS.ink }}>
+                {o.label}
+              </span>
+              <span style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+                {o.sub}
+              </span>
+            </button>
+          ))}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+// ── ReassignCoordinatorSheet — admin/coord-side flow for actually
+// moving a project to a different coordinator. Different shape from the
+// client-side ChangeCoordinatorSheet:
+//   • Lists workspace coordinators with current load + availability
+//   • Requires a handoff note (so the new coord knows context)
+//   • Optionally notifies the outgoing coord
+//   • Posts a system event to the timeline so all parties see it
+// ──
+function ReassignCoordinatorSheet({
+  open, onClose, currentCoordName, onReassign,
+}: {
+  open: boolean;
+  onClose: () => void;
+  currentCoordName: string;
+  onReassign: (newCoordName: string, handoffNote: string, notifyOutgoing: boolean) => void;
+}) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [notifyOutgoing, setNotifyOutgoing] = useState(true);
+  // Mock workspace coordinators with load + availability. Production
+  // reads from workspace.members where role includes "coordinator".
+  const coords = [
+    { name: "Marta Reyes",  initials: "MR", load: 8,  available: true,  meta: "8 active · senior coordinator" },
+    { name: "Theo Marsh",   initials: "TM", load: 5,  available: true,  meta: "5 active · accepts handoffs" },
+    { name: "Cleo Vega",    initials: "CV", load: 12, available: false, meta: "12 active · OOO until May 9" },
+    { name: "Sara Mendez",  initials: "SM", load: 3,  available: true,  meta: "3 active · light load" },
+  ].filter(c => c.name !== currentCoordName);
+  if (!open) return null;
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Reassign coordinator" style={{
+      position: "fixed", inset: 0, zIndex: 9999, fontFamily: FONTS.body,
+    }}>
+      <div onClick={onClose} style={{
+        position: "absolute", inset: 0, background: "rgba(11,11,13,0.45)",
+      }} />
+      <style dangerouslySetInnerHTML={{ __html:
+        "@media (max-width: 720px){"
+        + "[data-tulala-reassign-sheet]{"
+        + "left:0!important;right:0!important;top:auto!important;bottom:0!important;"
+        + "transform:none!important;width:auto!important;max-width:none!important;"
+        + "max-height:90vh!important;border-radius:16px 16px 0 0!important;"
+        + "}}"
+      }} />
+      <aside data-tulala-reassign-sheet style={{
+        position: "absolute",
+        top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+        width: 460, maxWidth: "calc(100vw - 32px)", maxHeight: "85vh",
+        background: "#fff", borderRadius: 14,
+        boxShadow: "0 32px 80px -16px rgba(11,11,13,0.40), 0 8px 24px rgba(11,11,13,0.10)",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        <div style={{
+          padding: "14px 16px", borderBottom: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", alignItems: "flex-start", gap: 10,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{
+              margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 700,
+              color: COLORS.ink, letterSpacing: -0.2,
+            }}>Reassign coordinator</h2>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>
+              Move this project from {currentCoordName} to a teammate.
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            flexShrink: 0,
+            width: 28, height: 28, borderRadius: 8,
+            border: "none", background: "transparent",
+            color: COLORS.inkMuted, cursor: "pointer", fontSize: 18, lineHeight: 1,
+          }}>×</button>
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
+              Pick the new coordinator
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {coords.map(c => (
+                <button key={c.name}
+                  type="button"
+                  onClick={() => c.available && setPicked(c.name)}
+                  disabled={!c.available}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "8px 10px", borderRadius: 10,
+                    background: picked === c.name ? COLORS.surfaceAlt : "#fff",
+                    border: `1px solid ${picked === c.name ? COLORS.accent : COLORS.borderSoft}`,
+                    cursor: c.available ? "pointer" : "not-allowed",
+                    opacity: c.available ? 1 : 0.55,
+                    textAlign: "left", fontFamily: FONTS.body,
+                  }}>
+                  <Avatar size={32} tone="auto" hashSeed={c.name} initials={c.initials} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{c.name}</div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{c.meta}</div>
+                  </div>
+                  {picked === c.name && (
+                    <span aria-hidden style={{
+                      flexShrink: 0,
+                      width: 18, height: 18, borderRadius: "50%",
+                      background: COLORS.accent, color: "#fff",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 11, fontWeight: 700,
+                    }}>✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
+              Handoff note (required)
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.currentTarget.value)}
+              placeholder="Where is this project? What does the new coordinator need to know?"
+              style={{
+                width: "100%", minHeight: 64, resize: "vertical",
+                padding: 10, borderRadius: 8,
+                border: `1px solid ${COLORS.borderSoft}`,
+                background: COLORS.surfaceAlt,
+                fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+                outline: "none", boxSizing: "border-box",
+              }}
+            />
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: COLORS.ink, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={notifyOutgoing}
+              onChange={(e) => setNotifyOutgoing(e.currentTarget.checked)}
+              style={{ width: 14, height: 14, cursor: "pointer" }}
+            />
+            Notify {currentCoordName} (sends a system message in the team thread)
+          </label>
+        </div>
+        <div style={{
+          padding: 12, borderTop: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", gap: 8, justifyContent: "flex-end",
+        }}>
+          <button type="button" onClick={onClose} style={{
+            padding: "8px 14px", borderRadius: 999,
+            border: `1px solid ${COLORS.border}`, background: "transparent",
+            color: COLORS.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}>Cancel</button>
+          <button type="button"
+            disabled={!picked || !note.trim()}
+            onClick={() => { if (picked && note.trim()) { onReassign(picked, note.trim(), notifyOutgoing); onClose(); } }}
+            style={{
+              padding: "8px 16px", borderRadius: 999,
+              border: "none",
+              background: (picked && note.trim()) ? COLORS.fill : "rgba(11,11,13,0.12)",
+              color: "#fff",
+              fontSize: 12.5, fontWeight: 700,
+              cursor: (picked && note.trim()) ? "pointer" : "not-allowed",
+              fontFamily: FONTS.body,
+            }}>
+            Reassign
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+// Build a stub Conversation from an InquiryRecord — used by admin-side
+// surfaces (DetailsPanel) that need to pass a conv to LineupDrawer.
+// Falls back to MOCK_CONVERSATIONS when an id matches; otherwise builds
+// a minimal shape that satisfies LineupDrawer's read sites.
+function buildConvFromInquiry(inquiry: InquiryRecord): Conversation {
+  const real = MOCK_CONVERSATIONS.find(c => c.id === inquiry.id);
+  if (real) return real;
+  const coord = inquiry.coordinators[0];
+  return {
+    id: inquiry.id,
+    client: inquiry.client.name ?? "Client",
+    clientInitials: initialsOf(inquiry.client.name ?? "Client"),
+    clientTrust: "verified",
+    agency: coord ? "Your workspace" : "—",
+    brief: inquiry.title,
+    location: inquiry.location.city ?? null,
+    date: inquiry.schedule.start,
+    stage: inquiry.status === "wrapped" ? "past"
+      : inquiry.status === "cancelled" ? "cancelled"
+      : inquiry.status === "booked" ? "booked"
+      : inquiry.status === "submitted" || inquiry.status === "coordinating" ? "inquiry"
+      : "hold",
+    leader: coord
+      ? { id: coord.id, name: coord.name, initials: coord.initials }
+      : { id: "u-stub", name: "Unassigned", initials: "—" },
+    iAmCoordinator: false,
+    lastMessage: { sender: "system", preview: "", ageHrs: 0 },
+    seen: true,
+    unreadCount: 0,
+    pinned: {},
+    participants: [],
+    source: undefined,
+    outcome: undefined,
+  } as unknown as Conversation;
+}
+
+// ── AdminParticipantsActions — wires the Add-talent and Reassign-
+// coordinator buttons that live on the admin Participants card. Owns
+// both sheets locally so the parent block stays presentational. ──
+function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
+  inquiry: InquiryRecord;
+  /** Workspace plan tier — gates the Reassign Coordinator button.
+   *  A Free workspace has no team to reassign to, so the button hides
+   *  there. Studio / Agency / Hub-Network all surface it. */
+  planTier?: "free" | "studio" | "agency" | "hub-network";
+}) {
+  const { toast, state } = useProto();
+  const [lineupOpen, setLineupOpen] = useState(false);
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const conv = buildConvFromInquiry(inquiry);
+  const currentCoord = inquiry.coordinators[0];
+  const canEdit = inquiry.status !== "wrapped" && inquiry.status !== "cancelled";
+  // Phase 3 of System User direction — permission ladder:
+  //   • Add talent: requires coordinator+ (anyone managing projects can
+  //     add talent to a project they're on)
+  //   • Reassign coordinator: requires admin+ (moves project ownership
+  //     between team members — privileged operation)
+  //   • Free workspaces have no team to reassign to, so reassign hides
+  //     regardless of role.
+  const canAddTalent = meetsRole(state.role, "coordinator");
+  const canReassign = meetsRole(state.role, "admin")
+    && planTier !== "free"
+    && !!currentCoord;
+  if (!canEdit) return null;
+  if (!canAddTalent && !canReassign) return null;
+  return (
+    <>
+      <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {canAddTalent && (
+          <button type="button" onClick={() => setLineupOpen(true)} style={{
+            padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
+            borderRadius: 999, border: "none",
+            background: COLORS.fill, color: "#fff", cursor: "pointer",
+            display: "inline-flex", alignItems: "center", gap: 5,
+            fontFamily: FONTS.body,
+          }}>
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+            Add talent
+          </button>
+        )}
+        {canReassign && (
+          <button type="button" onClick={() => setReassignOpen(true)} style={{
+            padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
+            borderRadius: 999, border: `1px solid ${COLORS.border}`,
+            background: "transparent", color: COLORS.ink, cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}>Reassign coordinator</button>
+        )}
+        {/* Free-tier upgrade nudge — Reassign hides on Free, but
+            instead of leaving silence, surface a soft upsell so the
+            user knows the affordance exists at higher tiers. Same
+            amber palette as the create-workspace Free-cap explainer
+            for visual consistency. */}
+        {planTier === "free" && currentCoord && meetsRole(state.role, "admin") && (
+          <button type="button"
+            onClick={() => toast("Studio plan unlocks team coordinators · See plans")}
+            style={{
+              padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
+              borderRadius: 999, border: `1px dashed rgba(214,158,46,0.5)`,
+              background: "rgba(214,158,46,0.08)", color: "#7C5A14",
+              cursor: "pointer", fontFamily: FONTS.body,
+              display: "inline-flex", alignItems: "center", gap: 5,
+            }}>
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+            </svg>
+            Reassign · Studio plan
+          </button>
+        )}
+      </div>
+      <LineupDrawer
+        open={lineupOpen}
+        onClose={() => setLineupOpen(false)}
+        conv={conv}
+        inquiry={inquiry}
+        canEdit={true}
+        povCanSeeOffers={true}
+        povCanSeeCoordNote={true}
+        pickerPov="admin"
+        planTier={planTier}
+      />
+      {canReassign && currentCoord && (
+        <ReassignCoordinatorSheet
+          open={reassignOpen}
+          onClose={() => setReassignOpen(false)}
+          currentCoordName={currentCoord.name}
+          onReassign={(newCoord, handoff, notify) => {
+            toast(`Reassigned to ${newCoord}${notify ? ` · ${currentCoord.name} notified` : ""}`);
+            // Append a system event so the change is visible in the
+            // timeline of all 3 povs (admin / client / talent).
+            applyOfferOverride(inquiry.id, {
+              appendedTimeline: [{
+                id: `reassign-${Date.now()}`,
+                ts: "now",
+                actor: currentCoord.name,
+                body: `Reassigned this project to ${newCoord}. Handoff note: "${handoff.slice(0, 80)}${handoff.length > 80 ? "…" : ""}"`,
+                tone: "info",
+              }],
+            });
+            // Push to the handoff queue so the receiving coord sees an
+            // "Incoming handoff" badge on this row in their inbox + can
+            // filter to just incoming-handoff rows.
+            recordHandoff({
+              inquiryId: inquiry.id,
+              fromCoordName: currentCoord.name,
+              toCoordName: newCoord,
+              note: handoff,
+            });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+// ── AdminBookingTab — workspace-flavored mirror of TalentBookingTab +
+// ClientProjectViewTab. Same card-grid silhouette so the workspace
+// detail view reads with one design language across roles, but the
+// content shifts to admin's operational voice:
+//   • Action hero — what does this coordinator owe RIGHT NOW
+//     (Send to client / Build call sheet / Nudge talent)?
+//   • Project card — brief + client trust badge + source provenance
+//   • When + Where 2-up
+//   • Lineup card — full participant list + Add talent + Reassign
+//     coordinator (uses AdminParticipantsActions)
+//   • Files preview — top 3 files across both threads
+//   • Internal notes — coordinator-only memory pad
+//
+// Plan-tier hooks (planTier prop) gate workspace-only affordances:
+//   - Free: hide Reassign coordinator (no team to reassign to)
+//   - Studio / Agency / Hub-Network: full surface
+function AdminBookingTab({
+  inquiry, planTier = "agency",
+}: {
+  inquiry: InquiryRecord;
+  /** Workspace plan tier — drives which admin-only affordances render.
+   *  Defaults to "agency" so any unset caller gets the full surface. */
+  planTier?: "free" | "studio" | "agency" | "hub-network";
+}) {
+  const { toast } = useProto();
+  useOfferStashSubscription();
+  useNotesSubscription();
+  const conv = useMemo(() => buildConvFromInquiry(inquiry), [inquiry]);
+  const offer = getOffer(conv.id);
+  const days = countdownLabel(inquiry.schedule.start);
+  const coord = inquiry.coordinators[0];
+  const lineup = inquiry.talent;
+  const lineupTotal = lineup.length;
+  const lineupAccepted = lineup.filter(t => {
+    const s = (t.state ?? "").toLowerCase();
+    return s === "accepted" || s === "confirmed" || s === "booked";
+  }).length;
+  const lineupPending = lineup.filter(t => {
+    const s = (t.state ?? "").toLowerCase();
+    return s === "pending" || s === "invited";
+  }).length;
+  const canEdit = inquiry.status !== "wrapped" && inquiry.status !== "cancelled";
+  // Resolve the source meta. InquiryRecord.source uses the simplified
+  // schema (`hub` / `agency_referral` / `client_form` / `workspace_manual`);
+  // map each to the conv-side sourceChipMeta input.
+  const sourceMeta = (() => {
+    const src = inquiry.source;
+    if (!src) return null;
+    if (src.kind === "hub")              return sourceChipMeta({ kind: "tulala-hub", label: src.label });
+    if (src.kind === "agency_referral")  return sourceChipMeta({ kind: "agency-referral" });
+    if (src.kind === "client_form")      return sourceChipMeta({ kind: "direct", label: src.label });
+    if (src.kind === "workspace_manual") return sourceChipMeta({ kind: "email", from: src.label });
+    return null;
+  })();
+
+  // Admin's "what do I do next" — drives the action hero. Single
+  // primary CTA + one-line rationale, same shape the talent + client
+  // hero use, but the labels speak admin's operational language.
+  const adminAction: { label: string; sub: string; tone: "primary" | "amber" | "success" } | null = (() => {
+    if (!canEdit) return null;
+    const ofStage = offer?.stage;
+    if (inquiry.status === "submitted" && lineupTotal === 0) {
+      return { label: "Add talent", sub: "Build the shortlist before replying.", tone: "primary" };
+    }
+    if (inquiry.status === "submitted" || inquiry.status === "coordinating") {
+      if (lineupAccepted < lineupTotal) {
+        return { label: "Nudge talent", sub: `${lineupTotal - lineupAccepted} talent haven't responded yet.`, tone: "amber" };
+      }
+      if (ofStage === "no_offer" || ofStage === "client_budget" || !ofStage) {
+        return { label: "Build the offer", sub: "Lineup confirmed — draft pricing.", tone: "primary" };
+      }
+      return { label: "Send to client", sub: "Offer is ready. Push it to the client.", tone: "primary" };
+    }
+    if (ofStage === "sent" || ofStage === "reviewing") {
+      return { label: "Nudge client", sub: "Offer is with client — ping if it's been quiet.", tone: "amber" };
+    }
+    if (ofStage === "countered") {
+      return { label: "Review counter", sub: "Client came back with a counter-offer.", tone: "primary" };
+    }
+    if (inquiry.status === "approved" || inquiry.status === "booked") {
+      return { label: "Build call sheet", sub: "Booked. Lock the production details.", tone: "success" };
+    }
+    return null;
+  })();
+
+  const cardStyle: CSSProperties = {
+    background: "#fff",
+    border: `1px solid ${COLORS.borderSoft}`,
+    borderRadius: 12,
+    padding: "12px 14px",
+    boxShadow: "0 1px 0 rgba(11,11,13,0.02)",
+    minWidth: 0, maxWidth: "100%", overflow: "hidden", boxSizing: "border-box",
+  };
+  const sectionTitle: CSSProperties = {
+    fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted,
+    textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8,
+  };
+  const heroPalette = adminAction?.tone === "amber"
+    ? { bg: `linear-gradient(135deg, ${COLORS.amber}18 0%, ${COLORS.amber}08 100%)`, border: `${COLORS.amber}40`, fg: COLORS.amber, icBg: `${COLORS.amber}28` }
+    : adminAction?.tone === "success"
+    ? { bg: `linear-gradient(135deg, ${COLORS.successSoft} 0%, ${COLORS.surfaceAlt} 100%)`, border: `${COLORS.success}30`, fg: COLORS.successDeep ?? COLORS.success, icBg: `${COLORS.success}20` }
+    : { bg: `linear-gradient(135deg, ${COLORS.coral}14 0%, ${COLORS.surfaceAlt} 100%)`, border: `${COLORS.coral}40`, fg: COLORS.coral, icBg: `${COLORS.coral}28` };
+
+  const allFiles = MOCK_FILES_FOR_CONV[conv.id] ?? [];
+  const filePreview = allFiles.slice(0, 3);
+
+  return (
+    <div data-tulala-booking-tab style={{
+      padding: 14,
+      display: "flex", flexDirection: "column", gap: 10,
+      fontFamily: FONTS.body,
+    }}>
+      <style dangerouslySetInnerHTML={{ __html:
+        "@media (max-width: 720px){"
+        + "[data-tulala-booking-tab]{padding:10px!important;gap:7px!important}"
+        + "[data-tulala-booking-tab] [data-booking-grid]{gap:7px!important}"
+        + "[data-tulala-booking-tab] [data-booking-card]{padding:9px 10px!important}"
+        + "[data-tulala-booking-tab] [data-booking-section-title]{font-size:9.5px!important;margin-bottom:5px!important}"
+        + "}"
+        + "@media (max-width: 480px){"
+        + "[data-tulala-booking-tab] [data-booking-grid]{grid-template-columns:1fr!important}"
+        + "}"
+      }} />
+
+      {/* Action hero — admin-voice equivalent of the client's "Needs your
+          decision" + talent's countdown banner. When no action is owed
+          and a shoot is within 14 days, fall back to the same countdown
+          banner the talent sees so booked workspaces get the same cue. */}
+      {adminAction ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          padding: "12px 14px",
+          background: heroPalette.bg,
+          border: `1px solid ${heroPalette.border}`,
+          borderRadius: 12,
+        }}>
+          <span aria-hidden style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 36, height: 36, borderRadius: 10,
+            background: heroPalette.icBg, color: heroPalette.fg, flexShrink: 0,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M8 4.5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: heroPalette.fg }}>
+              Your move
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>
+              {adminAction.label}
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              {adminAction.sub}
+            </div>
+          </div>
+          <button type="button" onClick={() => toast(adminAction.label)} style={{
+            flexShrink: 0,
+            padding: "8px 14px", borderRadius: 999,
+            background: heroPalette.fg, color: "#fff",
+            border: "none", cursor: "pointer",
+            fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
+          }}>
+            Do it
+          </button>
+        </div>
+      ) : days ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          padding: "12px 14px",
+          background: days.urgent
+            ? `linear-gradient(135deg, ${COLORS.amber}18 0%, ${COLORS.amber}08 100%)`
+            : `linear-gradient(135deg, ${COLORS.successSoft} 0%, ${COLORS.surfaceAlt} 100%)`,
+          border: `1px solid ${days.urgent ? `${COLORS.amber}40` : `${COLORS.success}30`}`,
+          borderRadius: 12,
+        }}>
+          <span aria-hidden style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 36, height: 36, borderRadius: 10,
+            background: days.urgent ? `${COLORS.amber}28` : `${COLORS.success}20`,
+            color: days.urgent ? COLORS.amber : (COLORS.successDeep ?? COLORS.success),
+            flexShrink: 0,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M2.5 6.5h11M5 2v3M11 2v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: days.urgent ? COLORS.amber : (COLORS.successDeep ?? COLORS.success) }}>
+              {days.headline}
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              {days.subhead}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* The project — title, brief summary, source, coord-team read.
+          Same atom set as TalentBookingTab's "The job" card so the
+          two surfaces read consistently across roles — what differs
+          is voice ("The project" for admin/client vs "The job" for
+          talent), not structure. */}
+      <div data-booking-card style={cardStyle}>
+        <div data-booking-section-title style={sectionTitle}>The project</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, lineHeight: 1.35 }}>
+          {inquiry.title}
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>
+          {inquiry.client.name ? `For ${inquiry.client.name}` : ""}
+          {coord && ` · ${coord.name} coordinating`}
+        </div>
+        {sourceMeta && (
+          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{
+              fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
+              textTransform: "uppercase", color: COLORS.inkDim,
+            }}>Came in via</span>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "3px 9px", borderRadius: 999,
+              background: sourceMeta.bg, color: sourceMeta.fg,
+              fontSize: 11, fontWeight: 700,
+            }}>
+              <span aria-hidden style={{ display: "inline-flex" }}>{sourceMeta.icon}</span>
+              {sourceMeta.label}
+            </span>
+          </div>
+        )}
+        {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
+          <div style={{ fontSize: 12.5, color: COLORS.ink, marginTop: 8, lineHeight: 1.55 }}>
+            {inquiry.brief.summary}
+          </div>
+        )}
+        {inquiry.brief.notes && (
+          <div style={{
+            fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.55, marginTop: 8,
+            padding: "8px 10px", background: COLORS.surfaceAlt,
+            borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
+          }}>{inquiry.brief.notes}</div>
+        )}
+        {/* Coord-team read — admin counterpart of talent's "Sara's
+            read" block. Same indigo quote silhouette so the two
+            surfaces visually rhyme. Pulls from the same conv.pinned.
+            coordinatorNote source so a coord's framing is visible to
+            their team without writing it twice. */}
+        {conv.pinned?.coordinatorNote && coord && (
+          <div style={{
+            marginTop: 10,
+            display: "flex", gap: 9,
+            padding: "10px 12px",
+            background: COLORS.indigoSoft,
+            border: `1px solid rgba(91,107,160,0.18)`,
+            borderRadius: 10,
+          }}>
+            <span aria-hidden style={{ flexShrink: 0, marginTop: 1, color: COLORS.indigoDeep }}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M3 3h3v3H4l-1 2v-2H3V3zm5 0h3v3H9l-1 2v-2H8V3z" fill="currentColor"/>
+              </svg>
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
+                textTransform: "uppercase", color: COLORS.indigoDeep,
+                marginBottom: 2,
+              }}>
+                {coord.name.split(" ")[0]}'s read
+              </div>
+              <div style={{
+                fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5,
+                fontStyle: "italic",
+              }}>
+                "{conv.pinned.coordinatorNote}"
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* When + Where 2-up */}
+      <div data-booking-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div data-booking-card style={cardStyle}>
+          <div data-booking-section-title style={sectionTitle}>When</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>
+            {inquiry.schedule.start}
+            {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
+          </div>
+          {inquiry.schedule.callTime && (
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
+              Call · <span style={{ color: COLORS.ink, fontWeight: 600 }}>{inquiry.schedule.callTime}</span>
+            </div>
+          )}
+        </div>
+        <div data-booking-card style={{ ...cardStyle, padding: 0 }}>
+          <div data-booking-section-title style={{ ...sectionTitle, padding: "12px 14px 0" }}>Where</div>
+          {(inquiry.location.city || inquiry.location.venue || inquiry.location.address) ? (
+            <div style={{ padding: "8px 14px 12px" }}>
+              <LocationMapTile
+                venue={inquiry.location.venue}
+                address={inquiry.location.address}
+                city={inquiry.location.city}
+                onOpenMaps={() => toast("Open map")}
+              />
+            </div>
+          ) : (
+            <div style={{ padding: "0 14px 12px", fontSize: 12, color: COLORS.inkMuted }}>
+              Location TBC.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Lineup + Coordinator 2-up. Lineup card hosts AdminParticipantsActions
+          which already wires Add talent + Reassign coordinator (the latter
+          honors plan-tier — Free hides it because there's no team to
+          reassign to). */}
+      <div data-booking-grid style={{
+        display: "grid",
+        gridTemplateColumns: coord ? "1.4fr 1fr" : "1fr",
+        gap: 10,
+      }}>
+        <div data-booking-card style={cardStyle}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+            <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>
+              {/* Free-tier copy: "Lineup" is team language and doesn't
+                  fit a solo workspace. On Free, the talent IS the
+                  workspace, so the section reads as "On this job". */}
+              {planTier === "free" ? "On this job" : "Lineup"}
+            </div>
+            {lineupTotal > 0 && (() => {
+              const tone = lineupAccepted === 0 ? "red"
+                : lineupAccepted < lineupTotal ? "amber"
+                : "green";
+              const palette = tone === "red"
+                ? { bg: `${COLORS.coral}15`, fg: COLORS.coralDeep }
+                : tone === "amber"
+                ? { bg: `${COLORS.amber}1c`, fg: COLORS.amber }
+                : { bg: COLORS.successSoft, fg: COLORS.successDeep ?? COLORS.success };
+              return (
+                <span aria-label={`${lineupAccepted} of ${lineupTotal} accepted${lineupPending ? `, ${lineupPending} pending` : ""}`} style={{
+                  fontSize: 10, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+                  padding: "1px 7px", borderRadius: 999,
+                  background: palette.bg, color: palette.fg,
+                }}>{lineupAccepted}/{lineupTotal}</span>
+              );
+            })()}
+          </div>
+          {lineup.length === 0 ? (
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "8px 0" }}>
+              No talent on this job yet.
+            </div>
+          ) : (
+            lineup.map(t => (
+              <RosterMemberRow
+                key={t.talentId} talent={t}
+                isMe={false}
+                stagePast={inquiry.status === "wrapped" || inquiry.status === "cancelled"}
+              />
+            ))
+          )}
+          {canEdit && (
+            <div style={{ marginTop: 10 }}>
+              <AdminParticipantsActions inquiry={inquiry} planTier={planTier} />
+            </div>
+          )}
+        </div>
+        {coord && (
+          <div data-booking-card data-booking-coord style={cardStyle}>
+            <div data-booking-section-title style={sectionTitle}>Coordinator</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+                <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
+                <PresenceDot name={coord.name} />
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 13, fontWeight: 700, color: COLORS.ink,
+                  display: "flex", alignItems: "center", gap: 6,
+                  minWidth: 0, flexWrap: "wrap",
+                }}>
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {coord.name}
+                  </span>
+                  <CoordRoleBadge role={coord.role} />
+                  {/* Admin-only: workload pill so admins see how busy
+                      this coord is at a glance. Tone red >=10 active /
+                      amber >=6 / green otherwise. */}
+                  <CoordWorkloadPill name={coord.name} />
+                </div>
+                <div style={{
+                  fontSize: 11, color: COLORS.inkMuted,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>
+                  {coord.role === "owner" ? "Workspace owner" : "Coordinator"}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Files preview — same surface the client gets, with a "View all"
+          jump when there's overflow. */}
+      {allFiles.length > 0 && (
+        <div data-booking-card style={cardStyle}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+            <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Files</div>
+            <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>
+              {allFiles.length} file{allFiles.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {filePreview.map(f => (
+              <button key={f.name} type="button"
+                onClick={() => toast(`Opening ${f.name}`)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 9,
+                  padding: "7px 9px", borderRadius: 8,
+                  background: COLORS.surfaceAlt,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
+                }}>
+                <span aria-hidden style={{
+                  flexShrink: 0,
+                  width: 24, height: 24, borderRadius: 6,
+                  background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  color: COLORS.inkMuted,
+                }}>
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 1h4l2 2v8H3V1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                    <path d="M7 1v2h2" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                  </svg>
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 12, fontWeight: 600, color: COLORS.ink,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>{f.name}</div>
+                  <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                    {f.thread === "client" ? "Client thread" : "Talent thread"} · {f.size} · added by {f.addedBy} · {f.addedAt}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          {allFiles.length > filePreview.length && (
+            <button type="button"
+              onClick={() => toast("Open Files tab")}
+              style={{
+                marginTop: 8, width: "100%",
+                padding: "6px 10px", borderRadius: 8,
+                border: `1px solid ${COLORS.borderSoft}`, background: "transparent",
+                color: COLORS.ink, cursor: "pointer",
+                fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
+              }}>
+              View all {allFiles.length} files
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Internal notes — coordinator's private memory pad. Distinct from
+          the client's "Your notes" because admin notes are workspace-
+          internal: nobody outside the coord team sees them. */}
+      <div data-booking-card style={cardStyle}>
+        <div data-booking-section-title style={sectionTitle}>
+          {/* Free-tier copy: "coordinator only" implies a team that
+              doesn't exist on solo workspaces. Just "Notes" reads
+              correctly when there's no team to scope-gate them from. */}
+          {planTier === "free" ? "Notes" : "Internal notes (coordinator only)"}
+        </div>
+        <textarea
+          key={inquiry.id}
+          defaultValue={readConvNote(inquiry.id)}
+          placeholder="Anything the rest of your coordinator team needs to know about this project…"
+          onBlur={(e) => { writeConvNote(inquiry.id, e.currentTarget.value); toast("Note saved"); }}
+          style={{
+            width: "100%", minHeight: 64, resize: "vertical",
+            padding: 10, borderRadius: 8,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: COLORS.surfaceAlt,
+            fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+            outline: "none", boxSizing: "border-box",
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -4186,12 +7532,55 @@ export function resolveShellAction(
       : pov === "admin" ? { kind: "admin" }
       : { kind: "talent", talentId: currentTalentId(), isCoordinator: pov === "talent_coord" };
     const action = nextActionFor(offer, povObj);
+    // Map well-known CTAs to the right local mutation so the demo
+    // shows the negotiation actually advancing — not just a toast.
+    // Talent / client / admin all hit this path; each role's CTA gets
+    // its own override write.
+    const handleCta = () => {
+      const ctaLabel = action.cta ?? "";
+      // Admin: Send to client → bump offer.stage to "sent" + emit event.
+      if (pov === "admin" && ctaLabel === "Send to client") {
+        applyOfferOverride(conv.id, {
+          stage: "sent",
+          appendedTimeline: [{
+            id: `local-send-${conv.id}-${Date.now()}`,
+            ts: "Just now",
+            actor: "Coordinator",
+            body: "Offer sent to client",
+            tone: "info",
+          }],
+        });
+        toast("Offer sent · client notified");
+        return;
+      }
+      // Admin: Nudge talent / client → toast (mock notif).
+      if (pov === "admin" && (ctaLabel === "Nudge talent" || ctaLabel === "Nudge client")) {
+        toast(`${ctaLabel} · reminder sent`);
+        return;
+      }
+      // Coord: Send to client (talent_coord pov also hits this).
+      if (pov === "talent_coord" && ctaLabel === "Send to client") {
+        applyOfferOverride(conv.id, {
+          stage: "sent",
+          appendedTimeline: [{
+            id: `local-send-${conv.id}-${Date.now()}`,
+            ts: "Just now",
+            actor: "Coordinator",
+            body: "Offer sent to client",
+            tone: "info",
+          }],
+        });
+        toast("Offer sent · client notified");
+        return;
+      }
+      toast(`${ctaLabel}…`);
+    };
     return {
       hint: action.label,
       primary: action.cta ? {
         label: action.cta,
         tone: action.ctaTone === "success" ? "success" : "primary",
-        onClick: () => toast(`${action.cta}…`),
+        onClick: handleCta,
       } : undefined,
       secondary: action.secondary ? {
         label: action.secondary,
@@ -4430,11 +7819,15 @@ function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
 // affordance. Coordinator-side editing happens in the Offer tab; this
 // is the client-facing view of the same lineup. ──
 function ClientTalentCard({
-  talent, stagePast, canEdit,
+  talent, stagePast, canEdit, onSwap,
 }: {
   talent: { talentId: string; name: string; initials: string; state: string; photoUrl?: string };
   stagePast?: boolean;
   canEdit?: boolean;
+  // When provided, the swap button calls this instead of toasting —
+  // lets the parent open a real picker drawer (add/swap/remove). Falls
+  // back to a toast for places that haven't wired the drawer yet.
+  onSwap?: () => void;
 }) {
   const { toast } = useProto();
   const stateMeta = (() => {
@@ -4478,7 +7871,7 @@ function ClientTalentCard({
         fontSize: 11, fontWeight: 600, fontFamily: FONTS.body,
       }}>View</button>
       {canEdit && !stagePast && (
-        <button type="button" onClick={() => toast(`Request swap for ${talent.name}`)} aria-label={`Swap ${talent.name}`} style={{
+        <button type="button" onClick={() => onSwap ? onSwap() : toast(`Request swap for ${talent.name}`)} aria-label={`Swap ${talent.name}`} style={{
           flexShrink: 0,
           width: 28, height: 28, borderRadius: 8,
           border: "none", background: "transparent",
@@ -4555,9 +7948,20 @@ function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoordinator:
       {coord && (
         <DetailSection title="Your coordinator">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Avatar size={32} tone="auto" hashSeed={coord.name} initials={coord.initials} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{coord.name}</div>
+            <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+              <Avatar size={32} tone="auto" hashSeed={coord.name} initials={coord.initials} />
+              <PresenceDot name={coord.name} size={8} />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 13, fontWeight: 600, color: COLORS.ink,
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+                <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {coord.name}
+                </span>
+                <CoordRoleBadge role={coord.role} />
+              </div>
               <div style={{ fontSize: 11, color: COLORS.inkMuted }}>{coord.role === "owner" ? "Workspace owner" : "Coordinator"}</div>
             </div>
             <button type="button" onClick={() => toast(`Messaging ${coord.name}…`)} style={{
@@ -4824,11 +8228,7 @@ function AdminDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
             ))}
           </>
         )}
-        <button type="button" onClick={() => toast("Reassign coordinator")} style={{
-          marginTop: 8, padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
-          borderRadius: 999, border: `1px solid ${COLORS.border}`,
-          background: "transparent", color: COLORS.ink, cursor: "pointer",
-        }}>Reassign coordinator</button>
+        <AdminParticipantsActions inquiry={inquiry} />
       </DetailSection>
 
       <DetailSection title="Source">
@@ -6342,7 +9742,12 @@ const RICH_OFFER_ALIAS: Record<string, string> = {
   "RI-203": "c3",  // Vogue Italia · BOOKED (offer accepted)
 };
 function getOffer(id: string): Offer | undefined {
-  return MOCK_OFFER_FOR_CONV[id] ?? MOCK_OFFER_FOR_CONV[RICH_OFFER_ALIAS[id] ?? ""];
+  // Reads through the module-level override store so mutations made
+  // by any pov (talent submits rate, client approves, admin sends to
+  // client) appear in every other shell that views the same offer.
+  const directKey = MOCK_OFFER_FOR_CONV[id] ? id : RICH_OFFER_ALIAS[id];
+  if (!directKey) return undefined;
+  return getEffectiveOffer(directKey);
 }
 
 // ── OfferTab ──
@@ -7175,6 +10580,9 @@ function LineupRowCard({
     || (pov.kind === "talent" && pov.talentId === row.talentId)
     || (pov.kind === "talent" && pov.isCoordinator);
   const isMine = pov.kind === "talent" && pov.talentId === row.talentId;
+  // Withdraw confirmation — replaces native window.confirm with a
+  // styled bottom sheet that matches the rest of the design system.
+  const [withdrawConfirmOpen, setWithdrawConfirmOpen] = useState(false);
 
   const rowStatusTone =
       row.status === "submitted" ? { bg: COLORS.successSoft, fg: COLORS.successDeep, label: "Submitted" }
@@ -7279,12 +10687,7 @@ function LineupRowCard({
                 type="button"
                 onClick={() => {
                   if (!onWithdraw) { toast("Withdrawn"); return; }
-                  // Native confirm is enough for the prototype — production
-                  // would surface a styled bottom sheet with the withdrawal
-                  // implications (lineup gets re-shaped, coordinator notified).
-                  if (window.confirm("Withdraw your rate?\n\nThe coordinator will be notified and your row will be removed from the offer. You can resubmit later if the coordinator re-invites you.")) {
-                    onWithdraw();
-                  }
+                  setWithdrawConfirmOpen(true);
                 }}
                 style={tinyBtn("transparent", COLORS.coral, `${COLORS.coral}40`)}
               >
@@ -7306,6 +10709,15 @@ function LineupRowCard({
           )}
         </div>
       )}
+      <ConfirmSheet
+        open={withdrawConfirmOpen}
+        onClose={() => setWithdrawConfirmOpen(false)}
+        onConfirm={() => onWithdraw?.()}
+        title="Withdraw your rate?"
+        body="The coordinator will be notified and your row will be removed from the offer. You can resubmit later if the coordinator re-invites you."
+        confirmLabel="Withdraw"
+        tone="danger"
+      />
     </div>
   );
 }
@@ -7716,6 +11128,89 @@ function SubmitRateSheet({
   );
 }
 
+// ── ConfirmSheet ──
+// Single-question confirmation dialog. Replaces native window.confirm
+// for actions like Withdraw rate. Same visual register as ApproveOfferSheet.
+function ConfirmSheet({
+  open, onClose, onConfirm, title, body, confirmLabel, tone = "danger",
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  body: string;
+  confirmLabel: string;
+  tone?: "danger" | "primary";
+}) {
+  if (!open) return null;
+  const confirmBg = tone === "danger" ? COLORS.coral : COLORS.accent;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(11,11,13,0.45)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+        animation: "tulala-rate-fade .18s cubic-bezier(.4,0,.2,1)",
+      }}
+    >
+      <style dangerouslySetInnerHTML={{ __html:
+        "@media (min-width: 720px){.tulala-confirm-sheet{margin-bottom:auto!important;margin-top:auto!important;border-radius:14px!important;max-width:420px!important;}}"
+      }} />
+      <div
+        className="tulala-confirm-sheet"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          width: "100%",
+          maxWidth: 480,
+          borderRadius: "16px 16px 0 0",
+          padding: "18px 20px 20px",
+          display: "flex", flexDirection: "column", gap: 12,
+          fontFamily: FONTS.body,
+          marginBottom: 0,
+          animation: "tulala-rate-up .24s cubic-bezier(.32,.72,0,1)",
+          boxShadow: "0 -10px 40px rgba(11,11,13,0.18)",
+        }}
+      >
+        <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, lineHeight: 1.3 }}>
+          {title}
+        </div>
+        <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          {body}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <button
+            type="button" onClick={onClose}
+            style={{
+              padding: "10px 16px", borderRadius: 999,
+              background: "transparent", border: `1px solid ${COLORS.border}`,
+              color: COLORS.ink, cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+            }}
+          >Cancel</button>
+          <button
+            type="button"
+            onClick={() => { onConfirm(); onClose(); }}
+            style={{
+              flex: 1,
+              padding: "10px 16px", borderRadius: 999,
+              background: confirmBg, color: "#fff",
+              border: "none", cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
@@ -7724,6 +11219,242 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
       marginBottom: 6,
     }}>
       {children}
+    </div>
+  );
+}
+
+// ── ClientActionSheet ──
+// Styled sheet for the client's primary actions: Approve offer, Sign
+// booking, Pay invoice, Verify card. Mirrors SubmitRateSheet visually
+// (bottom sheet on mobile, centered modal on desktop) but the body
+// shows what the client is about to confirm rather than a form.
+//
+// On confirm, calls applyOfferOverride to advance the offer stage
+// AND appends a timeline event so all 3 povs see the action propagate.
+type ClientActionKind = "approve" | "sign" | "pay" | "verify-card";
+function ClientActionSheet({
+  open, onClose, conv, kind, offer,
+}: {
+  open: boolean;
+  onClose: () => void;
+  conv: Conversation;
+  kind: ClientActionKind;
+  offer?: Offer;
+}) {
+  const { toast } = useProto();
+  if (!open) return null;
+
+  // Per-action copy + outcome bundle. Production wires real flows
+  // (Stripe payment, DocuSign, Stripe Identity); the prototype surfaces
+  // the shape + flips stage so the demo feels real.
+  const meta = (() => {
+    if (kind === "approve") {
+      const total = offer ? offer.rows.reduce((s, r) => s + r.costRate * r.units, 0) + offer.agencyFee : 0;
+      const currency = offer?.clientBudget?.currency ?? "EUR";
+      return {
+        eyebrow: "Approve offer",
+        headline: offer ? `${fmtMoney(total, currency)} · ${offer.rows.length} talent` : "Approve",
+        body: "Approving locks the lineup, the rates, and the dates. The agency starts call-sheet prep immediately. You'll be invoiced 50% deposit on approval, balance 14 days after wrap.",
+        confirmLabel: "Approve & lock",
+        confirmTone: COLORS.success,
+        toastMsg: "Offer approved · contract drafting",
+        nextStage: "accepted" as Offer["stage"],
+        timelineActor: "Client",
+        timelineBody: offer ? `Client approved · ${fmtMoney(total, currency)} locked` : "Client approved",
+      };
+    }
+    if (kind === "sign") {
+      return {
+        eyebrow: "Sign booking",
+        headline: "Sign the booking confirmation",
+        body: "DocuSign envelope opens in a new tab. Once you sign, the agency proceeds with call-sheet + travel. Locked stages no longer accept counters.",
+        confirmLabel: "Open DocuSign",
+        confirmTone: COLORS.accent,
+        toastMsg: "Booking signed · agency notified",
+        nextStage: undefined,
+        timelineActor: "Client",
+        timelineBody: "Client signed booking confirmation",
+      };
+    }
+    if (kind === "pay") {
+      return {
+        eyebrow: "Pay invoice",
+        headline: "Settle the deposit",
+        body: "Stripe checkout opens with your card on file. 50% deposit · €1,200 holds the booking. The balance auto-charges 14 days after wrap.",
+        confirmLabel: "Pay €1,200 deposit",
+        confirmTone: COLORS.success,
+        toastMsg: "Payment confirmed · receipt emailed",
+        nextStage: undefined,
+        timelineActor: "Client",
+        timelineBody: "Client paid deposit · €1,200",
+      };
+    }
+    return {
+      eyebrow: "Verify card",
+      headline: "Add a card to unlock profiles",
+      body: "Basic-tier clients verify a card before the agency sends talent profiles. No charge — Stripe runs a $0 verification. Cards on file unlock booking + invoice flow.",
+      confirmLabel: "Verify card",
+      confirmTone: COLORS.accent,
+      toastMsg: "Card verified · profiles unlocking",
+      nextStage: undefined,
+      timelineActor: "Client",
+      timelineBody: "Client verified card on file",
+    };
+  })();
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={meta.eyebrow}
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(11,11,13,0.45)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+        animation: "tulala-rate-fade .18s cubic-bezier(.4,0,.2,1)",
+      }}
+    >
+      <style dangerouslySetInnerHTML={{ __html:
+        "@media (min-width: 720px){.tulala-action-sheet{margin-bottom:auto!important;margin-top:auto!important;border-radius:14px!important;max-width:480px!important;}}"
+      }} />
+      <div
+        className="tulala-action-sheet"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          width: "100%",
+          maxWidth: 540,
+          maxHeight: "92vh",
+          borderRadius: "16px 16px 0 0",
+          padding: "16px 18px 20px",
+          display: "flex", flexDirection: "column", gap: 14,
+          fontFamily: FONTS.body,
+          overflowY: "auto",
+          marginBottom: 0,
+          animation: "tulala-rate-up .24s cubic-bezier(.32,.72,0,1)",
+          boxShadow: "0 -10px 40px rgba(11,11,13,0.18)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>
+              {meta.eyebrow}
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.ink, marginTop: 2, lineHeight: 1.25 }}>
+              {meta.headline}
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              {conv.client} · {conv.brief}
+            </div>
+          </div>
+          <button
+            type="button" onClick={onClose} aria-label="Close"
+            style={{
+              flexShrink: 0,
+              width: 32, height: 32, borderRadius: "50%",
+              border: "none", background: "rgba(11,11,13,0.05)",
+              color: COLORS.inkMuted, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <div style={{
+          padding: "12px 14px", borderRadius: 12,
+          background: COLORS.surfaceAlt,
+          border: `1px solid ${COLORS.borderSoft}`,
+          fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55,
+        }}>
+          {meta.body}
+        </div>
+
+        {/* Per-row recap when approving an offer — gives the client a
+            last-look at exactly what they're locking. */}
+        {kind === "approve" && offer && (
+          <div style={{
+            padding: "10px 12px", borderRadius: 10,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+          }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 6 }}>
+              You're approving
+            </div>
+            {offer.rows.map(r => (
+              <div key={r.id} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
+                fontSize: 12.5, padding: "3px 0",
+              }}>
+                <span style={{ color: COLORS.ink, fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {r.talentName} <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>· {r.role}</span>
+                </span>
+                <span style={{ color: COLORS.ink, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                  {fmtMoney(r.clientRate * r.units, offer.clientBudget?.currency ?? "EUR")}
+                </span>
+              </div>
+            ))}
+            <div style={{ height: 1, background: COLORS.borderSoft, margin: "6px 0" }} />
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "baseline",
+              fontSize: 13, fontWeight: 700, color: COLORS.ink,
+            }}>
+              <span>Total</span>
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                {fmtMoney(
+                  offer.rows.reduce((s, r) => s + r.clientRate * r.units, 0) + offer.agencyFee,
+                  offer.clientBudget?.currency ?? "EUR",
+                )}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <button
+            type="button" onClick={onClose}
+            style={{
+              padding: "10px 16px", borderRadius: 999,
+              background: "transparent", border: `1px solid ${COLORS.border}`,
+              color: COLORS.ink, cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+            }}
+          >Cancel</button>
+          <button
+            type="button"
+            onClick={() => {
+              // Push offer-level override + timeline event so every
+              // shell viewing this conv sees the action immediately.
+              if (offer && (meta.nextStage || meta.timelineBody)) {
+                applyOfferOverride(conv.id, {
+                  ...(meta.nextStage ? { stage: meta.nextStage } : {}),
+                  appendedTimeline: [{
+                    id: `local-${conv.id}-${Date.now()}`,
+                    ts: "Just now",
+                    actor: meta.timelineActor,
+                    body: meta.timelineBody,
+                    tone: kind === "approve" ? "success" : "info",
+                  }],
+                });
+              }
+              toast(meta.toastMsg);
+              onClose();
+            }}
+            style={{
+              flex: 1,
+              padding: "10px 16px", borderRadius: 999,
+              background: meta.confirmTone, color: "#fff",
+              border: "none", cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
+            }}
+          >
+            {meta.confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -7778,6 +11509,60 @@ function FilesTab({ conv, povCanSeeTalentFiles }: { conv: Conversation; povCanSe
   const sortedClient = sortByFresh(clientFiles);
   const sortedTalent = sortByFresh(talentFiles);
 
+  // Extension-aware file icon + image-thumbnail render. Lifts the
+  // file row from "all files look identical" to "I can spot the
+  // call sheet vs the polaroids zip vs the contract at a glance".
+  // Image files render a tinted square with photo glyph (mock); a
+  // future iteration can swap the glyph for an actual thumbnail
+  // pulled from the file CDN.
+  const fileVisual = (filename: string) => {
+    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+    const isImage = ["jpg", "jpeg", "png", "heic", "webp", "gif"].includes(ext);
+    const isZip = ["zip", "rar", "7z", "tar", "gz"].includes(ext);
+    const isSheet = ["csv", "xlsx", "xls", "numbers"].includes(ext);
+    const isCal = ["ics"].includes(ext);
+    const palette = isImage ? { bg: "rgba(91,107,160,0.14)", fg: "#3B4A7C" }
+      : isZip               ? { bg: "rgba(214,158,46,0.16)", fg: "#9C6B14" }
+      : isSheet             ? { bg: "rgba(46,125,91,0.14)",  fg: "#1F5C40" }
+      : isCal               ? { bg: "rgba(176,48,58,0.10)",  fg: COLORS.coralDeep }
+      : { bg: COLORS.surfaceAlt, fg: COLORS.inkMuted };
+    const glyph = isImage ? (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <rect x="1.5" y="2.5" width="11" height="9" rx="1.4" stroke="currentColor" strokeWidth="1.3"/>
+        <circle cx="5" cy="6" r="1" stroke="currentColor" strokeWidth="1.3"/>
+        <path d="M2 11l3.5-3 2.5 2 2-2 2.5 3" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+      </svg>
+    ) : isZip ? (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M3 1.5h6l3 3v8a1 1 0 01-1 1H3a1 1 0 01-1-1v-10a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.3"/>
+        <path d="M6 2v2h1v1h-1v1h1v1h-1v1h1v1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ) : isSheet ? (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <rect x="2" y="2" width="10" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.3"/>
+        <path d="M2 5.5h10M2 8.5h10M5 2v10M9 2v10" stroke="currentColor" strokeWidth="1.1"/>
+      </svg>
+    ) : isCal ? (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <rect x="1.5" y="3" width="11" height="9.5" rx="1.4" stroke="currentColor" strokeWidth="1.3"/>
+        <path d="M1.5 6h11M5 1.5v3M9 1.5v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      </svg>
+    ) : (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M3 1.5h6l3 3v8a1 1 0 01-1 1H3a1 1 0 01-1-1v-10a1 1 0 011-1zM9 1.5v3h3" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+      </svg>
+    );
+    return (
+      <div aria-hidden style={{
+        width: 36, height: 36, borderRadius: 8,
+        background: palette.bg, color: palette.fg,
+        display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        {glyph}
+      </div>
+    );
+  };
+
   // File-card row. Extracted so the two threads can render the same
   // visual for each file with a thread chip when relevant.
   const fileCard = (f: typeof visible[number], showThreadChip: boolean) => (
@@ -7787,13 +11572,7 @@ function FilesTab({ conv, povCanSeeTalentFiles }: { conv: Conversation; povCanSe
       border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10,
       fontFamily: FONTS.body,
     }}>
-      <div aria-hidden style={{
-        width: 32, height: 32, borderRadius: 7,
-        background: COLORS.surfaceAlt, color: COLORS.inkMuted,
-        display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-      }}>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 1.5h6l3 3v8a1 1 0 01-1 1H3a1 1 0 01-1-1v-10a1 1 0 011-1zM9 1.5v3h3" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
-      </div>
+      {fileVisual(f.name)}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           display: "flex", alignItems: "center", gap: 6,
@@ -8122,6 +11901,7 @@ function TeamStrip({
 // notifications-bell popover pattern but as a fixed-overlay dialog. ──
 function LineupDrawer({
   open, onClose, conv, inquiry, canEdit, povCanSeeOffers, povCanSeeCoordNote,
+  pickerPov = "talent_coord", planTier,
 }: {
   open: boolean;
   onClose: () => void;
@@ -8130,6 +11910,14 @@ function LineupDrawer({
   canEdit: boolean;
   povCanSeeOffers: boolean;
   povCanSeeCoordNote: boolean;
+  // Forwarded to AddTalentPicker so the tab labels read "Favorites /
+  // Recent / All Tulala" for clients vs "Saved / Circle / All" for
+  // coords + admins. Defaults to coord/admin framing.
+  pickerPov?: "client" | "admin" | "talent_coord";
+  /** Workspace plan tier — forwarded to AddTalentPicker so it can
+   *  hide/show tier-specific tabs (Free hides Circle; Network adds
+   *  Network roster). */
+  planTier?: "free" | "studio" | "agency" | "network" | "hub-network";
 }) {
   const { toast } = useProto();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -8205,6 +11993,8 @@ function LineupDrawer({
             <AddTalentPicker
               onCancel={() => setPickerOpen(false)}
               onAdd={(name) => { toast(`${name} added to lineup`); setPickerOpen(false); }}
+              pov={pickerPov}
+              planTier={planTier}
             />
           ) : (
             <>
@@ -8378,16 +12168,64 @@ function CoordinatorRow({ coordinator, conv }: {
 
 // ── AddTalentPicker — mini search/picker for adding talent from your
 // saved roster or your circle. Renders inside the LineupDrawer body
-// (replaces the lineup list while open). ──
-function AddTalentPicker({ onCancel, onAdd }: {
+// (replaces the lineup list while open).
+//
+// Pov-aware tab labels: clients see "Favorites / Recent / All Tulala"
+// (the language of someone who hires talent); coordinators / admins see
+// "Saved / Circle / All" (the language of someone who manages talent).
+// Same shape underneath — only the framing changes. ──
+function AddTalentPicker({ onCancel, onAdd, pov = "talent_coord", planTier }: {
   onCancel: () => void;
   onAdd: (name: string) => void;
+  pov?: "client" | "admin" | "talent_coord";
+  /** Workspace plan tier — drives which tabs render in the picker.
+   *  Free → hides Circle (no team to have a circle with).
+   *  Studio/Agency → standard 3 tabs.
+   *  Network → adds a 4th "Network roster" tab with cross-agency talent. */
+  planTier?: "free" | "studio" | "agency" | "network" | "hub-network";
 }) {
-  const [tab, setTab] = useState<"saved" | "circle" | "all">("saved");
+  // Tier-aware tab set — built before useState so the initial tab
+  // selection respects what's available.
+  const isFree = planTier === "free";
+  const isNetwork = planTier === "network" || planTier === "hub-network";
+  type PickerTab = "saved" | "circle" | "all" | "network";
+  const availableTabs: PickerTab[] = isFree
+    ? ["saved", "all"]                            // Free: no Circle
+    : isNetwork
+      ? ["saved", "circle", "all", "network"]     // Network: + Network roster
+      : ["saved", "circle", "all"];               // Studio/Agency: standard
+  const [tab, setTab] = useState<PickerTab>("saved");
   const [query, setQuery] = useState("");
   // Mock candidates per category. Production reads from your roster +
-  // circle (people you've worked with before).
-  const candidates: Record<typeof tab, Array<{ id: string; name: string; initials: string; meta: string }>> = {
+  // circle (people you've worked with before) for coord, or favorites
+  // (talent you've bookmarked) + recent collaborators for client.
+  const candidates: Record<PickerTab, Array<{ id: string; name: string; initials: string; meta: string }>> = pov === "client" ? {
+    // Client POV — favorites = bookmarked talent; circle = people they
+    // already booked at least once; all = the full Tulala hub.
+    saved: [
+      { id: "fav1", name: "Sara Mendez",     initials: "SM", meta: "Favorited · last booked Mar 2026" },
+      { id: "fav2", name: "Diego Ferrer",    initials: "DF", meta: "Favorited · 3 past projects" },
+      { id: "fav3", name: "Lyra Costa",      initials: "LC", meta: "Favorited · single hostess" },
+    ],
+    circle: [
+      { id: "rec1", name: "Anouk Naseri",    initials: "AN", meta: "You worked together · Atelier Roma" },
+      { id: "rec2", name: "Camille Roux",    initials: "CR", meta: "You worked together · Mango" },
+      { id: "rec3", name: "Tomás Bianchi",   initials: "TB", meta: "You worked together · Loewe" },
+    ],
+    all: [
+      { id: "h1", name: "Hana Matsumoto",    initials: "HM", meta: "Tulala Hub · 4.9★" },
+      { id: "h2", name: "Riku Vesa",         initials: "RV", meta: "Tulala Hub · Berlin" },
+      { id: "h3", name: "Sofia Andrade",     initials: "SA", meta: "Tulala Hub · Lisbon" },
+    ],
+    // Network — only renders on Network tier. Cross-workspace federation
+    // talent: the meta line carries the home-agency name so admins know
+    // which workspace each talent belongs to before adding them.
+    network: [
+      { id: "n1", name: "Aiko Tanaka",       initials: "AT", meta: "via Vela Hub · Tokyo · 4.8★" },
+      { id: "n2", name: "Liam O'Sullivan",   initials: "LO", meta: "via North Coast Talent · Dublin" },
+      { id: "n3", name: "Priya Iyengar",     initials: "PI", meta: "via Vela Hub · Mumbai · 4.9★" },
+    ],
+  } : {
     saved: [
       { id: "s1", name: "Cleo Vega",       initials: "CV", meta: "Co-coordinator · trusted backup" },
       { id: "s2", name: "Yael Soto",       initials: "YS", meta: "Talent · Madrid · saved 2x" },
@@ -8403,6 +12241,26 @@ function AddTalentPicker({ onCancel, onAdd }: {
       { id: "a2", name: "Riku Vesa",       initials: "RV", meta: "Tulala Hub · Berlin" },
       { id: "a3", name: "Sofia Andrade",   initials: "SA", meta: "Tulala Hub · Lisbon" },
     ],
+    network: [
+      { id: "n1", name: "Aiko Tanaka",     initials: "AT", meta: "Vela Hub · Tokyo · 4.8★" },
+      { id: "n2", name: "Liam O'Sullivan", initials: "LO", meta: "North Coast Talent · Dublin" },
+      { id: "n3", name: "Priya Iyengar",   initials: "PI", meta: "Vela Hub · Mumbai · 4.9★" },
+    ],
+  };
+  // Tab labels per pov + tier. Agency renames "Saved" to "Workspace
+  // roster" because the saved bucket IS the agency's roster at that
+  // tier. Network's 4th tab calls itself "Network roster".
+  const tabLabel = (t: PickerTab) => {
+    if (t === "network") return "Network roster";
+    if (pov === "client") return t === "saved" ? "Favorites" : t === "circle" ? "Recent" : "All Tulala";
+    if (planTier === "agency" || isNetwork) return t === "saved" ? "Workspace roster" : t === "circle" ? "Circle" : "All Tulala";
+    return t === "saved" ? "Saved" : t === "circle" ? "Circle" : "All talent";
+  };
+  const emptyHint = (t: PickerTab) => {
+    if (t === "network") return "the network roster";
+    if (pov === "client") return t === "saved" ? "your favorites" : t === "circle" ? "talent you've worked with" : "all Tulala talent";
+    if (planTier === "agency" || isNetwork) return t === "saved" ? "your workspace roster" : t === "circle" ? "your circle" : "all Tulala talent";
+    return t === "saved" ? "your saved" : t === "circle" ? "your circle" : "all talent";
   };
   const filtered = candidates[tab].filter(c =>
     !query.trim() || c.name.toLowerCase().includes(query.toLowerCase())
@@ -8424,8 +12282,8 @@ function AddTalentPicker({ onCancel, onAdd }: {
         <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>Add talent</div>
       </div>
       {/* Tabs */}
-      <div role="tablist" style={{ display: "flex", gap: 4 }}>
-        {(["saved", "circle", "all"] as const).map(t => (
+      <div role="tablist" style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        {availableTabs.map(t => (
           <button key={t}
             type="button"
             role="tab"
@@ -8440,7 +12298,7 @@ function AddTalentPicker({ onCancel, onAdd }: {
               fontSize: 11, fontWeight: 700, cursor: "pointer",
               textTransform: "capitalize", fontFamily: FONTS.body,
             }}>
-            {t === "saved" ? "Saved" : t === "circle" ? "Circle" : "All talent"}
+            {tabLabel(t)}
           </button>
         ))}
       </div>
@@ -8461,7 +12319,7 @@ function AddTalentPicker({ onCancel, onAdd }: {
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {filtered.length === 0 && (
           <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: COLORS.inkMuted }}>
-            No matches in {tab === "saved" ? "your saved" : tab === "circle" ? "your circle" : "all talent"}.
+            No matches in {emptyHint(tab)}.
           </div>
         )}
         {filtered.map(c => (
@@ -8701,7 +12559,16 @@ function ConversationTab({
     id: m.id, kind: "text" as const, sender: m.sender, body: m.body, ts: m.ts, readBy: [],
   }));
   const messages = [...seedMessages, ...localMessages];
-  const textMessages = messages.filter(m => m.kind === "text") as Array<Extract<(typeof messages)[number], { kind: "text" }>>;
+  // In-thread search — small toggle in the header opens a compact
+  // search input that filters visible bubbles to those whose body
+  // matches. System events are kept (they often anchor the search
+  // in a date range, e.g. "show me what happened around the booking").
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [threadSearch, setThreadSearch] = useState("");
+  const allTextMessages = messages.filter(m => m.kind === "text") as Array<Extract<(typeof messages)[number], { kind: "text" }>>;
+  const textMessages = threadSearch.trim()
+    ? allTextMessages.filter(m => m.body.toLowerCase().includes(threadSearch.toLowerCase()))
+    : allTextMessages;
   // System events surface centered between message clusters — same data
   // the Activity timeline shows, so the two views never drift.
   const systemEvents = messages.filter(m => m.kind === "system") as Array<Extract<(typeof messages)[number], { kind: "system" }>>;
@@ -8734,12 +12601,61 @@ function ConversationTab({
         padding: "10px 14px 0",
         background: "#fff",
       }}>
-        <TeamStrip
-          lineup={inquiryForLineup.talent}
-          canEdit={povCanEditLineup}
-          povLabel={povCanEditLineup ? "edit" : "view"}
-          onOpen={() => setLineupOpen(true)}
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <TeamStrip
+              lineup={inquiryForLineup.talent}
+              canEdit={povCanEditLineup}
+              povLabel={povCanEditLineup ? "edit" : "view"}
+              onOpen={() => setLineupOpen(true)}
+            />
+          </div>
+          {/* In-thread search toggle. Click reveals a compact search
+              input + filters bubbles to those whose body matches. Esc
+              clears + closes. */}
+          <button type="button"
+            onClick={() => { setSearchOpen(o => !o); if (searchOpen) setThreadSearch(""); }}
+            aria-label={searchOpen ? "Close thread search" : "Search this thread"}
+            title={searchOpen ? "Close search" : "Search this thread"}
+            style={{
+              flexShrink: 0,
+              width: 30, height: 30, borderRadius: 8,
+              border: `1px solid ${searchOpen ? COLORS.accent : COLORS.borderSoft}`,
+              background: searchOpen ? COLORS.accentSoft : "#fff",
+              color: searchOpen ? COLORS.accentDeep : COLORS.inkMuted,
+              cursor: "pointer",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+            }}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M9 9l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+        {searchOpen && (
+          <div style={{ marginTop: 8 }}>
+            <input
+              type="text"
+              autoFocus
+              value={threadSearch}
+              onChange={(e) => setThreadSearch(e.currentTarget.value)}
+              onKeyDown={(e) => { if (e.key === "Escape") { setThreadSearch(""); setSearchOpen(false); } }}
+              placeholder="Search in this thread…"
+              style={{
+                width: "100%", padding: "7px 12px", borderRadius: 999,
+                border: `1px solid ${COLORS.borderSoft}`,
+                background: COLORS.surfaceAlt,
+                fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+                outline: "none", boxSizing: "border-box",
+              }}
+            />
+            {threadSearch.trim() && (
+              <div style={{ marginTop: 4, fontSize: 10.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+                {textMessages.length} match{textMessages.length === 1 ? "" : "es"} for &ldquo;{threadSearch}&rdquo;
+              </div>
+            )}
+          </div>
+        )}
         <LineupDrawer
           open={lineupOpen}
           onClose={() => setLineupOpen(false)}
@@ -8749,6 +12665,16 @@ function ConversationTab({
           povCanSeeOffers={povCanSeeOffers}
           povCanSeeCoordNote={povCanSeeCoordNote}
         />
+        {/* First-time conv context banner — surfaces only when this
+            client is in our "first encounter" set. Audience defaults
+            to talent (the most common ConversationTab consumer);
+            client + coord-talent both fall under the same friendly
+            framing here. */}
+        {isFirstConvWith(conv.client) && (
+          <div style={{ marginTop: 8, marginLeft: -14, marginRight: -14 }}>
+            <FirstConvBanner clientName={conv.client} audience="talent" />
+          </div>
+        )}
       </div>
       {/* Scrollable middle — message stream + system events. Only THIS
           area scrolls; the pins and composer stay locked in view. */}
@@ -8773,22 +12699,40 @@ function ConversationTab({
           const prevDay = idx > 0 ? dayKey(textMessages[idx - 1]!.ts) : null;
           const thisDay = dayKey(m.ts);
           const showDay = thisDay !== prevDay;
+          // Workspace bubble = the System User. Resolves to the
+          // workspace identity registered for conv.agency, falling
+          // back to a synthesized one. Shown with the workspace name +
+          // logo + a "Workspace" role label so recipients know this
+          // is the agency speaking, not an individual coord.
+          const wsIdentity = m.sender === "workspace" ? getWorkspaceIdentity(conv.agency) : null;
           const senderName =
               m.sender === "coordinator" ? conv.leader.name
             : m.sender === "client" ? conv.client
             : m.sender === "agency" ? conv.agency
+            : m.sender === "workspace" ? wsIdentity!.name
             : "You";
           const senderInitials =
               m.sender === "coordinator" ? conv.leader.initials
             : m.sender === "client" ? conv.clientInitials
             : m.sender === "agency" ? conv.agency.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+            : m.sender === "workspace" ? wsIdentity!.initials
             : "ME";
-          const roleLabel = m.sender === "you" ? null : m.sender;
+          const roleLabel = m.sender === "you" ? null
+            : m.sender === "workspace" ? "workspace"
+            : m.sender;
           return (
             <React.Fragment key={m.id}>
             {showDay && <DaySeparator label={thisDay} />}
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexDirection: mine ? "row-reverse" : "row" }}>
-              {!mine && <Avatar size={26} tone={m.sender === "coordinator" ? "ink" : "auto"} hashSeed={senderName} initials={senderInitials} />}
+              {!mine && (
+                <Avatar
+                  size={26}
+                  tone={m.sender === "coordinator" || m.sender === "workspace" ? "ink" : "auto"}
+                  hashSeed={senderName}
+                  initials={senderInitials}
+                  photoUrl={m.sender === "workspace" ? wsIdentity?.logoUrl : undefined}
+                />
+              )}
               <div style={{
                 maxWidth: "78%",
                 background: mine ? COLORS.fill : COLORS.surfaceAlt,
@@ -8798,8 +12742,47 @@ function ConversationTab({
                 fontSize: 13, lineHeight: 1.45,
               }}>
                 {!mine && (
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 2 }}>
-                    {senderName}{roleLabel ? <span style={{ fontWeight: 500 }}> · {roleLabel}</span> : null}
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 2, display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                    <span>{senderName}{roleLabel ? <span style={{ fontWeight: 500 }}> · {roleLabel}</span> : null}</span>
+                    {m.sender === "workspace" && (
+                      <span title="Workspace System User — the agency speaking, not an individual" style={{
+                        display: "inline-flex", alignItems: "center", gap: 3,
+                        padding: "0 5px", borderRadius: 999,
+                        background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+                        fontSize: 8.5, fontWeight: 700,
+                        textTransform: "uppercase", letterSpacing: 0.4,
+                      }}>
+                        <svg width="7" height="7" viewBox="0 0 8 8" fill="none" aria-hidden>
+                          <path d="M2 1.5h4l1 1.5v3l-1 1.5H2l-1-1.5v-3l1-1.5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+                        </svg>
+                        System
+                      </span>
+                    )}
+                    {/* Phase 5 — Network multi-workspace attribution.
+                        When the conv came in via an agency referral
+                        AND this is a workspace-sent bubble, surface
+                        the referring agency alongside the sender's
+                        workspace so both parties' identities are
+                        visible in the federated context. */}
+                    {m.sender === "workspace"
+                      && conv.source?.kind === "agency-referral"
+                      && (conv.source as { via?: string }).via
+                      && (conv.source as { via?: string }).via !== conv.agency && (
+                      <span title={`Referred via ${(conv.source as { via?: string }).via}`} style={{
+                        display: "inline-flex", alignItems: "center", gap: 3,
+                        padding: "0 5px", borderRadius: 999,
+                        background: "rgba(46,125,91,0.14)", color: "#1F5C40",
+                        fontSize: 8.5, fontWeight: 700,
+                        textTransform: "uppercase", letterSpacing: 0.4,
+                      }}>
+                        <svg width="7" height="7" viewBox="0 0 8 8" fill="none" aria-hidden>
+                          <circle cx="2.5" cy="4" r="1" stroke="currentColor" strokeWidth="0.9"/>
+                          <circle cx="5.5" cy="4" r="1" stroke="currentColor" strokeWidth="0.9"/>
+                          <path d="M3.5 4h1" stroke="currentColor" strokeWidth="0.9"/>
+                        </svg>
+                        ↔ {(conv.source as { via?: string }).via}
+                      </span>
+                    )}
                   </div>
                 )}
                 {renderWithMentions(m.body, mine)}
@@ -8826,26 +12809,56 @@ function ConversationTab({
         </div>
       </div>
       {/* Fixed composer — locked at the bottom of the visible area so
-          users can always reply without scrolling. */}
+          users can always reply without scrolling. Closed convs
+          (cancelled / past) replace the composer with a closure
+          notice — typing into a dead conversation makes no sense and
+          would mislead the demo into "I sent something but nothing
+          happened" confusion. */}
       <div style={{
         flexShrink: 0,
         padding: "10px 14px 14px",
         background: "#fff",
         borderTop: `1px solid ${COLORS.borderSoft}`,
       }}>
-        <DraftComposer
-          threadKey={threadKey}
-          placeholder={placeholder}
-          onSend={(text) => {
-            // Append to module stash so the bubble appears in this
-            // thread immediately (and survives tab-switches inside
-            // the conv). useMessageStashSubscription above triggers
-            // the re-render. Same key as the read above so seed +
-            // local messages line up correctly.
-            appendLocalMessage(stashKey, text);
-            toast("Message sent");
-          }}
-        />
+        {(conv.stage === "cancelled" || conv.stage === "past") ? (
+          <div style={{
+            padding: "10px 14px",
+            borderRadius: 999,
+            background: COLORS.surfaceAlt,
+            border: `1px solid ${COLORS.borderSoft}`,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
+              <rect x="3" y="6.5" width="8" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M5 6.5V5a2 2 0 014 0v1.5" stroke="currentColor" strokeWidth="1.4"/>
+            </svg>
+            {conv.stage === "past"
+              ? "Conversation wrapped · the project is paid + closed."
+              : conv.outcome === "client_cancelled"
+                ? "Closed · the client cancelled this project."
+                : conv.outcome === "client_rejected"
+                  ? "Closed · the client passed on the offer."
+                  : conv.outcome === "client_no_response"
+                    ? "Closed · auto-expired (no client response in the window)."
+                    : "Conversation closed."}
+          </div>
+        ) : (
+          <DraftComposer
+            threadKey={threadKey}
+            placeholder={placeholder}
+            onSend={(text) => {
+              appendLocalMessage(stashKey, text);
+              toast("Message sent");
+            }}
+            workspaceName={conv.agency}
+            canSendAsWorkspace={povCanSeeOffers}
+            onSendAsWorkspace={(text) => {
+              appendLocalMessage(stashKey, text, "workspace");
+              toast(`Sent as ${conv.agency}`);
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -8916,15 +12929,31 @@ const SMART_REPLIES_FOR_LAST: Record<string, string[]> = {
 
 function DraftComposer({
   threadKey, placeholder, onSend, smartReplyContext = "default",
+  // Phase 4 of System User direction — when both `workspaceName` is
+  // provided AND the caller has permission (coord+ in a paid tier),
+  // a small "Send as" toggle appears letting the user post as the
+  // workspace identity rather than themselves. The composer doesn't
+  // enforce permissions itself; callers gate availability via the
+  // `canSendAsWorkspace` flag.
+  workspaceName,
+  canSendAsWorkspace = false,
+  onSendAsWorkspace,
 }: {
   threadKey: string;
   placeholder: string;
   onSend: (text: string) => void;
   smartReplyContext?: string;
+  workspaceName?: string;
+  canSendAsWorkspace?: boolean;
+  onSendAsWorkspace?: (text: string) => void;
 }) {
   const { toast } = useProto();
   const [val, setVal] = useState(() => __draftStore.get(threadKey) ?? "");
   const [hasSent, setHasSent] = useState(false);
+  // Send-as state — defaults to "you" so accidental posts don't
+  // attribute to the workspace.
+  const [sendAs, setSendAs] = useState<"you" | "workspace">("you");
+  const wsAvailable = canSendAsWorkspace && !!workspaceName && !!onSendAsWorkspace;
   // Smart replies are now hidden by default — they were eating
   // composer real-estate every thread. A small sparkle button toggles
   // them. Auto-collapse when the user starts typing or sends.
@@ -8939,7 +12968,17 @@ function DraftComposer({
     setSmartOpen(false); // switching threads collapses the panel
   }, [threadKey]);
   const replies = SMART_REPLIES_FOR_LAST[smartReplyContext] ?? SMART_REPLIES_FOR_LAST.default;
-  const handleSend = (text: string) => { onSend(text); setVal(""); setHasSent(true); setSmartOpen(false); };
+  const handleSend = (text: string) => {
+    if (sendAs === "workspace" && wsAvailable) {
+      onSendAsWorkspace!(text);
+    } else {
+      onSend(text);
+    }
+    setVal(""); setHasSent(true); setSmartOpen(false);
+    // After sending as workspace, snap back to "you" so consecutive
+    // sends don't all auto-attribute to the workspace by accident.
+    setSendAs("you");
+  };
   const canShowSmart = !val && !hasSent && (replies?.length ?? 0) > 0;
 
   return (
@@ -8984,6 +13023,49 @@ function DraftComposer({
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
               <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
             </svg>
+          </button>
+        </div>
+      )}
+      {/* Send-as picker — only renders when the caller can post as
+          the workspace (paid tier + coord+ role). Two pill buttons:
+          You / <Workspace>. Selected pill carries the indigo System
+          User palette so the user always knows which identity will
+          attribute the next send. Resets to "You" after each send. */}
+      {wsAvailable && (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body, marginRight: 2 }}>
+            Send as
+          </span>
+          <button type="button"
+            onClick={() => setSendAs("you")}
+            aria-pressed={sendAs === "you"}
+            style={{
+              padding: "3px 10px", borderRadius: 999,
+              border: `1px solid ${sendAs === "you" ? COLORS.fill : COLORS.borderSoft}`,
+              background: sendAs === "you" ? COLORS.fill : "#fff",
+              color: sendAs === "you" ? "#fff" : COLORS.ink,
+              fontSize: 10.5, fontWeight: 700, cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}>
+            You
+          </button>
+          <button type="button"
+            onClick={() => setSendAs("workspace")}
+            aria-pressed={sendAs === "workspace"}
+            title={`Post as ${workspaceName} — System User identity`}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "3px 10px", borderRadius: 999,
+              border: `1px solid ${sendAs === "workspace" ? COLORS.indigoDeep : COLORS.borderSoft}`,
+              background: sendAs === "workspace" ? COLORS.indigoSoft : "#fff",
+              color: sendAs === "workspace" ? COLORS.indigoDeep : COLORS.ink,
+              fontSize: 10.5, fontWeight: 700, cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}>
+            <svg width="9" height="9" viewBox="0 0 8 8" fill="none" aria-hidden>
+              <path d="M2 1.5h4l1 1.5v3l-1 1.5H2l-1-1.5v-3l1-1.5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+            </svg>
+            {workspaceName}
           </button>
         </div>
       )}

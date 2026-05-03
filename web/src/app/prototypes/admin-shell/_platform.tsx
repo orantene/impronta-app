@@ -110,8 +110,16 @@ export function PlatformSurface() {
 // ─── Topbar (dark) ────────────────────────────────────────────────
 
 function PlatformTopbar() {
-  const { state, setPlatformPage, setHqRole } = useProto();
+  const { state, setPlatformPage, setHqRole, verificationRequests } = useProto();
   const meta = HQ_ROLE_META[state.hqRole];
+  // Trust-verification queue is a PLATFORM-level function (Tulala staff
+  // act as a neutral arbiter — see project_client_trust_badges.md).
+  // Surface the pending count on the Operations tab so reviewers can see
+  // their queue from anywhere in HQ. (This badge used to live on the
+  // workspace Roster topbar — moved here 2026-05-02 to fix the layering.)
+  const pendingVerifications = verificationRequests.filter(r =>
+    r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
+  ).length;
   return (
     <header
       data-tulala-app-topbar
@@ -213,6 +221,9 @@ function PlatformTopbar() {
                   letterSpacing: 0.1,
                   borderRadius: 7,
                   position: "relative",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
                   transition: "color .12s",
                 }}
                 onMouseEnter={(e) => {
@@ -223,6 +234,28 @@ function PlatformTopbar() {
                 }}
               >
                 {PLATFORM_PAGE_META[p].label}
+                {p === "operations" && pendingVerifications > 0 && (
+                  <span
+                    aria-label={`${pendingVerifications} pending verification${pendingVerifications === 1 ? "" : "s"}`}
+                    title={`${pendingVerifications} pending verification${pendingVerifications === 1 ? "" : "s"} — IG-verified / Tulala-verified review queue`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 16,
+                      height: 16,
+                      padding: "0 5px",
+                      borderRadius: 999,
+                      background: COLORS.indigo,
+                      color: "#fff",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {pendingVerifications}
+                  </span>
+                )}
                 <span
                   aria-hidden
                   style={{
@@ -335,10 +368,22 @@ function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+    <>
+    <style>{`
+      @media (max-width: 680px) {
+        [data-tulala-page-header] [data-tulala-h1] {
+          font-size: 19px !important; line-height: 1.2 !important; letter-spacing: -0.25px !important; font-weight: 700 !important;
+        }
+        [data-tulala-page-header] { margin-bottom: 10px !important; gap: 8px !important; align-items: baseline !important; }
+        [data-tulala-page-header] [data-tulala-page-eyebrow] { display: none !important; }
+        [data-tulala-page-header] p { display: none !important; }
+        [data-tulala-page-header-actions] { flex-shrink: 0 !important; }
+      }
+    `}</style>
+    <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 14 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         {eyebrow && (
-          <div style={{ marginBottom: 6 }}>
+          <div data-tulala-page-eyebrow style={{ marginBottom: 6 }}>
             <span
               style={{
                 fontFamily: FONTS.body,
@@ -357,9 +402,9 @@ function PageHeader({
           data-tulala-h1
           style={{
             fontFamily: FONTS.display,
-            fontSize: 30,
-            fontWeight: 500,
-            letterSpacing: -0.6,
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: -0.4,
             color: HQ.ink,
             margin: 0,
             lineHeight: 1.15,
@@ -371,11 +416,11 @@ function PageHeader({
           <p
             style={{
               fontFamily: FONTS.body,
-              fontSize: 14,
+              fontSize: 13,
               color: HQ.inkMuted,
-              margin: "6px 0 0",
-              lineHeight: 1.55,
-              maxWidth: 720,
+              margin: "4px 0 0",
+              lineHeight: 1.5,
+              maxWidth: 640,
             }}
           >
             {subtitle}
@@ -388,6 +433,7 @@ function PageHeader({
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -631,8 +677,7 @@ function PlatformTenantsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Tenants"
-        title="Every tenant on Tulala"
+        title="Tenants"
         subtitle="Agencies and hubs. Health, plan, entity model, MRR, and quick-jump impersonation."
       />
 
@@ -799,8 +844,7 @@ function PlatformUsersPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Users"
-        title="Every human across tenants"
+        title="Users"
         subtitle="Combined account view. A user can belong to multiple tenants — merged here."
       />
       <HqCard title="Users" subtitle={`${PLATFORM_USERS.length} active`}>
@@ -865,7 +909,6 @@ function PlatformNetworkPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Tulala hub"
         title="Network"
         subtitle="The discovery surface that sits across every tenant. Curate featured talent, run moderation, and tune ranking."
         actions={
@@ -974,8 +1017,7 @@ function PlatformBillingPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Billing"
-        title="Revenue"
+        title="Billing"
         subtitle={
           canRefund
             ? "MRR by plan, invoice ledger, and refund tools."
@@ -1057,8 +1099,7 @@ function PlatformOperationsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Operations"
-        title="Platform plumbing"
+        title="Operations"
         subtitle="Feature flags, system jobs, and incidents — the levers and alarms for running Tulala."
       />
       <HqGrid cols="2">
@@ -1260,8 +1301,7 @@ function PlatformSettingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Settings"
-        title="HQ"
+        title="HQ settings"
         subtitle="The internal team, audit trail, region config, and other platform-wide settings."
       />
       <HqGrid cols="2">
@@ -1313,6 +1353,7 @@ function PlatformSettingsPage() {
         </HqCard>
         <HqCard title="Platform">
           {[
+            { label: "Verification methods", id: "platform-verification-methods" as const, desc: "Toggle which trust signals are enabled platform-wide" },
             { label: "Audit log", id: "platform-audit-export" as const, desc: "Export the last 90 days of HQ actions" },
             { label: "Region config", id: "platform-region-config" as const, desc: "EU / NA / APAC routing" },
             { label: "Dunning rules", id: "platform-dunning" as const, desc: "When and how to retry failed payments" },
@@ -1940,7 +1981,7 @@ export function PlatformFeatureFlagDrawer() {
             style={{
               flex: 1,
               padding: "10px 12px",
-              background: f.state === s ? COLORS.ink : "#fff",
+              background: f.state === s ? COLORS.fill : "#fff",
               color: f.state === s ? "#fff" : COLORS.ink,
               border: `1px solid ${COLORS.border}`,
               borderRadius: 8,
@@ -2174,7 +2215,7 @@ export function PlatformRegionConfigDrawer() {
             <span
               style={{
                 padding: "2px 8px",
-                background: COLORS.ink,
+                background: COLORS.fill,
                 color: "#fff",
                 fontSize: 10.5,
                 fontWeight: 700,

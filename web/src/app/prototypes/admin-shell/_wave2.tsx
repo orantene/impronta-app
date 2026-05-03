@@ -877,14 +877,57 @@ export function AuditLogDrawer() {
 // #3 — TenantSwitcherDrawer
 // ════════════════════════════════════════════════════════════════════
 
-const MOCK_TENANTS = [
-  { id: "atelier-roma", name: "Atelier Roma", role: "Owner", initials: "A" },
-  { id: "northcoast", name: "North Coast Talent", role: "Coordinator", initials: "N" },
-  { id: "vela", name: "Vela Hub", role: "Admin", initials: "V" },
+// Each tenant carries BOTH a plan tier (Free / Studio / Agency / Network)
+// AND the user's role inside that workspace (Owner / Admin / Coordinator
+// / Editor / Talent). One person can be Owner of an Agency they founded
+// AND Coordinator in a different agency someone else owns AND Admin in a
+// network hub. The switcher needs to surface BOTH dimensions per row.
+type TenantTier = "free" | "studio" | "agency" | "network";
+type TenantRole = "Owner" | "Admin" | "Coordinator" | "Editor" | "Talent";
+const MOCK_TENANTS: Array<{
+  id: string; name: string; role: TenantRole; tier: TenantTier; initials: string;
+  /** Talents on the roster (current). Used to render the M/N seat
+   *  meter alongside the tier badge so the user sees how full each
+   *  workspace is at-a-glance. */
+  seatsUsed: number;
+  /** Plan-tier seat cap for this tenant. Free=5 / Studio=15 /
+   *  Agency=50 / Network=unlimited (rendered as ∞). */
+  seatsCap: number | "∞";
+  /** Workspace's reachable URL. Free tier gets a sub-path on the hub
+   *  (tulala-hub.com/<slug>); Studio/Agency/Network get a tulala
+   *  subdomain by default and can attach a custom domain on paid
+   *  tiers. Surfacing it in the switcher gives users an at-a-glance
+   *  identity signal — same as how Slack / Linear show team URLs. */
+  domain: string;
+}> = [
+  { id: "atelier-roma", name: "Atelier Roma",       role: "Owner",        tier: "agency",  initials: "A", seatsUsed: 47,  seatsCap: 50,  domain: "atelier-roma.tulala.digital" },
+  { id: "northcoast",   name: "North Coast Talent", role: "Coordinator",  tier: "studio",  initials: "N", seatsUsed: 8,   seatsCap: 15,  domain: "northcoast.tulala.digital" },
+  { id: "vela",         name: "Vela Hub",           role: "Admin",        tier: "network", initials: "V", seatsUsed: 124, seatsCap: "∞", domain: "velahub.network" },
+  { id: "marta-solo",   name: "Marta Reyes",        role: "Owner",        tier: "free",    initials: "M", seatsUsed: 1,   seatsCap: 5,   domain: "tulala-hub.com/marta" },
 ];
 
+// Tone palette per tier — Free is neutral, Studio is amber-warm,
+// Agency is indigo (premium), Network is emerald (federation).
+const TENANT_TIER_PALETTE: Record<TenantTier, { bg: string; fg: string; label: string }> = {
+  free:    { bg: "rgba(11,11,13,0.06)",  fg: COLORS.inkMuted,        label: "Free" },
+  studio:  { bg: "rgba(214,158,46,0.14)", fg: "#9C6B14",             label: "Studio" },
+  agency:  { bg: "rgba(91,107,160,0.16)", fg: "#3B4A7C",             label: "Agency" },
+  network: { bg: "rgba(46,125,91,0.16)",  fg: "#1F5C40",             label: "Network" },
+};
+
+// Role tint — Owner reads as authority (indigo), Admin as deputized,
+// Coordinator + Editor as in-the-loop, Talent as recipient. Distinct
+// from the plan tier palette so the two signals don't collapse.
+const TENANT_ROLE_PALETTE: Record<TenantRole, { fg: string }> = {
+  Owner:       { fg: "#3B4A7C" },
+  Admin:       { fg: "#7C5A3B" },
+  Coordinator: { fg: COLORS.inkMuted },
+  Editor:      { fg: COLORS.inkMuted },
+  Talent:      { fg: COLORS.inkMuted },
+};
+
 export function TenantSwitcherDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "tenant-switcher";
   return (
     <DrawerShell
@@ -892,86 +935,674 @@ export function TenantSwitcherDrawer() {
       onClose={closeDrawer}
       title="Switch workspace"
       description="Workspaces you're a member of. Switching swaps your topbar identity, roster, and inbox."
+      toolbar={(
+        <button type="button"
+          onClick={() => { closeDrawer(); openDrawer("workspace-profile"); }}
+          title="Edit workspace profile"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "5px 11px", borderRadius: 999,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: "#fff", color: COLORS.ink,
+            fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}>
+          <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden>
+            <path d="M2 12l1-3 7-7 2 2-7 7-3 1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+          </svg>
+          Edit profile
+        </button>
+      )}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {MOCK_TENANTS.map((t) => {
-          const isCurrent = t.name === TENANT.name;
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Group workspaces by role-class so the user reads "what I own"
+            vs "where I'm a member" at a glance. Same person can be Owner
+            of an Agency they founded AND Coordinator in someone else's
+            agency — these are operationally distinct and shouldn't be
+            jumbled together. */}
+        {(["Owner", "Admin", "Coordinator", "Editor", "Talent"] as const).map((roleGroup) => {
+          const tenants = MOCK_TENANTS.filter(t => t.role === roleGroup);
+          if (tenants.length === 0) return null;
+          const groupHeading = roleGroup === "Owner" ? "Workspaces you own"
+            : roleGroup === "Admin" ? "Where you're an admin"
+            : roleGroup === "Coordinator" ? "Where you coordinate"
+            : roleGroup === "Editor" ? "Where you can edit"
+            : "Where you're talent";
+          const groupSub = roleGroup === "Owner"
+            ? "You set the tier, billing, and team. Workspace identity is yours."
+            : roleGroup === "Admin"
+            ? "You can manage members + assign coordinators. Owner controls billing."
+            : roleGroup === "Coordinator"
+            ? "You manage projects assigned to you. Add or remove talent within them."
+            : roleGroup === "Editor"
+            ? "Read-only on projects, can edit talent profiles."
+            : "You're on the roster.";
           return (
-            <button
-              key={t.id}
-              type="button"
-              data-tulala-row
-              onClick={() => {
-                if (isCurrent) {
-                  closeDrawer();
-                  return;
-                }
-                toast(`Switched to ${t.name}`);
-                closeDrawer();
-              }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 14px",
-                background: isCurrent ? COLORS.accentSoft : "#fff",
-                border: `1px solid ${isCurrent ? "rgba(15,79,62,0.22)" : COLORS.borderSoft}`,
-                borderRadius: 10,
-                cursor: "pointer",
-                fontFamily: FONTS.body,
-                textAlign: "left",
-              }}
-            >
-              <Avatar initials={t.initials} size={36} tone="ink" />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: isCurrent ? COLORS.accentDeep : COLORS.ink }}>
-                  {t.name}
-                </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {t.role}
-                </div>
-              </div>
-              {isCurrent && (
-                <span
-                  style={{
-                    fontSize: 9.5,
-                    fontWeight: 600,
-                                        padding: "3px 7px",
-                    background: "rgba(15,79,62,0.18)",
-                    color: COLORS.accentDeep,
-                    borderRadius: 999,
-                  }}
-                >
-                  Current
+            <section key={roleGroup} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <header style={{ display: "flex", flexDirection: "column", gap: 1, marginBottom: 2 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted }}>
+                  {groupHeading}
                 </span>
-              )}
-            </button>
+                <span style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.4 }}>
+                  {groupSub}
+                </span>
+              </header>
+              {tenants.map((t) => {
+                const isCurrent = t.name === TENANT.name;
+                const tierPalette = TENANT_TIER_PALETTE[t.tier];
+                const rolePalette = TENANT_ROLE_PALETTE[t.role];
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    data-tulala-row
+                    onClick={() => {
+                      if (isCurrent) { closeDrawer(); return; }
+                      toast(`Switched to ${t.name} · ${tierPalette.label} · ${t.role}`);
+                      closeDrawer();
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "12px 14px",
+                      background: isCurrent ? COLORS.accentSoft : "#fff",
+                      border: `1px solid ${isCurrent ? "rgba(15,79,62,0.22)" : COLORS.borderSoft}`,
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      fontFamily: FONTS.body,
+                      textAlign: "left",
+                    }}
+                  >
+                    <Avatar initials={t.initials} size={36} tone="ink" />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                        <span style={{
+                          fontSize: 14, fontWeight: 600,
+                          color: isCurrent ? COLORS.accentDeep : COLORS.ink,
+                          minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>
+                          {t.name}
+                        </span>
+                        <span title={`${tierPalette.label} plan`} style={{
+                          flexShrink: 0,
+                          fontSize: 9.5, fontWeight: 700,
+                          padding: "1px 7px", borderRadius: 999,
+                          background: tierPalette.bg, color: tierPalette.fg,
+                          textTransform: "uppercase", letterSpacing: 0.4,
+                        }}>
+                          {tierPalette.label}
+                        </span>
+                      </div>
+                      {/* Workspace domain — Slack-style team URL line.
+                          Free tier shows the hub sub-path; paid tiers
+                          show their tulala subdomain (or attached
+                          custom domain on Agency/Network). Adjacent
+                          copy + open-in-new-tab icon buttons let the
+                          user grab or visit the URL without leaving
+                          the switcher. Buttons stop the parent click
+                          via stopPropagation so they don't activate
+                          the row's switch-workspace action. */}
+                      <div style={{
+                        marginTop: 2,
+                        display: "flex", alignItems: "center", gap: 5,
+                        minWidth: 0,
+                      }}>
+                        <span style={{
+                          fontSize: 11.5, color: COLORS.inkMuted,
+                          fontVariantNumeric: "tabular-nums",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          minWidth: 0, flex: "0 1 auto",
+                        }}>
+                          {t.domain}
+                        </span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Copy ${t.domain}`}
+                          title="Copy URL"
+                          onClick={(e) => { e.stopPropagation(); toast(`Copied ${t.domain}`); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toast(`Copied ${t.domain}`); } }}
+                          style={{
+                            flexShrink: 0,
+                            width: 18, height: 18, borderRadius: 5,
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            color: COLORS.inkDim, cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceAlt; e.currentTarget.style.color = COLORS.ink; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = COLORS.inkDim; }}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden>
+                            <rect x="3.5" y="3.5" width="7" height="8" rx="1.2" stroke="currentColor" strokeWidth="1.3"/>
+                            <path d="M5.5 3V2a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                          </svg>
+                        </span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Open ${t.domain} in a new tab`}
+                          title="Open in new tab"
+                          onClick={(e) => { e.stopPropagation(); toast(`Opening ${t.domain}`); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toast(`Opening ${t.domain}`); } }}
+                          style={{
+                            flexShrink: 0,
+                            width: 18, height: 18, borderRadius: 5,
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            color: COLORS.inkDim, cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceAlt; e.currentTarget.style.color = COLORS.ink; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = COLORS.inkDim; }}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden>
+                            <path d="M5 2H3a1 1 0 00-1 1v8a1 1 0 001 1h8a1 1 0 001-1V9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                            <path d="M8 2h4v4M12 2L7 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11.5, color: rolePalette.fg, marginTop: 3, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <span>{t.role}</span>
+                        {/* Owner of a Free workspace = solo talent; small
+                            italicized hint differentiates that case from
+                            owning a multi-seat workspace. */}
+                        {t.role === "Owner" && t.tier === "free" && (
+                          <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>· solo (you are the team)</span>
+                        )}
+                        {/* Seat meter — billing signal, so only the
+                            workspace OWNER sees it. Coords/admins on
+                            someone else's workspace shouldn't see it
+                            (it's not their concern). Tone shifts to
+                            amber when ≥80% full so the owner notices. */}
+                        {t.role === "Owner" && (() => {
+                          const pct = t.seatsCap === "∞" ? 0 : t.seatsUsed / t.seatsCap;
+                          const tone = pct >= 1 ? COLORS.coralDeep
+                            : pct >= 0.8 ? "#9C6B14"
+                            : COLORS.inkMuted;
+                          return (
+                            <span title={t.seatsCap === "∞" ? "Network plan — unlimited seats" : `${t.seatsUsed} of ${t.seatsCap} talent seats used`} style={{
+                              display: "inline-flex", alignItems: "center", gap: 3,
+                              color: tone, fontVariantNumeric: "tabular-nums",
+                              fontSize: 10.5, fontWeight: 600,
+                            }}>
+                              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
+                                <circle cx="4" cy="4" r="2" stroke="currentColor" strokeWidth="1.2"/>
+                                <path d="M1 11c0-2 1.5-3 3-3s3 1 3 3" stroke="currentColor" strokeWidth="1.2"/>
+                                <circle cx="9" cy="5" r="1.5" stroke="currentColor" strokeWidth="1.2"/>
+                              </svg>
+                              {t.seatsUsed}/{t.seatsCap}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                    {isCurrent && (
+                      <span style={{
+                        fontSize: 9.5,
+                        fontWeight: 600,
+                        padding: "3px 7px",
+                        background: "rgba(15,79,62,0.18)",
+                        color: COLORS.accentDeep,
+                        borderRadius: 999,
+                      }}>
+                        Current
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </section>
           );
         })}
-        <button
-          type="button"
-          onClick={() => {
-            toast("Create-workspace flow — coming soon");
-            closeDrawer();
-          }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "12px 14px",
-            background: "transparent",
-            border: `1px dashed ${COLORS.border}`,
-            borderRadius: 10,
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            color: COLORS.inkMuted,
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          <Icon name="plus" size={14} stroke={1.7} color={COLORS.inkMuted} />
-          Create new workspace
-        </button>
+        {/* Create-workspace footer — shows the four tier choices so the
+            user knows the ladder before clicking. Each one starts you as
+            Owner of that new workspace; existing memberships in OTHER
+            workspaces (where you may be Coordinator / Admin) are
+            unaffected.
+
+            Anti-abuse rule: an owner can only have ONE Free workspace at
+            a time. To open a second Free workspace they have to upgrade
+            their existing Free one to a paid tier (Studio / Agency /
+            Network) first. Stops people from spinning up infinite Free
+            workspaces to dodge billing. */}
+        {(() => {
+          const ownedFree = MOCK_TENANTS.filter(t => t.role === "Owner" && t.tier === "free");
+          const freeBlocked = ownedFree.length >= 1;
+          return (
+            <section style={{
+              padding: "12px 14px",
+              border: `1px dashed ${COLORS.border}`,
+              borderRadius: 10,
+              display: "flex", flexDirection: "column", gap: 8,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon name="plus" size={14} stroke={1.7} color={COLORS.inkMuted} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}>
+                  Create a new workspace
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45, fontFamily: FONTS.body }}>
+                You'll be its Owner. Pick the tier that fits — you can upgrade later.
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {(["free", "studio", "agency", "network"] as const).map(tier => {
+                  const p = TENANT_TIER_PALETTE[tier];
+                  const disabled = tier === "free" && freeBlocked;
+                  return (
+                    <button key={tier} type="button"
+                      disabled={disabled}
+                      title={disabled
+                        ? `You already own a Free workspace (${ownedFree[0]!.name}). Upgrade it to Studio, Agency, or Network to free the slot — or open a new paid workspace instead.`
+                        : `Create new ${p.label} workspace`}
+                      onClick={() => {
+                        if (disabled) return;
+                        toast(`Create new ${p.label} workspace — billing flow opens`);
+                        closeDrawer();
+                      }}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 4,
+                        padding: "5px 10px", borderRadius: 999,
+                        background: disabled ? "rgba(11,11,13,0.04)" : p.bg,
+                        color: disabled ? COLORS.inkDim : p.fg,
+                        border: "none",
+                        fontSize: 11, fontWeight: 700,
+                        cursor: disabled ? "not-allowed" : "pointer",
+                        fontFamily: FONTS.body,
+                        textTransform: "uppercase", letterSpacing: 0.4,
+                        opacity: disabled ? 0.55 : 1,
+                      }}>
+                      + {p.label}
+                      {disabled && (
+                        <svg width="9" height="9" viewBox="0 0 14 14" fill="none" aria-hidden style={{ marginLeft: 1 }}>
+                          <rect x="3" y="6.5" width="8" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
+                          <path d="M5 6.5V5a2 2 0 014 0v1.5" stroke="currentColor" strokeWidth="1.4"/>
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Inline rule explainer — only shows when Free is blocked
+                  so users with no Free yet aren't burdened with the rule. */}
+              {freeBlocked && (
+                <div style={{
+                  marginTop: 2,
+                  padding: "8px 10px", borderRadius: 8,
+                  background: "rgba(214,158,46,0.08)",
+                  border: `1px solid rgba(214,158,46,0.22)`,
+                  fontSize: 10.5, color: "#7C5A14", lineHeight: 1.5,
+                  fontFamily: FONTS.body,
+                }}>
+                  <strong style={{ fontWeight: 700 }}>One Free workspace per owner.</strong>{" "}
+                  You already own <em>{ownedFree[0]!.name}</em>. Upgrade it to a paid tier to unlock another Free slot, or open a paid workspace right away.
+                </div>
+              )}
+            </section>
+          );
+        })()}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #4 — WorkspaceProfileDrawer — consolidated workspace identity editor
+// ════════════════════════════════════════════════════════════════════
+//
+// One canonical place for the OWNER (and Admins) to edit how their
+// workspace shows up across the platform:
+//   • Display name + slug (drives the team URL)
+//   • Logo + cover (visual identity)
+//   • Plan tier (read-only here; deep link to billing/plans)
+//   • Signature appended to system-routed messages
+//   • System User: enable/disable "Send as workspace" + outbound voice
+//   • Default coordinator (who picks up unassigned inquiries)
+//   • Custom domain (Agency / Network only)
+//
+// Permissions:
+//   • Owner   → full edit
+//   • Admin   → can edit identity + signature + default coord;
+//               cannot change plan or custom domain (both are billing-side)
+//   • Other roles → read-only view
+//
+// Why a drawer (not a settings page): same surface metaphor as the
+// TenantSwitcher — workspace identity is something you tweak occasionally,
+// not something you live in. Keeps the workspace page real estate for
+// operations.
+
+export function WorkspaceProfileDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "workspace-profile";
+  // Mock — production reads from workspace.settings + state.role.
+  // For demo we map state.role to a permission level. state.role lacks
+  // an "admin" rank today (only owner / coordinator / editor / talent),
+  // so Admin permissions read off Owner for now; introducing Admin as a
+  // first-class role is Phase 3 of the System User direction.
+  const myRole: TenantRole = state.role === "owner" ? "Owner"
+    : state.role === "coordinator" ? "Coordinator"
+    : "Editor";
+  const canEditIdentity = (myRole as TenantRole) === "Owner" || (myRole as TenantRole) === "Admin";
+  const canEditPlan = myRole === "Owner";
+  // Working values — unstyled inputs writing to local state for demo
+  const [name, setName] = useState(TENANT.name);
+  const [slug, setSlug] = useState(TENANT.slug);
+  const [signature, setSignature] = useState(`Sent on behalf of ${TENANT.name}`);
+  const [systemUserEnabled, setSystemUserEnabled] = useState(true);
+  const [defaultCoord, setDefaultCoord] = useState("Marta Reyes");
+  const tier: TenantTier = state.plan === "network" ? "network" : (state.plan as TenantTier);
+  const tierPalette = TENANT_TIER_PALETTE[tier];
+  const seatsCap = tier === "free" ? 5 : tier === "studio" ? 15 : tier === "agency" ? 50 : "∞";
+  const seatsUsed = tier === "agency" ? 47 : tier === "free" ? 1 : tier === "studio" ? 8 : 124;
+  // Preview URL based on slug.
+  const previewUrl = tier === "free"
+    ? `tulala-hub.com/${slug}`
+    : `${slug}.tulala.digital`;
+
+  if (!open) return null;
+
+  const sectionStyle: React.CSSProperties = {
+    background: "#fff",
+    border: `1px solid ${COLORS.borderSoft}`,
+    borderRadius: 10,
+    padding: "14px 16px",
+    display: "flex", flexDirection: "column", gap: 10,
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 10.5, fontWeight: 700,
+    color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5,
+  };
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 10px", borderRadius: 8,
+    border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+    fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body,
+    outline: "none", boxSizing: "border-box",
+  };
+  const inputDisabledStyle: React.CSSProperties = {
+    ...inputStyle,
+    background: COLORS.surfaceAlt, color: COLORS.inkMuted, cursor: "not-allowed",
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Workspace profile"
+      description="How your workspace shows up across chats, emails, and the public roster."
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Identity hero — avatar + name + tier + role indicator. Mirrors
+            the topbar workspace identity so users see the same atom in
+            both places. */}
+        <section style={{
+          ...sectionStyle,
+          background: `linear-gradient(135deg, ${tierPalette.bg} 0%, ${COLORS.surfaceAlt} 100%)`,
+          border: `1px solid ${tierPalette.bg}`,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Avatar initials={TENANT.name.slice(0, 2).toUpperCase()} size={44} tone="ink" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
+                  {name}
+                </span>
+                <span style={{
+                  fontSize: 9.5, fontWeight: 700,
+                  padding: "1px 7px", borderRadius: 999,
+                  background: tierPalette.bg, color: tierPalette.fg,
+                  textTransform: "uppercase", letterSpacing: 0.4,
+                }}>
+                  {tierPalette.label}
+                </span>
+              </div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, fontFamily: FONTS.body }}>
+                {previewUrl} · You're <strong>{myRole}</strong>
+              </div>
+            </div>
+          </div>
+          {!canEditIdentity && (
+            <div style={{
+              padding: "8px 10px", borderRadius: 8,
+              background: "rgba(11,11,13,0.05)",
+              fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body,
+            }}>
+              You're {myRole.toLowerCase()} on this workspace — identity edits require Owner or Admin role.
+            </div>
+          )}
+        </section>
+
+        {/* Identity */}
+        <section style={sectionStyle}>
+          <div style={labelStyle}>Identity</div>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Display name</span>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => canEditIdentity && setName(e.currentTarget.value)}
+              disabled={!canEditIdentity}
+              style={canEditIdentity ? inputStyle : inputDisabledStyle}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Slug · drives team URL</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => canEditIdentity && setSlug(e.currentTarget.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                disabled={!canEditIdentity}
+                style={{ ...(canEditIdentity ? inputStyle : inputDisabledStyle), flex: 1 }}
+              />
+            </div>
+            <div style={{ fontSize: 10.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+              → {previewUrl}
+            </div>
+          </label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Logo</span>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", borderRadius: 8,
+              border: `1px dashed ${COLORS.border}`,
+              background: COLORS.surfaceAlt,
+            }}>
+              <Avatar initials={name.slice(0, 2).toUpperCase()} size={36} tone="ink" />
+              <button type="button"
+                disabled={!canEditIdentity}
+                onClick={() => toast("Logo upload — opens file picker")}
+                style={{
+                  padding: "5px 11px", borderRadius: 999,
+                  border: `1px solid ${COLORS.border}`,
+                  background: "#fff", color: COLORS.ink,
+                  fontSize: 11.5, fontWeight: 600, cursor: canEditIdentity ? "pointer" : "not-allowed",
+                  opacity: canEditIdentity ? 1 : 0.55,
+                  fontFamily: FONTS.body,
+                }}>
+                Upload logo
+              </button>
+              <span style={{ fontSize: 10.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+                PNG / SVG · square, ≥ 200×200
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Plan + billing */}
+        <section style={sectionStyle}>
+          <div style={labelStyle}>Plan + billing</div>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 12px", borderRadius: 8,
+            background: tierPalette.bg,
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: tierPalette.fg, fontFamily: FONTS.body }}>
+                {tierPalette.label} plan
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2, fontFamily: FONTS.body }}>
+                {seatsUsed} of {seatsCap} talent seats used
+                {tier !== "free" && tier !== "network" && " · billed monthly"}
+              </div>
+            </div>
+            <button type="button"
+              disabled={!canEditPlan}
+              onClick={() => { toast("Open plans + billing"); }}
+              style={{
+                padding: "6px 12px", borderRadius: 999,
+                border: "none",
+                background: tierPalette.fg, color: "#fff",
+                fontSize: 11.5, fontWeight: 700, cursor: canEditPlan ? "pointer" : "not-allowed",
+                opacity: canEditPlan ? 1 : 0.55,
+                fontFamily: FONTS.body,
+              }}>
+              {tier === "network" ? "Manage" : "Upgrade"}
+            </button>
+          </div>
+          {!canEditPlan && (
+            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+              Only the Owner can change the plan or manage billing.
+            </div>
+          )}
+        </section>
+
+        {/* System User — the new layer */}
+        <section style={sectionStyle}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={labelStyle}>System User · workspace voice</div>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: canEditIdentity ? "pointer" : "default" }}>
+              <input
+                type="checkbox"
+                checked={systemUserEnabled}
+                onChange={(e) => canEditIdentity && setSystemUserEnabled(e.currentTarget.checked)}
+                disabled={!canEditIdentity}
+                style={{ width: 14, height: 14, cursor: canEditIdentity ? "pointer" : "not-allowed" }}
+              />
+              <span style={{ fontSize: 11.5, color: COLORS.ink, fontWeight: 600, fontFamily: FONTS.body }}>
+                {systemUserEnabled ? "Enabled" : "Disabled"}
+              </span>
+            </label>
+          </div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5, fontFamily: FONTS.body }}>
+            When enabled, automated messages (booking confirmations, offer-sent
+            events, reassign notes) post as <strong>{name}</strong> rather than
+            an individual coordinator. Coordinators can also opt to send replies
+            as the workspace from the composer.
+            {tier === "free" && (
+              <span style={{ display: "block", marginTop: 6, color: COLORS.inkDim }}>
+                On Free, you ARE the workspace — System User and your personal
+                identity are the same. Toggle has no visual effect at this tier.
+              </span>
+            )}
+          </div>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Outbound signature</span>
+            <input
+              type="text"
+              value={signature}
+              onChange={(e) => canEditIdentity && setSignature(e.currentTarget.value)}
+              disabled={!canEditIdentity || !systemUserEnabled}
+              placeholder="e.g. Sent on behalf of Atelier Roma"
+              style={canEditIdentity && systemUserEnabled ? inputStyle : inputDisabledStyle}
+            />
+          </label>
+        </section>
+
+        {/* Default coordinator */}
+        <section style={sectionStyle}>
+          <div style={labelStyle}>Default coordinator</div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5, fontFamily: FONTS.body }}>
+            Who picks up unassigned inbound inquiries. Falls back to the
+            workspace owner if the default coordinator is unavailable.
+          </div>
+          <select
+            value={defaultCoord}
+            onChange={(e) => canEditIdentity && setDefaultCoord(e.currentTarget.value)}
+            disabled={!canEditIdentity}
+            style={canEditIdentity ? inputStyle : inputDisabledStyle}
+          >
+            <option value="Marta Reyes">Marta Reyes (Owner)</option>
+            <option value="Sara Bianchi">Sara Bianchi (Coordinator)</option>
+            <option value="Theo Marsh">Theo Marsh (Coordinator)</option>
+            <option value="Cleo Vega">Cleo Vega (Coordinator · OOO)</option>
+          </select>
+        </section>
+
+        {/* Members shortcut */}
+        <section style={sectionStyle}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>Members + roles</div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, fontFamily: FONTS.body }}>
+                Manage Owners, Admins, Coordinators, Editors, and Talent.
+              </div>
+            </div>
+            <button type="button"
+              onClick={() => { toast("Open members management"); }}
+              style={{
+                padding: "6px 12px", borderRadius: 999,
+                border: `1px solid ${COLORS.border}`,
+                background: "transparent", color: COLORS.ink,
+                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>
+              Manage
+            </button>
+          </div>
+        </section>
+
+        {/* Custom domain — Agency + Network only */}
+        {(tier === "agency" || tier === "network") && (
+          <section style={sectionStyle}>
+            <div style={labelStyle}>Custom domain</div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5, fontFamily: FONTS.body }}>
+              Replace your tulala subdomain with a domain you own (e.g.
+              <em> book.atelier-roma.com</em>). DNS config required.
+            </div>
+            <button type="button"
+              disabled={!canEditPlan}
+              onClick={() => toast("Custom domain wizard")}
+              style={{
+                alignSelf: "flex-start",
+                padding: "6px 12px", borderRadius: 999,
+                border: `1px solid ${COLORS.border}`,
+                background: "transparent", color: COLORS.ink,
+                fontSize: 11.5, fontWeight: 600, cursor: canEditPlan ? "pointer" : "not-allowed",
+                opacity: canEditPlan ? 1 : 0.55,
+                fontFamily: FONTS.body,
+              }}>
+              Add custom domain
+            </button>
+          </section>
+        )}
+
+        {/* Save / Cancel */}
+        {canEditIdentity && (
+          <div style={{
+            display: "flex", justifyContent: "flex-end", gap: 8,
+            paddingTop: 4,
+          }}>
+            <button type="button"
+              onClick={closeDrawer}
+              style={{
+                padding: "8px 14px", borderRadius: 999,
+                border: `1px solid ${COLORS.border}`,
+                background: "transparent", color: COLORS.ink,
+                fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>
+              Cancel
+            </button>
+            <button type="button"
+              onClick={() => { toast(`${name} profile saved`); closeDrawer(); }}
+              style={{
+                padding: "8px 16px", borderRadius: 999,
+                border: "none",
+                background: COLORS.fill, color: "#fff",
+                fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>
+              Save changes
+            </button>
+          </div>
+        )}
       </div>
     </DrawerShell>
   );

@@ -1508,13 +1508,11 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Verify your identity to unlock direct-contact tiers and higher-trust badges.",
+      "Legacy entry — superseded by `talent-trust-detail` (the talent-side trust dashboard) and the per-method drawers (`talent-phone-verify`, `talent-id-verify`, etc.). Kept for backward compatibility with old deep links.",
     youCanHere: [
-      "Upload a government ID and a selfie",
-      "See your current verification status",
-      "Re-submit if a previous attempt was rejected",
+      "(Routes to `talent-trust-detail`)",
     ],
-    relatedDrawers: ["talent-privacy", "talent-documents"],
+    relatedDrawers: ["talent-trust-detail", "talent-id-verify", "talent-phone-verify", "talent-business-verify", "talent-domain-verify", "talent-payment-verify"],
     ticketCategory: "Account & access",
   },
 
@@ -2320,6 +2318,179 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Understand why certain results appeared (or didn't)",
     ],
     relatedDrawers: [],
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // Trust & Verification (Phase 1 + Phase 2)
+  // ────────────────────────────────────────────────────────────────
+  // The trust system splits into three concerns:
+  //   • Account verification (security — never a public badge)
+  //   • Profile claiming (ownership — talent ↔ agency)
+  //   • Profile trust verification (public badges + admin signals)
+  // Platform admins decide which methods exist; workspace admins
+  // review submissions; talent initiate flows; clients see badges.
+  // See TRUST.md for the full schema, wiring, and lifecycle docs.
+  // ════════════════════════════════════════════════════════════════
+
+  "trust-verification-queue": {
+    audience: [W_ADMIN, W_COORD],
+    category: "Settings",
+    purpose:
+      "Review every Instagram + Tulala + ID + business + domain + payment verification submitted by talent. Approve, reject, or ask for more info — talent gets notified.",
+    youCanHere: [
+      "Filter by status (Pending / In review / Needs info / Approved / Rejected)",
+      "Filter by method (only enabled methods are shown)",
+      "Search by talent name, IG handle, code, or method",
+      "Bulk-approve via the row checkboxes",
+      "Open a request to see evidence URL, talent's note, full activity timeline, and risk-health score",
+      "Approve / reject (with reason) / mark in review / request more info",
+    ],
+    relatedDrawers: ["trust-disputed-claims", "platform-verification-methods", "talent-trust-detail"],
+    ticketCategory: "Account & access",
+  },
+
+  "trust-disputed-claims": {
+    audience: [W_ADMIN],
+    category: "Settings",
+    purpose:
+      "Resolve agency-created profiles that the claimed talent flagged as not theirs. Three outcomes: release (talent wins), uphold (agency wins, re-issue invite), or remove (take profile down).",
+    youCanHere: [
+      "Review the talent's dispute reason and the original invite metadata",
+      "See the talent's risk-health score (claim disputes drop it −25)",
+      "Add admin-only notes recording the rationale for the decision",
+      "Pick one of three resolutions; UI fans out to update claim status, profile state, and audit log",
+    ],
+    relatedDrawers: ["trust-verification-queue", "talent-claim-invite"],
+    ticketCategory: "Account & access",
+  },
+
+  "platform-verification-methods": {
+    audience: [HQ],
+    category: "Operations",
+    purpose:
+      "Source-of-truth registry for which verification methods exist on Tulala. Platform admins enable / disable methods, change review mode, set tier-gating, evidence requirements, and expiry.",
+    youCanHere: [
+      "Toggle a method on or off platform-wide (warns if active badges exist — they stay valid until expiry, but disappear from public storefronts immediately)",
+      "Set review mode (automated / manual / hybrid)",
+      "Set visibility (public_profile / admin_only / internal)",
+      "Restrict who can use it by talent tier (Basic / Pro / Portfolio / All)",
+      "Toggle whether evidence is required to submit",
+      "Set badge expiry in days (blank = never)",
+      "Inspect the audit log of every change made to the registry",
+    ],
+    relatedDrawers: ["trust-verification-queue"],
+    ticketCategory: "Account & access",
+  },
+
+  "talent-trust-detail": {
+    audience: TALENT,
+    category: "Settings",
+    purpose:
+      "Your trust dashboard. See your trust-health score, the badges you've earned, and what verifications would lift your score the most. Also where you set who can contact you.",
+    youCanHere: [
+      "See your trust-health score (0–100, internal heuristic)",
+      "Open suggestions like 'Verify your phone (+5)' that route to the right flow",
+      "Start the Instagram DM flow (handle + code + optional evidence URL)",
+      "Request Tulala manual review",
+      "Open Phone / ID / Business / Domain / Payment flows when enabled platform-wide",
+      "Set your contact gate: Anyone / Verified clients only / Trusted clients only",
+    ],
+    relatedDrawers: [
+      "talent-phone-verify",
+      "talent-id-verify",
+      "talent-business-verify",
+      "talent-domain-verify",
+      "talent-payment-verify",
+      "talent-claim-invite",
+    ],
+    ticketCategory: "Account & access",
+  },
+
+  "talent-claim-invite": {
+    audience: TALENT,
+    category: "Settings",
+    purpose:
+      "Accept (or dispute) a profile that an agency created in your name. Three actions: claim it (becomes yours), say 'not me' (admin reviews), or report it.",
+    youCanHere: [
+      "Review the profile the agency built — photos, fields, agency name",
+      "Claim ownership (verifies your email + flips claim status to 'claimed')",
+      "Dispute the invite if the profile isn't actually yours (lands in the admin disputed-claims queue)",
+      "Report the invite as suspicious (takes profile offline pending admin review)",
+    ],
+    relatedDrawers: ["talent-trust-detail", "trust-disputed-claims"],
+    ticketCategory: "Account & access",
+  },
+
+  "talent-phone-verify": {
+    audience: TALENT,
+    category: "Settings",
+    purpose:
+      "Confirm a working phone number via SMS OTP. Internal-only signal — never shown publicly. Speeds up account-recovery and lifts your trust-health score.",
+    youCanHere: [
+      "Enter your phone with country code",
+      "Receive a 6-digit code (prototype shows it inline; production sends real SMS)",
+      "Type the code to auto-verify",
+      "Re-run the flow if your number changes",
+    ],
+    relatedDrawers: ["talent-trust-detail", "talent-id-verify"],
+    ticketCategory: "Account & access",
+  },
+
+  "talent-id-verify": {
+    audience: TALENT,
+    category: "Settings",
+    purpose:
+      "Upload a government-issued ID for manual admin review. Internal-only — used to confirm name + age + identity uniqueness. Never shared with clients or agencies.",
+    youCanHere: [
+      "Pick your document type (passport / driver's license / national ID)",
+      "Provide a secure URL to the document (in production this is a direct upload)",
+      "Add a reviewer note explaining anything the document needs context for",
+      "Submit — admin reviews within 48h",
+    ],
+    relatedDrawers: ["talent-trust-detail", "talent-phone-verify"],
+    ticketCategory: "Account & access",
+  },
+
+  "talent-business-verify": {
+    audience: TALENT,
+    category: "Settings",
+    purpose:
+      "Confirm the registered legal entity behind your work — VAT / company-house / DIC / equivalent. Public badge for talent who run their work as a business.",
+    youCanHere: [
+      "Enter your legal entity name + VAT/registration number",
+      "Optionally (or required by platform policy) attach a public registry URL",
+      "Submit for manual admin review (3 business days)",
+    ],
+    relatedDrawers: ["talent-trust-detail"],
+    ticketCategory: "Account & access",
+  },
+
+  "talent-domain-verify": {
+    audience: TALENT,
+    category: "Settings",
+    purpose:
+      "Prove you control a domain (e.g. martareyes.com) by adding a DNS TXT record. Public badge — adds credibility to talent who maintain their own websites.",
+    youCanHere: [
+      "Enter the domain you want to verify",
+      "Copy the generated TXT record value",
+      "Add it via your DNS provider (GoDaddy / Namecheap / Cloudflare / etc.)",
+      "Click 'check now' to run the lookup — auto-approves on match",
+    ],
+    relatedDrawers: ["talent-trust-detail", "talent-custom-domain"],
+    ticketCategory: "Account & access",
+  },
+
+  "talent-payment-verify": {
+    audience: TALENT,
+    category: "Settings",
+    purpose:
+      "Confirm a working payout method via a small Stripe authorization-then-refund. Internal-only — improves your trust score for clients who care about payment reliability.",
+    youCanHere: [
+      "Run the verification (€1 hold + immediate refund — no money actually moves)",
+      "See the result inline; auto-approves on success",
+    ],
+    relatedDrawers: ["talent-trust-detail", "talent-payouts"],
+    ticketCategory: "Billing",
   },
 };
 

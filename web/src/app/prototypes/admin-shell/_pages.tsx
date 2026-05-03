@@ -66,6 +66,10 @@ import {
   type TalentProfile,
   type TaxonomyParentId,
   type WorkspacePage,
+  WEBSITE_STATE,
+  type WebsiteAnalytics,
+  type WebsitePeriodMetrics,
+  type WebsitePageRow,
   FAB_PALETTE_OPEN_EVENT,
   FAB_PALETTE_CHANGED_EVENT,
   type FabPaletteChangedDetail,
@@ -2164,10 +2168,15 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     case "production":
       body = <ProductionPage />;
       break;
-    // WS-3.4 — "site" is en route to its own surface; for now keep it
-    // inside workspace but accessible at its old path.
+    // 2026 — Website is the premium site management surface (pages,
+    // posts, redirects, custom code, tracking, SEO, domain, maintenance,
+    // announcement). Legacy `site` aliases here; `SitePage` is the older
+    // stub kept for the alias path.
+    case "website":
+      body = <WebsitePage />;
+      break;
     case "site":
-      body = <SitePage />;
+      body = <WebsitePage />;
       break;
     // WS-3.5 — canonical "settings" route (was "workspace"); billing
     // is folded in as an anchor section inside the settings page.
@@ -7116,7 +7125,590 @@ function ProductionPage() {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// SITE
+// WEBSITE
+// 2026 premium site-management surface. Twelve sections (hero / performance
+// / pages / posts / redirects / nav / custom code / tracking / SEO /
+// domain / maintenance / announcement). Performance is the headline:
+// 4 KPI tiles + funnel strip + Top performers Pages↔Talent switcher.
+// See dev-handoff §27 for production wiring map per section.
+// ════════════════════════════════════════════════════════════════════
+
+function WebsitePage() {
+  const { state, openDrawer, toast } = useProto();
+  const canEdit = meetsRole(state.role, "admin");
+  const w = WEBSITE_STATE;
+  const liveUrl = `https://${w.domain.primaryDomain}`;
+  const totals = {
+    publishedPages: w.pages.filter(p => p.status === "published").length,
+    draftPages: w.pages.filter(p => p.status === "draft").length,
+    scheduledPages: w.pages.filter(p => p.status === "scheduled").length,
+    publishedPosts: w.posts.filter(p => p.status === "published").length,
+    activeRedirects: w.redirects.filter(r => r.active).length,
+  };
+  const fmtMoney = (n: number) => `€${n.toLocaleString()}`;
+
+  return (
+    <>
+      <PageHeader
+        title="Website"
+        subtitle={`${w.domain.primaryDomain} · pages, posts, redirects, code, tracking, SEO`}
+        actions={
+          <>
+            {!canEdit && <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Read-only</span>}
+            <SecondaryButton size="sm" onClick={() => toast(`Open ${liveUrl} in new tab`)}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Icon name="external" size={12} stroke={1.7} /> View live
+              </span>
+            </SecondaryButton>
+            <PrimaryButton size="sm" onClick={() => toast("Opening page builder…")}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Icon name="pencil" size={12} stroke={1.7} /> Open page builder
+              </span>
+            </PrimaryButton>
+          </>
+        }
+      />
+
+      {/* Hero — gradient banner with URL + status + key totals */}
+      <section style={{
+        marginBottom: 18,
+        background: `linear-gradient(135deg, ${COLORS.fill} 0%, ${COLORS.fillDeep} 100%)`,
+        borderRadius: 14,
+        padding: 20,
+        color: "#fff",
+        fontFamily: FONTS.body,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", opacity: 0.7 }}>Live URL</span>
+          <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 14, fontWeight: 600 }}>{liveUrl}</span>
+          <button type="button" onClick={() => { try { navigator.clipboard.writeText(liveUrl); } catch {} toast("Copied"); }}
+            style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.30)", background: "transparent", color: "#fff", fontFamily: FONTS.body, cursor: "pointer" }}
+          >Copy</button>
+          <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: w.maintenance.enabled ? COLORS.amber : "#5BD893" }} />
+            {w.maintenance.enabled ? "In maintenance" : "Live"}
+          </span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
+          <HeroStat label="Pages live"      value={totals.publishedPages.toString()} sub={`${totals.draftPages} draft`} />
+          <HeroStat label="Posts"            value={totals.publishedPosts.toString()} sub={`${w.posts.length - totals.publishedPosts} unpublished`} />
+          <HeroStat label="301 redirects"    value={totals.activeRedirects.toString()} sub={`${w.redirects.length - totals.activeRedirects} paused`} />
+          <HeroStat label="Scheduled"        value={totals.scheduledPages.toString()} sub={totals.scheduledPages > 0 ? "next: SS27" : "none"} />
+        </div>
+      </section>
+
+      {/* Performance — KPI tiles + funnel + Top performers switcher */}
+      <WebsitePerformance analytics={w.analytics} pages={w.pages} fmtMoney={fmtMoney} />
+
+      {/* Site banners — only render if any are active (Maintenance + Announcement collapsed) */}
+      {(w.maintenance.enabled || w.announcement.enabled) && (
+        <section style={{ marginBottom: 18, display: "flex", flexDirection: "column", gap: 8 }}>
+          {w.maintenance.enabled && (
+            <div style={{ padding: "12px 16px", borderRadius: 12, background: COLORS.amberSoft, border: `1px solid ${COLORS.amberDeep}33`, display: "flex", alignItems: "center", gap: 12, fontFamily: FONTS.body }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.amberDeep, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.amberDeep }}>Maintenance mode active</div>
+                <div style={{ fontSize: 13, color: COLORS.ink, marginTop: 2 }}>{w.maintenance.message}</div>
+              </div>
+              <button type="button" onClick={() => { try { navigator.clipboard.writeText(w.maintenance.bypassToken); } catch {} toast("Bypass token copied"); }}
+                style={{ fontSize: 11, padding: "5px 10px", borderRadius: 7, border: `1px solid ${COLORS.amberDeep}55`, background: "#fff", color: COLORS.amberDeep, fontWeight: 600, cursor: "pointer", fontFamily: FONTS.body, flexShrink: 0 }}>Copy bypass</button>
+            </div>
+          )}
+          {w.announcement.enabled && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: w.announcement.tone === "info" ? COLORS.indigoSoft : w.announcement.tone === "success" ? COLORS.successSoft : w.announcement.tone === "warning" ? COLORS.amberSoft : COLORS.surfaceAlt, color: w.announcement.tone === "info" ? COLORS.indigoDeep : w.announcement.tone === "success" ? COLORS.successDeep : w.announcement.tone === "warning" ? COLORS.amberDeep : COLORS.ink, fontFamily: FONTS.body, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: `1px solid ${COLORS.borderSoft}` }}>
+              <span style={{ fontSize: 13, fontWeight: 500 }}>📣 {w.announcement.text}</span>
+              <span style={{ fontSize: 11, opacity: 0.7, textTransform: "uppercase", fontWeight: 700, letterSpacing: 0.6 }}>{w.announcement.audience}</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Pages — visual card grid (the hero asset, not a table) */}
+      <section style={{ marginBottom: 22 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>Pages</h2>
+          <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+            {totals.publishedPages} live · {totals.draftPages} draft · {totals.scheduledPages} scheduled
+          </span>
+          {canEdit && (
+            <button type="button" onClick={() => toast("Opening page builder for new page…")} style={{ marginLeft: "auto", padding: "6px 12px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: FONTS.body }}>+ New page</button>
+          )}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+          {(() => {
+            const maxHits = Math.max(...w.pages.map(p => p.hits7d ?? 0), 1);
+            return w.pages.map(p => (
+              <PageVisualCard key={p.id} page={p} maxHits={maxHits} onClick={() => toast(`Opening "${p.title}" in page builder…`)} />
+            ));
+          })()}
+        </div>
+      </section>
+
+      {/* Posts + Redirects — two-column composite (breaks the visual rhythm) */}
+      <section style={{ marginBottom: 22, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 14 }}>
+        {/* Posts column */}
+        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: FONTS.body }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600, color: COLORS.ink }}>
+              Posts <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, marginLeft: 6 }}>{w.posts.length}</span>
+            </h3>
+            {canEdit && (
+              <button type="button" onClick={() => toast("Opening blog editor…")} style={{ fontSize: 11.5, color: COLORS.indigoDeep, background: "transparent", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: FONTS.body }}>+ New post</button>
+            )}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {w.posts.map(p => (
+              <button key={p.id} type="button" onClick={() => toast(`Opening "${p.title}"…`)}
+                style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 9, border: `1px solid ${COLORS.borderSoft}`, background: "#fff", textAlign: "left", cursor: "pointer", fontFamily: FONTS.body, transition: `background ${TRANSITION.micro}` }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceAlt; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                    <PageStatusChip status={p.status} />
+                    <span style={{ fontSize: 11, color: COLORS.inkDim }}>{p.author}</span>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{p.tags.join(" · ")}</div>
+                </div>
+                <div style={{ textAlign: "right", color: COLORS.inkMuted }}>
+                  <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, fontWeight: 600, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>{(p.hits7d ?? 0).toLocaleString()}</div>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>hits 7d</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Redirects column */}
+        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: FONTS.body }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600, color: COLORS.ink }}>
+              Redirects <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, marginLeft: 6 }}>{totals.activeRedirects}/{w.redirects.length}</span>
+            </h3>
+            {canEdit && (
+              <button type="button" onClick={() => toast("Add redirect — coming soon")} style={{ fontSize: 11.5, color: COLORS.indigoDeep, background: "transparent", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: FONTS.body }}>+ Add</button>
+            )}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {w.redirects.map(r => (
+              <div key={r.id} style={{ padding: "9px 12px", borderRadius: 9, border: `1px solid ${COLORS.borderSoft}`, background: r.active ? "#fff" : COLORS.surfaceAlt, opacity: r.active ? 1 : 0.7 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: COLORS.indigoSoft, color: COLORS.indigoDeep, fontFamily: "ui-monospace, monospace" }}>{r.statusCode}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>{r.match}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "ui-monospace, monospace", fontSize: 11, color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>{(r.hits7d ?? 0).toLocaleString()} hits</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
+                  <span style={{ color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }}>{r.from}</span>
+                  <span style={{ color: COLORS.inkDim, flexShrink: 0 }}>→</span>
+                  <span style={{ color: COLORS.indigoDeep, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }}>{r.to}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Configuration — single 3-column card combining Domain / SEO / Tracking */}
+      <section style={{ marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>Configuration</h2>
+          <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Domain · SEO · Tracking</span>
+        </div>
+        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, overflow: "hidden", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+          {/* Domain */}
+          <div style={{ padding: 18, borderRight: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: COLORS.inkMuted }}>Domain</span>
+              {canEdit && <button type="button" onClick={() => openDrawer("domain")} style={{ fontSize: 11, color: COLORS.indigoDeep, background: "transparent", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: FONTS.body }}>Manage →</button>}
+            </div>
+            <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.3, wordBreak: "break-all", marginBottom: 12 }}>{w.domain.primaryDomain}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              <ConfigStatusRow label="DNS" status={w.domain.status === "verified" ? "ok" : "warn"} value={w.domain.status === "verified" ? "Verified" : "Pending"} />
+              <ConfigStatusRow label="SSL" status={w.domain.sslStatus === "active" ? "ok" : "warn"} value={w.domain.sslStatus === "active" ? `Active · renews ${w.domain.sslExpiresOn ?? "—"}` : w.domain.sslStatus} />
+              <ConfigStatusRow label="Records" status={(w.domain.dnsRecords ?? []).every(r => r.matched) ? "ok" : "warn"} value={`${(w.domain.dnsRecords ?? []).filter(r => r.matched).length}/${(w.domain.dnsRecords ?? []).length} matched`} />
+            </div>
+          </div>
+
+          {/* SEO */}
+          <div style={{ padding: 18, borderRight: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: COLORS.inkMuted }}>SEO defaults</span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: w.seo.robotsMode === "indexable" ? COLORS.successSoft : COLORS.amberSoft, color: w.seo.robotsMode === "indexable" ? COLORS.successDeep : COLORS.amberDeep, textTransform: "uppercase", letterSpacing: 0.5 }}>{w.seo.robotsMode === "indexable" ? "Indexable" : "No-index"}</span>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 4, lineHeight: 1.3 }}>{w.seo.siteTitle}</div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 12, lineHeight: 1.45 }}>{w.seo.description}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11.5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ color: COLORS.inkMuted }}>Title template</span><span style={{ fontFamily: "ui-monospace, monospace", color: COLORS.ink, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>{w.seo.titleTemplate}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ color: COLORS.inkMuted }}>Sitemap</span><span style={{ color: w.seo.sitemapEnabled ? COLORS.successDeep : COLORS.amberDeep, fontWeight: 600 }}>{w.seo.sitemapEnabled ? "Enabled" : "Disabled"}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ color: COLORS.inkMuted }}>Canonical</span><span style={{ fontFamily: "ui-monospace, monospace", color: COLORS.ink, fontSize: 11 }}>{w.seo.canonicalDomain}</span></div>
+            </div>
+          </div>
+
+          {/* Tracking — chip cluster */}
+          <div style={{ padding: 18, fontFamily: FONTS.body }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: COLORS.inkMuted }}>Tracking</span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: COLORS.indigoSoft, color: COLORS.indigoDeep, textTransform: "uppercase", letterSpacing: 0.5 }}>Consent: {w.tracking.cookieConsent}</span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {[
+                { label: "GA4", value: w.tracking.ga4MeasurementId },
+                { label: "Plausible", value: w.tracking.plausibleDomain },
+                { label: "Meta", value: w.tracking.metaPixelId },
+                { label: "GTM", value: w.tracking.gtmContainerId },
+                { label: "Hotjar", value: w.tracking.hotjarSiteId },
+                { label: "LinkedIn", value: w.tracking.linkedInPartnerId },
+              ].map(t => {
+                const active = t.value.length > 0;
+                return (
+                  <span key={t.label} title={active ? t.value : "Not configured"}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: active ? COLORS.successSoft : COLORS.surfaceAlt, border: `1px solid ${active ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, fontSize: 11.5, fontWeight: 600, color: active ? COLORS.successDeep : COLORS.inkDim }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? COLORS.successDeep : COLORS.inkDim }} />
+                    {t.label}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function HeroStat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div>
+      <div style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 600, color: "#fff", letterSpacing: -0.5, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{value}</div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4, fontWeight: 500, letterSpacing: 0.2 }}>
+        {label}
+        {sub && <span style={{ marginLeft: 4, opacity: 0.7 }}>· {sub}</span>}
+      </div>
+    </div>
+  );
+}
+
+// Visual page card — replaces flat table rows with browser-chrome mockup cards.
+// Each card shows the page title prominently, a faux URL bar, status chip, and
+// an inline bar showing relative hits-7d compared to top page in the set.
+function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRow; maxHits: number; onClick: () => void }) {
+  const hits = page.hits7d ?? 0;
+  const fillPct = maxHits > 0 ? (hits / maxHits) * 100 : 0;
+  const isLive = page.status === "published";
+  return (
+    <button type="button" onClick={onClick}
+      style={{
+        textAlign: "left", cursor: "pointer", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
+        background: "#fff", padding: 0, fontFamily: FONTS.body, overflow: "hidden",
+        display: "flex", flexDirection: "column", transition: `transform ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}, border-color ${TRANSITION.micro}`,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.indigoDeep; e.currentTarget.style.boxShadow = "0 4px 14px rgba(11,11,13,0.06)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "translateY(0)"; }}
+    >
+      {/* Faux browser chrome / preview band */}
+      <div style={{ height: 70, background: `linear-gradient(135deg, ${COLORS.surfaceAlt} 0%, #fff 100%)`, borderBottom: `1px solid ${COLORS.borderSoft}`, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 4 }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF5F57" }} />
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FEBC2E" }} />
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }} />
+        </div>
+        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6, padding: "4px 8px", fontFamily: "ui-monospace, monospace", fontSize: 10.5, color: COLORS.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{page.slug}</div>
+      </div>
+      {/* Body */}
+      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1, lineHeight: 1.25, flex: 1, minWidth: 0 }}>{page.title}</div>
+          <PageStatusChip status={page.status} />
+        </div>
+        {/* Inline bar — hits relative to top page */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>Hits 7d</span>
+            <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, fontWeight: 600, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>{hits.toLocaleString()}</span>
+          </div>
+          <div style={{ height: 4, borderRadius: 999, background: COLORS.surfaceAlt, overflow: "hidden" }}>
+            <div style={{ width: `${fillPct}%`, height: "100%", background: isLive ? COLORS.indigoDeep : COLORS.inkDim, borderRadius: 999, transition: "width 200ms ease" }} />
+          </div>
+        </div>
+        <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.inkMuted }}>
+          <span>by {page.lastEditedBy}</span>
+          <span>{page.updatedAt}</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function ConfigStatusRow({ label, status, value }: { label: string; status: "ok" | "warn"; value: string }) {
+  const dot = status === "ok" ? COLORS.successDeep : COLORS.amberDeep;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontFamily: FONTS.body }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0 }} />
+      <span style={{ color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", fontSize: 10.5, minWidth: 60 }}>{label}</span>
+      <span style={{ color: COLORS.ink, fontWeight: 500, marginLeft: "auto", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</span>
+    </div>
+  );
+}
+
+function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: WebsiteAnalytics; pages: WebsitePageRow[]; fmtMoney: (n: number) => string }) {
+  const [period, setPeriod] = useState<"7d" | "30d">("7d");
+  const [topView, setTopView] = useState<"pages" | "talent">("pages");
+  const m: WebsitePeriodMetrics = period === "7d" ? analytics.last7d : analytics.last30d;
+  const byPage = period === "7d" ? analytics.byPage7d : analytics.byPage30d;
+  const byTalent = period === "7d" ? analytics.byTalent7d : analytics.byTalent30d;
+  const overallConv = m.visits > 0 ? (m.bookings / m.visits) * 100 : 0;
+  const v2i = m.visits > 0 ? (m.inquiries / m.visits) * 100 : 0;
+  const i2b = m.inquiries > 0 ? (m.bookings / m.inquiries) * 100 : 0;
+
+  const topPages = byPage
+    .filter(p => p.visits > 0)
+    .sort((a, b) => b.visits - a.visits)
+    .slice(0, 4)
+    .map(p => ({ ...p, title: pages.find(pg => pg.id === p.pageId)?.title ?? "—" }));
+
+  const topTalent = byTalent
+    .filter(t => t.visits > 0)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 4)
+    .map(t => ({ ...t, topPageTitle: pages.find(pg => pg.id === t.topPageId)?.title ?? "—" }));
+
+  const Tile = ({ label, value, current, prior, accent }: { label: string; value: string; current: number; prior: number; accent?: boolean }) => {
+    const delta = prior > 0 ? ((current - prior) / prior) * 100 : 0;
+    const dir = Math.abs(delta) < 0.5 ? "flat" : (delta > 0 ? "up" : "down");
+    const color = dir === "up" ? COLORS.successDeep : dir === "down" ? COLORS.criticalDeep : COLORS.inkMuted;
+    return (
+      <div style={{ padding: 14, borderRadius: 10, background: accent ? COLORS.accentSoft : "#fff", border: `1px solid ${accent ? "rgba(15,79,62,0.24)" : COLORS.borderSoft}` }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted }}>{label}</div>
+        <div style={{ fontFamily: FONTS.display, fontSize: 24, fontWeight: 600, color: accent ? COLORS.accentDeep : COLORS.ink, marginTop: 4, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }}>{value}</div>
+        <div style={{ fontSize: 11, color, marginTop: 2 }}>
+          {dir === "up" ? "↑" : dir === "down" ? "↓" : "→"} {Math.abs(delta).toFixed(1)}%
+          <span style={{ color: COLORS.inkDim, marginLeft: 4 }}>vs {typeof prior === "number" && prior > 1000 && label === "Booking revenue" ? fmtMoney(prior) : prior.toLocaleString()}</span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <section style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>Performance</h2>
+        <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>vs prior {period}</span>
+        <div style={{ marginLeft: "auto", display: "inline-flex", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }}>
+          {(["7d", "30d"] as const).map(p => {
+            const active = p === period;
+            return (
+              <button key={p} type="button" onClick={() => setPeriod(p)} style={{ padding: "5px 12px", fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2, borderRadius: 999, border: "none", cursor: "pointer", background: active ? "#fff" : "transparent", color: active ? COLORS.ink : COLORS.inkMuted, boxShadow: active ? "0 1px 3px rgba(0,0,0,0.06)" : "none", transition: "all 120ms ease" }}>{p === "7d" ? "7 days" : "30 days"}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
+          <Tile label="Visits"           value={m.visits.toLocaleString()}   current={m.visits}    prior={m.prior.visits} />
+          <Tile label="Inquiries"        value={m.inquiries.toLocaleString()} current={m.inquiries} prior={m.prior.inquiries} />
+          <Tile label="Bookings"         value={m.bookings.toLocaleString()} current={m.bookings}  prior={m.prior.bookings} />
+          <Tile label="Booking revenue"  value={fmtMoney(m.revenue)}          current={m.revenue}   prior={m.prior.revenue}  accent />
+        </div>
+
+        {/* Funnel strip */}
+        <div style={{ background: COLORS.indigoSoft, border: "1px solid rgba(91,107,160,0.18)", borderRadius: 10, padding: "14px 16px", display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 12 }}>
+          <FunnelStep label="Visits"     value={m.visits.toLocaleString()} />
+          <FunnelArrow rate={v2i} caption="visit → inquiry" />
+          <FunnelStep label="Inquiries"  value={m.inquiries.toLocaleString()} />
+          <FunnelArrow rate={i2b} caption="inquiry → booking" />
+          <FunnelStep label="Bookings"   value={m.bookings.toLocaleString()} />
+          <div style={{ gridColumn: "1 / -1", paddingTop: 10, marginTop: 4, borderTop: "1px solid rgba(91,107,160,0.18)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5, color: COLORS.indigoDeep, fontFamily: FONTS.body }}>
+            <span style={{ fontWeight: 600, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.6 }}>Overall conversion</span>
+            <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, fontSize: 13 }}>{overallConv.toFixed(2)}%
+              <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 11 }}>({m.bookings} of {m.visits.toLocaleString()})</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Top performers — Pages | Talent switcher */}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>Top performers</div>
+            <div style={{ display: "inline-flex", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }}>
+              {(["pages", "talent"] as const).map(v => {
+                const active = topView === v;
+                return (
+                  <button key={v} type="button" onClick={() => setTopView(v)} style={{ padding: "5px 14px", fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2, borderRadius: 999, border: "none", cursor: "pointer", background: active ? "#fff" : "transparent", color: active ? COLORS.ink : COLORS.inkMuted, boxShadow: active ? "0 1px 3px rgba(0,0,0,0.06)" : "none", transition: "all 120ms ease" }}>{v === "pages" ? "Pages" : "Talent"}</button>
+                );
+              })}
+            </div>
+          </div>
+
+          {topView === "pages" && topPages.length > 0 && (
+            <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr", padding: "8px 14px", background: COLORS.surfaceAlt, borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+                <div>Page</div>
+                <div style={{ textAlign: "right" }}>Visits</div>
+                <div style={{ textAlign: "right" }}>Inquiries</div>
+                <div style={{ textAlign: "right" }}>Bookings</div>
+                <div style={{ textAlign: "right" }}>Conv. rate</div>
+              </div>
+              {topPages.map((p, i) => {
+                const conv = p.visits > 0 ? (p.bookings / p.visits) * 100 : 0;
+                const tone = (overallConv > 0 && conv >= overallConv) ? COLORS.successDeep : conv > 0 ? COLORS.indigoDeep : COLORS.inkDim;
+                return (
+                  <div key={p.pageId} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr", padding: "10px 14px", alignItems: "center", borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`, fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body }}>
+                    <span style={{ fontWeight: 600 }}>{p.title}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{p.visits.toLocaleString()}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{p.inquiries}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{p.bookings}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600, color: tone }}>{conv.toFixed(2)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {topView === "talent" && topTalent.length > 0 && (
+            <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1.2fr", padding: "8px 14px", background: COLORS.surfaceAlt, borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+                <div>Talent</div>
+                <div style={{ textAlign: "right" }}>Visits</div>
+                <div style={{ textAlign: "right" }}>Inquiries</div>
+                <div style={{ textAlign: "right" }}>Bookings</div>
+                <div style={{ textAlign: "right" }}>Revenue</div>
+                <div style={{ textAlign: "right" }}>Top page</div>
+              </div>
+              {topTalent.map((t, i) => {
+                const conv = t.visits > 0 ? (t.bookings / t.visits) * 100 : 0;
+                const tone = (overallConv > 0 && conv >= overallConv) ? COLORS.successDeep : t.revenue > 0 ? COLORS.indigoDeep : COLORS.inkDim;
+                return (
+                  <div key={t.talentId} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1.2fr", padding: "10px 14px", alignItems: "center", borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`, fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body }}>
+                    <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <span style={{ fontWeight: 600 }}>{t.talentName}</span>
+                      <span style={{ fontSize: 11, color: COLORS.inkDim }}>{conv > 0 ? `${conv.toFixed(2)}% conv` : "no bookings"}</span>
+                    </span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.visits.toLocaleString()}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.inquiries}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.bookings}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600, color: tone }}>{fmtMoney(t.revenue)}</span>
+                    <span style={{ textAlign: "right", fontSize: 12, color: COLORS.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.topPageTitle}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FunnelStep({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, color: COLORS.indigoDeep, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }}>{value}</div>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.indigoDeep, opacity: 0.7 }}>{label}</div>
+    </div>
+  );
+}
+function FunnelArrow({ rate, caption }: { rate: number; caption: string }) {
+  return (
+    <div style={{ textAlign: "center", color: COLORS.indigoDeep }}>
+      <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, fontWeight: 600 }}>{rate.toFixed(2)}%</div>
+      <div style={{ fontSize: 10, color: COLORS.indigoDeep, opacity: 0.7 }}>{caption}</div>
+    </div>
+  );
+}
+
+function SiteSubSection({ title, count, sub, actionLabel, onAction, children }: { title: string; count?: number; sub?: string; actionLabel?: string; onAction?: () => void; children: ReactNode }) {
+  return (
+    <section style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+        <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1 }}>{title}</h3>
+        {typeof count === "number" && (
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>{count}</span>
+        )}
+        {sub && <span style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}>{sub}</span>}
+        {actionLabel && (
+          <button type="button" onClick={onAction} style={{ marginLeft: "auto", padding: "5px 11px", borderRadius: 7, border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: FONTS.body }}>{actionLabel}</button>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SiteTable({ headers, children }: { headers: string[]; children: ReactNode }) {
+  return (
+    <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden", background: "#fff" }}>
+      <div style={{ display: "grid", gridTemplateColumns: `2fr ${headers.slice(1).map(() => "1fr").join(" ")}`, padding: "8px 14px", background: COLORS.surfaceAlt, borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+        {headers.map(h => <div key={h}>{h}</div>)}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SiteTableRow({ cells, onClick }: { cells: ReactNode[]; onClick?: () => void }) {
+  const cols = `2fr ${cells.slice(1).map(() => "1fr").join(" ")}`;
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: "grid", gridTemplateColumns: cols,
+        padding: "10px 14px", alignItems: "center",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body,
+        cursor: onClick ? "pointer" : "default",
+        transition: `background ${TRANSITION.micro}`,
+      }}
+      onMouseEnter={(e) => { if (onClick) e.currentTarget.style.background = COLORS.surfaceAlt; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+    >
+      {cells.map((c, i) => <div key={i}>{c}</div>)}
+    </div>
+  );
+}
+
+function PageStatusChip({ status }: { status: "published" | "draft" | "scheduled" }) {
+  const map = {
+    published: { label: "Live",      bg: COLORS.successSoft, fg: COLORS.successDeep },
+    draft:     { label: "Draft",     bg: COLORS.surfaceAlt,  fg: COLORS.inkMuted },
+    scheduled: { label: "Scheduled", bg: COLORS.indigoSoft,  fg: COLORS.indigoDeep },
+  } as const;
+  const m = map[status];
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: m.bg, color: m.fg, fontSize: 11, fontWeight: 600, fontFamily: FONTS.body }}>{m.label}</span>
+  );
+}
+
+function SiteInfoCard({ label, value, status, sub, mono }: { label: string; value: string; status?: "ok" | "warn"; sub?: string; mono?: boolean }) {
+  const dot = status === "ok" ? COLORS.successDeep : status === "warn" ? COLORS.amberDeep : null;
+  return (
+    <div style={{ padding: 12, borderRadius: 10, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        {dot && <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot }} />}
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted }}>{label}</div>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, fontFamily: mono ? "ui-monospace, monospace" : FONTS.body, overflow: "hidden", textOverflow: "ellipsis" }}>{value || "—"}</div>
+      {sub && <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function SiteTrackingCell({ label, value }: { label: string; value: string }) {
+  const active = value.length > 0;
+  return (
+    <div style={{ padding: "10px 12px", borderRadius: 8, background: active ? COLORS.successSoft : "#fff", border: `1px solid ${active ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</span>
+        {active && <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.successDeep }}>Active</span>}
+      </div>
+      <div style={{ fontSize: 12, color: active ? COLORS.successDeep : COLORS.inkDim, fontFamily: "ui-monospace, monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{value || "Not configured"}</div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SITE (legacy)
 // ════════════════════════════════════════════════════════════════════
 
 function SitePage() {

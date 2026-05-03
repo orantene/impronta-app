@@ -17,7 +17,9 @@
  */
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { COLORS, FONTS, useProto } from "./_state";
+import { COLORS, FONTS, useProto, RICH_INQUIRIES } from "./_state";
+import { MOCK_CONVERSATIONS } from "./_talent";
+import { ageLabel } from "./_messages";
 
 export type HubItem = {
   id: string;
@@ -113,14 +115,30 @@ export function NotificationsBell({
         cta: { label: "Review", run: () => openDrawer("talent-approvals") },
       });
     });
-    // Update mocks
-    out.push({
-      id: "inq-208", bucket: "update", icon: "📥",
-      title: "New inquiry · Atelier Roma",
-      body: "Yael Cohen is asking about your DJ Léa for a 4-hour set on May 18.",
-      whenLabel: "12 min ago",
-      cta: { label: "Open inquiry", run: () => openDrawer("inquiry-peek", { id: "RI-208" }) },
+    // Action: brand-new (unseen) inquiries from MOCK_CONVERSATIONS +
+    // RICH_INQUIRIES. The bell should reflect what the inbox is
+    // already flagging with the NEW pill — not lag behind it.
+    MOCK_CONVERSATIONS.filter(c => c.seen === false).forEach(c => {
+      out.push({
+        id: `new-conv-${c.id}`,
+        bucket: "action",
+        icon: "📥",
+        title: `New inquiry · ${c.client}`,
+        body: c.lastMessage.preview.slice(0, 90),
+        whenLabel: ageLabel(c.lastMessage.ageHrs),
+      });
     });
+    RICH_INQUIRIES.filter(i => i.seen === false).forEach(i => {
+      out.push({
+        id: `new-inq-${i.id}`,
+        bucket: "action",
+        icon: "📥",
+        title: `New inquiry · ${i.clientName}`,
+        body: i.brief,
+        whenLabel: ageLabel(i.lastActivityHrs),
+      });
+    });
+    // Update mocks
     out.push({
       id: "rev-203", bucket: "update", icon: "✓",
       title: "Booking confirmed · Bvlgari",
@@ -199,11 +217,20 @@ export function NotificationsBell({
         {totalUnread > 0 && (
           <span style={{
             position: "absolute", top: -3, right: -3,
-            minWidth: 16, height: 16, padding: "0 5px",
+            // Force a perfectly round badge for single-digit counts.
+            // Was rendering as a slight oval because `min-width: 16 +
+            // padding 0 5` produced a wider-than-tall box once the 2px
+            // border was added (content-box). Switching to box-sizing:
+            // border-box and balancing min-width = height = 18 gives a
+            // crisp 18x18 circle for single digits and pills out
+            // gracefully for "9+".
+            minWidth: 18, height: 18, padding: "0 4px",
+            boxSizing: "border-box",
             borderRadius: 999, border: "2px solid #fff",
             background: unreadActionCount > 0 ? COLORS.amberDeep : COLORS.indigoDeep,
             color: "#fff",
-            fontSize: 9.5, fontWeight: 700,
+            fontSize: 9.5, fontWeight: 700, lineHeight: 1,
+            fontVariantNumeric: "tabular-nums",
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             fontFamily: FONTS.body,
           }}>{totalUnread > 9 ? "9+" : totalUnread}</span>

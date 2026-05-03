@@ -44,7 +44,8 @@ export type WorkspacePage =
   | "clients"
   | "operations" // WS-19/20: analytics + workflow automation
   | "production" // WS-28/29/30/33/34/35: casting, crew, on-set, rights, safety
-  | "settings"   // replaces workspace; billing + site folded in via anchor nav
+  | "website"    // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain, maintenance, announcement)
+  | "settings"   // replaces workspace; billing folded in via anchor nav
   // ── legacy aliases (hidden from nav, kept for URL compat) ──
   | "inbox"
   | "work"
@@ -109,6 +110,7 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "clients",
   "operations",
   "production",
+  "website",   // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain). Sits between Production and Settings.
   "settings",
 ];
 
@@ -118,7 +120,7 @@ export function resolveWorkspacePage(raw: string): WorkspacePage {
     inbox:     "messages",
     work:      "messages",
     talent:    "roster",
-    site:      "settings",
+    site:      "website",   // 2026 — legacy /site URL now lands on the new Website page
     billing:   "settings",
     workspace: "settings",
   };
@@ -335,6 +337,7 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   clients:   { label: "Clients",   icon: "briefcase", description: "Client accounts, trust tiers, and booking history" },
   operations:{ label: "Operations",icon: "layers",   description: "Analytics, queues, SLAs, automations, and team workload" },
   production:{ label: "Production",icon: "camera",   description: "Casting, crew bookings, call sheets, rights, and safety" },
+  website:   { label: "Website",   icon: "globe",    description: "Pages, posts, redirects, custom code, tracking, SEO, domain" },
   settings:  { label: "Settings",  icon: "settings", description: "Account, plan, branding, integrations, team, and danger zone" },
   // ── legacy aliases (hidden from nav) ──
   inbox:     { label: "Inbox",     icon: "mail" },
@@ -8168,10 +8171,10 @@ export function usePendingReviewSubscription(): void {
 // ─────────────────────────────────────────────────────────────────────
 // Website / domain mock state
 //
-// The domain drawer reads WEBSITE_STATE.domain so it stays in sync with
-// the website page's domain panel. In production this comes from the
-// `workspace_domains` table; in the prototype it's a module-level
-// constant that the drawer writes to directly on toggle actions.
+// The website page (workspace surface, page=website) reads everything
+// here. The domain drawer reads `WEBSITE_STATE.domain` so the two
+// surfaces stay in sync. In production each piece maps to its own
+// table — see dev-handoff §27 for the production wiring map.
 // ─────────────────────────────────────────────────────────────────────
 
 type WebsiteDnsRecord = {
@@ -8184,7 +8187,7 @@ type WebsiteAlternateDomain = {
   domain: string;
   status: "verified" | "pending";
 };
-type WebsiteDomain = {
+export type WebsiteDomain = {
   primaryDomain: string;
   status: "verified" | "pending" | "unverified";
   sslStatus: "active" | "pending" | "expired";
@@ -8194,7 +8197,194 @@ type WebsiteDomain = {
   alternateDomains: WebsiteAlternateDomain[];
 };
 
-export const WEBSITE_STATE: { domain: WebsiteDomain } = {
+export type WebsitePageRow = {
+  id: string;
+  title: string;
+  slug: string;
+  status: "published" | "draft" | "scheduled";
+  updatedAt: string;
+  scheduledFor?: string;
+  lastEditedBy: string;
+  template: string;
+  hits7d?: number;
+};
+
+export type WebsitePost = {
+  id: string;
+  title: string;
+  slug: string;
+  status: "published" | "draft" | "scheduled";
+  publishedAt?: string;
+  updatedAt: string;
+  author: string;
+  hits7d?: number;
+  tags: string[];
+};
+
+export type WebsiteRedirect = {
+  id: string;
+  from: string;
+  to: string;
+  statusCode: 301 | 302 | 307 | 308;
+  match: "exact" | "prefix" | "regex";
+  hits7d?: number;
+  createdAt: string;
+  createdBy: string;
+  active: boolean;
+};
+
+export type WebsiteJsBlock = {
+  id: string;
+  label: string;
+  code: string;
+  placement: "head" | "body-end";
+  enabled: boolean;
+};
+
+export type WebsiteCustomCode = {
+  css: string;
+  js: WebsiteJsBlock[];
+};
+
+export type WebsiteTrackingCodes = {
+  ga4MeasurementId: string;
+  plausibleDomain: string;
+  metaPixelId: string;
+  gtmContainerId: string;
+  hotjarSiteId: string;
+  linkedInPartnerId: string;
+  cookieConsent: "off" | "essential" | "geo-aware";
+};
+
+export type WebsiteSeoDefaults = {
+  siteTitle: string;
+  titleTemplate: string;
+  description: string;
+  ogImage: string;
+  twitterHandle: string;
+  robotsMode: "indexable" | "noindex-nofollow" | "private";
+  sitemapEnabled: boolean;
+  canonicalDomain: string;
+};
+
+export type WebsiteMaintenance = {
+  enabled: boolean;
+  message: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  bypassToken: string;
+};
+
+export type WebsiteAnnouncement = {
+  enabled: boolean;
+  text: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  audience: "all" | "clients" | "talent";
+  tone: "neutral" | "info" | "success" | "warning";
+};
+
+export type WebsitePeriodMetrics = {
+  visits: number;
+  inquiries: number;
+  bookings: number;
+  revenue: number;
+  prior: { visits: number; inquiries: number; bookings: number; revenue: number };
+};
+
+export type WebsitePageMetrics = {
+  pageId: string;
+  visits: number;
+  inquiries: number;
+  bookings: number;
+};
+
+export type WebsiteTalentMetrics = {
+  talentId: string;
+  talentName: string;
+  visits: number;
+  inquiries: number;
+  bookings: number;
+  revenue: number;
+  topPageId?: string;
+};
+
+export type WebsiteAnalytics = {
+  refreshedAt: string;
+  last7d: WebsitePeriodMetrics;
+  last30d: WebsitePeriodMetrics;
+  byPage7d: WebsitePageMetrics[];
+  byPage30d: WebsitePageMetrics[];
+  byTalent7d: WebsiteTalentMetrics[];
+  byTalent30d: WebsiteTalentMetrics[];
+};
+
+export type WebsiteState = {
+  pages: WebsitePageRow[];
+  posts: WebsitePost[];
+  redirects: WebsiteRedirect[];
+  customCode: WebsiteCustomCode;
+  tracking: WebsiteTrackingCodes;
+  seo: WebsiteSeoDefaults;
+  domain: WebsiteDomain;
+  maintenance: WebsiteMaintenance;
+  announcement: WebsiteAnnouncement;
+  analytics: WebsiteAnalytics;
+};
+
+const _now = Date.now();
+const _daysAgo = (n: number) => new Date(_now - n * 86400e3).toISOString();
+const _daysAhead = (n: number) => new Date(_now + n * 86400e3).toISOString();
+
+export const WEBSITE_STATE: WebsiteState = {
+  pages: [
+    { id: "p1", title: "Home",                  slug: "/",            status: "published", updatedAt: _daysAgo(2),  lastEditedBy: "Joana Rivera", template: "home",    hits7d: 1842 },
+    { id: "p2", title: "Roster",                slug: "/roster",      status: "published", updatedAt: _daysAgo(5),  lastEditedBy: "Joana Rivera", template: "roster",  hits7d: 1216 },
+    { id: "p3", title: "About us",              slug: "/about",       status: "published", updatedAt: _daysAgo(30), lastEditedBy: "Marco Conti",  template: "about",   hits7d: 412 },
+    { id: "p4", title: "Contact",               slug: "/contact",     status: "published", updatedAt: _daysAgo(60), lastEditedBy: "Joana Rivera", template: "contact", hits7d: 287 },
+    { id: "p5", title: "Press kit",             slug: "/press",       status: "draft",     updatedAt: _daysAgo(1),  lastEditedBy: "Marco Conti",  template: "press",   hits7d: 0 },
+    { id: "p6", title: "SS27 capsule launch",   slug: "/launch/ss27", status: "scheduled", scheduledFor: _daysAhead(14), updatedAt: _daysAgo(0.2), lastEditedBy: "Joana Rivera", template: "blank", hits7d: 0 },
+  ],
+  posts: [
+    { id: "po1", title: "Spring 2026 — what's moving",   slug: "/blog/spring-2026-moving",  status: "published", publishedAt: _daysAgo(3),  updatedAt: _daysAgo(3),  author: "Joana Rivera", hits7d: 412, tags: ["editorial", "trends"] },
+    { id: "po2", title: "BTS · Vogue Italia editorial",  slug: "/blog/bts-vogue-italia",    status: "published", publishedAt: _daysAgo(7),  updatedAt: _daysAgo(7),  author: "Marco Conti",  hits7d: 318, tags: ["bts", "editorial"] },
+    { id: "po3", title: "Welcoming Tomás Navarro",       slug: "/blog/welcoming-tomas",     status: "published", publishedAt: _daysAgo(14), updatedAt: _daysAgo(14), author: "Joana Rivera", hits7d: 156, tags: ["roster"] },
+    { id: "po4", title: "Rate cards explained",          slug: "/blog/rate-cards-explained", status: "published", publishedAt: _daysAgo(30), updatedAt: _daysAgo(30), author: "Marco Conti", hits7d: 87,  tags: ["operations"] },
+    { id: "po5", title: "Press kit refresh",             slug: "/blog/press-kit-refresh",   status: "draft",     updatedAt: _daysAgo(2),  author: "Joana Rivera", hits7d: 0, tags: ["meta"] },
+  ],
+  redirects: [
+    { id: "r1", from: "/talent",         to: "/roster",                              statusCode: 301, match: "exact",  hits7d: 142, createdAt: "2025-11-04T10:00:00Z", createdBy: "Joana Rivera", active: true },
+    { id: "r2", from: "/old-press",      to: "/press",                               statusCode: 301, match: "exact",  hits7d: 8,   createdAt: "2025-12-12T14:30:00Z", createdBy: "Marco Conti",  active: true },
+    { id: "r3", from: "/blog/2024/*",    to: "https://archive.acme-models.com/$1",   statusCode: 301, match: "regex",  hits7d: 47,  createdAt: "2025-09-22T09:15:00Z", createdBy: "Joana Rivera", active: true },
+    { id: "r4", from: "/spring-promo",   to: "/launch/ss27",                         statusCode: 302, match: "exact",  hits7d: 213, createdAt: "2026-04-14T08:00:00Z", createdBy: "Joana Rivera", active: true },
+    { id: "r5", from: "/contact-us",     to: "/contact",                             statusCode: 301, match: "exact",  hits7d: 33,  createdAt: "2025-08-01T11:00:00Z", createdBy: "Marco Conti",  active: false },
+  ],
+  customCode: {
+    css: "/* Custom CSS for the live site */\n.editorial-band { letter-spacing: -0.5px; }\n",
+    js: [
+      { id: "jc1", label: "Hotjar tracking",  code: "<!-- Hotjar Tracking Code -->", placement: "head",     enabled: true },
+      { id: "jc2", label: "Newsletter popup", code: "// Custom newsletter popup logic",            placement: "body-end", enabled: false },
+    ],
+  },
+  tracking: {
+    ga4MeasurementId: "G-EXAMPLE1234",
+    plausibleDomain: "acme-models.tulala.digital",
+    metaPixelId: "",
+    gtmContainerId: "",
+    hotjarSiteId: "1234567",
+    linkedInPartnerId: "",
+    cookieConsent: "geo-aware",
+  },
+  seo: {
+    siteTitle: "Acme Models",
+    titleTemplate: "%s — Acme Models",
+    description: "Acme Models represents editorial talent across fashion, hospitality, and live events. Curated roster, vetted partners, fast booking.",
+    ogImage: "https://acme-models.tulala.digital/og.png",
+    twitterHandle: "@acmemodels",
+    robotsMode: "indexable",
+    sitemapEnabled: true,
+    canonicalDomain: "acme-models.tulala.digital",
+  },
   domain: {
     primaryDomain: "acme-models.tulala.digital",
     status: "verified",
@@ -8206,6 +8396,66 @@ export const WEBSITE_STATE: { domain: WebsiteDomain } = {
     ],
     redirectsToWww: true,
     alternateDomains: [],
+  },
+  maintenance: {
+    enabled: false,
+    message: "We're polishing things. Back in a moment.",
+    bypassToken: "preview-1f2e3d",
+  },
+  announcement: {
+    enabled: true,
+    text: "Casting open for the SS27 capsule — apply by May 30.",
+    ctaLabel: "View brief",
+    ctaHref: "/launch/ss27",
+    audience: "all",
+    tone: "info",
+  },
+  analytics: {
+    refreshedAt: _daysAgo(0.04),
+    last7d: {
+      visits: 4730,
+      inquiries: 23,
+      bookings: 6,
+      revenue: 14500,
+      prior: { visits: 4148, inquiries: 18, bookings: 4, revenue: 10980 },
+    },
+    last30d: {
+      visits: 19140,
+      inquiries: 87,
+      bookings: 28,
+      revenue: 61200,
+      prior: { visits: 14920, inquiries: 71, bookings: 21, revenue: 46300 },
+    },
+    byPage7d: [
+      { pageId: "p2", visits: 1216, inquiries: 11, bookings: 4 },
+      { pageId: "p1", visits: 1842, inquiries:  6, bookings: 1 },
+      { pageId: "p3", visits:  412, inquiries:  4, bookings: 1 },
+      { pageId: "p4", visits:  287, inquiries:  2, bookings: 0 },
+      { pageId: "p5", visits:    0, inquiries:  0, bookings: 0 },
+      { pageId: "p6", visits:    0, inquiries:  0, bookings: 0 },
+    ],
+    byPage30d: [
+      { pageId: "p2", visits: 4180, inquiries: 41, bookings: 17 },
+      { pageId: "p1", visits: 6320, inquiries: 22, bookings:  6 },
+      { pageId: "p3", visits: 1410, inquiries: 14, bookings:  3 },
+      { pageId: "p4", visits:  980, inquiries:  9, bookings:  2 },
+      { pageId: "p5", visits:    0, inquiries:  0, bookings:  0 },
+      { pageId: "p6", visits:    0, inquiries:  0, bookings:  0 },
+    ],
+    byTalent7d: [
+      { talentId: "t1", talentName: "Marta Reyes",   visits: 624, inquiries: 7, bookings: 3, revenue: 18400, topPageId: "p2" },
+      { talentId: "t3", talentName: "Tomás Navarro", visits: 412, inquiries: 5, bookings: 2, revenue: 12800, topPageId: "p2" },
+      { talentId: "t4", talentName: "Lina Park",     visits: 318, inquiries: 3, bookings: 1, revenue:  6200, topPageId: "p2" },
+      { talentId: "t5", talentName: "Amelia Dorsey", visits: 184, inquiries: 2, bookings: 1, revenue:  4400, topPageId: "p2" },
+      { talentId: "t2", talentName: "Kai Lin",       visits: 156, inquiries: 2, bookings: 0, revenue:     0, topPageId: "p3" },
+    ],
+    byTalent30d: [
+      { talentId: "t1", talentName: "Marta Reyes",   visits: 2180, inquiries: 26, bookings: 11, revenue: 64800, topPageId: "p2" },
+      { talentId: "t3", talentName: "Tomás Navarro", visits: 1490, inquiries: 18, bookings:  7, revenue: 41200, topPageId: "p2" },
+      { talentId: "t4", talentName: "Lina Park",     visits: 1124, inquiries: 11, bookings:  4, revenue: 22000, topPageId: "p2" },
+      { talentId: "t5", talentName: "Amelia Dorsey", visits:  672, inquiries:  8, bookings:  3, revenue: 13200, topPageId: "p2" },
+      { talentId: "t2", talentName: "Kai Lin",       visits:  548, inquiries:  6, bookings:  2, revenue:  8400, topPageId: "p3" },
+    ],
   },
 };
 

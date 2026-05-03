@@ -4,7 +4,7 @@
 **Prototype source:** `web/src/app/prototypes/admin-shell/` (code only — no docs)
 **Handoff package:** `web/docs/admin-prototype/` (this folder — every doc related to the prototype)
 **Live URL (dev):** `http://localhost:3000/prototypes/admin-shell?surface=workspace&plan=free&role=owner&alsoTalent=true&page=overview`
-**Last updated:** 2026-05-02 (consolidation commit, on top of `5e0ce66` · `553ef8f` · `0522f7d` · `11d8fa0` · `93b46c4`)
+**Last updated:** 2026-05-02 — Master index expanded to 30 entries: linked `messaging-shells-handoff.md` (in-folder but unlinked until now), `MASTER_FIELD_CATALOG.md`, `PROFILE_FIELD_ENGINE.md`. Messaging-shells doc had two minor inconsistencies fixed (line count `12k` → `13.1k`, path-prefix consistency). §28 covers: Top Performers Talent ↔ Pages switcher on Website page, docs consolidated to single folder (`web/docs/admin-prototype/`), OVERVIEW_AUDIT_2026 spec doc added, duplicate Search ⌘K chip removed. Working tree, **uncommitted**, on top of committed `5e0ce66` · `553ef8f` · `0522f7d` · `11d8fa0` · `93b46c4`. Prior §27 (Website page + Performance dashboard + I1/I2/I3/I7/I8 closeouts) also still uncommitted.
 
 This document explains every meaningful design decision, what the building blocks are, and what the production translation looks like. Read it once before touching the code. Cross-reference with `consolidation-map.md` (which surface lives where) and `architecture.md` (the prior strategic write-up).
 
@@ -40,14 +40,17 @@ The handoff isn't one file — it's a package. Read in this order. Every link is
 19. [`dp-default-positions.md`](./dp-default-positions.md) — decision-point defaults (companion to talent-execution-checklist).
 20. [`mobile-audit.md`](./mobile-audit.md) — 50-item mobile-only audit (real, from screenshots + DOM).
 21. [`OVERVIEW_AUDIT_2026.md`](./OVERVIEW_AUDIT_2026.md) — Workspace Overview page 2026-readiness audit (10→5 section restructure, live activity feed, sparklines, Top Performers Talent↔Pages switcher, ~9.5d effort).
-22. [`qa-plan.md`](./qa-plan.md) — page-by-page design QA structure.
-23. [`qa-tracker.md`](./qa-tracker.md) — live QA tracker.
+22. [`messaging-shells-handoff.md`](./messaging-shells-handoff.md) — Messaging surface across the 3 shells (Talent / Client / Admin) and 4 plan tiers; module-level stores, system-user (workspace-as-participant), tier-aware behavior matrix, recommended ship order.
+23. [`MASTER_FIELD_CATALOG.md`](./MASTER_FIELD_CATALOG.md) — Phase D talent-field-catalog runbook (DB schema, 179 field defs, 171 recommendations).
+24. [`PROFILE_FIELD_ENGINE.md`](./PROFILE_FIELD_ENGINE.md) — full profile field engine session handoff (744 lines; vocabulary / wiring map / migration map / taxonomy bridge / operational reference / gotchas).
+25. [`qa-plan.md`](./qa-plan.md) — page-by-page design QA structure.
+26. [`qa-tracker.md`](./qa-tracker.md) — live QA tracker.
 
 **Tier 4 — embedded prototype docs (small but important):**
-24. [`./PR_CHECKLIST.md`](./PR_CHECKLIST.md) — pre-merge gate (no gold/brass/rust accents, etc).
-25. [`./MESSAGING_FLOW.md`](./MESSAGING_FLOW.md) — inquiry messaging flow detail.
-26. [`./tokens.json`](./tokens.json) — Style Dictionary token export.
-27. [`./canonical-flow.json`](./canonical-flow.json) — pipeline flow definition.
+27. [`./PR_CHECKLIST.md`](./PR_CHECKLIST.md) — pre-merge gate (no gold/brass/rust accents, etc).
+28. [`./MESSAGING_FLOW.md`](./MESSAGING_FLOW.md) — inquiry messaging flow detail.
+29. [`./tokens.json`](./tokens.json) — Style Dictionary token export.
+30. [`./canonical-flow.json`](./canonical-flow.json) — pipeline flow definition.
 
 If a doc isn't on this list, it's either obsolete or out-of-scope for the dashboard implementation.
 
@@ -57,6 +60,8 @@ If a doc isn't on this list, it's either obsolete or out-of-scope for the dashbo
 
 | Date | Commit | Highlight | What it touched |
 |---|---|---|---|
+| 2026-05-02 | _(uncommitted)_ | **Polish + Top Performers switcher + docs consolidation** — see §28 | Talent ↔ Pages switcher on Website page Performance section (`WebsiteTalentMetrics` type + seed + tab UI · ranks by attributed booking revenue); duplicate `Search ⌘K` chip removed from workspace topbar; all 26 admin-prototype docs consolidated into `web/docs/admin-prototype/` (was scattered across 3 dirs); new `OVERVIEW_AUDIT_2026.md` spec doc (5-issue audit + 4-section redesign + 9.5d effort estimate); `tokens.json` export script output path updated to new docs folder |
+| 2026-05-02 | _(uncommitted)_ | **Website page + Performance dashboard + I-track closeouts** — see §27 | New top-nav `Website` surface (12 sections — pages / posts / 301 redirects / nav / custom CSS+JS / tracking / SEO / domain+SSL / maintenance / announcement); consolidated Performance section (visits / inquiries / bookings / revenue with 7d/30d toggle, indigo funnel strip, top-pages table); I1 page-builder routes via `useRouter`; I2 inline `AddRedirectModal`; I3 `DomainDrawer` rebuild reading `WEBSITE_STATE.domain`; I7 `catalogId` threaded on 4 IdentityEditor FieldRows; I8 publish gate honors catalog `requiredFor` for models |
 | 2026-05-01 | `11d8fa0` | **Polish + bug-fix batch** — see §26 | Scroll-lock recovery (the "stuck Profile page" bug), PrimaryButton black-CTA leak fix (global), talent header compact, Preview-as-client drawer rewrite, MobileInboxTab redesigned, Atelier Roma seed cleanup, 3 pre-existing TS errors fixed |
 | 2026-05-01 | `0522f7d` | Handoff master index + 14-day timeline | This timeline + tier-1/2/3/4 doc index |
 | 2026-05-01 | `553ef8f` | Handoff prep — sprint changes documented | dev-handoff §25, DRAWERS.md additions, ROADMAP ✅/⚠️ tags |
@@ -1388,5 +1393,699 @@ this commit.
   - Preview-as-client: tier-aware distribution links + ACTIVE / UPGRADE
     REQUIRED feature card + working upgrade footer ✓
   - Profile page scrolls normally ✓
+
+## 27. Website page + Performance dashboard + audit closeouts — 2026-05-02
+
+This session adds a brand-new top-level workspace surface (**Website**),
+extends it with a consolidated business-funnel dashboard
+(**Performance**), and closes five backlog items (I1, I2, I3, I7, I8)
+from the Phase G/H pickup paths in `PROFILE_FIELD_ENGINE.md`.
+
+Cross-reference: [`PROFILE_FIELD_ENGINE.md`](./PROFILE_FIELD_ENGINE.md)
+holds the authoritative narrative and per-field production wiring map.
+This section is the engineer-facing summary — what was built, where it
+lives, and what production needs.
+
+### 27.1 New surface — Website page
+
+A new **Website** entry in the workspace top-nav (between Production
+and Settings). Premium 2026 design language (gradient hero band,
+indigo accents on metrics, monospace URLs). Consolidates everything an
+agency website admin needs on one operations console — eleven sections:
+
+1. **Hero band** — primary domain URL with copy-to-clipboard, status
+   indicator (Live / Maintenance / Setting up), 4-stat row (pages live,
+   posts, redirects, scheduled), banner-active marker.
+2. **Performance** — see §27.2 below.
+3. **Pages** — full table with title/slug, last-edited timestamp +
+   author, hits 7d, status chip (Live / Draft / Scheduled), per-row
+   Edit + Publish/Unpublish actions, "+ New page" button.
+4. **Posts / blog** — same shape as Pages, scheduled per-post; tier-
+   gated to Agency plan with upgrade chip if not on tier.
+5. **301 Redirects** — full table with from/to (monospace + arrow),
+   status code chip (301/302/307/308 in distinct colors), match mode
+   (exact/prefix/regex), hits 7d, pause/resume + delete actions.
+6. **Navigation & footer** — header menu summary + footer column
+   summary, edit affordance per.
+7. **Custom code** — CSS textarea (injected `<head>`) + JS block list
+   with per-block label, placement picker (`<head>` / `<body>` start /
+   `<body>` end), enabled toggle, "Add script" button. Tier-gated to
+   Agency. Warning chip "Care required — broken code breaks the live
+   site".
+8. **Tracking & analytics** — input cards for GA4, Plausible, Meta
+   Pixel, GTM, Hotjar, LinkedIn Insight; each becomes "ACTIVE" when
+   filled. Plus cookie consent radio (off / essential / geo-aware
+   EU+UK).
+9. **SEO defaults** — site title, title template (`%s — Atelier Roma`),
+   meta description, OG image, Twitter handle, canonical domain,
+   robots mode (indexable / noindex-nofollow / private), sitemap toggle.
+10. **Domain & SSL** — primary domain + SSL status + renewal countdown,
+    DNS records table (A / CNAME / TXT) with matched/mismatch
+    indicators, alternate domains chip strip, www-redirect toggle,
+    "Manage domain" button → opens DomainDrawer (see §27.5).
+11. **Maintenance mode** — toggle + custom message + bypass token
+    (admin shares the URL to preview while public is in maintenance),
+    copy-token button. Border + textarea tint amber when enabled.
+12. **Site-wide announcement banner** — toggle + live preview + text +
+    CTA label/href + audience filter (all / clients / talent) + tone
+    palette (neutral / info / success / warning) — visual swatch picker
+    for tone.
+
+#### State model (`_state.tsx`)
+
+12 new types plus `WEBSITE_STATE` fixture seeded for Atelier Roma:
+
+```ts
+WebsitePageRow         // pages list
+WebsitePost            // blog posts list
+WebsiteRedirect        // 301/302/307/308 rules
+WebsiteCustomCode      // CSS + JS block array
+WebsiteTrackingCodes   // GA4 / Plausible / Meta / GTM / Hotjar / LinkedIn / cookie consent
+WebsiteSeoDefaults     // title / template / description / OG / robots / sitemap
+WebsiteDomainStatus    // primaryDomain / status / sslStatus / dnsRecords[] / alternateDomains[]
+WebsiteMaintenance     // enabled / message / scheduled / bypassToken
+WebsiteAnnouncement    // enabled / text / cta / audience / tone
+WebsitePeriodMetrics   // visits / inquiries / bookings / revenue + prior-window baselines
+WebsitePageMetrics     // pageId / visits / inquiries / bookings (per-page rollup)
+WebsiteAnalytics       // refreshedAt / last7d / last30d / byPage7d / byPage30d
+WebsiteState           // aggregate of all of the above
+```
+
+Fixture seeded for `Atelier Roma` (matches `TENANT.name` after the §26.6
+rename): 6 pages, 5 posts, 5 redirects, 2 JS blocks, 6 tracking IDs, 3
+DNS records, active announcement, 7d + 30d analytics with prior-period
+baselines, per-page conversion attribution.
+
+#### Production wiring map
+
+| Prototype field | Production source |
+|---|---|
+| `WEBSITE_STATE.pages` | `agency_pages` table (per-tenant) — already exists at `web/src/app/(dashboard)/admin/site-settings/pages/`. Page row click routes to `/admin/site-settings/pages/[id]`. |
+| `WEBSITE_STATE.posts` | New `agency_blog_posts` table — not yet built. `published_at`, `slug`, `author_id`, `tags`. |
+| `WEBSITE_STATE.redirects` | New `agency_redirect_rules` table — `from_path`, `to_path`, `status_code`, `match_mode`, `hits_7d` (rolled up from `agency_event_log` where `event = 'redirect.fired'`), `active`. Production reads this in `web/src/middleware.ts` and rewrites before route matching. |
+| `WEBSITE_STATE.customCode` | New `agency_website_settings.custom_css` (text), `agency_website_custom_js` (table — id / label / code / placement / enabled). Injected via the public layout's `<head>` and `<body>` slots. |
+| `WEBSITE_STATE.tracking` | New `agency_website_settings.tracking_*` columns. Each ID slots into a known integration boilerplate at render time. |
+| `WEBSITE_STATE.seo` | New `agency_website_settings.seo_*` columns. Already partially modeled in `agency_workspaces` — consolidate. |
+| `WEBSITE_STATE.domain` | `agency_domains` table (live, drives middleware host check) + new `agency_website_settings.ssl_*` + `agency_website_settings.dns_records` (jsonb). |
+| `WEBSITE_STATE.maintenance` | New `agency_website_settings.maintenance_*` columns. Middleware checks before route matching; bypass token stored as a hashed value, presented unhashed only on first generation. |
+| `WEBSITE_STATE.announcement` | New `agency_website_settings.announcement_*` columns. Public layout reads and renders site-wide. |
+| `WEBSITE_STATE.analytics` | See §27.2 — rolled up hourly from event/inquiry/booking tables. |
+
+#### Where in source
+
+- **State + fixture:** `web/src/app/prototypes/admin-shell/_state.tsx` —
+  search for `Website ────────` block (added 12 types + `WEBSITE_STATE`
+  + `"website"` added to `WorkspacePage` union and `WORKSPACE_PAGES`
+  array; `PAGE_META.website` for nav label).
+- **Page component + sub-components:**
+  `web/src/app/prototypes/admin-shell/_pages.tsx` — `WebsitePage()` at
+  the dispatcher's `case "website"` (legacy `case "site"` aliases
+  here). Sub-components: `WebsiteHero`, `WebsitePerformance`,
+  `PeriodToggle`, `KpiTile`, `FunnelStep`, `FunnelArrow`,
+  `WebsiteSection`, `WebsitePagesList`, `WebsitePostsList`,
+  `PageStatusChip`, `WebsiteRedirectsTable`, `AddRedirectModal`,
+  `WebsiteNavSummary`, `WebsiteCustomCodePanel`, `WebsiteTrackingPanel`,
+  `WebsiteSeoPanel`, `SeoInput`, `WebsiteDomainPanel`,
+  `WebsiteMaintenancePanel`, `WebsiteAnnouncementPanel` (16 components
+  total).
+
+### 27.2 Performance section — consolidated funnel dashboard
+
+Right below the Website hero, a new section consolidates traffic +
+inquiries + bookings + revenue into one premium dashboard. Engineers
+porting this to production should replicate the **shape of the data
+contract** even if the visual treatment changes — the contract is what
+matters for the rollup queries.
+
+#### Period toggle
+
+A pill toggle (7 days / 30 days). All numbers downstream — KPI tiles,
+funnel %s, top-page table — re-compute against the selected window.
+
+#### Four KPI tiles
+
+Each tile shows: label, current value, ↑/↓/— delta vs prior period,
+and the prior-period absolute number. Tone shifts to green/red/dim by
+sign and magnitude (flat threshold = 0.5%). Revenue tile uses the
+forest accent; the others use the warm-gray surface.
+
+```
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ VISITS          │ │ INQUIRIES       │ │ BOOKINGS        │ │ BOOKING REVENUE │
+│ 4,730           │ │ 23              │ │ 6               │ │ €14,500         │
+│ ↑ 14.0% vs 4,148│ │ ↑ 27.8% vs 18   │ │ ↑ 50.0% vs 4    │ │ ↑ 32.1% vs €10,980│
+└─────────────────┘ └─────────────────┘ └─────────────────┘ └─────────────────┘
+```
+
+#### Funnel strip (indigo)
+
+```
+   4,730           23           6
+  Visits  →0.49%→  Inquiries  →26.09%→  Bookings
+                                                Overall conversion: 0.13%
+```
+
+The overall-conversion footer is `bookings / visits`.
+
+#### Top performing pages table
+
+```
+PAGE         VISITS     INQUIRIES     BOOKINGS     CONV. RATE
+Roster       1,216      11            4            0.33%       ← green (above site avg)
+About us       412      4             1            0.24%       ← green (above site avg)
+Home         1,842      6             1            0.05%       ← indigo (below avg)
+Contact        287      2             0            0.00%       ← dim (zero)
+```
+
+Conversion-rate is colored **relative to the site's overall conversion
+rate**, not a hardcoded threshold — pages above the site average go
+green, pages with traffic but below average go indigo, pages with zero
+bookings go dim. The site average is computed from the same selected
+window so the coloring stays consistent across 7d / 30d toggles.
+
+#### Production rollup map
+
+| Field | Source query (production) |
+|---|---|
+| `analytics.last7d.visits` | `count(*) from agency_event_log where event = 'page.view' and tenant_id = ? and ts > now() - interval '7d'` |
+| `analytics.last30d.visits` | Same, 30d |
+| `analytics.last7d.prior.visits` | Same, but `ts between now() - interval '14d' and now() - interval '7d'` |
+| `analytics.last7d.inquiries` | `count(*) from inquiries where workspace_id = ? and created_at > now() - interval '7d'` |
+| `analytics.last7d.bookings` | `count(*) from bookings where workspace_id = ? and created_at > now() - interval '7d'` |
+| `analytics.last7d.revenue` | `sum(total_amount) from bookings where workspace_id = ? and confirmed_at > now() - interval '7d'` (currency = workspace's billing currency) |
+| `analytics.byPage7d[]` | `agency_event_log` joined to `inquiries.source_page_id` and `bookings.inquiry_id`, grouped by `pageId`. **Last-touch attribution** — the page that owned the visit when the inquiry was created gets the credit. |
+| `analytics.refreshedAt` | Last successful rollup timestamp. Drive a cron at hourly cadence; UI shows `relativeTime(refreshedAt)` in the section header. |
+
+**Schema dependency:** `inquiries.source_page_id` must be added — it's
+the linkage between visit attribution and inquiry creation. Today the
+inquiry record has no source-page pointer.
+
+### 27.3 I1 closeout — Page-builder routes
+
+The Website page no longer toasts when admins click a page row or "+
+New page". `useRouter` from `next/navigation` is wired in
+`WebsitePage()` and the actions push to the existing real CMS routes:
+
+| Trigger | Route |
+|---|---|
+| Page row click (`onOpen` in `WebsitePagesList`) | `/admin/site-settings/pages/${id}` |
+| "+ New page" header button | `/admin/site-settings/pages/new` |
+| "Open page builder" hero button | `/admin/site-settings/pages` (list) |
+
+**Posts** still toast — there's no real `/admin/site-settings/posts/`
+route yet. When that ships, mirror the same `useRouter` pattern.
+
+The real CMS already exists at
+`web/src/app/(dashboard)/admin/site-settings/pages/` with `page.tsx`,
+`page-editor.tsx`, `actions.ts`, `[id]/`, and `new/`. Engineers don't
+need to build new routes — just wire data through.
+
+### 27.4 I2 closeout — Add-redirect modal
+
+The Redirects section's "+ Add redirect" header button now opens an
+inline modal panel (rendered below the table, not a portal). Component:
+`AddRedirectModal` in `_pages.tsx`.
+
+**Inputs:**
+- **From** — must start with `/`. Monospace text input. Border tints
+  red on invalid.
+- **To** — must be a path (`/foo`) or absolute URL (`http(s)://…`).
+  Same red-border treatment.
+- **Status code** — pill toggle: 301 / 302 / 307 / 308. Each shows a
+  one-line caption explaining the semantic difference (permanent vs
+  temporary, method-preservation).
+- **Match mode** — pill toggle: exact / prefix / regex. Caption per
+  mode ("Path must equal From" / "Match if path starts with From" /
+  "Treat From as a regex (use $1 in To for capture)").
+
+**Validation:**
+- `from` must start with `/`
+- `to` must be a path or absolute URL
+- No collision with an existing rule of the same `(from, match)`
+- Validation hints render inline in a coral/red callout when the user
+  has entered something but it's invalid
+
+**Save handler:**
+
+```ts
+{
+  id: `r-${Date.now()}`,
+  from: fromTrim,
+  to: toTrim,
+  statusCode,                 // 301 | 302 | 307 | 308
+  match,                      // "exact" | "prefix" | "regex"
+  hits7d: 0,
+  createdAt: new Date().toISOString(),
+  createdBy: "You",
+  active: true,
+}
+```
+
+Appended to `w.redirects`, modal closes, toast confirms (`Redirect
+${from} → ${to} added`).
+
+**Production translation:** wire to `agency_redirect_rules` insert.
+Same shape. The middleware (`web/src/middleware.ts`) reads this table
+and rewrites before route matching.
+
+### 27.5 I3 closeout — Domain management drawer
+
+`DomainDrawer` in `_drawers.tsx` rebuilt to read live state from
+`WEBSITE_STATE.domain` instead of the stale hardcoded `TENANT.customDomain`.
+Wired from the Website page's `WebsiteDomainPanel` "Manage domain"
+button via `openDrawer("domain")`.
+
+**Sections:**
+
+1. **Public URL** — Tulala fallback subdomain + custom domain input +
+   "Redirect bare → www" toggle.
+2. **Verification & SSL** (when on Studio+ plan):
+   - Status row: green/amber dot for domain verified + green/amber dot
+     for SSL active. SSL row shows `renews in N days` countdown
+     computed from `domain.sslExpiresOn`.
+   - DNS records table — per-row type / host / value / COPY button +
+     ✓/! match indicator. Background tints green-soft when matched,
+     amber-soft when not.
+   - "Re-check DNS" CTA (toasts in prototype; production hits the
+     verify endpoint).
+3. **Alternate domains** (when Studio+ and `domain.alternateDomains`
+   has entries):
+   - Per-row pill: VERIFIED (green) / PENDING DNS (amber).
+   - "+ Add alternate domain" dashed-border button (toasts in
+     prototype; production opens an inline form).
+4. **Why upgrade** — only on Free / pre-Studio plans. Bullet list of
+   what Studio unlocks.
+
+**Production translation:** wire to `agency_domains` (already lives —
+drives the host-based middleware in production) plus the new
+`agency_website_settings.dns_records` jsonb column. The "Re-check DNS"
+CTA hits an API route that performs DNS lookups (CNAME, TXT) and
+updates `domain.dnsRecords[].matched`.
+
+### 27.6 I7 closeout — `catalogId` threading on FieldRow (partial)
+
+Phase E added `catalogId` as an optional prop on `FieldRow` in
+`_primitives.tsx`. When provided, the row resolves workspace overrides
+(`customLabel` / `customHelper` / `enabled`) from
+`applyWorkspaceFieldOverride()` and lets them win over the explicit
+`label` / `hint` props. This is how workspaces customize the talent
+edit experience without forking the field catalog.
+
+This session threaded `catalogId` on **four** highest-confidence
+callsites in the talent edit drawer (`IdentityEditor` flow):
+
+| Label | catalogId | Field | Where (in `_drawers.tsx`) |
+|---|---|---|---|
+| "Tagline" | `identity.tagline` | `state.tagline` | `IdentityEditor` services section |
+| "Home base" | `serviceArea.homeBase` | `state.serviceArea.homeBase` | location section |
+| "Owns a vehicle" | `serviceArea.ownsVehicle` | `state.serviceArea.ownsVehicle` | location section |
+| "Video / social links" | `links` | `state.videoLinks` | media section |
+
+Workspace `customLabel` / `customHelper` overrides on those four
+fields now flow through the edit drawer.
+
+**Remaining ~134 FieldRow callsites in `_drawers.tsx` are not yet
+threaded.** Most are UI-only (Heading font, Pricing mode, Travel fee,
+etc.) or have no clear catalog match. This is incremental work —
+engineers picking it up should:
+
+1. Run `grep -n "<FieldRow\b" web/src/app/prototypes/admin-shell/_drawers.tsx`
+   to enumerate.
+2. For each, check `FIELD_CATALOG` (in `_field-catalog.ts`) for a
+   matching `id`.
+3. Thread `catalogId="<matching.id>"` and verify a workspace override
+   on that field flows through.
+
+Don't force matches. UI-only fields (typography, billing, internal
+notes) intentionally don't have catalog entries — they're not part of
+the talent profile shape.
+
+### 27.7 I8 closeout — Catalog-driven fields in publish gate
+
+The talent edit drawer's `required[]` array drives three things:
+- **`missing[]`** — what `RequiredCoach` displays
+- **`completeness`** — the % bar
+- **`canPublish`** — whether the Publish CTA is enabled
+
+Previously `required[]` was a hand-rolled array of 6 universal items
+(stage name, talent type, home base, ≥3 photos, bio ≥30 chars, ≥1
+language). The catalog declares additional type-specific required
+fields via `requiredFor: ["models"]` etc., but those weren't honored
+by the publish gate.
+
+This session augments `required[]` with catalog-driven type-specific
+required fields. Today only `models` has type-specific requireds — the
+catalog declares: `measurements.heightMetric`, `measurements.bust`,
+`measurements.waist`, `measurements.hips`, `measurements.hairColor`.
+
+**Implementation:**
+
+```ts
+const isModel = state.primaryType === "models" || state.secondaryTypes.includes("models");
+const dynStr = (k: string) => {
+  const v = state.dynFields[k];
+  return Array.isArray(v) ? v.length > 0 : !!String(v ?? "").trim();
+};
+const catalogRequired = isModel ? [
+  { id: "measurements.heightMetric", label: "height",     met: dynStr("height") || dynStr("heightMetric"), sectionId: "physical" },
+  { id: "measurements.bust",         label: "bust",       met: dynStr("bust"),                            sectionId: "physical" },
+  { id: "measurements.waist",        label: "waist",      met: dynStr("waist"),                           sectionId: "physical" },
+  { id: "measurements.hips",         label: "hips",       met: dynStr("hips"),                            sectionId: "physical" },
+  { id: "measurements.hairColor",    label: "hair color", met: dynStr("hair") || dynStr("hairColor"),     sectionId: "physical" },
+] : [];
+const required = [
+  // ... existing universal 6 ...
+  ...catalogRequired,
+];
+```
+
+**Storage-key ↔ catalog-id drift:**
+The dyn-field storage uses short keys (`height`, `bust`, …) while the
+catalog uses dotted ids (`measurements.heightMetric`, …). The mapping
+is documented inline. **Production should unify storage keys to
+catalog ids and call `validateProfile()` directly** instead of the
+hand-rolled mapping. The unification is worth it for two reasons:
+
+1. New `requiredFor` entries flow through automatically.
+2. The same `validateField()` runs in the wizard, the add-new drawer,
+   and the edit drawer — single source of truth.
+
+### 27.8 Files changed this session
+
+| File | What changed |
+|---|---|
+| `web/src/app/prototypes/admin-shell/_state.tsx` | +12 types (`WebsitePageRow`, `WebsitePost`, `WebsiteRedirect`, `WebsiteCustomCode`, `WebsiteTrackingCodes`, `WebsiteSeoDefaults`, `WebsiteDomainStatus`, `WebsiteMaintenance`, `WebsiteAnnouncement`, `WebsitePeriodMetrics`, `WebsitePageMetrics`, `WebsiteAnalytics`, `WebsiteState`); `WEBSITE_STATE` fixture for Atelier Roma; `"website"` added to `WorkspacePage` union and `WORKSPACE_PAGES`; `PAGE_META.website` nav entry. |
+| `web/src/app/prototypes/admin-shell/_pages.tsx` | `WebsitePage()` (+ ~400 lines) + 16 sub-components; `WebsitePerformance` section with `PeriodToggle` / `KpiTile` / `FunnelStep` / `FunnelArrow`; `AddRedirectModal` (~165 lines); `useRouter` from `next/navigation` wired for I1; `WebsiteDomainPanel` "Manage domain" button → `openDrawer("domain")`. |
+| `web/src/app/prototypes/admin-shell/_drawers.tsx` | `WEBSITE_STATE` import; `DomainDrawer` rebuilt (+ ~115 lines net) — DNS records table, SSL countdown, alternates, www-redirect toggle; 4 `catalogId` threads in IdentityEditor (I7); `catalogRequired[]` augmenting publish gate (I8). |
+| `web/docs/admin-prototype/PROFILE_FIELD_ENGINE.md` | Phase H section (+~150 lines): 12 sections, production wiring map, sub-component list, acceptance bullets. I1/I2/I3/I8 marked DONE in pickup-paths section, I7 marked PARTIAL with details. |
+| `web/docs/admin-prototype/dev-handoff.md` | This §27 (you are here). |
+
+### 27.9 Verification
+
+- `cd web && npx tsc --noEmit` → exit 0, 0 lines of output.
+- All numbers in the Performance fixture reconcile:
+  - Per-page byPage7d sum: 1216 + 1842 + 412 + 287 = 3,757 visits;
+    11 + 6 + 4 + 2 = 23 inquiries; 4 + 1 + 1 + 0 = 6 bookings.
+    Matches `last7d` totals: visits 4,730 (some untracked traffic),
+    inquiries 23 ✓, bookings 6 ✓.
+  - Visit→inquiry: 23 / 4,730 = 0.486% → renders 0.49% ✓
+  - Inquiry→booking: 6 / 23 = 26.087% → renders 26.09% ✓
+  - Overall: 6 / 4,730 = 0.127% → renders 0.13% ✓
+  - Δ visits: (4,730 − 4,148) / 4,148 = +14.03% → renders ↑ 14.0% ✓
+  - Δ inquiries: (23 − 18) / 18 = +27.78% → renders ↑ 27.8% ✓
+  - Δ bookings: (6 − 4) / 4 = +50.00% → renders ↑ 50.0% ✓
+  - Δ revenue: (€14,500 − €10,980) / €10,980 = +32.06% → renders ↑ 32.1% ✓
+- I1 verified: page-row click in the Website page Pages section
+  navigates to `/admin/site-settings/pages/p1` (etc.) instead of
+  toasting.
+- I2 verified: "+ Add redirect" opens the inline modal; entering an
+  invalid `from` (no `/` prefix) red-borders the input + shows the
+  validation callout; valid entries append to `w.redirects` and the
+  table re-renders with the new row at top.
+- I3 verified: "Manage domain" on `WebsiteDomainPanel` opens
+  `DomainDrawer` with DNS records, SSL countdown ("renews in 60 days"
+  given `sslExpiresOn` 60 days out), and alternate-domain pills.
+- I7 verified: workspace override of `identity.tagline.customLabel`
+  (set via Settings → Workspace field settings drawer) renders in the
+  edit drawer's Tagline row.
+- I8 verified: switching a talent's `primaryType` to `models` adds
+  height / bust / waist / hips / hair color to the publish-gate
+  `required[]`; the % bar reflects the new denominator (11 instead
+  of 6); RequiredCoach lists the additions; canPublish gates on them.
+
+### 27.10 Known production gaps
+
+For engineers picking this up:
+
+- **No `agency_blog_posts` table** — Posts section has no production
+  destination yet.
+- **No `agency_redirect_rules` table** — Redirects section has no
+  production destination yet. Middleware also doesn't read redirects.
+- **No `inquiries.source_page_id`** — Performance section's per-page
+  attribution can't roll up until this column is added.
+- **No analytics rollup cron** — `analytics.refreshedAt` and
+  `byPage*` need an hourly job. Suggest scheduling via Supabase
+  pg_cron or a Vercel cron.
+- **`/admin/site-settings/posts/`** — no real route exists; Posts
+  section toasts on "+ New post" for now.
+- **DNS verify endpoint** — "Re-check DNS" toasts in prototype;
+  production needs an API route doing real CNAME/TXT lookups.
+- **Bypass-token flow** — `WebsiteMaintenance.bypassToken` is shown
+  in plaintext in the fixture. Production hashes at rest, shows
+  unhashed only on first generation, then shares via copy-button.
+
+### 27.11 Trust-verification queue — moved from workspace to platform layer
+
+A small architectural cleanup landed in the same session. The Roster
+nav badge in `WorkspaceTopbar` (`_pages.tsx`) used to show **three**
+sub-pills:
+
+1. Slate — pending self-registrations (count of `pendingTalent`)
+2. Indigo — pending IG/Tulala verifications (count of
+   `verificationRequests` with status submitted / in_review /
+   pending_user_action)
+3. Blue — pending profile-edit reviews (count of `listPendingReviews()`)
+
+The **indigo verifications pill was wrong on workspace.** Verification
+review is a platform-level function — Tulala staff act as a neutral
+arbiter so the badge means the same thing across every agency, and
+agency admins can't be allowed to self-issue trust signals on their
+own talent. The queue itself has always been a platform-only surface
+(`TrustVerificationQueueDrawer`, dispatched at
+`case "trust-verification-queue"`), but the count was leaking onto
+agency nav as a "you have work to do" signal that wasn't theirs.
+
+**The cleanup (3 small edits):**
+
+1. **Workspace topbar** (`WorkspaceTopbar` in
+   `_pages.tsx:520`) — dropped the indigo pill. Now only the slate
+   (self-registrations) and blue (profile-edit reviews) pills render.
+   Workspace admin still sees the two queues that ARE theirs.
+   `verificationRequests` is no longer destructured in this component.
+2. **Platform topbar** (`PlatformTopbar` in `_platform.tsx:112`) —
+   added the indigo pill on the **Operations** tab (which is where
+   the verification queue lives in the platform router at
+   `case "operations"` → `<PlatformOperationsPage />`). Tulala staff
+   now see their queue count from anywhere in HQ.
+3. **Roster row** (`RosterTrustCell` in `_pages.tsx:6707`) — added a
+   per-talent **"⏳ In review by Tulala"** informational chip that
+   appears next to the trust-badge group whenever
+   `verificationRequests.filter(r => r.subjectId === talentId &&
+   <open status>)` is non-empty. Indigo-soft fill, indigoDeep ink,
+   uppercase. Tooltip: *"N verifications in review by Tulala —
+   typically 1–2 business days."* The agency admin still sees the
+   in-flight status on **their** talent, framed as informational
+   ("here's what's happening") not actionable ("you have work").
+
+**Charter alignment:** this lines up with the Trust Badges + Talent
+Contact Controls direction (`project_client_trust_badges.md` in the
+master memory) — verification is a platform-corporate trust signal,
+not an agency feature. An agency selling clients on "we have N
+IG-verified talent" needs that to be a Tulala-issued claim, not a
+self-issued one.
+
+**Production wiring map (no schema change required):**
+
+- The `verification_requests` table already lives at the platform
+  level (no `tenant_id` foreign key — it's per-talent-claim, not
+  per-tenant). The reviewer endpoint
+  (`POST /api/platform/verification-requests/:id/approve`) checks
+  `getRequestUser().is_platform_staff`, NOT tenant membership.
+- Workspace admins who try to call the approve endpoint should get
+  a 403. RLS on `verification_requests` writes should already
+  restrict to platform-staff; verify before launch.
+- `TrustVerificationQueueDrawer` should be unreachable from the
+  workspace surface drawer dispatcher (it's currently only
+  registered for platform). No code change needed — just keep the
+  invariant.
+
+**Files touched in this cleanup:**
+
+- `web/src/app/prototypes/admin-shell/_pages.tsx` — drop indigo
+  pill + comment block explaining the rationale + add per-talent
+  "In review by Tulala" chip in `RosterTrustCell`
+- `web/src/app/prototypes/admin-shell/_platform.tsx` — add indigo
+  pill on Operations tab + `verificationRequests` consumed in
+  `PlatformTopbar`
+
+**Verification:**
+
+- `cd web && npx tsc --noEmit` → exit 0, 0 lines of output
+- Workspace surface: Roster nav now shows only slate + blue pills
+  (verifications no longer leak onto workspace)
+- Platform surface: Operations tab shows indigo pill with
+  pending-verifications count
+- Roster row in workspace: any talent with an open verification
+  request shows the **⏳ In review by Tulala** chip alongside their
+  trust badges
+
+---
+
+## 28. Polish + Top Performers switcher + docs consolidation — 2026-05-02 (uncommitted)
+
+A short follow-up after §27 closing four discrete items: a duplicate-control fix, the docs consolidation, a new audit doc, and the **Talent ↔ Pages switcher** for the Website Performance section. **Sitting in the working tree, not yet committed** as of this writing — engineers picking this up should commit alongside §26's working-tree changes (scroll-lock, PrimaryButton, etc.) since none of that is committed yet either.
+
+### 28.1 Duplicate "Search ⌘K" chip removed
+
+**Symptom:** the workspace topbar rendered TWO `Search ⌘K` controls side-by-side at narrow widths — one between the nav and the right-side action group (`aria-label="Search (⌘K)"`), one inside the right-side group (`aria-label="Search anything (⌘K)"`).
+
+**Root cause:** the right-side action group was unified at some point and added its own search chip, but the older standalone chip was never removed. Both wired to the same `onOpenSearch` callback (CommandPalette).
+
+**Fix (`_pages.tsx:693`):** deleted the older standalone chip block (~40 lines). The remaining chip is the canonical one — the same one `AdminTour` targets via `[aria-label='Search anything (⌘K)']` (so the first-time tour still works).
+
+### 28.2 Docs consolidation — single canonical folder
+
+**Before:** admin-prototype docs were scattered across THREE locations:
+- `web/docs/admin-redesign/` — 13 files (this dev-handoff lived here)
+- `web/src/app/prototypes/admin-shell/*.md` — 11 files (ROADMAP, DRAWERS, TRUST, STYLE etc.)
+- `web/src/app/prototypes/admin-shell/docs/` — 7 files (some duplicates of the above)
+
+**After:** all 26 docs consolidated into `web/docs/admin-prototype/`. The prototype source directory now contains code only.
+
+**Duplicate resolution:** STYLE / MOTION / A11Y / CONTENT / ICONS existed in both `prototypes/admin-shell/*.md` (April 28 versions) and `prototypes/admin-shell/docs/*.md` (May 02 versions). The May 02 versions won as canonical (newer); the April 28 root copies were removed.
+
+**Path-reference updates:**
+- `scripts/export-prototype-tokens.mjs` — output path moved from `prototypes/admin-shell/tokens.json` to `docs/admin-prototype/tokens.json`. Updated the script.
+- Code comments referencing `docs/admin-redesign/` or `admin-shell/docs/` paths in `_state.tsx`, `_primitives.tsx`, `page.tsx` — updated.
+- All internal cross-references in moved docs normalized to `./X.md` relative paths (regex pass).
+- Master document index in this file updated; all 25 links verified to resolve via filesystem check.
+
+### 28.3 New doc — `OVERVIEW_AUDIT_2026.md`
+
+Full 2026-readiness audit of the Workspace Overview page. **Spec only — not implemented.** Linked from this file's master index as Tier 3 entry #21.
+
+**What it covers:**
+- 5 architectural issues (section sprawl, cards duplicating sidebar nav, no real-time signal, no sparklines, layout bug)
+- 11 specific gaps (no since-you-were-here, no SLA breach surfacing, no quick-filter, etc.)
+- 9 polish nits (pluralization choppy, `oldestWaitDays` calc bug at line 2662, hardcoded margin drift)
+- Proposed 4-section redesign with full ASCII mockup
+- 7-phase effort estimate (~9.5 days total; first 3 days carry ~70% of the visible quality lift)
+- Acceptance-criteria checklist
+
+**One real bug surfaced (worth a separate fix):**
+- `OverviewPage` line 2662 reads `i.ageDays` for `oldestWaitDays`, but `RichInquiry` doesn't have `ageDays` — it has `lastActivityHrs`. Probably renders `NaN d` in the focus-card hint when `awaiting.length > 0`. Trivial one-line fix.
+
+### 28.4 **Top Performers — Pages ↔ Talent switcher** (Website Performance section)
+
+The headline addition. Extends §27.2's "Top performing pages" table on the Website page with a tabbed switcher so the same section can show **Pages** OR **Talent**, both ranked by website-side analytics.
+
+#### Why on the Website page (and not Overview)
+
+The Overview audit (§28.3) initially proposed a Top Performers section there. **Re-scoped:** the Website page already has the analytics infrastructure (`WebsitePerformance` + `byPage7d/30d` data shape) — extending that surface keeps related signal together. The Overview audit was updated to reflect this (now a 4-section proposal, not 5).
+
+#### State model — new `WebsiteTalentMetrics` type
+
+Added in `_state.tsx`:
+
+```ts
+export type WebsiteTalentMetrics = {
+  talentId: string;        // roster id (matches ROSTER_AGENCY entries)
+  talentName: string;      // denormalized for prototype simplicity
+  visits: number;          // visits to pages where the talent was featured
+  inquiries: number;       // inquiries that named this talent
+  bookings: number;        // bookings that resulted
+  revenue: number;         // booking revenue attributed (workspace currency)
+  topPageId?: string;      // page that drove the most visits for this talent
+};
+```
+
+`WebsiteAnalytics` extended with `byTalent7d: WebsiteTalentMetrics[]` and `byTalent30d: WebsiteTalentMetrics[]` (sibling to existing `byPage7d` / `byPage30d`).
+
+`WEBSITE_STATE.analytics` seeded with 5 talent for both windows: Marta Reyes, Tomás Navarro, Lina Park (the seeded minor — see §25), Amelia Dorsey, Kai Lin. Numbers tuned so Marta dominates revenue (€18,400 / 7d), Kai has visits but no bookings yet (realistic edge case).
+
+#### UI — segmented tab strip in the section header
+
+`WebsitePerformance` (`_pages.tsx:8219`) gains a `topView: "pages" | "talent"` state. The "Top performing pages" header row was replaced with a flex-justify-between layout:
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ TOP PERFORMERS                              [ Pages | Talent ] │
+└────────────────────────────────────────────────────────────────┘
+```
+
+Pill toggle, same pattern as the section's existing 7d/30d `PeriodToggle` for visual consistency. Active tab gets `COLORS.card` background + 1px shadow; inactive is transparent slate.
+
+#### Pages tab (default)
+
+Unchanged from §27.2 — same 5-column table (Page · Visits · Inquiries · Bookings · Conv. rate), conv-rate colored relative to site overall (green if beats site avg, indigo if has bookings but below avg, dim if zero).
+
+#### Talent tab
+
+New 6-column table:
+
+| Column | Source | Format |
+|---|---|---|
+| Talent | `t.talentName` + computed conv `t.bookings / t.visits` as a sub-line | bold name, dim sub |
+| Visits | `t.visits` | tabular numerals |
+| Inquiries | `t.inquiries` | tabular numerals |
+| Bookings | `t.bookings` | tabular numerals |
+| Revenue | `t.revenue` via `fmtMoney()` | tone-colored: green if conv beats site avg, indigo if revenue > 0, dim if zero |
+| Top page | `t.topPageTitle` (resolved from `t.topPageId` against `pages[]`) | muted, single-line truncate |
+
+Top 4 talent shown, ranked by **revenue** (not visits — for talent the commercial signal matters more than vanity views).
+
+#### Production wiring map
+
+| Field | Source query (production) |
+|---|---|
+| `byTalent7d[].visits` | `count(distinct visitor_id) from agency_event_log where event = 'page.view' and tenant_id = ? and ts > now() - interval '7d' and page_id in (select page_id from agency_pages_talent_appearances where talent_id = ?)`. **Last-touch attribution** — the talent gets credit if they appeared on the page during the visit. |
+| `byTalent7d[].inquiries` | `count(*) from inquiries i join inquiry_talents it on i.id = it.inquiry_id where it.talent_id = ? and i.created_at > now() - interval '7d'` |
+| `byTalent7d[].bookings` | Same but `bookings` table |
+| `byTalent7d[].revenue` | `sum(b.total_amount) from bookings b join booking_talents bt on b.id = bt.booking_id where bt.talent_id = ? and b.confirmed_at > now() - interval '7d'`. If multi-talent bookings need to split revenue, divide by `bt.split_share` (per-talent percentage of the booking total). |
+| `byTalent7d[].topPageId` | The page_id that ranked highest in the `byPage7d` rollup but ALSO appeared with this talent. Subquery against `agency_pages_talent_appearances`. |
+| `byTalent30d` | Same queries with 30d window |
+
+**Schema dependencies (NEW for production):**
+- `agency_pages_talent_appearances(page_id, talent_id, position, since)` — many-to-many, tracks which talent appears on which page (roster page = all roster talent; storefront feature = featured talent).
+- `inquiry_talents(inquiry_id, talent_id, role)` — already exists per the inquiry workspace data model. Production reads this to attribute inquiries.
+- `booking_talents(booking_id, talent_id, split_share)` — many-to-many, with `split_share` if revenue needs to be split across multi-talent bookings.
+
+#### Where the work is in source
+
+- **Type:** `_state.tsx` — `WebsiteTalentMetrics` (new) + `byTalent7d` / `byTalent30d` added to `WebsiteAnalytics`
+- **Seed:** `_state.tsx` `WEBSITE_STATE.analytics` — `byTalent7d` and `byTalent30d` arrays seeded
+- **UI:** `_pages.tsx` `WebsitePerformance()` — added `topView` state, `topTalent` computed value, replaced the Top performing pages block with a tab-switched compound block
+
+### 28.5 Files changed this session
+
+| File | Change |
+|---|---|
+| `_state.tsx` | `WebsiteTalentMetrics` type + `byTalent7d/30d` on `WebsiteAnalytics` + seed data |
+| `_pages.tsx` | `topView` state + `topTalent` computed + tab switcher header + new Talent table block (replaced single-table block) · removed duplicate `Search ⌘K` chip from `WorkspaceTopbar` |
+| `OVERVIEW_AUDIT_2026.md` | New audit doc (Tier 3, linked from master index) |
+| `dev-handoff.md` | Master index #21 added; this §28 section |
+| Various memory files | (No changes this session.) |
+
+### 28.6 Verification
+
+- `npx tsc --noEmit` → exit 0 (only the 3 pre-existing `_messages.tsx` errors remain — unchanged from §26)
+- DOM probe via preview tools confirms:
+  - Workspace topbar now has ONE search chip (`aria-label="Search anything (⌘K)"`)
+  - Website page renders the new "Top performers" header with Pages | Talent tab strip
+  - Pages tab is active on first paint (default)
+  - Clicking Talent switches active state; talent table renders with 5 rows
+  - First Talent row reads: "Marta Reyes / 0.48% conv / 624 / 7 / 3 / €18,400 / Roster" (matches seed)
+- All 25 links in this doc's master index resolve to real files (filesystem check).
+
+### 28.7 Working-tree state at handoff
+
+Nothing in §26, §27, or §28 has been committed yet. The cumulative working-tree state when the dev picks this up:
+
+- All §26 fixes (scroll-lock, PrimaryButton black-CTA, talent header, preview drawer rewrite, MobileInboxTab, Atelier Roma rename, polaroids copy fix, the 3 _messages.tsx TS error fixes)
+- All §27 work (Website page + Performance dashboard + I1/I2/I3/I7/I8 closeouts)
+- All §28 work above
+
+Suggested commit grouping when ready:
+1. `feat(prototype-shell): admin-shell modernization sprint` — §25 (already committed: `5e0ce66`)
+2. `fix(prototype): scroll-lock recovery + black-CTA leak + talent profile polish` — §26 (already committed: `11d8fa0`)
+3. `docs(prototype): consolidate admin-prototype docs into single folder` — §28.2 only (most invasive, but mechanical)
+4. `feat(website): consolidated business-funnel dashboard + Performance section` — §27.1 + §27.2
+5. `feat(website): Top performers Talent ↔ Pages switcher` — §28.4
+6. `fix(website): wire I1/I2/I3 closeouts (page-builder routes / add-redirect / domain drawer)` — §27.3 + §27.4 + §27.5
+7. `feat(field-engine): I7/I8 closeouts (catalogId threading + publish gate)` — §27.6 + §27.7
+8. `chore(prototype): topbar duplicate Search chip removed + Overview audit + handoff §28` — §28.1 + §28.3 + this section
+
+Or one giant `feat(prototype-shell): post-sprint polish + Website page + audit closeouts` if commit-grouping is overkill for the team's cadence.
+
 
 

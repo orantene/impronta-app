@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useId, type ReactNode } from "react";
+import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
 import {
@@ -13,6 +14,14 @@ import {
   PLAN_LADDER,
   PLAN_LADDER_HEADER,
   PLAN_META,
+  MY_TALENT_PROFILE,
+  TALENT_PROFILES_BY_ID,
+  getProfileById,
+  setProfileOverride,
+  talentIdOf,
+  addPendingReview,
+  clearPendingReview,
+  type MyTalentProfile,
   PLAN_FEE_META,
   planPrice,
   PAYOUT_STATUS_META,
@@ -107,6 +116,7 @@ import {
   type Personality,
   type PhotoTag,
   type PhotoMeta,
+  parseVideoUrl,
   type VideoSlot,
   type SeasonalWindow,
   type RecurringPattern,
@@ -120,13 +130,33 @@ import {
   TYPE_RATE_UNIT,
   LOCALE_LABEL,
   computeTrustTier,
+  WEBSITE_STATE,
 } from "./_state";
+import {
+  sectionAppliesToType,
+  isRequiredForType,
+  computeProfileCompleteness,
+  FIELD_CATALOG,
+  getDynamicFieldsForType,
+  applyWorkspaceFieldOverride,
+  useWorkspaceFieldOverrideSubscription,
+  PROTO_TENANT_ID,
+  setWorkspaceFieldOverride,
+  clearWorkspaceFieldOverride,
+  getWorkspaceFieldOverrides,
+  resolvedFieldsForMode,
+  validateField,
+  type DrawerSectionId,
+  type WorkspaceFieldOverride,
+  type FieldCatalogEntry,
+} from "./_field-catalog";
 import {
   ActivityFeedItem,
   Affordance,
   Avatar,
   Bullet,
   CapsLabel,
+  ChannelVisibilityStrip,
   ClientTrustChip,
   Divider,
   EmptyState,
@@ -165,6 +195,7 @@ import {
   DataExportDrawer,
   AuditLogDrawer,
   TenantSwitcherDrawer,
+  WorkspaceProfileDrawer,
   TalentShareCardDrawer,
   InquiryTemplatesPicker,
   DoubleBookingWarning,
@@ -380,6 +411,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <SeoDrawer />;
     case "field-catalog":
       return <FieldCatalogDrawer />;
+    case "workspace-field-settings":
+      return <WorkspaceFieldSettingsDrawer />;
     case "field-privacy":
       return <FieldPrivacyDrawer />;
     case "trust-verification-queue":
@@ -653,6 +686,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <AuditLogDrawer />;
     case "tenant-switcher":
       return <TenantSwitcherDrawer />;
+    case "workspace-profile":
+      return <WorkspaceProfileDrawer />;
     case "talent-share-card":
       return <TalentShareCardDrawer />;
     case "whats-new":
@@ -2023,11 +2058,56 @@ function TalentRegistrationDrawer() {
     setFields(f => ({ ...f, [key]: value }));
   };
 
-  // Aggregate dynamic fields for all selected parent categories.
-  const dynamicFields: { parent: TaxonomyParent; fields: RegField[] }[] =
+  // Phase A + A2 — wizard reads dynamic fields from the unified
+  // catalog AND respects workspace overrides via resolvedFieldsForMode.
+  // A field disabled by the workspace (`enabled=false`) drops out of
+  // the wizard automatically; a field flipped to required gates the
+  // step. Single source of truth: the catalog merged with workspace
+  // settings.
+  //
+  // Phase A5 — within each parent's field list, recommendedFor entries
+  // sort first so the most-impactful optionals show before generic
+  // ones. Required fields always come first regardless.
+  const dynamicFields: { parent: TaxonomyParent; fields: ReadonlyArray<RegField> }[] =
     [...parents].map(pid => {
       const parent = TAXONOMY.find(p => p.id === pid)!;
-      return { parent, fields: TAXONOMY_FIELDS[pid] ?? [] };
+      // Mode-aware resolved catalog filtered to this parent.
+      const resolved = resolvedFieldsForMode("registration", PROTO_TENANT_ID, pid)
+        .filter(f => f.appliesTo?.includes(pid));
+      // Sort: required → recommended → other. Required = catalog
+      // requiredFor includes this parent OR workspace override flips
+      // the field required.
+      const ranked = [...resolved].sort((a, b) => {
+        const aReq = (a.requiredFor?.includes(pid) ?? false) || a.optional === false;
+        const bReq = (b.requiredFor?.includes(pid) ?? false) || b.optional === false;
+        if (aReq !== bReq) return aReq ? -1 : 1;
+        const aRec = a.recommendedFor?.includes(pid) ?? false;
+        const bRec = b.recommendedFor?.includes(pid) ?? false;
+        if (aRec !== bRec) return aRec ? -1 : 1;
+        return (a.order ?? 100) - (b.order ?? 100);
+      });
+      // Project resolved catalog entries back to RegField shape
+      // (legacy renderer expects this). Use the entry's catalog-style
+      // id (`<parent>.<short>`) as the dynFields key — matches the
+      // wizard + drawer storage convention post-Phase A.
+      const fields: RegField[] = ranked
+        .filter(f => f.kind && f.id.includes(".")) // skip placeholder dyn.<parent>
+        .map(f => {
+          const shortId = f.id.split(".").slice(-1)[0]!;
+          return {
+            id: shortId,
+            label: f.label,
+            kind: f.kind!,
+            optional: f.optional !== false,
+            placeholder: f.placeholder,
+            helper: f.helper,
+            options: f.options ? [...f.options] : undefined,
+            sensitive: f.sensitive,
+            defaultVisibility: f.defaultVisibility,
+            subsection: f.subsection,
+          };
+        });
+      return { parent, fields };
     });
 
   // Validation
@@ -2036,11 +2116,24 @@ function TalentRegistrationDrawer() {
   const canStep2 = children.size > 0;
   const canStep3 = city.trim().length > 0;
   const canStep4 = photoCount >= 3;
+  // Phase A3 — single validation helper. Same `validateField` runs
+  // in the edit drawer + add-new drawer + here. Workspace overrides
+  // (Phase E) flow through automatically. The wizard's step error
+  // copy now matches what the edit drawer shows for the same violation.
   const canStep5 = dynamicFields.every(g =>
-    g.fields.filter(f => !f.optional).every(f => {
-      const v = fields[f.id];
-      if (!v) return false;
-      return Array.isArray(v) ? v.length > 0 : v.toString().trim().length > 0;
+    g.fields.every(f => {
+      const catalogId = `${g.parent.id}.${f.id}`;
+      const entry = FIELD_CATALOG.find(c => c.id === catalogId)
+        ?? FIELD_CATALOG.find(c => c.id === f.id);
+      if (!entry) {
+        // No catalog entry — fall back to the schema's optional flag.
+        if (f.optional) return true;
+        const v = fields[f.id];
+        if (!v) return false;
+        return Array.isArray(v) ? v.length > 0 : v.toString().trim().length > 0;
+      }
+      const r = validateField(entry, fields[f.id], g.parent.id);
+      return r.ok;
     })
   );
   const canStep6 = languages.length > 0;
@@ -2059,9 +2152,20 @@ function TalentRegistrationDrawer() {
   const cur = steps[step]!;
   const isLast = step === steps.length - 1;
 
+  // 2026 done-celebration screen — replaces the bare toast on submit.
+  // Shows briefly: a soft confetti animation + "Visible to N {tenant}
+  // clients" reveal + a 3-step "what's next" list. Auto-closes after
+  // 4 seconds OR on tap. Mocked agency/client count is randomized per
+  // mount so each demo feels organic.
+  const [celebrating, setCelebrating] = useState(false);
+  const [reachCount] = useState(() => Math.floor(Math.random() * 18) + 6);
   const finish = () => {
-    toast("Profile submitted for review");
-    closeDrawer();
+    setCelebrating(true);
+    // Auto-dismiss after 4s. Talent can also tap to dismiss earlier.
+    setTimeout(() => {
+      toast("Profile submitted for review");
+      closeDrawer();
+    }, 4000);
   };
 
   return (
@@ -2081,21 +2185,117 @@ function TalentRegistrationDrawer() {
         boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.25)",
         display: "flex", flexDirection: "column", overflow: "hidden",
       }}>
-        {/* Step pips */}
+        {/* 2026 step pips — smooth fill animation reveals the next
+            pip only when the talent advances, gives the flow a sense
+            of momentum even on the first screen.
+            Confetti keyframes + reveal — fired only on the celebration
+            screen. Pure CSS so no extra deps. */}
+        <style dangerouslySetInnerHTML={{ __html:
+          "@keyframes tulalaRegStep{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}"
+          + "@keyframes tulalaRegPipFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}"
+          + "@keyframes tulalaRegConfetti{0%{transform:translateY(-20vh) rotate(0deg);opacity:0}10%{opacity:1}100%{transform:translateY(120vh) rotate(720deg);opacity:0}}"
+          + "@keyframes tulalaRegBigNumber{0%{transform:scale(.6);opacity:0}50%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}"
+        }} />
+
+        {/* ── Celebration screen — replaces the wizard body when the
+            talent submits. Auto-closes after 4s. ── */}
+        {celebrating ? (
+          <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            {/* Confetti — 24 absolutely-positioned spans, randomly
+                placed + 4 colors. Tap anywhere to dismiss early. */}
+            <div onClick={() => { toast("Profile submitted for review"); closeDrawer(); }} style={{
+              position: "absolute", inset: 0, cursor: "pointer", zIndex: 0,
+            }}>
+              {Array.from({ length: 28 }).map((_, i) => {
+                const colors = [COLORS.accent, COLORS.indigo, "#D9A441", COLORS.coral];
+                return (
+                  <span key={i} aria-hidden style={{
+                    position: "absolute",
+                    left: `${(i * 37) % 100}%`,
+                    top: "-10vh",
+                    width: 8, height: 14,
+                    background: colors[i % 4],
+                    borderRadius: 2,
+                    animation: `tulalaRegConfetti ${2.4 + (i % 5) * 0.3}s linear ${(i % 8) * 0.15}s 1`,
+                  }} />
+                );
+              })}
+            </div>
+            <div style={{ position: "relative", zIndex: 1, textAlign: "center", padding: "0 18px" }}>
+              <div style={{
+                fontFamily: FONTS.display, fontSize: 56, fontWeight: 700,
+                color: COLORS.accentDeep ?? COLORS.accent,
+                letterSpacing: -1.5, lineHeight: 1,
+                animation: "tulalaRegBigNumber .55s cubic-bezier(.32,.72,0,1) both",
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                {reachCount}
+              </div>
+              <div style={{ fontSize: 14, color: COLORS.inkMuted, marginTop: 8, fontWeight: 500 }}>
+                clients on the {TENANT.name} hub will see your profile
+              </div>
+              <h2 style={{
+                margin: "20px 0 6px",
+                fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+                color: COLORS.ink, letterSpacing: -0.3,
+              }}>
+                You're in
+              </h2>
+              <ol style={{
+                listStyle: "none", padding: 0, margin: "16px 0 0",
+                display: "flex", flexDirection: "column", gap: 10,
+                textAlign: "left",
+              }}>
+                {[
+                  { n: 1, label: `${TENANT.name} reviews your profile`, sub: "Usually within 1 business day" },
+                  { n: 2, label: "We publish you to the hub", sub: "Visible to verified clients only" },
+                  { n: 3, label: "Your first inquiry lands", sub: "We'll email + push you when it does" },
+                ].map(item => (
+                  <li key={item.n} style={{
+                    display: "flex", gap: 10, alignItems: "flex-start",
+                    padding: "10px 12px",
+                    background: COLORS.surfaceAlt, borderRadius: 10,
+                  }}>
+                    <span aria-hidden style={{
+                      width: 22, height: 22, borderRadius: "50%",
+                      background: COLORS.accent, color: "#fff",
+                      fontSize: 11, fontWeight: 700,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}>{item.n}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, lineHeight: 1.3 }}>{item.label}</div>
+                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, lineHeight: 1.3 }}>{item.sub}</div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <div style={{ marginTop: 16, fontSize: 11, color: COLORS.inkDim }}>
+                Tap anywhere to close
+              </div>
+            </div>
+          </div>
+        ) : (<>
         <div style={{ display: "flex", gap: 4, marginBottom: 18, flexShrink: 0 }}>
           {steps.map((_, i) => (
             <span key={i} style={{
               flex: 1, height: 4, borderRadius: 2,
               background: i <= step ? COLORS.accent : "rgba(11,11,13,0.08)",
-              transition: "background .2s",
+              transition: "background .25s cubic-bezier(.4,0,.2,1)",
+              transformOrigin: "left",
+              animation: i === step ? "tulalaRegPipFill .35s cubic-bezier(.4,0,.2,1)" : "none",
             }} />
           ))}
         </div>
 
-        <h2 style={{
-          margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
-          color: COLORS.ink, letterSpacing: -0.3, lineHeight: 1.15, flexShrink: 0,
-        }}>{cur.title}</h2>
+        <h2
+          key={`title-${step}`}
+          style={{
+            margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+            color: COLORS.ink, letterSpacing: -0.3, lineHeight: 1.15, flexShrink: 0,
+            animation: "tulalaRegStep .26s cubic-bezier(.32,.72,0,1)",
+          }}
+        >{cur.title}</h2>
         <p style={{ margin: "6px 0 16px", fontSize: 13.5, color: COLORS.inkMuted, lineHeight: 1.5, flexShrink: 0 }}>
           {cur.sub}
         </p>
@@ -2258,6 +2458,42 @@ function TalentRegistrationDrawer() {
 
           {step === 5 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {/* Audit fix #7 — Skip vs Required summary at the top of
+                  the dynamic-fields step. Counts what's required vs
+                  what's optional so the talent can scan-and-decide:
+                  "I have to fill 3 things; the other 5 are optional."
+                  Drives the Skip-step nav button below. */}
+              {(() => {
+                const allFields = dynamicFields.flatMap(g => g.fields);
+                const required = allFields.filter(f => !f.optional).length;
+                const optional = allFields.filter(f => f.optional).length;
+                if (allFields.length === 0) return null;
+                return (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 12px", borderRadius: 10,
+                    background: COLORS.surfaceAlt,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    fontSize: 11.5, color: COLORS.inkMuted,
+                  }}>
+                    <span style={{
+                      padding: "2px 7px", borderRadius: 999,
+                      background: COLORS.accent, color: "#fff",
+                      fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3,
+                    }}>{required} required</span>
+                    {optional > 0 && (
+                      <span style={{
+                        padding: "2px 7px", borderRadius: 999,
+                        background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+                        fontSize: 10.5, fontWeight: 600,
+                      }}>{optional} optional</span>
+                    )}
+                    <span style={{ marginLeft: "auto", fontSize: 10.5 }}>
+                      You can fill optional fields later from your dashboard.
+                    </span>
+                  </div>
+                );
+              })()}
               {dynamicFields.map(g => (
                 <div key={g.parent.id}>
                   <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 8 }}>
@@ -2268,6 +2504,7 @@ function TalentRegistrationDrawer() {
                       <RegFieldInput key={f.id} field={f}
                         value={fields[f.id] ?? (f.kind === "multiselect" || f.kind === "chips" ? [] : "")}
                         onChange={(v) => setField(f.id, v)}
+                        primaryType={g.parent.id}
                       />
                     ))}
                   </div>
@@ -2383,6 +2620,7 @@ function TalentRegistrationDrawer() {
             )}
           </div>
         </div>
+        </>)}
       </div>
     </div>
   );
@@ -2469,17 +2707,88 @@ function CustomWorkspaceFieldInput({ field, value, onChange }: {
   );
 }
 
-function RegFieldInput({ field, value, onChange }: {
+/** Required/Optional pill — consults the field catalog when a
+ *  primaryType is provided (so "bust" can be REQUIRED for models +
+ *  inapplicable for chefs); otherwise falls back to the field's
+ *  static `optional` flag. */
+function RequiredPill({ field, primaryType }: { field: RegField; primaryType?: string | ReadonlyArray<string> | null }) {
+  // Phase E — workspace override may flip required-ness. Subscribe so
+  // the pill re-renders when an admin changes settings.
+  useWorkspaceFieldOverrideSubscription();
+  // Catalog wins for type-specific applicability; workspace override
+  // wins on top for required-ness. Accepts either a single type id or
+  // the multi-role array — required-ness is union'd across all roles.
+  const types = primaryType
+    ? (Array.isArray(primaryType) ? primaryType : [primaryType]) as ReadonlyArray<TaxonomyParentId>
+    : null;
+  // Resolve the catalog entry's id (matches the dynamic-field renderer's
+  // legacyShortId pattern: a TAXONOMY_FIELDS entry "height" comes through
+  // the catalog with id `<parent>.height`. We try the multi-role union
+  // first, then fall back to the bare key.
+  const catalogId = types && types.length > 0
+    ? `${types[0]}.${field.id}`  // best guess for type-specific fields
+    : field.id;
+  const catalogEntry = FIELD_CATALOG.find(c => c.id === catalogId)
+    ?? FIELD_CATALOG.find(c => c.id === field.id);
+  // Workspace override (e.g. "make this required for our agency").
+  const resolved = catalogEntry
+    ? applyWorkspaceFieldOverride(catalogEntry, PROTO_TENANT_ID)
+    : null;
+  const wsRequired = resolved?.hasOverride && resolved.optional === false;
+  const wsOptional = resolved?.hasOverride && resolved.optional === true;
+  const catalogRequired = types && types.length > 0
+    ? isRequiredForType(field.id, types)
+    : null;
+  const isOptional = wsRequired ? false
+    : wsOptional ? true
+    : catalogRequired !== null ? !catalogRequired
+    : !!field.optional;
+  return isOptional ? (
+    <span style={{
+      padding: "1px 6px", borderRadius: 999,
+      background: "rgba(11,11,13,0.04)",
+      color: COLORS.inkDim,
+      fontSize: 9.5, fontWeight: 600, letterSpacing: 0.3,
+    }}>OPTIONAL</span>
+  ) : (
+    <span style={{
+      padding: "1px 6px", borderRadius: 999,
+      background: "rgba(15,79,62,0.08)",
+      color: COLORS.accentDeep ?? COLORS.accent,
+      fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
+    }}>REQUIRED</span>
+  );
+}
+
+function RegFieldInput({ field, value, onChange, visibility, onVisibilityChange, primaryType }: {
   field: RegField;
   value: string | string[];
   onChange: (v: string | string[]) => void;
+  /** Optional per-field visibility array. When passed, the dynamic
+   *  field renderer appends a channel-visibility chip strip below
+   *  the input — same pattern as FieldRow's visibility prop. */
+  visibility?: ReadonlyArray<"public" | "agency" | "private">;
+  onVisibilityChange?: (next: ReadonlyArray<"public" | "agency" | "private">) => void;
+  /** When provided, REQUIRED/OPTIONAL pill derives from the catalog
+   *  (`isRequiredForType(field.id, primaryType)`) instead of the
+   *  field's static `optional` flag. Accepts either a single type
+   *  or the full multi-role array (primary + secondaries). */
+  primaryType?: string | ReadonlyArray<string> | null;
 }) {
+  // Resolved chip strip — renders below every input when the field is
+  // marked sensitive. Falls back to defaultVisibility, then ["agency"].
+  const showStrip = field.sensitive === true;
+  const resolvedVis = visibility ?? field.defaultVisibility ?? ["agency" as const];
+  const stripBelow = showStrip ? (
+    <ChannelVisibilityStrip value={resolvedVis} onChange={onVisibilityChange} />
+  ) : null;
+
   if (field.kind === "text" || field.kind === "number") {
     return (
       <div>
         <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
           {field.label}
-          {field.optional && <span style={{ fontSize: 10, fontWeight: 500, color: COLORS.inkDim }}>· optional</span>}
+          <RequiredPill field={field} primaryType={primaryType} />
         </label>
         <input type={field.kind === "number" ? "number" : "text"}
           value={typeof value === "string" ? value : ""}
@@ -2494,6 +2803,7 @@ function RegFieldInput({ field, value, onChange }: {
         {field.helper && (
           <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 4 }}>{field.helper}</div>
         )}
+        {stripBelow}
       </div>
     );
   }
@@ -2503,7 +2813,7 @@ function RegFieldInput({ field, value, onChange }: {
       <div>
         <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
           {field.label}
-          {field.optional && <span style={{ fontSize: 10, fontWeight: 500, color: COLORS.inkDim }}>· optional</span>}
+          <RequiredPill field={field} primaryType={primaryType} />
         </label>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {(field.options ?? []).map(opt => {
@@ -2519,6 +2829,7 @@ function RegFieldInput({ field, value, onChange }: {
             );
           })}
         </div>
+        {stripBelow}
       </div>
     );
   }
@@ -2532,7 +2843,7 @@ function RegFieldInput({ field, value, onChange }: {
       <div>
         <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
           {field.label}
-          {field.optional && <span style={{ fontSize: 10, fontWeight: 500, color: COLORS.inkDim }}>· optional</span>}
+          <RequiredPill field={field} primaryType={primaryType} />
         </label>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {(field.options ?? []).map(opt => {
@@ -2548,18 +2859,22 @@ function RegFieldInput({ field, value, onChange }: {
             );
           })}
         </div>
+        {stripBelow}
       </div>
     );
   }
   // chips — free-text repeating
   const arr = Array.isArray(value) ? value : [];
   return (
-    <ChipsInput
-      label={field.label + (field.optional ? "  ·  optional" : "")}
-      placeholder={field.placeholder ?? "Add…"}
-      values={arr}
-      onChange={(v) => onChange(v)}
-    />
+    <div>
+      <ChipsInput
+        label={field.label + (field.optional ? "  ·  optional" : "")}
+        placeholder={field.placeholder ?? "Add…"}
+        values={arr}
+        onChange={(v) => onChange(v)}
+      />
+      {stripBelow}
+    </div>
   );
 }
 
@@ -2747,6 +3062,17 @@ function ChipsInput({ label, placeholder, values, onChange }: {
 type ProfileShellPayload = {
   /** Mode controls header copy + which sections are gated. */
   mode?: "create" | "edit-admin" | "edit-self";
+  /** Phase B — canonical talent id. When set, the drawer loads the
+   *  talent's full profile from `TALENT_PROFILES_BY_ID[talentId]` and
+   *  writes back through the override store keyed by the same id.
+   *  Replaces the old "match by stage name" behavior so any talent
+   *  (not just Marta) can be edited with the same shell. */
+  talentId?: string;
+  /** Section to land on. When set, the shell skips its default
+   *  (identity for edit, services for create) and opens directly on
+   *  this section. Used by the talent's MyProfilePage to deep-link
+   *  from each dashboard card straight into the right section. */
+  section?: string;
   /** Pre-filled fields handed off from NewTalentDrawer or approval queue. */
   seed?: {
     stageName?: string;
@@ -2763,6 +3089,18 @@ type ProfileShellPayload = {
     photoCount?: number;
     fields?: Record<string, string | string[]>;
     languages?: ProfileLanguage[];
+    // New canonical fields — populated when the shell opens an existing
+    // talent (e.g. workspace admin clicking a roster row). These let
+    // the bridge from MY_TALENT_PROFILE.travel.{passports,workAuth}
+    // hydrate cleanly into ProfileState.
+    nationality?: string;
+    homeCountry?: string;
+    responseTime?: "1h" | "4h" | "24h" | "48h";
+    passport?: "valid" | "expired" | "none";
+    driversLicense?: "none" | "standard" | "commercial" | "international";
+    ownsVehicle?: boolean;
+    workEligibility?: string[];
+    visaCountries?: string[];
   };
 };
 
@@ -2835,7 +3173,7 @@ const LANGUAGE_PRESETS: { id: string; label: string; langs: string[] }[] = [
 // Identity is the first section ever — name, pronouns, gender, DOB.
 const PROFILE_SECTIONS = [
   "identity", "services", "location", "media", "albums", "polaroids",
-  "about", "details", "rates", "availability", "languages",
+  "about", "physical", "wardrobe", "details", "rates", "availability", "languages",
   "refinement", "credits", "limits", "files",
   "social_proof", "verifications", "admin",
 ] as const;
@@ -2849,6 +3187,8 @@ const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string; emoji
   albums:        { label: "Albums",        emoji: "🗂" },
   polaroids:     { label: "Polaroids",     emoji: "🪪" },
   about:         { label: "About",         emoji: "✏️" },
+  physical:      { label: "Physical",      emoji: "📐" },
+  wardrobe:      { label: "Wardrobe",      emoji: "👗" },
   details:       { label: "Details",       emoji: "📋" },
   rates:         { label: "Rates",         emoji: "💶" },
   availability:  { label: "Availability",  emoji: "📅" },
@@ -2924,6 +3264,10 @@ type ProfileState = {
 
   // Type-specific dynamic fields
   dynFields: Record<string, string | string[]>;
+  /** Per-dyn-field visibility overrides keyed by field id. Engine
+   *  reads this per channel; falls back to RegField.defaultVisibility
+   *  when not set. */
+  dynFieldVisibility: Record<string, ReadonlyArray<"public" | "agency" | "private">>;
 
   // Rates (per-unit + packages + travel/lodging toggles)
   rates: ProfileRate[];
@@ -2956,8 +3300,20 @@ type ProfileState = {
   profileStatus: "draft" | "pending" | "published" | "hidden";
   featureInDirectory: boolean;
   internalNotes: string;
+  /** Emergency contact — masked on public, visible during active
+   *  bookings only. Stored on the profile because it's tied to the
+   *  talent's identity, not workspace settings. */
+  emergencyContact: { name: string; relation: string; phone: string };
+  /** Rate card visibility — public / agency-only / on-request.
+   *  Drives whether clients see numbers on the public profile or
+   *  have to inquire through the agency. */
+  rateCardVisibility: "public" | "agency-only" | "on-request";
   /** Field paths the agency has locked from talent self-edit. */
   fieldLocks: FieldLockPath[];
+  /** Step 7 — per-lock reason text. Sparse map keyed by path; an
+   *  entry without a reason renders an editable "(no reason)" prompt
+   *  in the locks-overview panel and shows nothing in-context. */
+  fieldLockReasons: Record<string, string>;
 };
 
 type ProfileAction =
@@ -2993,6 +3349,14 @@ function profileReducer(state: ProfileState, action: ProfileAction): ProfileStat
 
 function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean): ProfileState {
   const seed = payload.seed ?? {};
+  // Phase B — resolve canonical profile by talentId. When the drawer
+  // is opened from a roster row click, payload.talentId is set; we
+  // look up the full profile in TALENT_PROFILES_BY_ID. Falls back to
+  // MY_TALENT_PROFILE for legacy callers that don't pass talentId
+  // (registration wizard, brand-new "create" flow).
+  const canonicalProfile: MyTalentProfile = payload.talentId
+    ? getProfileById(payload.talentId)
+    : MY_TALENT_PROFILE;
   // #4 — Hydrate from the shared draft store. QuickAdd writes here on
   // every input; the Shell reads on mount. So first/last/email/phone/
   // photo flow through cleanly without prop-drilling each field through
@@ -3004,11 +3368,29 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     if (draft.photoUrl) {
       return [{ url: draft.photoUrl, tag: "headshot" as const }];
     }
-    return Array.from({ length: seed.photoCount ?? 0 })
+    const photos = Array.from({ length: seed.photoCount ?? 0 })
       .map((_, i) => ({
         url: `https://i.pravatar.cc/300?img=${(i * 11 + 5) % 70}`,
         tag: i === 0 ? ("headshot" as const) : i === 1 ? ("full_body" as const) : ("portfolio" as const),
-      }));
+      })) as PhotoMeta[];
+    // Hydrate portfolio videos from the canonical profile (any talent,
+    // not just Marta). Drawer opens with motion work already present
+    // when the talent has any. Replaces the old name-matching path.
+    const hasCanonical = !!payload.talentId;
+    if (hasCanonical && canonicalProfile.portfolioVideos) {
+      for (const v of canonicalProfile.portfolioVideos) {
+        const parsed = parseVideoUrl(v.url);
+        if (!parsed) continue;
+        photos.push({
+          url: parsed.thumbUrl ?? "",
+          videoUrl: v.url,
+          videoProvider: parsed.provider,
+          videoDurationSec: v.durationSec,
+          caption: v.caption,
+        });
+      }
+    }
+    return photos;
   })();
   const verifications: Verifications = {
     idSubmitted: true,
@@ -3018,10 +3400,41 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     emailVerified: !!draft.email,
     phoneVerified: false,
   };
-  // Display name resolution: explicit seed > draft display > draft First+Last > fallback
+  // Display name resolution: explicit seed > draft display > draft First+Last
+  // > canonical profile name (Phase B) > fallback. Canonical profile is
+  // queried by talentId so any roster talent's name flows through cleanly.
   const draftDisplay = draft.displayName?.trim()
     || `${draft.firstName?.trim() ?? ""} ${draft.lastName?.trim() ?? ""}`.trim();
-  const stageName = seed.stageName ?? (draftDisplay || "Sofia Lupo");
+  const stageName = seed.stageName
+    ?? (draftDisplay || (payload.talentId ? canonicalProfile.name : "Sofia Lupo"));
+  // Bridge MY_TALENT_PROFILE → ProfileState for the canonical demo
+  // talent (Marta). When the workspace admin opens "her" or the talent
+  // Phase B — bridge canonical profile → ProfileState. Works for any
+  // talent whose record exists in TALENT_PROFILES_BY_ID, not just
+  // Marta. Identity by `payload.talentId` (no name matching). Falls
+  // back to empty defaults for fresh `create` mode.
+  const hasCanonical = !!payload.talentId && payload.mode !== "create";
+  const travelSeedPassports = canonicalProfile.travel?.passports ?? [];
+  const travelSeedAuth = canonicalProfile.travel?.workAuth ?? [];
+  const bridgeFromMyTalent = hasCanonical ? {
+    nationality:    seed.nationality    ?? (travelSeedPassports[0] ?? ""),
+    homeCountry:    seed.homeCountry    ?? (travelSeedPassports[0] ?? ""),
+    responseTime:   seed.responseTime   ?? "4h" as const,
+    passport:       seed.passport       ?? (travelSeedPassports.length ? "valid" as const : undefined),
+    driversLicense: seed.driversLicense ?? "standard" as const,
+    ownsVehicle:    seed.ownsVehicle    ?? false,
+    workEligibility: seed.workEligibility ?? travelSeedAuth.map(w => w.split(" ")[0]),
+    visaCountries:  seed.visaCountries  ?? [],
+  } : {
+    nationality:    seed.nationality    ?? "",
+    homeCountry:    seed.homeCountry    ?? "",
+    responseTime:   seed.responseTime,
+    passport:       seed.passport,
+    driversLicense: seed.driversLicense,
+    ownsVehicle:    seed.ownsVehicle    ?? false,
+    workEligibility: seed.workEligibility ?? [],
+    visaCountries:  seed.visaCountries  ?? [],
+  };
   return {
     identity: {
       stageName,
@@ -3031,6 +3444,18 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
       gender: null,
       dob: null,
       ageDisplay: "range",
+      // New canonical fields — defaults are sensible, real seed data
+      // hydrates via the bridge above when the shell opens an
+      // existing talent.
+      nationality: bridgeFromMyTalent.nationality,
+      homeCountry: bridgeFromMyTalent.homeCountry,
+      responseTime: bridgeFromMyTalent.responseTime,
+      visibility: {
+        legalName: ["private"],
+        pronouns: ["public", "agency"],
+        gender: ["agency"],
+        dob: ["private"],
+      },
     },
     stageName,
     tagline: "",
@@ -3038,16 +3463,27 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     bioActiveLocale: "en",
     bioTone: "professional",
     personality: { loves: [], avoids: [] },
-    primaryType: seed.primaryType ?? draft.primaryType ?? null,
-    secondaryTypes: seed.secondaryTypes ?? [],
+    // Phase B/C — primary + secondary type from canonical profile
+    // when available. The drawer's dynamic-fields renderer iterates
+    // [primaryType, ...secondaryTypes] so multi-role profiles see
+    // every relevant section.
+    primaryType: seed.primaryType ?? draft.primaryType ?? (hasCanonical ? canonicalProfile.primaryType : null),
+    secondaryTypes: seed.secondaryTypes ?? (hasCanonical ? [...canonicalProfile.secondaryTypes] : []),
     aspirations: [],
-    specialties: seed.specialties ?? [],
+    specialties: seed.specialties ?? (hasCanonical ? [...canonicalProfile.specialties] : []),
     serviceArea: {
       homeBase: seed.homeBase ?? draft.homeBase ?? "",
       serviceCities: seed.serviceCities ?? [],
       travelKm: seed.travelKm ?? 50,
       travelFee: false,
       remoteOnly: false,
+      // New travel & work-eligibility fields. Empty on fresh creates;
+      // seeded talents get populated via the bridge above.
+      passport: bridgeFromMyTalent.passport,
+      driversLicense: bridgeFromMyTalent.driversLicense,
+      ownsVehicle: bridgeFromMyTalent.ownsVehicle,
+      workEligibility: bridgeFromMyTalent.workEligibility,
+      visaCountries: bridgeFromMyTalent.visaCountries,
     },
     seasonalWindows: [],
     coverPhotoUrl: null,
@@ -3066,7 +3502,39 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     files: [],
     limits: [],
     credits: [],
-    dynFields: seed.fields ?? {},
+    // Phase B — hydrate dynFields from the canonical profile's
+    // structured fields (measurements + wardrobe) so opening any
+    // talent's drawer shows their actual data, not blanks. Maps
+    // MyTalentProfile.measurements.* → dynFields keys that match
+    // the TAXONOMY_FIELDS["models"] field ids.
+    dynFields: seed.fields ?? (hasCanonical ? {
+      height: canonicalProfile.measurements.heightImperial,
+      weight: canonicalProfile.measurements.weight ?? "",
+      bust: canonicalProfile.measurements.bust,
+      waist: canonicalProfile.measurements.waist,
+      hips: canonicalProfile.measurements.hips,
+      inseam: canonicalProfile.measurements.inseam ?? "",
+      shoe: canonicalProfile.measurements.shoeEU,
+      shoe_us: canonicalProfile.measurements.shoeUS,
+      shoe_uk: canonicalProfile.measurements.shoeUK,
+      dress_size: canonicalProfile.measurements.dress,
+      suit_size: canonicalProfile.measurements.suit ?? "",
+      hair: canonicalProfile.measurements.hairColor,
+      hair_length: canonicalProfile.measurements.hairLength === "long" ? "Long"
+        : canonicalProfile.measurements.hairLength === "short" ? "Short"
+        : canonicalProfile.measurements.hairLength === "medium" ? "Medium"
+        : "",
+      eyes: canonicalProfile.measurements.eyeColor,
+      skin_tone: canonicalProfile.measurements.skinTone,
+      tattoos: canonicalProfile.measurements.hasTattoos
+        ? (canonicalProfile.measurements.tattoosNote?.includes("cover") ? "Small (coverable)" : "Medium (visible)")
+        : "None",
+      tattoos_note: canonicalProfile.measurements.tattoosNote ?? "",
+      piercings: canonicalProfile.measurements.hasPiercings
+        ? (canonicalProfile.measurements.piercingsNote?.includes("Lobes") ? "Ears only" : "Face / body")
+        : "None",
+    } as Record<string, string | string[]> : {}),
+    dynFieldVisibility: {},
     rates: [],
     rateTiers: [],
     packageRates: [],
@@ -3076,7 +3544,14 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     availability: [],
     recurring: { kind: "none" },
     vacation: null,
-    languages: seed.languages ?? [],
+    // Languages: ProfileLanguage uses "conversational" while TalentLanguage
+    // uses "intermediate". Map between them on hydrate.
+    languages: seed.languages ?? (hasCanonical
+      ? canonicalProfile.languages.map(l => ({
+          language: l.language,
+          level: (l.level === "intermediate" ? "conversational" : l.level) as ProfileLanguage["level"],
+        }))
+      : []),
     skillEntries: [],
     contexts: [],
     pastClients: [],
@@ -3084,7 +3559,16 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     profileStatus: isSelf ? "published" : "draft",
     featureInDirectory: false,
     internalNotes: "",
+    // Bridge from canonical profile's emergencyContact when known.
+    // Empty defaults for new profiles. No more name-matching.
+    emergencyContact: hasCanonical
+      ? { ...canonicalProfile.emergencyContact }
+      : { name: "", relation: "", phone: "" },
+    rateCardVisibility: hasCanonical
+      ? canonicalProfile.rateCard.visibility
+      : "agency-only",
     fieldLocks: [],
+    fieldLockReasons: {},
   };
 }
 
@@ -3175,6 +3659,14 @@ function TalentProfileShellDrawer() {
   // on the Availability accordion, scrolled into view + expanded.
   // Falls back to "identity" for fresh edits, "services" for create mode.
   const [activeSection, setActiveSection] = useState<ProfileSectionId>(() => {
+    // Resolution order: payload.section (drawer caller) → URL ?section=X
+    // (deep-link / refresh) → mode default. The payload path is what the
+    // talent's MyProfilePage uses to deep-link into the right card —
+    // every dashboard tile passes section: "services" / "rates" / etc.
+    const fromPayload = payload.section;
+    if (fromPayload && (PROFILE_SECTIONS as readonly string[]).includes(fromPayload)) {
+      return fromPayload as ProfileSectionId;
+    }
     if (typeof window === "undefined") return "identity";
     const url = new URL(window.location.href);
     const fromUrl = url.searchParams.get("section");
@@ -3231,10 +3723,16 @@ function TalentProfileShellDrawer() {
     .map(id => findChild(id))
     .filter((x): x is { parent: TaxonomyParent; child: TaxonomyChild } => x !== null);
   const dynParentIds = Array.from(new Set(allSelectedChildren.map(x => x.parent.id)));
+  // Phase A unification — read dynamic per-type fields from the
+  // catalog via getDynamicFieldsForType(). One source of truth: the
+  // catalog. The legacy TAXONOMY_FIELDS shape is preserved so the
+  // existing renderer keeps working.
   const dynamicGroups = dynParentIds
     .map(pid => {
       const parent = TAXONOMY.find(p => p.id === pid)!;
-      return { parent, fields: TAXONOMY_FIELDS[pid] ?? [] };
+      const groups = getDynamicFieldsForType(pid);
+      const fields = groups[0]?.fields ?? [];
+      return { parent, fields };
     })
     .filter(g => g.fields.length > 0);
 
@@ -3284,6 +3782,26 @@ function TalentProfileShellDrawer() {
   // Required fields
   const totalPhotos = state.albumsPro.reduce((n, a) => n + a.items.length, 0);
   const activeBio = state.bios.find(b => b.locale === state.bioActiveLocale);
+  // I8 — catalog-driven required fields are merged into the publish gate.
+  // The universal 6 below are name / type / location / photos / bio /
+  // language. The catalog adds type-specific fields on top — for now
+  // only "models" has type-specific requireds (height / bust / waist /
+  // hips). The dyn-field storage uses short keys (height, bust, …)
+  // while the catalog uses dotted ids (measurements.heightMetric, …);
+  // we map the two here. Production: unify storage keys to catalog
+  // ids and call validateProfile() directly.
+  const isModel = state.primaryType === "models" || state.secondaryTypes.includes("models");
+  const dynStr = (k: string) => {
+    const v = state.dynFields[k];
+    return Array.isArray(v) ? v.length > 0 : !!String(v ?? "").trim();
+  };
+  const catalogRequired = isModel ? [
+    { id: "measurements.heightMetric", label: "height",     met: dynStr("height") || dynStr("heightMetric"), sectionId: "physical" as ProfileSectionId },
+    { id: "measurements.bust",         label: "bust",       met: dynStr("bust"),                            sectionId: "physical" as ProfileSectionId },
+    { id: "measurements.waist",        label: "waist",      met: dynStr("waist"),                           sectionId: "physical" as ProfileSectionId },
+    { id: "measurements.hips",         label: "hips",       met: dynStr("hips"),                            sectionId: "physical" as ProfileSectionId },
+    { id: "measurements.hairColor",    label: "hair color", met: dynStr("hair") || dynStr("hairColor"),     sectionId: "physical" as ProfileSectionId },
+  ] : [];
   const required = [
     { id: "stageName",   label: "stage name",   met: !!state.stageName.trim(),       sectionId: "services" as ProfileSectionId },
     { id: "primaryType", label: "Talent Type",  met: !!state.primaryType,            sectionId: "services" as ProfileSectionId },
@@ -3296,6 +3814,7 @@ function TalentProfileShellDrawer() {
     },
     { id: "bio",         label: "a bio",        met: (activeBio?.text.trim().length ?? 0) >= 30, sectionId: "about" as ProfileSectionId },
     { id: "language",    label: "1 language",   met: state.languages.length > 0,     sectionId: "languages" as ProfileSectionId },
+    ...catalogRequired,
   ];
   const missing = required.filter(r => !r.met);
   const completeness = Math.round((required.filter(r => r.met).length / required.length) * 100);
@@ -3309,6 +3828,17 @@ function TalentProfileShellDrawer() {
     albums:        state.albumsPro.length > 1 || totalPhotos > 0,
     polaroids:     polaroidsFilledCount >= 4,
     about:         (activeBio?.text.trim().length ?? 0) >= 30,
+    // Physical / wardrobe completion = at least one field per group
+    // is filled. Both gates are weak — fully populating the grids is
+    // the talent's polish step, not a publish blocker.
+    physical:      Object.entries(state.dynFields).some(([k, v]) =>
+      ["height","bust","waist","hips","hair","eyes","skin_tone","tattoos","piercings","weight","inseam","body_type","tattoos_note","marks","hair_length"].includes(k)
+      && (Array.isArray(v) ? v.length > 0 : !!String(v ?? "").trim())
+    ),
+    wardrobe:      Object.entries(state.dynFields).some(([k, v]) =>
+      ["shoe","shoe_us","shoe_uk","dress_size","suit_size"].includes(k)
+      && (Array.isArray(v) ? v.length > 0 : !!String(v ?? "").trim())
+    ),
     details:       Object.keys(state.dynFields).length > 0,
     rates:         state.rates.some(r => r.amount > 0),
     availability:  state.availability.length > 0,
@@ -3321,6 +3851,32 @@ function TalentProfileShellDrawer() {
     social_proof:  state.pastClients.length > 0,
     verifications: state.verifications.idSubmitted && state.verifications.payoutConnected,
     admin:         true,
+  };
+
+  // Tri-state companion: a section is "started" when it has SOME data but
+  // hasn't crossed the completeness threshold yet. Sections without a
+  // started concept (e.g. admin) just stay false.
+  const sectionStarted: Record<Exclude<ProfileSectionId, "">, boolean> = {
+    services:      !sectionComplete.services && (state.specialties.length > 0 || state.secondaryTypes.length > 0),
+    location:      !sectionComplete.location && (state.serviceArea.serviceCities.length > 0 || state.serviceArea.travelKm > 0),
+    media:         !sectionComplete.media && totalPhotos > 0,
+    albums:        !sectionComplete.albums && state.albumsPro.length > 0,
+    polaroids:     !sectionComplete.polaroids && polaroidsFilledCount > 0,
+    about:         !sectionComplete.about && ((activeBio?.text.trim().length ?? 0) > 0),
+    physical:      false,
+    wardrobe:      false,
+    details:       false,
+    rates:         !sectionComplete.rates && (state.askForQuote || state.packageRates.length > 0),
+    availability:  false,
+    languages:     false,
+    identity:      !sectionComplete.identity && (!!state.identity.legalName || !!state.identity.dob || !!state.identity.nationality),
+    refinement:    false,
+    credits:       false,
+    limits:        false,
+    files:         false,
+    social_proof:  false,
+    verifications: !sectionComplete.verifications && (state.verifications.idSubmitted || state.verifications.payoutConnected),
+    admin:         false,
   };
 
   // Specialty options
@@ -3342,9 +3898,126 @@ function TalentProfileShellDrawer() {
     return computeProfileDiff(initialState.current ?? null, state);
   };
   const finalSubmit = () => {
-    toast(isSelf
-      ? "Profile changes submitted for review"
-      : state.profileStatus === "published" ? "Profile updated" : "Profile published");
+    // Translate the relevant ProfileState slices into MyTalentProfile
+    // shape and write to the override store. Closes the data-debt
+    // where dashboard tiles read seed data while the shell wrote to
+    // its internal ProfileState — edits never round-tripped.
+    //
+    // Map only the fields that have a clean MyTalentProfile equivalent
+    // — keep the merge surgical so we don't accidentally clobber
+    // shapes that don't match (rateCard, bookingStats, etc.).
+    // Phase B — round-trip is keyed by canonical talent id from the
+    // payload. No more "is this Marta?" name match. When `talentId`
+    // is absent (registration / brand-new create flow), there's no
+    // canonical record to write back to yet, so we skip the round-
+    // trip and rely on the create flow to register the talent.
+    const tid = payload.talentId;
+    if (tid) {
+      // Read canonical profile for this talent to preserve nested
+      // shapes the drawer doesn't edit (rateCard.lines, bookingStats,
+      // verifications, etc.).
+      const canonical = getProfileById(tid);
+      const passports: MyTalentProfile["travel"]["passports"] =
+        state.serviceArea.passport === "valid" && state.identity.nationality
+          ? [state.identity.nationality.toUpperCase()]
+          : (canonical.travel?.passports ?? []);
+      const workAuth = state.serviceArea.workEligibility && state.serviceArea.workEligibility.length > 0
+        ? state.serviceArea.workEligibility.map(w => w.toUpperCase())
+        : (canonical.travel?.workAuth ?? []);
+      // Extract video items from albumsPro back to portfolioVideos.
+      const portfolioVideos: MyTalentProfile["portfolioVideos"] = state.albumsPro
+        .flatMap(a => a.items)
+        .filter(it => !!it.videoUrl)
+        .map(it => ({
+          url: it.videoUrl!,
+          caption: it.caption,
+          durationSec: it.videoDurationSec,
+        }));
+      // Phase A/C foundation — round-trip measurements from dynFields
+      // back to the canonical structured shape. Anything the drawer
+      // doesn't touch comes from the canonical record (deep merge).
+      const dyn = state.dynFields;
+      const measurements: MyTalentProfile["measurements"] = {
+        ...canonical.measurements,
+        heightImperial: (typeof dyn.height === "string" && dyn.height.trim()) || canonical.measurements.heightImperial,
+        // metric-style entries get split out at display time; we keep
+        // the imperial value as the primary truth.
+        heightMetric: canonical.measurements.heightMetric,
+        weight: (typeof dyn.weight === "string" && dyn.weight.trim()) || canonical.measurements.weight,
+        bust: (typeof dyn.bust === "string" && dyn.bust.trim()) || canonical.measurements.bust,
+        waist: (typeof dyn.waist === "string" && dyn.waist.trim()) || canonical.measurements.waist,
+        hips: (typeof dyn.hips === "string" && dyn.hips.trim()) || canonical.measurements.hips,
+        inseam: (typeof dyn.inseam === "string" && dyn.inseam.trim()) || canonical.measurements.inseam,
+        shoeEU: (typeof dyn.shoe === "string" && dyn.shoe.trim()) || canonical.measurements.shoeEU,
+        shoeUS: (typeof dyn.shoe_us === "string" && dyn.shoe_us.trim()) || canonical.measurements.shoeUS,
+        shoeUK: (typeof dyn.shoe_uk === "string" && dyn.shoe_uk.trim()) || canonical.measurements.shoeUK,
+        dress: (typeof dyn.dress_size === "string" && dyn.dress_size.trim()) || canonical.measurements.dress,
+        suit: (typeof dyn.suit_size === "string" && dyn.suit_size.trim()) || canonical.measurements.suit,
+        hairColor: (typeof dyn.hair === "string" && dyn.hair) || canonical.measurements.hairColor,
+        hairLength: (typeof dyn.hair_length === "string" && dyn.hair_length === "Short" ? "short"
+          : typeof dyn.hair_length === "string" && dyn.hair_length === "Medium" ? "medium"
+          : typeof dyn.hair_length === "string" && dyn.hair_length === "Long" ? "long"
+          : canonical.measurements.hairLength) as MyTalentProfile["measurements"]["hairLength"],
+        eyeColor: (typeof dyn.eyes === "string" && dyn.eyes) || canonical.measurements.eyeColor,
+        skinTone: (typeof dyn.skin_tone === "string" && dyn.skin_tone) || canonical.measurements.skinTone,
+        tattoosNote: (typeof dyn.tattoos_note === "string" && dyn.tattoos_note) || canonical.measurements.tattoosNote,
+      };
+      setProfileOverride(tid, {
+        name: state.stageName,
+        pronouns: (state.identity.pronouns ?? canonical.pronouns) as MyTalentProfile["pronouns"],
+        city: state.serviceArea.homeBase || canonical.city,
+        // Phase C — round-trip primary + secondary roles so the
+        // dashboard + roster card see multi-role assignments.
+        primaryType: (state.primaryType ?? canonical.primaryType) as TaxonomyParentId,
+        secondaryTypes: state.secondaryTypes as TaxonomyParentId[],
+        specialties: state.specialties as MyTalentProfile["specialties"],
+        languages: state.languages as MyTalentProfile["languages"],
+        portfolioVideos,
+        measurements,
+        emergencyContact: state.emergencyContact,
+        // Nested travel — deep-merged so unrelated fields survive.
+        travel: {
+          ...(canonical.travel ?? { passports: [], workAuth: [], visasNeeded: [] }),
+          passports,
+          workAuth,
+        },
+      });
+    }
+
+    if (isSelf) {
+      // Self-edit submission flips the profile to "pending" so the
+      // agency's review queue picks it up. Production: emits a
+      // pubsub event the agency surfaces as "1 profile awaiting
+      // review" in their roster topbar. Toast names the agency so
+      // the talent knows where their changes landed.
+      patch({ profileStatus: "pending" });
+      // Step 6 — push to the workspace pending-review queue. Derive a
+      // short human-readable summary from the diff so the roster badge
+      // and review drawer can show what changed without re-running the
+      // diff machinery. Cap at the first 3 fields + count of the rest.
+      const diff = computeDiff();
+      const note = diff.length === 0
+        ? "Submitted for review"
+        : diff.length <= 3
+          ? `Updated ${diff.map(d => d.fieldLabel.toLowerCase()).join(", ")}`
+          : `Updated ${diff.slice(0, 3).map(d => d.fieldLabel.toLowerCase()).join(", ")} +${diff.length - 3} more`;
+      // Pending-review queue requires a talent id to key by. Skip
+      // when this is a brand-new (uncommitted) registration.
+      if (tid) {
+        addPendingReview({
+          talentId: tid,
+          submittedAt: new Date().toISOString(),
+          note,
+        });
+      }
+      toast(`Submitted to ${TENANT.name} · they'll review within 1 business day`);
+    } else {
+      // Admin path clears the pending-review queue so the strip on
+      // the roster page goes away after action. Safe no-op when the
+      // talent isn't in the queue.
+      if (tid) clearPendingReview(tid);
+      toast(state.profileStatus === "published" ? "Profile updated" : "Profile published");
+    }
     // #4 — Clear the QuickAdd → Shell handoff draft once the profile
     // has been committed; otherwise the next "Add talent" inherits stale data.
     if (mode === "create") clearProfileDraft("default");
@@ -3395,14 +4068,19 @@ function TalentProfileShellDrawer() {
     <div onClick={closeDrawer} style={{
       position: "fixed", inset: 0, zIndex: 200,
       background: "rgba(11,11,13,0.42)", backdropFilter: "blur(8px)",
-      display: "flex", alignItems: "stretch", justifyContent: "center",
+      // 2026 redesign — half-width side drawer instead of full-screen.
+      // Slides from the right; the talent profile / roster page stays
+      // visible on the left so context isn't lost. Container queries
+      // below already handle the mobile bottom-sheet behavior.
+      display: "flex", alignItems: "stretch", justifyContent: "flex-end",
       fontFamily: FONTS.body,
     }}>
       <div onClick={e => e.stopPropagation()} data-tulala-pshell style={{
-        width: "100%", maxWidth: 1100, height: "100vh",
+        width: "100%", maxWidth: 720, height: "100vh",
         background: "#fff",
         display: "flex", flexDirection: "column",
         overflow: "hidden",
+        boxShadow: "-12px 0 40px -12px rgba(11,11,13,0.18)",
       }}>
         <style>{`
           /* 2026 #3 — Container queries replace viewport-width media
@@ -3413,9 +4091,18 @@ function TalentProfileShellDrawer() {
             container-type: inline-size;
             container-name: pshell;
           }
-          [data-tulala-pshell] [data-pshell-body] { display: flex; flex: 1; min-height: 0; }
-          [data-tulala-pshell] [data-pshell-preview] { width: 360px; border-right: 1px solid ${COLORS.borderSoft}; padding: 22px; overflow-y: auto; flex-shrink: 0; background: ${COLORS.surface}; }
+          /* 2026 redesign — single-column body, no live-preview pane.
+             The preview added cognitive load + horizontal real-estate
+             without showing anything the talent didn't already see in
+             the profile underneath. RequiredCoach and ProfileGrowthMetric
+             still render, but inline above the form so they participate
+             in the same scroll. */
+          [data-tulala-pshell] [data-pshell-body] { display: flex; flex-direction: column; flex: 1; min-height: 0; }
           [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; padding: 0; position: relative; }
+          [data-tulala-pshell] [data-pshell-form-banners] {
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 14px 18px 0;
+          }
           [data-tulala-pshell] [data-pshell-tab-nav] { display: none; }
           [data-tulala-pshell] [data-paccordion-section] [data-paccordion-header] {
             position: sticky; top: 0; z-index: 5;
@@ -3452,28 +4139,30 @@ function TalentProfileShellDrawer() {
           [data-tulala-pshell] [data-pshell-tinted]:hover {
             background: color-mix(in oklch, ${COLORS.accent} 8%, white);
           }
-          /* 2026 #10 — CSS subgrid. The body's two panes (left preview,
-             right form) participate in the same row-grid so the hero
-             card's bottom edge aligns with the first accordion section
-             header even as content reflows. */
-          @supports (grid-template-rows: subgrid) {
-            [data-tulala-pshell] [data-pshell-body] {
-              display: grid;
-              grid-template-columns: 360px 1fr;
-              grid-template-rows: 1fr;
-            }
-            [data-tulala-pshell] [data-pshell-preview],
-            [data-tulala-pshell] [data-pshell-form] {
-              grid-row: 1;
-              display: subgrid;
-            }
-          }
-          /* Container query — fires when the shell's container is < 880px */
-          @container pshell (max-width: 880px) {
+          /* Container query — fires when the shell's container is < 720px
+             (tighter threshold now that the desktop drawer is half-width).
+             Mobile bottom-sheet retained: at narrow widths the drawer
+             slides from the bottom with a rounded top + safe-area pad. */
+          @container pshell (max-width: 720px) {
             [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; }
             [data-tulala-pshell] [data-pshell-body] { flex-direction: column; padding-bottom: 64px; }
-            [data-tulala-pshell] [data-pshell-preview] { width: auto; border-right: none; border-bottom: 1px solid ${COLORS.borderSoft}; padding: 12px 16px; max-height: 38vh; }
             [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
+            /* 2026 single-section pattern: at mobile widths, ONLY the
+               active accordion section is visible. The collapsed ones
+               disappear entirely (no empty headers eating viewport).
+               The tab nav above still gives a single tap to switch
+               sections. The active section's header also hides since
+               the tab nav already names it — saves another row. */
+            [data-tulala-pshell] section[data-paccordion-section]:not(:has([data-open="true"])) {
+              display: none !important;
+            }
+            [data-tulala-pshell] section[data-paccordion-section] [data-paccordion-header] {
+              display: none !important;
+            }
+            [data-tulala-pshell] section[data-paccordion-section] [data-paccordion-body][data-open="true"] {
+              max-height: none !important;
+              padding: 14px 16px !important;
+            }
             [data-tulala-pshell] [data-pshell-mobile-save] {
               position: fixed; bottom: 0; left: 0; right: 0;
               z-index: 5;
@@ -3490,7 +4179,7 @@ function TalentProfileShellDrawer() {
             [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
           }
           /* Hide mobile-only chrome when the container is wider */
-          @container pshell (min-width: 881px) {
+          @container pshell (min-width: 721px) {
             [data-tulala-pshell] [data-pshell-mobile-save] { display: none !important; }
             [data-tulala-pshell] [data-pshell-mobile-menu] { display: none !important; }
           }
@@ -3498,20 +4187,19 @@ function TalentProfileShellDrawer() {
              (Safari < 16, Firefox < 110). Same rules, viewport-keyed.
              Modern browsers ignore these because @container wins. */
           @supports not (container-type: inline-size) {
-            @media (max-width: 880px) {
-              [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; }
+            @media (max-width: 720px) {
+              [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; max-width: none; }
               [data-tulala-pshell] [data-pshell-body] { flex-direction: column; padding-bottom: 64px; }
-              [data-tulala-pshell] [data-pshell-preview] { width: auto; border-right: none; border-bottom: 1px solid ${COLORS.borderSoft}; padding: 12px 16px; max-height: 38vh; }
               [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
               [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
             }
-            @media (min-width: 881px) {
+            @media (min-width: 721px) {
               [data-tulala-pshell] [data-pshell-mobile-save] { display: none !important; }
               [data-tulala-pshell] [data-pshell-mobile-menu] { display: none !important; }
             }
           }
           /* Mobile: collapse the desktop toolbar into the overflow menu */
-          @media (max-width: 880px) {
+          @media (max-width: 720px) {
             [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
           }
         `}</style>
@@ -3682,48 +4370,34 @@ function TalentProfileShellDrawer() {
           })}
         </div>
 
-        {/* Body */}
+        {/* Body — single column, no preview pane. Coach + growth chips
+            ride above the form so they participate in the same scroll. */}
         <div data-pshell-body>
-          {/* Left pane */}
-          <aside data-pshell-preview>
-            <HeroPreviewCard
-              stageName={state.stageName}
-              tagline={state.tagline}
-              primaryRes={primaryRes}
-              secondaryTypes={state.secondaryTypes}
-              specialties={state.specialties}
-              serviceArea={state.serviceArea}
-              photos={state.albumsPro.flatMap(a => a.items.map(i => i.url))}
-              languages={state.languages}
-              trust={trust}
-              completeness={completeness}
-              onClickPhoto={() => setViewAsClient(true)}
-            />
-            {/* #19 — Profile growth metric for returning talent.
-                Hidden on first-time / draft profiles to avoid showing zeros. */}
-            {isSelf && state.profileStatus === "published" && (
-              <ProfileGrowthMetric onJump={() => setActiveSection("media")} />
-            )}
-            {missing.length > 0 && (
-              <RequiredCoach missing={missing} onJump={onJumpToMissing} />
-            )}
-            {/* #2 — First-time onboarding hero. Shows on profiles with
-                little content; collapses once you've made progress. */}
-            {completeness < 35 && (
-              <FirstTimeHero
-                completeness={completeness}
-                onStart={(sectionId) => setActiveSection(sectionId)}
-              />
-            )}
-          </aside>
-
-          {/* Right pane — accordion */}
           <div data-pshell-form>
+            {/* Inline banners — replaces the old left-pane chrome.
+                Render only when there's something to say so the form
+                starts close to the top edge on healthy profiles. */}
+            {(missing.length > 0 || completeness < 35) && (
+              <div data-pshell-form-banners>
+                {missing.length > 0 && (
+                  <RequiredCoach missing={missing} onJump={onJumpToMissing} />
+                )}
+                {/* 2026 reset (A5) — stats banner ("47 Profile views · 3 Inquiries")
+                    removed from the edit drawer. Editing and analytics are
+                    different mental tasks; stats live on the dashboard. */}
+                {completeness < 35 && (
+                  <FirstTimeHero
+                    completeness={completeness}
+                    onStart={(sectionId) => setActiveSection(sectionId)}
+                  />
+                )}
+              </div>
+            )}
             {/* IDENTITY */}
             <ProfileAccordionSection
-              id="identity" title="Identity"
-              sub="Name, pronouns, gender, DOB. You control privacy per field."
-              complete={sectionComplete.identity}
+              id="identity" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Identity"
+              sub="Name, pronouns, DOB. Each field has its own privacy."
+              complete={sectionComplete.identity} started={sectionStarted.identity}
               open={activeSection === "identity"}
               onToggle={() => setActiveSection(activeSection === "identity" ? "" : "identity")}
             >
@@ -3732,6 +4406,7 @@ function TalentProfileShellDrawer() {
                 onChange={(next) => patch({ identity: next, stageName: next.stageName })}
                 isSelf={isSelf}
                 isFieldLocked={(path) => isSelf && state.fieldLocks.includes(path)}
+                lockReasons={state.fieldLockReasons}
               />
               {adminVisible && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
@@ -3743,13 +4418,13 @@ function TalentProfileShellDrawer() {
 
             {/* SERVICES */}
             <ProfileAccordionSection
-              id="services" title="Services"
-              sub="Talent Type + specialties + aspirations. The most important section."
-              complete={sectionComplete.services}
+              id="services" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Services"
+              sub="What this person is booked as. The most important section."
+              complete={sectionComplete.services} started={sectionStarted.services}
               open={activeSection === "services"}
               onToggle={() => setActiveSection(activeSection === "services" ? "" : "services")}
             >
-              <FieldRow label="Tagline" optional hint="One line clients see at a glance.">
+              <FieldRow label="Tagline" optional hint="One line clients see at a glance." catalogId="identity.tagline">
                 <TextInput placeholder="e.g. Editorial fashion model · Madrid" value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
               </FieldRow>
               <ServicesEditor
@@ -3785,31 +4460,40 @@ function TalentProfileShellDrawer() {
                 {liveTax.error && ` · ${liveTax.error}`}
               </div>
               {state.primaryType && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6, marginTop: 12 }}>
-                    What I'm growing into
-                    <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· optional · open-to-grow signals</span>
+                <details style={{ marginTop: 12 }}>
+                  <summary style={{
+                    fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+                    color: COLORS.inkMuted, marginBottom: 6,
+                    cursor: "pointer", listStyle: "none",
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    userSelect: "none",
+                  }}>
+                    <span aria-hidden="true" style={{ fontSize: 10, transform: "translateY(-1px)" }}>▸</span>
+                    Career interests
+                    <span style={{ fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· optional · open-to-grow signals</span>
+                  </summary>
+                  <div style={{ marginTop: 8 }}>
+                    <AspirationsEditor
+                      allowedParents={allowedParents}
+                      primaryType={state.primaryType}
+                      secondaryTypes={state.secondaryTypes}
+                      value={state.aspirations}
+                      onToggle={(id) => toggleSet("aspirations")(id)}
+                    />
                   </div>
-                  <AspirationsEditor
-                    allowedParents={allowedParents}
-                    primaryType={state.primaryType}
-                    secondaryTypes={state.secondaryTypes}
-                    value={state.aspirations}
-                    onToggle={(id) => toggleSet("aspirations")(id)}
-                  />
-                </div>
+                </details>
               )}
             </ProfileAccordionSection>
 
             {/* LOCATION */}
             <ProfileAccordionSection
-              id="location" title="Location & service area"
-              sub="Where they work — drives client filtering on Discover."
-              complete={sectionComplete.location}
+              id="location" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Location & service area"
+              sub="Home base + cities they work in."
+              complete={sectionComplete.location} started={sectionStarted.location}
               open={activeSection === "location"}
               onToggle={() => setActiveSection(activeSection === "location" ? "" : "location")}
             >
-              <FieldRow label="Home base">
+              <FieldRow label="Home base" catalogId="serviceArea.homeBase">
                 <input data-pshell-field="homeBase"
                   placeholder="e.g. Playa del Carmen"
                   value={state.serviceArea.homeBase}
@@ -3848,6 +4532,144 @@ function TalentProfileShellDrawer() {
                   onChange={(v) => patch({ serviceArea: { ...state.serviceArea, remoteOnly: v } })}
                   label="Talent works remotely / online only" />
               </FieldRow>
+
+              {/* ── Travel & work eligibility ────────────────────
+                  International booking pre-checks. Engine reads these
+                  to filter out talents the client can't legally hire
+                  for a cross-border job before sending the inquiry.
+                  All optional + admin-visibility by default. */}
+              <div style={{
+                marginTop: 6, padding: "10px 12px",
+                background: COLORS.surfaceAlt, borderRadius: 10,
+                border: `1px solid ${COLORS.borderSoft}`,
+              }}>
+                <div style={{
+                  fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
+                  textTransform: "uppercase", color: COLORS.inkMuted,
+                  marginBottom: 8,
+                }}>
+                  Travel & work eligibility
+                </div>
+                {/* Audit fix #8 — back-reference to Identity for related
+                    "where can I legally work" data (nationality + country
+                    of residence). Helps the talent see the cluster
+                    despite the data being split across two ProfileState
+                    slices. */}
+                <div style={{
+                  marginBottom: 10,
+                  fontSize: 11.5,
+                  color: COLORS.inkMuted,
+                  fontFamily: FONTS.body,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}>
+                  <span aria-hidden>ℹ️</span>
+                  <span>Nationality &amp; country of residence are in <strong>Identity</strong>.</span>
+                </div>
+                <FieldRow
+                  label="Passport status"
+                  optional
+                  hint="Pre-checks international bookings."
+                  visibility={state.dynFieldVisibility["serviceArea.passport"] ?? ["agency"]}
+                  onVisibilityChange={(next) => patch({
+                    dynFieldVisibility: { ...state.dynFieldVisibility, "serviceArea.passport": next },
+                  })}
+                >
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                    {[
+                      { id: "valid",   label: "Valid" },
+                      { id: "expired", label: "Expired" },
+                      { id: "none",    label: "None" },
+                    ].map(opt => {
+                      const active = state.serviceArea.passport === opt.id;
+                      return (
+                        <button key={opt.id} type="button" onClick={() =>
+                          patch({ serviceArea: { ...state.serviceArea, passport: active ? undefined : opt.id as "valid" | "expired" | "none" } })
+                        } style={{
+                          padding: "6px 11px", borderRadius: 999,
+                          border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                          background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                          color: active ? COLORS.accentDeep : COLORS.ink,
+                          fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                          fontFamily: FONTS.body,
+                        }}>{opt.label}</button>
+                      );
+                    })}
+                  </div>
+                </FieldRow>
+                <div style={{ height: 8 }} />
+                <FieldRow
+                  label="Driver's license"
+                  optional
+                  hint="Drives commercial / chauffeur / on-set transport jobs."
+                  visibility={state.dynFieldVisibility["serviceArea.driversLicense"] ?? ["agency"]}
+                  onVisibilityChange={(next) => patch({
+                    dynFieldVisibility: { ...state.dynFieldVisibility, "serviceArea.driversLicense": next },
+                  })}
+                >
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                    {[
+                      { id: "none",          label: "None" },
+                      { id: "standard",      label: "Standard" },
+                      { id: "international", label: "International" },
+                      { id: "commercial",    label: "Commercial" },
+                    ].map(opt => {
+                      const active = state.serviceArea.driversLicense === opt.id;
+                      return (
+                        <button key={opt.id} type="button" onClick={() =>
+                          patch({ serviceArea: { ...state.serviceArea, driversLicense: active ? undefined : opt.id as "none" | "standard" | "commercial" | "international" } })
+                        } style={{
+                          padding: "6px 11px", borderRadius: 999,
+                          border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                          background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                          color: active ? COLORS.accentDeep : COLORS.ink,
+                          fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                          fontFamily: FONTS.body,
+                        }}>{opt.label}</button>
+                      );
+                    })}
+                  </div>
+                </FieldRow>
+                <div style={{ height: 8 }} />
+                <FieldRow label="Owns a vehicle" optional catalogId="serviceArea.ownsVehicle">
+                  <ToggleControl
+                    value={!!state.serviceArea.ownsVehicle}
+                    onChange={(v) => patch({ serviceArea: { ...state.serviceArea, ownsVehicle: v } })}
+                    label="Has access to own vehicle for shoot logistics" />
+                </FieldRow>
+                <div style={{ height: 8 }} />
+                <FieldRow
+                  label="Work-eligible countries"
+                  optional
+                  hint="ISO codes — drives international booking pre-checks."
+                  visibility={state.dynFieldVisibility["serviceArea.workEligibility"] ?? ["agency"]}
+                  onVisibilityChange={(next) => patch({
+                    dynFieldVisibility: { ...state.dynFieldVisibility, "serviceArea.workEligibility": next },
+                  })}
+                >
+                  <ChipsInput label="" placeholder="e.g. ES, FR, MX…"
+                    values={state.serviceArea.workEligibility ?? []}
+                    onChange={(v) => patch({ serviceArea: { ...state.serviceArea, workEligibility: v } })}
+                  />
+                </FieldRow>
+                <div style={{ height: 8 }} />
+                <FieldRow
+                  label="Visas held"
+                  optional
+                  hint="Active visa countries beyond home country."
+                  visibility={state.dynFieldVisibility["serviceArea.visaCountries"] ?? ["agency"]}
+                  onVisibilityChange={(next) => patch({
+                    dynFieldVisibility: { ...state.dynFieldVisibility, "serviceArea.visaCountries": next },
+                  })}
+                >
+                  <ChipsInput label="" placeholder="e.g. US (B1/B2), GB…"
+                    values={state.serviceArea.visaCountries ?? []}
+                    onChange={(v) => patch({ serviceArea: { ...state.serviceArea, visaCountries: v } })}
+                  />
+                </FieldRow>
+              </div>
+
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
                   Seasonal windows
@@ -3859,9 +4681,9 @@ function TalentProfileShellDrawer() {
 
             {/* MEDIA — cover banner + gallery for active album */}
             <ProfileAccordionSection
-              id="media" title="Media"
-              sub="Cover banner + main photo + portfolio. First photo = avatar."
-              complete={sectionComplete.media}
+              id="media" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Media"
+              sub="Cover, main photo, portfolio. First photo is the avatar."
+              complete={sectionComplete.media} started={sectionStarted.media}
               open={activeSection === "media"}
               onToggle={() => setActiveSection(activeSection === "media" ? "" : "media")}
             >
@@ -3879,16 +4701,16 @@ function TalentProfileShellDrawer() {
                   albumsPro: state.albumsPro.map(a => a.id === state.activeAlbumId ? { ...a, items } : a),
                 })}
               />
-              <FieldRow label="Video / social links" optional>
+              <FieldRow label="Video / social links" optional catalogId="links">
                 <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks} onChange={(v) => patch({ videoLinks: v })} />
               </FieldRow>
             </ProfileAccordionSection>
 
             {/* ALBUMS */}
             <ProfileAccordionSection
-              id="albums" title="Portfolio albums"
-              sub="Group photos by Editorial / Lookbook / Behind-the-scenes."
-              complete={sectionComplete.albums}
+              id="albums" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Portfolio albums"
+              sub="Group photos by mood — Editorial, Lookbook, Behind-the-scenes."
+              complete={sectionComplete.albums} started={sectionStarted.albums}
               open={activeSection === "albums"}
               onToggle={() => setActiveSection(activeSection === "albums" ? "" : "albums")}
             >
@@ -3902,9 +4724,9 @@ function TalentProfileShellDrawer() {
 
             {/* POLAROIDS — model-industry standard 5-shot set */}
             <ProfileAccordionSection
-              id="polaroids" title="Polaroids"
-              sub="Industry-standard 5-shot set: front · side · back · smile · no makeup. Casting directors expect these."
-              complete={sectionComplete.polaroids}
+              id="polaroids" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Polaroids"
+              sub="5-shot set casting directors expect: front, side, back, smile, no-makeup."
+              complete={sectionComplete.polaroids} started={sectionStarted.polaroids}
               open={activeSection === "polaroids"}
               onToggle={() => setActiveSection(activeSection === "polaroids" ? "" : "polaroids")}
             >
@@ -3916,9 +4738,9 @@ function TalentProfileShellDrawer() {
 
             {/* ABOUT — locale-aware bios + tone + personality */}
             <ProfileAccordionSection
-              id="about" title="About"
-              sub="2–3 sentences per language. Pick a tone, drop personality cues."
-              complete={sectionComplete.about}
+              id="about" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="About"
+              sub="2–3 sentences per language. Tone optional."
+              complete={sectionComplete.about} started={sectionStarted.about}
               open={activeSection === "about"}
               onToggle={() => setActiveSection(activeSection === "about" ? "" : "about")}
             >
@@ -3950,30 +4772,125 @@ function TalentProfileShellDrawer() {
               <PersonalityEditor value={state.personality} onChange={(p) => patch({ personality: p })} />
             </ProfileAccordionSection>
 
-            {/* DETAILS */}
-            {(dynamicGroups.length > 0 || workspaceCustomTalentFields.length > 0) && (
+            {/* PHYSICAL & MEASUREMENTS — dedicated accordion mirroring
+                the talent surface's "Measurements & features" card.
+                Pulls fields tagged `subsection: "physical"` from the
+                per-type schema (TAXONOMY_FIELDS). Renders in a 2-col
+                grid on desktop / single column on mobile so the
+                editing experience matches the surface's grid layout
+                and feels like a coherent measurement block, not a
+                vertical text-input list. */}
+            {dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical")) && (
               <ProfileAccordionSection
-                id="details" title="Profile details"
-                sub="Type-specific fields plus any custom fields your workspace added."
-                complete={sectionComplete.details}
+                id="physical" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Physical & measurements"
+                sub="Height, body sizes, features."
+                complete={sectionComplete.physical} started={sectionStarted.physical}
+                open={activeSection === "physical"}
+                onToggle={() => setActiveSection(activeSection === "physical" ? "" : "physical")}
+              >
+                {dynamicGroups.map(g => {
+                  const physical = g.fields.filter(f => f.subsection === "physical");
+                  if (physical.length === 0) return null;
+                  return (
+                    <div key={g.parent.id} style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: 10,
+                    }}>
+                      <style>{`
+                        @container pshell (max-width: 540px) {
+                          [data-pshell-physical-grid] { grid-template-columns: 1fr !important; }
+                        }
+                      `}</style>
+                      <div data-pshell-physical-grid style={{ display: "contents" }} />
+                      {physical.map(f => (
+                        <RegFieldInput key={f.id} field={f}
+                          value={state.dynFields[f.id] ?? (f.kind === "multiselect" || f.kind === "chips" ? [] : "")}
+                          onChange={(v) => setDyn(f.id, v)}
+                          visibility={state.dynFieldVisibility[f.id] ?? f.defaultVisibility}
+                          onVisibilityChange={(next) => patch({
+                            dynFieldVisibility: { ...state.dynFieldVisibility, [f.id]: next },
+                          })}
+                          primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+              </ProfileAccordionSection>
+            )}
+
+            {/* WARDROBE SIZES — separated from physical so a model who
+                only wants to fill body data isn't asked about shoes/
+                dress in the same breath. Same grid layout. */}
+            {dynamicGroups.some(g => g.fields.some(f => f.subsection === "wardrobe")) && (
+              <ProfileAccordionSection
+                id="wardrobe" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Wardrobe sizes"
+                sub="Shoe, dress, suit sizes."
+                complete={sectionComplete.wardrobe} started={sectionStarted.wardrobe}
+                open={activeSection === "wardrobe"}
+                onToggle={() => setActiveSection(activeSection === "wardrobe" ? "" : "wardrobe")}
+              >
+                {dynamicGroups.map(g => {
+                  const wardrobe = g.fields.filter(f => f.subsection === "wardrobe");
+                  if (wardrobe.length === 0) return null;
+                  return (
+                    <div key={g.parent.id} style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: 10,
+                    }}>
+                      {wardrobe.map(f => (
+                        <RegFieldInput key={f.id} field={f}
+                          value={state.dynFields[f.id] ?? (f.kind === "multiselect" || f.kind === "chips" ? [] : "")}
+                          onChange={(v) => setDyn(f.id, v)}
+                          visibility={state.dynFieldVisibility[f.id] ?? f.defaultVisibility}
+                          onVisibilityChange={(next) => patch({
+                            dynFieldVisibility: { ...state.dynFieldVisibility, [f.id]: next },
+                          })}
+                          primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+              </ProfileAccordionSection>
+            )}
+
+            {/* DETAILS — leftover catch-all for non-physical, non-wardrobe
+                type-specific fields (e.g. years modeling, allergies). */}
+            {(dynamicGroups.some(g => g.fields.some(f => !f.subsection)) || workspaceCustomTalentFields.length > 0) && (
+              <ProfileAccordionSection
+                id="details" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Profile details"
+                sub="Fields specific to this kind of work."
+                complete={sectionComplete.details} started={sectionStarted.details}
                 open={activeSection === "details"}
                 onToggle={() => setActiveSection(activeSection === "details" ? "" : "details")}
               >
-                {dynamicGroups.map(g => (
+                {dynamicGroups.map(g => {
+                  const other = g.fields.filter(f => !f.subsection);
+                  if (other.length === 0) return null;
+                  return (
                   <div key={g.parent.id}>
                     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 8 }}>
                       {g.parent.emoji}  {g.parent.label}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {g.fields.map(f => (
+                      {other.map(f => (
                         <RegFieldInput key={f.id} field={f}
                           value={state.dynFields[f.id] ?? (f.kind === "multiselect" || f.kind === "chips" ? [] : "")}
                           onChange={(v) => setDyn(f.id, v)}
+                          visibility={state.dynFieldVisibility[f.id] ?? f.defaultVisibility}
+                          onVisibilityChange={(next) => patch({
+                            dynFieldVisibility: { ...state.dynFieldVisibility, [f.id]: next },
+                          })}
+                          primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes}
                         />
                       ))}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
 
                 {/* Custom workspace fields — agency-specific extras added via Field Catalog */}
                 {workspaceCustomTalentFields.length > 0 && (
@@ -4019,54 +4936,13 @@ function TalentProfileShellDrawer() {
               </ProfileAccordionSection>
             )}
 
-            {/* RATES */}
+            {/* AVAILABILITY — moved before Rates per 2026 reset (B8). The
+                logical flow is "Are you available? At what price?" not
+                "Price first, then schedule." */}
             <ProfileAccordionSection
-              id="rates" title="Rates"
-              sub="Per-unit + package bundles + travel/lodging + ask-for-quote."
-              complete={sectionComplete.rates}
-              open={activeSection === "rates"}
-              onToggle={() => setActiveSection(activeSection === "rates" ? "" : "rates")}
-            >
-              <FieldRow label="Pricing mode" optional>
-                <ToggleControl value={state.askForQuote}
-                  onChange={(v) => patch({ askForQuote: v })}
-                  label="Negotiated only — clients see 'Ask for quote' instead of a number" />
-              </FieldRow>
-              {!state.askForQuote && (
-                <RatesEditor
-                  rates={state.rates}
-                  selectedTypeIds={allSelectedTypeIds}
-                  onChange={(rs) => patch({ rates: rs })}
-                />
-              )}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6, marginTop: 6 }}>
-                  Package bundles
-                </div>
-                <PackageRatesEditor packages={state.packageRates} onChange={(p) => patch({ packageRates: p })} />
-              </div>
-              <FieldRow label="Travel" optional>
-                <ToggleControl value={state.travelIncluded}
-                  onChange={(v) => patch({ travelIncluded: v })}
-                  label="Travel included in rate" />
-              </FieldRow>
-              <FieldRow label="Lodging" optional>
-                <ToggleControl value={state.lodgingIncluded}
-                  onChange={(v) => patch({ lodgingIncluded: v })}
-                  label="Lodging included in rate" />
-              </FieldRow>
-              {adminVisible && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                  <FieldLockToggle path="rates" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
-                </div>
-              )}
-            </ProfileAccordionSection>
-
-            {/* AVAILABILITY */}
-            <ProfileAccordionSection
-              id="availability" title="Availability"
-              sub="Tap a day to mark busy / blocked. Open by default."
-              complete={sectionComplete.availability}
+              id="availability" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Availability"
+              sub="Tap a day to block it. Open by default."
+              complete={sectionComplete.availability} started={sectionStarted.availability}
               open={activeSection === "availability"}
               onToggle={() => setActiveSection(activeSection === "availability" ? "" : "availability")}
             >
@@ -4094,11 +4970,93 @@ function TalentProfileShellDrawer() {
               />
             </ProfileAccordionSection>
 
+            {/* RATES — now after Availability (B8 swap). */}
+            <ProfileAccordionSection
+              id="rates" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Rates"
+              sub="Day rates, package deals, travel costs."
+              complete={sectionComplete.rates} started={sectionStarted.rates}
+              open={activeSection === "rates"}
+              onToggle={() => setActiveSection(activeSection === "rates" ? "" : "rates")}
+            >
+              {/* Audit fix #3 — when admin locks "rates", talent sees the
+                  whole section read-only with the reason text. The toggle
+                  for askForQuote and the editors below all gate on the
+                  same path. Without this, the lock chip was decorative. */}
+              {isSelf && state.fieldLocks.includes("rates") && (
+                <LockedHint reason={state.fieldLockReasons["rates"]} />
+              )}
+
+              {/* Audit fix #11 — Rate-card visibility control. Talent and
+                  agency need to decide whether numbers show publicly,
+                  agency-only, or on-request only. Surfaces alongside
+                  the actual rate inputs. */}
+              <FieldRow
+                label="Who sees these rates?"
+                hint="Public on the profile, agency-only on the roster, or on-request via inquiry."
+              >
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {([
+                    { id: "public" as const,      label: "Public" },
+                    { id: "agency-only" as const, label: "Agency only" },
+                    { id: "on-request" as const,  label: "On request" },
+                  ]).map(opt => {
+                    const active = state.rateCardVisibility === opt.id;
+                    return (
+                      <button key={opt.id} type="button" onClick={() => patch({ rateCardVisibility: opt.id })} style={{
+                        padding: "6px 11px", borderRadius: 999,
+                        border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                        background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                        color: active ? COLORS.accentDeep : COLORS.ink,
+                        fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                        fontFamily: FONTS.body,
+                      }}>{opt.label}</button>
+                    );
+                  })}
+                </div>
+              </FieldRow>
+              <FieldRow label="Pricing mode" optional>
+                <ToggleControl value={state.askForQuote}
+                  onChange={(v) => patch({ askForQuote: v })}
+                  disabled={isSelf && state.fieldLocks.includes("rates")}
+                  label="Negotiated only — clients see 'Ask for quote' instead of a number" />
+              </FieldRow>
+              {!state.askForQuote && (
+                <div style={{ opacity: isSelf && state.fieldLocks.includes("rates") ? 0.55 : 1, pointerEvents: isSelf && state.fieldLocks.includes("rates") ? "none" : "auto" }}>
+                  <RatesEditor
+                    rates={state.rates}
+                    selectedTypeIds={allSelectedTypeIds}
+                    onChange={(rs) => patch({ rates: rs })}
+                  />
+                </div>
+              )}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6, marginTop: 6 }}>
+                  Package bundles
+                </div>
+                <PackageRatesEditor packages={state.packageRates} onChange={(p) => patch({ packageRates: p })} />
+              </div>
+              <FieldRow label="Travel" optional>
+                <ToggleControl value={state.travelIncluded}
+                  onChange={(v) => patch({ travelIncluded: v })}
+                  label="Travel included in rate" />
+              </FieldRow>
+              <FieldRow label="Lodging" optional>
+                <ToggleControl value={state.lodgingIncluded}
+                  onChange={(v) => patch({ lodgingIncluded: v })}
+                  label="Lodging included in rate" />
+              </FieldRow>
+              {adminVisible && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                  <FieldLockToggle path="rates" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
+                </div>
+              )}
+            </ProfileAccordionSection>
+
             {/* LANGUAGES */}
             <ProfileAccordionSection
-              id="languages" title="Languages"
-              sub="Speaking level + role flags help clients filter Discover."
-              complete={sectionComplete.languages}
+              id="languages" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Languages"
+              sub="What languages they speak, and what they can do in each."
+              complete={sectionComplete.languages} started={sectionStarted.languages}
               open={activeSection === "languages"}
               onToggle={() => setActiveSection(activeSection === "languages" ? "" : "languages")}
             >
@@ -4129,9 +5087,9 @@ function TalentProfileShellDrawer() {
 
             {/* REFINEMENT */}
             <ProfileAccordionSection
-              id="refinement" title="Refinement"
-              sub="Skills the talent has, and contexts they shine in."
-              complete={sectionComplete.refinement}
+              id="refinement" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Refinement"
+              sub="Skills they have. Contexts where they shine."
+              complete={sectionComplete.refinement} started={sectionStarted.refinement}
               open={activeSection === "refinement"}
               onToggle={() => setActiveSection(activeSection === "refinement" ? "" : "refinement")}
             >
@@ -4178,9 +5136,9 @@ function TalentProfileShellDrawer() {
 
             {/* CREDITS — past work / campaigns / editorials */}
             <ProfileAccordionSection
-              id="credits" title="Credits"
-              sub="Past campaigns, editorials, runways, lookbooks. Pin your top 3."
-              complete={sectionComplete.credits}
+              id="credits" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Credits"
+              sub="Past work. Pin your top 3."
+              complete={sectionComplete.credits} started={sectionStarted.credits}
               open={activeSection === "credits"}
               onToggle={() => setActiveSection(activeSection === "credits" ? "" : "credits")}
             >
@@ -4192,9 +5150,9 @@ function TalentProfileShellDrawer() {
 
             {/* LIMITS — hard/soft constraints */}
             <ProfileAccordionSection
-              id="limits" title="Limits"
-              sub="Hard no's and soft case-by-case. Clients see this on the inquiry."
-              complete={sectionComplete.limits}
+              id="limits" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Limits"
+              sub="Hard no's. Soft case-by-case. Clients see this on the brief."
+              complete={sectionComplete.limits} started={sectionStarted.limits}
               open={activeSection === "limits"}
               onToggle={() => setActiveSection(activeSection === "limits" ? "" : "limits")}
             >
@@ -4206,9 +5164,9 @@ function TalentProfileShellDrawer() {
 
             {/* FILES — work documents (W-8BEN, NDA, model release, certifications) */}
             <ProfileAccordionSection
-              id="files" title="Files"
-              sub="Tax forms, model releases, certifications. Admin-only by default."
-              complete={sectionComplete.files}
+              id="files" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Files"
+              sub="Tax forms, releases, certifications. Admin-only by default."
+              complete={sectionComplete.files} started={sectionStarted.files}
               open={activeSection === "files"}
               onToggle={() => setActiveSection(activeSection === "files" ? "" : "files")}
             >
@@ -4220,9 +5178,9 @@ function TalentProfileShellDrawer() {
 
             {/* SOCIAL PROOF */}
             <ProfileAccordionSection
-              id="social_proof" title="Past clients & testimonials"
-              sub="Logos + 1-line quotes. Verified bookings get a checkmark."
-              complete={sectionComplete.social_proof}
+              id="social_proof" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Past clients & testimonials"
+              sub="Past clients + 1-line quotes. Verified bookings get a checkmark."
+              complete={sectionComplete.social_proof} started={sectionStarted.social_proof}
               open={activeSection === "social_proof"}
               onToggle={() => setActiveSection(activeSection === "social_proof" ? "" : "social_proof")}
             >
@@ -4231,9 +5189,9 @@ function TalentProfileShellDrawer() {
 
             {/* VERIFICATIONS */}
             <ProfileAccordionSection
-              id="verifications" title="Trust & verification"
-              sub="Drives the trust badge. Higher tier = more visibility on Discover."
-              complete={sectionComplete.verifications}
+              id="verifications" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Trust & verification"
+              sub="Verification level. Higher tier = more visibility."
+              complete={sectionComplete.verifications} started={sectionStarted.verifications}
               open={activeSection === "verifications"}
               onToggle={() => setActiveSection(activeSection === "verifications" ? "" : "verifications")}
             >
@@ -4249,7 +5207,7 @@ function TalentProfileShellDrawer() {
             {/* ADMIN */}
             {adminVisible && (
               <ProfileAccordionSection
-                id="admin" title="Admin controls" sub="Visible only to your team."
+                id="admin" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Admin controls" sub="Visible only to your team."
                 complete open={activeSection === "admin"}
                 onToggle={() => setActiveSection(activeSection === "admin" ? "" : "admin")}
                 accent="amber"
@@ -4270,6 +5228,54 @@ function TalentProfileShellDrawer() {
                     }}
                   />
                 </FieldRow>
+
+                {/* Audit fix #10 — Emergency contact editor. Lives in
+                    the admin section (not identity) because it's
+                    booking-time only data — masked on public, visible
+                    during active bookings only. Three small inputs
+                    side-by-side; production wires a phone-format
+                    validator and a relation enum. */}
+                <FieldRow
+                  label="Emergency contact"
+                  hint="Masked on public profile. Visible to coordinators during active bookings only."
+                >
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={state.emergencyContact.name}
+                      onChange={(e) => patch({ emergencyContact: { ...state.emergencyContact, name: e.target.value } })}
+                      style={{
+                        boxSizing: "border-box", padding: "10px 12px",
+                        borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                        fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Relation (e.g. Mother, Manager)"
+                      value={state.emergencyContact.relation}
+                      onChange={(e) => patch({ emergencyContact: { ...state.emergencyContact, relation: e.target.value } })}
+                      style={{
+                        boxSizing: "border-box", padding: "10px 12px",
+                        borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                        fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                      }}
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Phone (with country code)"
+                      value={state.emergencyContact.phone}
+                      onChange={(e) => patch({ emergencyContact: { ...state.emergencyContact, phone: e.target.value } })}
+                      style={{
+                        gridColumn: "1 / -1",
+                        boxSizing: "border-box", padding: "10px 12px",
+                        borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                        fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                      }}
+                    />
+                  </div>
+                </FieldRow>
                 {/* Profile ownership — convert agency-managed to claimable */}
                 <FieldRow
                   label="Profile ownership"
@@ -4278,6 +5284,27 @@ function TalentProfileShellDrawer() {
                   <ProfileOwnershipPanel
                     talentName={state.stageName || "this talent"}
                     contactEmail={payload.seed?.contact}
+                  />
+                </FieldRow>
+                {/* Step 7 — Field locks overview. Single panel surfacing
+                    every locked path on this profile so admins can see at
+                    a glance what the talent can't self-edit, with a per-
+                    lock reason for context (why we locked, e.g. "set by
+                    contract" or "requires re-verification"). Editing
+                    any individual lock still happens in-section via the
+                    FieldLockToggle next to the field — this panel is the
+                    bird's-eye view + reason store. */}
+                <FieldRow
+                  label="Locked fields"
+                  hint="Talent can't edit these without admin approval. Add a short reason so they understand why."
+                >
+                  <FieldLocksOverviewPanel
+                    locks={state.fieldLocks}
+                    reasons={state.fieldLockReasons}
+                    onUnlock={(path) => patch({ fieldLocks: state.fieldLocks.filter(p => p !== path) })}
+                    onSetReason={(path, reason) => patch({
+                      fieldLockReasons: { ...state.fieldLockReasons, [path]: reason },
+                    })}
                   />
                 </FieldRow>
                 {/* #9 — Recent activity / change log */}
@@ -4392,14 +5419,26 @@ function ServicesEditor({
   onToggleSecondary: (id: string) => void;
   onToggleSpecialty: (s: string) => void;
 }) {
+  // 2026 — when a primary role is picked, default the "Also bookable as"
+  // wall to siblings within the same parent_category. The cross-category
+  // chips (e.g. picking a Performer when the primary is a Model) live
+  // behind an explicit toggle so the picker isn't 80 random chips at once.
+  const [showOtherCategories, setShowOtherCategories] = useState(false);
+  const primaryParentId = primaryRes?.parent.id ?? null;
+  const sameCategoryChildren = primaryParentId
+    ? allowedParents.find(p => p.id === primaryParentId)?.children ?? []
+    : allowedParents.flatMap(p => p.children);
+  const otherCategories = primaryParentId
+    ? allowedParents.filter(p => p.id !== primaryParentId)
+    : [];
   return (
     <>
       <div>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 4 }}>
-          Main role
+          Booked as
         </div>
         <div style={{ fontSize: 11.5, color: COLORS.inkDim, marginBottom: 8, lineHeight: 1.4 }}>
-          What can clients book this person as? Pick the one role that best describes the work.
+          What clients book this person as. Pick the main one.
         </div>
         {primaryRes ? (
           <div>
@@ -4412,7 +5451,7 @@ function ServicesEditor({
             }}>
               <span style={{ fontSize: 14 }}>{primaryRes.parent.emoji}</span>
               {primaryRes.child.label}
-              <button type="button" onClick={onClearPrimary} aria-label="Change main role"
+              <button type="button" onClick={onClearPrimary} aria-label="Change main service"
                 style={{ background: "transparent", border: "none", cursor: "pointer", color: COLORS.accentDeep, fontSize: 14, lineHeight: 1, fontWeight: 700, padding: 0 }}>×</button>
             </div>
             {primaryRes.child.specialties && primaryRes.child.specialties.length > 0 && (
@@ -4443,26 +5482,61 @@ function ServicesEditor({
         )}
       </div>
       {primaryType && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
-            Also available as
+        <div style={{
+          marginTop: 14, paddingTop: 14,
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 4 }}>
+            Also bookable as
+            {primaryRes && (
+              <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>
+                · within {shortParentLabel(primaryRes.parent)} · optional
+              </span>
+            )}
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {allowedParents.flatMap(p => p.children).map(c => {
-              if (c.id === primaryType) return null;
-              const active = secondaryTypes.includes(c.id);
-              return (
-                <button key={c.id} type="button" onClick={() => onToggleSecondary(c.id)} style={{
-                  padding: "6px 11px", borderRadius: 999,
-                  border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                  background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                  color: active ? COLORS.accentDeep : COLORS.ink,
-                  fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                  fontFamily: FONTS.body,
-                }}>{c.label}</button>
-              );
-            })}
+          <div style={{ fontSize: 11, color: COLORS.inkDim, marginBottom: 8, lineHeight: 1.4 }}>
+            Other things this person can be booked as. Pick any that apply.
           </div>
+          <SiblingTopNPicker
+            children={sameCategoryChildren}
+            selected={secondaryTypes}
+            onToggle={onToggleSecondary}
+            parentLabel={primaryRes ? shortParentLabel(primaryRes.parent) : "this category"}
+            excludeId={primaryType ?? null}
+          />
+          {otherCategories.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <button type="button"
+                onClick={() => setShowOtherCategories(v => !v)}
+                aria-expanded={showOtherCategories}
+                style={{
+                  padding: "6px 12px", borderRadius: 999,
+                  border: `1px dashed ${COLORS.border}`, background: "transparent",
+                  color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500,
+                  cursor: "pointer", fontFamily: FONTS.body,
+                }}>
+                {showOtherCategories ? "– Hide other categories" : `+ Also bookable in another category (${otherCategories.length})`}
+              </button>
+              {showOtherCategories && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
+                  {otherCategories.map(p => (
+                    <div key={p.id}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
+                        <span style={{ marginRight: 4 }}>{p.emoji}</span>{shortParentLabel(p)}
+                      </div>
+                      <SiblingTopNPicker
+                        children={p.children}
+                        selected={secondaryTypes}
+                        onToggle={onToggleSecondary}
+                        parentLabel={shortParentLabel(p)}
+                        excludeId={primaryType ?? null}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
       {specialtyOptions.filter(g => g.typeId !== primaryType).length > 0 && (
@@ -4939,15 +6013,42 @@ function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenera
           resize: "vertical",
         }}
       />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
-        <button type="button" onClick={onRegenerate} disabled={!primaryLabel} style={{
-          padding: "5px 11px", borderRadius: 999,
-          background: "transparent", border: `1px dashed ${COLORS.border}`,
-          color: primaryLabel ? COLORS.inkMuted : COLORS.inkDim,
-          fontSize: 11, fontWeight: 500,
-          cursor: primaryLabel ? "pointer" : "default",
-          fontFamily: FONTS.body,
-        }}>↺ {primaryLabel ? `Regenerate from ${primaryLabel}` : "Pick a Talent Type to regenerate"}</button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6, gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button type="button" onClick={onRegenerate} disabled={!primaryLabel} style={{
+            padding: "5px 11px", borderRadius: 999,
+            background: "transparent", border: `1px dashed ${COLORS.border}`,
+            color: primaryLabel ? COLORS.inkMuted : COLORS.inkDim,
+            fontSize: 11, fontWeight: 500,
+            cursor: primaryLabel ? "pointer" : "default",
+            fontFamily: FONTS.body,
+          }}>↺ {primaryLabel ? `Regenerate from ${primaryLabel}` : "Pick a Talent Type to regenerate"}</button>
+          {/* Audit fix #7 — paste-from-clipboard for talent who already
+              wrote a bio in another tool (Notes, Notion, Instagram bio).
+              Reads navigator.clipboard, falls back silently if blocked.
+              Trims to the locale's char limit so we don't blow past it. */}
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const text = await navigator.clipboard.readText();
+                if (!text) return;
+                setText(activeLocale, text.slice(0, limit));
+              } catch {
+                // Browser blocked — silent. Talent can paste manually.
+              }
+            }}
+            style={{
+              padding: "5px 11px", borderRadius: 999,
+              background: "transparent", border: `1px dashed ${COLORS.border}`,
+              color: COLORS.inkMuted,
+              fontSize: 11, fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}
+            title="Paste a bio you already wrote elsewhere"
+          >📋 Paste from clipboard</button>
+        </div>
         <span style={{ fontSize: 10.5, color: charCount > limit * 0.9 ? COLORS.amberDeep : COLORS.inkDim }}>
           {charCount} / {limit}
         </span>
@@ -5269,6 +6370,28 @@ function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTypes, spe
   bios: LocaleBio[];
   onClose: () => void;
 }) {
+  // Phase E follow-up — public preview honors catalog visibility +
+  // workspace overrides. A field renders ONLY if its catalog entry's
+  // resolved `defaultVisibility` includes "public" (or `showInPublic`
+  // is true). Talent + admin can flip these via Workspace Field
+  // Settings; this modal updates immediately via the subscription.
+  useWorkspaceFieldOverrideSubscription();
+  const isPublic = (catalogId: string, fallback = false): boolean => {
+    const entry = FIELD_CATALOG.find(f => f.id === catalogId);
+    if (!entry) return fallback;
+    const resolved = applyWorkspaceFieldOverride(entry, PROTO_TENANT_ID);
+    if (!resolved.enabled) return false;
+    if (resolved.showInPublic === true) return true;
+    if (resolved.showInPublic === false) return false;
+    return resolved.defaultVisibility?.includes("public") ?? fallback;
+  };
+  const showTagline       = isPublic("identity.tagline", true);
+  const showSecondaries   = isPublic("identity.tagline", true); // grouped under tagline gating
+  const showSpecialties   = true; // specialties live on talent type taxonomy, not a single catalog field
+  const showBio           = isPublic("bios", true);
+  const showLanguages     = isPublic("languages", true);
+  const showLocation      = isPublic("serviceArea.homeBase", true);
+
   const trustMeta = TALENT_TRUST_META[trust];
   const enBio = bios.find(b => b.locale === "en")?.text ?? "";
   return (
@@ -5322,20 +6445,22 @@ function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTypes, spe
           <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 4 }}>
             {primaryRes ? primaryRes.child.label : "—"}
           </div>
-          {tagline && (
+          {showTagline && tagline && (
             <div style={{ fontSize: 12.5, color: COLORS.inkMuted, fontStyle: "italic", marginBottom: 6 }}>
               {tagline}
             </div>
           )}
-          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 10 }}>
-            📍 {[serviceArea.homeBase, ...serviceArea.serviceCities].filter(Boolean).slice(0, 4).join(" · ") || "—"}
-          </div>
-          {secondaryTypes.length > 0 && (
+          {showLocation && (
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 10 }}>
+              📍 {[serviceArea.homeBase, ...serviceArea.serviceCities].filter(Boolean).slice(0, 4).join(" · ") || "—"}
+            </div>
+          )}
+          {showSecondaries && secondaryTypes.length > 0 && (
             <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8 }}>
               Also available as: {secondaryTypes.map(id => findChild(id)?.child.label).filter(Boolean).join(" · ")}
             </div>
           )}
-          {specialties.length > 0 && (
+          {showSpecialties && specialties.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12 }}>
               {specialties.slice(0, 8).map(s => (
                 <span key={s} style={{
@@ -5345,7 +6470,7 @@ function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTypes, spe
               ))}
             </div>
           )}
-          {enBio && (
+          {showBio && enBio && (
             <p style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.55, marginTop: 8, marginBottom: 12 }}>
               {enBio}
             </p>
@@ -5364,7 +6489,7 @@ function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTypes, spe
               ))}
             </div>
           )}
-          {languages.length > 0 && (
+          {showLanguages && languages.length > 0 && (
             <div style={{ marginTop: 14, fontSize: 11.5, color: COLORS.inkMuted }}>
               <strong style={{ color: COLORS.ink }}>Languages — </strong>
               {languages.map(l => `${l.language} (${l.level})`).join(" · ")}
@@ -6403,100 +7528,6 @@ function FilesEditor({ files, onChange }: {
   );
 }
 
-function HeroPreviewCard({ stageName, tagline, primaryRes, secondaryTypes, specialties, serviceArea, photos, languages, trust, completeness, onClickPhoto }: {
-  stageName: string;
-  tagline: string;
-  primaryRes: { parent: TaxonomyParent; child: TaxonomyChild } | null;
-  secondaryTypes: string[];
-  specialties: string[];
-  serviceArea: ServiceArea;
-  photos: string[];
-  languages: ProfileLanguage[];
-  trust: "basic" | "verified" | "silver" | "gold";
-  completeness: number;
-  onClickPhoto?: () => void;
-}) {
-  const trustMeta = TALENT_TRUST_META[trust];
-  return (
-    <div>
-      <div style={{
-        fontSize: 10, fontWeight: 600, letterSpacing: 0.4,
-        color: COLORS.inkMuted, marginBottom: 8,
-      }}>LIVE PREVIEW</div>
-      <div style={{
-        background: "#fff", borderRadius: 14,
-        border: `1px solid ${COLORS.borderSoft}`,
-        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
-        overflow: "hidden", marginBottom: 14,
-      }}>
-        <div onClick={onClickPhoto}
-          role={onClickPhoto ? "button" : undefined}
-          aria-label={onClickPhoto ? "Open client preview" : undefined}
-          style={{
-            aspectRatio: "4 / 5",
-            background: photos[0]
-              ? `url(${photos[0]}) center/cover, ${COLORS.surfaceAlt}`
-              : COLORS.surfaceAlt,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: COLORS.inkMuted, fontSize: 36,
-            cursor: onClickPhoto ? "pointer" : "default",
-          }}>{!photos[0] && "📷"}</div>
-        <div style={{ padding: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.2 }}>
-              {stageName || "Untitled profile"}
-            </span>
-            <span style={{
-              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
-              background: trustMeta.bg, color: trustMeta.fg,
-              display: "inline-flex", alignItems: "center", gap: 3,
-            }}>{trustMeta.emoji} {trustMeta.label}</span>
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 4 }}>
-            {primaryRes ? primaryRes.child.label : "Pick a Talent Type"}
-          </div>
-          {tagline && (
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, fontStyle: "italic", marginBottom: 6 }}>
-              {tagline}
-            </div>
-          )}
-          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 4 }}>
-            📍 {[serviceArea.homeBase, ...serviceArea.serviceCities].filter(Boolean).slice(0, 4).join(" · ") || "—"}
-          </div>
-          {secondaryTypes.length > 0 && (
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
-              Also: {secondaryTypes.map(id => findChild(id)?.child.label).filter(Boolean).slice(0, 3).join(" · ")}
-            </div>
-          )}
-          {specialties.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-              {specialties.slice(0, 4).map(s => (
-                <span key={s} style={{
-                  fontSize: 10, fontWeight: 500, padding: "1px 7px", borderRadius: 999,
-                  background: COLORS.indigoSoft, color: COLORS.indigoDeep,
-                }}>{s}</span>
-              ))}
-            </div>
-          )}
-          {languages.length > 0 && (
-            <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 6 }}>
-              {languages.slice(0, 3).map(l => `${l.language} · ${l.level}`).join(" · ")}
-            </div>
-          )}
-        </div>
-      </div>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8,
-        fontSize: 11, color: COLORS.inkMuted, marginBottom: 14,
-      }}>
-        <div style={{ flex: 1, height: 4, background: "rgba(11,11,13,0.06)", borderRadius: 999, overflow: "hidden" }}>
-          <div style={{ width: `${completeness}%`, height: "100%", background: completeness === 100 ? COLORS.green : COLORS.indigoDeep, transition: "width .25s" }} />
-        </div>
-        <span style={{ fontWeight: 600, color: COLORS.ink }}>{completeness}%</span>
-      </div>
-    </div>
-  );
-}
 
 function RequiredCoach({ missing, onJump }: {
   missing: { id: string; label: string; met: boolean }[];
@@ -6717,7 +7748,7 @@ function FirstTimeHero({ completeness, onStart }: {
 }) {
   const steps: { id: ProfileSectionId; label: string; helper: string; emoji: string }[] = [
     { id: "media",    label: "Add a photo",   helper: "One headshot is enough to start.", emoji: "📷" },
-    { id: "services", label: "Pick your role", helper: "What clients book you as.",       emoji: "🎯" },
+    { id: "services", label: "Pick what you do", helper: "What clients book you as.",     emoji: "🎯" },
     { id: "location", label: "Set your base", helper: "City + travel range.",              emoji: "📍" },
   ];
   return (
@@ -6806,16 +7837,33 @@ function ProfileGrowthMetric({ onJump }: { onJump: () => void }) {
   );
 }
 
-function ProfileAccordionSection({ id, title, sub, complete, open, onToggle, accent, children }: {
+function ProfileAccordionSection({ id, title, sub, complete, started, open, onToggle, accent, children, primaryType }: {
   id: string;
   title: string;
   sub?: string;
   complete: boolean;
+  /** Optional 3rd state: section has SOME data but not enough to be
+   *  considered complete. When omitted, the indicator is binary
+   *  (empty circle vs green check). */
+  started?: boolean;
   open: boolean;
   onToggle: () => void;
   accent?: "amber";
   children: ReactNode;
+  /** When set, the section consults the field catalog to decide
+   *  whether to render at all. Accepts a single type id, an array
+   *  of role ids (primary + secondaries), or null. Sections that
+   *  aren't catalog-mapped render unchanged regardless. */
+  primaryType?: string | ReadonlyArray<string> | null;
 }) {
+  // Catalog-driven gating. Cast is safe — DrawerSectionId is a closed
+  // union of string literals; passing an arbitrary id falls through
+  // to "always-on" via sectionAppliesToType's unmapped branch.
+  if (primaryType !== undefined) {
+    const arg = (primaryType ?? null) as TaxonomyParentId | ReadonlyArray<TaxonomyParentId> | null;
+    const applies = sectionAppliesToType(id as DrawerSectionId, arg);
+    if (!applies) return null;
+  }
   return (
     <section id={`pshell-${id}`} style={{
       borderTop: `1px solid ${COLORS.borderSoft}`,
@@ -6826,15 +7874,38 @@ function ProfileAccordionSection({ id, title, sub, complete, open, onToggle, acc
         padding: "16px 24px", border: "none",
         background: "transparent", cursor: "pointer", textAlign: "left",
         fontFamily: FONTS.body,
-      }}>
-        <span style={{
-          width: 18, height: 18, borderRadius: "50%",
-          border: `1.5px solid ${complete ? COLORS.green : COLORS.borderStrong}`,
-          background: complete ? COLORS.green : "transparent",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0,
-        }}>
+      }}
+        title={
+          complete
+            ? "Complete"
+            : started
+              ? "Started — finish when ready"
+              : "Not started"
+        }
+      >
+        <span
+          aria-label={complete ? "complete" : started ? "in progress" : "not started"}
+          style={{
+            width: 18, height: 18, borderRadius: "50%",
+            border: `1.5px solid ${
+              complete ? COLORS.green : started ? COLORS.amberDeep : COLORS.borderStrong
+            }`,
+            background: complete
+              ? COLORS.green
+              : started
+                ? COLORS.amberSoft
+                : "transparent",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
           {complete && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+          {!complete && started && (
+            <span style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: COLORS.amberDeep,
+            }} />
+          )}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: accent === "amber" ? COLORS.amberDeep : COLORS.ink, letterSpacing: -0.1 }}>{title}</div>
@@ -7116,11 +8187,11 @@ function SmartFooterCTA({ status, mode, canPublish, onAction }: {
   );
 }
 
-function ToggleControl({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
+function ToggleControl({ value, onChange, label, disabled }: { value: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body }}>
-      <button type="button" onClick={() => onChange(!value)} aria-pressed={value} style={{
-        width: 36, height: 22, borderRadius: 999, border: "none", cursor: "pointer", padding: 0,
+    <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, opacity: disabled ? 0.55 : 1 }}>
+      <button type="button" onClick={() => { if (!disabled) onChange(!value); }} aria-pressed={value} disabled={disabled} style={{
+        width: 36, height: 22, borderRadius: 999, border: "none", cursor: disabled ? "not-allowed" : "pointer", padding: 0,
         background: value ? COLORS.accent : "rgba(11,11,13,0.12)",
         position: "relative", flexShrink: 0,
       }}>
@@ -7542,11 +8613,14 @@ function TalentApprovalsDrawer() {
 //  TemplatesPicker, InviteTrackingPanel)
 // ════════════════════════════════════════════════════════════════════
 
-function IdentityEditor({ identity, onChange, isSelf, isFieldLocked }: {
+function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons }: {
   identity: ProfileIdentity;
   onChange: (next: ProfileIdentity) => void;
   isSelf: boolean;
   isFieldLocked: (path: string) => boolean;
+  /** Step 7 — per-path reason text. Surfaced through `LockedHint` so
+   *  talent see why a field is greyed out, not just that it is. */
+  lockReasons?: Record<string, string>;
 }) {
   const age = deriveAge(identity.dob);
   const ageRange = ageRangeFor(age);
@@ -7565,9 +8639,21 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked }: {
             opacity: isFieldLocked("identity.stageName") ? 0.55 : 1,
           }}
         />
+        {/* Audit fix #3 — LockedHint with reason on stageName too. */}
+        {isFieldLocked("identity.stageName") && <LockedHint reason={lockReasons?.["identity.stageName"]} />}
       </FieldRow>
 
-      <FieldRow label="Legal name" optional hint={isSelf ? "Used for contracts. Never on the public profile." : "KYC. Admin-only."}>
+      <FieldRow
+        label="Legal name"
+        catalogId="identity.legalName"
+        optional
+        hint={isSelf ? "Used for contracts. Never on the public profile." : "KYC. Admin-only."}
+        visibility={identity.visibility?.legalName ?? ["private"]}
+        onVisibilityChange={(next) => onChange({
+          ...identity,
+          visibility: { ...(identity.visibility ?? {}), legalName: next },
+        })}
+      >
         <input
           placeholder="Sofia Lupo García"
           value={identity.legalName}
@@ -7580,7 +8666,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked }: {
             opacity: isFieldLocked("identity.legalName") ? 0.55 : 1,
           }}
         />
-        {isFieldLocked("identity.legalName") && <LockedHint />}
+        {isFieldLocked("identity.legalName") && <LockedHint reason={lockReasons?.["identity.legalName"]} />}
       </FieldRow>
 
       <FieldRow label="Pronunciation" optional hint={`Phonetic — e.g. "soh-FEE-ah loo-PO".`}>
@@ -7596,7 +8682,15 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked }: {
         />
       </FieldRow>
 
-      <FieldRow label="Pronouns" optional>
+      <FieldRow
+        label="Pronouns"
+        optional
+        visibility={identity.visibility?.pronouns ?? ["public", "agency"]}
+        onVisibilityChange={(next) => onChange({
+          ...identity,
+          visibility: { ...(identity.visibility ?? {}), pronouns: next },
+        })}
+      >
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
           {PRONOUNS_OPTIONS.map(opt => {
             const active = identity.pronouns === opt.id;
@@ -7626,7 +8720,15 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked }: {
         )}
       </FieldRow>
 
-      <FieldRow label="Gender" optional>
+      <FieldRow
+        label="Gender"
+        optional
+        visibility={identity.visibility?.gender ?? ["agency"]}
+        onVisibilityChange={(next) => onChange({
+          ...identity,
+          visibility: { ...(identity.visibility ?? {}), gender: next },
+        })}
+      >
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
           {GENDER_OPTIONS.map(opt => {
             const active = identity.gender === opt.id;
@@ -7644,7 +8746,17 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked }: {
         </div>
       </FieldRow>
 
-      <FieldRow label="Date of birth" optional hint="Used to compute age. You control how it shows.">
+      <FieldRow
+        label="Date of birth"
+        catalogId="identity.dob"
+        optional
+        hint="Used to compute age. You control how it shows."
+        visibility={identity.visibility?.dob ?? ["private"]}
+        onVisibilityChange={(next) => onChange({
+          ...identity,
+          visibility: { ...(identity.visibility ?? {}), dob: next },
+        })}
+      >
         <input
           type="date"
           value={identity.dob ?? ""}
@@ -7681,16 +8793,232 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked }: {
           </div>
         )}
       </FieldRow>
+
+      {/* Audit fix #8 — pointer to where the rest of the travel/legal
+          fields live (passport, work-eligibility, driver's license).
+          Same person, same shoot logistics — splitting them across
+          Identity + Location was structurally awkward; this hint at
+          least bridges the two so the talent isn't hunting. */}
+      <div style={{
+        margin: "2px 0 -4px",
+        padding: "6px 10px",
+        borderRadius: 8,
+        background: "rgba(11,11,13,0.025)",
+        fontSize: 11.5,
+        color: COLORS.inkMuted,
+        fontFamily: FONTS.body,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+      }}>
+        <span aria-hidden>ℹ️</span>
+        <span>Passport, work eligibility &amp; license live in <strong>Location &amp; travel</strong>.</span>
+      </div>
+      <FieldRow
+        label="Nationality"
+        catalogId="identity.nationality"
+        optional
+        hint="Country of citizenship — drives international booking pre-checks."
+        visibility={["agency"]}
+      >
+        <input
+          placeholder="e.g. ES · Spain"
+          value={identity.nationality ?? ""}
+          onChange={(e) => onChange({ ...identity, nationality: e.target.value })}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "10px 12px",
+            borderRadius: 10, border: `1px solid ${COLORS.border}`,
+            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+          }}
+        />
+      </FieldRow>
+
+      <FieldRow
+        label="Country of residence"
+        catalogId="identity.homeCountry"
+        optional
+        hint="Tax + payout routing reads this. Separate from your home base city."
+        visibility={["agency"]}
+      >
+        <input
+          placeholder="e.g. ES · Spain"
+          value={identity.homeCountry ?? ""}
+          onChange={(e) => onChange({ ...identity, homeCountry: e.target.value })}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "10px 12px",
+            borderRadius: 10, border: `1px solid ${COLORS.border}`,
+            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+          }}
+        />
+      </FieldRow>
+
+      <FieldRow
+        label="Reply-time commitment"
+        catalogId="identity.responseTime"
+        optional
+        hint="Surfaces on Discover as a chip — sets client expectations."
+        visibility={["public", "agency"]}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          {[
+            { id: "1h",  label: "Within 1h" },
+            { id: "4h",  label: "Within 4h" },
+            { id: "24h", label: "Within 24h" },
+            { id: "48h", label: "48h+" },
+          ].map(opt => {
+            const active = identity.responseTime === opt.id;
+            return (
+              <button key={opt.id} type="button" onClick={() => onChange({
+                ...identity,
+                responseTime: active ? undefined : opt.id as "1h" | "4h" | "24h" | "48h",
+              })} style={{
+                padding: "6px 11px", borderRadius: 999,
+                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                color: active ? COLORS.accentDeep : COLORS.ink,
+                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>{opt.label}</button>
+            );
+          })}
+        </div>
+      </FieldRow>
     </div>
   );
 }
 
-function LockedHint() {
+function LockedHint({ reason }: { reason?: string }) {
   return (
     <div style={{
       marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4,
       fontSize: 10.5, color: COLORS.amberDeep, fontFamily: FONTS.body,
-    }}>🔒 Locked by your agency</div>
+    }}>
+      🔒 Locked by your agency
+      {reason ? <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}> · {reason}</span> : null}
+    </div>
+  );
+}
+
+// ── Field locks overview (Step 7) ────────────────────────────────────
+// Single panel inside the admin section that lists every locked path
+// with a reason input + unlock button. Replaces "go hunt for the lock
+// chip in each section" with a flat audit view. The reason text rides
+// alongside the field everywhere `LockedHint` renders so the talent
+// understands the rule, not just that they're blocked.
+function FieldLocksOverviewPanel({
+  locks,
+  reasons,
+  onUnlock,
+  onSetReason,
+}: {
+  locks: FieldLockPath[];
+  reasons: Record<string, string>;
+  onUnlock: (path: FieldLockPath) => void;
+  onSetReason: (path: FieldLockPath, reason: string) => void;
+}) {
+  if (locks.length === 0) {
+    return (
+      <div style={{
+        padding: "10px 12px",
+        borderRadius: 10,
+        border: `1px dashed ${COLORS.borderSoft}`,
+        background: "rgba(11,11,13,0.02)",
+        fontFamily: FONTS.body,
+        fontSize: 12,
+        color: COLORS.inkMuted,
+      }}>
+        No locked fields. Open a section and tap "🔓 Talent can edit" next to a field to lock it.
+      </div>
+    );
+  }
+  // Compact path → label map. Falls back to the raw path when a
+  // section we haven't named yet shows up.
+  const PATH_LABEL: Record<string, string> = {
+    "identity.legalName":   "Legal name",
+    "identity.stageName":   "Stage name",
+    "identity.pronouns":    "Pronouns",
+    "identity.gender":      "Gender",
+    "identity.dob":         "Date of birth",
+    "rates":                "Rate card",
+    "serviceArea.homeBase": "Home base",
+    "serviceArea.travelKm": "Travel range",
+    "primaryType":          "Primary type",
+    "specialties":          "Specialties",
+    "languages":            "Languages",
+  };
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", gap: 6,
+      padding: 10, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`,
+      background: "#fff", fontFamily: FONTS.body,
+    }}>
+      {locks.map((path) => {
+        const label = PATH_LABEL[path] ?? path;
+        const reason = reasons[path] ?? "";
+        return (
+          <div key={path} style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(120px, 0.6fr) 1fr auto",
+            alignItems: "center",
+            gap: 8,
+            padding: "6px 8px",
+            borderRadius: 8,
+            background: "rgba(184,128,38,0.05)",
+          }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              fontSize: 12, fontWeight: 600, color: COLORS.amberDeep,
+              minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }} title={path}>
+              <span aria-hidden>🔒</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+            </div>
+            <input
+              type="text"
+              value={reason}
+              onChange={(e) => onSetReason(path, e.target.value)}
+              placeholder="Reason (e.g. set by contract)"
+              aria-label={`Reason for locking ${label}`}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "5px 9px",
+                borderRadius: 6,
+                border: `1px solid ${COLORS.borderSoft}`,
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                color: COLORS.ink,
+                background: "#fff",
+                outline: "none",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => onUnlock(path)}
+              aria-label={`Unlock ${label}`}
+              title="Unlock"
+              style={{
+                padding: "4px 9px",
+                borderRadius: 999,
+                border: `1px solid ${COLORS.borderSoft}`,
+                background: "#fff",
+                color: COLORS.inkMuted,
+                fontFamily: FONTS.body,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Unlock
+            </button>
+          </div>
+        );
+      })}
+      <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2, padding: "0 4px" }}>
+        Tip: lock anything tied to a contract, payout setup, or trust signal — talent see the reason next to the field.
+      </div>
+    </div>
   );
 }
 
@@ -7880,9 +9208,30 @@ function PhotoGalleryPro({ items, onChange }: {
   const [dragOver, setDragOver] = useState(false);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  // 2026 — paste a YouTube/Vimeo URL to add a video card to the gallery.
+  // We store the parsed thumb as `url` so all tile rendering paths
+  // continue to work; the `videoUrl` + `videoProvider` fields trigger
+  // the play-overlay treatment in the tile + the embed in PhotoMetaModal.
+  const [videoUrlInput, setVideoUrlInput] = useState("");
+  const [videoUrlError, setVideoUrlError] = useState<string | null>(null);
+  const addVideoUrl = () => {
+    const parsed = parseVideoUrl(videoUrlInput);
+    if (!parsed) {
+      setVideoUrlError("Use a YouTube, Vimeo, or .mp4 URL.");
+      return;
+    }
+    const next: PhotoMeta = {
+      url: parsed.thumbUrl ?? "",
+      videoUrl: videoUrlInput.trim(),
+      videoProvider: parsed.provider,
+    };
+    onChange([...items, next]);
+    setVideoUrlInput("");
+    setVideoUrlError(null);
+  };
 
   const addFiles = (files: FileList | File[]) => {
-    const arr = Array.from(files).slice(0, 8 - items.length);
+    const arr = Array.from(files).slice(0, 12 - items.length);
     const additions: PhotoMeta[] = arr.map(f => ({
       url: URL.createObjectURL(f),
     }));
@@ -7925,7 +9274,7 @@ function PhotoGalleryPro({ items, onChange }: {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
         {items.map((it, i) => (
           <div
-            key={`${i}-${it.url}`}
+            key={`${i}-${it.url}-${it.videoUrl ?? ""}`}
             draggable
             onDragStart={(e) => { setDraggingIdx(i); e.dataTransfer.effectAllowed = "move"; }}
             onDragEnd={() => setDraggingIdx(null)}
@@ -7938,7 +9287,9 @@ function PhotoGalleryPro({ items, onChange }: {
             }}
             style={{
               position: "relative", aspectRatio: "3 / 4", borderRadius: 8,
-              background: `url(${it.url}) center/cover, ${COLORS.surfaceAlt}`,
+              background: it.url
+                ? `url(${it.url}) center/cover, ${COLORS.surfaceAlt}`
+                : `linear-gradient(135deg, ${COLORS.surfaceAlt}, rgba(11,11,13,0.06))`,
               border: i === 0 ? `2px solid ${COLORS.accent}` : `1px solid ${COLORS.borderSoft}`,
               overflow: "hidden",
               cursor: "grab",
@@ -7964,6 +9315,37 @@ function PhotoGalleryPro({ items, onChange }: {
                 backdropFilter: "blur(4px)",
               }}>{PHOTO_TAG_META[it.tag].emoji} {PHOTO_TAG_META[it.tag].label}</span>
             )}
+            {/* Video play-overlay — appears on any tile with a videoUrl.
+                Provider chip top-right (YouTube / Vimeo / mp4) so the
+                source is obvious at a glance. */}
+            {it.videoUrl && (
+              <>
+                <div aria-hidden style={{
+                  position: "absolute", inset: 0,
+                  background: "linear-gradient(180deg, rgba(11,11,13,0) 50%, rgba(11,11,13,0.6) 100%)",
+                  pointerEvents: "none",
+                }} />
+                <div aria-hidden style={{
+                  position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+                  width: 36, height: 36, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.92)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 4px 12px rgba(11,11,13,0.25)",
+                }}>
+                  <span style={{ fontSize: 14, color: COLORS.ink, marginLeft: 2 }}>▶</span>
+                </div>
+                <span style={{
+                  position: "absolute", top: 4, right: 28,
+                  fontSize: 9, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: 0.4,
+                  padding: "2px 6px", borderRadius: 999,
+                  background: it.videoProvider === "youtube" ? "#FF0000"
+                    : it.videoProvider === "vimeo" ? "#1AB7EA"
+                    : "rgba(11,11,13,0.65)",
+                  color: "#fff", textTransform: "uppercase",
+                  backdropFilter: "blur(4px)",
+                }}>{it.videoProvider}</span>
+              </>
+            )}
             <button type="button" onClick={(e) => { e.stopPropagation(); removeAt(i); }} aria-label="Remove"
               style={{
                 position: "absolute", top: 4, right: 4,
@@ -7973,7 +9355,7 @@ function PhotoGalleryPro({ items, onChange }: {
               }}>×</button>
           </div>
         ))}
-        {items.length < 8 && (
+        {items.length < 12 && (
           <button type="button" onClick={onPick} style={{
             aspectRatio: "3 / 4", borderRadius: 8,
             border: `1.5px dashed ${COLORS.borderSoft}`,
@@ -7988,6 +9370,38 @@ function PhotoGalleryPro({ items, onChange }: {
           </button>
         )}
       </div>
+      {/* Add-by-URL row — paste a YouTube / Vimeo / .mp4 link to add a
+          video card to the gallery. Sits below the photo grid so the
+          primary action (upload) stays first; secondary surface for
+          motion work that lives somewhere else already. */}
+      {items.length < 12 && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+            <input
+              type="url"
+              value={videoUrlInput}
+              onChange={(e) => { setVideoUrlInput(e.target.value); if (videoUrlError) setVideoUrlError(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVideoUrl(); } }}
+              placeholder="Paste a YouTube, Vimeo, or .mp4 URL…"
+              style={{
+                flex: 1, padding: "8px 11px",
+                borderRadius: 8, border: `1px solid ${videoUrlError ? COLORS.coral : COLORS.borderSoft}`,
+                fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
+              }}
+            />
+            <button type="button" onClick={addVideoUrl} disabled={!videoUrlInput.trim()} style={{
+              padding: "8px 14px", borderRadius: 8, border: "none",
+              background: videoUrlInput.trim() ? COLORS.ink : "rgba(11,11,13,0.10)",
+              color: videoUrlInput.trim() ? "#fff" : COLORS.inkDim,
+              fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+              cursor: videoUrlInput.trim() ? "pointer" : "default",
+            }}>+ Video</button>
+          </div>
+          {videoUrlError && (
+            <div style={{ fontSize: 10.5, color: COLORS.coral, fontFamily: FONTS.body }}>{videoUrlError}</div>
+          )}
+        </div>
+      )}
       <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }}>
         Tap a tile to add tag + alt text + caption. Drag to reorder. Mobile camera supported.
       </div>
@@ -8026,16 +9440,63 @@ function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
         boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.ink }}>Photo details</h3>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.ink }}>
+            {item.videoUrl ? "Video details" : "Photo details"}
+          </h3>
           <button type="button" onClick={onClose} aria-label="Close" style={{
             background: "transparent", border: "none", padding: 4, cursor: "pointer", fontSize: 16, color: COLORS.inkMuted,
           }}>✕</button>
         </div>
-        <div style={{
-          width: "100%", aspectRatio: "4 / 3", borderRadius: 10, marginBottom: 12,
-          background: `url(${item.url}) center/cover, ${COLORS.surfaceAlt}`,
-          border: `1px solid ${COLORS.borderSoft}`,
-        }} />
+        {/* Preview — embedded video player when we have a URL we can
+            recognize, else photo. Falls back to thumbnail for any
+            unparseable URL so the modal always shows *something*. */}
+        {item.videoUrl ? (() => {
+          const parsed = parseVideoUrl(item.videoUrl);
+          if (parsed && (parsed.provider === "youtube" || parsed.provider === "vimeo")) {
+            return (
+              <div style={{
+                width: "100%", aspectRatio: "16 / 9", borderRadius: 10, marginBottom: 12,
+                overflow: "hidden", border: `1px solid ${COLORS.borderSoft}`,
+                background: COLORS.surfaceAlt,
+              }}>
+                <iframe
+                  src={parsed.embedUrl}
+                  title="Video preview"
+                  style={{ width: "100%", height: "100%", border: 0 }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            );
+          }
+          if (parsed && parsed.provider === "mp4") {
+            return (
+              <video
+                src={parsed.embedUrl}
+                controls
+                style={{
+                  width: "100%", aspectRatio: "16 / 9", borderRadius: 10, marginBottom: 12,
+                  border: `1px solid ${COLORS.borderSoft}`, background: "#000",
+                }}
+              />
+            );
+          }
+          return (
+            <div style={{
+              width: "100%", aspectRatio: "16 / 9", borderRadius: 10, marginBottom: 12,
+              background: `url(${item.url}) center/cover, ${COLORS.surfaceAlt}`,
+              border: `1px solid ${COLORS.borderSoft}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#fff", fontSize: 11, fontWeight: 600,
+            }}>Preview unavailable — saved URL: {item.videoUrl}</div>
+          );
+        })() : (
+          <div style={{
+            width: "100%", aspectRatio: "4 / 3", borderRadius: 10, marginBottom: 12,
+            background: `url(${item.url}) center/cover, ${COLORS.surfaceAlt}`,
+            border: `1px solid ${COLORS.borderSoft}`,
+          }} />
+        )}
         <FieldRow label="Tag">
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
             {(Object.keys(PHOTO_TAG_META) as PhotoTag[]).map(t => {
@@ -8630,15 +10091,20 @@ function FieldLockToggle({ path, locks, onChange }: {
 }) {
   const isLocked = locks.includes(path);
   return (
-    <button type="button" onClick={() => onChange(isLocked ? locks.filter(x => x !== path) : [...locks, path])} style={{
-      padding: "4px 9px", borderRadius: 999,
-      border: `1px solid ${isLocked ? COLORS.amberDeep : COLORS.borderSoft}`,
-      background: isLocked ? COLORS.amberSoft : "#fff",
-      color: isLocked ? COLORS.amberDeep : COLORS.inkMuted,
-      fontSize: 10.5, fontWeight: 600, cursor: "pointer",
-      fontFamily: FONTS.body,
-      display: "inline-flex", alignItems: "center", gap: 4,
-    }}>{isLocked ? "🔒 Locked" : "🔓 Lock for talent"}</button>
+    <button
+      type="button"
+      title={isLocked ? "Talent can't edit this. Tap to unlock." : "Talent can edit this. Tap to lock."}
+      onClick={() => onChange(isLocked ? locks.filter(x => x !== path) : [...locks, path])}
+      style={{
+        padding: "4px 9px", borderRadius: 999,
+        border: `1px solid ${isLocked ? COLORS.amberDeep : COLORS.borderSoft}`,
+        background: isLocked ? COLORS.amberSoft : "#fff",
+        color: isLocked ? COLORS.amberDeep : COLORS.inkMuted,
+        fontSize: 10.5, fontWeight: 600, cursor: "pointer",
+        fontFamily: FONTS.body,
+        display: "inline-flex", alignItems: "center", gap: 4,
+      }}
+    >{isLocked ? "🔒 Talent can't edit" : "🔓 Talent can edit"}</button>
   );
 }
 
@@ -8741,17 +10207,32 @@ function BrandingDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function DomainDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, toast } = useProto();
   const onSave = useSaveAndClose("Domain settings saved");
   const isLive = meetsPlan(state.plan, "studio");
+  // I3 — read live domain status from the Website page's source of
+  // truth so the drawer stays in sync with WebsiteDomainPanel.
+  const domain = WEBSITE_STATE.domain;
+  const sslDaysLeft = domain.sslExpiresOn
+    ? Math.round((new Date(domain.sslExpiresOn).getTime() - Date.now()) / 86400e3)
+    : null;
+  const dnsAllMatched = (domain.dnsRecords ?? []).every(r => r.matched);
+  const verified = domain.status === "verified" && dnsAllMatched;
+  const sslHealthy = domain.sslStatus === "active";
+  const copy = (text: string, label: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+    toast(`${label} copied`);
+  };
 
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Custom domain"
-      description={isLive ? "Your storefront runs on your own brand domain." : "Your storefront runs on Tulala's subdomain."}
-      width={560}
+      description={isLive ? `Your storefront runs on ${domain.primaryDomain}.` : "Your storefront runs on Tulala's subdomain."}
+      width={580}
       footer={<StandardFooter onSave={onSave} />}
     >
       <Section title="Public URL">
@@ -8759,30 +10240,140 @@ function DomainDrawer() {
           <TextInput defaultValue={TENANT.domain} prefix="https://" />
         </FieldRow>
         <FieldRow label="Custom domain" optional>
-          <TextInput defaultValue={isLive ? TENANT.customDomain : ""} placeholder="acme-models.com" prefix="https://" />
+          <TextInput defaultValue={isLive ? domain.primaryDomain : ""} placeholder="acme-models.com" prefix="https://" />
         </FieldRow>
+        {isLive && (
+          <FieldRow label="Redirect bare → www" optional hint="When on, atelier-roma.com is rewritten to www.atelier-roma.com at the edge.">
+            <ToggleControl value={domain.redirectsToWww} label="" onChange={() => toast("Redirect-to-www toggle — wires to edge config in production")} />
+          </FieldRow>
+        )}
       </Section>
 
       {isLive && (
-        <Section title="DNS verification">
+        <Section title="Verification & SSL">
           <div
             style={{
               background: "#fff",
               border: `1px solid ${COLORS.borderSoft}`,
               borderRadius: 10,
               padding: 14,
+              display: "flex", flexDirection: "column", gap: 12,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <StatDot tone="green" />
-              <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-                Verified · SSL active
-              </span>
+            {/* Status row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <StatDot tone={verified ? "green" : "amber"} />
+                <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                  {verified ? "Domain verified" : "Verification pending"}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <StatDot tone={sslHealthy ? "green" : "amber"} />
+                <span style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                  SSL {domain.sslStatus}
+                </span>
+                {sslDaysLeft !== null && (
+                  <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+                    · renews in {sslDaysLeft} days
+                  </span>
+                )}
+              </div>
             </div>
-            <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, lineHeight: 1.7 }}>
-              <div>CNAME · @ → tulala-edge.cdn.tulala.app</div>
-              <div>TXT · _tulala-verify → tulala-7f2a91...</div>
-            </div>
+
+            {/* DNS records */}
+            {domain.dnsRecords && domain.dnsRecords.length > 0 && (
+              <div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 6, fontFamily: FONTS.body }}>
+                  DNS records
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {domain.dnsRecords.map((r, i) => (
+                    <div key={i} style={{
+                      display: "grid", gridTemplateColumns: "60px 80px 1fr auto auto", gap: 8,
+                      padding: "7px 10px", borderRadius: 8,
+                      background: r.matched ? "rgba(46,125,91,0.05)" : "rgba(245,166,35,0.07)",
+                      border: `1px solid ${r.matched ? "rgba(46,125,91,0.15)" : "rgba(245,166,35,0.20)"}`,
+                      fontSize: 11.5, fontFamily: "ui-monospace, monospace",
+                      alignItems: "center",
+                    }}>
+                      <span style={{ color: COLORS.inkMuted, fontWeight: 600 }}>{r.type}</span>
+                      <span style={{ color: COLORS.ink }}>{r.host}</span>
+                      <span style={{ color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.value}</span>
+                      <button
+                        type="button"
+                        onClick={() => copy(r.value, `${r.type} value`)}
+                        style={{
+                          padding: "2px 8px", borderRadius: 999,
+                          border: `1px solid ${COLORS.borderSoft}`,
+                          background: "#fff", cursor: "pointer",
+                          fontSize: 10, fontWeight: 600, color: COLORS.inkMuted,
+                          fontFamily: FONTS.body, letterSpacing: 0.3,
+                        }}
+                      >COPY</button>
+                      <span style={{
+                        color: r.matched ? COLORS.green : "#8a5a1f",
+                        textAlign: "center", fontWeight: 700,
+                        fontFamily: FONTS.body,
+                      }}>
+                        {r.matched ? "✓" : "!"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => toast("Re-checking DNS… (production: hits the verify endpoint)")}
+              style={{
+                alignSelf: "flex-start",
+                padding: "6px 12px", borderRadius: 999,
+                border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+                color: COLORS.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}
+            >
+              Re-check DNS
+            </button>
+          </div>
+        </Section>
+      )}
+
+      {isLive && domain.alternateDomains.length > 0 && (
+        <Section title="Alternate domains" description="Additional domains that redirect to the primary.">
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {domain.alternateDomains.map(d => (
+              <div key={d.domain} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "8px 12px", borderRadius: 10,
+                background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+              }}>
+                <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, color: COLORS.ink }}>
+                  {d.domain}
+                </span>
+                <span style={{
+                  padding: "2px 9px", borderRadius: 999,
+                  background: d.status === "verified" ? "rgba(46,125,91,0.10)" : "rgba(245,166,35,0.12)",
+                  color: d.status === "verified" ? COLORS.green : "#8a5a1f",
+                  fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3,
+                  fontFamily: FONTS.body,
+                }}>
+                  {d.status === "verified" ? "VERIFIED" : "PENDING DNS"}
+                </span>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => toast("Add alternate domain — wires to verification flow in production")}
+              style={{
+                padding: "8px 12px", borderRadius: 10,
+                border: `1px dashed ${COLORS.borderStrong}`, background: "transparent",
+                color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body, textAlign: "left",
+              }}
+            >+ Add alternate domain</button>
           </div>
         </Section>
       )}
@@ -9177,6 +10768,12 @@ function NewTalentDrawer() {
   const [phoneCountry, setPhoneCountry] = useState("+34");
   const [pronunciation, setPronunciation] = useState("");
   const [primaryType, setPrimaryType] = useState<string | null>(null);
+  // A6 — multi-role parity. Wizard + edit drawer collect secondary
+  // types; admin add couldn't, forcing a 2-step process (add + open
+  // shell + add secondaries). Now NewTalentDrawer carries secondaries
+  // through the seed handoff so the talent's roster card + dashboard
+  // immediately reflect "Model + Host" on first save.
+  const [secondaryTypes, setSecondaryTypes] = useState<string[]>([]);
   const [homeBase, setHomeBase] = useState("");
   // Default to "agency" so the most-used path (admin fills full profile)
   // is the visible default — the field-list preview spells out exactly
@@ -9226,6 +10823,7 @@ function NewTalentDrawer() {
   const seedForShell = () => ({
     stageName: computedDisplayName,
     primaryType: primaryType ?? undefined,
+    secondaryTypes,
     homeBase,
     method,
     contact: email,
@@ -9540,7 +11138,7 @@ function NewTalentDrawer() {
       {/* Talent Type */}
       <Section title="Primary Talent Type" framed>
         <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
-          What clients book this person as. Secondary roles + specialties are added in the full profile.
+          What clients book this person as. Add secondary roles below — this matches what registration collects.
         </div>
         <PrimaryTalentTypeGrid parents={allowedParents} selected={primaryType} onPick={(id) => setPrimaryType(id)} />
         {restParentsLP.length > 0 && (
@@ -9557,6 +11155,145 @@ function NewTalentDrawer() {
           {live.source === "live" ? "Live taxonomy ·" : "Local fixture ·"} {visibleParentsLP.length} visible · {restParentsLP.length} more
         </div>
       </Section>
+
+      {/* A6 — Secondary talent types. Multi-role parity with the
+          wizard. Renders only after a primary is picked so the
+          options stay focused. The hint links the user back to the
+          parent grid for rare combinations. */}
+      {primaryType && (() => {
+        // Build candidate parents EXCLUDING the parent of the primary
+        // — secondary should add NEW capabilities, not duplicate.
+        const primaryParent = TAXONOMY.find(p => p.children.some(c => c.id === primaryType))?.id;
+        const candidates = TAXONOMY
+          .filter(p => p.id !== primaryParent)
+          .filter(p => allowedParentIds.has(p.id))
+          .filter(p => planRank((WORKSPACE_TAXONOMY_DEFAULT.find(s => s.parentId === p.id)?.parentId
+            ? "free" : "free") as "free" | "studio" | "agency" | "network") <= currentRank);
+        return (
+          <Section title="Secondary talent types" framed>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+              Optional. Pick categories this talent ALSO works in — e.g. a model who also hosts, or a host who also drives. Multi-role profiles surface in more searches.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {candidates.map(p => {
+                const active = secondaryTypes.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSecondaryTypes(prev =>
+                      active ? prev.filter(x => x !== p.id) : [...prev, p.id]
+                    )}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "6px 12px", borderRadius: 999,
+                      border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                      background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                      color: active ? COLORS.accentDeep : COLORS.ink,
+                      fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span aria-hidden style={{ fontSize: 13 }}>{p.emoji}</span>
+                    <span>+ {p.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {secondaryTypes.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: 10.5, color: COLORS.inkDim }}>
+                {secondaryTypes.length} secondary {secondaryTypes.length === 1 ? "role" : "roles"} selected.
+              </div>
+            )}
+          </Section>
+        );
+      })()}
+
+      {/* A4 + A5 — Catalog-driven peek at what the talent will need
+          to fill (or what admin should fill on their behalf) once
+          they reach the full profile shell. Sourced from
+          resolvedFieldsForMode("registration", primaryType) so
+          workspace required-overrides are honored. Shows the top
+          required + recommendedFor fields per selected role.
+          Pure preview — admin doesn't fill them here, just sees
+          what's coming. */}
+      {primaryType && (() => {
+        const allRoles = primaryType ? [primaryType, ...secondaryTypes] : secondaryTypes;
+        // Map child id → parent id (catalog applicability is keyed by parent).
+        const parentIds = allRoles
+          .map(id => TAXONOMY.find(p => p.children.some(c => c.id === id))?.id)
+          .filter((x): x is TaxonomyParentId => !!x);
+        if (parentIds.length === 0) return null;
+        const fields = resolvedFieldsForMode("registration", PROTO_TENANT_ID, parentIds)
+          .filter(f => f.tier === "type-specific" && f.id.includes("."))
+          .filter(f => parentIds.some(p => f.appliesTo?.includes(p)));
+        if (fields.length === 0) return null;
+        // Required first, then recommended.
+        const required = fields.filter(f => parentIds.some(p => f.requiredFor?.includes(p)) || f.optional === false);
+        const recommended = fields.filter(f =>
+          !required.includes(f)
+          && parentIds.some(p => f.recommendedFor?.includes(p))
+        );
+        return (
+          <Section title="What's collected next" framed>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+              After save, the full profile shell asks for these fields. Catalog-driven — workspace overrides apply.
+            </div>
+            {required.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+                  color: COLORS.accentDeep ?? COLORS.accent, marginBottom: 4,
+                }}>
+                  Required ({required.length})
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {required.slice(0, 12).map(f => (
+                    <span key={f.id} style={{
+                      padding: "2px 8px", borderRadius: 999,
+                      background: "rgba(15,79,62,0.08)",
+                      color: COLORS.accentDeep ?? COLORS.accent,
+                      fontSize: 11, fontWeight: 600,
+                      fontFamily: FONTS.body,
+                    }}>{f.label}</span>
+                  ))}
+                  {required.length > 12 && (
+                    <span style={{ fontSize: 10.5, color: COLORS.inkMuted, alignSelf: "center" }}>
+                      +{required.length - 12} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            {recommended.length > 0 && (
+              <div>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+                  color: COLORS.inkMuted, marginBottom: 4,
+                }}>
+                  Recommended ({recommended.length})
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {recommended.slice(0, 8).map(f => (
+                    <span key={f.id} style={{
+                      padding: "2px 8px", borderRadius: 999,
+                      background: "rgba(11,11,13,0.04)",
+                      color: COLORS.inkMuted,
+                      fontSize: 11, fontWeight: 500,
+                      fontFamily: FONTS.body,
+                    }}>{f.label}</span>
+                  ))}
+                  {recommended.length > 8 && (
+                    <span style={{ fontSize: 10.5, color: COLORS.inkDim, alignSelf: "center" }}>
+                      +{recommended.length - 8} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </Section>
+        );
+      })()}
 
       {/* Home base */}
       <Section title="Home base" framed>
@@ -9914,17 +11651,29 @@ const TYPE_POPULARITY: Record<string, number> = {
   trade_show: 18, butler: 14, airport: 12, mixologist: 10, pastry: 8,
 };
 
+// 2026 reset — short parent labels for the prototype UI live in the
+// shared module @/lib/taxonomy/parent-labels so the storefront facet,
+// the admin drawer, and the prototype all render the same friendly
+// names ("Hosts" / "Music" / "Chefs") while the schema preserves the
+// canonical full names ("Hosts & Promo" / "Music & DJs" / "Chefs &
+// Culinary") for internal lookups.
+
 function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
   parents: TaxonomyParent[];
   selected: string | null;
   onPick: (id: string) => void;
 }) {
+  // 2026 reset — UI rule: parent category first, specific talent type second.
+  // No flat "Popular · top 8" row of specific types here. No 425-chip
+  // show-all wall. The user must drill into a parent to see the types
+  // inside it. Search is the escape hatch for power users who already
+  // know exactly which type they want.
   const [query, setQuery] = useState("");
-  const [showAll, setShowAll] = useState(false);
   const [expandedParentId, setExpandedParentId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Build flat list of all (parent, child) pairs
+  // Build flat list of all (parent, child) pairs — used ONLY for the
+  // search-typeahead dropdown. Never rendered as a top-level wall.
   type FlatType = { parent: TaxonomyParent; child: TaxonomyChild; popularity: number };
   const flatTypes: FlatType[] = parents.flatMap(p =>
     p.children.map(c => ({
@@ -9944,31 +11693,8 @@ function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
     .sort((a, b) => b.popularity - a.popularity)
     .slice(0, 12);
 
-  const popularTop = flatTypes
-    .sort((a, b) => b.popularity - a.popularity)
-    .slice(0, 8);
-
   // If something is selected, show ONLY its pill (matches existing parent-cleared UI)
   const selectedPair = selected ? flatTypes.find(t => t.child.id === selected) : null;
-
-  // Quick-pick chip helper
-  const renderChip = (t: FlatType) => {
-    const active = selected === t.child.id;
-    return (
-      <button key={t.child.id} type="button" onClick={() => onPick(t.child.id)} style={{
-        padding: "8px 13px", borderRadius: 999,
-        border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-        background: active ? "rgba(15,79,62,0.08)" : "#fff",
-        color: active ? COLORS.accentDeep : COLORS.ink,
-        fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
-        cursor: "pointer",
-        display: "inline-flex", alignItems: "center", gap: 5,
-      }}>
-        <span aria-hidden style={{ fontSize: 13, opacity: 0.85 }}>{t.parent.emoji}</span>
-        {t.child.label}
-      </button>
-    );
-  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
@@ -10055,23 +11781,13 @@ function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
         )}
       </div>
 
-      {/* When search is empty: show Popular + per-parent collapsed columns */}
-      {q.length === 0 && !showAll && (
+      {/* When search is empty: parent categories only. Drill in to see
+          the specific talent types under each. No flat wall of specific
+          types at the top level — that's the V1 reset rule. */}
+      {q.length === 0 && (
         <>
-          {/* Popular */}
-          <div>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
-              color: COLORS.inkMuted, marginBottom: 6,
-            }}>
-              <span style={{ fontSize: 13 }}>★</span>
-              Popular
-              <span style={{ fontWeight: 500, letterSpacing: 0, color: COLORS.inkDim }}>· top {popularTop.length}</span>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {popularTop.map(renderChip)}
-            </div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkDim, lineHeight: 1.4 }}>
+            Choose a category to see the specific roles inside it.
           </div>
 
           {/* Per-parent rolled-up rows */}
@@ -10095,7 +11811,7 @@ function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
                     <span style={{ fontSize: 18, flexShrink: 0 }}>{parent.emoji}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-                        {parent.label}
+                        {shortParentLabel(parent)}
                       </div>
                       <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
                         {parent.children.length} type{parent.children.length === 1 ? "" : "s"} · {parent.helper}
@@ -10108,77 +11824,20 @@ function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
                     }}>›</span>
                   </button>
                   {isOpen && (
-                    <div style={{ padding: "0 14px 12px", display: "flex", flexWrap: "wrap", gap: 5 }}>
-                      {parent.children.map(c => {
-                        const active = selected === c.id;
-                        return (
-                          <button key={c.id} type="button" onClick={() => onPick(c.id)} style={{
-                            padding: "6px 11px", borderRadius: 999,
-                            border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                            background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                            color: active ? COLORS.accentDeep : COLORS.ink,
-                            fontSize: 12, fontWeight: 600, cursor: "pointer",
-                            fontFamily: FONTS.body,
-                          }}>
-                            {c.label}
-                            {(TYPE_POPULARITY[c.id] ?? 0) >= 50 && (
-                              <span style={{ marginLeft: 5, fontSize: 9, color: COLORS.amberDeep }}>★</span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <ParentExpandedView
+                      parent={parent}
+                      selected={selected}
+                      onPick={onPick}
+                    />
                   )}
                 </div>
               );
             })}
           </div>
 
-          <button type="button" onClick={() => setShowAll(true)} style={{
-            alignSelf: "flex-start", padding: "6px 12px", borderRadius: 999,
-            background: "transparent", border: `1px dashed ${COLORS.border}`,
-            color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
-            fontFamily: FONTS.body,
-          }}>Show all types ({flatTypes.length})</button>
-        </>
-      )}
-
-      {/* Show-all view */}
-      {showAll && q.length === 0 && (
-        <>
-          <button type="button" onClick={() => setShowAll(false)} style={{
-            alignSelf: "flex-start", padding: "6px 12px", borderRadius: 999,
-            background: "transparent", border: `1px dashed ${COLORS.border}`,
-            color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
-            fontFamily: FONTS.body,
-          }}>← Back to popular</button>
-          {parents.map(parent => (
-            <div key={parent.id}>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 6,
-                fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
-                color: COLORS.inkMuted, marginBottom: 6,
-              }}>
-                <span style={{ fontSize: 13 }}>{parent.emoji}</span>
-                {parent.label}
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {parent.children.map(c => {
-                  const active = selected === c.id;
-                  return (
-                    <button key={c.id} type="button" onClick={() => onPick(c.id)} style={{
-                      padding: "8px 13px", borderRadius: 999,
-                      border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                      background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                      color: active ? COLORS.accentDeep : COLORS.ink,
-                      fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
-                      cursor: "pointer",
-                    }}>{c.label}</button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          <div style={{ fontSize: 10.5, color: COLORS.inkDim, fontStyle: "italic" }}>
+            Looking for something specific? Use the search above.
+          </div>
         </>
       )}
 
@@ -10187,6 +11846,269 @@ function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
         <div style={{ fontSize: 11, color: COLORS.inkDim }}>
           ✓ Selected: <strong style={{ color: COLORS.ink, fontWeight: 600 }}>{selectedPair.child.label}</strong> under {selectedPair.parent.label}
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 2026 reset — when a parent_category is expanded in PrimaryTalentTypeGrid,
+ * we don't dump all its children as a flat chip wall. Instead:
+ *   1. Show the TOP N most-popular types (default 6) immediately.
+ *   2. Offer a per-parent search input — filters within THIS parent only.
+ *   3. Offer a "Show all N more in {parent}" button to reveal the rest.
+ *
+ * State (search text, show-all toggle) is local to each instance, so each
+ * expanded parent has its own scoped UI without leaking into siblings.
+ */
+function ParentExpandedView({
+  parent,
+  selected,
+  onPick,
+}: {
+  parent: TaxonomyParent;
+  selected: string | null;
+  onPick: (id: string) => void;
+}) {
+  const TOP_N = 6;
+  const [localQuery, setLocalQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+
+  const popSorted = useMemo(
+    () =>
+      [...parent.children].sort(
+        (a, b) => (TYPE_POPULARITY[b.id] ?? 0) - (TYPE_POPULARITY[a.id] ?? 0),
+      ),
+    [parent.children],
+  );
+
+  const lq = localQuery.trim().toLowerCase();
+  const filtered = lq.length > 0
+    ? parent.children.filter(c =>
+        c.label.toLowerCase().includes(lq) ||
+        (c.specialties ?? []).some(s => s.toLowerCase().includes(lq)),
+      )
+    : null;
+
+  const visible: TaxonomyChild[] = filtered ?? (showAll ? popSorted : popSorted.slice(0, TOP_N));
+  const hidden = filtered ? 0 : Math.max(0, popSorted.length - TOP_N);
+  const shortLabel = shortParentLabel(parent);
+
+  return (
+    <div style={{ padding: "4px 14px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Per-parent search — only when there are enough children to warrant one */}
+      {parent.children.length > TOP_N && (
+        <div style={{ position: "relative" }}>
+          <input
+            type="search"
+            value={localQuery}
+            onChange={(e) => setLocalQuery(e.target.value)}
+            placeholder={`Search in ${shortLabel}…`}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              padding: "7px 28px 7px 28px", borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`,
+              fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
+              background: "#fff",
+            }}
+          />
+          <span aria-hidden style={{
+            position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)",
+            color: COLORS.inkMuted, fontSize: 12, pointerEvents: "none",
+          }}>🔍</span>
+          {localQuery && (
+            <button type="button" onClick={() => setLocalQuery("")}
+              aria-label="Clear search"
+              style={{
+                position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                width: 18, height: 18, borderRadius: "50%", border: "none",
+                background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+                fontSize: 11, lineHeight: 1, fontWeight: 600, cursor: "pointer",
+              }}>×</button>
+          )}
+        </div>
+      )}
+
+      {/* "Top in {parent}" or "All N types" header */}
+      {!filtered && (
+        <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 2 }}>
+          {showAll
+            ? `All ${popSorted.length} types in ${shortLabel}`
+            : `Top in ${shortLabel}`}
+        </div>
+      )}
+      {filtered && (
+        <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 2 }}>
+          {filtered.length === 0
+            ? "No matches in this category."
+            : `${filtered.length} match${filtered.length === 1 ? "" : "es"} in ${shortLabel}`}
+        </div>
+      )}
+
+      {/* Chip list */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {visible.map(c => {
+          const active = selected === c.id;
+          return (
+            <button key={c.id} type="button" onClick={() => onPick(c.id)} style={{
+              padding: "6px 11px", borderRadius: 999,
+              border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+              background: active ? "rgba(15,79,62,0.08)" : "#fff",
+              color: active ? COLORS.accentDeep : COLORS.ink,
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}>
+              {c.label}
+              {(TYPE_POPULARITY[c.id] ?? 0) >= 50 && (
+                <span style={{ marginLeft: 5, fontSize: 9, color: COLORS.amberDeep }}>★</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Show-all toggle — only when there are hidden types AND no active filter */}
+      {!filtered && hidden > 0 && (
+        <button type="button" onClick={() => setShowAll(v => !v)} style={{
+          alignSelf: "flex-start", padding: "5px 10px", borderRadius: 999,
+          background: "transparent", border: `1px dashed ${COLORS.border}`,
+          color: COLORS.inkMuted, fontSize: 11, fontWeight: 500, cursor: "pointer",
+          fontFamily: FONTS.body,
+        }}>
+          {showAll ? `– Show fewer` : `+ Show all ${hidden} more in ${shortLabel}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 2026 reset — multi-select sibling picker. Used for "Other roles within
+ * {parent}" and for cross-category expanded sections in the Services
+ * section. Same Top-N + per-parent search + Show-all UX as ParentExpandedView,
+ * but supports MULTI selection (toggling chips).
+ *
+ * The wall problem: Models has ~40 children. Showing all 40 as chips is
+ * overwhelming. This component shows the top 6 by popularity, lets the user
+ * search within the parent, and offers an explicit "+ Show all N more"
+ * expander for the rest.
+ */
+function SiblingTopNPicker({
+  children: childTypes,
+  selected,
+  onToggle,
+  parentLabel,
+  excludeId,
+}: {
+  children: TaxonomyChild[];
+  selected: string[];
+  onToggle: (id: string) => void;
+  parentLabel: string;
+  excludeId?: string | null;
+}) {
+  const TOP_N = 6;
+  const [localQuery, setLocalQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+
+  // Filter out the excluded id (typically the primary role).
+  const pool = useMemo(
+    () => childTypes.filter((c) => !excludeId || c.id !== excludeId),
+    [childTypes, excludeId],
+  );
+  // Always-on rule: any selected chip should also be in the visible set
+  // so the user can see what's currently picked. Sort selected first, then
+  // popularity-desc.
+  const popSorted = useMemo(() => {
+    const sel = new Set(selected);
+    return [...pool].sort((a, b) => {
+      const aSel = sel.has(a.id) ? 1 : 0;
+      const bSel = sel.has(b.id) ? 1 : 0;
+      if (aSel !== bSel) return bSel - aSel;
+      return (TYPE_POPULARITY[b.id] ?? 0) - (TYPE_POPULARITY[a.id] ?? 0);
+    });
+  }, [pool, selected]);
+
+  const lq = localQuery.trim().toLowerCase();
+  const filtered = lq.length > 0
+    ? pool.filter((c) =>
+        c.label.toLowerCase().includes(lq) ||
+        (c.specialties ?? []).some((s) => s.toLowerCase().includes(lq)),
+      )
+    : null;
+
+  const visible: TaxonomyChild[] = filtered ?? (showAll ? popSorted : popSorted.slice(0, TOP_N));
+  const hidden = filtered ? 0 : Math.max(0, popSorted.length - TOP_N);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Per-parent search — only when there are enough siblings to warrant one */}
+      {pool.length > TOP_N && (
+        <div style={{ position: "relative" }}>
+          <input
+            type="search"
+            value={localQuery}
+            onChange={(e) => setLocalQuery(e.target.value)}
+            placeholder={`Search in ${parentLabel}…`}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              padding: "7px 28px 7px 28px", borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`,
+              fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
+              background: "#fff",
+            }}
+          />
+          <span aria-hidden style={{
+            position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)",
+            color: COLORS.inkMuted, fontSize: 12, pointerEvents: "none",
+          }}>🔍</span>
+          {localQuery && (
+            <button type="button" onClick={() => setLocalQuery("")}
+              aria-label="Clear search"
+              style={{
+                position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                width: 18, height: 18, borderRadius: "50%", border: "none",
+                background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+                fontSize: 11, lineHeight: 1, fontWeight: 600, cursor: "pointer",
+              }}>×</button>
+          )}
+        </div>
+      )}
+
+      {filtered && filtered.length === 0 && (
+        <div style={{ fontSize: 11, color: COLORS.inkDim, fontStyle: "italic" }}>
+          No matches in {parentLabel}.
+        </div>
+      )}
+
+      {/* Chip list */}
+      {visible.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          {visible.map((c) => {
+            const active = selected.includes(c.id);
+            return (
+              <button key={c.id} type="button" onClick={() => onToggle(c.id)} style={{
+                padding: "6px 11px", borderRadius: 999,
+                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                color: active ? COLORS.accentDeep : COLORS.ink,
+                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>{c.label}</button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Show-all toggle — only when there are hidden types AND no active filter */}
+      {!filtered && hidden > 0 && (
+        <button type="button" onClick={() => setShowAll((v) => !v)} style={{
+          alignSelf: "flex-start", padding: "5px 10px", borderRadius: 999,
+          background: "transparent", border: `1px dashed ${COLORS.border}`,
+          color: COLORS.inkMuted, fontSize: 11, fontWeight: 500, cursor: "pointer",
+          fontFamily: FONTS.body,
+        }}>
+          {showAll ? `– Show fewer` : `+ Show all ${hidden} more in ${parentLabel}`}
+        </button>
       )}
     </div>
   );
@@ -12194,6 +14116,421 @@ type CustomField = {
   required: boolean;
   helper?: string;
 };
+
+// =====================================================================
+// Phase E — Workspace Field Settings drawer
+// =====================================================================
+//
+// Per-tenant overrides on top of the platform field catalog. This is
+// the write surface — agencies pick which platform fields are required,
+// public, talent-editable, hidden, etc. Catalog stays platform-curated;
+// agencies can't add new fields here (use FieldCatalogDrawer for that —
+// agency-specific custom fields).
+//
+// Storage: `__workspaceOverrides` in `_field-catalog.ts` + localStorage.
+// Production target: `workspace_profile_field_settings` table (see
+// supabase/migrations/20260901120200_*.sql).
+//
+// Reads: every consumer that uses `applyWorkspaceFieldOverride()` or
+// `resolvedFieldsForMode()` automatically respects the toggles set
+// here. The talent drawer's REQUIRED/OPTIONAL pills already do.
+
+function WorkspaceFieldSettingsDrawer() {
+  const { closeDrawer, toast } = useProto();
+  // Re-render on any override change so the "X overrides active"
+  // counter + each row's badge stay in sync.
+  useWorkspaceFieldOverrideSubscription();
+
+  const [tierFilter, setTierFilter] = useState<"all" | "universal" | "global" | "type-specific">("all");
+  const [search, setSearch] = useState("");
+
+  // Group fields by section for the visual grouping that mirrors the
+  // edit drawer's accordion structure. Familiar to agencies.
+  const visible = FIELD_CATALOG.filter(f => {
+    if (tierFilter !== "all" && f.tier !== tierFilter) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      return f.label.toLowerCase().includes(q) || f.id.toLowerCase().includes(q);
+    }
+    return true;
+  });
+  const sections = Array.from(new Set(visible.map(f => f.section)));
+
+  const overrides = getWorkspaceFieldOverrides(PROTO_TENANT_ID);
+  const overrideCount = Object.keys(overrides).length;
+
+  const resetAll = () => {
+    for (const fieldKey of Object.keys(overrides)) {
+      clearWorkspaceFieldOverride(PROTO_TENANT_ID, fieldKey);
+    }
+    toast("All workspace overrides cleared — fields back to platform defaults");
+  };
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title="Workspace field settings"
+      description="Override platform field defaults for your roster. Talent + admin surfaces honor these settings automatically."
+      width={720}
+      footer={
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+          fontFamily: FONTS.body,
+        }}>
+          <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
+            <strong style={{ color: COLORS.ink }}>{overrideCount}</strong> {overrideCount === 1 ? "override" : "overrides"} active
+            {overrideCount > 0 && (
+              <button type="button" onClick={resetAll} style={{
+                marginLeft: 10,
+                padding: "4px 10px", borderRadius: 999,
+                border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+                color: COLORS.inkMuted, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>Reset all</button>
+            )}
+          </div>
+          <PrimaryButton onClick={closeDrawer}>Done</PrimaryButton>
+        </div>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Filter bar — search + tier chips */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+          padding: "10px 12px", borderRadius: 10,
+          background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+        }}>
+          <input
+            type="text"
+            placeholder="Search field by label or id…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              flex: 1, minWidth: 200,
+              padding: "7px 11px",
+              borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff",
+              fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
+            }}
+          />
+          {(["all", "universal", "global", "type-specific"] as const).map(tier => (
+            <button key={tier} type="button" onClick={() => setTierFilter(tier)} style={{
+              padding: "5px 11px", borderRadius: 999,
+              border: `1px solid ${tierFilter === tier ? COLORS.ink : COLORS.borderSoft}`,
+              background: tierFilter === tier ? COLORS.ink : "#fff",
+              color: tierFilter === tier ? "#fff" : COLORS.inkMuted,
+              fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
+              textTransform: "capitalize",
+            }}>{tier === "all" ? "All tiers" : tier}</button>
+          ))}
+        </div>
+
+        {/* Tier-explainer band so agencies understand what they can/can't change */}
+        <div style={{
+          padding: "8px 12px", borderRadius: 8,
+          background: "rgba(91,107,160,0.06)", border: `1px solid rgba(91,107,160,0.18)`,
+          fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.45,
+          fontFamily: FONTS.body,
+        }}>
+          <strong>Universal</strong> fields are always shown and required (you can't disable them).{" "}
+          <strong>Global</strong> + <strong>type-specific</strong> fields can be enabled, required, made public,
+          renamed, or hidden per surface. Talent + admin profile editors update automatically.
+        </div>
+
+        {/* Field rows grouped by section */}
+        {sections.map(section => {
+          const fieldsInSection = visible.filter(f => f.section === section);
+          return (
+            <div key={section}>
+              <div style={{
+                fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6,
+                textTransform: "uppercase", color: COLORS.inkMuted,
+                marginBottom: 6, paddingLeft: 4,
+              }}>{section.replace(/_/g, " ")}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {fieldsInSection.map(f => (
+                  <WorkspaceFieldSettingRow
+                    key={f.id}
+                    field={f}
+                    override={overrides[f.id]}
+                    onChange={(patch) => setWorkspaceFieldOverride(PROTO_TENANT_ID, f.id, patch)}
+                    onClear={() => clearWorkspaceFieldOverride(PROTO_TENANT_ID, f.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {visible.length === 0 && (
+          <div style={{
+            padding: 18, textAlign: "center",
+            fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body,
+          }}>No fields match your filter.</div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function WorkspaceFieldSettingRow({
+  field, override, onChange, onClear,
+}: {
+  field: FieldCatalogEntry;
+  override: WorkspaceFieldOverride | undefined;
+  onChange: (patch: WorkspaceFieldOverride) => void;
+  onClear: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasOverride = !!override && Object.keys(override).length > 0;
+  const isUniversal = field.tier === "universal";
+  const enabled = isUniversal ? true : (override?.enabled ?? true);
+  const required = override?.required === true ? true
+    : override?.required === false ? false
+    : !field.optional;
+
+  // Tier badge color
+  const tierStyle = field.tier === "universal" ? { bg: "rgba(15,79,62,0.10)", fg: COLORS.accentDeep ?? COLORS.accent }
+    : field.tier === "global" ? { bg: "rgba(46,124,209,0.12)", fg: "#1f4d8a" }
+    : { bg: "rgba(184,128,38,0.12)", fg: "#8a5a1f" };
+
+  return (
+    <div style={{
+      borderRadius: 10,
+      border: `1px solid ${hasOverride ? COLORS.amber : COLORS.borderSoft}`,
+      background: enabled ? "#fff" : "rgba(11,11,13,0.03)",
+      fontFamily: FONTS.body,
+      transition: "border-color .15s",
+    }}>
+      <button
+        type="button"
+        onClick={() => setExpanded(s => !s)}
+        style={{
+          width: "100%", textAlign: "left", border: "none",
+          padding: "10px 12px",
+          background: "transparent", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 10,
+        }}
+      >
+        <span style={{
+          padding: "1px 6px", borderRadius: 999,
+          background: tierStyle.bg, color: tierStyle.fg,
+          fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
+          textTransform: "uppercase", flexShrink: 0,
+        }}>{field.tier}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 600, color: COLORS.ink,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {override?.customLabel ?? field.label}
+            {hasOverride && (
+              <span style={{
+                marginLeft: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
+                color: COLORS.amberDeep, textTransform: "uppercase",
+              }}>· customized</span>
+            )}
+          </div>
+          <div style={{
+            fontSize: 10.5, color: COLORS.inkDim, marginTop: 1,
+            fontFamily: "ui-monospace, monospace",
+          }}>{field.id}</div>
+        </div>
+        <span style={{
+          padding: "1px 6px", borderRadius: 999,
+          background: required ? "rgba(15,79,62,0.10)" : "rgba(11,11,13,0.05)",
+          color: required ? (COLORS.accentDeep ?? COLORS.accent) : COLORS.inkDim,
+          fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
+          flexShrink: 0,
+        }}>{required ? "REQUIRED" : "OPTIONAL"}</span>
+        {!enabled && (
+          <span style={{
+            padding: "1px 6px", borderRadius: 999,
+            background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
+            flexShrink: 0,
+          }}>HIDDEN</span>
+        )}
+        <span aria-hidden style={{ color: COLORS.inkMuted, fontSize: 11 }}>{expanded ? "▾" : "▸"}</span>
+      </button>
+
+      {expanded && (
+        <div style={{
+          padding: "10px 14px 14px",
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", flexDirection: "column", gap: 10,
+        }}>
+          {/* Toggle group — every catalog mode flag has a corresponding row. */}
+          <SettingToggleRow
+            label={isUniversal ? "Field enabled" : "Enable for your workspace"}
+            hint={isUniversal ? "Universal fields can't be disabled." : "Hide from every surface — talent + admin + public."}
+            value={enabled}
+            disabled={isUniversal}
+            onChange={(v) => onChange({ enabled: v })}
+            isOverridden={override?.enabled !== undefined && !isUniversal}
+          />
+          <SettingToggleRow
+            label="Required to publish"
+            hint={`Catalog default: ${field.optional ? "optional" : "required"}.`}
+            value={required}
+            onChange={(v) => onChange({ required: v })}
+            isOverridden={override?.required !== undefined}
+          />
+          <SettingToggleRow
+            label="Show in registration"
+            hint="When ON, the wizard collects this field on signup."
+            value={override?.showInRegistration ?? field.showInRegistration ?? true}
+            onChange={(v) => onChange({ showInRegistration: v })}
+            isOverridden={override?.showInRegistration !== undefined}
+          />
+          <SettingToggleRow
+            label="Show in profile editor"
+            hint="When ON, talent + admin can edit this field after signup."
+            value={override?.showInEditDrawer ?? field.showInEditDrawer ?? true}
+            onChange={(v) => onChange({ showInEditDrawer: v })}
+            isOverridden={override?.showInEditDrawer !== undefined}
+          />
+          <SettingToggleRow
+            label="Show on public profile"
+            hint="Visible to clients on the talent's hub page."
+            value={override?.showInPublic ?? field.showInPublic ?? false}
+            onChange={(v) => onChange({ showInPublic: v })}
+            isOverridden={override?.showInPublic !== undefined}
+          />
+          <SettingToggleRow
+            label="Show in directory cards"
+            hint="Surfaces in roster + Tulala hub search results."
+            value={override?.showInDirectory ?? field.showInDirectory ?? false}
+            onChange={(v) => onChange({ showInDirectory: v })}
+            isOverridden={override?.showInDirectory !== undefined}
+          />
+          <SettingToggleRow
+            label="Talent can edit"
+            hint="When OFF, only admins can write to this field."
+            value={override?.talentEditable ?? field.talentEditable ?? true}
+            onChange={(v) => onChange({ talentEditable: v })}
+            isOverridden={override?.talentEditable !== undefined}
+          />
+          <SettingToggleRow
+            label="Requires review on change"
+            hint="Talent self-edits to this field move profile to pending-review."
+            value={override?.requiresReviewOnChange ?? field.requiresReviewOnChange ?? false}
+            onChange={(v) => onChange({ requiresReviewOnChange: v })}
+            isOverridden={override?.requiresReviewOnChange !== undefined}
+          />
+
+          {/* Custom label / helper inputs */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
+            <div>
+              <label style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted, letterSpacing: 0.3, textTransform: "uppercase" }}>
+                Custom label
+              </label>
+              <input
+                type="text"
+                value={override?.customLabel ?? ""}
+                onChange={(e) => onChange({ customLabel: e.target.value || undefined })}
+                placeholder={field.label}
+                style={{
+                  marginTop: 4, width: "100%", boxSizing: "border-box",
+                  padding: "6px 9px",
+                  borderRadius: 7, border: `1px solid ${COLORS.borderSoft}`,
+                  fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted, letterSpacing: 0.3, textTransform: "uppercase" }}>
+                Custom helper text
+              </label>
+              <input
+                type="text"
+                value={override?.customHelper ?? ""}
+                onChange={(e) => onChange({ customHelper: e.target.value || undefined })}
+                placeholder={field.helper ?? "(no helper)"}
+                style={{
+                  marginTop: 4, width: "100%", boxSizing: "border-box",
+                  padding: "6px 9px",
+                  borderRadius: 7, border: `1px solid ${COLORS.borderSoft}`,
+                  fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
+                }}
+              />
+            </div>
+          </div>
+
+          {hasOverride && (
+            <button type="button" onClick={onClear} style={{
+              alignSelf: "flex-start",
+              padding: "5px 11px", borderRadius: 999,
+              border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+              color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600,
+              cursor: "pointer",
+            }}>Reset to platform default</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingToggleRow({
+  label, hint, value, disabled, onChange, isOverridden,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+  isOverridden: boolean;
+}) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "6px 0",
+      opacity: disabled ? 0.55 : 1,
+    }}>
+      <button
+        type="button"
+        onClick={() => !disabled && onChange(!value)}
+        aria-pressed={value}
+        disabled={disabled}
+        style={{
+          flexShrink: 0,
+          width: 32, height: 19, borderRadius: 999,
+          border: "none",
+          background: value ? COLORS.accent : "rgba(11,11,13,0.12)",
+          position: "relative", padding: 0,
+          cursor: disabled ? "not-allowed" : "pointer",
+        }}
+      >
+        <span style={{
+          position: "absolute", top: 2, left: value ? 15 : 2,
+          width: 15, height: 15, borderRadius: "50%", background: "#fff",
+          transition: "left .15s",
+        }} />
+      </button>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 12.5, fontWeight: 500, color: COLORS.ink,
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <span>{label}</span>
+          {isOverridden && (
+            <span style={{
+              padding: "0 5px", borderRadius: 999,
+              background: COLORS.amberSoft, color: COLORS.amberDeep,
+              fontSize: 9, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+            }}>overridden</span>
+          )}
+        </div>
+        {hint && (
+          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1, lineHeight: 1.35 }}>
+            {hint}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function FieldCatalogDrawer() {
   const { state, closeDrawer, toast, customFields, addCustomField, removeCustomField } = useProto();

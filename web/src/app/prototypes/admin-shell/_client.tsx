@@ -16,9 +16,21 @@
  *   ClientSettingsPage   — brand, team, billing
  */
 
-import React, { useState, type ReactNode } from "react";
-import { ClientOnboardingArc, ClientFirstRunBanner } from "./_wave2";
-import { TalentMessagesPage } from "./_talent";
+import React, { useEffect, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
+// Lazy import — _messages.tsx pulls react-virtuoso transitively which
+// is not SSR-safe. ssr:false matches how _talent.tsx loads it too.
+const ClientMessagesShellLazy = dynamic(
+  () => import("./_messages").then((m) => m.MessagesShell),
+  { ssr: false },
+);
+const InquiryComposerLazy = dynamic(
+  () => import("./_messages").then((m) => m.InquiryComposer),
+  { ssr: false },
+);
+// Eager import — pinNextConversation is a tiny synchronous helper, no
+// React tree, so dynamic-ing it would just complicate the call site.
+import { pinNextConversation } from "./_messages";
 import {
   AGENCY_RELIABILITY,
   CLIENT_BOOKINGS,
@@ -26,9 +38,13 @@ import {
   CLIENT_PAGES,
   CLIENT_PAGE_META,
   CLIENT_PLAN_META,
-  CLIENT_Q2_BUDGET,
   COLORS,
   DISCOVER_TALENT,
+  TAXONOMY,
+  PLAN_TAXONOMY_LIMITS,
+  WORKSPACE_TAXONOMY_DEFAULT,
+  type TaxonomyParentId,
+  type WorkspaceTaxonomySetting,
   RADIUS,
   TRANSITION,
   FONTS,
@@ -63,7 +79,8 @@ import {
   SecondaryCard,
   StatDot,
   StatusCard,
-  TrustBoostBanner,
+  TrustBadgeGroup,
+  ProfilePhotoBadgeOverlay,
 } from "./_primitives";
 
 // ════════════════════════════════════════════════════════════════════
@@ -77,33 +94,357 @@ export function ClientSurface() {
       <main
         data-tulala-surface-main
         style={{
-          padding: "28px 28px 60px",
+          padding: "28px 28px 100px",
           maxWidth: 1240,
           margin: "0 auto",
         }}
       >
         <ClientRouter />
       </main>
+      {/* #14 — Mobile bottom tab nav. */}
+      <ClientBottomNav />
+      {/* Legacy ClientConciergeButton is superseded by the unified
+          BottomActionFab which now serves the client surface with
+          client-specific actions (Send inquiry / Build shortlist /
+          Browse Discover / Message concierge).
+          Kept dormant for one release in case we need to revert. */}
+      {/* <ClientConciergeButton /> */}
     </div>
   );
 }
 
+/**
+ * #11 — First-run wizard. 4 quick screens that seed the client's
+ * preferences before they hit the empty Today. Lives in a full-screen
+ * modal so it can't be ignored, but always escapable.
+ */
+function ClientFirstRunWizard({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(0);
+  const [accountType, setAccountType] = useState<"business" | "personal" | null>(null);
+  const [needs, setNeeds] = useState<Set<string>>(new Set());
+  const [city, setCity] = useState("");
+  const toggleNeed = (n: string) => setNeeds(s => {
+    const next = new Set(s);
+    if (next.has(n)) next.delete(n); else next.add(n);
+    return next;
+  });
+  const dismiss = () => {
+    try { window.sessionStorage.setItem("tulala_client_wizard_dismissed", "1"); } catch {}
+    onClose();
+  };
+  const finish = dismiss;
+
+  const screens = [
+    {
+      title: "Welcome to Tulala.",
+      sub: "30 seconds to set you up. We'll match you with the right agencies.",
+      body: (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {[
+            { id: "business" as const, label: "I'm a business", desc: "Beach club, hotel, brand, restaurant — recurring or one-off bookings." },
+            { id: "personal" as const, label: "I'm booking for myself", desc: "Personal event, dinner, party, photoshoot." },
+          ].map(o => {
+            const active = accountType === o.id;
+            return (
+              <button key={o.id} type="button" onClick={() => setAccountType(o.id)} style={{
+                padding: "14px 16px", borderRadius: 12,
+                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.06)" : "#fff",
+                fontFamily: FONTS.body, textAlign: "left", cursor: "pointer",
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{o.label}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>{o.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+      ),
+      canNext: !!accountType,
+    },
+    {
+      title: "What do you typically book?",
+      sub: "Pick all that apply — we'll filter Discover for you.",
+      body: (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {[
+            { id: "models",        label: "Models",        emoji: "👤" },
+            { id: "hosts",         label: "Hosts",         emoji: "🎤" },
+            { id: "chefs",         label: "Chefs",         emoji: "👨‍🍳" },
+            { id: "artists",       label: "Artists",       emoji: "🎨" },
+            { id: "djs",           label: "DJs",           emoji: "🎧" },
+            { id: "photographers", label: "Photographers", emoji: "📷" },
+            { id: "performers",    label: "Performers",    emoji: "✨" },
+          ].map(n => {
+            const active = needs.has(n.id);
+            return (
+              <button key={n.id} type="button" onClick={() => toggleNeed(n.id)} style={{
+                padding: "9px 14px", borderRadius: 999,
+                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                color: active ? COLORS.accentDeep : COLORS.ink,
+                fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}>
+                <span aria-hidden style={{ fontSize: 14 }}>{n.emoji}</span>
+                {n.label}
+              </button>
+            );
+          })}
+        </div>
+      ),
+      canNext: needs.size > 0,
+    },
+    {
+      title: "Where are you based?",
+      sub: "We'll prioritize talent in your city.",
+      body: (
+        <input type="text" value={city} onChange={e => setCity(e.target.value)} placeholder="e.g. Tulum, Madrid, New York"
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "14px 16px",
+            borderRadius: 12, border: `1.5px solid ${COLORS.borderSoft}`,
+            fontFamily: FONTS.body, fontSize: 15, color: COLORS.ink, outline: "none",
+          }}
+        />
+      ),
+      canNext: city.trim().length > 0,
+    },
+    {
+      title: "You're all set.",
+      sub: "Discover is filtered to what you book. Your concierge is one tap away.",
+      body: (
+        <div style={{
+          padding: "14px 16px", borderRadius: 12, background: COLORS.successSoft,
+          color: COLORS.successDeep, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.5,
+        }}>
+          Tap <strong>Discover</strong> to find your first talent, or send a quick question to your concierge from the chat icon.
+        </div>
+      ),
+      canNext: true,
+    },
+  ];
+
+  const cur = screens[step]!;
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(11,11,13,0.42)", backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "flex-end", justifyContent: "center",
+    }}
+      onClick={dismiss}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 480, background: "#fff",
+        borderRadius: "20px 20px 0 0",
+        padding: "20px 22px max(22px, env(safe-area-inset-bottom)) 22px",
+        fontFamily: FONTS.body,
+        boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.25)",
+      }}>
+        {/* Step pips */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 18 }}>
+          {screens.map((_, i) => (
+            <span key={i} style={{
+              flex: 1, height: 4, borderRadius: 2,
+              background: i <= step ? COLORS.accent : "rgba(11,11,13,0.08)",
+              transition: "background .2s",
+            }} />
+          ))}
+        </div>
+        <h2 style={{
+          margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+          color: COLORS.ink, letterSpacing: -0.3, lineHeight: 1.15,
+        }}>{cur.title}</h2>
+        <p style={{ margin: "6px 0 16px", fontSize: 13.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          {cur.sub}
+        </p>
+        <div style={{ marginBottom: 18 }}>{cur.body}</div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
+          <button type="button" onClick={dismiss} style={{
+            background: "transparent", border: "none", padding: 0, cursor: "pointer",
+            fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, fontWeight: 500,
+          }}>Skip</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {step > 0 && (
+              <button type="button" onClick={() => setStep(s => s - 1)} style={{
+                padding: "10px 14px", borderRadius: 999,
+                border: `1px solid ${COLORS.border}`, background: "transparent",
+                color: COLORS.ink, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}>Back</button>
+            )}
+            {step < screens.length - 1 ? (
+              <button type="button" disabled={!cur.canNext} onClick={() => setStep(s => s + 1)} style={{
+                padding: "10px 18px", borderRadius: 999,
+                border: "none", background: cur.canNext ? COLORS.accent : "rgba(11,11,13,0.10)",
+                color: cur.canNext ? "#fff" : COLORS.inkDim,
+                fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+                cursor: cur.canNext ? "pointer" : "default",
+              }}>Continue</button>
+            ) : (
+              <button type="button" onClick={finish} style={{
+                padding: "10px 18px", borderRadius: 999,
+                border: "none", background: COLORS.accent, color: "#fff",
+                fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}>Get started</button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientConciergeButton() {
+  const { state, toast, setClientPage } = useProto();
+  const [open, setOpen] = useState(false);
+  // #29 — Quick-dial menu for premium tier. Tapping the concierge button
+  // opens a menu with: WhatsApp coordinator, in-app message, voice call.
+  const isPremium = state.clientPlan === "enterprise" || state.clientPlan === "pro";
+  return (
+    <>
+      <button type="button" aria-label="Concierge"
+        onClick={() => isPremium ? setOpen(o => !o) : (toast("Sara is online"), setClientPage("messages"))}
+        style={{
+          position: "fixed",
+          right: 16,
+          bottom: "calc(72px + env(safe-area-inset-bottom))",
+          width: 52, height: 52, borderRadius: "50%",
+          background: COLORS.fill,
+          color: "#fff",
+          border: "none", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 8px 24px -6px rgba(11,11,13,0.35)",
+          zIndex: 90,
+        }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{
+            position: "fixed", inset: 0, zIndex: 89, background: "transparent",
+          }} />
+          <div style={{
+            position: "fixed",
+            right: 16,
+            bottom: "calc(140px + env(safe-area-inset-bottom))",
+            background: "#fff", borderRadius: 14, padding: 6,
+            border: `1px solid ${COLORS.borderSoft}`,
+            boxShadow: "0 16px 40px -8px rgba(11,11,13,0.25)",
+            zIndex: 91, minWidth: 220, fontFamily: FONTS.body,
+          }}>
+            <ConciergeMenuItem icon="💬" label="Message Sara" desc="Direct in-app DM"
+              onClick={() => { setOpen(false); setClientPage("messages"); }} />
+            <ConciergeMenuItem icon="📱" label="WhatsApp" desc="Premium support line"
+              onClick={() => { setOpen(false); toast("Opening WhatsApp…"); }} />
+            <ConciergeMenuItem icon="📞" label="Call Sara" desc="Quick voice call · &lt; 30s"
+              onClick={() => { setOpen(false); toast("Calling Sara…"); }} />
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+function ConciergeMenuItem({ icon, label, desc, onClick }: { icon: string; label: string; desc: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      width: "100%", padding: "10px 12px", background: "transparent",
+      border: "none", cursor: "pointer", textAlign: "left",
+      display: "flex", alignItems: "center", gap: 12, borderRadius: 10,
+      fontFamily: FONTS.body,
+    }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.04)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+    >
+      <span style={{ fontSize: 18 }}>{icon}</span>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{label}</div>
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }} dangerouslySetInnerHTML={{ __html: desc }} />
+      </div>
+    </button>
+  );
+}
+
+function ClientBottomNav() {
+  const { state, setClientPage } = useProto();
+  const tabs: { id: typeof state.clientPage; label: string; icon: React.ReactNode }[] = [
+    { id: "today",      label: "Today",     icon: <BNavIcon name="bolt" /> },
+    { id: "messages",   label: "Messages",  icon: <BNavIcon name="mail" /> },
+    { id: "discover",   label: "Discover",  icon: <BNavIcon name="search" /> },
+    { id: "shortlists", label: "Lists",     icon: <BNavIcon name="bookmark" /> },
+    { id: "settings",   label: "Settings",  icon: <BNavIcon name="settings" /> },
+  ];
+  return (
+    <nav data-tulala-client-bottom-nav aria-label="Client navigation" style={{
+      position: "fixed", left: 0, right: 0, bottom: 0,
+      display: "none",
+      background: "rgba(255,255,255,0.96)",
+      backdropFilter: "blur(10px)",
+      borderTop: `1px solid ${COLORS.borderSoft}`,
+      padding: "6px 8px max(8px, env(safe-area-inset-bottom)) 8px",
+      zIndex: 100,
+      fontFamily: FONTS.body,
+    }}>
+      <style>{`
+        @media (max-width: 720px) {
+          [data-tulala-client-bottom-nav] { display: flex !important; justify-content: space-around; align-items: stretch; }
+          /* Hide the top nav scroll on mobile since bottom nav covers it */
+          [data-tulala-app-topbar][data-tulala-client-topbar] { display: none !important; }
+        }
+      `}</style>
+      {tabs.map(t => {
+        const active = state.clientPage === t.id;
+        return (
+          <button key={t.id} type="button" onClick={() => setClientPage(t.id)} style={{
+            background: "transparent", border: "none", cursor: "pointer",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+            padding: "6px 4px", flex: 1, minWidth: 0,
+            color: active ? COLORS.accent : COLORS.inkMuted,
+            fontSize: 10, fontWeight: 600,
+          }}>
+            <span style={{ width: 22, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              {t.icon}
+            </span>
+            {t.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+// Tiny icon helper for the bottom nav. SVGs inline to keep the nav
+// self-contained and dependency-free.
+function BNavIcon({ name }: { name: "bolt" | "mail" | "search" | "bookmark" | "settings" }) {
+  const common = { width: 18, height: 18, viewBox: "0 0 18 18", fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (name === "bolt") return <svg {...common}><path d="M10 2L4 10h4l-2 6 6-8h-4l2-6z"/></svg>;
+  if (name === "mail") return <svg {...common}><rect x="2" y="4" width="14" height="10" rx="2"/><path d="M2 6l7 5 7-5"/></svg>;
+  if (name === "search") return <svg {...common}><circle cx="8" cy="8" r="5"/><path d="M12 12l3 3"/></svg>;
+  if (name === "bookmark") return <svg {...common}><path d="M5 2h8v14l-4-3-4 3V2z"/></svg>;
+  return <svg {...common}><circle cx="9" cy="9" r="2.5"/><path d="M9 1.5v3M9 13.5v3M1.5 9h3M13.5 9h3M3.5 3.5l2 2M12.5 12.5l2 2M3.5 14.5l2-2M12.5 5.5l2-2"/></svg>;
+}
+
 // ─── Topbar ───────────────────────────────────────────────────────
 
+// ClientTopbar — slim page nav only (mirrors TalentTopbar). Brand
+// identity, plan chip, and unread/notification indicator have all moved:
+//   • brand → handled by the persistent identity bar above
+//   • plan chip → moved into the brand-switcher drawer detail
+//   • unread → bottom-nav Messages tab badge (parity with talent)
 function ClientTopbar() {
-  const { state, setClientPage, openDrawer } = useProto();
-  const brand = MY_CLIENT_BRAND;
-  const planMeta = CLIENT_PLAN_META[state.clientPlan];
+  const { state, setClientPage } = useProto();
 
   return (
     <header
       data-tulala-app-topbar
+      data-tulala-client-topbar
       style={{
         background: "#fff",
         borderBottom: `1px solid ${COLORS.borderSoft}`,
         padding: "0 28px",
         position: "sticky",
-        top: 50,
+        top: "calc(var(--proto-cbar, 50px) + 56px)",
         zIndex: 40,
       }}
     >
@@ -113,61 +454,9 @@ function ClientTopbar() {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          height: 56,
+          height: 52,
         }}
       >
-        {/* Brand identity */}
-        <button
-          onClick={() => openDrawer("client-brand-switcher")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-            fontFamily: FONTS.body,
-          }}
-        >
-          <Avatar initials={brand.initials} size={28} tone="warm" />
-          <span
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 16,
-              fontWeight: 500,
-              letterSpacing: -0.1,
-              color: COLORS.ink,
-            }}
-          >
-            {brand.name}
-          </span>
-          <Icon name="chevron-down" size={11} color={COLORS.inkDim} />
-        </button>
-
-        {/* Plan chip */}
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: state.clientPlan === "free" ? "rgba(11,11,13,0.04)" : COLORS.successSoft,
-            color: state.clientPlan === "free" ? COLORS.inkMuted : COLORS.successDeep,
-            padding: "3px 9px",
-            borderRadius: 999,
-            fontFamily: FONTS.body,
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: 0.4,
-            textTransform: "uppercase",
-          }}
-        >
-          {planMeta.label}
-        </span>
-
-        <div data-tulala-topbar-divider style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 8px" }} />
-
-        {/* Page nav */}
         <nav data-tulala-app-topbar-nav aria-label="Client sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {CLIENT_PAGES.map((p) => {
             const active = state.clientPage === p;
@@ -201,11 +490,11 @@ function ClientTopbar() {
                   aria-hidden
                   style={{
                     position: "absolute",
-                    bottom: -16,
+                    bottom: -14,
                     left: 8,
                     right: 8,
                     height: 3,
-                    background: COLORS.ink,
+                    background: COLORS.fill,
                     borderRadius: 2,
                     opacity: active ? 1 : 0,
                     transform: active ? "scaleX(1)" : "scaleX(0.4)",
@@ -218,41 +507,6 @@ function ClientTopbar() {
             );
           })}
         </nav>
-
-        {/* Right actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={() => openDrawer("client-today-pulse")}
-            aria-label="Today pulse"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
-              border: `1px solid ${COLORS.borderSoft}`,
-              background: "#fff",
-              color: COLORS.inkMuted,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative",
-            }}
-          >
-            <Icon name="mail" size={14} stroke={1.7} />
-            <span
-              style={{
-                position: "absolute",
-                top: 7,
-                right: 8,
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: COLORS.amber,
-                boxShadow: "0 0 0 2px #fff",
-              }}
-            />
-          </button>
-        </div>
       </div>
     </header>
   );
@@ -275,6 +529,8 @@ function ClientRouter() {
       return <ClientBookingsPage />;
     case "settings":
       return <ClientSettingsPage />;
+    case "notifications":
+      return <ClientNotificationsPage />;
     case "messages":
       return <ClientMessagesPage />;
   }
@@ -287,64 +543,16 @@ function ClientRouter() {
  * correctly on each side. The prototype ships the talent component
  * here as a placeholder demonstrating the parity (same UX both sides).
  */
+// Client messages = same component as talent. The previous explanatory
+// banner was prototype-era didactic noise — removed so the client surface
+// renders the unified MessagesShell flush with the page header (parity
+// with talent + workspace).
+// Client uses pov="client" — gets its OWN distinct shell
+// (ClientProjectShell): project-status hero, single Next-action CTA,
+// agency card, talent lineup avatars, schedule, timeline, single chat
+// thread with the coordinator at the bottom. NOT the talent shell.
 function ClientMessagesPage() {
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-  return (
-    <div style={{ paddingBottom: 8 }}>
-      {!bannerDismissed && <ClientPovBanner onDismiss={() => setBannerDismissed(true)} />}
-      <TalentMessagesPage />
-    </div>
-  );
-}
-
-function ClientPovBanner({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 10,
-        padding: "10px 14px",
-        marginBottom: 12,
-        background: COLORS.indigoSoft,
-        border: `1px solid rgba(91,107,160,0.25)`,
-        borderRadius: 10,
-        fontFamily: FONTS.body,
-        fontSize: 12,
-        color: COLORS.indigoDeep,
-        lineHeight: 1.5,
-      }}
-    >
-      <span style={{ fontSize: 14 }}>💬</span>
-      <div style={{ flex: 1 }}>
-        <strong style={{ fontWeight: 600 }}>Client view:</strong>{" "}
-        the same chat experience your talent + coordinator use. In production this surface mirrors the same conversation
-        from <em>your</em> perspective — your bubbles ink-filled, talent &amp; coordinator messages from the agency side.
-        Action cards swap to client actions: "Approve offer", "Sign booking", "Pay invoice".
-      </div>
-      <button
-        type="button"
-        onClick={onDismiss}
-        aria-label="Dismiss"
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: 5,
-          border: "none",
-          background: "transparent",
-          color: COLORS.indigoDeep,
-          cursor: "pointer",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          fontSize: 13,
-        }}
-      >
-        ✕
-      </button>
-    </div>
-  );
+  return <ClientMessagesShellLazy pov="client" />;
 }
 
 // ─── Shared header ────────────────────────────────────────────────
@@ -361,10 +569,22 @@ function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+    <>
+    <style>{`
+      @media (max-width: 680px) {
+        [data-tulala-page-header] [data-tulala-h1] {
+          font-size: 19px !important; line-height: 1.2 !important; letter-spacing: -0.25px !important; font-weight: 700 !important;
+        }
+        [data-tulala-page-header] { margin-bottom: 10px !important; gap: 8px !important; align-items: baseline !important; }
+        [data-tulala-page-header] [data-tulala-page-eyebrow] { display: none !important; }
+        [data-tulala-page-header] p { display: none !important; }
+        [data-tulala-page-header-actions] { flex-shrink: 0 !important; }
+      }
+    `}</style>
+    <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 14 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         {eyebrow && (
-          <div style={{ marginBottom: 6 }}>
+          <div data-tulala-page-eyebrow style={{ marginBottom: 6 }}>
             <CapsLabel>{eyebrow}</CapsLabel>
           </div>
         )}
@@ -372,9 +592,9 @@ function PageHeader({
           data-tulala-h1
           style={{
             fontFamily: FONTS.display,
-            fontSize: 30,
-            fontWeight: 500,
-            letterSpacing: -0.6,
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: -0.4,
             color: COLORS.ink,
             margin: 0,
             lineHeight: 1.15,
@@ -386,11 +606,11 @@ function PageHeader({
           <p
             style={{
               fontFamily: FONTS.body,
-              fontSize: 14,
+              fontSize: 13,
               color: COLORS.inkMuted,
-              margin: "6px 0 0",
-              lineHeight: 1.55,
-              maxWidth: 720,
+              margin: "4px 0 0",
+              lineHeight: 1.5,
+              maxWidth: 640,
             }}
           >
             {subtitle}
@@ -403,6 +623,7 @@ function PageHeader({
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -420,95 +641,17 @@ function Grid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto" 
 
 // ─── Budget strip (C15) ───────────────────────────────────────────
 
-function BudgetStrip() {
-  const { currency, label, spent, total } = CLIENT_Q2_BUDGET;
-  const pct = Math.round((spent / total) * 100);
-  const remaining = total - spent;
-  const overBudget = pct > 85;
-  return (
-    <div
-      style={{
-        marginTop: 12,
-        padding: "10px 16px",
-        background: "#fff",
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 10,
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        fontFamily: FONTS.body,
-      }}
-    >
-      {/* Label */}
-      <div style={{ flexShrink: 0 }}>
-        <div
-          style={{
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: 0.5,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
-          }}
-        >
-          {label} budget
-        </div>
-      </div>
-
-      {/* Bar */}
-      <div style={{ flex: 1 }}>
-        <div
-          style={{
-            height: 5,
-            background: "rgba(11,11,13,0.07)",
-            borderRadius: 999,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              width: `${pct}%`,
-              height: "100%",
-              borderRadius: 999,
-              background: overBudget ? COLORS.red : COLORS.ink,
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Spent / total */}
-      <div style={{ flexShrink: 0 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-          {currency}{spent.toLocaleString()}
-        </span>
-        <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
-          {" "}/ {currency}{total.toLocaleString()} · {pct}% used
-        </span>
-      </div>
-
-      {/* Remaining chip */}
-      <div
-        style={{
-          flexShrink: 0,
-          padding: "3px 9px",
-          borderRadius: 999,
-          background: overBudget ? "rgba(176,48,58,0.08)" : "rgba(11,11,13,0.04)",
-          fontSize: 11,
-          fontWeight: 600,
-          color: overBudget ? "#7A2026" : COLORS.inkMuted,
-          letterSpacing: 0.3,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {currency}{remaining.toLocaleString()} remaining
-      </div>
-    </div>
-  );
-}
 
 // ════════════════════════════════════════════════════════════════════
 // TODAY — pulse driven by RICH_INQUIRIES (so client sees real inquiry stages)
 // ════════════════════════════════════════════════════════════════════
 
+// Thread-first Today page. Replaces the old dashboard-of-cards layout.
+// One continuous action feed organized into three buckets — Needs You /
+// Moving / Coming Up — every row routes into the inquiry workspace
+// (the message shell). Inline action chips on Needs-You rows let the
+// client approve/counter without entering the thread for obvious cases.
+// The header is one personal-status line + a single dismissible nag strip.
 function ClientTodayPage() {
   const { openDrawer, setClientPage, toast } = useProto();
   const pendingDecisions = RICH_INQUIRIES.filter(
@@ -518,192 +661,268 @@ function ClientTodayPage() {
     (i) => i.stage === "submitted" || i.stage === "coordination",
   );
   const upcoming = CLIENT_BOOKINGS.filter((b) => b.status === "confirmed");
+  const coordinatorName = awaitingAgency[0]?.coordinator?.name ?? pendingDecisions[0]?.coordinator?.name;
+  const showNag = MY_CLIENT_BRAND.trustLevel !== "gold";
+
+  // #11 — First-run wizard. Shows once per session if the client has
+  // never sent an inquiry. Premium full-screen modal with 4 quick steps.
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const isFirstRun = pendingDecisions.length === 0 && awaitingAgency.length === 0 && upcoming.length === 0;
+  useEffect(() => {
+    try {
+      if (isFirstRun && !window.sessionStorage.getItem("tulala_client_wizard_dismissed")) {
+        // Brief delay so the page renders before the modal opens
+        const t = setTimeout(() => setWizardOpen(true), 400);
+        return () => clearTimeout(t);
+      }
+    } catch { /* ignore */ }
+  }, [isFirstRun]);
 
   return (
     <>
-      <PageHeader
-        eyebrow={`Hi from ${MY_CLIENT_BRAND.name}`}
-        title="Today"
-        subtitle="Inquiries you sent, offers waiting on you, and bookings on the calendar."
-        actions={
-          <>
-            <GhostButton onClick={() => setClientPage("discover")}>Browse the directory</GhostButton>
-            <SecondaryButton onClick={() => openDrawer("client-quick-question")}>Ask a question</SecondaryButton>
-            <PrimaryButton onClick={() => openDrawer("client-send-inquiry")}>New inquiry</PrimaryButton>
-          </>
-        }
-      />
-      <ClientOnboardingArc />
-      {/* WS-9.3 — client first-run guidance banner */}
-      <ClientFirstRunBanner />
+      {/* Single status line — identity already lives in the top identity
+          bar so the "Hi from <brand>" eyebrow was duplicate framing.
+          Headline stays — it answers "what's waiting on me right now?". */}
+      <div style={{ padding: "2px 0 8px", fontFamily: FONTS.body }}>
+        <h1 style={{
+          margin: 0, fontFamily: FONTS.display,
+          fontSize: 19, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.25,
+          lineHeight: 1.2,
+        }}>
+          {pendingDecisions.length > 0
+            ? `${pendingDecisions.length} ${pendingDecisions.length === 1 ? "offer needs" : "offers need"} you.`
+            : awaitingAgency.length > 0
+            ? `${coordinatorName ?? "Your coordinator"} is on ${awaitingAgency.length} of your inquiries.`
+            : upcoming.length > 0
+            ? `${upcoming.length} upcoming ${upcoming.length === 1 ? "booking" : "bookings"} confirmed.`
+            : "All clear today."}
+        </h1>
+      </div>
 
-      <Grid cols="4">
-        <StatusCard
-          label="Need your decision"
-          value={pendingDecisions.length}
-          caption="offers"
-          tone="amber"
-          onClick={() => setClientPage("inquiries")}
-        />
-        <StatusCard
-          label="Working on it"
-          value={awaitingAgency.length}
-          caption="agency replying"
-          tone="ink"
-          onClick={() => setClientPage("inquiries")}
-        />
-        <StatusCard
-          label="Upcoming bookings"
-          value={upcoming.length}
-          caption="confirmed"
-          tone="green"
-          onClick={() => setClientPage("bookings")}
-        />
-        <StatusCard
-          label="Saved shortlists"
-          value={MY_SHORTLISTS.length}
-          caption="active"
-          tone="dim"
-          onClick={() => setClientPage("shortlists")}
-        />
-      </Grid>
-
-      <BudgetStrip />
-
-      {MY_CLIENT_BRAND.trustLevel !== "gold" && (
-        <>
-          <div style={{ height: 16 }} />
-          <TrustBoostBanner
-            level={MY_CLIENT_BRAND.trustLevel}
-            onUpgrade={() => toast("Verification flow — coming soon")}
-          />
-        </>
+      {/* ── Single dismissible nag strip — replaces 3-banner stack. */}
+      {showNag && (
+        <button type="button" onClick={() => toast("Verification flow — coming soon")} style={{
+          width: "100%", textAlign: "left", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "8px 12px", marginBottom: 14,
+          borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
+          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+          fontFamily: FONTS.body, fontSize: 12, fontWeight: 500,
+        }}>
+          <span aria-hidden style={{ fontSize: 13 }}>✓</span>
+          Verify your account to unlock top-tier agencies
+          <span style={{ marginLeft: "auto", opacity: 0.7 }}>→</span>
+        </button>
       )}
 
-      <div style={{ height: 20 }} />
-
-      {/* What needs decision */}
+      {/* ── 1. NEEDS YOU NOW — inline action chips ── */}
       {pendingDecisions.length > 0 && (
-        <section
-          style={{
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            padding: "16px 18px 4px",
-          }}
+        <ClientTodaySection
+          label="Needs you now"
+          count={pendingDecisions.length}
+          tone={COLORS.coral}
         >
-          <div style={{ marginBottom: 6 }}>
-            <div
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 14,
-                fontWeight: 600,
-                color: COLORS.ink,
-                letterSpacing: -0.05,
-              }}
-            >
-              Offers waiting for your approval
-            </div>
-            <div
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 12.5,
-                color: COLORS.inkMuted,
-                marginTop: 2,
-              }}
-            >
-              Each offer shows the talent your coordinator selected and the negotiated rates.
-            </div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {pendingDecisions.map((i) => (
-              <ClientInquiryRow key={i.id} inquiry={i} />
-            ))}
-          </div>
-        </section>
+          {pendingDecisions.map((i) => (
+            <ClientNeedsYouRow key={i.id} inquiry={i} />
+          ))}
+        </ClientTodaySection>
       )}
 
-      <div style={{ height: 12 }} />
+      {/* ── 2. MOVING — agency has it ── */}
+      {awaitingAgency.length > 0 && (
+        <ClientTodaySection
+          label="Moving — agency has it"
+          count={awaitingAgency.length}
+          tone={COLORS.indigo}
+        >
+          {awaitingAgency.map((i) => (
+            <ClientInquiryRow key={i.id} inquiry={i} />
+          ))}
+        </ClientTodaySection>
+      )}
 
-      {/* Active conversations — full width */}
-      <PrimaryCard
-        title="Active conversations"
-        description={`${awaitingAgency.length} inquiries where the agency is working on your shortlist. Click any row to open the thread.`}
-        icon={<Icon name="mail" size={14} stroke={1.7} />}
-        affordance="Open all inquiries"
-        meta={<><StatDot tone="ink" /> {awaitingAgency.length} active threads</>}
-        onClick={() => setClientPage("inquiries")}
-      />
-
-      <div style={{ height: 12 }} />
-
-      {/* Upcoming bookings */}
+      {/* ── 3. COMING UP — confirmed bookings ── */}
       {upcoming.length > 0 && (
-        <section
-          style={{
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            padding: "16px 0 6px",
-          }}
+        <ClientTodaySection
+          label="Coming up"
+          count={upcoming.length}
+          tone={COLORS.success}
+          action={upcoming.length > 3
+            ? { label: "See all", onClick: () => setClientPage("bookings") }
+            : undefined}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              marginBottom: 8,
-              padding: "0 18px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: COLORS.ink,
-                  letterSpacing: -0.05,
-                }}
-              >
-                Upcoming bookings
-              </div>
-              <div
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 12.5,
-                  color: COLORS.inkMuted,
-                  marginTop: 2,
-                }}
-              >
-                Locked-in dates with talent confirmed and contracts signed.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setClientPage("bookings")}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: COLORS.ink,
-                fontFamily: FONTS.body,
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer",
-                padding: 0,
-              }}
-            >
-              See all bookings →
-            </button>
-          </div>
-          <div>
-            {upcoming.slice(0, 3).map((b) => (
-              <ClientBookingRow key={b.id} booking={b} />
-            ))}
-          </div>
-        </section>
+          {upcoming.slice(0, 3).map((b) => (
+            <ClientBookingRow key={b.id} booking={b} />
+          ))}
+        </ClientTodaySection>
       )}
+
+      {/* ── Empty state ── */}
+      {pendingDecisions.length === 0 && awaitingAgency.length === 0 && upcoming.length === 0 && (
+        <div style={{
+          padding: "32px 16px", textAlign: "center", fontFamily: FONTS.body,
+          color: COLORS.inkMuted, fontSize: 13,
+        }}>
+          Nothing waiting on you. Send an inquiry to start a project.
+        </div>
+      )}
+
+      {/* ── Sticky bottom action bar — premium pill buttons in brand
+            accent (no black). Both buttons same shape so they read as a
+            pair. Backdrop-blur stays so chat content reads beneath. */}
+      <div style={{
+        position: "sticky", bottom: 0, marginTop: 20,
+        marginLeft: -14, marginRight: -14, padding: "10px 14px 14px",
+        background: "rgba(255,255,255,0.92)", backdropFilter: "blur(10px)",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        display: "flex", gap: 10, justifyContent: "stretch", flexWrap: "nowrap",
+      }}>
+        <button type="button" onClick={() => openDrawer("client-quick-question")} style={{
+          flex: 1, padding: "11px 14px", borderRadius: 999,
+          background: "#fff", border: `1px solid ${COLORS.border}`,
+          color: COLORS.ink, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+          cursor: "pointer",
+        }}>
+          Ask a question
+        </button>
+        <button type="button" onClick={() => openDrawer("client-send-inquiry")} style={{
+          flex: 1, padding: "11px 14px", borderRadius: 999,
+          background: COLORS.accent, border: "none",
+          color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+          cursor: "pointer",
+        }}>
+          + New inquiry
+        </button>
+      </div>
+
+      {/* #11 — First-run wizard */}
+      {wizardOpen && <ClientFirstRunWizard onClose={() => setWizardOpen(false)} />}
     </>
+  );
+}
+
+// Premium section pattern (Linear/Notion-style):
+//   - Sentence-case label, no UPPERCASE shouting
+//   - Subtle count chip beside label, tabular nums
+//   - Children wrapped in a single white card with hairline dividers
+//     between rows — gives every row a clear tap surface without
+//     wrapping each one in its own frame
+function ClientTodaySection({
+  label, count, tone, action, children,
+}: {
+  label: string; count: number; tone: string;
+  action?: { label: string; onClick: () => void };
+  children: React.ReactNode;
+}) {
+  return (
+    <section style={{ marginBottom: 18 }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "0 4px 8px",
+      }}>
+        <span aria-hidden style={{
+          width: 5, height: 5, borderRadius: "50%", background: tone, flexShrink: 0,
+        }} />
+        <h2 style={{
+          margin: 0, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+          color: COLORS.ink, letterSpacing: -0.1,
+        }}>{label}</h2>
+        <span style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
+          background: "rgba(11,11,13,0.05)", color: COLORS.inkMuted,
+          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
+          fontVariantNumeric: "tabular-nums",
+        }}>{count}</span>
+        {action && (
+          <button type="button" onClick={action.onClick} style={{
+            marginLeft: "auto", border: "none", background: "transparent", padding: 0,
+            color: COLORS.accent, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+            cursor: "pointer",
+          }}>{action.label}</button>
+        )}
+      </div>
+      <div data-tulala-today-card style={{
+        background: "#fff", borderRadius: 12,
+        border: `1px solid ${COLORS.borderSoft}`,
+        overflow: "hidden",
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+      }}>
+        <style>{`
+          /* Drop the top border from the first child row so the card's own
+             border doesn't double up with the row separator. */
+          [data-tulala-today-card] > button:first-child,
+          [data-tulala-today-card] > div:first-child > button:first-child {
+            border-top: none !important;
+          }
+          [data-tulala-today-card] > div:first-child {
+            border-top: none !important;
+          }
+        `}</style>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Premium Needs-You row. Stacks the row content (tap-to-open) above
+ * inline action buttons so action chips never compete for horizontal
+ * space with the title on phone widths. The whole row is a card-row:
+ *   - Tappable surface with hover + active states
+ *   - Right-side chevron makes "this opens" obvious
+ *   - Approve/Counter buttons sit beneath, clearly distinct
+ */
+function ClientNeedsYouRow({ inquiry }: { inquiry: RichInquiry }) {
+  const { setClientPage, toast } = useProto();
+  const open = () => {
+    const convId = INQUIRY_TO_CONV[inquiry.id];
+    if (convId) pinNextConversation(convId);
+    setClientPage("messages");
+  };
+  const total = inquiry.offer?.total;
+  return (
+    <div style={{
+      borderBottom: `1px solid ${COLORS.borderSoft}`,
+      fontFamily: FONTS.body,
+    }}>
+      <button type="button" onClick={open} style={{
+        display: "flex", alignItems: "center", gap: 12,
+        width: "100%", padding: "14px 16px",
+        background: "transparent", border: "none", cursor: "pointer", textAlign: "left",
+      }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, lineHeight: 1.3 }}>
+            {inquiry.clientName}
+          </div>
+          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.coral }} />
+              Offer ready
+            </span>
+            {total && <span style={{ color: COLORS.ink, fontWeight: 600 }}>· {total}</span>}
+          </div>
+        </div>
+        <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18, lineHeight: 1, flexShrink: 0 }}>›</span>
+      </button>
+      <div style={{
+        display: "flex", gap: 8, padding: "0 16px 12px",
+      }}>
+        <button type="button" onClick={() => toast("Counter sent")} style={{
+          flex: 1, padding: "9px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
+          border: `1px solid ${COLORS.border}`, background: "#fff",
+          color: COLORS.ink, cursor: "pointer",
+        }}>Counter</button>
+        <button type="button" onClick={() => toast("Offer approved")} style={{
+          flex: 1, padding: "9px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
+          border: "none", background: COLORS.success, color: "#fff",
+          cursor: "pointer",
+        }}>Approve</button>
+      </div>
+    </div>
   );
 }
 
@@ -750,9 +969,8 @@ function ClientInquiriesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Inquiries"
-        title="Your conversations"
-        subtitle="Every inquiry lives as a private thread with your coordinator. Click any row to open the conversation, see the offer, and approve or counter."
+        title="Inquiries"
+        subtitle="One thread per inquiry. Approve, counter, or chat your coordinator."
         actions={
           <PrimaryButton onClick={() => openDrawer("client-send-inquiry")}>
             Send new inquiry
@@ -829,117 +1047,78 @@ function ClientInquiriesPage() {
   );
 }
 
-function ClientInquiryRow({ inquiry, bordered }: { inquiry: RichInquiry; bordered?: boolean }) {
-  const { openDrawer } = useProto();
+function ClientInquiryRow({ inquiry, bordered: _bordered }: { inquiry: RichInquiry; bordered?: boolean }) {
+  const { setClientPage } = useProto();
   const meta = INQUIRY_STAGE_META[inquiry.stage];
+  // Compact subtitle that doesn't wrap to 3 lines on mobile
+  const subtitleParts = [
+    `via ${inquiry.agencyName}`,
+    inquiry.date && inquiry.date,
+  ].filter(Boolean);
+  const open = () => {
+    const convId = INQUIRY_TO_CONV[inquiry.id];
+    if (convId) pinNextConversation(convId);
+    setClientPage("messages");
+  };
   return (
     <button
-      onClick={() => openDrawer("inquiry-workspace", { inquiryId: inquiry.id, pov: "client" })}
+      onClick={open}
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        width: "100%",
-        padding: bordered ? "14px 16px" : "12px 0",
-        background: "transparent",
-        border: "none",
-        borderTop: bordered ? `1px solid ${COLORS.borderSoft}` : "none",
-        cursor: "pointer",
-        textAlign: "left",
-        fontFamily: FONTS.body,
-        transition: `background ${TRANSITION.micro}`,
+        display: "flex", alignItems: "center", gap: 12,
+        width: "100%", padding: "14px 16px",
+        background: "transparent", border: "none",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        cursor: "pointer", textAlign: "left",
+        fontFamily: FONTS.body, transition: `background ${TRANSITION.micro}`,
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(11,11,13,0.02)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
     >
-      {/* Stage dot */}
-      <StatDot tone={meta.tone === "red" ? "red" : meta.tone} size={8} />
-
-      {/* Brief & agency */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
+          <span style={{
+            fontSize: 14, fontWeight: 600, color: COLORS.ink,
+            flex: 1, minWidth: 0,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
             {inquiry.brief}
           </span>
           {inquiry.unreadPrivate > 0 && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minWidth: 18,
-                height: 18,
-                borderRadius: 999,
-                background: COLORS.amber,
-                color: "#fff",
-                fontSize: 10,
-                fontWeight: 700,
-                padding: "0 6px",
-              }}
-            >
+            <span style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              minWidth: 18, height: 18, borderRadius: 999,
+              background: COLORS.coral, color: "#fff",
+              fontSize: 10, fontWeight: 700, padding: "0 6px", flexShrink: 0,
+            }}>
               {inquiry.unreadPrivate}
             </span>
           )}
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-          via {inquiry.agencyName}
-          {inquiry.coordinator && (
-            <>
-              {" · "}coordinator {inquiry.coordinator.name}
-            </>
-          )}
-          {inquiry.date && <> · {inquiry.date}</>}
+        <div style={{
+          fontSize: 12, color: COLORS.inkMuted, marginTop: 2,
+          display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+        }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{
+              width: 5, height: 5, borderRadius: "50%",
+              background: meta.tone === "green" ? COLORS.success
+                        : meta.tone === "amber" ? COLORS.amber
+                        : meta.tone === "red" ? COLORS.coral
+                        : COLORS.indigo,
+            }} />
+            {meta.label}
+          </span>
+          <span style={{ color: COLORS.inkDim }}>· {subtitleParts.join(" · ")}</span>
         </div>
       </div>
-
-      {/* Offer total */}
       {inquiry.offer && (
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 500, color: COLORS.ink }}>
-            {inquiry.offer.total}
-          </div>
-          <div style={{ fontSize: 10.5, color: COLORS.inkDim, letterSpacing: 0.4, textTransform: "uppercase" }}>
-            offer v{inquiry.offer.version}
-          </div>
-        </div>
+        <span style={{
+          fontSize: 13, fontWeight: 600, color: COLORS.ink, flexShrink: 0,
+        }}>
+          {inquiry.offer.total}
+        </span>
       )}
-
-      {/* Stage chip */}
-      <span
-        style={{
-          padding: "3px 9px",
-          borderRadius: 999,
-          fontSize: 10.5,
-          fontWeight: 600,
-          letterSpacing: 0.4,
-          textTransform: "uppercase",
-          background:
-            meta.tone === "green"
-              ? COLORS.successSoft
-              : meta.tone === "amber"
-                ? "rgba(82,96,109,0.12)"
-                : meta.tone === "red"
-                  ? COLORS.criticalSoft
-                  : "rgba(11,11,13,0.04)",
-          color:
-            meta.tone === "green"
-              ? COLORS.successDeep
-              : meta.tone === "amber"
-                ? COLORS.amberDeep
-                : meta.tone === "red"
-                  ? "#7A2026"
-                  : COLORS.inkMuted,
-          flexShrink: 0,
-        }}
-      >
-        {meta.label}
-      </span>
-
-      <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+      <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18, lineHeight: 1, flexShrink: 0 }}>›</span>
     </button>
   );
 }
@@ -970,9 +1149,7 @@ function LegacyClientInquiryRow({ inquiry }: { inquiry: typeof CLIENT_INQUIRIES[
           padding: "2px 7px",
           borderRadius: 999,
           fontSize: 10,
-          letterSpacing: 0.4,
-          textTransform: "uppercase",
-          background: "rgba(11,11,13,0.04)",
+                    background: "rgba(11,11,13,0.04)",
           color: COLORS.inkMuted,
           fontWeight: 600,
         }}
@@ -988,81 +1165,782 @@ function LegacyClientInquiryRow({ inquiry }: { inquiry: typeof CLIENT_INQUIRIES[
 // DISCOVER (talent browser, plan-gated)
 // ════════════════════════════════════════════════════════════════════
 
-function ClientDiscoverPage() {
-  const { state, openDrawer, openUpgrade } = useProto();
-  const canAdvanced = meetsClientPlan(state.clientPlan, "pro");
-  const [filter, setFilter] = useState<"all" | "available" | "agency-acme">("all");
+type TalentCategory = "all" | "models" | "hosts" | "chefs" | "artists" | "djs" | "photographers" | "performers";
 
-  const filtered = DISCOVER_TALENT.filter((t) => {
-    if (filter === "available") return t.available;
-    if (filter === "agency-acme") return t.agency === "Acme Models";
+function ClientDiscoverPage() {
+  const { state, openUpgrade, toast, getTrustSummary } = useProto();
+  // Discover is a PREMIUM feature — Basic clients see a paywall.
+  // Premium tier (= "pro" or higher) gets first access to the full
+  // Tulala roster, the AI search engine, and channel selection.
+  const isPremium = meetsClientPlan(state.clientPlan, "pro");
+  if (!isPremium) {
+    return <ClientDiscoverPaywall onUpgrade={() => openUpgrade({ feature: "Discover", requiredPlan: "studio", why: "First access to every talent on Tulala plus AI search." })} />;
+  }
+
+  const [category, setCategory] = useState<TalentCategory>("all");
+  const [subcategory, setSubcategory] = useState<string | null>(null); // child taxonomy id
+  const taxonomyParent = TAXONOMY.find(p => p.id === category);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [trustFilter, setTrustFilter] = useState<"all" | "verified" | "tulala_verified" | "instagram_verified" | "claimed">("all");
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [channelTalent, setChannelTalent] = useState<DiscoverTalent | null>(null);
+  // Card tap → opens the full profile detail sheet. From there the
+  // client can browse photos / channels / availability before committing
+  // to "Send inquiry" — which hands off to the channel picker.
+  const [detailTalent, setDetailTalent] = useState<DiscoverTalent | null>(null);
+
+  // Recent searches + recently viewed profiles — would persist in
+  // production. For prototype, hard-coded to seed the AI panel.
+  const recentSearches = [
+    "Spanish-speaking hosts in Tulum",
+    "Female chefs · Mexican cuisine",
+    "DJs available May 24",
+    "Live painters near Paris",
+  ];
+  const recentlyViewed = DISCOVER_TALENT.slice(0, 4);
+
+  // Saved searches
+  const [activeSaved, setActiveSaved] = useState<string | null>(null);
+  const savedSearches = [
+    { id: "weekend-hosts", label: "Saturday hosts · Tulum", category: "hosts" as const },
+    { id: "private-chefs", label: "Mexican chefs", category: "chefs" as const },
+  ];
+
+  // Filtered roster — by category and search. AI search is mocked
+  // (substring + category match); production wires to embeddings.
+  const filtered = DISCOVER_TALENT.filter(t => {
+    if (category !== "all" && t.category !== category) return false;
+    if (subcategory && t.subType !== subcategory) return false;
+    if (trustFilter !== "all") {
+      const rosterId = mapDiscoverToRosterId(t.id) ?? t.id;
+      const trust = getTrustSummary("talent_profile", rosterId);
+      const has = (type: string) => trust.badges.some(b => b.type === type && b.status === "active" && b.public);
+      if (trustFilter === "verified" && trust.badges.filter(b => b.status === "active" && b.public).length === 0) return false;
+      if (trustFilter === "tulala_verified" && !has("tulala_verified")) return false;
+      if (trustFilter === "instagram_verified" && !has("instagram_verified")) return false;
+      if (trustFilter === "claimed" && trust.claimStatus !== "claimed") return false;
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return t.name.toLowerCase().includes(q) || t.city.toLowerCase().includes(q) || t.category.includes(q);
+    }
     return true;
   });
 
+  const tabs: { id: TalentCategory; label: string; emoji: string }[] = [
+    { id: "all",          label: "All",          emoji: "✦" },
+    { id: "models",       label: "Models",       emoji: "👤" },
+    { id: "hosts",        label: "Hosts",        emoji: "🎤" },
+    { id: "chefs",        label: "Chefs",        emoji: "👨‍🍳" },
+    { id: "artists",      label: "Artists",      emoji: "🎨" },
+    { id: "djs",          label: "DJs",          emoji: "🎧" },
+    { id: "photographers",label: "Photographers",emoji: "📷" },
+    { id: "performers",   label: "Performers",   emoji: "✨" },
+  ];
+
   return (
     <>
-      <PageHeader
-        eyebrow="Discover"
-        title="Find talent"
-        subtitle="Browse rosters across agencies. Add anyone to a shortlist, then send a single inquiry to all of them at once."
-        actions={
-          <SecondaryButton
-            onClick={() => {
-              if (canAdvanced) openDrawer("client-saved-search");
-              else openUpgrade({ feature: "Saved searches", requiredPlan: "studio", why: "Save complex filters and re-run them weekly." });
-            }}
-          >
-            Saved searches
-          </SecondaryButton>
-        }
+      <PageHeader title="Discover" subtitle="Premium · first access to every talent on Tulala." />
+
+      {/* Premium AI search bar — hero component on Discover */}
+      <ClientAiSearchBar
+        value={searchQuery}
+        onChange={setSearchQuery}
+        onFocus={() => setAiPanelOpen(true)}
+        onBlur={() => setTimeout(() => setAiPanelOpen(false), 200)}
+        recentSearches={recentSearches}
+        recentlyViewed={recentlyViewed}
+        panelOpen={aiPanelOpen}
+        onPickSearch={(q) => { setSearchQuery(q); setAiPanelOpen(false); }}
+        onPickProfile={(t) => { setDetailTalent(t); setAiPanelOpen(false); }}
       />
 
-      {/* Filter chips */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
-        {(
-          [
-            { id: "all", label: "All talent" },
-            { id: "available", label: "Available · May" },
-            { id: "agency-acme", label: "Acme Models only" },
-          ] as const
-        ).map((f) => {
-          const active = filter === f.id;
+      {/* #24 — Category tabs */}
+      <div style={{
+        display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6,
+        marginTop: 14, marginBottom: 12, scrollbarWidth: "none",
+      }}>
+        {tabs.map(t => {
+          const active = category === t.id;
           return (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 999,
-                background: active ? COLORS.ink : "rgba(11,11,13,0.04)",
-                color: active ? "#fff" : COLORS.ink,
-                border: "none",
-                fontFamily: FONTS.body,
-                fontSize: 12.5,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
-            >
-              {f.label}
+            <button key={t.id} type="button" onClick={() => { setCategory(t.id); setSubcategory(null); }} style={{
+              flexShrink: 0,
+              padding: "8px 14px", borderRadius: 999,
+              border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+              background: active ? "rgba(15,79,62,0.08)" : "#fff",
+              color: active ? COLORS.accentDeep : COLORS.ink,
+              fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+              cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+            }}>
+              <span aria-hidden style={{ fontSize: 13 }}>{t.emoji}</span>
+              {t.label}
             </button>
           );
         })}
       </div>
 
+      {/* Phase 1 — Child taxonomy drill-down. Shows specific types under
+          the parent (Models → Fashion / Promo / Content / Commercial / etc).
+          Sourced from TAXONOMY in _state.tsx so agency-specific menus
+          flow from the same vocabulary. */}
+      {taxonomyParent && taxonomyParent.children.length > 0 && (
+        <div style={{
+          display: "flex", gap: 5, overflowX: "auto", paddingBottom: 6,
+          marginBottom: 12, scrollbarWidth: "none",
+        }}>
+          {taxonomyParent.children.map(c => {
+            const active = subcategory === c.id;
+            return (
+              <button key={c.id} type="button" onClick={() => setSubcategory(active ? null : c.id)} style={{
+                flexShrink: 0,
+                padding: "5px 11px", borderRadius: 999,
+                border: `1px solid ${active ? COLORS.indigo : COLORS.borderSoft}`,
+                background: active ? COLORS.indigoSoft : "transparent",
+                color: active ? COLORS.indigoDeep : COLORS.inkMuted,
+                fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500,
+                cursor: "pointer",
+              }}>{c.label}</button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Trust filter chips */}
+      <div style={{
+        display: "flex", gap: 6, alignItems: "center", marginBottom: 10,
+        fontFamily: FONTS.body, flexWrap: "wrap",
+      }}>
+        <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>Trust:</span>
+        {([
+          { id: "all" as const,                label: "All" },
+          { id: "verified" as const,           label: "Any verified" },
+          { id: "tulala_verified" as const,    label: "✓ Tulala" },
+          { id: "instagram_verified" as const, label: "📸 Instagram" },
+          { id: "claimed" as const,            label: "Talent-claimed" },
+        ]).map(c => {
+          const active = trustFilter === c.id;
+          return (
+            <button key={c.id} type="button" onClick={() => setTrustFilter(c.id)} style={{
+              padding: "4px 10px", borderRadius: 999,
+              border: `1px solid ${active ? COLORS.successDeep : COLORS.borderSoft}`,
+              background: active ? "rgba(15,79,62,0.08)" : "transparent",
+              color: active ? COLORS.successDeep : COLORS.inkMuted,
+              fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+            }}>{c.label}</button>
+          );
+        })}
+      </div>
+
+      {/* Saved searches */}
+      <div style={{
+        display: "flex", gap: 6, alignItems: "center", marginBottom: 14,
+        fontFamily: FONTS.body, flexWrap: "wrap",
+      }}>
+        <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>Saved:</span>
+        {savedSearches.map(s => {
+          const active = activeSaved === s.id;
+          return (
+            <button key={s.id} type="button" onClick={() => {
+              setActiveSaved(active ? null : s.id);
+              if (!active) setCategory(s.category);
+            }} style={{
+              padding: "5px 11px", borderRadius: 999,
+              border: `1px solid ${active ? COLORS.indigo : COLORS.borderSoft}`,
+              background: active ? COLORS.indigoSoft : "transparent",
+              color: active ? COLORS.indigoDeep : COLORS.inkMuted,
+              fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+            }}>{s.label}</button>
+          );
+        })}
+        <button type="button" onClick={() => toast("Saved current filters")} style={{
+          padding: "5px 11px", borderRadius: 999,
+          border: `1px dashed ${COLORS.border}`, background: "transparent",
+          color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+        }}>+ Save current</button>
+      </div>
+
       <Grid cols="3">
         {filtered.map((t) => (
-          <DiscoverCard key={t.id} talent={t} />
+          <DiscoverCard key={t.id} talent={t} onPick={() => setDetailTalent(t)} />
         ))}
       </Grid>
+
+      {/* Profile detail sheet — full talent view. From here the client
+          can browse photos / agency / channels / availability before
+          deciding to send an inquiry. */}
+      {detailTalent && (
+        <ClientTalentDetailSheet
+          talent={detailTalent}
+          onClose={() => setDetailTalent(null)}
+          onInquire={() => {
+            const t = detailTalent;
+            setDetailTalent(null);
+            setChannelTalent(t);
+          }}
+        />
+      )}
+
+      {/* Channel selection modal — when client clicks "Send inquiry" */}
+      {channelTalent && (
+        <ClientChannelPicker talent={channelTalent} onClose={() => setChannelTalent(null)} />
+      )}
     </>
   );
 }
 
-function DiscoverCard({ talent }: { talent: DiscoverTalent }) {
-  const { openDrawer } = useProto();
+// ── Premium AI search bar with recents panel ──────────────────────
+function ClientAiSearchBar({
+  value, onChange, onFocus, onBlur, panelOpen, recentSearches, recentlyViewed, onPickSearch, onPickProfile,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
+  panelOpen: boolean;
+  recentSearches: string[];
+  recentlyViewed: DiscoverTalent[];
+  onPickSearch: (q: string) => void;
+  onPickProfile: (t: DiscoverTalent) => void;
+}) {
+  return (
+    <div style={{ position: "relative", fontFamily: FONTS.body }}>
+      {/* Pill input with sparkle icon — premium AI signature */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "12px 16px",
+        background: "#fff",
+        border: `1.5px solid ${panelOpen ? COLORS.accent : COLORS.borderSoft}`,
+        borderRadius: 14,
+        boxShadow: panelOpen ? "0 6px 24px -6px rgba(15,79,62,0.18)" : "0 1px 2px rgba(11,11,13,0.03)",
+        transition: "border-color .15s, box-shadow .15s",
+      }}>
+        <span aria-hidden style={{ display: "inline-flex", color: COLORS.accent }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M9 2l1.5 4.5L15 8l-4.5 1.5L9 14l-1.5-4.5L3 8l4.5-1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+          </svg>
+        </span>
+        <input
+          type="text"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          placeholder="Try: 'Spanish-speaking host in Tulum, Saturday'"
+          style={{
+            flex: 1, border: "none", outline: "none", background: "transparent",
+            fontFamily: FONTS.body, fontSize: 14, color: COLORS.ink,
+          }}
+        />
+        <span style={{
+          padding: "3px 8px", borderRadius: 999,
+          background: COLORS.accentSoft, color: COLORS.accentDeep,
+          fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+        }}>AI</span>
+      </div>
+
+      {/* Recents panel — opens on focus */}
+      {panelOpen && (
+        <div onMouseDown={(e) => e.preventDefault()} style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 14, padding: 14,
+          boxShadow: "0 16px 40px -8px rgba(11,11,13,0.18)",
+          zIndex: 50,
+        }}>
+          {recentSearches.length > 0 && (
+            <>
+              <div style={{
+                fontSize: 11, fontWeight: 600, color: COLORS.inkMuted,
+                letterSpacing: 0.4, marginBottom: 8,
+              }}>Recent searches</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
+                {recentSearches.map(s => (
+                  <button key={s} type="button" onClick={() => onPickSearch(s)} style={{
+                    background: "transparent", border: "none", cursor: "pointer",
+                    padding: "8px 10px", borderRadius: 8, textAlign: "left",
+                    fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+                    display: "flex", alignItems: "center", gap: 8,
+                  }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.04)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span aria-hidden style={{ color: COLORS.inkDim }}>↗</span>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {recentlyViewed.length > 0 && (
+            <>
+              <div style={{
+                fontSize: 11, fontWeight: 600, color: COLORS.inkMuted,
+                letterSpacing: 0.4, marginBottom: 8,
+              }}>Recently viewed</div>
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none" }}>
+                {recentlyViewed.map(t => (
+                  <button key={t.id} type="button" onClick={() => onPickProfile(t)} style={{
+                    background: "transparent", border: `1px solid ${COLORS.borderSoft}`,
+                    cursor: "pointer", padding: 8, borderRadius: 10,
+                    display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+                    fontFamily: FONTS.body,
+                  }}>
+                    <span style={{
+                      width: 36, height: 36, borderRadius: "50%",
+                      background: `url(${t.thumb}) center/cover, ${COLORS.surfaceAlt}`,
+                      flexShrink: 0,
+                    }} />
+                    <div style={{ textAlign: "left" }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{t.name}</div>
+                      <div style={{ fontSize: 10.5, color: COLORS.inkMuted }}>{t.category} · {t.city}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Discover paywall (Basic plan) ────────────────────────────────
+function ClientDiscoverPaywall({ onUpgrade }: { onUpgrade: () => void }) {
+  return (
+    <>
+      <PageHeader title="Discover" />
+      <div style={{
+        background: "#fff", borderRadius: 16,
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        padding: "32px 24px", textAlign: "center", fontFamily: FONTS.body,
+      }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: "50%",
+          background: COLORS.royalSoft, color: COLORS.royalDeep,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          marginBottom: 14,
+        }}>
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <path d="M11 2l2.5 6L20 9l-5 4.5L16.5 20 11 16.5 5.5 20 7 13.5 2 9l6.5-1z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <h2 style={{
+          fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+          color: COLORS.ink, margin: 0, letterSpacing: -0.3,
+        }}>Discover is a Premium feature.</h2>
+        <p style={{
+          fontSize: 13.5, color: COLORS.inkMuted, margin: "8px auto 18px",
+          lineHeight: 1.5, maxWidth: 400,
+        }}>
+          Premium gives you first access to every talent on Tulala — agency-rostered, hub-listed, and freelance — with AI search and channel selection.
+        </p>
+        <button type="button" onClick={onUpgrade} style={{
+          padding: "11px 22px", borderRadius: 999,
+          background: COLORS.accent, color: "#fff", border: "none",
+          fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+        }}>Upgrade to Premium</button>
+      </div>
+    </>
+  );
+}
+
+// ── Channel picker — when client clicks a talent ─────────────────
+// ════════════════════════════════════════════════════════════════════
+// Talent profile detail sheet — opens when a client taps a Discover card.
+// Shows the full talent (photos, basics, channels summary, availability)
+// before they commit to "Send inquiry" (which routes to ClientChannelPicker).
+// ════════════════════════════════════════════════════════════════════
+
+// Map a Discover talent id (dt1, dt2…) to its Roster talent id (t1, t2…).
+// In production this is one entity; in the prototype the two seed lists
+// happen to share names, so we map by name.
+function mapDiscoverToRosterId(discoverId: string): string | null {
+  const map: Record<string, string> = {
+    dt1: "t1", dt2: "t2", dt3: "t3", dt4: "t4", dt5: "t5", dt6: "t6", dt7: "t7", dt8: "t8",
+  };
+  return map[discoverId] ?? null;
+}
+
+function ClientDiscoverTrustRow({ talentId }: { talentId: string }) {
+  const { getTrustSummary } = useProto();
+  const rosterId = mapDiscoverToRosterId(talentId) ?? talentId;
+  const trust = getTrustSummary("talent_profile", rosterId);
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+      <TrustBadgeGroup trust={trust} surface="public_profile" size="sm" max={4} />
+    </div>
+  );
+}
+
+function ClientDiscoverPhotoBadge({ talentId, size = "md" }: { talentId: string; size?: "xs" | "sm" | "md" | "lg" }) {
+  const { getTrustSummary } = useProto();
+  const rosterId = mapDiscoverToRosterId(talentId) ?? talentId;
+  const trust = getTrustSummary("talent_profile", rosterId);
+  return <ProfilePhotoBadgeOverlay trust={trust} size={size} max={2} position="bottom-right" />;
+}
+
+function ClientTalentDetailSheet({
+  talent, onClose, onInquire,
+}: {
+  talent: DiscoverTalent;
+  onClose: () => void;
+  onInquire: () => void;
+}) {
+  const { toast, getTalentContactGate, canClientContactTalent } = useProto();
+  const rosterId = mapDiscoverToRosterId(talent.id) ?? talent.id;
+  // Demo: assume the current client is c1 (Vogue Italia, business_verified).
+  // In production this resolves via auth context.
+  const currentClientId = "c1";
+  const gate = getTalentContactGate(rosterId);
+  const canContact = canClientContactTalent(rosterId, currentClientId);
+  const repCount = talent.channels.length;
+  const exclusiveAgency = talent.channels.length === 1 && talent.channels[0]?.kind === "agency";
+  const repLabel = exclusiveAgency
+    ? `Exclusive · ${talent.channels[0]!.name}`
+    : `${repCount} channel${repCount === 1 ? "" : "s"}`;
+  // Mock supplementary photos — real implementation pulls from the
+  // talent's portfolio. For prototype we vary the pravatar img param
+  // to fake a small gallery.
+  const baseImg = talent.thumb;
+  const photos = [
+    baseImg,
+    baseImg.includes("?img=") ? baseImg.replace(/img=(\d+)/, (_, n) => `img=${(parseInt(n, 10) % 70) + 1}`) : baseImg,
+    baseImg.includes("?img=") ? baseImg.replace(/img=(\d+)/, (_, n) => `img=${(parseInt(n, 10) % 70) + 12}`) : baseImg,
+  ];
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(11,11,13,0.42)", backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "flex-end", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 480, maxHeight: "92vh",
+        background: "#fff",
+        borderRadius: "20px 20px 0 0",
+        boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.25)",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        {/* Hero photo with floating close + save */}
+        <div style={{
+          position: "relative",
+          aspectRatio: "4 / 3.5",
+          background: `url(${photos[0]}) center/cover, ${COLORS.surfaceAlt}`,
+          flexShrink: 0,
+        }}>
+          {/* Modern verified-icon overlay on the hero photo */}
+          <ClientDiscoverPhotoBadge talentId={talent.id} size="lg" />
+          {/* Close */}
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            position: "absolute", top: 12, right: 12,
+            width: 34, height: 34, borderRadius: "50%",
+            background: "rgba(255,255,255,0.92)", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: COLORS.ink, fontSize: 16, lineHeight: 1, fontWeight: 600,
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 2px 8px rgba(11,11,13,0.12)",
+          }}>✕</button>
+          {/* Save */}
+          <button type="button" onClick={() => toast(`Saved ${talent.name}`)} aria-label="Save"
+            style={{
+              position: "absolute", top: 12, left: 12,
+              width: 34, height: 34, borderRadius: "50%",
+              background: "rgba(255,255,255,0.92)", border: "none", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: COLORS.ink, backdropFilter: "blur(8px)",
+              boxShadow: "0 2px 8px rgba(11,11,13,0.12)",
+            }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M4 2h8v12l-4-3-4 3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {/* Availability dot */}
+          <div style={{
+            position: "absolute", bottom: 12, left: 14,
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "5px 10px", borderRadius: 999,
+            background: "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(8px)",
+            fontSize: 11, fontWeight: 600, color: COLORS.ink,
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: talent.available ? COLORS.success : COLORS.inkDim,
+            }} />
+            {talent.available ? "Open for bookings" : "On hold this month"}
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{
+          flex: 1, overflowY: "auto", padding: "16px 22px 14px",
+        }}>
+          {/* Name + meta */}
+          <div style={{ marginBottom: 10 }}>
+            <h2 style={{
+              margin: 0,
+              fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+              color: COLORS.ink, letterSpacing: -0.3, lineHeight: 1.1,
+            }}>{talent.name}</h2>
+            {/* Type chip — prominent, accent-colored. Surfaces specific
+                Talent Type (e.g. "Fashion model") when known, plus emoji. */}
+            {(() => {
+              const typeMeta = talent.subType
+                ? (() => {
+                    for (const parent of TAXONOMY) {
+                      const c = parent.children.find((x) => x.id === talent.subType);
+                      if (c) return { label: c.label, emoji: parent.emoji };
+                    }
+                    return null;
+                  })()
+                : null;
+              return (
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  marginTop: 6,
+                  padding: "3px 10px", borderRadius: 999,
+                  background: "rgba(15,79,62,0.08)",
+                  color: COLORS.accentDeep,
+                  fontSize: 11.5, fontWeight: 600,
+                }}>
+                  <span aria-hidden style={{ fontSize: 13 }}>{typeMeta?.emoji ?? "✦"}</span>
+                  {typeMeta?.label ?? talent.category}
+                </div>
+              );
+            })()}
+            <div style={{
+              fontSize: 12, color: COLORS.inkMuted, marginTop: 6,
+            }}>
+              {talent.city} · {talent.height}
+            </div>
+            {/* Trust badges — Instagram Verified · Tulala Verified · Agency Confirmed */}
+            <ClientDiscoverTrustRow talentId={talent.id} />
+          </div>
+
+          {/* Photo strip */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 14, marginRight: -22, paddingRight: 22, overflowX: "auto", scrollbarWidth: "none" }}>
+            {photos.map((p, i) => (
+              <div key={i} style={{
+                flexShrink: 0,
+                width: 96, aspectRatio: "3 / 4", borderRadius: 8,
+                background: `url(${p}) center/cover, ${COLORS.surfaceAlt}`,
+              }} />
+            ))}
+            <div style={{
+              flexShrink: 0,
+              width: 96, aspectRatio: "3 / 4", borderRadius: 8,
+              border: `1px dashed ${COLORS.borderSoft}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 11, fontWeight: 600, color: COLORS.inkMuted,
+            }}>+12 more</div>
+          </div>
+
+          {/* Quick facts */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 0, marginBottom: 16 }}>
+            <ProfileKv label="Based in" value={talent.city} />
+            <ProfileKv label="Height" value={talent.height} />
+            <ProfileKv label="Representation" value={repLabel} />
+            <ProfileKv label="Availability" value={talent.available ? "Open for bookings" : "On hold this month"} />
+          </div>
+
+          {/* Channels summary — preview of routing options */}
+          <div style={{
+            fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+            color: COLORS.inkMuted, marginBottom: 8,
+          }}>How to book</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 4 }}>
+            {talent.channels.map((c, i) => {
+              const meta = c.kind === "agency"
+                ? { icon: "🏢", desc: "Agency-handled · contracts, payment, coordination." }
+                : c.kind === "hub"
+                ? { icon: "🌐", desc: "Tulala hub · routes inquiry to talent." }
+                : { icon: "✨", desc: "Direct · talent coordinates everything." };
+              return (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 12px", borderRadius: 10,
+                  background: COLORS.surface,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{meta.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{c.name}</span>
+                      {c.commission && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 999,
+                          background: "rgba(11,11,13,0.05)", color: COLORS.inkMuted,
+                        }}>{c.commission}</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{meta.desc}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 6 }}>
+            Pick a channel after you tap Send inquiry.
+          </div>
+        </div>
+
+        {/* Sticky footer */}
+        <div style={{
+          padding: "12px 22px max(14px, env(safe-area-inset-bottom)) 22px",
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          background: "#fff",
+          display: "flex", gap: 8, alignItems: "center",
+          flexShrink: 0,
+        }}>
+          <button type="button" onClick={() => toast(`Added ${talent.name} to a shortlist`)} style={{
+            padding: "11px 16px", borderRadius: 999,
+            border: `1px solid ${COLORS.border}`, background: "#fff",
+            color: COLORS.ink,
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>Save</button>
+          <button type="button" onClick={canContact ? onInquire : () => toast(`${talent.name} accepts inquiries from ${gate === "verified_only" ? "verified clients only" : "trusted clients only"}. Verify your business to send.`)}
+            style={{
+              flex: 1, padding: "12px 18px", borderRadius: 999,
+              border: "none",
+              background: canContact ? COLORS.fill : "rgba(11,11,13,0.18)",
+              color: "#fff",
+              fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600,
+              cursor: canContact ? "pointer" : "not-allowed",
+            }}
+            title={canContact ? undefined : `Talent restricted contact to ${gate === "verified_only" ? "verified" : "trusted"} clients`}
+          >
+            {canContact ? "Send inquiry" : "🔒 Verify to contact"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileKv({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{
+      display: "flex", padding: "8px 0",
+      borderBottom: `1px solid ${COLORS.borderSoft}`,
+    }}>
+      <span style={{ width: 110, fontSize: 11.5, color: COLORS.inkMuted, fontWeight: 600 }}>{label}</span>
+      <span style={{ flex: 1, fontSize: 13, color: COLORS.ink }}>{value}</span>
+    </div>
+  );
+}
+
+function ClientChannelPicker({ talent, onClose }: { talent: DiscoverTalent; onClose: () => void }) {
+  const { openDrawer, toast } = useProto();
+  const send = (channel: typeof talent.channels[number]) => {
+    onClose();
+    toast(`Sending inquiry via ${channel.name}…`);
+    openDrawer("client-send-inquiry");
+  };
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(11,11,13,0.42)", backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "flex-end", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 480, background: "#fff",
+        borderRadius: "20px 20px 0 0",
+        padding: "20px 22px max(22px, env(safe-area-inset-bottom)) 22px",
+        boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.25)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <span style={{
+            width: 48, height: 48, borderRadius: "50%",
+            background: `url(${talent.thumb}) center/cover, ${COLORS.surfaceAlt}`,
+            flexShrink: 0,
+          }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.2 }}>
+              {talent.name}
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, textTransform: "capitalize" }}>
+              {talent.category} · {talent.city}
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            background: "transparent", border: "none", cursor: "pointer",
+            padding: 8, color: COLORS.inkMuted, fontSize: 18, lineHeight: 1,
+          }}>✕</button>
+        </div>
+
+        <h3 style={{
+          margin: "0 0 4px", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink,
+        }}>How would you like to reach {talent.name.split(" ")[0]}?</h3>
+        <p style={{
+          margin: "0 0 14px", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5,
+        }}>
+          {talent.name.split(" ")[0]} works through {talent.channels.length} channel{talent.channels.length === 1 ? "" : "s"}. Each routes the inquiry differently.
+        </p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {talent.channels.map((c, i) => {
+            const meta = c.kind === "agency"
+              ? { label: "Agency", icon: "🏢", desc: "Agency handles contracts, payment, coordination." }
+              : c.kind === "hub"
+              ? { label: "Hub", icon: "🌐", desc: "Tulala hub forwards to talent. Hub takes referral fee." }
+              : { label: "Direct", icon: "✨", desc: "Talk directly to the talent — they coordinate everything themselves." };
+            return (
+              <button key={i} type="button" onClick={() => send(c)} style={{
+                padding: "14px 16px", borderRadius: 12,
+                border: `1.5px solid ${COLORS.borderSoft}`, background: "#fff",
+                fontFamily: FONTS.body, textAlign: "left", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 12,
+              }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.accent; e.currentTarget.style.background = "rgba(15,79,62,0.04)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.background = "#fff"; }}
+              >
+                <span style={{ fontSize: 22, flexShrink: 0 }}>{meta.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{c.name}</span>
+                    {c.commission && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 999,
+                        background: "rgba(11,11,13,0.05)", color: COLORS.inkMuted,
+                      }}>{c.commission}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+                    {meta.desc}
+                  </div>
+                </div>
+                <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18, flexShrink: 0 }}>›</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DiscoverCard({ talent, onPick }: { talent: DiscoverTalent; onPick?: () => void }) {
+  const { openDrawer, toast } = useProto();
+  const repCount = talent.channels.length;
+  const hasFreelance = talent.channels.some(c => c.kind === "freelance");
+  const exclusiveAgency = talent.channels.length === 1 && talent.channels[0]?.kind === "agency";
+  const repLabel = exclusiveAgency
+    ? `Exclusive · ${talent.channels[0]!.name}`
+    : hasFreelance && repCount === 1
+    ? "Freelance"
+    : `${repCount} channels`;
+  const repTone = exclusiveAgency
+    ? { bg: COLORS.amberSoft, fg: COLORS.amberDeep }
+    : hasFreelance
+    ? { bg: COLORS.accentSoft, fg: COLORS.accentDeep }
+    : { bg: COLORS.indigoSoft, fg: COLORS.indigoDeep };
   return (
     <button
-      onClick={() => openDrawer("client-talent-card", { id: talent.id })}
+      onClick={() => { if (onPick) onPick(); else openDrawer("client-talent-card", { id: talent.id }); }}
       style={{
         background: "#fff",
         border: `1px solid ${COLORS.borderSoft}`,
@@ -1085,27 +1963,47 @@ function DiscoverCard({ talent }: { talent: DiscoverTalent }) {
     >
       <div
         style={{
+          position: "relative",
           aspectRatio: "4 / 5",
-          background: COLORS.surfaceAlt,
+          background: talent.thumb.startsWith("http")
+            ? `url(${talent.thumb}) center/cover`
+            : COLORS.surfaceAlt,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: 64,
         }}
       >
-        {talent.thumb}
+        {!talent.thumb.startsWith("http") && talent.thumb}
+        <ClientDiscoverPhotoBadge talentId={talent.id} size="md" />
       </div>
-      <div style={{ padding: 14 }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink }}>{talent.name}</span>
-          {talent.available ? (
-            <span style={{ fontSize: 10.5, color: COLORS.successDeep, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Available</span>
-          ) : (
-            <span style={{ fontSize: 10.5, color: COLORS.inkDim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>On hold</span>
-          )}
+      <div style={{ padding: "12px 14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {talent.name}
+          </span>
+          <span aria-hidden style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: talent.available ? COLORS.success : COLORS.inkDim,
+          }} />
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>
-          {talent.agency} · {talent.city} · {talent.height}
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, textTransform: "capitalize" }}>
+          {talent.category} · {talent.city}
+        </div>
+        {/* Representation channel chip — exclusive vs multi-channel vs freelance */}
+        <div style={{ display: "flex", gap: 4, marginTop: 8, alignItems: "center" }}>
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
+            background: repTone.bg, color: repTone.fg, lineHeight: 1.4,
+          }}>{repLabel}</span>
+          <button type="button" onClick={(e) => { e.stopPropagation(); toast(`Saved ${talent.name}`); }} aria-label="Save" style={{
+            marginLeft: "auto", background: "transparent", border: "none", cursor: "pointer",
+            padding: 0, color: COLORS.inkMuted,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M4 2h8v12l-4-3-4 3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+            </svg>
+          </button>
         </div>
       </div>
     </button>
@@ -1121,8 +2019,7 @@ function ClientShortlistsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Shortlists"
-        title="Saved selections"
+        title="Shortlists"
         subtitle="Group talent by brief. Share with collaborators. Convert any shortlist into an inquiry."
         actions={
           <PrimaryButton onClick={() => openDrawer("client-new-shortlist")}>
@@ -1190,17 +2087,20 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
           <span
             key={i}
             style={{
-              width: 30,
-              height: 30,
+              width: 32,
+              height: 32,
               borderRadius: 8,
-              background: COLORS.surfaceAlt,
+              background: t.startsWith("http")
+                ? `url(${t}) center/cover`
+                : COLORS.surfaceAlt,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 14,
+              border: `1px solid ${COLORS.borderSoft}`,
             }}
           >
-            {t}
+            {!t.startsWith("http") && t}
           </span>
         ))}
       </div>
@@ -1215,9 +2115,7 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
             borderRadius: 999,
             fontSize: 10,
             fontWeight: 600,
-            letterSpacing: 0.4,
-            textTransform: "uppercase",
-            background:
+                        background:
               m.tone === "green"
                 ? COLORS.successSoft
                 : m.tone === "amber"
@@ -1238,42 +2136,67 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientBookingsPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer, toast } = useProto();
   return (
     <>
       <PageHeader
-        eyebrow="Bookings"
-        title="Confirmed work"
-        subtitle="Locked-in dates, talent, and contracts. Wraps and invoices live here."
+        title="Bookings"
+        subtitle="Locked-in dates, talent, and contracts."
+        actions={
+          /* #19 — iCal subscribe action. Opens a copyable feed URL.
+             Each booking flows into the user's phone calendar with talent,
+             location, and call time. */
+          <button type="button" onClick={() => toast("Calendar feed copied — paste into your phone's calendar")} style={{
+            padding: "7px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+            border: `1px solid ${COLORS.border}`, background: "transparent",
+            color: COLORS.ink, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+          }}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <rect x="1.5" y="3" width="11" height="9" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M1.5 6h11M4.5 1.5v3M9.5 1.5v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            Subscribe to calendar
+          </button>
+        }
       />
 
-      {/* WS-8.11 / WS-8.12 — Spend + budget quick-access tiles */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-        <StatusCard
-          label="Total spend YTD"
-          value="€23,000"
-          caption="View spend report →"
-          tone="ink"
-          icon="credit"
-          onClick={() => openDrawer("client-spend-report")}
-        />
-        <StatusCard
-          label="Q2 Budget"
-          value="46% used"
-          caption="⚠ Approaching 80% alert"
-          tone="amber"
-          onClick={() => openDrawer("client-budget")}
-        />
+      {/* Premium spend strip — replaces the 2-up StatusCard tiles */}
+      <div data-tulala-client-stat-strip style={{
+        background: "#fff", borderRadius: 12,
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        display: "grid", gridTemplateColumns: "1fr 1fr",
+        overflow: "hidden", marginBottom: 14, fontFamily: FONTS.body,
+      }}>
+        <button type="button" onClick={() => openDrawer("client-spend-report")} style={{
+          background: "transparent", border: "none", cursor: "pointer", padding: "12px 14px",
+          textAlign: "left", borderRight: `1px solid ${COLORS.borderSoft}`,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.indigo }} />
+            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>Total spend YTD</span>
+          </div>
+          <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>€23,000</div>
+        </button>
+        <button type="button" onClick={() => openDrawer("client-budget")} style={{
+          background: "transparent", border: "none", cursor: "pointer", padding: "12px 14px",
+          textAlign: "left",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.amber }} />
+            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>Q2 Budget</span>
+          </div>
+          <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 700, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>46%</div>
+          <div style={{ fontSize: 10.5, color: COLORS.amber, marginTop: 4 }}>Approaching 80% alert</div>
+        </button>
       </div>
 
-      <div
-        style={{
-          background: "#fff",
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: 12,
-          overflow: "hidden",
-        }}
-      >
+      <div data-tulala-today-card style={{
+        background: "#fff", borderRadius: 12,
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        overflow: "hidden",
+      }}>
         {CLIENT_BOOKINGS.map((b) => (
           <ClientBookingRow key={b.id} booking={b} />
         ))}
@@ -1282,38 +2205,45 @@ function ClientBookingsPage() {
   );
 }
 
+// Inquiry/booking RI-* → conversation id (cN). Used by every Today row
+// to route into the unified message shell instead of the legacy drawer.
+// Wrapped (closed) bookings still open — the shell renders past stages
+// read-only.
+const INQUIRY_TO_CONV: Record<string, string> = {
+  "RI-201": "c1",  // Mango spring lookbook
+  "RI-202": "c2",  // Bvlgari
+  "RI-203": "c3",  // Vogue Italia
+  "RI-204": "c1",  // Estudio Roca brand gala (fall through to first conv)
+  "RI-205": "c2",  // Valentino SS26
+};
+const BOOKING_TO_CONV = INQUIRY_TO_CONV;
+
 function ClientBookingRow({ booking }: { booking: ClientBooking }) {
-  const { openDrawer } = useProto();
-  const statusMeta: Record<
-    ClientBooking["status"],
-    { label: string; tone: "ink" | "amber" | "green" | "dim" }
-  > = {
-    confirmed: { label: "Confirmed", tone: "green" },
-    "in-progress": { label: "In progress", tone: "ink" },
-    wrapped: { label: "Wrapped", tone: "ink" },
-    invoiced: { label: "Invoiced", tone: "dim" },
+  const { setClientPage, openDrawer, toast } = useProto();
+  const open = () => {
+    // Route through the unified message shell instead of the legacy drawer.
+    // Booked = "coming up" (still editable / cancellable); wrapped/invoiced
+    // = "closed" (read-only, but the shell handles that via stage state).
+    const convId = booking.inquiryId ? BOOKING_TO_CONV[booking.inquiryId] : null;
+    if (convId) pinNextConversation(convId);
+    setClientPage("messages");
   };
-  const postStatusMeta: Record<
-    ClientBookingPostStatus,
-    { label: string; tone: "green" | "amber" | "dim" }
-  > = {
-    "contract-pending": { label: "Contract pending", tone: "amber" },
-    "contract-signed": { label: "Contract signed", tone: "dim" },
-    "call-sheet-sent": { label: "Call sheet sent", tone: "green" },
-    confirmed: { label: "Confirmed", tone: "green" },
-    wrapped: { label: "Wrapped", tone: "dim" },
-    "invoice-pending": { label: "Invoice pending", tone: "amber" },
-    paid: { label: "Paid", tone: "green" },
+  // #25 — Repeat booking. Hospitality clients re-book the same lineup
+  // every weekend; one-tap repeat seeds a new inquiry with same talent +
+  // location + brief, prompting only for date.
+  const isClosed = booking.status === "wrapped" || booking.status === "invoiced";
+  const repeat = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    openDrawer("client-send-inquiry");
+    toast(`Re-booking ${booking.talent} · pre-filled with last brief`);
   };
-  const m = statusMeta[booking.status];
-  const pm = postStatusMeta[booking.postStatus];
   return (
     <button
-      onClick={() => openDrawer("client-booking-detail", { id: booking.id })}
+      onClick={open}
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 14,
+        gap: 12,
         width: "100%",
         padding: "14px 16px",
         background: "transparent",
@@ -1323,87 +2253,45 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
         textAlign: "left",
         fontFamily: FONTS.body,
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "rgba(11,11,13,0.02)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
     >
-      <span
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 8,
-          background: COLORS.surfaceAlt,
-          flexShrink: 0,
-          display: "inline-flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <span style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 600, color: COLORS.ink, lineHeight: 1 }}>
-          {booking.date.split(",")[0].split(" ").slice(-1)[0]}
-        </span>
-      </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
-          {booking.talent} · {booking.shortlistName}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {booking.talent}
+          </span>
+          <span style={{ fontSize: 12, color: COLORS.inkMuted, fontWeight: 500, whiteSpace: "nowrap" }}>
+            {booking.amount}
+          </span>
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-          {booking.location} · {booking.date}
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.success }} />
+            {booking.date}
+          </span>
+          <span style={{ color: COLORS.inkDim }}>· {booking.location}</span>
         </div>
       </div>
-      <span style={{ fontSize: 13, color: COLORS.ink, fontWeight: 600, flexShrink: 0 }}>{booking.amount}</span>
-      <span
-        style={{
-          padding: "3px 9px",
-          borderRadius: 999,
-          fontSize: 10.5,
-          fontWeight: 600,
-          letterSpacing: 0.4,
-          textTransform: "uppercase",
-          background:
-            m.tone === "green"
-              ? COLORS.successSoft
-              : m.tone === "amber"
-                ? "rgba(82,96,109,0.12)"
-                : "rgba(11,11,13,0.04)",
-          color: m.tone === "green" ? COLORS.successDeep : m.tone === "amber" ? COLORS.amberDeep : COLORS.inkMuted,
-          flexShrink: 0,
-        }}
-      >
-        {m.label}
-      </span>
-      {pm && (
-        <span
-          style={{
-            padding: "3px 9px",
-            borderRadius: 999,
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: 0.4,
-            textTransform: "uppercase",
-            background:
-              pm.tone === "green"
-                ? COLORS.successSoft
-                : pm.tone === "amber"
-                  ? "rgba(82,96,109,0.12)"
-                  : "rgba(11,11,13,0.04)",
-            color:
-              pm.tone === "green"
-                ? COLORS.successDeep
-                : pm.tone === "amber"
-                  ? COLORS.amberDeep
-                  : COLORS.inkMuted,
-            flexShrink: 0,
-          }}
-        >
-          {pm.label}
-        </span>
+      {/* #18 — Review prompt on wrapped bookings */}
+      {isClosed && (
+        <button type="button" onClick={(e) => {
+          e.stopPropagation();
+          openDrawer("client-review", { bookingId: booking.id, talent: booking.talent });
+        }} style={{
+          padding: "6px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+          border: `1px solid ${COLORS.amber}30`, background: COLORS.amberSoft,
+          color: COLORS.amberDeep, cursor: "pointer", flexShrink: 0,
+        }}>★ Review</button>
       )}
-      <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+      {isClosed && (
+        <button type="button" onClick={repeat} style={{
+          padding: "6px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+          border: `1px solid ${COLORS.border}`, background: "transparent",
+          color: COLORS.ink, cursor: "pointer", flexShrink: 0,
+        }}>↻ Repeat</button>
+      )}
+      <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18, lineHeight: 1, flexShrink: 0 }}>›</span>
     </button>
   );
 }
@@ -1413,49 +2301,318 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientSettingsPage() {
-  const { openDrawer, state } = useProto();
+  const { openDrawer, state, toast } = useProto();
   const planMeta = CLIENT_PLAN_META[state.clientPlan];
+  const profile = state.clientProfile === "gringo"
+    ? { name: "The Gringo", industry: "Personal client", isBusiness: false, photoUrl: "https://i.pravatar.cc/300?img=33" }
+    : { name: "Martina Beach Club", industry: "Hospitality · beach club", isBusiness: true, photoUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&q=80" };
+
   return (
     <>
-      <PageHeader
-        eyebrow="Settings"
-        title="Brand & team"
-        subtitle="Where you manage who can see your inquiries, your billing, and your shared brand info."
-      />
-      <Grid cols="2">
-        <PrimaryCard
-          title={`${MY_CLIENT_BRAND.name}`}
-          description={`${MY_CLIENT_BRAND.industry}. Switch brand context if you book under multiple companies.`}
-          icon={<Icon name="user" size={14} stroke={1.7} />}
-          affordance="Manage brand"
-          onClick={() => openDrawer("client-brand-switcher")}
-        />
-        <PrimaryCard
-          title={`${planMeta.label} plan`}
-          description={`${planMeta.theme}. Currently ${planMeta.price}.`}
-          icon={<Icon name="credit" size={14} stroke={1.7} />}
-          affordance="Open billing"
-          onClick={() => openDrawer("client-billing")}
-        />
-        <SecondaryCard
-          title="Team & seats"
-          description="Add collaborators (assistants, producers) so they can see inquiry threads."
-          affordance="Open team"
+      <PageHeader title="Settings" />
+
+      {/* Identity — hero card, premium, with photo + edit affordance */}
+      <div style={{
+        background: "#fff", borderRadius: 12,
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        padding: 16, marginBottom: 14, display: "flex", alignItems: "center", gap: 14, fontFamily: FONTS.body,
+      }}>
+        <span style={{
+          width: 56, height: 56, borderRadius: profile.isBusiness ? 12 : "50%",
+          background: `url(${profile.photoUrl}) center/cover, ${COLORS.surfaceAlt}`,
+          flexShrink: 0,
+          border: `1px solid ${COLORS.borderSoft}`,
+        }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.2 }}>
+            {profile.name}
+          </div>
+          <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            {profile.industry} · {profile.isBusiness ? "Business" : "Personal"} client
+          </div>
+        </div>
+        <button type="button" onClick={() => openDrawer("client-brand-switcher")} style={{
+          padding: "7px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+          border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.ink, cursor: "pointer",
+          flexShrink: 0,
+        }}>Edit</button>
+      </div>
+
+      {/* Plan card */}
+      <div style={{
+        background: "#fff", borderRadius: 12,
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        padding: 16, marginBottom: 18, display: "flex", alignItems: "center", gap: 14, fontFamily: FONTS.body,
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>Current plan</div>
+          <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>
+            {planMeta.label} <span style={{ fontSize: 12, color: COLORS.inkMuted, fontWeight: 500 }}>· {planMeta.price}</span>
+          </div>
+          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>{planMeta.theme}</div>
+        </div>
+        <button type="button" onClick={() => openDrawer("client-billing")} style={{
+          padding: "7px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+          border: "none", background: COLORS.accent, color: "#fff", cursor: "pointer", flexShrink: 0,
+        }}>Manage</button>
+      </div>
+
+      {/* Working settings — premium row card */}
+      <ClientSettingsSection title="Available now">
+        <ClientSettingsRow
+          label="Team & collaborators"
+          desc="Invite assistants and producers to see inquiry threads."
           onClick={() => openDrawer("client-team")}
         />
-        <SecondaryCard
-          title="Contracts archive"
-          description="Every signed booking contract, downloadable any time."
-          affordance="Open contracts"
+        <ClientSettingsRow
+          label="Contracts archive"
+          desc="Every signed booking contract — downloadable any time."
           onClick={() => openDrawer("client-contracts")}
         />
-        <SecondaryCard
-          title="Notifications"
-          description="Where you get pinged when an offer arrives or talent confirms."
-          affordance="Open settings"
+        <ClientSettingsRow
+          label="Notifications"
+          desc="When you get pinged for offers, confirmations, and call sheets."
           onClick={() => openDrawer("client-settings")}
         />
-      </Grid>
+      </ClientSettingsSection>
+
+      {/* Coming-soon — premium row card with subtle locked treatment */}
+      <ClientSettingsSection title="Coming soon" tone="muted">
+        <ClientSettingsRow
+          label="Business details"
+          desc="Tax/VAT ID, registered address, business email."
+          comingSoon
+          onClick={() => toast("Coming soon — agencies + hubs handle this for you for now")}
+        />
+        <ClientSettingsRow
+          label="Payment methods"
+          desc="Card on file, ACH, wire — managed by your agency for now."
+          comingSoon
+          onClick={() => toast("Coming soon — pay your agency directly for now")}
+        />
+        <ClientSettingsRow
+          label="Invoicing entity"
+          desc="W-9 / VAT certificate, default invoice recipient."
+          comingSoon
+          onClick={() => toast("Coming soon")}
+        />
+        <ClientSettingsRow
+          label="Brand kit"
+          desc="Logo, colors, voice guidelines for inquiries."
+          comingSoon
+          onClick={() => toast("Coming soon")}
+        />
+        {/* #26 — Escrow placeholder */}
+        <ClientSettingsRow
+          label="Escrow & milestone payments"
+          desc="Funds held until booking wraps. Partial release on call-sheet send."
+          comingSoon
+          onClick={() => toast("Escrow ships post-launch — direct payment to agency for now")}
+        />
+        {/* #27 — Privacy gate placeholder */}
+        <ClientSettingsRow
+          label="Privacy & verified categories"
+          desc="Companion category requires verified client + opt-in talent."
+          comingSoon
+          onClick={() => toast("Verification ships post-launch")}
+        />
+        {/* #32 — Privacy mode placeholder */}
+        <ClientSettingsRow
+          label="Anonymous discovery"
+          desc="Hide your profile from talent until booking is confirmed."
+          comingSoon
+          onClick={() => toast("Coming soon")}
+        />
+        {/* #30 — Recurring bookings placeholder */}
+        <ClientSettingsRow
+          label="Recurring bookings"
+          desc="Auto-rebook the same lineup weekly or monthly."
+          comingSoon
+          onClick={() => toast("Coming soon — use Repeat on Bookings for now")}
+        />
+        {/* #31 — Per-Profile billing placeholder */}
+        <ClientSettingsRow
+          label="Per-profile billing"
+          desc="Separate cards on file and invoice addresses for each profile."
+          comingSoon
+          onClick={() => toast("Coming soon")}
+        />
+        {/* #23 — Audit log placeholder */}
+        <ClientSettingsRow
+          label="Activity log"
+          desc="Who in your team did what, when. Per-profile audit trail."
+          comingSoon
+          onClick={() => toast("Coming soon")}
+        />
+      </ClientSettingsSection>
+    </>
+  );
+}
+
+function ClientSettingsSection({ title, tone, children }: {
+  title: string; tone?: "default" | "muted"; children: React.ReactNode;
+}) {
+  return (
+    <section style={{ marginBottom: 18 }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8, padding: "0 4px 8px",
+      }}>
+        <span aria-hidden style={{
+          width: 5, height: 5, borderRadius: "50%",
+          background: tone === "muted" ? COLORS.inkDim : COLORS.indigo,
+        }} />
+        <h2 style={{
+          margin: 0, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+          color: tone === "muted" ? COLORS.inkMuted : COLORS.ink, letterSpacing: -0.1,
+        }}>{title}</h2>
+      </div>
+      <div style={{
+        background: "#fff", borderRadius: 12,
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        overflow: "hidden",
+      }}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function ClientSettingsRow({ label, desc, comingSoon, onClick }: {
+  label: string; desc: string; comingSoon?: boolean; onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      display: "flex", alignItems: "center", gap: 12,
+      width: "100%", padding: "13px 16px",
+      background: "transparent", border: "none",
+      borderTop: `1px solid ${COLORS.borderSoft}`,
+      cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
+      opacity: comingSoon ? 0.7 : 1,
+    }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{label}</div>
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{desc}</div>
+      </div>
+      {comingSoon ? (
+        <span style={{
+          fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
+          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+          textTransform: "capitalize", letterSpacing: 0.2, flexShrink: 0,
+        }}>Soon</span>
+      ) : (
+        <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18, lineHeight: 1, flexShrink: 0 }}>›</span>
+      )}
+    </button>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #15 — NOTIFICATIONS surface (was a drawer; now a real page)
+// Grouped: Needs you · Updates · Payments · Read.
+// ════════════════════════════════════════════════════════════════════
+
+function ClientNotificationsPage() {
+  const { setClientPage, toast } = useProto();
+  const [tab, setTab] = useState<"needs" | "updates" | "payments" | "all">("needs");
+  // Mocked notifications — production reads from a feed
+  type Notif = { id: string; cluster: "needs" | "updates" | "payments"; ts: string; actor: string; title: string; body: string; read: boolean; convId?: string };
+  const notifs: Notif[] = [
+    { id: "n1", cluster: "needs", ts: "2h ago", actor: "Sara Bianchi", title: "Approve Mango offer", body: "€8,000 · 3 talent · expires in 23h", read: false, convId: "c1" },
+    { id: "n2", cluster: "needs", ts: "1d ago", actor: "Acme Models", title: "Confirm dates", body: "Kai Lin · May 18–20 · waiting on you", read: false, convId: "c2" },
+    { id: "n3", cluster: "updates", ts: "3h ago", actor: "Marta Reyes", title: "Marta accepted your inquiry", body: "Spring lookbook · she's confirmed for May 14", read: false, convId: "c1" },
+    { id: "n4", cluster: "updates", ts: "1d ago", actor: "System", title: "Call sheet ready", body: "Vogue Italia · Studio Rome · May 14", read: true, convId: "c3" },
+    { id: "n5", cluster: "payments", ts: "2d ago", actor: "Acme Models", title: "Invoice issued", body: "€8,200 · due May 30", read: false },
+    { id: "n6", cluster: "payments", ts: "1w ago", actor: "System", title: "Payment received", body: "€2,400 paid for Marta Reyes booking", read: true },
+  ];
+  const filtered = tab === "all" ? notifs : notifs.filter(n => n.cluster === tab);
+  const unread = notifs.filter(n => !n.read).length;
+
+  return (
+    <>
+      <PageHeader title="Notifications" subtitle={`${unread} unread`} />
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 14, scrollbarWidth: "none" }}>
+        {([
+          { id: "needs",    label: "Needs you",  count: notifs.filter(n => n.cluster === "needs"    && !n.read).length, tone: COLORS.coral },
+          { id: "updates",  label: "Updates",    count: notifs.filter(n => n.cluster === "updates"  && !n.read).length, tone: COLORS.indigo },
+          { id: "payments", label: "Payments",   count: notifs.filter(n => n.cluster === "payments" && !n.read).length, tone: COLORS.success },
+          { id: "all",      label: "All",        count: notifs.length, tone: COLORS.inkMuted },
+        ] as const).map(t => {
+          const active = tab === t.id;
+          return (
+            <button key={t.id} type="button" onClick={() => setTab(t.id)} style={{
+              flexShrink: 0, padding: "7px 14px", borderRadius: 999,
+              border: `1px solid ${active ? t.tone : COLORS.borderSoft}`,
+              background: active ? `${t.tone}15` : "#fff",
+              color: active ? t.tone : COLORS.ink,
+              fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}>
+              {t.label}
+              {t.count > 0 && (
+                <span style={{
+                  minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
+                  background: active ? t.tone : "rgba(11,11,13,0.06)",
+                  color: active ? "#fff" : COLORS.inkMuted,
+                  fontSize: 10, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}>{t.count}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{
+        background: "#fff", borderRadius: 12,
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        overflow: "hidden", fontFamily: FONTS.body,
+      }}>
+        {filtered.length === 0 && (
+          <div style={{ padding: "32px 16px", textAlign: "center", color: COLORS.inkMuted, fontSize: 13 }}>
+            All caught up.
+          </div>
+        )}
+        {filtered.map((n, i) => (
+          <button key={n.id} type="button" onClick={() => {
+            if (n.convId) { pinNextConversation(n.convId); setClientPage("messages"); }
+            else toast(n.title);
+          }}
+            style={{
+              display: "flex", alignItems: "flex-start", gap: 12, width: "100%",
+              padding: "14px 16px",
+              background: n.read ? "transparent" : "rgba(15,79,62,0.025)",
+              border: "none",
+              borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
+              cursor: "pointer", textAlign: "left",
+            }}
+          >
+            <span style={{
+              width: 8, height: 8, borderRadius: "50%",
+              background: n.read ? "transparent" : (n.cluster === "needs" ? COLORS.coral : n.cluster === "updates" ? COLORS.indigo : COLORS.success),
+              flexShrink: 0, marginTop: 5,
+            }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {n.title}
+                </span>
+                <span style={{ fontSize: 11, color: COLORS.inkDim, flexShrink: 0 }}>{n.ts}</span>
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                {n.actor} · {n.body}
+              </div>
+            </div>
+            <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18, lineHeight: 1, flexShrink: 0, alignSelf: "center" }}>›</span>
+          </button>
+        ))}
+      </div>
     </>
   );
 }
@@ -1515,8 +2672,10 @@ export function ClientTodayPulseDrawer() {
             <button
               key={i.id}
               onClick={() => {
+                const convId = INQUIRY_TO_CONV[i.id];
+                if (convId) pinNextConversation(convId);
                 closeDrawer();
-                openDrawer("inquiry-workspace", { inquiryId: i.id, pov: "client" });
+                setClientPage("messages");
               }}
               style={{
                 display: "flex",
@@ -1609,7 +2768,7 @@ export function ClientTalentCardDrawer() {
 function KvRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div style={{ display: "flex", padding: "8px 0", borderTop: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body }}>
-      <span style={{ width: 110, fontSize: 11.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>{label}</span>
+      <span style={{ width: 110, fontSize: 11.5, color: COLORS.inkMuted, fontWeight: 600 }}>{label}</span>
       <span style={{ flex: 1, fontSize: 13, color: COLORS.ink }}>{value}</span>
     </div>
   );
@@ -1705,7 +2864,7 @@ export function ClientShortlistDetailDrawer() {
                     style={{
                       width: barW,
                       height: "100%",
-                      background: rel.onTimeRate === 100 ? COLORS.green : rel.onTimeRate > 80 ? COLORS.ink : COLORS.red,
+                      background: rel.onTimeRate === 100 ? COLORS.green : rel.onTimeRate > 80 ? COLORS.fill : COLORS.red,
                       borderRadius: 999,
                     }}
                   />
@@ -1791,46 +2950,18 @@ export function ClientSendInquiryDrawer() {
       open={open}
       onClose={closeDrawer}
       title="New inquiry"
-      description="Your coordinator will reply within hours. They'll set up a private thread with you and a separate group thread with the booked talent."
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Save draft</SecondaryButton>
-          <PrimaryButton
-            onClick={() => {
-              toast("Inquiry sent — coordinator will reply soon");
-              closeDrawer();
-            }}
-          >
-            Send
-          </PrimaryButton>
-        </>
-      }
+      description="Tell us what you need. Your coordinator will reply within hours."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
-        <FieldGroup label="Brief" defaultValue="Spring lookbook · 3 talent · 1 day" placeholder="" textarea />
-        <FieldGroup label="Date" defaultValue="May 6, 2026" placeholder="" />
-        <FieldGroup label="Location" defaultValue="Madrid · Estudio Roca" placeholder="" />
-        <FieldGroup label="Budget" defaultValue="€2,500/day per talent" placeholder="" />
-        <div
-          style={{
-            padding: 12,
-            background: "rgba(46,125,91,0.06)",
-            borderRadius: 10,
-            border: `1px solid rgba(46,125,91,0.18)`,
-            fontSize: 12.5,
-            color: COLORS.successDeep,
-            display: "flex",
-            gap: 8,
-            alignItems: "flex-start",
-          }}
-        >
-          <Icon name="info" size={12} color={COLORS.successDeep} />
-          <span>
-            You'll get a private thread with your assigned coordinator. The talent are added to a separate group
-            thread that you don't see — that way the agency handles logistics with their roster.
-          </span>
-        </div>
-      </div>
+      <InquiryComposerLazy
+        mode="client"
+        defaultClientName={MY_CLIENT_BRAND.name}
+        embedded
+        onCancel={closeDrawer}
+        onSubmit={() => {
+          toast("Inquiry sent — coordinator will reply soon");
+          closeDrawer();
+        }}
+      />
     </DrawerShell>
   );
 }
@@ -2023,13 +3154,13 @@ export function ClientCounterOfferDrawer() {
 
         {/* WS-8.10 Diff: Current offer vs Your counter */}
         <div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 10 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 10 }}>
             Terms comparison
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {/* Agency offer */}
             <div style={SIDE}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 8 }}>
                 Agency offer
               </div>
               {Object.entries(OFFER).map(([k, v]) => (
@@ -2042,7 +3173,7 @@ export function ClientCounterOfferDrawer() {
 
             {/* Your counter */}
             <div style={{ ...SIDE, borderColor: COLORS.accent + "66", background: COLORS.accent + "08" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.accent, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.accent, marginBottom: 8 }}>
                 Your counter
               </div>
               {Object.entries(OFFER).map(([k, v]) => (
@@ -2255,9 +3386,7 @@ export function ClientTeamDrawer() {
                 color: COLORS.ink,
                 fontSize: 10.5,
                 fontWeight: 600,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-                borderRadius: 999,
+                                borderRadius: 999,
               }}
             >
               {m.role}
@@ -2306,7 +3435,7 @@ export function ClientBillingDrawer() {
           fontFamily: FONTS.body,
         }}
       >
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, fontWeight: 600 }}>
           Plan
         </div>
         <div
@@ -2327,49 +3456,65 @@ export function ClientBillingDrawer() {
 }
 
 export function ClientBrandSwitcherDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, setClientProfile } = useProto();
   const open = state.drawer.drawerId === "client-brand-switcher";
-  const brands = [
-    MY_CLIENT_BRAND,
-    { id: "br2", name: "Net-a-Porter", initials: "NP", industry: "E-commerce · luxury" },
+  // Profile = a booking identity. Each user can own multiple Profiles
+  // (business + personal, or one producer with several client Profiles).
+  // Naming-rule: "Profile" not "Brand" — "Brand" only fits businesses.
+  const profiles = [
+    { id: "martina" as const, name: "Martina Beach Club", industry: "Hospitality · beach club", isBusiness: true,  photoUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&q=80" },
+    { id: "gringo"  as const, name: "The Gringo",         industry: "Personal client",          isBusiness: false, photoUrl: "https://i.pravatar.cc/300?img=33" },
   ];
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Switch brand"
-      description="If you book under multiple brands, switch the brand context — inquiries and bookings filter accordingly."
+      title="Switch profile"
+      description="One human, many profiles. Each profile keeps its own inquiries, bookings, and billing. Switch any time."
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {brands.map((b) => (
-          <button
-            key={b.id}
-            onClick={() => { toast(`Switched to ${b.name}`); closeDrawer(); }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "12px 14px",
-              background: b.id === MY_CLIENT_BRAND.id ? COLORS.surfaceAlt : "#fff",
-              border: `1px solid ${b.id === MY_CLIENT_BRAND.id ? "rgba(15,79,62,0.18)" : COLORS.borderSoft}`,
-              borderRadius: 10,
-              cursor: "pointer",
-              textAlign: "left",
-              fontFamily: FONTS.body,
-            }}
-          >
-            <Avatar initials={b.initials} size={36} tone="warm" />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>{b.name}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{b.industry}</div>
-            </div>
-            {b.id === MY_CLIENT_BRAND.id && (
-              <span style={{ fontSize: 10.5, color: COLORS.successDeep, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>
-                Current
-              </span>
-            )}
-          </button>
-        ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontFamily: FONTS.body }}>
+        {profiles.map((p) => {
+          const active = p.id === state.clientProfile;
+          return (
+            <button
+              key={p.id}
+              onClick={() => { setClientProfile(p.id); toast(`Switched to ${p.name}`); closeDrawer(); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "12px 14px",
+                background: active ? "rgba(15,79,62,0.06)" : "#fff",
+                border: `1px solid ${active ? "rgba(15,79,62,0.22)" : COLORS.borderSoft}`,
+                borderRadius: 10,
+                cursor: "pointer", textAlign: "left",
+              }}
+            >
+              <span style={{
+                width: 40, height: 40,
+                borderRadius: p.isBusiness ? 10 : "50%",
+                background: `url(${p.photoUrl}) center/cover, ${COLORS.surfaceAlt}`,
+                flexShrink: 0,
+              }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{p.name}</div>
+                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                  {p.industry} · {p.isBusiness ? "Business" : "Personal"}
+                </div>
+              </div>
+              {active && (
+                <span style={{
+                  fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
+                  background: COLORS.successSoft, color: COLORS.successDeep,
+                }}>Current</span>
+              )}
+            </button>
+          );
+        })}
+        <button type="button" onClick={() => toast("Add a new profile — coming soon")} style={{
+          padding: "11px 14px", borderRadius: 10,
+          border: `1.5px dashed ${COLORS.border}`, background: "transparent",
+          color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+          cursor: "pointer", textAlign: "center",
+        }}>+ Add another profile</button>
       </div>
     </DrawerShell>
   );
@@ -2538,9 +3683,7 @@ export function ClientQuickQuestionDrawer() {
               fontSize: 11.5,
               fontWeight: 600,
               color: COLORS.inkMuted,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-            }}
+                          }}
           >
             To agency
           </span>
@@ -2554,7 +3697,7 @@ export function ClientQuickQuestionDrawer() {
                   style={{
                     padding: "6px 12px",
                     borderRadius: 999,
-                    background: active ? COLORS.ink : "rgba(11,11,13,0.04)",
+                    background: active ? COLORS.fill : "rgba(11,11,13,0.04)",
                     color: active ? "#fff" : COLORS.ink,
                     border: "none",
                     fontFamily: FONTS.body,
@@ -2634,9 +3777,7 @@ export function ClientSettingsDrawer() {
               style={{
                 fontSize: 10.5,
                 fontWeight: 600,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-                padding: "2px 8px",
+                                padding: "2px 8px",
                 borderRadius: 999,
                 background: r.on ? COLORS.successSoft : "rgba(11,11,13,0.04)",
                 color: r.on ? COLORS.successDeep : COLORS.inkMuted,
@@ -2737,9 +3878,7 @@ export function ClientMyTalentDrawer() {
           </div>
         ))}
         {filtered.length === 0 && (
-          <div style={{ textAlign: "center", padding: "24px 0", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
-            No talent found
-          </div>
+          <EmptyState icon="search" title="No talent found" body="Try a different search term." compact />
         )}
       </div>
     </DrawerShell>
@@ -2806,10 +3945,10 @@ export function ClientSpendReportDrawer() {
 
       {/* Total */}
       <div style={{ marginBottom: 16, padding: "12px 14px", background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}` }}>
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONTS.body }}>
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
           Total YTD spend
         </div>
-        <div style={{ fontSize: 26, fontWeight: 800, color: COLORS.ink, fontFamily: FONTS.body, marginTop: 2 }}>
+        <div style={{ fontSize: 26, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, marginTop: 2 }}>
           €{data.reduce((s, r) => s + r.amount, 0).toLocaleString()}
         </div>
       </div>
@@ -2872,11 +4011,11 @@ export function ClientBudgetDrawer() {
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
             <div>
               <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Q2 Spend</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink, marginTop: 1 }}>€{spent.toLocaleString()}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.ink, marginTop: 1 }}>€{spent.toLocaleString()}</div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Budget</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink, marginTop: 1 }}>€{budgetNum.toLocaleString()}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.ink, marginTop: 1 }}>€{budgetNum.toLocaleString()}</div>
             </div>
           </div>
 

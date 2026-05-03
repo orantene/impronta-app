@@ -43,6 +43,19 @@ import {
   PAYMENT_METHOD_META,
   MY_AGENCIES,
   MY_TALENT_PROFILE,
+  applyProfileOverride,
+  useProfileOverrideSubscription,
+  usePendingReviewSubscription,
+  getPendingReviewForRoster,
+  clearPendingReview,
+  parseVideoUrl,
+  computeProfileCompleteness,
+  fieldsForType,
+  FIELD_CATALOG,
+  getProfileById,
+  TAXONOMY,
+  type TaxonomyParentId,
+  talentIdOf,
   POLAROID_SET,
   RICH_INQUIRIES,
   SELECTIVE_CONTACT_POLICY,
@@ -674,6 +687,9 @@ const TALENT_INQUIRY_TO_CONV: Record<string, string> = {
 function TalentTodayPage() {
   const { openDrawer, setTalentPage } = useProto();
   const profile = MY_TALENT_PROFILE;
+  // Funnel into the unified profile-shell from any Today CTA that
+  // edits the profile. Same helper pattern as MyProfilePage + ProfileHero.
+  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: "t1", section });
   // First-session checklist persists dismiss only for the session in the
   // prototype. Production wires this to a per-user kv pair.
   const [firstSessionDismissed, setFirstSessionDismissed] = useState(false);
@@ -821,8 +837,8 @@ function TalentTodayPage() {
           polaroidCount={0}
           channelsLive={0}
           payoutSet={false}
-          onProfile={() => openDrawer("talent-profile-edit")}
-          onPolaroids={() => openDrawer("talent-polaroids")}
+          onProfile={() => openSection("identity")}
+          onPolaroids={() => openSection("polaroids")}
           onReach={() => setTalentPage("agencies")}
           onPayouts={() => openDrawer("talent-payouts")}
           onDismiss={() => setFirstSessionDismissed(true)}
@@ -843,7 +859,7 @@ function TalentTodayPage() {
         <ProfileCompletenessBanner
           percent={profile.completeness}
           missing={profile.missing}
-          onFinish={() => openDrawer("talent-profile-edit")}
+          onFinish={() => openSection("identity")}
         />
       )}
 
@@ -867,7 +883,7 @@ function TalentTodayPage() {
             : () => setTalentPage("messages")
         }
         onAvailability={() => openDrawer("talent-block-dates")}
-        onOpenProfile={() => openDrawer("talent-profile-edit")}
+        onOpenProfile={() => openSection("identity")}
         onOpenCalendar={() => setTalentPage("calendar")}
         onOpenActivity={() => setTalentPage("activity")}
       />
@@ -2826,31 +2842,344 @@ function BookingRow({ booking }: { booking: TalentBooking }) {
 // the talent uses as their professional shopfront.
 // ════════════════════════════════════════════════════════════════════
 
+/**
+ * Horizontal video showcase strip. Renders showreel + portfolio
+ * videos as 16:9 cards with embedded YouTube/Vimeo players. Each
+ * card lazy-mounts its iframe on first hover/tap so we don't slam
+ * the network on page load with 3-5 video embeds at once. Falls
+ * back to a static thumb + ▶ play overlay; clicking the overlay
+ * mounts the iframe in place.
+ */
+function VideoShowcase({
+  showreelUrl,
+  showreelCaption,
+  portfolioVideos,
+  onManage,
+}: {
+  showreelUrl?: string;
+  showreelCaption?: string;
+  portfolioVideos: ReadonlyArray<{ url: string; caption?: string; durationSec?: number }>;
+  onManage: () => void;
+}) {
+  // Combine showreel + portfolio videos into a single ordered list.
+  // Showreel is always first so it gets the prime visual position.
+  const all: Array<{ url: string; caption?: string; durationSec?: number; isReel?: boolean }> = [
+    ...(showreelUrl ? [{ url: showreelUrl, caption: showreelCaption, isReel: true }] : []),
+    ...portfolioVideos,
+  ];
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          overflowX: "auto",
+          paddingBottom: 6,
+          // Hide scrollbar across browsers — purely visual; users still
+          // scroll via wheel / drag / touch.
+          scrollbarWidth: "thin",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        {all.map((v, i) => (
+          <VideoCard key={`${i}-${v.url}`} url={v.url} caption={v.caption} durationSec={v.durationSec} isReel={v.isReel} />
+        ))}
+        {/* Trailing "+ Add" tile — funnels into the media editor. */}
+        <button
+          type="button"
+          onClick={onManage}
+          aria-label="Add or manage video"
+          style={{
+            flex: "0 0 auto",
+            width: 160,
+            aspectRatio: "16 / 9",
+            borderRadius: 12,
+            border: `1.5px dashed ${COLORS.borderSoft}`,
+            background: "#fff",
+            cursor: "pointer",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            fontWeight: 600,
+          }}
+        >
+          <span style={{ fontSize: 18 }}>+</span>
+          <span>Add video</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function VideoCard({ url, caption, durationSec, isReel }: { url: string; caption?: string; durationSec?: number; isReel?: boolean }) {
+  const [playing, setPlaying] = useState(false);
+  const parsed = parseVideoUrl(url);
+  // mm:ss formatter, shown bottom-right when we have duration metadata.
+  const dur = durationSec
+    ? `${Math.floor(durationSec / 60)}:${String(durationSec % 60).padStart(2, "0")}`
+    : null;
+  return (
+    <div
+      style={{
+        flex: "0 0 auto",
+        width: 280,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "16 / 9",
+          borderRadius: 12,
+          overflow: "hidden",
+          background: COLORS.surfaceAlt,
+          border: `1px solid ${COLORS.borderSoft}`,
+          boxShadow: "0 1px 3px rgba(11,11,13,0.06)",
+        }}
+      >
+        {playing && parsed && (parsed.provider === "youtube" || parsed.provider === "vimeo") ? (
+          <iframe
+            src={`${parsed.embedUrl}?autoplay=1`}
+            title={caption ?? "Video"}
+            style={{ width: "100%", height: "100%", border: 0 }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : playing && parsed && parsed.provider === "mp4" ? (
+          <video
+            src={parsed.embedUrl}
+            controls
+            autoPlay
+            style={{ width: "100%", height: "100%", background: "#000", objectFit: "cover" }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPlaying(true)}
+            aria-label="Play video"
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              background: parsed?.thumbUrl
+                ? `url(${parsed.thumbUrl}) center/cover, ${COLORS.surfaceAlt}`
+                : `linear-gradient(135deg, ${COLORS.surfaceAlt}, rgba(11,11,13,0.08))`,
+              position: "relative",
+            }}
+          >
+            <span aria-hidden style={{
+              position: "absolute", inset: 0,
+              background: "linear-gradient(180deg, rgba(11,11,13,0) 50%, rgba(11,11,13,0.55) 100%)",
+            }} />
+            <span aria-hidden style={{
+              position: "absolute",
+              top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+              width: 48, height: 48, borderRadius: "50%",
+              background: "rgba(255,255,255,0.94)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 6px 16px rgba(11,11,13,0.3)",
+            }}>
+              <span style={{ fontSize: 18, color: COLORS.ink, marginLeft: 3 }}>▶</span>
+            </span>
+            {isReel && (
+              <span style={{
+                position: "absolute", top: 8, left: 8,
+                fontSize: 10, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: 0.4,
+                padding: "3px 8px", borderRadius: 999,
+                background: COLORS.accent, color: "#fff", textTransform: "uppercase",
+              }}>★ Showreel</span>
+            )}
+            {parsed && (
+              <span style={{
+                position: "absolute", top: 8, right: 8,
+                fontSize: 9.5, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: 0.5,
+                padding: "2px 7px", borderRadius: 999,
+                background: parsed.provider === "youtube" ? "#FF0000"
+                  : parsed.provider === "vimeo" ? "#1AB7EA"
+                  : "rgba(11,11,13,0.55)",
+                color: "#fff", textTransform: "uppercase",
+              }}>{parsed.provider}</span>
+            )}
+            {dur && (
+              <span style={{
+                position: "absolute", bottom: 8, right: 8,
+                fontSize: 11, fontWeight: 600, fontFamily: FONTS.body,
+                padding: "2px 7px", borderRadius: 6,
+                background: "rgba(11,11,13,0.72)", color: "#fff",
+                fontVariantNumeric: "tabular-nums",
+              }}>{dur}</span>
+            )}
+          </button>
+        )}
+      </div>
+      {caption && (
+        <div style={{
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          color: COLORS.inkMuted,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}>
+          {caption}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Tier breakdown — three small chips showing Universal / Global /
+ * Type-specific completion. Reads applicable-fields-per-tier from
+ * the catalog and intersects with the live missing list. Talent
+ * gets a clear signal of what kind of progress matters: Universal
+ * must hit 100% to publish; Global pads the percent; Type-specific
+ * is the polish for higher discovery rank.
+ */
+function TierBreakdown({
+  missing,
+  primaryType,
+  secondaryTypes,
+}: {
+  missing: ReadonlyArray<{ id: string; label: string; section: string }>;
+  primaryType: TaxonomyParentId;
+  secondaryTypes?: ReadonlyArray<TaxonomyParentId>;
+}) {
+  const types = [primaryType, ...(secondaryTypes ?? [])];
+  const applicable = fieldsForType(types).filter(f =>
+    !f.id.startsWith("dyn.") && f.id !== "consent.terms" && f.id !== "media.headshot"
+  );
+  const missingIds = new Set(missing.map(m => m.id));
+  const tiers = (["universal", "global", "type-specific"] as const).map(tier => {
+    const tierFields = applicable.filter(f => f.tier === tier);
+    const tierMissing = tierFields.filter(f => missingIds.has(f.id)).length;
+    const tierFilled = tierFields.length - tierMissing;
+    return {
+      tier,
+      label: tier === "universal" ? "Universal" : tier === "global" ? "Global" : "Type-specific",
+      filled: tierFilled,
+      total: tierFields.length,
+      complete: tierMissing === 0,
+    };
+  });
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+      {tiers.map(t => (
+        <span
+          key={t.tier}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            padding: "3px 9px", borderRadius: 999,
+            background: t.complete ? "rgba(15,79,62,0.10)" : "#fff",
+            border: `1px solid ${t.complete ? "rgba(15,79,62,0.30)" : "rgba(91,107,160,0.25)"}`,
+            color: t.complete ? COLORS.accentDeep ?? COLORS.accent : COLORS.indigoDeep,
+            fontSize: 10.5, fontWeight: 600,
+            fontFamily: FONTS.body,
+            letterSpacing: 0.2,
+          }}
+          title={`${t.label}: ${t.filled} of ${t.total} filled`}
+        >
+          {t.complete && <span aria-hidden>✓</span>}
+          <span>{t.label}: {t.filled}/{t.total}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function MyProfilePage() {
-  const { openDrawer } = useProto();
-  const p = MY_TALENT_PROFILE;
+  const { openDrawer, toast } = useProto();
+  // Subscribe to override store + read the MERGED profile. Edits in
+  // the workspace/self profile shell that finalSubmit() into the
+  // override store now flow through here without a refresh.
+  useProfileOverrideSubscription();
+  // Audit fix #2 — also subscribe to the pending-review queue. When
+  // Marta submits a self-edit, finalSubmit() pushes a PendingReviewEntry
+  // for `t-marta`. The dashboard now surfaces that as a status banner
+  // so she sees "submitted, waiting" instead of nothing changing.
+  usePendingReviewSubscription();
+  const pendingMine = getPendingReviewForRoster({ id: "t1", name: MY_TALENT_PROFILE.name });
+  // Phase B — talent surface renders the canonical profile by id.
+  // The "currently logged in talent" is hardcoded to t1 (Marta) for
+  // the prototype; production reads from auth context. The override
+  // store keys by the same id so edits round-trip cleanly.
+  const baseProfile = applyProfileOverride("t1", getProfileById("t1"));
+  // Catalog-driven completeness — replaces the static `completeness`
+  // int + `missing` array on the seed. Counts applicable fields per
+  // primaryType, counts filled, returns percent + a missing list.
+  // As the catalog grows or the talent fills more fields, the math
+  // updates automatically — no hand-tuned numbers.
+  const catalogCompleteness = computeProfileCompleteness(
+    baseProfile,
+    [baseProfile.primaryType, ...baseProfile.secondaryTypes]
+  );
+  // Override both `completeness` (number) AND `missing` (string[]) so
+  // every downstream consumer reads the catalog-derived values.
+  const p = {
+    ...baseProfile,
+    completeness: catalogCompleteness.percent,
+    missing: catalogCompleteness.missing.map(m => m.label),
+  };
   const m = p.measurements;
 
-  // B2: Map missing fields to the drawer that completes them. Lets the
-  // banner offer one-click fix-it actions, not just a list.
-  const missingFieldRoutes: { label: string; drawer: string; payload?: Record<string, unknown> }[] =
+  // Map missing fields to the unified profile-shell section that
+  // completes them. Single source of truth — every "fix this" click
+  // deep-links into talent-profile-shell with mode "edit-self" instead
+  // of opening a parallel mini-drawer with its own field shape +
+  // privacy semantics. The legacy talent-* mini-drawers (talent-
+  // polaroids, talent-rate-card, …) become unreachable from this
+  // path; they stay registered for backwards-compat with anything
+  // else that still calls them, but the talent-side dashboard funnels
+  // entirely through the shell now.
+  const missingFieldRoutes: { label: string; section: string }[] =
     p.missing.map((field) => {
       const lower = field.toLowerCase();
-      if (lower.includes("polaroid")) return { label: field, drawer: "talent-polaroids" };
-      if (lower.includes("rate card")) return { label: field, drawer: "talent-rate-card" };
-      if (lower.includes("showreel")) return { label: field, drawer: "talent-showreel" };
-      if (lower.includes("measurement")) return { label: field, drawer: "talent-measurements" };
-      if (lower.includes("document")) return { label: field, drawer: "talent-documents" };
-      if (lower.includes("portfolio")) return { label: field, drawer: "talent-portfolio" };
-      // Default — open the basics drawer
-      return { label: field, drawer: "talent-profile-edit" };
+      if (lower.includes("polaroid"))    return { label: field, section: "polaroids" };
+      if (lower.includes("rate"))        return { label: field, section: "rates" };
+      if (lower.includes("showreel"))    return { label: field, section: "media" };
+      if (lower.includes("measurement")) return { label: field, section: "details" };
+      if (lower.includes("document") || lower.includes("file")) return { label: field, section: "files" };
+      if (lower.includes("portfolio") || lower.includes("photo") || lower.includes("album")) return { label: field, section: "albums" };
+      if (lower.includes("language"))    return { label: field, section: "languages" };
+      if (lower.includes("availab"))     return { label: field, section: "availability" };
+      if (lower.includes("skill"))       return { label: field, section: "refinement" };
+      if (lower.includes("credit"))      return { label: field, section: "credits" };
+      if (lower.includes("limit"))       return { label: field, section: "limits" };
+      if (lower.includes("verif"))       return { label: field, section: "verifications" };
+      // Default — land on Identity (fields like name / pronouns / DOB).
+      return { label: field, section: "identity" };
     });
+  // Single helper — every "edit X" CTA on this dashboard funnels through
+  // here. Centralizes the mode + section payload so we never accidentally
+  // open the wrong drawer or miss a section.
+  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: "t1", section });
+
+  // Phase C4 — derive role labels for the page header. Primary +
+  // secondary roles render as "Model · also Host" so the multi-role
+  // identity is obvious at the top of the dashboard.
+  const primaryRoleLabel = TAXONOMY.find(t => t.id === p.primaryType)?.label ?? "Talent";
+  const secondaryRoleLabels = p.secondaryTypes
+    .map(id => TAXONOMY.find(t => t.id === id)?.label)
+    .filter((l): l is string => !!l);
+  const roleSummary = secondaryRoleLabels.length > 0
+    ? `${primaryRoleLabel} · also ${secondaryRoleLabels.join(" · ")}`
+    : primaryRoleLabel;
 
   return (
     <>
       <PageHeader
         title={p.name}
-        subtitle={`${p.measurementsSummary} · ${p.city}`}
+        subtitle={`${roleSummary} · ${p.measurementsSummary} · ${p.city}`}
         actions={
           // Header actions are intentionally compact (size="sm"). The
           // md size is for body-level CTAs; in a header alongside the
@@ -2863,7 +3192,7 @@ function MyProfilePage() {
                 <Icon name="external" size={11} /> Preview as client
               </span>
             </SecondaryButton>
-            <PrimaryButton size="sm" onClick={() => openDrawer("talent-profile-edit")}>
+            <PrimaryButton size="sm" onClick={() => openSection("identity")}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <Icon name="pencil" size={11} /> Edit profile
               </span>
@@ -2871,6 +3200,57 @@ function MyProfilePage() {
           </>
         }
       />
+
+      {/* Audit fix #2 — pending-review banner. Shows when Marta has
+          submitted a self-edit that the agency hasn't reviewed yet,
+          plus a soft "withdraw" affordance so she can pull it back if
+          she changes her mind before the agency acts. */}
+      {pendingMine && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "10px 14px",
+            marginBottom: 14,
+            borderRadius: 12,
+            background: "rgba(46,124,209,0.06)",
+            border: `1px solid rgba(46,124,209,0.22)`,
+            fontFamily: FONTS.body,
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 14 }}>⏳</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#1f4d8a" }}>
+              Submitted to your agency · waiting for review
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+              {pendingMine.note} · usually reviewed within 1 business day.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              clearPendingReview(pendingMine.talentId);
+              toast("Submission withdrawn — your changes are still saved");
+            }}
+            style={{
+              padding: "5px 11px",
+              borderRadius: 999,
+              border: `1px solid rgba(46,124,209,0.4)`,
+              background: "#fff",
+              color: "#1f4d8a",
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Withdraw
+          </button>
+        </div>
+      )}
 
       {/* B2: Profile Health banner — single destination for the hero
           completeness stat. Renders only when < 100. Each missing field
@@ -2930,12 +3310,21 @@ function MyProfilePage() {
             >
               Complete profiles get higher placement on agency rosters and the Tulala hub.
             </div>
+            {/* Tier breakdown — derived from the catalog. Splits the
+                missing list by tier so the talent sees what kind of
+                progress matters: Universal must be 100% to publish,
+                Global pads the percent, Type-specific is the polish. */}
+            <TierBreakdown
+              missing={catalogCompleteness.missing}
+              primaryType={baseProfile.primaryType}
+              secondaryTypes={baseProfile.secondaryTypes}
+            />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {missingFieldRoutes.map((r) => (
                 <button
                   key={r.label}
                   type="button"
-                  onClick={() => openDrawer(r.drawer as "talent-profile-edit", r.payload)}
+                  onClick={() => openSection(r.section)}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -2980,7 +3369,7 @@ function MyProfilePage() {
             }
             icon={<Icon name="user" size={14} stroke={1.7} />}
             affordance="Finish missing items"
-            onClick={() => openDrawer("talent-profile-edit")}
+            onClick={() => openSection("identity")}
           >
             <div style={{ marginTop: 8 }}>
               <CompletenessBar value={p.completeness} />
@@ -3043,44 +3432,61 @@ function MyProfilePage() {
           description="The hero shot at the top of your public profile. Landscape, 16:9 ideal."
           meta={<><StatDot tone="green" /> 1 image set</>}
           affordance="Replace cover"
-          onClick={() => openDrawer("talent-photo-edit", { which: "cover" })}
+          onClick={() => openSection("media")}
         />
         <SecondaryCard
           title="Headshot"
           description="The single shot used everywhere — agency rosters, Tulala hub, search results."
           meta={<><StatDot tone="green" /> 1 image set</>}
           affordance="Replace headshot"
-          onClick={() => openDrawer("talent-photo-edit", { which: "headshot" })}
+          onClick={() => openSection("media")}
         />
         <SecondaryCard
           title="Polaroids · naturals"
           description={`Front · Side · Back · Smile · No-makeup. ${POLAROID_SET.filter(x => x.thumb !== "—").length} of 5 set — coordinators ask for these first.`}
           meta={<><StatDot tone={POLAROID_SET.every(x => x.thumb !== "—") ? "green" : "amber"} /> {POLAROID_SET.filter(x => x.thumb !== "—").length}/5</>}
           affordance="Manage polaroids"
-          onClick={() => openDrawer("talent-polaroids")}
+          onClick={() => openSection("polaroids")}
         />
         <SecondaryCard
           title="Portfolio"
-          description="12 / 15 styled shots. Your agencies favour fresh work — keep at least 3 from this year."
+          description={`12 / 15 styled shots${(p.portfolioVideos?.length ?? 0) > 0 ? ` · ${p.portfolioVideos!.length} video clips` : ""}. Your agencies favour fresh work — keep at least 3 from this year.`}
           meta={<><StatDot tone="amber" /> Needs 3 from 2026</>}
           affordance="Manage portfolio"
-          onClick={() => openDrawer("talent-portfolio")}
+          onClick={() => openSection("albums")}
         />
         <SecondaryCard
           title="Showreel"
-          description={p.showreelThumb ? `${p.showreelDuration} clip · used for casting requests with movement, dialogue, or runway.` : "Add a 30-60s clip — opens up acting + dance + runway leads."}
-          meta={p.showreelThumb ? <><StatDot tone="green" /> {p.showreelDuration}</> : <><StatDot tone="dim" /> Not set</>}
+          description={p.showreelUrl ? `${p.showreelDuration ?? "Reel"} clip · used for casting requests with movement, dialogue, or runway.` : (p.showreelThumb ? `${p.showreelDuration} clip · used for casting requests.` : "Add a 30-60s clip — opens up acting + dance + runway leads.")}
+          meta={p.showreelUrl || p.showreelThumb ? <><StatDot tone="green" /> {p.showreelDuration ?? "Set"}</> : <><StatDot tone="dim" /> Not set</>}
           affordance="Open showreel"
-          onClick={() => openDrawer("talent-showreel")}
+          onClick={() => openSection("media")}
         />
         <SecondaryCard
           title="Mood / vibe board"
           description="Pin 6-9 references for the kind of work you want more of. Agencies use this to pitch you smarter."
           meta={<><StatDot tone="dim" /> Optional</>}
           affordance="Set mood board"
-          onClick={() => openDrawer("talent-profile-section", { sectionId: "mood-board", label: "Mood board" })}
+          onClick={() => openSection("about")}
         />
       </Grid>
+
+      {/* ── Video showcase ─────────────────────────────────────────
+          Renders the showreel + any portfolio videos as a horizontally-
+          scrollable strip with playable embeds. Skipped when the
+          talent has no video work yet — the dashboard should still
+          read clean for image-only profiles. */}
+      {(p.showreelUrl || (p.portfolioVideos && p.portfolioVideos.length > 0)) && (
+        <>
+          <Divider label="Motion work" />
+          <VideoShowcase
+            showreelUrl={p.showreelUrl}
+            showreelCaption={p.showreelDuration ? `Showreel · ${p.showreelDuration}` : "Showreel"}
+            portfolioVideos={p.portfolioVideos ?? []}
+            onManage={() => openSection("media")}
+          />
+        </>
+      )}
 
       {/* ── Physicality (measurements + features) ─────────────────── */}
       <Divider label="Physicality" />
@@ -3089,7 +3495,7 @@ function MyProfilePage() {
         description="Height · sizes · features. Visible to agencies and clients you're shortlisted by."
         icon={<Icon name="user" size={14} stroke={1.7} />}
         affordance="Edit measurements"
-        onClick={() => openDrawer("talent-measurements")}
+        onClick={() => openSection("details")}
       >
         <div style={{ marginTop: 12 }}>
           <MeasurementsTable />
@@ -3104,7 +3510,7 @@ function MyProfilePage() {
           description="What kinds of work fit you — drives discovery filters."
           meta={`${p.specialties.length} chosen`}
           affordance="Edit specialties"
-          onClick={() => openDrawer("talent-profile-section", { sectionId: "specialties", label: "Specialties" })}
+          onClick={() => openSection("services")}
         >
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
             {p.specialties.map((s) => (
@@ -3117,7 +3523,7 @@ function MyProfilePage() {
           description={summarizeLanguages(p.languages)}
           meta={`${p.languages.length} languages`}
           affordance="Edit languages"
-          onClick={() => openDrawer("talent-profile-section", { sectionId: "languages", label: "Languages" })}
+          onClick={() => openSection("languages")}
         >
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
             {p.languages.map((l) => (
@@ -3134,7 +3540,7 @@ function MyProfilePage() {
           description="Movement · sport · voice · instruments. Triggers casting filters for active leads."
           meta={`${p.skills.length} skills`}
           affordance="Edit skills"
-          onClick={() => openDrawer("talent-skills")}
+          onClick={() => openSection("refinement")}
           fullHeight
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
@@ -3159,7 +3565,7 @@ function MyProfilePage() {
             </>
           }
           affordance="Edit limits"
-          onClick={() => openDrawer("talent-limits")}
+          onClick={() => openSection("limits")}
           fullHeight
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
@@ -3178,7 +3584,7 @@ function MyProfilePage() {
           description={`${p.credits.length} entries · ${p.credits.filter(c => c.pinned).length} pinned. Pinned credits show on the public profile.`}
           meta={`Most recent: ${p.credits[0].brand}`}
           affordance="Manage credits"
-          onClick={() => openDrawer("talent-credits")}
+          onClick={() => openSection("credits")}
           fullHeight
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
@@ -3197,7 +3603,7 @@ function MyProfilePage() {
             </>
           }
           affordance="Open reviews"
-          onClick={() => openDrawer("talent-reviews")}
+          onClick={() => openSection("social_proof")}
           fullHeight
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
@@ -3252,7 +3658,7 @@ function MyProfilePage() {
               </>
             }
             affordance="Manage documents"
-            onClick={() => openDrawer("talent-documents")}
+            onClick={() => openSection("files")}
           />
           <SecondaryCard
             title="Emergency contact"
@@ -3278,7 +3684,7 @@ function MyProfilePage() {
                 : <><StatDot tone="dim" /> On request</>
           }
           affordance="Edit rate card"
-          onClick={() => openDrawer("talent-rate-card")}
+          onClick={() => openSection("rates")}
           fullHeight
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
@@ -3297,7 +3703,7 @@ function MyProfilePage() {
             </>
           }
           affordance="Edit travel"
-          onClick={() => openDrawer("talent-travel")}
+          onClick={() => openSection("location")}
           fullHeight
         >
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
@@ -3316,7 +3722,7 @@ function MyProfilePage() {
           description="Instagram, TikTok, IMDb — your audience on other platforms. Surfaces follower counts on the public profile."
           meta={`${p.links.length} links`}
           affordance="Edit links"
-          onClick={() => openDrawer("talent-links")}
+          onClick={() => openSection("about")}
         >
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
             {p.links.map((l) => (
@@ -3344,16 +3750,215 @@ function MyProfilePage() {
           description="Acme Models roster · Praline London roster · Tulala hub (featured)"
           meta="3 surfaces"
           affordance="Adjust visibility"
-          onClick={() => openDrawer("talent-privacy")}
+          onClick={() => openSection("admin")}
         />
         <SecondaryCard
           title="Availability"
           description={`${AVAILABILITY_BLOCKS.length} blocks set · next block ${AVAILABILITY_BLOCKS[0]?.startDate}`}
           affordance="Open availability"
-          onClick={() => openDrawer("talent-availability")}
+          onClick={() => openSection("availability")}
         />
       </Grid>
+
+      {/* ── All sections — full parity with the workspace edit drawer.
+            Talents see every Tulala field set the engine knows about.
+            Each tile deep-links into the unified profile-shell on the
+            matching section. Status chip on each tile — "Complete" /
+            "Optional" / "N missing" — driven from the underlying state. */}
+      <Divider label="All sections" />
+      <p style={{
+        fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted,
+        margin: "0 0 12px", lineHeight: 1.5, maxWidth: 640,
+      }}>
+        Every field Tulala can show on your public profile, your agency rosters,
+        and the discovery hub. Tap any tile to edit — the cards above are just
+        the most-edited shortcuts.
+      </p>
+      <AllSectionsGrid openSection={openSection} />
     </>
+  );
+}
+
+// ── AllSectionsGrid ─────────────────────────────────────────────────
+// Renders all 18 PROFILE_SECTIONS as a 2-up tile grid (1-up on mobile).
+// Each tile deep-links via openSection. Status chip is derived from a
+// quick read of the talent's profile state — best-effort heuristics
+// keyed off MY_TALENT_PROFILE so the talent sees what's complete vs
+// outstanding without opening each section.
+function AllSectionsGrid({ openSection }: { openSection: (s: string) => void }) {
+  // Subscribe + read merged profile so completion chips refresh when
+  // the talent edits anything in the shell.
+  useProfileOverrideSubscription();
+  const baseAS = applyProfileOverride("t1", getProfileById("t1"));
+  // Catalog-driven completeness — same calc as MyProfilePage so the
+  // header percent and the section grid agree.
+  const compAS = computeProfileCompleteness(baseAS, [baseAS.primaryType, ...baseAS.secondaryTypes]);
+  const p = {
+    ...baseAS,
+    completeness: compAS.percent,
+    missing: compAS.missing.map(m => m.label),
+  };
+  // Real completion state per section — derived from the actual
+  // talent profile object. Each section computes filled vs total
+  // required fields and surfaces a chip + a "3 of 5" remainder so
+  // the talent knows what's outstanding before opening the section.
+  type Status = "complete" | "partial" | "empty" | "optional";
+  type SectionDef = { id: string; label: string; emoji: string; description: string; status: Status; remainder?: string };
+  // Helpers — simple "is field filled" probes
+  const has = (v: unknown): boolean => {
+    if (v == null) return false;
+    if (typeof v === "string") return v.trim().length > 0;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "object") return Object.keys(v).length > 0;
+    return Boolean(v);
+  };
+  const ratio = (filled: number, total: number): { status: Status; remainder?: string } => {
+    if (filled === 0) return { status: "empty",   remainder: `Add ${total} required` };
+    if (filled < total) return { status: "partial", remainder: `${total - filled} of ${total} left` };
+    return { status: "complete" };
+  };
+  // Identity — required: stage name, pronouns, age (proxies for the
+  // canonical fields that don't all exist on MyTalentProfile yet).
+  const identityFilled = [p.name, p.pronouns, p.age].filter(has).length;
+  const identityRatio = ratio(identityFilled, 3);
+  // Services — at least one specialty.
+  const servicesRatio = ratio(p.specialties.length > 0 ? 1 : 0, 1);
+  // Location — required: city + at least one passport / work auth.
+  const locationFilled = [p.city, p.travel?.passports ?? [], p.travel?.workAuth ?? []].filter(has).length;
+  const locationRatio = ratio(Math.min(locationFilled, 2), 2);
+  // Media — cover + headshot.
+  const mediaFilled = [p.coverPhoto, p.profilePhoto].filter(has).length;
+  const mediaRatio = ratio(mediaFilled, 2);
+  // Polaroids — 5 required (front · side · back · smile · no-makeup).
+  const polaroidsFilled = POLAROID_SET.filter(x => x.thumb !== "—").length;
+  const polaroidsRatio = ratio(polaroidsFilled, 5);
+  // Albums — heuristic: any portfolio shot counts.
+  const albumsRatio = ratio(p.profilePhoto ? 1 : 0, 6);
+  // About — at least 1 link.
+  const aboutRatio = ratio(p.links.length > 0 ? 1 : 0, 1);
+  // Details (physicality) — height + bust + waist + hips filled.
+  const m = p.measurements;
+  const detailsFilled = [m?.heightImperial, m?.bust, m?.waist, m?.hips, m?.hairColor, m?.eyeColor].filter(has).length;
+  const detailsRatio = ratio(Math.min(detailsFilled, 4), 4);
+  // Rates — required: rateCard set.
+  const ratesRatio = ratio(p.rateCard ? 1 : 0, 1);
+  // Availability — completed when any blocks set.
+  const availabilityRatio: { status: Status; remainder?: string } = AVAILABILITY_BLOCKS.length > 0 ? { status: "complete" } : { status: "empty", remainder: "Block your unavailable dates" };
+  // Languages — at least 1.
+  const languagesRatio: { status: Status; remainder?: string } = p.languages.length > 0 ? { status: "complete" } : { status: "empty", remainder: "Add a language" };
+  // Skills — at least 3.
+  const skillsRatio = ratio(Math.min(p.skills.length, 3), 3);
+  // Credits — at least 1.
+  const creditsRatio: { status: Status; remainder?: string } = p.credits.length > 0 ? { status: "complete" } : { status: "empty", remainder: "Add your first credit" };
+  // Limits — optional.
+  const limitsRatio: { status: Status } = p.limits.length > 0 ? { status: "complete" } : { status: "optional" };
+  // Files — required: W-8BEN + model release uploaded.
+  const docsUploaded = (p.documents ?? []).filter(d => d.state === "uploaded").length;
+  const filesRatio = ratio(Math.min(docsUploaded, 2), 2);
+  // Social proof — completed via reviews.
+  const socialProofRatio: { status: Status } = p.reviews.length > 0 ? { status: "complete" } : { status: "optional" };
+  // Trust — bookingStats.completedBookings as a proxy.
+  const trustRatio: { status: Status; remainder?: string } = p.bookingStats?.completedBookings && p.bookingStats.completedBookings > 0
+    ? { status: "complete" }
+    : { status: "partial", remainder: "Verify ID + payout" };
+
+  const sections: SectionDef[] = [
+    { id: "identity",      emoji: "👤", label: "Identity",       description: "Stage name · pronouns · gender · DOB. You control privacy per field.", ...identityRatio },
+    { id: "services",      emoji: "🎯", label: "Services",       description: "Talent type, specialties, and what you're growing into.", ...servicesRatio },
+    { id: "location",      emoji: "📍", label: "Location & travel", description: "Home base · cities you work · passport · driver's license.", ...locationRatio },
+    { id: "media",         emoji: "📷", label: "Cover · headshot · reel", description: "Banner, main photo, hello reel, showreel.", ...mediaRatio },
+    { id: "albums",        emoji: "🗂", label: "Portfolio albums", description: "Editorial · Lookbook · Behind-the-scenes · Personal.", ...albumsRatio },
+    { id: "polaroids",     emoji: "🪪", label: "Polaroids",       description: "Front · side · back · smile · no-makeup. Casting standard.", ...polaroidsRatio },
+    { id: "about",         emoji: "✏️", label: "Bio & links",     description: "Short bio per language. External links surface here too.", ...aboutRatio },
+    { id: "details",       emoji: "📋", label: "Physical details", description: "Height · sizes · skin tone · tattoos · allergies.", ...detailsRatio },
+    { id: "rates",         emoji: "💶", label: "Rates",           description: "Per-day / per-event rates. Different rates for direct, agency, hub.", ...ratesRatio },
+    { id: "availability",  emoji: "📅", label: "Availability",    description: "Block dates, recurring patterns, vacation windows.", ...availabilityRatio },
+    { id: "languages",     emoji: "🌐", label: "Languages",       description: "Languages spoken with proficiency level.", ...languagesRatio },
+    { id: "refinement",    emoji: "✦",  label: "Skills",          description: "Movement · sport · voice · instruments. Triggers casting filters.", ...skillsRatio },
+    { id: "credits",       emoji: "🏆", label: "Credits",         description: "Past campaigns, editorials, runway, lookbooks. Pin the proudest.", ...creditsRatio },
+    { id: "limits",        emoji: "⊘",  label: "Wardrobe & limits", description: "Hard limits block pitches; soft limits ask first.", ...limitsRatio },
+    { id: "files",         emoji: "📎", label: "Documents",       description: "W-8BEN · model release · NDA · certifications.", ...filesRatio },
+    { id: "social_proof",  emoji: "⭐", label: "Past clients & reviews", description: "Logos of brands you've worked with + client kudos.", ...socialProofRatio },
+    { id: "verifications", emoji: "🛡", label: "Trust & verification", description: "Email · phone · ID · payout. Drives your trust tier.", ...trustRatio },
+    { id: "admin",         emoji: "🔒", label: "Visibility & privacy", description: "Where this profile shows. Field locks. Profile status.", status: "complete" },
+  ];
+
+  const statusMeta: Record<Status, { label: string; bg: string; fg: string }> = {
+    complete: { label: "Complete", bg: COLORS.successSoft, fg: COLORS.successDeep ?? COLORS.success },
+    partial:  { label: "In progress", bg: COLORS.amberSoft ?? "rgba(217,119,6,0.10)", fg: COLORS.amberDeep ?? COLORS.amber },
+    empty:    { label: "Add",      bg: "rgba(176,48,58,0.08)", fg: COLORS.coralDeep ?? COLORS.coral },
+    optional: { label: "Optional", bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted },
+  };
+
+  return (
+    <div data-tulala-all-sections style={{
+      display: "grid", gap: 10,
+      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    }}>
+      <style>{`
+        @media (max-width: 720px) {
+          [data-tulala-all-sections] { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+      {sections.map(s => {
+        const meta = statusMeta[s.status];
+        return (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => openSection(s.id)}
+            style={{
+              display: "flex", alignItems: "flex-start", gap: 12,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12,
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: FONTS.body,
+              minWidth: 0,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.background = "rgba(11,11,13,0.015)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.background = "#fff"; }}
+          >
+            <span aria-hidden style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: COLORS.surfaceAlt,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              fontSize: 18, flexShrink: 0,
+            }}>{s.emoji}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                marginBottom: 2,
+              }}>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>{s.label}</span>
+                <span style={{
+                  fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
+                  textTransform: "uppercase",
+                  padding: "2px 7px", borderRadius: 999,
+                  background: meta.bg, color: meta.fg,
+                }}>{meta.label}</span>
+              </div>
+              <div style={{
+                fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45,
+              }}>{s.description}</div>
+              {s.remainder && (
+                <div style={{
+                  fontSize: 11, fontWeight: 600, color: meta.fg,
+                  marginTop: 4,
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}>
+                  <span aria-hidden style={{ fontSize: 9 }}>›</span>
+                  {s.remainder}
+                </div>
+              )}
+            </div>
+            <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -3361,7 +3966,21 @@ function MyProfilePage() {
 
 function ProfileHero() {
   const { openDrawer } = useProto();
-  const p = MY_TALENT_PROFILE;
+  // Same subscription as MyProfilePage so the hero (cover, name,
+  // measurements row) reflects shell edits live.
+  useProfileOverrideSubscription();
+  const baseHero = applyProfileOverride("t1", getProfileById("t1"));
+  // Catalog-driven completeness — keeps the hero percent in sync with
+  // MyProfilePage.
+  const compHero = computeProfileCompleteness(baseHero, [baseHero.primaryType, ...baseHero.secondaryTypes]);
+  const p = {
+    ...baseHero,
+    completeness: compHero.percent,
+    missing: compHero.missing.map(m => m.label),
+  };
+  // Same shell-funnel as MyProfilePage — every edit affordance lands
+  // in the unified profile-shell drawer with mode "edit-self".
+  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: "t1", section });
 
   return (
     <section
@@ -3390,7 +4009,7 @@ function ProfileHero() {
       >
         {!p.coverPhoto.startsWith("http") && <span style={{ filter: "saturate(0.8)" }}>{p.coverPhoto}</span>}
         <button
-          onClick={() => openDrawer("talent-photo-edit", { which: "cover" })}
+          onClick={() => openSection("media")}
           style={{
             position: "absolute",
             top: 12,
@@ -3419,7 +4038,7 @@ function ProfileHero() {
       <div style={{ padding: "0 24px 22px", position: "relative" }}>
         {/* Avatar overlapping the cover */}
         <button
-          onClick={() => openDrawer("talent-photo-edit", { which: "headshot" })}
+          onClick={() => openSection("media")}
           style={{
             position: "absolute",
             top: -52,
@@ -4328,7 +4947,7 @@ export type Conversation = {
   /** Talent's take-home — only set when booked. Hides full offer per spec. */
   amountToYou?: string;
   /** Last message preview line — for the conversation list rail. */
-  lastMessage: { sender: "you" | "client" | "coordinator" | "agency" | "system"; preview: string; ageHrs: number };
+  lastMessage: { sender: "you" | "client" | "coordinator" | "agency" | "system" | "workspace"; preview: string; ageHrs: number };
   unreadCount: number;
   /** True when the current talent (Marta) is the coordinator on this
    *  job — runs her own workspace, talks to client directly, organizes
@@ -4914,6 +5533,82 @@ export const CLIENT_MOCK_CONVERSATIONS_BY_PROFILE: Record<string, Conversation[]
         coordinatorNote: "Cancelled with 2 weeks' notice — Acme waived the cancellation fee per our 8-bookings relationship.",
       },
     },
+    // m6 — BRAND-NEW INQUIRY (just landed). Annual photoshoot for the
+    // restaurant's print campaign. Demonstrates the NEW pill + coral
+    // wash on the client inbox row + first inquiry from this agency.
+    {
+      id: "m6",
+      client: "Martina Beach Club & Restaurant",
+      clientInitials: "MB",
+      clientTrust: "verified",
+      brief: "Annual print campaign · food + lifestyle · 2 days",
+      stage: "inquiry",
+      agency: "Acme Models",
+      iAmCoordinator: false,
+      source: { kind: "direct", label: "Direct via Acme Models site" },
+      leader: { name: "Diego Figueroa", role: "Coordinator · Acme Models", initials: "DF" },
+      participants: [
+        { initials: "JT", name: "Julia Tenes", role: "Photographer (proposed)" },
+      ],
+      location: "Tulum · Beach Club deck + private dining room",
+      date: "Aug 18–19",
+      lastMessage: { sender: "coordinator", preview: "Diego: Your annual campaign brief just landed — proposing 2 talent + photographer for Aug 18–19. Range is comfortable. I'll send a shortlist + budget by EOD.", ageHrs: 0.4 },
+      unreadCount: 2,
+      seen: false,
+      pinned: {
+        coordinatorNote: "Brand-new agency relationship for you — Acme came in via your annual print campaign brief. Strong roster + production team in Tulum already.",
+      },
+    },
+    // m7 — BRAND-NEW INQUIRY (referral, just landed). Smaller event
+    // booking through a friend agency. Two unseen rows in the inbox
+    // shows the NEW-on-top sort working.
+    {
+      id: "m7",
+      client: "Martina Beach Club & Restaurant",
+      clientInitials: "MB",
+      clientTrust: "verified",
+      brief: "Tequila tasting · brand activation · 1 evening",
+      stage: "inquiry",
+      agency: "Praline London",
+      iAmCoordinator: false,
+      source: { kind: "agency-referral", via: "Atelier Roma" },
+      leader: { name: "Theo Marsh", role: "Coordinator · Praline London", initials: "TM" },
+      participants: [],
+      location: "Tulum · Lobby bar + courtyard",
+      date: "Wed, Aug 6",
+      lastMessage: { sender: "coordinator", preview: "Theo: Atelier Roma referred you — we have 3 hostesses available for your Tequila Olmeca activation. Budget €1,800 total · 4h evening. Sending profiles now.", ageHrs: 0.2 },
+      unreadCount: 1,
+      seen: false,
+      pinned: {
+        coordinatorNote: "Praline London is Atelier Roma's UK partner. They handle our Europe-tier brand activations.",
+      },
+    },
+    // m8 — IN FLIGHT (offer pending). Demonstrates the "needs you"
+    // action flag on the inbox row + Approve flow inside the project tab.
+    {
+      id: "m8",
+      client: "Martina Beach Club & Restaurant",
+      clientInitials: "MB",
+      clientTrust: "verified",
+      brief: "Sunset wedding feature · couple shoot · 4h",
+      stage: "hold",
+      agency: "Atelier Roma",
+      iAmCoordinator: false,
+      source: { kind: "direct", label: "Direct via Atelier Roma" },
+      leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+      participants: [
+        { initials: "ER", name: "Emma Ricci", role: "Talent · Praline London", isTalent: true },
+        { initials: "JR", name: "João Ribeiro", role: "Photographer" },
+      ],
+      location: "Tulum · Cenote + pool deck",
+      date: "Sat, Jul 19",
+      lastMessage: { sender: "coordinator", preview: "Sara: Offer ready — €4,200 for the talent + photographer + retouching. Approve below to lock the date.", ageHrs: 5 },
+      unreadCount: 1,
+      pinned: {
+        rate: { value: "€4,200 total · 4h shoot · talent + photographer + retouch", status: "client-budget" },
+        coordinatorNote: "Atelier Roma's standard couple-shoot package. Emma has shot here twice before — knows the cenote light.",
+      },
+    },
   ],
 
   gringo: [
@@ -4966,6 +5661,60 @@ export const CLIENT_MOCK_CONVERSATIONS_BY_PROFILE: Record<string, Conversation[]
         coordinatorNote: "Smooth booking. Both talents reported a good experience — green-light for repeat bookings.",
       },
     },
+    // g3 — BRAND-NEW INQUIRY (just landed). Spontaneous request via
+    // Instagram DM — most realistic Gringo-style channel. Tests the
+    // NEW pill on a Basic-trust client (still gates on verification).
+    {
+      id: "g3",
+      client: "The Gringo",
+      clientInitials: "TG",
+      clientTrust: "basic",
+      brief: "Pool party · 6 hostesses · Saturday afternoon",
+      stage: "inquiry",
+      agency: "Atelier Roma",
+      iAmCoordinator: false,
+      source: { kind: "instagram-dm" },
+      leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+      participants: [],
+      location: "Ibiza · Hotel Eden private pool",
+      date: "Sat, Aug 9",
+      lastMessage: { sender: "coordinator", preview: "Sara: Pool party brief landed via your DM. 6 hostesses · 4h afternoon. Need card on file before we can shortlist (Basic-trust standard).", ageHrs: 0.5 },
+      unreadCount: 2,
+      seen: false,
+      pinned: {
+        coordinatorNote: "Personal client — verify card before sending profiles. Standard 50% deposit on confirmation, balance on the day.",
+      },
+    },
+    // g4 — IN FLIGHT (booked, awaiting card-on-file balance). Booked
+    // via past-relationship trust but balance still owing.
+    {
+      id: "g4",
+      client: "The Gringo",
+      clientInitials: "TG",
+      clientTrust: "basic",
+      brief: "Sunset boat trip · 3 hostesses · 5h evening",
+      stage: "booked",
+      agency: "Atelier Roma",
+      iAmCoordinator: false,
+      source: { kind: "instagram-dm" },
+      leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+      participants: [
+        { initials: "ZA", name: "Zara Habib", role: "Talent · Praline London", isTalent: true },
+        { initials: "AN", name: "Anouk Naseri", role: "Talent · Acme Models", isTalent: true },
+        { initials: "LO", name: "Lucia Ortiz", role: "Talent · Self-managed", isTalent: true },
+      ],
+      location: "Ibiza · Marina Botafoch → Cala Llonga",
+      date: "Sat, Jul 12",
+      amountToYou: "€2,400 booked · €1,200 balance owed",
+      lastMessage: { sender: "coordinator", preview: "Sara: Booking locked. Deposit cleared. Balance €1,200 due 48h before sail.", ageHrs: 22 },
+      unreadCount: 1,
+      pinned: {
+        callTime: "17:00 (board) · 22:00 (return)",
+        schedule: "Jul 12 · 17:00 board · 18:00 sail · 21:30 return to marina",
+        rate: { value: "€2,400 total · paid 50% deposit · €1,200 balance", status: "agreed" },
+        coordinatorNote: "Captain Iván briefed — 3 hostesses on the upper deck, dinner served at sunset.",
+      },
+    },
   ],
 };
 
@@ -4984,11 +5733,19 @@ export type Msg =
   | { id: string; kind: "polaroid-request"; ts: string; resolved?: number }
   | { id: string; kind: "payment-receipt"; ts: string; amount: string; method: string };
 
-type ConvSender = "you" | "client" | "coordinator" | "agency";
+// "workspace" = the System User. Represents the workspace itself
+// (Atelier Roma, Acme Models, etc.) rather than any individual member.
+// Used for system-routed messages (booking confirmations, reassign
+// events, automated nudges) and for outbound posts a coordinator
+// chooses to send "as the workspace" rather than as themselves.
+// Renders with the workspace logo + name in chat bubbles, gives
+// agencies a coherent voice across coordinator handoffs.
+type ConvSender = "you" | "client" | "coordinator" | "agency" | "workspace";
 
 export const MOCK_THREAD: Record<string, Msg[]> = {
   c1: [
     { id: "c1m1", kind: "system", body: "Inquiry created · routed to Acme Models", ts: "Apr 28 · 10:14" },
+    { id: "c1m1a", kind: "text", sender: "workspace", body: "Acme Models received the brief. Sara's pulling editorial talent + will be back to you within the day.", ts: "Apr 28 · 10:14", readBy: ["you"] },
     { id: "c1m2", kind: "text", sender: "coordinator", body: "Hi Marta — Mango is briefing for a Spring lookbook in Madrid. Single day, May 14. Editorial energy, less commercial. Are you open?", ts: "Apr 28 · 10:18", readBy: ["you"] },
     { id: "c1m3", kind: "image", sender: "coordinator", caption: "Mood board — what they sent us.", count: 4, ts: "Apr 28 · 10:19" },
     { id: "c1m4", kind: "text", sender: "you", body: "Yes, I'm open on May 14. Looks beautiful — happy to do this.", ts: "Apr 28 · 11:02", readBy: ["coordinator"] },
@@ -4997,6 +5754,7 @@ export const MOCK_THREAD: Record<string, Msg[]> = {
   ],
   c2: [
     { id: "c2m1", kind: "system", body: "Hold opened · May 18–20 · Bvlgari", ts: "Apr 26 · 09:00" },
+    { id: "c2m1a", kind: "text", sender: "workspace", body: "Acme Models is holding May 18–20 for you. Bvlgari has a 48h window to confirm — we'll keep you posted on this thread.", ts: "Apr 26 · 09:00", readBy: ["you"] },
     { id: "c2m2", kind: "text", sender: "client", body: "Holding May 18–20 for Marta. Editorial · jewelry close-ups + 1 lifestyle frame. Budget €4–6k for 3 days, depending on usage.", ts: "Apr 26 · 09:02", readBy: ["coordinator", "you"] },
     { id: "c2m3", kind: "calendar-invite", ts: "Apr 26 · 09:03", title: "Bvlgari · Editorial (Hold)", date: "May 18–20" },
     { id: "c2m4", kind: "voice", sender: "coordinator", durationSec: 22, transcript: "Bvlgari are great to work with — long-time client. They'll lock by Friday. I'd quote at the top of their range, you've worked editorial volume before.", ts: "Apr 26 · 09:30" },
@@ -5005,6 +5763,10 @@ export const MOCK_THREAD: Record<string, Msg[]> = {
   ],
   c3: [
     { id: "c3m1", kind: "system", body: "Booking confirmed · May 14–15 · Vogue Italia", ts: "Apr 12 · 14:00" },
+    // System User-attributed booking confirmation. Coordinator handoffs
+    // shouldn't break the agency's voice — when Acme Models confirms a
+    // booking, the message reads as the workspace, not the individual.
+    { id: "c3m1a", kind: "text", sender: "workspace", body: "Acme Models confirmed your booking with Vogue Italia. You'll see contract + call sheet land in this thread — we're across both ends.", ts: "Apr 12 · 14:00", readBy: ["you"] },
     { id: "c3m2", kind: "text", sender: "coordinator", body: "Booked! Two days at Studio 5 in Milan. Locked rate, locked usage. You're seeing your take-home only — full offer is between Vogue and us.", ts: "Apr 12 · 14:01", readBy: ["you"] },
     { id: "c3m3", kind: "contract-sign", ts: "Apr 12 · 14:02", filename: "Vogue_Italia_Editorial_May14-15.pdf", resolved: true },
     { id: "c3m4", kind: "text", sender: "you", body: "Signed and sent. Excited for this one.", ts: "Apr 12 · 17:48", readBy: ["coordinator"] },
@@ -5050,6 +5812,7 @@ export const MOCK_THREAD: Record<string, Msg[]> = {
   // c5 — Loewe WRAPPED (paid in full)
   c5: [
     { id: "c5m1", kind: "system", body: "Booking confirmed · Apr 18 · Loewe", ts: "Apr 8 · 11:00" },
+    { id: "c5m1a", kind: "text", sender: "workspace", body: "Acme Models confirmed your Loewe booking. Diego is your contact for the day; we're handling the invoice.", ts: "Apr 8 · 11:00", readBy: ["you"] },
     { id: "c5m2", kind: "text", sender: "coordinator", body: "Loewe Capsule editorial. 2 talent, 1 day, ESTUDIO ROCA. You drove yourself — fuel + tolls reimbursed.", ts: "Apr 8 · 11:02" },
     { id: "c5m3", kind: "text", sender: "you", body: "Set up smoothly. Diego was easy to work with — usual ESTUDIO ROCA setup.", ts: "Apr 18 · 17:00", readBy: ["coordinator"] },
     { id: "c5m4", kind: "system", body: "Wrapped · selects shared", ts: "Apr 18 · 17:30" },
@@ -5219,6 +5982,41 @@ export const MOCK_THREAD: Record<string, Msg[]> = {
     { id: "g2m2", kind: "text", sender: "coordinator", body: "Booked Zara + Anouk for Mar 15 private dinner. Card on file charged · €1,200.", ts: "Mar 8 · 14:02", readBy: ["you"] },
     { id: "g2m3", kind: "system", body: "Wrapped · paid in full", ts: "Mar 15 · 23:00" },
     { id: "g2m4", kind: "payment-receipt", ts: "Mar 20 · 09:00", amount: "€1,200", method: "Card on file" },
+  ],
+
+  // ── New martina convs (client POV) ──
+  m6: [
+    { id: "m6m1", kind: "system", body: "Inquiry submitted · annual print campaign brief", ts: "30m ago" },
+    { id: "m6m2", kind: "text", sender: "you", body: "Hi Acme — sending our annual print campaign brief. Food + lifestyle, 2 days at the beach club. Aug 18–19. Looking for one editorial-leaning model + the photographer you used for La Mar.", ts: "30m ago" },
+    { id: "m6m3", kind: "text", sender: "coordinator", body: "Hi Martina — Diego here from Acme. Brief received. Strong fit with your past work — proposing a shortlist + a refreshed photographer pairing by EOD. €2,800/day per talent works against your budget.", ts: "25m ago" },
+    { id: "m6m4", kind: "image", sender: "coordinator", caption: "Initial mood + 3 photographer references.", count: 5, ts: "20m ago" },
+  ],
+  m7: [
+    { id: "m7m1", kind: "system", body: "Inquiry sent · referral via Atelier Roma", ts: "10m ago" },
+    { id: "m7m2", kind: "text", sender: "you", body: "Tequila Olmeca activation in Tulum, single evening, Aug 6. Need 3 hostesses · €1,800 total · 4h. Atelier said you'd handle it.", ts: "10m ago" },
+    { id: "m7m3", kind: "text", sender: "coordinator", body: "Theo from Praline London — got it. We do a lot of Tulum activations. Sending 5 profiles in the next hour. All have hospitality + brand-rep experience.", ts: "8m ago" },
+  ],
+  m8: [
+    { id: "m8m1", kind: "system", body: "Inquiry created · couple shoot · 4h sunset", ts: "5h ago" },
+    { id: "m8m2", kind: "text", sender: "you", body: "Sunset wedding feature for the magazine — 4h shoot, cenote + pool deck, Sat Jul 19. Want Emma if she's available, plus João to shoot.", ts: "5h ago" },
+    { id: "m8m3", kind: "text", sender: "coordinator", body: "Emma + João both clear that day. Drafting the full package — talent + photog + half-day retouch. €4,200 total.", ts: "4h ago", readBy: ["you"] },
+    { id: "m8m4", kind: "text", sender: "coordinator", body: "Offer ready — €4,200 total. Approve below to lock the date.", ts: "3h ago" },
+    { id: "m8m5", kind: "action-confirm", label: "Approve sunset shoot", ts: "3h ago" },
+  ],
+
+  // ── New gringo convs ──
+  g3: [
+    { id: "g3m1", kind: "system", body: "Inquiry sent · Instagram DM · pool party", ts: "30m ago" },
+    { id: "g3m2", kind: "text", sender: "you", body: "Pool party at Hotel Eden, Sat Aug 9. Need 6 hostesses · 4h afternoon · €1,800 total. You handled my dinner in March, can we move fast?", ts: "30m ago" },
+    { id: "g3m3", kind: "text", sender: "coordinator", body: "Hi — Sara again. Happy to. Quick refresh: your card on file from March is expired. Verify the new card and I'll send 6 profiles immediately.", ts: "25m ago" },
+    { id: "g3m4", kind: "text", sender: "coordinator", body: "Standard 50% deposit on confirmation, balance on the day. Same as last time.", ts: "25m ago" },
+  ],
+  g4: [
+    { id: "g4m1", kind: "system", body: "Booking confirmed · sunset boat trip · 3 hostesses", ts: "2d ago" },
+    { id: "g4m2", kind: "text", sender: "coordinator", body: "Sunset boat trip Jul 12 confirmed. Zara, Anouk, Lucia — same crew you've worked with. Captain Iván briefed.", ts: "2d ago", readBy: ["you"] },
+    { id: "g4m3", kind: "text", sender: "you", body: "Perfect. Let's do another one.", ts: "2d ago", readBy: ["coordinator"] },
+    { id: "g4m4", kind: "system", body: "Deposit cleared · €1,200 of €2,400 paid", ts: "2d ago" },
+    { id: "g4m5", kind: "text", sender: "coordinator", body: "Booking locked. Deposit cleared. Balance €1,200 due 48h before sail (Jul 10) — same card on file unless you tell me otherwise.", ts: "22h ago" },
   ],
 };
 
@@ -13206,6 +14004,9 @@ function TalentTrustCard({ onOpenDetail }: { onOpenDetail: () => void }) {
 
 function SettingsPage() {
   const { openDrawer, setTalentPage } = useProto();
+  // Settings privacy → admin section of profile shell. Same funnel
+  // as MyProfilePage / ProfileHero / TalentTodayPage.
+  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: "t1", section });
 
   return (
     <>
@@ -13383,7 +14184,7 @@ function SettingsPage() {
           title="Privacy"
           description="Search-engine indexing, sensitive measurements, document visibility. Channel toggles moved to Reach."
           affordance="Manage"
-          onClick={() => openDrawer("talent-privacy")}
+          onClick={() => openSection("admin")}
         />
         <SecondaryCard
           title="Payouts"
