@@ -1,10 +1,8 @@
 // Phase 3 — canonical workspace Bookings page.
 // Server Component — no "use client".
 //
-// Shows confirmed bookings (status = 'booked' | 'converted') for the tenant
-// identified by `tenantSlug`. Ordered by event_date ascending so the next
-// upcoming job is first.
-// Data via `loadWorkspaceBookings()` — explicit tenantId, no mock data.
+// Shows confirmed bookings (status = 'booked' | 'converted') for the tenant.
+// Ordered by event_date ascending so the next upcoming job is first.
 // Capability gate: view_dashboard (viewer+).
 
 import { notFound } from "next/navigation";
@@ -12,22 +10,195 @@ import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { loadWorkspaceBookings } from "../../_data-bridge";
-import {
-  ADMIN_PAGE_STACK,
-  ADMIN_TEXT_DISPLAY_LG,
-  ADMIN_TEXT_EYEBROW,
-  ADMIN_HOME_SECTION_GAP,
-} from "@/lib/dashboard-shell-classes";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
+
+// ─── Design tokens ────────────────────────────────────────────────────────────
+
+const C = {
+  ink:        "#0B0B0D",
+  inkMuted:   "rgba(11,11,13,0.55)",
+  inkDim:     "rgba(11,11,13,0.35)",
+  border:     "rgba(24,24,27,0.08)",
+  borderSoft: "rgba(24,24,27,0.06)",
+  cardBg:     "#ffffff",
+  surface:    "rgba(11,11,13,0.02)",
+  accent:     "#0F4F3E",
+  green:      "#2E7D5B",
+  greenSoft:  "rgba(46,125,91,0.10)",
+} as const;
+
+const FONT = '"Inter", system-ui, sans-serif';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function isUpcoming(iso: string | null): boolean {
   if (!iso) return false;
   return new Date(iso) >= new Date();
+}
+
+// ─── Booking row ──────────────────────────────────────────────────────────────
+
+type BookingRow = {
+  id: string;
+  contact_name: string;
+  company: string | null;
+  event_date: string | null;
+  event_location: string | null;
+  quantity: number | null;
+};
+
+function BookingListItem({
+  booking,
+  muted,
+  tenantSlug,
+}: {
+  booking: BookingRow;
+  muted: boolean;
+  tenantSlug: string;
+}) {
+  const month = booking.event_date
+    ? new Intl.DateTimeFormat("en-GB", { month: "short" }).format(new Date(booking.event_date))
+    : null;
+  const day = booking.event_date ? new Date(booking.event_date).getDate() : null;
+
+  return (
+    <Link
+      href={`/${tenantSlug}/admin/work/${booking.id}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 16px",
+        textDecoration: "none",
+        opacity: muted ? 0.65 : 1,
+        fontFamily: FONT,
+      }}
+    >
+      {/* Date badge */}
+      <div
+        style={{
+          flexShrink: 0,
+          width: 44,
+          textAlign: "center",
+        }}
+      >
+        {month && day ? (
+          <>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                color: C.inkDim,
+                lineHeight: 1,
+                marginBottom: 2,
+              }}
+            >
+              {month}
+            </div>
+            <div
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                color: C.ink,
+                lineHeight: 1,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {day}
+            </div>
+          </>
+        ) : (
+          <span style={{ fontSize: 11, color: C.inkDim }}>TBD</span>
+        )}
+      </div>
+
+      {/* Name + location */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: C.ink,
+            letterSpacing: -0.1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {booking.contact_name}
+        </div>
+        {(booking.company || booking.event_location) && (
+          <div
+            style={{
+              fontSize: 12,
+              color: C.inkMuted,
+              marginTop: 2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {[booking.company, booking.event_location].filter(Boolean).join(" · ")}
+          </div>
+        )}
+      </div>
+
+      {/* Talent count */}
+      {booking.quantity != null && booking.quantity > 0 && (
+        <span
+          style={{
+            flexShrink: 0,
+            fontSize: 12,
+            color: C.inkMuted,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {booking.quantity} {booking.quantity === 1 ? "talent" : "talents"}
+        </span>
+      )}
+
+      {/* Confirmed badge */}
+      <span
+        style={{
+          flexShrink: 0,
+          display: "inline-flex",
+          alignItems: "center",
+          padding: "3px 8px",
+          borderRadius: 999,
+          background: C.greenSoft,
+          color: C.green,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 0.1,
+        }}
+      >
+        Confirmed
+      </span>
+    </Link>
+  );
+}
+
+function SectionHead({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontFamily: FONT,
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: 0.7,
+        textTransform: "uppercase" as const,
+        color: C.inkDim,
+        marginBottom: 8,
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -51,158 +222,176 @@ export default async function WorkspaceBookingsPage({
   const past = bookings.filter((b) => !isUpcoming(b.event_date));
 
   return (
-    <div className={ADMIN_PAGE_STACK}>
-      <div className={ADMIN_HOME_SECTION_GAP}>
-        {/* Header */}
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className={ADMIN_TEXT_EYEBROW}>{scope.membership.display_name}</p>
-            <h1 className={ADMIN_TEXT_DISPLAY_LG}>
-              Bookings
-              <span className="ml-2 text-[var(--admin-nav-idle)] text-base font-normal">
-                {bookings.length}
-              </span>
-            </h1>
-          </div>
-          <Link
-            href="/admin/inquiries"
-            className="rounded-lg border border-[var(--admin-border)] bg-[var(--admin-card-bg)] px-3.5 py-1.5 text-sm font-medium text-[var(--admin-workspace-fg)] hover:bg-[var(--admin-nav-idle)]/10 transition-colors"
+    <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
+
+      {/* ── Header row ── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: 0.7,
+              textTransform: "uppercase",
+              color: C.accent,
+              marginBottom: 4,
+            }}
           >
-            Full pipeline
-          </Link>
+            {scope.membership.display_name}
+          </div>
+          <h1
+            style={{
+              fontFamily: FONT,
+              fontSize: 26,
+              fontWeight: 700,
+              color: C.ink,
+              margin: 0,
+              letterSpacing: -0.5,
+              lineHeight: 1.1,
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+            }}
+          >
+            Bookings
+            <span
+              style={{
+                fontSize: 16,
+                fontWeight: 400,
+                color: C.inkDim,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {bookings.length}
+            </span>
+          </h1>
         </div>
 
-        {bookings.length === 0 ? (
-          <div className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] px-6 py-12 text-center">
-            <p className="text-sm text-[var(--admin-nav-idle)]">
-              No confirmed bookings yet.
-            </p>
-            <p className="mt-1 text-xs text-[var(--admin-nav-idle)]/70">
-              Bookings appear here once an inquiry is confirmed.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Upcoming */}
-            {upcoming.length > 0 && (
-              <section>
-                <h2 className="text-sm font-semibold text-[var(--admin-workspace-fg)] mb-3">
-                  Upcoming
-                  <span className="ml-2 text-xs font-normal text-[var(--admin-nav-idle)]">
-                    {upcoming.length}
-                  </span>
-                </h2>
-                <BookingList bookings={upcoming} />
-              </section>
-            )}
-
-            {/* Past */}
-            {past.length > 0 && (
-              <section>
-                <h2 className="text-sm font-semibold text-[var(--admin-workspace-fg)] mb-3">
-                  Past
-                  <span className="ml-2 text-xs font-normal text-[var(--admin-nav-idle)]">
-                    {past.length}
-                  </span>
-                </h2>
-                <BookingList bookings={past} muted />
-              </section>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── BookingList ──────────────────────────────────────────────────────────────
-
-type BookingRow = {
-  id: string;
-  contact_name: string;
-  company: string | null;
-  event_date: string | null;
-  event_location: string | null;
-  quantity: number | null;
-};
-
-function BookingList({
-  bookings,
-  muted = false,
-}: {
-  bookings: BookingRow[];
-  muted?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] divide-y divide-[var(--admin-border)]">
-      {bookings.map((booking) => (
         <Link
-          key={booking.id}
-          href={`/admin/inquiries/${booking.id}`}
-          className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--admin-nav-idle)]/5 transition-colors group"
+          href={`/${tenantSlug}/admin/work`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            height: 34,
+            padding: "0 14px",
+            borderRadius: 8,
+            background: C.cardBg,
+            border: `1px solid ${C.border}`,
+            color: C.ink,
+            fontFamily: FONT,
+            fontSize: 12.5,
+            fontWeight: 600,
+            textDecoration: "none",
+            letterSpacing: -0.1,
+          }}
         >
-          {/* Date badge */}
-          <div
-            className={[
-              "flex-none w-12 text-center",
-              muted ? "opacity-50" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            {booking.event_date ? (
-              <>
-                <p className="text-[11px] font-medium text-[var(--admin-nav-idle)] uppercase leading-none">
-                  {new Intl.DateTimeFormat("en-GB", { month: "short" }).format(
-                    new Date(booking.event_date),
-                  )}
-                </p>
-                <p className="text-lg font-semibold text-[var(--admin-workspace-fg)] leading-tight tabular-nums">
-                  {new Date(booking.event_date).getDate()}
-                </p>
-              </>
-            ) : (
-              <p className="text-xs text-[var(--admin-nav-idle)]">TBD</p>
-            )}
-          </div>
+          Full pipeline →
+        </Link>
+      </div>
 
-          {/* Name + location */}
-          <div className="min-w-0 flex-1">
-            <p
-              className={[
-                "truncate text-sm font-medium group-hover:text-[var(--admin-accent)] transition-colors",
-                muted
-                  ? "text-[var(--admin-nav-idle)]"
-                  : "text-[var(--admin-workspace-fg)]",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {booking.contact_name}
-            </p>
-            {(booking.company || booking.event_location) && (
-              <p className="truncate text-xs text-[var(--admin-nav-idle)]">
-                {[booking.company, booking.event_location]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            )}
-          </div>
-
-          {/* Quantity */}
-          {booking.quantity != null && booking.quantity > 0 && (
-            <span className="flex-none text-xs text-[var(--admin-nav-idle)] tabular-nums">
-              {booking.quantity} {booking.quantity === 1 ? "talent" : "talents"}
-            </span>
+      {bookings.length === 0 ? (
+        <div
+          style={{
+            background: C.surface,
+            border: `1px dashed ${C.border}`,
+            borderRadius: 14,
+            padding: "48px 24px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 12 }} aria-hidden>📋</div>
+          <p style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
+            No confirmed bookings yet
+          </p>
+          <p style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
+            Bookings appear here once an inquiry is confirmed.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* ── Upcoming ── */}
+          {upcoming.length > 0 && (
+            <section>
+              <SectionHead>
+                Upcoming
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 10.5,
+                    fontWeight: 500,
+                    letterSpacing: 0,
+                    textTransform: "none",
+                  }}
+                >
+                  {upcoming.length}
+                </span>
+              </SectionHead>
+              <div
+                style={{
+                  background: C.cardBg,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                }}
+              >
+                {upcoming.map((b, i) => (
+                  <div key={b.id}>
+                    {i > 0 && (
+                      <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
+                    )}
+                    <BookingListItem booking={b} muted={false} tenantSlug={tenantSlug} />
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
 
-          {/* Confirmed badge */}
-          <span className="flex-none inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
-            Confirmed
-          </span>
-        </Link>
-      ))}
+          {/* ── Past ── */}
+          {past.length > 0 && (
+            <section>
+              <SectionHead>
+                Past
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 10.5,
+                    fontWeight: 500,
+                    letterSpacing: 0,
+                    textTransform: "none",
+                  }}
+                >
+                  {past.length}
+                </span>
+              </SectionHead>
+              <div
+                style={{
+                  background: C.cardBg,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                }}
+              >
+                {past.map((b, i) => (
+                  <div key={b.id}>
+                    {i > 0 && (
+                      <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
+                    )}
+                    <BookingListItem booking={b} muted tenantSlug={tenantSlug} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }
-
