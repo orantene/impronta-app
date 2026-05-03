@@ -536,9 +536,11 @@ export function WorkClientShell({
                       >
                         {clientLine || "Unnamed contact"}
                       </div>
-                      {iq.quantity != null && iq.quantity > 0 && (
-                        <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>
-                          {iq.quantity} talent requested
+                      {iq.next_action_by && (
+                        <div style={{ fontSize: 11, color: iq.next_action_by === "client" ? "#8A6F1A" : C.inkMuted, marginTop: 1, fontWeight: iq.next_action_by === "client" ? 600 : 400 }}>
+                          {iq.next_action_by === "client" ? "⏳ waiting on client" :
+                           iq.next_action_by === "coordinator" ? "⚡ needs coordinator" :
+                           iq.next_action_by === "talent" ? "🎭 needs talent" : null}
                         </div>
                       )}
                     </div>
