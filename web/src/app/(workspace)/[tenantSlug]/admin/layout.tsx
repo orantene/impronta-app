@@ -99,6 +99,8 @@ export default async function WorkspaceAdminLayout({
             "/admin/profile": "/admin/settings",
             // AI workspace not yet promoted — fall back to legacy via settings
             "/admin/ai-workspace": "/admin/settings",
+            // Help/docs not yet promoted — fall back to settings
+            "/admin/docs": "/admin/settings",
           }}
         >
           <AdminWorkspaceShell pulseCounts={pulseCounts}>
