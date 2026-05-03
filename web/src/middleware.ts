@@ -24,6 +24,7 @@ import {
   resolveTenantContext,
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
+  HOST_TENANT_SLUG_HEADER,
 } from "@/lib/saas/host-context";
 import { TENANT_HEADER_NAME } from "@/lib/saas/scope";
 import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
@@ -318,6 +319,15 @@ export async function middleware(request: NextRequest) {
     // Strip any spoofed header on non-tenant contexts (marketing / app).
     // Downstream code must never honour a client-supplied tenant id.
     requestHeaders.delete(TENANT_HEADER_NAME);
+  }
+
+  // Phase 4 — propagate tenant slug for agency hosts.
+  // Used by layouts for branded-shortcut redirect (/admin → /<slug>/admin)
+  // without an extra DB roundtrip. Only set for agency kind; cleared otherwise.
+  if (hostContext.kind === "agency" && hostContext.tenantSlug) {
+    requestHeaders.set(HOST_TENANT_SLUG_HEADER, hostContext.tenantSlug);
+  } else {
+    requestHeaders.delete(HOST_TENANT_SLUG_HEADER);
   }
 
   let pathnameForAuth = originalPathname;

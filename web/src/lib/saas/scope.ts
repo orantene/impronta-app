@@ -198,19 +198,31 @@ export const TENANT_HEADER_NAME = ACTIVE_TENANT_HEADER;
 
 const HOST_CONTEXT_HEADER = "x-impronta-host-context";
 const HOST_NAME_HEADER = "x-impronta-host-name";
+const HOST_TENANT_SLUG_HEADER = "x-impronta-tenant-slug";
 
 /**
  * Route context resolved by edge middleware for this request.
  *
  *   - "agency"    — tenant-scoped storefront (subdomain or custom domain).
- *                   `tenantId` is always set.
+ *                   `tenantId` is always set; `tenantSlug` is set when the
+ *                   `agency_domains.tenant_slug` column is populated (Phase 4).
  *   - "hub"       — global hub (cross-tenant public directory).
  *   - "app"       — internal admin / coordination app.
  *   - "marketing" — public SaaS marketing site.
  *   - "unknown"   — header was missing (non-request context, tests, etc.).
  */
 export type PublicHostContext =
-  | { kind: "agency"; tenantId: string; hostname: string | null }
+  | {
+      kind: "agency";
+      tenantId: string;
+      hostname: string | null;
+      /**
+       * Phase 4 — denormalized slug from agency_domains.tenant_slug,
+       * propagated via x-impronta-tenant-slug header. Set for both subdomain
+       * and custom-domain agency hosts. Empty string for pre-migration rows.
+       */
+      tenantSlug: string;
+    }
   // Phase 5/6 M1 — hub carries the hub agency tenantId so render code can
   // call CMS reads (loadPublicHomepage, identity, branding, menus) using
   // the same tenant-scoped path that agency tenants use. The host kind
@@ -233,9 +245,11 @@ export async function getPublicHostContext(): Promise<PublicHostContext> {
     const tenantId = h.get(ACTIVE_TENANT_HEADER);
 
     switch (context) {
-      case "agency":
+      case "agency": {
         if (!tenantId) return { kind: "unknown", tenantId: null, hostname: null };
-        return { kind: "agency", tenantId, hostname };
+        const tenantSlug = h.get(HOST_TENANT_SLUG_HEADER) ?? "";
+        return { kind: "agency", tenantId, hostname, tenantSlug };
+      }
       case "hub":
         // Middleware sets the tenant header for hub the same way it does
         // for agency (post-M1). Missing header on a hub context means

@@ -15,12 +15,22 @@ import { loadAdminWorkspaceSummary } from "@/lib/dashboard/admin-workspace-summa
 import { getDashboardTheme } from "@/lib/dashboard-theme";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getCurrentUserTenants, getTenantScope } from "@/lib/saas";
+import { getPublicHostContext } from "@/lib/saas/scope";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Phase 3.12 / Phase 4 — branded admin shortcut.
+  // impronta.tulala.digital/admin → /impronta/admin (subdomain)
+  // improntamodels.com/admin     → /impronta/admin (custom domain)
+  // Works for any agency host whose agency_domains row has tenant_slug set.
+  const hostCtx = await getPublicHostContext();
+  if (hostCtx.kind === "agency" && hostCtx.tenantSlug) {
+    redirect(`/${hostCtx.tenantSlug}/admin`);
+  }
+
   const session = await getCachedActorSession();
   if (!session.supabase) {
     redirect("/login?error=config");

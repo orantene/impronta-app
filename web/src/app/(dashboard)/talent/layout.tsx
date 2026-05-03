@@ -1,14 +1,24 @@
+import { redirect } from "next/navigation";
 import { Toaster } from "sonner";
 import { TalentBottomTabBar } from "@/components/talent/talent-bottom-tab-bar";
 import { TalentDashboardPage } from "@/components/talent/talent-dashboard-primitives";
 import { TalentStatusBanner } from "@/components/talent/talent-status-banner";
 import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
+import { getPublicHostContext } from "@/lib/saas/scope";
 
 export default async function TalentLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Phase 3.13 / Phase 4 — branded talent portal shortcut.
+  // impronta.tulala.digital/talent → /impronta/talent (subdomain)
+  // improntamodels.com/talent     → /impronta/talent (custom domain)
+  const hostCtx = await getPublicHostContext();
+  if (hostCtx.kind === "agency" && hostCtx.tenantSlug) {
+    redirect(`/${hostCtx.tenantSlug}/talent`);
+  }
+
   let result: Awaited<ReturnType<typeof loadTalentDashboardData>>;
   try {
     result = await loadTalentDashboardData();

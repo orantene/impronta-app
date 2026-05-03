@@ -1,11 +1,21 @@
+import { redirect } from "next/navigation";
 import { ClientWorkspaceShell } from "@/app/(dashboard)/client/client-workspace-shell";
 import { loadClientDashboardData } from "@/lib/client-dashboard-data";
+import { getPublicHostContext } from "@/lib/saas/scope";
 
 export default async function ClientLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Phase 3.13 / Phase 4 — branded client portal shortcut.
+  // impronta.tulala.digital/client → /impronta/client (subdomain)
+  // improntamodels.com/client     → /impronta/client (custom domain)
+  const hostCtx = await getPublicHostContext();
+  if (hostCtx.kind === "agency" && hostCtx.tenantSlug) {
+    redirect(`/${hostCtx.tenantSlug}/client`);
+  }
+
   let result: Awaited<ReturnType<typeof loadClientDashboardData>>;
   try {
     result = await loadClientDashboardData();

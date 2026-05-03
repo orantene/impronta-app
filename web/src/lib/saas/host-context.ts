@@ -34,7 +34,18 @@ export type HostContext =
   // stays 'hub' so the surface allow-list and dispatch keep their
   // existing semantics — only data access is unified.
   | { kind: "hub"; tenantId: string; hostname: string }
-  | { kind: "agency"; tenantId: string; hostname: string; domainKind: "subdomain" | "custom" }
+  | {
+      kind: "agency";
+      tenantId: string;
+      hostname: string;
+      domainKind: "subdomain" | "custom";
+      /**
+       * Phase 4 — denormalized from agency_domains.tenant_slug.
+       * Set by the middleware and propagated via x-impronta-tenant-slug header.
+       * Used by layouts to redirect /admin → /<slug>/admin without a DB lookup.
+       */
+      tenantSlug: string;
+    }
   | { kind: "not_found"; tenantId: null; hostname: string };
 
 type CacheEntry = { value: HostContext; expiresAt: number };
@@ -153,7 +164,7 @@ export async function resolveTenantContext(
 
   const { data, error } = await supabase
     .from("agency_domains")
-    .select("kind, tenant_id, hostname, status")
+    .select("kind, tenant_id, hostname, status, tenant_slug")
     .eq("hostname", hostname)
     .in("status", ["active", "ssl_provisioned", "verified"])
     .limit(1)
@@ -191,6 +202,9 @@ export async function resolveTenantContext(
             tenantId: data.tenant_id as string,
             hostname: data.hostname,
             domainKind: data.kind,
+            // Phase 4 — denormalized slug from agency_domains.tenant_slug.
+            // Falls back to empty string if the column is NULL (pre-migration rows).
+            tenantSlug: (data.tenant_slug as string | null) ?? "",
           };
         }
         break;
@@ -210,4 +224,10 @@ export async function resolveTenantContext(
  */
 export const HOST_CONTEXT_HEADER = "x-impronta-host-context";
 export const HOST_NAME_HEADER = "x-impronta-host-name";
+/**
+ * Phase 4 — tenant slug header. Set for agency hosts. Lets downstream
+ * layouts redirect /admin → /<slug>/admin without a DB lookup. Derived
+ * from agency_domains.tenant_slug (denormalized, backfilled from agencies.slug).
+ */
+export const HOST_TENANT_SLUG_HEADER = "x-impronta-tenant-slug";
 
