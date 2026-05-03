@@ -944,9 +944,9 @@ function Section({
 // ════════════════════════════════════════════════════════════════════
 
 function TenantSummaryDrawer() {
-  const { state, closeDrawer, openDrawer, openUpgrade } = useProto();
+  const { state, closeDrawer, openDrawer, openUpgrade, effectiveRoster } = useProto();
   const planMeta = PLAN_META[state.plan];
-  const rosterCount = getRoster(state.plan).length;
+  const rosterCount = effectiveRoster.length;
   const rosterCap = state.plan === "free" ? 5 : state.plan === "studio" ? 50 : state.plan === "agency" ? 200 : 999;
   const teamCount = getTeam(state.plan).length;
 
@@ -8896,9 +8896,9 @@ function SelectInput({ options, defaultValue }: { options: string[]; defaultValu
 // ════════════════════════════════════════════════════════════════════
 
 function TalentProfileDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer, effectiveRoster } = useProto();
   const id = state.drawer.payload?.id as string | undefined;
-  const profile = getRoster(state.plan).find((p) => p.id === id) ?? getRoster(state.plan)[0];
+  const profile = effectiveRoster.find((p) => p.id === id) ?? effectiveRoster[0];
   const canEdit = meetsRole(state.role, "editor");
   const onSave = useSaveAndClose("Profile saved");
 
@@ -10658,9 +10658,9 @@ function ConversationBubble({
 }
 
 function NewInquiryDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, effectiveRoster } = useProto();
   const onSave = useSaveAndClose("Inquiry created");
-  const roster = getRoster(state.plan);
+  const roster = effectiveRoster;
   // Wave 2 — let the user start from a similar past brief, and warn
   // immediately if a chosen talent is double-booked.
   const [client, setClient] = useState("");
