@@ -34,6 +34,10 @@ export type WorkspaceOverviewMetrics = {
   teamMembers: number;
   /** Roster rows with status = 'pending' — talent awaiting agency approval. */
   pendingApprovals: number;
+  /** Inquiries waiting for client decision (next_action_by = 'client'). */
+  awaitingClientCount: number;
+  /** Inquiries in draft or hold state. */
+  draftInquiryCount: number;
 };
 
 export async function loadWorkspaceOverviewMetrics(
@@ -43,7 +47,7 @@ export async function loadWorkspaceOverviewMetrics(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
-    const [rosterRes, openInquiriesRes, teamRes, pendingRes] = await Promise.all([
+    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes] = await Promise.all([
       // Roster: total + published count
       supabase
         .from("agency_talent_roster")
@@ -74,6 +78,20 @@ export async function loadWorkspaceOverviewMetrics(
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
         .eq("status", "pending"),
+
+      // Inquiries awaiting client decision
+      supabase
+        .from("inquiries")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("next_action_by", "client"),
+
+      // Draft inquiries
+      supabase
+        .from("inquiries")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .in("status", ["draft", "hold"]),
     ]);
 
     if (rosterRes.error) {
@@ -106,6 +124,8 @@ export async function loadWorkspaceOverviewMetrics(
       openInquiries: openInquiriesRes.count ?? 0,
       teamMembers: teamRes.count ?? 0,
       pendingApprovals: pendingRes.count ?? 0,
+      awaitingClientCount: awaitingClientRes.count ?? 0,
+      draftInquiryCount: draftInqRes.count ?? 0,
     };
   } catch (err) {
     logServerError("workspace.loadOverviewMetrics", err);

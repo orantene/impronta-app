@@ -2,6 +2,8 @@
 // Server Component — no "use client".
 //
 // Matches the prototype's topbar-layout Overview design:
+//   - WorkspaceActivationBanner (dismissable onboarding checklist)
+//   - TodaysFocusCard (urgency signal from real inquiry data)
 //   - Personalized greeting (client component, browser local time)
 //   - Stat strip: rostered / open inquiries / team / pending
 //   - Quick-action tiles: Talent, Work, Clients, Settings
@@ -12,24 +14,26 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadWorkspaceOverviewMetrics } from "../_data-bridge";
 import { OverviewGreeting } from "./overview-greeting";
+import { TodaysFocusCard } from "./todays-focus-card";
+import { WorkspaceActivationBanner } from "./activation-banner";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
 
-// ─── Design tokens (matching layout.tsx) ─────────────────────────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────────
 
 const C = {
-  ink:        "#0B0B0D",
-  inkMuted:   "rgba(11,11,13,0.55)",
-  inkDim:     "rgba(11,11,13,0.35)",
-  border:     "rgba(24,24,27,0.08)",
-  cardBg:     "#ffffff",
-  accent:     "#0F4F3E",
-  green:      "#2E7D5B",
-  amber:      "#8A6F1A",
-  blue:       "#2B5F8A",
-  coral:      "#B04A22",
+  ink:      "#0B0B0D",
+  inkMuted: "rgba(11,11,13,0.55)",
+  inkDim:   "rgba(11,11,13,0.35)",
+  border:   "rgba(24,24,27,0.08)",
+  cardBg:   "#ffffff",
+  accent:   "#0F4F3E",
+  green:    "#2E7D5B",
+  amber:    "#8A6F1A",
+  blue:     "#2B5F8A",
+  coral:    "#B04A22",
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -46,12 +50,11 @@ function userDisplayName(
   return "you";
 }
 
-// Capitalise first letter of each word
 function titleCase(s: string): string {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// ─── Stat item (one column in the strip) ─────────────────────────────────────
+// ─── Stat item ────────────────────────────────────────────────────────────────
 
 function StatItem({
   dot,
@@ -69,13 +72,7 @@ function StatItem({
   return (
     <Link
       href={`/${tenantSlug}/admin/${href}`}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        textDecoration: "none",
-        minWidth: 80,
-      }}
+      style={{ display: "flex", flexDirection: "column", gap: 6, textDecoration: "none", minWidth: 80 }}
     >
       <span
         style={{
@@ -91,26 +88,11 @@ function StatItem({
       >
         <span
           aria-hidden
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: "50%",
-            background: dot,
-            flexShrink: 0,
-          }}
+          style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0 }}
         />
         {label}
       </span>
-      <span
-        style={{
-          fontFamily: FONT,
-          fontSize: 32,
-          fontWeight: 600,
-          color: C.ink,
-          letterSpacing: -1,
-          lineHeight: 1,
-        }}
-      >
+      <span style={{ fontFamily: FONT, fontSize: 32, fontWeight: 600, color: C.ink, letterSpacing: -1, lineHeight: 1 }}>
         {value}
       </span>
     </Link>
@@ -143,25 +125,10 @@ function QuickTile({
         transition: "border-color 120ms",
       }}
     >
-      <span
-        style={{
-          fontFamily: FONT,
-          fontSize: 13,
-          fontWeight: 600,
-          color: C.ink,
-          letterSpacing: -0.1,
-        }}
-      >
+      <span style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
         {label} →
       </span>
-      <span
-        style={{
-          fontFamily: FONT,
-          fontSize: 12,
-          color: C.inkMuted,
-          lineHeight: 1.4,
-        }}
-      >
+      <span style={{ fontFamily: FONT, fontSize: 12, color: C.inkMuted, lineHeight: 1.4 }}>
         {description}
       </span>
     </Link>
@@ -202,10 +169,26 @@ export default async function WorkspaceAdminOverviewPage({
     openInquiries: 0,
     teamMembers: 0,
     pendingApprovals: 0,
+    awaitingClientCount: 0,
+    draftInquiryCount: 0,
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+
+      {/* ── Activation banner (dismissable, client) ── */}
+      <WorkspaceActivationBanner
+        tenantSlug={tenantSlug}
+        hasRoster={m.rosterTotal > 0}
+        hasInquiry={m.openInquiries > 0}
+      />
+
+      {/* ── Today's focus card (client, only shows when there's urgency) ── */}
+      <TodaysFocusCard
+        awaitingClientCount={m.awaitingClientCount}
+        draftCount={m.draftInquiryCount}
+        tenantSlug={tenantSlug}
+      />
 
       {/* ── Greeting row ── */}
       <div
@@ -251,35 +234,14 @@ export default async function WorkspaceAdminOverviewPage({
           borderBottom: `1px solid ${C.border}`,
         }}
       >
-        <StatItem
-          dot={C.green}
-          label="Rostered"
-          value={m.rosterTotal}
-          href="roster"
-          tenantSlug={tenantSlug}
-        />
-        <StatItem
-          dot={C.amber}
-          label="Open inquiries"
-          value={m.openInquiries}
-          href="work"
-          tenantSlug={tenantSlug}
-        />
-        <StatItem
-          dot={C.blue}
-          label="Team"
-          value={m.teamMembers}
-          href="settings"
-          tenantSlug={tenantSlug}
-        />
+        <StatItem dot={C.green}  label="Rostered"       value={m.rosterTotal}      href="roster"   tenantSlug={tenantSlug} />
+        <StatItem dot={C.amber}  label="Open inquiries" value={m.openInquiries}     href="work"     tenantSlug={tenantSlug} />
+        <StatItem dot={C.blue}   label="Team"           value={m.teamMembers}       href="settings" tenantSlug={tenantSlug} />
         {m.pendingApprovals > 0 && (
-          <StatItem
-            dot={C.coral}
-            label="Pending approvals"
-            value={m.pendingApprovals}
-            href="roster?filter=pending"
-            tenantSlug={tenantSlug}
-          />
+          <StatItem dot={C.coral} label="Pending approvals" value={m.pendingApprovals} href="roster?filter=pending" tenantSlug={tenantSlug} />
+        )}
+        {m.awaitingClientCount > 0 && (
+          <StatItem dot="#D4A017" label="Awaiting client" value={m.awaitingClientCount} href="work" tenantSlug={tenantSlug} />
         )}
       </div>
 
