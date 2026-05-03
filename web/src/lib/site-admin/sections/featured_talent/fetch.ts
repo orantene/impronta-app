@@ -29,6 +29,7 @@ import {
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
 import { logServerError } from "@/lib/server/safe-error";
+import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
 
 import type { FeaturedTalentV1 } from "./schema";
 
@@ -332,22 +333,12 @@ async function hydrateRows(
   }
 
   return rows.map((row) => {
-    const taxonomy = row.talent_profile_taxonomy ?? [];
-    let typeLabel = "Talent";
-    for (const entry of taxonomy) {
-      if (!entry.is_primary) continue;
-      const terms = Array.isArray(entry.taxonomy_terms)
-        ? entry.taxonomy_terms
-        : entry.taxonomy_terms
-          ? [entry.taxonomy_terms]
-          : [];
-      const typeTerm = terms.find((t) => t.kind === "talent_type");
-      if (typeTerm) {
-        typeLabel =
-          (locale === "es" && typeTerm.name_es) || typeTerm.name_en || typeLabel;
-        break;
-      }
-    }
+    // Engine-driven primary role extraction (handles v2 + legacy shapes).
+    const taxonomy = (row.talent_profile_taxonomy ?? []) as ProfileTaxonomyRow[];
+    const primary = extractPrimaryRoleTerm(taxonomy);
+    const typeLabel = primary
+      ? ((locale === "es" && primary.name_es) || primary.name_en || "Talent")
+      : "Talent";
 
     const residence = resolveResidenceLocationEmbed({
       residence_city: row.residence_city ?? null,

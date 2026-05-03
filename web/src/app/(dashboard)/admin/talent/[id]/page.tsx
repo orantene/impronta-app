@@ -8,6 +8,7 @@ import {
   buildScalarValuesByDefinitionId,
   countTalentFacingScalarCompletion,
 } from "@/lib/profile-completion";
+import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
 import { AdminTalentCockpitClient } from "./admin-talent-cockpit-client";
 import { AdminTalentAiSearchDebug } from "./admin-talent-ai-search-debug";
 import { AdminTalentOverlaySection } from "./admin-talent-overlay-section";
@@ -259,11 +260,9 @@ export default async function AdminTalentDetailPage({
     is_primary: boolean;
     taxonomy_terms: { kind: string } | { kind: string }[] | null;
   }[];
-  const hasPrimaryTalentType = typedTaxonomyRows.some((r) => {
-    const t = r.taxonomy_terms;
-    const kind = Array.isArray(t) ? t[0]?.kind : t?.kind;
-    return kind === "talent_type" && r.is_primary;
-  });
+  // Engine-driven check (v2-aware).
+  const hasPrimaryTalentType =
+    extractPrimaryRoleTerm(typedTaxonomyRows as unknown as ProfileTaxonomyRow[]) !== null;
 
   const mediaCount = media.length;
   const valueRows = (fieldValues ?? []) as Array<{

@@ -2,12 +2,17 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import {
   Sparkles,
   Star,
   Mic2,
   Users,
   Music,
+  Camera,
+  ChefHat,
+  Leaf,
+  Megaphone,
 } from "lucide-react";
 
 type TalentTypeShortcut = {
@@ -27,7 +32,21 @@ export function TalentTypeShortcuts({
   locale: Locale;
   sectionKicker: string;
 }) {
+  // 2026 reset — feed shows parent_categories now (term_type='parent_category',
+  // is_public_filter=TRUE), not specific talent_types. Icon map is keyed by
+  // parent_category slug. Fallback Sparkles preserves the visual rhythm for
+  // any new parent without a curated icon yet.
   const iconMap: Record<string, React.ReactNode> = {
+    "models": <Sparkles className="size-5" />,
+    "hosts-promo": <Megaphone className="size-5" />,
+    "performers": <Star className="size-5" />,
+    "music-djs": <Music className="size-5" />,
+    "chefs-culinary": <ChefHat className="size-5" />,
+    "wellness-beauty": <Leaf className="size-5" />,
+    "photo-video-creative": <Camera className="size-5" />,
+    "influencers-creators": <Users className="size-5" />,
+    // Legacy slug fallbacks so older databases still render until they
+    // re-deploy with the v2 parent_category seed.
     model: <Sparkles className="size-5" />,
     hostess: <Star className="size-5" />,
     "promotional-model": <Users className="size-5" />,
@@ -37,7 +56,11 @@ export function TalentTypeShortcuts({
 
   const shortcuts: TalentTypeShortcut[] = types.map((t) => ({
     slug: t.slug,
-    label: t.name,
+    // Use the user-friendly short label ("Hosts" / "Music" / "Chefs")
+    // rather than the canonical full name ("Hosts & Promo" / "Music & DJs" /
+    // "Chefs & Culinary"). Falls through to the canonical name for any
+    // parent slug not in the map.
+    label: shortParentLabel({ slug: t.slug, name: t.name }),
     icon: iconMap[t.slug] ?? <Sparkles className="size-5" />,
     taxId: t.id,
     imageUrl: t.imageUrl ?? null,

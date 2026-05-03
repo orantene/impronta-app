@@ -47,6 +47,51 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // ─── ROADMAP §WS-0.12 + WS-0.13 — admin-shell prototype guards ─────
+  //
+  // Both shipped as `warn` initially so the existing 50k+ LOC of
+  // prototype code doesn't break the build. Once the WS-16 polish
+  // sweep migrates prototype usages to design tokens / i18n keys,
+  // upgrade severities to `error` to prevent regressions.
+  //
+  // Scope: only `_state.tsx` (where COLORS are defined) is exempt
+  // from the hex rule; everything else in admin-shell must use the
+  // semantic tokens.
+  {
+    files: ["src/app/prototypes/admin-shell/**/*.{ts,tsx}"],
+    ignores: [
+      "src/app/prototypes/admin-shell/_state.tsx",
+      "src/app/prototypes/admin-shell/tokens.json",
+    ],
+    rules: {
+      // WS-0.12 — no inline hex colors outside COLORS const.
+      // Forces designers/eng to add colors to `_state.tsx` so the
+      // semantic system stays in one place and exports cleanly to
+      // tokens.json. Catches `"#1234ab"`, `"#fff"` literals.
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector: "Literal[value=/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/]",
+          message:
+            "WS-0.12 — Inline hex color forbidden outside `_state.tsx`. Add to COLORS and import the semantic token.",
+        },
+        {
+          selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?\\b/]",
+          message:
+            "WS-0.12 — Inline hex color in template literal forbidden outside `_state.tsx`. Add to COLORS.",
+        },
+      ],
+
+      // WS-0.13 — no string literals in JSX (i18n prep).
+      // PLACEHOLDER: enabling `react/jsx-no-literals` here generates
+      // ~thousands of warnings against the current prototype. Land
+      // with WS-12 (i18n scaffolding) once `next-intl` is wired and
+      // strings can migrate to keys without breaking dev velocity.
+      // When ready, replace this comment with:
+      //   "react/jsx-no-literals": ["warn", { allowedStrings: ["·", "—", "↗", "?"] }]
+    },
+  },
+
   // Phase 5 — bare `tenant:...` cache tag strings are banned outside the
   // site-admin cache-tags helper. Callers must import `tagFor()`.
   {

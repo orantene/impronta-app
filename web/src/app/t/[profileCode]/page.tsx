@@ -355,6 +355,89 @@ async function fetchPublicFieldValues(
   return data as PublicFieldValueRow[];
 }
 
+// ── PR-A — structured languages + service areas ──────────────────────
+// Read-only on the public profile page. Replaces the legacy
+// talent_profiles.languages / .destinations cache fields when populated.
+
+export type TalentLanguageRow = {
+  id: string;
+  language_code: string;
+  language_name: string;
+  speaking_level: "basic" | "conversational" | "professional" | "fluent" | "native";
+  is_native: boolean;
+  can_host: boolean;
+  can_sell: boolean;
+  can_translate: boolean;
+  can_teach: boolean;
+  display_order: number;
+};
+
+export type TalentServiceAreaRow = {
+  id: string;
+  service_kind: "home_base" | "travel_to" | "remote_only";
+  travel_radius_km: number | null;
+  travel_fee_required: boolean;
+  display_order: number;
+  locations: {
+    display_name_en: string | null;
+    display_name_es: string | null;
+    country_code: string | null;
+  } | null;
+};
+
+async function fetchTalentLanguages(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<TalentLanguageRow[]> {
+  const { data, error } = await supabase
+    .from("talent_languages")
+    .select(
+      `
+      id, language_code, language_name, speaking_level,
+      is_native, can_host, can_sell, can_translate, can_teach, display_order
+    `,
+    )
+    .eq("talent_profile_id", talentProfileId)
+    .order("display_order", { ascending: true })
+    .order("language_name", { ascending: true });
+  if (error || !data) return [];
+  return data as TalentLanguageRow[];
+}
+
+async function fetchTalentServiceAreas(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<TalentServiceAreaRow[]> {
+  const { data, error } = await supabase
+    .from("talent_service_areas")
+    .select(
+      `
+      id, service_kind, travel_radius_km, travel_fee_required, display_order,
+      locations ( display_name_en, display_name_es, country_code )
+    `,
+    )
+    .eq("talent_profile_id", talentProfileId)
+    .order("display_order", { ascending: true });
+  if (error || !data) return [];
+  return data as unknown as TalentServiceAreaRow[];
+}
+
+/**
+ * "English (fluent · host, sell)" — compact label suitable for the
+ * existing languages list rendering. Only shows the role flags that
+ * actually unlock client filters (host/sell/translate). Native flag
+ * subsumes the level.
+ */
+function formatLanguageRow(row: TalentLanguageRow): string {
+  const level = row.is_native ? "native" : row.speaking_level;
+  const flags: string[] = [];
+  if (row.can_host) flags.push("host");
+  if (row.can_sell) flags.push("sell");
+  if (row.can_translate) flags.push("translate");
+  const flagsTail = flags.length > 0 ? ` · ${flags.join(", ")}` : "";
+  return `${row.language_name} (${level}${flagsTail})`;
+}
+
 function pickFieldLabel(locale: string, en: string, es?: string | null): string {
   if (locale === "es" && es && es.trim()) return es.trim();
   return en.trim();
@@ -719,10 +802,30 @@ export default async function PublicTalentProfilePage({
 
   const fitLabels = grouped["fit_label"] ?? [];
   const skills = grouped["skill"] ?? [];
-  const languages = grouped["language"] ?? [];
   const industries = grouped["industry"] ?? [];
   const eventTypes = grouped["event_type"] ?? [];
   const tags = grouped["tag"] ?? [];
+
+  // PR-A — read structured language + service-area rows. Falls back to the
+  // legacy talent_profiles.languages / .destinations caches when the new
+  // tables are empty (eg pre-backfill profiles).
+  const [structuredLanguages, structuredServiceAreas] = pub
+    ? await Promise.all([
+        fetchTalentLanguages(pub, profile.id),
+        fetchTalentServiceAreas(pub, profile.id),
+      ])
+    : [[] as TalentLanguageRow[], [] as TalentServiceAreaRow[]];
+
+  const languages: string[] = structuredLanguages.length > 0
+    ? structuredLanguages.map(formatLanguageRow)
+    : (grouped["language"] ?? []);
+  const homeBaseLabel: string | null = structuredServiceAreas.find(s => s.service_kind === "home_base")
+    ?.locations?.[locale === "es" ? "display_name_es" : "display_name_en"]
+    ?? null;
+  const travelToCities: string[] = structuredServiceAreas
+    .filter(s => s.service_kind === "travel_to")
+    .map(s => s.locations?.[locale === "es" ? "display_name_es" : "display_name_en"])
+    .filter((x): x is string => !!x);
 
   const fieldVisibility = await getPublicProfileFieldVisibility();
   const orderedSections = await getOrderedPublicProfileSections(locale);
@@ -733,7 +836,10 @@ export default async function PublicTalentProfilePage({
     canonicalBioEn(profile.bio_en, profile.short_bio),
     profile.bio_es,
   );
-  const livesIn = residenceLabel(locale, profile as TalentProfile);
+  // PR-A — home_base from talent_service_areas takes precedence over the
+  // legacy residence_city/location_id pair when populated. Falls through
+  // to the existing residenceLabel() helper otherwise.
+  const livesIn = homeBaseLabel ?? residenceLabel(locale, profile as TalentProfile);
   const originallyFrom = originLabel(locale, profile as TalentProfile);
   const headerHeightCm = resolveHeaderHeightCm(profile as TalentProfile, fieldValues);
   const talentType =
@@ -958,9 +1064,11 @@ export default async function PublicTalentProfilePage({
                 eventStyles={Array.isArray(profile.event_styles)
                   ? (profile.event_styles as string[]).filter(Boolean)
                   : []}
-                destinations={Array.isArray(profile.destinations)
-                  ? (profile.destinations as string[]).filter(Boolean)
-                  : []}
+                destinations={travelToCities.length > 0
+                  ? travelToCities
+                  : (Array.isArray(profile.destinations)
+                    ? (profile.destinations as string[]).filter(Boolean)
+                    : [])}
                 travelsGlobally={Boolean(profile.travels_globally)}
                 teamSize={profile.team_size ?? null}
                 leadTimeWeeks={profile.lead_time_weeks ?? null}

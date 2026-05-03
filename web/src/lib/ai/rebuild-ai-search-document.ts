@@ -1,6 +1,13 @@
 /**
  * Loads profile + taxonomy + ai_visible field values and persists `talent_profiles.ai_search_document`.
  * Call after profile, taxonomy, or field value mutations affecting public search semantics.
+ *
+ * v2 (engine-driven): the rebuild now loads talent_languages, talent_service_areas,
+ * walks the primary role's parent_category lineage, and splits taxonomy
+ * assignments by relationship_type into secondaryRoles / skills / contexts /
+ * credentials so the embedding has the rich v2 structure. Legacy
+ * taxonomyTerms[] is still passed as a fallback for any kind that doesn't
+ * have a v2 home (e.g. fit_label).
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -8,8 +15,18 @@ import {
   buildAiSearchDocument,
   type AiSearchDocumentFieldLine,
   type AiSearchDocumentTaxonomyTerm,
+  type AiSearchDocumentLanguage,
+  type AiSearchDocumentServiceArea,
 } from "@/lib/ai/build-ai-search-document";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  extractPrimaryRoleRow,
+  extractSecondaryRoleTerms,
+  extractTermsByRelationship,
+  fetchLineageByTermId,
+  type ProfileTaxonomyRow,
+  type TermShape,
+} from "@/lib/taxonomy/engine";
 
 function stringifyFieldValue(row: {
   value_type: string;
@@ -71,37 +88,26 @@ export async function rebuildAiSearchDocument(
       }
     }
 
-    const { data: assignRows } = await supabase
-      .from("talent_profile_taxonomy")
-      .select("taxonomy_term_id, is_primary")
-      .eq("talent_profile_id", talentProfileId);
-
-    const termIds = [...new Set((assignRows ?? []).map((r) => r.taxonomy_term_id))];
-    let primaryTalentTypeLabel: string | null = null;
-    if (termIds.length > 0) {
-      const { data: termRows } = await supabase
-        .from("taxonomy_terms")
-        .select("id, kind, name_en, slug")
-        .in("id", termIds)
-        .eq("kind", "talent_type");
-      const byId = new Map((termRows ?? []).map((t) => [t.id, t] as const));
-      const primaryAssign = (assignRows ?? []).find((a) => a.is_primary && byId.get(a.taxonomy_term_id));
-      const pick = primaryAssign ?? (assignRows ?? []).find((a) => byId.get(a.taxonomy_term_id));
-      const term = pick ? byId.get(pick.taxonomy_term_id) : null;
-      if (term) {
-        primaryTalentTypeLabel = term.name_en?.trim() || term.slug || null;
-      }
-    }
-
-    const { data: taxRows, error: taxErr } = await supabase
+    // Single fetch — taxonomy assignments + the joined term row, including
+    // v2 columns (term_type, parent_id, search_synonyms, ai_keywords) so the
+    // engine can do everything in one pass.
+    const { data: taxRowsRaw, error: taxErr } = await supabase
       .from("talent_profile_taxonomy")
       .select(
         `
+        taxonomy_term_id,
+        is_primary,
+        relationship_type,
         taxonomy_terms (
+          id,
           kind,
+          term_type,
+          parent_id,
           slug,
           name_en,
-          name_es
+          name_es,
+          search_synonyms,
+          ai_keywords
         )
       `,
       )
@@ -111,13 +117,63 @@ export async function rebuildAiSearchDocument(
       logServerError("rebuildAiSearchDocument/taxonomy", taxErr);
     }
 
+    const taxRows = (taxRowsRaw ?? []) as unknown as ProfileTaxonomyRow[];
+
+    // Engine-driven extraction of primary + secondary + skill + context +
+    // credential + attribute relationships. Legacy rows fall through.
+    const primaryRow = extractPrimaryRoleRow(taxRows);
+    const primaryTerm = primaryRow
+      ? (Array.isArray(primaryRow.taxonomy_terms)
+          ? primaryRow.taxonomy_terms[0]
+          : primaryRow.taxonomy_terms) ?? null
+      : null;
+    const primaryTalentTypeLabel: string | null = primaryTerm
+      ? primaryTerm.name_en?.trim() || primaryTerm.slug || null
+      : null;
+
+    const secondaryRoles: string[] = extractSecondaryRoleTerms(taxRows)
+      .map((t) => t.name_en?.trim())
+      .filter((s): s is string => Boolean(s));
+
+    const skills: string[] = extractTermsByRelationship(taxRows, "skill")
+      .map((t) => t.name_en?.trim())
+      .filter((s): s is string => Boolean(s));
+
+    const contexts: string[] = extractTermsByRelationship(taxRows, "context")
+      .map((t) => t.name_en?.trim())
+      .filter((s): s is string => Boolean(s));
+
+    const credentialsAndAttributes: string[] = [
+      ...extractTermsByRelationship(taxRows, "credential"),
+      ...extractTermsByRelationship(taxRows, "attribute"),
+    ]
+      .map((t) => t.name_en?.trim())
+      .filter((s): s is string => Boolean(s));
+
+    // Walk parent_id chain for the primary role to build the lineage path.
+    let primaryTalentTypeLineage: string[] = [];
+    let searchSynonyms: string[] = [];
+    if (primaryTerm?.id) {
+      const lineage: TermShape[] = await fetchLineageByTermId(supabase, primaryTerm.id);
+      primaryTalentTypeLineage = lineage
+        .map((t) => t.name_en?.trim())
+        .filter((s): s is string => Boolean(s));
+      // Collect curated synonyms from the primary term's row itself
+      // (already loaded in taxRows so no extra fetch).
+      const synonyms = (primaryTerm as { search_synonyms?: string[] | null; ai_keywords?: string[] | null });
+      searchSynonyms = [
+        ...(synonyms.search_synonyms ?? []),
+        ...(synonyms.ai_keywords ?? []),
+      ];
+    }
+
+    // Legacy taxonomyTerms[] fallback — fit_labels still surface here, plus
+    // any term that doesn't have a v2 home. The builder skips kinds that are
+    // already represented via v2 inputs (skill / language / event_type when
+    // structuredLanguages / skills / contexts are populated).
     const taxonomyTerms: AiSearchDocumentTaxonomyTerm[] = [];
-    for (const row of taxRows ?? []) {
-      const term = (row as { taxonomy_terms?: unknown }).taxonomy_terms;
-      const t = (Array.isArray(term) ? term[0] : term) as
-        | { kind: string; slug?: string | null; name_en: string; name_es?: string | null }
-        | null
-        | undefined;
+    for (const row of taxRows) {
+      const t = Array.isArray(row.taxonomy_terms) ? row.taxonomy_terms[0] : row.taxonomy_terms;
       if (!t?.kind) continue;
       taxonomyTerms.push({
         kind: t.kind,
@@ -126,6 +182,60 @@ export async function rebuildAiSearchDocument(
         name_es: t.name_es ?? null,
       });
     }
+
+    // Structured languages from the canonical table.
+    const { data: langRows } = await supabase
+      .from("talent_languages")
+      .select(
+        "language_code, language_name, speaking_level, is_native, can_host, can_sell, can_translate, can_teach, display_order",
+      )
+      .eq("talent_profile_id", talentProfileId)
+      .order("display_order", { ascending: true });
+
+    const structuredLanguages: AiSearchDocumentLanguage[] = (langRows ?? []).map((r) => ({
+      language_code: (r as { language_code: string }).language_code,
+      language_name: (r as { language_name: string }).language_name,
+      speaking_level: (r as { speaking_level: AiSearchDocumentLanguage["speaking_level"] }).speaking_level,
+      is_native: !!(r as { is_native?: boolean }).is_native,
+      can_host: !!(r as { can_host?: boolean }).can_host,
+      can_sell: !!(r as { can_sell?: boolean }).can_sell,
+      can_translate: !!(r as { can_translate?: boolean }).can_translate,
+      can_teach: !!(r as { can_teach?: boolean }).can_teach,
+    }));
+
+    // Structured service areas with city + country.
+    const { data: areaRows } = await supabase
+      .from("talent_service_areas")
+      .select(
+        `
+        service_kind,
+        travel_radius_km,
+        display_order,
+        locations ( display_name_en, country_code )
+      `,
+      )
+      .eq("talent_profile_id", talentProfileId)
+      .order("display_order", { ascending: true });
+
+    const serviceAreas: AiSearchDocumentServiceArea[] = (areaRows ?? []).flatMap((r) => {
+      const row = r as {
+        service_kind: AiSearchDocumentServiceArea["service_kind"];
+        travel_radius_km: number | null;
+        locations:
+          | { display_name_en?: string | null; country_code?: string | null }
+          | { display_name_en?: string | null; country_code?: string | null }[]
+          | null;
+      };
+      const loc = Array.isArray(row.locations) ? row.locations[0] : row.locations;
+      const cityName = loc?.display_name_en?.trim();
+      if (!cityName) return [];
+      return [{
+        service_kind: row.service_kind,
+        city_name: cityName,
+        country_code: loc?.country_code ?? null,
+        travel_radius_km: row.travel_radius_km,
+      }];
+    });
 
     const { data: fieldValueRows, error: fvErr } = await supabase
       .from("field_values")
@@ -211,13 +321,21 @@ export async function rebuildAiSearchDocument(
       firstName: (p.first_name as string | null) ?? null,
       lastName: (p.last_name as string | null) ?? null,
       primaryTalentTypeLabel,
+      primaryTalentTypeLineage,
+      secondaryRoles,
       locationLabel,
+      serviceAreas,
       heightCm: (p.height_cm as number | null) ?? null,
       gender: genderForDoc,
       shortBio: (p.short_bio as string | null) ?? null,
       bioEn: (p.bio_en as string | null) ?? null,
       bioEs: (p.bio_es as string | null) ?? null,
       taxonomyTerms,
+      structuredLanguages,
+      skills,
+      contexts,
+      credentialsAndAttributes,
+      searchSynonyms,
       aiVisibleFields,
     });
 

@@ -8,13 +8,58 @@ import { logServerError } from "@/lib/server/safe-error";
 
 const TALENT_TYPE_KIND = "talent_type";
 
+export type RelationshipType =
+  | "primary_role"
+  | "secondary_role"
+  | "specialty"
+  | "skill"
+  | "context"
+  | "credential"
+  | "attribute";
+
 export type TaxonomyTermRow = {
   id: string;
   kind: string;
+  /**
+   * Hierarchical type from the v2 taxonomy. May be null for legacy rows that
+   * predate the term_type column.
+   */
+  term_type: string | null;
   archived_at: string | null;
 };
 
 export type TaxonomyMutationResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Maps a term's term_type to the default relationship_type used when no
+ * caller override is provided. Talent types default to primary_role; the
+ * caller can downgrade to secondary_role explicitly. Other term_types map
+ * straight through.
+ */
+export function defaultRelationshipForTerm(termType: string | null, kind: string): RelationshipType {
+  // Prefer term_type when set; fall back to kind for legacy rows.
+  switch (termType) {
+    case "talent_type":
+      return "primary_role";
+    case "specialty":
+      return "specialty";
+    case "skill":
+      return "skill";
+    case "context":
+      return "context";
+    case "credential":
+      return "credential";
+    case "attribute":
+    case "language":
+      return "attribute";
+    default:
+      // Legacy rows (no term_type yet): derive from kind.
+      if (kind === "talent_type") return "primary_role";
+      if (kind === "skill") return "skill";
+      if (kind === "event_type" || kind === "industry") return "context";
+      return "attribute";
+  }
+}
 
 async function fetchTerm(
   supabase: SupabaseClient,
@@ -22,7 +67,7 @@ async function fetchTerm(
 ): Promise<{ ok: true; term: TaxonomyTermRow } | { ok: false; error: string }> {
   const { data, error } = await supabase
     .from("taxonomy_terms")
-    .select("id, kind, archived_at")
+    .select("id, kind, term_type, archived_at")
     .eq("id", taxonomyTermId)
     .maybeSingle();
 
@@ -80,18 +125,34 @@ async function clearPrimaryForTalentTypes(
 }
 
 /**
- * Assign a taxonomy term to a talent profile. For `talent_type` terms, marks the
- * new assignment as primary and clears primary on other talent types.
+ * Assign a taxonomy term to a talent profile.
+ *
+ * Behavior:
+ * - If `relationshipType` is omitted, it's derived from the term's term_type
+ *   (or kind for legacy rows): talent_type → primary_role; skill → skill;
+ *   etc. See `defaultRelationshipForTerm`.
+ * - When the resolved relationship is `primary_role`, primary is cleared on
+ *   any other talent_type assignments first to maintain the
+ *   "one primary role per profile" invariant.
+ * - The DB-side validator trigger (migration 20260801120100) will reject
+ *   incompatible combinations (e.g. a skill term assigned as primary_role).
  */
 export async function assignTaxonomyTermToProfile(
   supabase: SupabaseClient,
-  params: { talentProfileId: string; taxonomyTermId: string },
+  params: {
+    talentProfileId: string;
+    taxonomyTermId: string;
+    relationshipType?: RelationshipType;
+  },
 ): Promise<TaxonomyMutationResult> {
   const termRes = await fetchTerm(supabase, params.taxonomyTermId);
   if (!termRes.ok) return termRes;
   const { term } = termRes;
 
-  if (term.kind === TALENT_TYPE_KIND) {
+  const relationshipType: RelationshipType =
+    params.relationshipType ?? defaultRelationshipForTerm(term.term_type, term.kind);
+
+  if (relationshipType === "primary_role") {
     const cleared = await clearPrimaryForTalentTypes(supabase, params.talentProfileId);
     if (cleared) return cleared;
   }
@@ -100,7 +161,8 @@ export async function assignTaxonomyTermToProfile(
     {
       talent_profile_id: params.talentProfileId,
       taxonomy_term_id: params.taxonomyTermId,
-      is_primary: term.kind === TALENT_TYPE_KIND,
+      relationship_type: relationshipType,
+      is_primary: relationshipType === "primary_role",
     },
     { onConflict: "talent_profile_id,taxonomy_term_id" },
   );

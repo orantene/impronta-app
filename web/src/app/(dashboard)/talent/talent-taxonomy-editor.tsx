@@ -25,6 +25,7 @@ import {
   dispatchTalentWorkspaceState,
   TALENT_PROFILE_SAVED,
 } from "@/lib/talent-workspace-events";
+import { isTalentTypeTerm } from "@/lib/taxonomy/engine";
 import { cn } from "@/lib/utils";
 
 function pickLabel(locale: "en" | "es", en: string, es?: string | null): string {
@@ -102,7 +103,7 @@ function TermToggle({
             </span>
           </button>
         </form>
-        {term.kind === "talent_type" && isPrimaryTalentType ? (
+        {isTalentTypeTerm(term) && isPrimaryTalentType ? (
           <span
             className={cn(
               "rounded-full border border-[var(--impronta-gold)]/35 bg-[var(--impronta-gold)]/10 font-semibold uppercase tracking-wide text-[var(--impronta-gold)]",

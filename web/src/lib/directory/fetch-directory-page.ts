@@ -14,6 +14,7 @@ import type { FieldValueRow } from "@/lib/directory/format-card-attribute-value"
 import { mapApiDirectoryRpcRowToDirectoryCardDTO } from "@/lib/directory/talent-card-dto";
 import type { ApiDirectoryCardRpcRow } from "@/lib/directory/talent-card-dto";
 import { fetchLegacyDirectorySearchTalentIds } from "@/lib/directory/directory-search-legacy";
+import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
 import {
   directorySearchForceLegacy,
   isDirectorySearchRpcUnavailableError,
@@ -809,31 +810,34 @@ export async function fetchDirectoryPage(
       sort_order: number;
     }> = [];
 
-    for (const taxonomyRow of taxonomyRows) {
-      const terms = taxonomyRow.taxonomy_terms
-        ? Array.isArray(taxonomyRow.taxonomy_terms)
-          ? taxonomyRow.taxonomy_terms
-          : [taxonomyRow.taxonomy_terms]
-        : [];
+    // Engine-driven primary talent_type extraction (v2-aware). Replaces the
+    // legacy `term.kind === 'talent_type' && taxonomyRow.is_primary` walk.
+    const primaryTerm = extractPrimaryRoleTerm(
+      taxonomyRows as unknown as ProfileTaxonomyRow[],
+    );
+    if (primaryTerm) {
+      primaryTalentType = {
+        name_en: primaryTerm.name_en,
+        name_es: primaryTerm.name_es ?? null,
+      };
+    }
 
-      for (const term of terms) {
-        if (
-          term.kind === "talent_type" &&
-          (!primaryTalentType || taxonomyRow.is_primary)
-        ) {
-          primaryTalentType = {
-            name_en: term.name_en,
-            name_es: term.name_es,
-          };
-        }
-
-        if (fitLabelsEnabled && term.kind === "fit_label") {
-          fitLabels.push({
-            slug: term.slug,
-            name_en: term.name_en,
-            name_es: term.name_es,
-            sort_order: term.sort_order,
-          });
+    if (fitLabelsEnabled) {
+      for (const taxonomyRow of taxonomyRows) {
+        const terms = taxonomyRow.taxonomy_terms
+          ? Array.isArray(taxonomyRow.taxonomy_terms)
+            ? taxonomyRow.taxonomy_terms
+            : [taxonomyRow.taxonomy_terms]
+          : [];
+        for (const term of terms) {
+          if (term.kind === "fit_label") {
+            fitLabels.push({
+              slug: term.slug,
+              name_en: term.name_en,
+              name_es: term.name_es,
+              sort_order: term.sort_order,
+            });
+          }
         }
       }
     }

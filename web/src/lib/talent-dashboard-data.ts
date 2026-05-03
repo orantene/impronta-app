@@ -8,6 +8,11 @@ import {
 import { filterOutReservedFieldDefinitions } from "@/lib/field-canonical";
 import { buildTalentCompletionInput } from "@/lib/profile-completion";
 import { logDashboardLoaderFailure } from "@/lib/dashboard-loader-diagnostics";
+import {
+  extractPrimaryRoleTerm,
+  extractPrimaryRoleRow,
+  type ProfileTaxonomyRow,
+} from "@/lib/taxonomy/engine";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import type { FieldDefinitionRow, FieldGroupRow } from "@/lib/fields/types";
@@ -228,15 +233,10 @@ export const loadTalentTaxonomyEditorData = cache(
     }[];
 
     const assignedIds = rows.map((r) => r.taxonomy_term_id);
-    let primaryTalentTypeId: string | null = null;
-    for (const r of rows) {
-      const t = r.taxonomy_terms;
-      const kind = Array.isArray(t) ? t[0]?.kind : t?.kind;
-      if (r.is_primary && kind === "talent_type") {
-        primaryTalentTypeId = r.taxonomy_term_id;
-        break;
-      }
-    }
+    // Engine-driven primary extraction (handles v2 + legacy).
+    const primaryRow = extractPrimaryRoleRow(rows as unknown as ProfileTaxonomyRow[]);
+    const primaryTalentTypeId: string | null =
+      (primaryRow as unknown as { taxonomy_term_id?: string })?.taxonomy_term_id ?? null;
 
     // Field-driven governance: only show taxonomy fields that are active + editable by talent.
     const { data: fieldRows, error: fErr } = await supabase
@@ -456,11 +456,9 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
       taxonomy_terms: { kind: string } | { kind: string }[] | null;
     }[];
 
-    const hasPrimaryTalentType = taxonomyRows.some((r) => {
-      const t = r.taxonomy_terms;
-      const kind = Array.isArray(t) ? t[0]?.kind : t?.kind;
-      return kind === "talent_type" && r.is_primary;
-    });
+    // Engine-driven check (v2-aware).
+    const hasPrimaryTalentType =
+      extractPrimaryRoleTerm(taxonomyRows as unknown as ProfileTaxonomyRow[]) !== null;
 
     const editableDefinitions = filterOutReservedFieldDefinitions(
       ((fieldDefs ?? []) as FieldDefinitionRow[]).filter((d) => d.value_type !== "location"),

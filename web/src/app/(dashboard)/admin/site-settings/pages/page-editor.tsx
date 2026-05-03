@@ -130,6 +130,9 @@ export function PageEditor({
   const isSystem = page?.is_system_owned ?? false;
   const effectiveVersion = saveState?.ok ? saveState.version : page?.version;
   const version = effectiveVersion ?? page?.version ?? 0;
+  // In create mode the hidden input must always be 0; effectiveVersion reflects
+  // the last server-returned version for display only, not the next CAS token.
+  const expectedVersionInput = mode === "create" ? 0 : (effectiveVersion ?? 0);
 
   const slugDefault = page?.slug ?? "";
   const localeDefault = page?.locale ?? defaultLocale;
@@ -189,7 +192,7 @@ export function PageEditor({
         <input
           type="hidden"
           name="expectedVersion"
-          value={effectiveVersion ?? 0}
+          value={expectedVersionInput}
         />
         <input
           type="hidden"

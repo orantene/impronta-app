@@ -6,6 +6,7 @@ import type { FeaturedTalentCard } from "@/components/home/featured-talent-secti
 import type { FitLabelItem } from "@/components/home/best-for-section";
 import type { LocationItem, LocationFeaturedPreview } from "@/components/home/location-section";
 import { resolveLocationMapCoordinates } from "@/lib/home-location-centroids";
+import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
 
 function parseLocationCoord(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -55,10 +56,17 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
    * directory cards / public profile field rules). Rationale: homepage is agency-controlled promotion; full
    * field-definition parity would risk hiding featured talent entirely. Future alignment can be per-widget.
    */
+  // 2026 reset — storefront top-bar facet renders parent_category rows
+  // (the 8-19 marketplace top-level groups), NOT every talent_type
+  // (which is 400+ rows). Filter to the 8 with is_public_filter=TRUE
+  // for the visible top bar; "More…" rollup is a UI-side concern.
+  // The legacy fallback below preserves behavior for DBs that haven't
+  // applied taxonomy v2 yet (term_type column absent).
   const typesFull = await supabase
     .from("taxonomy_terms")
     .select("id, slug, name_en, promo_image_storage_path, promo_placements")
-    .eq("kind", "talent_type")
+    .eq("term_type", "parent_category")
+    .eq("is_public_filter", true)
     .is("archived_at", null)
     .order("sort_order");
 
@@ -184,19 +192,11 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
 
   const featuredTalent: FeaturedTalentCard[] = (featuredRes.data ?? []).map(
     (t) => {
-      const taxonomy = (t.talent_profile_taxonomy ?? []) as {
-        is_primary: boolean;
-        taxonomy_terms: { kind: string; name_en: string } | { kind: string; name_en: string }[] | null;
-      }[];
-      const primaryType = taxonomy.find((x) => x.is_primary);
-      let typeLabel = "Talent";
-      if (primaryType?.taxonomy_terms) {
-        const terms = Array.isArray(primaryType.taxonomy_terms)
-          ? primaryType.taxonomy_terms
-          : [primaryType.taxonomy_terms];
-        const tt = terms.find((t) => t.kind === "talent_type");
-        if (tt) typeLabel = tt.name_en;
-      }
+      // Engine-driven extraction — handles v2 relationship_type='primary_role'
+      // AND legacy is_primary + kind='talent_type' transparently.
+      const taxonomy = (t.talent_profile_taxonomy ?? []) as ProfileTaxonomyRow[];
+      const primary = extractPrimaryRoleTerm(taxonomy);
+      const typeLabel = primary?.name_en ?? "Talent";
 
       const residenceRow = resolveResidenceLocationEmbed({
         residence_city: t.residence_city as
