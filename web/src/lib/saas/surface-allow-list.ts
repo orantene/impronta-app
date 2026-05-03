@@ -245,7 +245,12 @@ export function isPathAllowedForHostKind(
       anyPrefix(pathname, APP_WORKSPACE_PREFIXES) ||
       anyPrefix(pathname, APP_API_PREFIXES) ||
       anyExact(pathname, APP_API_EXACT_PATHS) ||
-      anyPrefix(pathname, AUTH_PREFIXES)
+      anyPrefix(pathname, AUTH_PREFIXES) ||
+      // Phase 3: /<tenantSlug>/{admin,talent,client,platform}[/*]
+      // Agency subdomain hosts can also use the slug-based workspace URL.
+      // e.g. impronta.tulala.digital/impronta/admin resolves to the same
+      // workspace admin as app.tulala.digital/impronta/admin.
+      isWorkspaceSlugPath(pathname)
     );
   }
 
