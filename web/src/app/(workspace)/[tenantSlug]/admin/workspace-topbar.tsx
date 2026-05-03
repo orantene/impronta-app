@@ -27,14 +27,14 @@ const FONT_BODY = '"Inter", system-ui, sans-serif';
 // segment: the URL segment after /admin/  (null = the /admin root itself)
 
 const TABS = [
-  { id: "overview",    label: "Overview",    segment: null         },
-  { id: "messages",    label: "Messages",    segment: "messages"   },
-  { id: "calendar",    label: "Calendar",    segment: "calendar"   },
-  { id: "roster",      label: "Talent",      segment: "roster"     },
-  { id: "clients",     label: "Clients",     segment: "clients"    },
-  { id: "operations",  label: "Operations",  segment: "work"       },
-  { id: "production",  label: "Production",  segment: "production" },
-  { id: "settings",    label: "Settings",    segment: "settings"   },
+  { id: "overview",    label: "Overview",    segment: null              },
+  { id: "messages",    label: "Messages",    segment: "messages"        },
+  { id: "calendar",    label: "Calendar",    segment: "calendar"        },
+  { id: "roster",      label: "Talent",      segment: "roster"          },
+  { id: "clients",     label: "Clients",     segment: "clients"         },
+  { id: "operations",  label: "Operations",  segment: "operations"      },
+  { id: "production",  label: "Production",  segment: "production"      },
+  { id: "settings",    label: "Settings",    segment: "settings"        },
 ] as const;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -82,10 +82,12 @@ export function WorkspaceTopbar({ tenantSlug }: { tenantSlug: string }) {
             ? `/${tenantSlug}/admin/${tab.segment}`
             : `/${tenantSlug}/admin`;
 
+          // "work" is the pipeline sub-page — highlight Operations tab when on /work
           const active =
             tab.segment === null
               ? activeSegment === ""
-              : activeSegment === tab.segment;
+              : activeSegment === tab.segment ||
+                (tab.segment === "operations" && activeSegment === "work");
 
           return (
             <Link
