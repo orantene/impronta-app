@@ -426,6 +426,149 @@ export async function loadWorkspaceClients(
   }
 }
 
+// ─── Bookings ─────────────────────────────────────────────────────────────────
+
+export type WorkspaceBookingRow = {
+  id: string;
+  contact_name: string;
+  company: string | null;
+  event_date: string | null;
+  event_location: string | null;
+  quantity: number | null;
+  created_at: string;
+};
+
+/**
+ * Load confirmed bookings for a tenant. Booked = status IN ('booked',
+ * 'converted'). Ordered by event_date ascending so the next upcoming job
+ * is first; null dates sort last.
+ *
+ * Returns [] on error. Never falls back to mock data.
+ */
+export async function loadWorkspaceBookings(
+  tenantId: string,
+): Promise<WorkspaceBookingRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("inquiries")
+      .select(
+        "id, contact_name, company, event_date, event_location, quantity, created_at",
+      )
+      .eq("tenant_id", tenantId)
+      .in("status", ["booked", "converted"])
+      .order("event_date", { ascending: true, nullsFirst: false })
+      .limit(200);
+
+    if (error) {
+      logServerError("workspace.loadBookings", error);
+      return [];
+    }
+
+    return (data ?? []) as WorkspaceBookingRow[];
+  } catch (err) {
+    logServerError("workspace.loadBookings", err);
+    return [];
+  }
+}
+
+// ─── Agency summary ───────────────────────────────────────────────────────────
+
+/** Valid workspace plan tiers — mirrors WorkspacePlan from admin-workspace-summary. */
+export type WorkspacePlan = "free" | "studio" | "agency" | "network";
+
+const VALID_WORKSPACE_PLANS = new Set<string>(["free", "studio", "agency", "network"]);
+
+function coercePlan(raw: unknown): WorkspacePlan {
+  if (typeof raw === "string" && VALID_WORKSPACE_PLANS.has(raw)) {
+    return raw as WorkspacePlan;
+  }
+  return "free";
+}
+
+export type WorkspaceAgencySummary = {
+  displayName: string;
+  slug: string;
+  plan: WorkspacePlan;
+  /** Null = unlimited (Network plan). */
+  talentLimit: number | null;
+  talentCount: number;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  addressCity: string | null;
+  addressCountry: string | null;
+};
+
+/**
+ * Tenant-id-explicit workspace summary. Used by the Account page on the app
+ * host where tenant scope comes from the URL slug, not the active-tenant
+ * cookie.
+ *
+ * Returns null on error or missing data.
+ */
+export async function loadWorkspaceAgencySummary(
+  tenantId: string,
+): Promise<WorkspaceAgencySummary | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    const [agencyRes, identityRes, rosterCountRes] = await Promise.all([
+      supabase
+        .from("agencies")
+        .select("slug, display_name, plan_tier, talent_seat_limit")
+        .eq("id", tenantId)
+        .maybeSingle(),
+      supabase
+        .from("agency_business_identity")
+        .select("contact_email, contact_phone, address_city, address_country")
+        .eq("tenant_id", tenantId)
+        .maybeSingle(),
+      supabase
+        .from("agency_talent_roster")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .neq("status", "removed"),
+    ]);
+
+    if (agencyRes.error) {
+      logServerError("workspace.loadAgencySummary.agency", agencyRes.error);
+    }
+
+    if (!agencyRes.data) return null;
+
+    const row = agencyRes.data as {
+      slug: string;
+      display_name: string;
+      plan_tier: string | null;
+      talent_seat_limit: number | null;
+    };
+    const identity = identityRes.data as {
+      contact_email: string | null;
+      contact_phone: string | null;
+      address_city: string | null;
+      address_country: string | null;
+    } | null;
+
+    return {
+      displayName: row.display_name,
+      slug: row.slug,
+      plan: coercePlan(row.plan_tier),
+      talentLimit: row.talent_seat_limit,
+      talentCount: rosterCountRes.count ?? 0,
+      contactEmail: identity?.contact_email ?? null,
+      contactPhone: identity?.contact_phone ?? null,
+      addressCity: identity?.address_city ?? null,
+      addressCountry: identity?.address_country ?? null,
+    };
+  } catch (err) {
+    logServerError("workspace.loadAgencySummary", err);
+    return null;
+  }
+}
+
 // ─── Team members ─────────────────────────────────────────────────────────────
 
 export type WorkspaceTeamMember = {

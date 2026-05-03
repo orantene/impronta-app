@@ -93,6 +93,12 @@ export default async function WorkspaceAdminLayout({
             "/admin/inquiries": "/admin/work",
             // Settings and team fold into the settings hub
             "/admin/users": "/admin/settings",
+            // Site/setup wizard not yet promoted — land on site hub
+            "/admin/site/setup": "/admin/site",
+            // Profile config (fields/taxonomy) lives under settings for now
+            "/admin/profile": "/admin/settings",
+            // AI workspace not yet promoted — fall back to legacy via settings
+            "/admin/ai-workspace": "/admin/settings",
           }}
         >
           <AdminWorkspaceShell pulseCounts={pulseCounts}>
