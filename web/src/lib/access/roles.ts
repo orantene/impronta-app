@@ -74,6 +74,8 @@ export const TENANT_ROLES: Record<TenantRoleKey, TenantRoleDef> = {
 // ── Role → capability matrix (additive, mirrors current behavior) ─────
 
 const VIEWER_CAPS: readonly CapabilityKey[] = [
+  // Phase 3 — workspace surface gate
+  "agency.workspace.view",
   "view_dashboard",
   "view_talent_roster",
   "view_client_list",

@@ -447,6 +447,20 @@ export const CAPABILITIES = {
   // locked. Most have no callers in Phase 1; Track B.5 wires them when
   // the dashboard surfaces are built.
 
+  // ── Phase 3 workspace surface — canonical multi-tenant routes ──────────
+  // Added when `(workspace)/[tenantSlug]/admin/*` routes were promoted.
+  // Viewer+ (all active members) can enter the workspace. This gates the
+  // layout so non-members who land on a tenantSlug URL get 404 rather
+  // than a partial render.
+  "agency.workspace.view": define({
+    key: "agency.workspace.view",
+    displayName: "Access workspace",
+    description: "Enter this workspace's dashboard. Required for any workspace surface. All active members have this.",
+    category: "dashboard",
+    scope: "tenant",
+    deprecated: false,
+  }),
+
   // ── Agency-side roster + settings (role-granted) ─────────────────────
   "agency.settings.edit_join_mode": define({
     key: "agency.settings.edit_join_mode",

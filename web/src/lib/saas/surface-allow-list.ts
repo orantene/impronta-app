@@ -139,6 +139,46 @@ const APP_API_EXACT_PATHS = [
 const CANONICAL_TALENT_PREFIX = "/t" as const;
 
 /**
+ * Phase 3 — multi-tenant workspace surface on the app host.
+ * Pattern: `/<tenantSlug>/<surface>` where surface ∈ {admin, talent, client, platform}.
+ *
+ * The first path segment is the tenant's URL slug (e.g. "impronta") and the
+ * second is the workspace surface. Exact tenant-slug validation happens inside
+ * the route handler via `getTenantScopeBySlug()`. The allow-list only needs to
+ * confirm the shape matches the canonical workspace URL pattern.
+ *
+ * Reserved first segments (existing top-level routes) are excluded explicitly
+ * so this check can't shadow `/api/admin`, `/t/slug`, auth paths, etc.
+ */
+const WORKSPACE_SLUG_SURFACES = ["admin", "talent", "client", "platform"] as const;
+const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
+  // Existing APP_WORKSPACE_PREFIXES
+  "admin", "client", "talent", "onboarding", "invite", "account",
+  // API + auth
+  "api", "auth", "login", "register", "forgot-password", "update-password",
+  // Public talent canonical
+  "t",
+  // Static
+  "sitemap.xml", "robots.txt",
+  // Prototypes + internals
+  "prototypes", "_next", "share",
+]);
+
+function isWorkspaceSlugPath(pathname: string): boolean {
+  // pathname must be "/<tenantSlug>/<surface>" or "/<tenantSlug>/<surface>/..."
+  const parts = pathname.split("/");
+  // parts: ["", tenantSlug, surface, ...rest]
+  const tenantSlug = parts[1];
+  const surface = parts[2];
+  if (!tenantSlug || !surface) return false;
+  // Reject reserved first segments.
+  if (WORKSPACE_SLUG_RESERVED_PREFIXES.has(tenantSlug)) return false;
+  // Basic slug shape: lowercase alphanum + hyphen, 2–63 chars.
+  if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(tenantSlug)) return false;
+  return (WORKSPACE_SLUG_SURFACES as readonly string[]).includes(surface);
+}
+
+/**
  * Marketing-only public pages. These render the public SaaS marketing site
  * (sold product, not tenant storefront). They never read tenant data and
  * never require auth. Keep this list scoped; everything else 404s on the
@@ -215,7 +255,9 @@ export function isPathAllowedForHostKind(
       anyPrefix(pathname, APP_API_PREFIXES) ||
       anyExact(pathname, APP_API_EXACT_PATHS) ||
       anyPrefix(pathname, AUTH_PREFIXES) ||
-      hasPrefix(pathname, CANONICAL_TALENT_PREFIX)
+      hasPrefix(pathname, CANONICAL_TALENT_PREFIX) ||
+      // Phase 3: /<tenantSlug>/{admin,talent,client,platform}[/*]
+      isWorkspaceSlugPath(pathname)
     );
   }
 

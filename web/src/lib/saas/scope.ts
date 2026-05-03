@@ -132,6 +132,31 @@ export async function getScopedTenantId(): Promise<string> {
 }
 
 /**
+ * Phase 3 — resolve tenant scope from a URL path segment (slug).
+ *
+ * Used by `(workspace)/[tenantSlug]/admin/*` routes on `app.tulala.digital`.
+ * The slug comes from the URL rather than a host header or cookie, so this
+ * helper walks the current user's memberships and matches on `agencies.slug`.
+ *
+ * Returns null when:
+ *   - actor is unauthenticated
+ *   - the slug doesn't match any of the actor's memberships
+ *
+ * Request-cached: calling this multiple times in the same render pass (e.g.
+ * once in the layout + once in the page) only hits the DB once.
+ */
+export const getTenantScopeBySlug = cache(
+  async (slug: string): Promise<TenantScope | null> => {
+    const session = await getCachedActorSession();
+    if (!session.user) return null;
+    const memberships = await getCurrentUserTenants();
+    const membership = memberships.find((m) => m.slug === slug);
+    if (!membership) return null;
+    return { tenantId: membership.tenant_id, membership };
+  },
+);
+
+/**
  * Phase 4 stub — resolves a tenant from a hostname. Used by storefront
  * routing middleware to attach tenant scope to anonymous public requests.
  *
