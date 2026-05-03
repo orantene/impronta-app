@@ -711,7 +711,11 @@ export type DrawerId =
   | "feature-controls"    // agency-admin on/off toggles for every platform feature
   // ── Talent circle ────────────────────────────────────────────────────
   | "circle-manage"       // talent's personal circle of trusted collaborators
-  | "circle-recommend";   // recommend a circle member into a booking
+  | "circle-recommend"    // recommend a circle member into a booking
+  // ── Phase E workspace field settings ─────────────────────────────────
+  | "workspace-field-settings"  // per-tenant field catalog customisation
+  // ── Phase B workspace profile shell ──────────────────────────────────
+  | "workspace-profile";        // workspace own identity / branding summary
 
 export type DrawerContext = {
   drawerId: DrawerId | null;
@@ -819,7 +823,11 @@ export type MessageSenderRole =
   | "coordinator"
   | "admin"
   | "talent"
-  | "system";
+  | "system"
+  /** Agency identity — messages attributed to the workspace rather than
+   *  a specific staff member. Used for system-attributed coordinator messages
+   *  in the canonical inquiry model and workspace AI-drafted replies. */
+  | "workspace";
 
 export type ThreadMessage = {
   id: string;
@@ -1032,6 +1040,10 @@ export type RichInquiry = {
   messages: ThreadMessage[];
   // shortlist context (client side)
   shortlistName?: string;
+  /** Whether this inquiry has been seen by the viewing coordinator.
+   *  false = brand-new, requires "new" badge in the inbox sort tier.
+   *  undefined = pre-seen-model data (treated as seen). */
+  seen?: boolean;
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -3414,6 +3426,21 @@ export type MyTalentProfile = {
   missing: string[];
   publicUrl: string;
   // — personal page (premium) ──────────────────────────────
+  /** Primary talent type from the Tulala taxonomy (e.g. "models"). Drives
+   *  the dynamic-field engine in the profile shell drawer. Required —
+   *  defaults to "models" in the mock data; the profile shell drawer
+   *  always populates it on first open. */
+  primaryType: TaxonomyParentId;
+  /** Additional roles for multi-discipline talent (model + performer, etc.).
+   *  Required to be an array (empty = single-role) so spread ops in the
+   *  drawer are always safe. */
+  secondaryTypes: TaxonomyParentId[];
+  /** Portfolio video links. Each entry is a VideoSlot shape so the drawer
+   *  can round-trip video URLs back to the canonical profile on save. */
+  portfolioVideos?: VideoSlot[];
+  /** Direct video URL for the talent's showreel. Separate from
+   *  `showreelThumb` (which is the emoji placeholder used in mocks). */
+  showreelUrl?: string;
   /** The Tulala-direct subscription on top of the standard ecosystem
    *  profile. Affects template choice, embed availability, custom
    *  domain, EPK / media-kit, SEO control. Crucially: orthogonal to
@@ -3922,6 +3949,8 @@ export const MY_TALENT_PROFILE: MyTalentProfile = {
     relation: "Mother",
     phone: "+34 ••• ••• 412",
   },
+  primaryType: "models" as TaxonomyParentId,
+  secondaryTypes: [],
   primaryAgency: "Atelier Roma",
   representation: { kind: "exclusive", agencyName: "Atelier Roma" },
   contactPolicy: { ...DEFAULT_CONTACT_POLICY },
@@ -4762,6 +4791,17 @@ export type ServiceArea = {
   remoteOnly?: boolean;
   /** Free-text notes (visa, passport, etc.). */
   notes?: string;
+  // ── Travel & eligibility (Phase C profile shell fields) ──────────────
+  /** Passport status. */
+  passport?: "valid" | "expired" | "none";
+  /** Driver's license class held. */
+  driversLicense?: "none" | "standard" | "international" | "commercial";
+  /** Has access to own vehicle for shoot logistics. */
+  ownsVehicle?: boolean;
+  /** ISO country codes the talent is work-eligible in (e.g. ["ES", "FR", "MX"]). */
+  workEligibility?: string[];
+  /** Active visa countries beyond home country. */
+  visaCountries?: string[];
 };
 
 // ════════════════════════════════════════════════════════════════════
@@ -4916,6 +4956,20 @@ export type ProfileIdentity = {
   /** ISO date YYYY-MM-DD. */
   dob: string | null;
   ageDisplay: AgeDisplayMode;
+  /** Country of citizenship — drives international booking pre-checks. */
+  nationality?: string;
+  /** Country of residence — used for tax + payout routing. */
+  homeCountry?: string;
+  /** Self-declared reply-time commitment shown on Discover. */
+  responseTime?: "1h" | "4h" | "24h" | "48h";
+  /** Per-field visibility overrides. Keys are profile field short-ids;
+   *  values are the channel array the talent chose. Matches FieldVisibility
+   *  (ReadonlyArray<FieldChannel>) so ChannelVisibilityStrip onChange
+   *  values can be assigned directly without a cast. */
+  visibility?: Partial<Record<
+    "legalName" | "pronouns" | "gender" | "dob",
+    ReadonlyArray<RegFieldChannel>
+  >>;
 };
 
 export function deriveAge(dob: string | null): number | null {
@@ -4970,6 +5024,16 @@ export type PhotoMeta = {
   tag?: PhotoTag;
   altText?: string;
   caption?: string;
+  // ── Video media (Phase B portfolio drawer) ───────────────────────────
+  /** When set, this tile represents a video rather than a still image.
+   *  The thumbnail in `url` is displayed as the tile; videoUrl is the
+   *  actual playback source. */
+  videoUrl?: string;
+  /** Video duration in seconds — shown as "0:42" chip on the tile. */
+  videoDurationSec?: number;
+  /** Provider detected from videoUrl — drives the coloured chip.
+   *  "youtube" → red, "vimeo" → cyan, "mp4" → dark. */
+  videoProvider?: "youtube" | "vimeo" | "mp4";
 };
 
 // ── Video clips + hello reel ─────────────────────────────────────────
@@ -5274,7 +5338,12 @@ export type WorkspaceTaxonomySetting = {
 export type RegFieldKind = "text" | "number" | "select" | "multiselect" | "chips";
 /** Visibility channel for a talent profile field. Used by _field-catalog.ts
  *  to express who can see a given field by default. Talent can override. */
-export type RegFieldChannel = "public" | "agency" | "platform" | "private";
+/** Visibility channel for a talent profile field. Matches FieldChannel
+ *  in _primitives.tsx so RegField.defaultVisibility values are always
+ *  assignable to FieldVisibility (the UI strip's value type). The
+ *  "platform" channel (staff-only, not UI-editable) is intentionally
+ *  excluded — staff-visible fields use adminOnly flag instead. */
+export type RegFieldChannel = "public" | "agency" | "private";
 export type RegField = {
   id: string;
   label: string;
@@ -5283,6 +5352,13 @@ export type RegField = {
   placeholder?: string;
   helper?: string;
   options?: string[];
+  /** Drawer subsection — "physical" (measurements) or "wardrobe" (sizes).
+   *  Drives the section mapping in _field-catalog.ts deriveTypeFields(). */
+  subsection?: "physical" | "wardrobe";
+  /** Whether this field is privacy-sensitive; drives the visibility chip strip. */
+  sensitive?: boolean;
+  /** Default visibility channels for this field; talent can override per-field. */
+  defaultVisibility?: ReadonlyArray<RegFieldChannel>;
 };
 
 export const TAXONOMY_FIELDS: Record<TaxonomyParentId, RegField[]> = {
@@ -7949,3 +8025,202 @@ export function track(event: TrackEvent, props: TrackProps = {}): void {
 export const FAB_PALETTE_OPEN_EVENT = "tulala:open-fab-palette";
 export const FAB_PALETTE_CHANGED_EVENT = "tulala:fab-palette-changed";
 export type FabPaletteChangedDetail = { open: boolean };
+
+// ─────────────��─────────────────────────────────���─────────────────────
+// Phase B — Profile override system (mock)
+//
+// When the talent profile shell drawer commits edits, `setProfileOverride`
+// patches a module-level map so every surface that calls `getProfileById`
+// sees the updated data immediately without a page reload. The override is
+// shallow-merged: only touched top-level fields change; nested shapes are
+// replaced atomically (e.g. the full measurements object when measurements
+// were edited). Production replaces this with a Supabase round-trip.
+//
+// Canonical demo talent: id "t1" → MY_TALENT_PROFILE (Marta Reyes).
+// Other roster talents can be seeded by adding entries to TALENT_PROFILES_BY_ID
+// before the first render; the bridge data-layer (Phase 1) will eventually
+// supply live records here for the ?dataSource=live path.
+// ────────────────────────────────────────────────────────��────────────
+
+/** Parse a YouTube / Vimeo / direct-mp4 URL into a structured form.
+ *  Returns null when the URL isn't recognised. Downstream renderers use
+ *  `provider` to pick the coloured chip and `thumbUrl` for the tile
+ *  image before the video plays. */
+export type ParsedVideoUrl = {
+  provider: "youtube" | "vimeo" | "mp4";
+  /** Static thumbnail URL for displaying a preview tile. */
+  thumbUrl?: string;
+  /** Embed-ready src URL for an <iframe> (YouTube/Vimeo) or
+   *  direct <video> src (mp4). */
+  embedUrl?: string;
+};
+export function parseVideoUrl(url: string): ParsedVideoUrl | null {
+  if (!url) return null;
+  const t = url.trim();
+  const yt = t.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (yt) return {
+    provider: "youtube",
+    thumbUrl: `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`,
+    embedUrl: `https://www.youtube.com/embed/${yt[1]}`,
+  };
+  const vi = t.match(/(?:vimeo\.com\/(?:video\/)?|player\.vimeo\.com\/video\/)(\d+)/);
+  if (vi) return {
+    provider: "vimeo",
+    embedUrl: `https://player.vimeo.com/video/${vi[1]}`,
+  };
+  if (t.match(/\.mp4(\?|$)/i)) return { provider: "mp4", embedUrl: t };
+  return null;
+}
+
+/** Index of all mock talent profiles keyed by id. Seed additional
+ *  entries here or via the bridge data-layer (Phase 1). */
+export const TALENT_PROFILES_BY_ID: Record<string, MyTalentProfile> = {
+  t1: MY_TALENT_PROFILE,
+};
+
+/** Look up a talent profile by id. Falls back to MY_TALENT_PROFILE when
+ *  the id isn't in the mock index — keeps code paths non-nullable in the
+ *  prototype while the live bridge is still being wired. */
+export function getProfileById(id: string): MyTalentProfile {
+  return TALENT_PROFILES_BY_ID[id] ?? MY_TALENT_PROFILE;
+}
+
+const __profileOverrides: Record<string, Partial<MyTalentProfile>> = {};
+const __profileOverrideSubscribers = new Set<() => void>();
+
+/** Patch a mock talent profile in-memory. Shallow merge — only keys in
+ *  `patch` are overwritten; all other fields keep their current values. */
+export function setProfileOverride(id: string, patch: Partial<MyTalentProfile>): void {
+  __profileOverrides[id] = { ...(__profileOverrides[id] ?? {}), ...patch };
+  __profileOverrideSubscribers.forEach(fn => fn());
+}
+
+/** Return the profile with any active override applied. Safe to call
+ *  with an id that has no override — returns `profile` unchanged. */
+export function applyProfileOverride(id: string, profile: MyTalentProfile): MyTalentProfile {
+  const override = __profileOverrides[id];
+  if (!override) return profile;
+  return { ...profile, ...override };
+}
+
+/** React hook — components that display profile data call this to
+ *  re-render whenever any profile override changes. */
+export function useProfileOverrideSubscription(): void {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const fn = () => force((n) => n + 1);
+    __profileOverrideSubscribers.add(fn);
+    return () => { __profileOverrideSubscribers.delete(fn); };
+  }, []);
+}
+
+/** Extract a stable id string from a roster-row-like object. The
+ *  protocol: roster rows carry `id` (the talent's uuid or mock id).
+ *  Centralised here so callers don't import `RosterRow` shapes directly. */
+export function talentIdOf(row: { id: string }): string {
+  return row.id;
+}
+
+// ────────────────��────────────────────��───────────────────────────────
+// Pending review queue (mock)
+//
+// When a talent self-edits via the profile shell and submits, a
+// PendingReviewRecord is pushed here keyed by talentId. The workspace
+// roster card reads it to show an "Awaiting review" badge. An admin
+// dismissing or approving from the drawer calls clearPendingReview().
+// ─────────────────────────────────────────────��───────────────────────
+
+export type PendingReviewRecord = {
+  talentId: string;
+  submittedAt: string; // ISO date string
+  note: string;        // human-readable diff summary
+};
+
+const __pendingReviews: Record<string, PendingReviewRecord> = {};
+const __pendingReviewSubscribers = new Set<() => void>();
+
+export function addPendingReview(review: PendingReviewRecord): void {
+  __pendingReviews[review.talentId] = review;
+  __pendingReviewSubscribers.forEach(fn => fn());
+}
+
+export function clearPendingReview(talentId: string): void {
+  delete __pendingReviews[talentId];
+  __pendingReviewSubscribers.forEach(fn => fn());
+}
+
+/** Return the pending review for a roster row, or null if none. */
+export function getPendingReviewForRoster(row: { id: string; name?: string }): PendingReviewRecord | null {
+  return __pendingReviews[row.id] ?? null;
+}
+
+/** React hook — re-renders when any pending-review entry is added or
+ *  cleared. Roster surfaces call this to keep the badge in sync. */
+export function usePendingReviewSubscription(): void {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const fn = () => force((n) => n + 1);
+    __pendingReviewSubscribers.add(fn);
+    return () => { __pendingReviewSubscribers.delete(fn); };
+  }, []);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Website / domain mock state
+//
+// The domain drawer reads WEBSITE_STATE.domain so it stays in sync with
+// the website page's domain panel. In production this comes from the
+// `workspace_domains` table; in the prototype it's a module-level
+// constant that the drawer writes to directly on toggle actions.
+// ─────────────────────────────────────────────────────────────────────
+
+type WebsiteDnsRecord = {
+  type: string;
+  host: string;
+  value: string;
+  matched: boolean;
+};
+type WebsiteAlternateDomain = {
+  domain: string;
+  status: "verified" | "pending";
+};
+type WebsiteDomain = {
+  primaryDomain: string;
+  status: "verified" | "pending" | "unverified";
+  sslStatus: "active" | "pending" | "expired";
+  sslExpiresOn?: string;
+  dnsRecords?: WebsiteDnsRecord[];
+  redirectsToWww: boolean;
+  alternateDomains: WebsiteAlternateDomain[];
+};
+
+export const WEBSITE_STATE: { domain: WebsiteDomain } = {
+  domain: {
+    primaryDomain: "acme-models.tulala.digital",
+    status: "verified",
+    sslStatus: "active",
+    sslExpiresOn: "2026-12-01",
+    dnsRecords: [
+      { type: "CNAME", host: "www",  value: "acme-models.tulala.digital", matched: true },
+      { type: "A",     host: "@",    value: "76.76.21.21",                matched: true },
+    ],
+    redirectsToWww: true,
+    alternateDomains: [],
+  },
+};
+
+// ─────────────────────��───────────────────────────────────────────────
+// Re-exports from _field-catalog.ts
+//
+// `_talent.tsx` imports computeProfileCompleteness, fieldsForType, and
+// FIELD_CATALOG from "./_state" (same import block as all other state
+// symbols). Rather than modifying the frozen caller file, we re-export
+// these from the catalog module. The circular import (_state ↔
+// _field-catalog) is safe: _field-catalog already uses lazy
+// initialization for everything that touches TAXONOMY_FIELDS.
+// ──────────────────────────────���─────────────────────────────────��────
+export {
+  computeProfileCompleteness,
+  fieldsForType,
+  FIELD_CATALOG,
+} from "./_field-catalog";

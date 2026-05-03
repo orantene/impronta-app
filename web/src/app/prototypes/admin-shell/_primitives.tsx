@@ -84,6 +84,12 @@ import {
   type TalentProfile,
 } from "./_state";
 import {
+  FIELD_CATALOG,
+  applyWorkspaceFieldOverride,
+  useWorkspaceFieldOverrideSubscription,
+  PROTO_TENANT_ID,
+} from "./_field-catalog";
+import {
   HelpPanel,
   hasHelp,
   hasOpenedHelp,
@@ -1807,7 +1813,7 @@ const CARD_VARIANT_STYLES: Record<CardVariant, { rest: CSSProperties; hoverBorde
   // "action" — for cards that need a do-this-now signal without using the
   // brand. Ink-led white surface with a coral left rule. Coral = "your move."
   // Replaces variant="accent" anywhere a card was forest-tinted purely to
-  // signal urgency rather than identity. See docs/admin-redesign/color-system.md.
+  // signal urgency rather than identity. See docs/admin-prototype/color-system.md.
   action: {
     rest: {
       background: COLORS.card,
@@ -1940,7 +1946,7 @@ export function PrimaryCard({
    *  - "accent"   forest-tinted spotlight (brand identity moment)
    *  - "action"   coral left rule on white (your-move / action-needed)
    *  - "premium"  royal-tinted (paid tier / AI / unlock prompt)
-   *  See docs/admin-redesign/color-system.md for when to use each. */
+   *  See docs/admin-prototype/color-system.md for when to use each. */
   variant?: "primary" | "accent" | "action" | "premium";
 }) {
   const hasLeftRule = variant === "accent" || variant === "action" || variant === "premium";
@@ -4677,6 +4683,185 @@ export function ModalShell({
 
 // ─── Field group / row helpers (shared by drawers) ───────────────────
 
+// ── Channel-visibility chip strip ──
+// Per-channel visibility for sensitive profile fields. The talent
+// toggles which surfaces (Public hub / Agency / Private) see this
+// value. Default sensible per field — height visible everywhere,
+// phone agency-only, legal name private. Mock-state driven; the
+// engine reads `fieldVisibility[fieldPath]` per channel in production.
+export type FieldChannel = "public" | "agency" | "private";
+export type FieldVisibility = ReadonlyArray<FieldChannel>;
+const CHANNEL_META: Record<FieldChannel, { label: string; emoji: string; tooltip: string }> = {
+  public:  { label: "Public",  emoji: "🌐", tooltip: "Discovery hub + your public profile page" },
+  agency:  { label: "Agency",  emoji: "🏢", tooltip: "Coordinators at agencies that represent you" },
+  private: { label: "Private", emoji: "🔒", tooltip: "Only you (and admins for compliance)" },
+};
+
+/**
+ * Compact visibility control. Renders a single icon button (28×20px)
+ * that summarises current state — 🌐 (public), 🏢 (agency), 🔒
+ * (private), 👁 (mixed/multiple). Click opens a 3-row popover with
+ * the actual toggles. Saves ~85% of the vertical footprint vs the
+ * old wide chip strip.
+ *
+ * Pattern reference: Notion's "Who can see this", Linear's privacy
+ * chips, Figma's permission popovers.
+ *
+ * Same `value` + `onChange` API as before — callers don't need to
+ * change. The legacy strip is preserved as ChannelVisibilityStripLegacy
+ * for any surface that still wants the wide form.
+ */
+export function ChannelVisibilityStrip({
+  value, onChange, label = "Visible to",
+}: {
+  value: FieldVisibility;
+  onChange?: (next: FieldVisibility) => void;
+  label?: string;
+}) {
+  const channels: FieldChannel[] = ["public", "agency", "private"];
+  const has = (c: FieldChannel) => value.includes(c);
+  const toggle = (c: FieldChannel) => {
+    if (!onChange) return;
+    // Private is exclusive — picking it clears the others. Picking
+    // public/agency clears private. Matches the user's mental model
+    // ("hidden" vs "visible to one or more channels").
+    if (c === "private") { onChange(["private"]); return; }
+    const without = value.filter(x => x !== "private");
+    if (has(c)) onChange(without.filter(x => x !== c) as FieldChannel[]);
+    else onChange([...without.filter(x => x !== c), c] as FieldChannel[]);
+  };
+
+  // Summary state — drives the button's icon + tooltip.
+  const summary: { icon: string; label: string; tone: "public" | "agency" | "private" | "mixed" } = (() => {
+    const isPrivate = value.length === 1 && value[0] === "private";
+    if (isPrivate) return { icon: "🔒", label: "Private", tone: "private" };
+    const pub = has("public");
+    const ag = has("agency");
+    if (pub && ag) return { icon: "🌐", label: "Public + agency", tone: "mixed" };
+    if (pub) return { icon: "🌐", label: "Public", tone: "public" };
+    if (ag) return { icon: "🏢", label: "Agency only", tone: "agency" };
+    return { icon: "👁", label: "Not visible", tone: "private" };
+  })();
+
+  const [open, setOpen] = useState(false);
+  const popRef = useRef<HTMLDivElement | null>(null);
+  // Close on outside click.
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handler);
+    return () => window.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Tone palette for the icon background.
+  const tone = summary.tone === "public"
+      ? { bg: "rgba(15,79,62,0.08)", border: "rgba(15,79,62,0.4)", fg: COLORS.accentDeep ?? COLORS.accent }
+    : summary.tone === "agency"
+      ? { bg: "rgba(46,124,209,0.08)", border: "rgba(46,124,209,0.4)", fg: "#1f4d8a" }
+    : summary.tone === "mixed"
+      ? { bg: "rgba(15,79,62,0.06)", border: "rgba(15,79,62,0.30)", fg: COLORS.accentDeep ?? COLORS.accent }
+    : { bg: "rgba(11,11,13,0.04)", border: COLORS.borderSoft, fg: COLORS.inkMuted };
+
+  return (
+    <div ref={popRef} style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+      <button
+        type="button"
+        onClick={() => onChange && setOpen(o => !o)}
+        title={`${label}: ${summary.label}${onChange ? " · click to change" : ""}`}
+        aria-label={`${label}: ${summary.label}`}
+        aria-expanded={open}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 3,
+          padding: "2px 7px", borderRadius: 999,
+          border: `1px solid ${tone.border}`,
+          background: tone.bg,
+          color: tone.fg,
+          fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
+          letterSpacing: 0.3,
+          cursor: onChange ? "pointer" : "default",
+          opacity: onChange ? 1 : 0.65,
+          lineHeight: 1.2,
+        }}
+      >
+        <span aria-hidden style={{ fontSize: 10.5 }}>{summary.icon}</span>
+        <span style={{ fontSize: 9.5, textTransform: "uppercase" }}>{summary.label}</span>
+      </button>
+      {open && onChange && (
+        <div
+          role="dialog"
+          aria-label={label}
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            zIndex: 50,
+            minWidth: 240,
+            padding: 8,
+            borderRadius: 10,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            boxShadow: "0 12px 32px -8px rgba(11,11,13,0.18)",
+            fontFamily: FONTS.body,
+          }}
+        >
+          <div style={{
+            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+            color: COLORS.inkDim, padding: "2px 6px 6px",
+          }}>{label}</div>
+          {channels.map(c => {
+            const meta = CHANNEL_META[c];
+            const active = has(c);
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => toggle(c)}
+                title={meta.tooltip}
+                aria-pressed={active}
+                style={{
+                  width: "100%",
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "7px 8px",
+                  border: "none",
+                  background: active ? "rgba(15,79,62,0.06)" : "transparent",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontFamily: FONTS.body,
+                }}
+              >
+                <span aria-hidden style={{
+                  width: 14, height: 14, borderRadius: 4, flexShrink: 0,
+                  border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                  background: active ? COLORS.accent : "#fff",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {active && (
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </span>
+                <span aria-hidden style={{ fontSize: 13 }}>{meta.emoji}</span>
+                <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+                  {meta.label}
+                </span>
+                <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>
+                  {meta.tooltip}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function FieldRow({
   label,
   children,
@@ -4684,6 +4869,9 @@ export function FieldRow({
   optional,
   required,
   error,
+  visibility,
+  onVisibilityChange,
+  catalogId,
 }: {
   label: string;
   children: ReactNode;
@@ -4693,10 +4881,38 @@ export function FieldRow({
   required?: boolean;
   /** Inline error message — replaces hint and tints the row red. */
   error?: string;
+  /** Per-channel visibility — when set, renders the visibility chip strip
+   *  below the field so the talent can decide who sees this value. */
+  visibility?: FieldVisibility;
+  onVisibilityChange?: (next: FieldVisibility) => void;
+  /** Phase E (F1) — when supplied, FieldRow honors workspace overrides
+   *  on the field's catalog entry. `customLabel` replaces the label;
+   *  `customHelper` replaces the hint. Pass the catalog field id (e.g.
+   *  "identity.legalName") and the row resolves overrides at render. */
+  catalogId?: string;
 }) {
+  // Phase E — workspace override merge. When `catalogId` is provided,
+  // resolve the merged catalog entry for the demo tenant and let
+  // customLabel / customHelper win over the explicit label / hint. The
+  // hook subscribes the row to override changes so toggles from the
+  // settings drawer flow through immediately.
+  useWorkspaceFieldOverrideSubscription();
+  if (catalogId) {
+    const entry = FIELD_CATALOG.find(c => c.id === catalogId);
+    if (entry) {
+      const resolved = applyWorkspaceFieldOverride(entry, PROTO_TENANT_ID);
+      if (resolved.hasOverride) {
+        // Strip override hint? Just merge in.
+        if (resolved.label && resolved.label !== entry.label) label = resolved.label;
+        if (resolved.helper && resolved.helper !== entry.helper) hint = resolved.helper;
+        // If the workspace disabled this field, hide the row entirely.
+        if (!resolved.enabled) return null;
+      }
+    }
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <label
           style={{
             fontFamily: FONTS.body,
@@ -4720,17 +4936,28 @@ export function FieldRow({
             </span>
           )}
         </label>
-        {optional && (
-          <span
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 11,
-              color: COLORS.inkDim,
-            }}
-          >
-            Optional
-          </span>
-        )}
+        {/* Top-right cluster: visibility chip + optional indicator.
+            Visibility chip moves here (was a wide row below the field)
+            so the field's vertical footprint stays compact. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {visibility && (
+            <ChannelVisibilityStrip
+              value={visibility}
+              onChange={onVisibilityChange}
+            />
+          )}
+          {optional && (
+            <span
+              style={{
+                fontFamily: FONTS.body,
+                fontSize: 11,
+                color: COLORS.inkDim,
+              }}
+            >
+              Optional
+            </span>
+          )}
+        </div>
       </div>
       {children}
       {error ? (
