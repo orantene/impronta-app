@@ -371,7 +371,6 @@ const INQUIRY_CLOSED_STATUSES = [
   "rejected",
   "expired",
   "closed_lost",
-  "cancelled",
   "archived",
   "converted", // legacy alias for booked
   "closed",    // legacy alias for closed_lost
@@ -780,6 +779,165 @@ export async function loadWorkspaceTeamMembers(
     return out;
   } catch (err) {
     logServerError("workspace.loadTeamMembers", err);
+    return [];
+  }
+}
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+//
+// The inquiry_messages table uses:
+//   inquiry_id  uuid
+//   thread_type inquiry_thread_type  ('private' = client thread, 'group' = talent thread)
+//   sender_user_id uuid
+//   body text
+//   created_at timestamptz
+//   tenant_id uuid
+//
+// inquiry_message_reads tracks (inquiry_id, thread_type, user_id, last_read_at).
+
+export type ThreadType = "private" | "group";
+
+export type WorkspaceMessage = {
+  id: string;
+  sender_user_id: string;
+  sender_name: string;
+  body: string;
+  created_at: string;
+  is_mine: boolean;
+};
+
+export type WorkspaceInquiryForMessages = {
+  id: string;
+  status: string;
+  contact_name: string;
+  company: string | null;
+  event_date: string | null;
+  event_location: string | null;
+  quantity: number | null;
+  created_at: string;
+  next_action_by: string | null;
+  /** Total unread messages across both threads for the current user. */
+  unread_count: number;
+};
+
+/**
+ * Load all non-terminal inquiries for the Messages inbox.
+ * Includes unread counts from inquiry_message_reads for the current user.
+ */
+export async function loadInquiriesForMessages(
+  tenantId: string,
+): Promise<WorkspaceInquiryForMessages[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    // Get current user id for unread counting
+    const { data: { user } } = await supabase.auth.getUser();
+    const myUserId = user?.id ?? null;
+
+    const [inquiryRes, readsRes] = await Promise.all([
+      supabase
+        .from("inquiries")
+        .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by")
+        .eq("tenant_id", tenantId)
+        .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`)
+        .order("created_at", { ascending: false })
+        .limit(200),
+
+      myUserId ? supabase
+        .from("inquiry_message_reads")
+        .select("inquiry_id, thread_type, last_read_message_id")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", myUserId) : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    if (inquiryRes.error) {
+      logServerError("workspace.loadInquiriesForMessages.inquiries", inquiryRes.error);
+      return [];
+    }
+
+    // Count unread per inquiry (rough signal: no read receipt = unread)
+    const readMap = new Map<string, Set<string>>();
+    for (const r of (readsRes.data ?? []) as { inquiry_id: string; thread_type: string; last_read_message_id: string | null }[]) {
+      if (!readMap.has(r.inquiry_id)) readMap.set(r.inquiry_id, new Set());
+      readMap.get(r.inquiry_id)!.add(r.thread_type);
+    }
+
+    return (inquiryRes.data ?? []).map((row) => {
+      const reads = readMap.get((row as { id: string }).id);
+      // Simple heuristic: unread_count=1 if missing private read, +1 if missing group read
+      const unread = (reads?.has("private") ? 0 : 1) + (reads?.has("group") ? 0 : 1);
+      return {
+        id: (row as { id: string }).id,
+        status: (row as { status: string }).status,
+        contact_name: (row as { contact_name: string }).contact_name,
+        company: (row as { company: string | null }).company,
+        event_date: (row as { event_date: string | null }).event_date,
+        event_location: (row as { event_location: string | null }).event_location,
+        quantity: (row as { quantity: number | null }).quantity,
+        created_at: (row as { created_at: string }).created_at,
+        next_action_by: (row as { next_action_by: string | null }).next_action_by,
+        unread_count: unread,
+      };
+    });
+  } catch (err) {
+    logServerError("workspace.loadInquiriesForMessages", err);
+    return [];
+  }
+}
+
+/**
+ * Load messages for a specific inquiry thread (private or group).
+ * Returns messages with sender display_name resolved.
+ */
+export async function loadInquiryMessages(
+  tenantId: string,
+  inquiryId: string,
+  threadType: ThreadType,
+): Promise<WorkspaceMessage[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data: { user } } = await supabase.auth.getUser();
+    const myUserId = user?.id ?? null;
+
+    const { data, error } = await supabase
+      .from("inquiry_messages")
+      .select("id, sender_user_id, body, created_at, profiles:sender_user_id(display_name)")
+      .eq("inquiry_id", inquiryId)
+      .eq("thread_type", threadType)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true })
+      .limit(200);
+
+    if (error) {
+      logServerError("workspace.loadInquiryMessages", error);
+      return [];
+    }
+
+    type MsgRow = {
+      id: string;
+      sender_user_id: string;
+      body: string;
+      created_at: string;
+      profiles: { display_name: string | null } | { display_name: string | null }[] | null;
+    };
+
+    return ((data ?? []) as unknown as MsgRow[]).map((row) => {
+      const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+      return {
+        id: row.id,
+        sender_user_id: row.sender_user_id,
+        sender_name: profile?.display_name?.trim() || row.sender_user_id.slice(0, 8),
+        body: row.body,
+        created_at: row.created_at,
+        is_mine: row.sender_user_id === myUserId,
+      };
+    });
+  } catch (err) {
+    logServerError("workspace.loadInquiryMessages", err);
     return [];
   }
 }
