@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadWorkspaceOverviewMetrics } from "../_data-bridge";
+import { loadWorkspaceOverviewMetrics, loadRecentActivity } from "../_data-bridge";
 import { OverviewGreeting } from "./overview-greeting";
 import { TodaysFocusCard } from "./todays-focus-card";
 import { WorkspaceActivationBanner } from "./activation-banner";
@@ -335,13 +335,18 @@ export default async function WorkspaceAdminOverviewPage({
 }) {
   const { tenantSlug } = await params;
 
-  const [scope, session, metrics] = await Promise.all([
+  const [scope, session, metrics, activityItems] = await Promise.all([
     getTenantScopeBySlug(tenantSlug),
     getCachedActorSession(),
     (async () => {
       const s = await getTenantScopeBySlug(tenantSlug);
       if (!s) return null;
       return loadWorkspaceOverviewMetrics(s.tenantId);
+    })(),
+    (async () => {
+      const s = await getTenantScopeBySlug(tenantSlug);
+      if (!s) return [];
+      return loadRecentActivity(s.tenantId);
     })(),
   ]);
 
@@ -533,6 +538,176 @@ export default async function WorkspaceAdminOverviewPage({
         />
       </div>
 
+      {/* ── Recent activity feed ── */}
+      <div style={{ marginTop: 8 }}>
+        {/* Section header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 10,
+          }}
+        >
+          <h2
+            style={{
+              fontFamily: FONT,
+              fontSize: 18,
+              fontWeight: 500,
+              color: C.ink,
+              margin: 0,
+              letterSpacing: -0.2,
+            }}
+          >
+            Recent activity
+          </h2>
+          <Link
+            href={`/${tenantSlug}/admin/work`}
+            style={{
+              fontFamily: FONT,
+              fontSize: 12,
+              fontWeight: 600,
+              color: C.accent,
+              textDecoration: "none",
+            }}
+          >
+            View pipeline →
+          </Link>
+        </div>
+
+        {/* Feed card */}
+        <div
+          style={{
+            background: C.cardBg,
+            border: `1px solid ${C.borderSoft}`,
+            borderRadius: 12,
+            padding: "0 18px",
+          }}
+        >
+          {activityItems.length === 0 ? (
+            <div
+              style={{
+                padding: "24px 0",
+                fontFamily: FONT,
+                fontSize: 13,
+                color: C.inkMuted,
+                textAlign: "center",
+              }}
+            >
+              No activity yet — events appear here as your team works through inquiries.
+            </div>
+          ) : (
+            activityItems.map((ev, i) => (
+              <ActivityFeedRow key={ev.id} ev={ev} divider={i > 0} />
+            ))
+          )}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ─── Activity row ────────────────────────────────────────────────────────────
+
+type ActivityItem = {
+  id: string;
+  event_type: string;
+  actor_name: string | null;
+  actor_role: string;
+  inquiry_contact: string;
+  inquiry_company: string | null;
+  created_at: string;
+};
+
+function activityLabel(ev: ActivityItem): { actor: string; action: string; target: string } {
+  const actor = ev.actor_name ?? (ev.actor_role === "system" ? "System" : "Team");
+  const target = ev.inquiry_company
+    ? `${ev.inquiry_company} (${ev.inquiry_contact})`
+    : ev.inquiry_contact;
+
+  const map: Record<string, string> = {
+    "offer.sent":          "sent an offer to",
+    "offer.accepted":      "accepted offer for",
+    "approval.approved":   "approved inquiry from",
+    "approval.rejected":   "declined inquiry from",
+    "booking.created":     "confirmed booking for",
+    "booking.converted_from_inquiry": "converted inquiry to booking for",
+    "inquiry.cancelled":   "cancelled inquiry from",
+    "participant.status_changed": "updated status for",
+  };
+
+  return {
+    actor,
+    action: map[ev.event_type] ?? ev.event_type.replace(/\./g, " ") + " for",
+    target,
+  };
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60_000);
+  if (m < 2)  return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function activityIcon(eventType: string): string {
+  if (eventType.startsWith("offer")) return "📨";
+  if (eventType.startsWith("booking")) return "✅";
+  if (eventType.startsWith("approval")) return "👍";
+  if (eventType.startsWith("inquiry.cancelled")) return "✖";
+  return "📋";
+}
+
+function ActivityFeedRow({ ev, divider }: { ev: ActivityItem; divider: boolean }) {
+  const { actor, action, target } = activityLabel(ev);
+  const icon = activityIcon(ev.event_type);
+  const ts   = relativeTime(ev.created_at);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        padding: "10px 0",
+        borderTop: divider ? `1px solid ${C.borderSoft}` : "none",
+        fontFamily: FONT,
+      }}
+    >
+      {/* Icon bubble */}
+      <div
+        aria-hidden
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          background: "rgba(11,11,13,0.04)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontSize: 13,
+          color: C.inkMuted,
+        }}
+      >
+        {icon}
+      </div>
+
+      {/* Text */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.4 }}>
+          <strong style={{ fontWeight: 600 }}>{actor}</strong>
+          {" "}{action}{" "}
+          <strong style={{ fontWeight: 500 }}>{target}</strong>
+        </div>
+        <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 2 }}>{ts}</div>
+      </div>
     </div>
   );
 }

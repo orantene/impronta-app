@@ -941,3 +941,139 @@ export async function loadInquiryMessages(
     return [];
   }
 }
+
+// ─── Calendar events ──────────────────────────────────────────────────────────
+
+export type CalendarEvent = {
+  id: string;
+  contact_name: string;
+  company: string | null;
+  event_date: string; // ISO date string "YYYY-MM-DD"
+  status: string;
+};
+
+/**
+ * Load all inquiries with a non-null event_date for the calendar page.
+ * Returns events sorted by event_date ascending so month navigation is fast
+ * client-side (no re-fetch on month change).
+ */
+export async function loadCalendarEvents(
+  tenantId: string,
+): Promise<CalendarEvent[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("inquiries")
+      .select("id, contact_name, company, event_date, status")
+      .eq("tenant_id", tenantId)
+      .not("event_date", "is", null)
+      .order("event_date", { ascending: true })
+      .limit(500);
+
+    if (error) {
+      logServerError("workspace.loadCalendarEvents", error);
+      return [];
+    }
+
+    return (data ?? []).map((row) => ({
+      id: (row as { id: string }).id,
+      contact_name: (row as { contact_name: string }).contact_name,
+      company: (row as { company: string | null }).company,
+      event_date: (row as { event_date: string }).event_date,
+      status: (row as { status: string }).status,
+    }));
+  } catch (err) {
+    logServerError("workspace.loadCalendarEvents", err);
+    return [];
+  }
+}
+
+// ─── Recent activity feed ─────────────────────────────────────────────────────
+
+export type RecentActivityItem = {
+  id: string;
+  event_type: string;
+  actor_name: string | null;
+  actor_role: string;
+  inquiry_contact: string;
+  inquiry_company: string | null;
+  created_at: string;
+};
+
+/**
+ * Load recent workspace activity from inquiry_events for the Overview page.
+ * Joins inquiry context (contact_name, company) and actor profile display_name.
+ * Returns the 10 most recent staff_only + participants events.
+ */
+export async function loadRecentActivity(
+  tenantId: string,
+): Promise<RecentActivityItem[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    // Fetch recent events with inquiry and actor profile context
+    const { data, error } = await supabase
+      .from("inquiry_events")
+      .select(`
+        id,
+        event_type,
+        actor_user_id,
+        actor_role,
+        created_at,
+        inquiries!inner(contact_name, company, tenant_id)
+      `)
+      .eq("inquiries.tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) {
+      logServerError("workspace.loadRecentActivity.events", error);
+      return [];
+    }
+
+    if (!data || data.length === 0) return [];
+
+    // Gather unique actor user IDs to look up display names
+    type EventRow = {
+      id: string;
+      event_type: string;
+      actor_user_id: string | null;
+      actor_role: string;
+      created_at: string;
+      inquiries: { contact_name: string; company: string | null } | null;
+    };
+    const rows = data as unknown as EventRow[];
+
+    const actorIds = [...new Set(rows.map((r) => r.actor_user_id).filter(Boolean) as string[])];
+    let nameMap: Map<string, string> = new Map();
+
+    if (actorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", actorIds);
+      for (const p of (profiles ?? []) as { id: string; display_name: string | null }[]) {
+        if (p.display_name) nameMap.set(p.id, p.display_name);
+      }
+    }
+
+    return rows
+      .filter((r) => r.inquiries)
+      .slice(0, 10)
+      .map((r) => ({
+        id: r.id,
+        event_type: r.event_type,
+        actor_name: r.actor_user_id ? (nameMap.get(r.actor_user_id) ?? null) : null,
+        actor_role: r.actor_role,
+        inquiry_contact: r.inquiries!.contact_name,
+        inquiry_company: r.inquiries!.company,
+        created_at: r.created_at,
+      }));
+  } catch (err) {
+    logServerError("workspace.loadRecentActivity", err);
+    return [];
+  }
+}
