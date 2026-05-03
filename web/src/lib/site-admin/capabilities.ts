@@ -20,9 +20,17 @@
  * capabilities.
  */
 
-import { requireCapability as requireLegacyCapability } from "@/lib/saas/capabilities";
+/**
+ * @deprecated Phase 2 — thin re-export shim. `hasPhase5Capability` and
+ * `requirePhase5Capability` now delegate to `lib/access/`. New code should
+ * import `userHasCapability` / `requireCapability` from `@/lib/access`
+ * directly. This shim will be removed in Phase 4.
+ */
+import {
+  userHasCapability,
+  requireCapability as accessRequireCapability,
+} from "@/lib/access";
 import type { MembershipRole } from "@/lib/saas/tenant";
-import { findTenantMembership } from "@/lib/saas/tenant";
 
 export const PHASE_5_CAPABILITIES = [
   "agency.site_admin.identity.edit",
@@ -87,31 +95,24 @@ export function rolePhase5HasCapability(
   return ROLE_PHASE5_CAPS[role].has(cap);
 }
 
+/**
+ * @deprecated Use `userHasCapability` from `@/lib/access` directly.
+ * Thin shim — delegates to the canonical 10-step resolver.
+ */
 export async function hasPhase5Capability(
   cap: Phase5Capability,
   tenantId: string,
 ): Promise<boolean> {
-  const membership = await findTenantMembership(tenantId);
-  if (!membership) return false;
-  if (membership.status !== "active") return false;
-  return rolePhase5HasCapability(membership.role, cap);
+  return userHasCapability(cap, tenantId);
 }
 
+/**
+ * @deprecated Use `requireCapability` from `@/lib/access` directly.
+ * Thin shim — delegates to the canonical 10-step resolver.
+ */
 export async function requirePhase5Capability(
   cap: Phase5Capability,
   tenantId: string,
 ): Promise<void> {
-  const ok = await hasPhase5Capability(cap, tenantId);
-  if (!ok) {
-    throw new Error(
-      `forbidden: missing capability ${cap} on tenant ${tenantId}`,
-    );
-  }
+  return accessRequireCapability(cap, tenantId);
 }
-
-/**
- * Bridge to the legacy capability enforcement for non-Phase-5 work. Preserves
- * a single mutation entry point: callers pick the right function by the type
- * of capability they check.
- */
-export { requireLegacyCapability };

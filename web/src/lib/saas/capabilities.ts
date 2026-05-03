@@ -1,5 +1,14 @@
+/**
+ * @deprecated Phase 2 — thin re-export shim. `hasCapability` and
+ * `requireCapability` now delegate to `lib/access/`. New code should
+ * import `userHasCapability` / `requireCapability` from `@/lib/access`
+ * directly. This shim will be removed in Phase 4.
+ */
+import {
+  userHasCapability,
+  requireCapability as accessRequireCapability,
+} from "@/lib/access";
 import type { MembershipRole } from "@/lib/saas/tenant";
-import { findTenantMembership } from "@/lib/saas/tenant";
 
 /**
  * Capability model (Plan §4 + Phase 0 deliverable 2).
@@ -115,7 +124,8 @@ export function roleHasCapability(role: MembershipRole, cap: Capability): boolea
 }
 
 /**
- * Returns true if the current user has `cap` for `tenantId`.
+ * @deprecated Use `userHasCapability` from `@/lib/access` directly.
+ * Thin shim — delegates to the canonical 10-step resolver.
  *
  * Pending-acceptance memberships have the same read surface as their role
  * but should NOT be trusted for mutations; mutation checks go through
@@ -125,20 +135,16 @@ export async function hasCapability(
   cap: Capability,
   tenantId: string,
 ): Promise<boolean> {
-  const membership = await findTenantMembership(tenantId);
-  if (!membership) return false;
-  if (membership.status !== "active") return false;
-  return roleHasCapability(membership.role, cap);
+  return userHasCapability(cap, tenantId);
 }
 
+/**
+ * @deprecated Use `requireCapability` from `@/lib/access` directly.
+ * Thin shim — delegates to the canonical 10-step resolver.
+ */
 export async function requireCapability(
   cap: Capability,
   tenantId: string,
 ): Promise<void> {
-  const ok = await hasCapability(cap, tenantId);
-  if (!ok) {
-    throw new Error(
-      `forbidden: missing capability ${cap} on tenant ${tenantId}`,
-    );
-  }
+  return accessRequireCapability(cap, tenantId);
 }
