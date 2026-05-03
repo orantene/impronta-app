@@ -204,7 +204,7 @@ export default async function WorkspaceSitePage({
   if (!canView) notFound();
 
   const canManage = await userHasCapability(
-    "agency.site_admin.manage_settings",
+    "agency.site_admin.branding.edit",
     scope.tenantId,
   );
 
