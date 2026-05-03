@@ -125,6 +125,22 @@ export default async function WorkspaceAdminLayout({
           --admin-card-bg:       #ffffff;
           --admin-nav-idle:      ${C.inkMuted};
           --admin-accent:        ${C.accent};
+
+          /* Override shadcn semantic vars to light workspace values.
+             Pages using bg-card, text-foreground, border-border etc. get
+             the correct light theme instead of inheriting a dark theme. */
+          --background:          ${C.surface};
+          --foreground:          ${C.ink};
+          --card:                #ffffff;
+          --card-foreground:     ${C.ink};
+          --muted-foreground:    ${C.inkMuted};
+          --border:              rgba(24,24,27,0.10);
+        }
+
+        /* Cinzel serif is the old dark-admin identity font.
+           Within the workspace shell, all headings use Inter. */
+        .workspace-admin-root .font-display {
+          font-family: "Inter", system-ui, sans-serif;
         }
       `}</style>
 
