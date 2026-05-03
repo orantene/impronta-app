@@ -207,7 +207,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
         status,
         agency_visibility,
         talent_profile_id,
-        talent_profiles:talent_profile_id (
+        talent_profiles!talent_profile_id (
           id,
           display_name,
           first_name,
