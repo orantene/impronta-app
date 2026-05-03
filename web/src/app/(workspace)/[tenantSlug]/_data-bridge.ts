@@ -28,7 +28,7 @@ export type WorkspaceOverviewMetrics = {
   rosterTotal: number;
   /** Rostered talent with workflow_status = 'published' and roster status = 'active'. */
   rosterPublished: number;
-  /** Active open inquiries (status IN ('new','assigned','pending_offer','offer_sent')). */
+  /** Active open inquiries (status IN ('submitted','coordination','offer_pending','approved')). */
   openInquiries: number;
   /** Active workspace members (agency_memberships.status = 'active'). */
   teamMembers: number;
@@ -36,7 +36,7 @@ export type WorkspaceOverviewMetrics = {
   pendingApprovals: number;
   /** Inquiries waiting for client decision (next_action_by = 'client'). */
   awaitingClientCount: number;
-  /** Inquiries in draft or hold state. */
+  /** Inquiries in draft state. */
   draftInquiryCount: number;
 };
 
@@ -63,7 +63,7 @@ export async function loadWorkspaceOverviewMetrics(
         .from("inquiries")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
-        .in("status", ["new", "assigned", "pending_offer", "offer_sent"]),
+        .in("status", ["submitted", "coordination", "offer_pending", "approved"]),
 
       // Active team members
       supabase
@@ -91,7 +91,7 @@ export async function loadWorkspaceOverviewMetrics(
         .from("inquiries")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
-        .in("status", ["draft", "hold"]),
+        .in("status", ["draft"]),
     ]);
 
     if (rosterRes.error) {
