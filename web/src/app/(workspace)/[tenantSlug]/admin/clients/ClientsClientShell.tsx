@@ -101,11 +101,13 @@ function ClientsStatusStrip({
   const activeCount = clients.filter((c) => c.accountStatus === "active").length;
   const inactiveCount = clients.filter((c) => c.accountStatus !== "active").length;
   const totalInquiries = clients.reduce((sum, c) => sum + c.inquiryCount, 0);
+  const totalBookings = clients.reduce((sum, c) => sum + c.bookingsYTD, 0);
 
-  const items: { id: "active" | "inactive" | "total"; label: string; value: number; tone: string; clickId?: "active" | "inactive" }[] = [
-    { id: "active",   label: "Active",         value: activeCount,    tone: "#2E7D5B",             clickId: "active" },
-    { id: "inactive", label: "Registered",     value: inactiveCount,  tone: "rgba(11,11,13,0.38)", clickId: "inactive" },
-    { id: "total",    label: "Inquiries total", value: totalInquiries, tone: "#3B5E9E" },
+  const items: { id: "active" | "inactive" | "total" | "bookings"; label: string; value: number; tone: string; clickId?: "active" | "inactive" }[] = [
+    { id: "active",   label: "Active",          value: activeCount,    tone: "#2E7D5B",             clickId: "active" },
+    { id: "inactive", label: "Registered",      value: inactiveCount,  tone: "rgba(11,11,13,0.38)", clickId: "inactive" },
+    { id: "total",    label: "Inquiries total",  value: totalInquiries, tone: "#3B5E9E" },
+    { id: "bookings", label: "Bookings YTD",     value: totalBookings,  tone: "#8B4F16" },
   ];
 
   return (
@@ -177,7 +179,7 @@ export function ClientsClientShell({
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
-  const [sort, setSort] = useState<"name" | "inquiries">("name");
+  const [sort, setSort] = useState<"name" | "inquiries" | "bookings">("name");
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -201,6 +203,7 @@ export function ClientsClientShell({
     })
     .sort((a, b) => {
       if (sort === "inquiries") return b.inquiryCount - a.inquiryCount;
+      if (sort === "bookings") return b.bookingsYTD - a.bookingsYTD;
       return a.name.localeCompare(b.name);
     });
 
@@ -214,6 +217,7 @@ export function ClientsClientShell({
         company: c.company ?? "",
         status: c.accountStatus ?? "",
         inquiries: String(c.inquiryCount),
+        bookings_ytd: String(c.bookingsYTD),
       })),
     );
     showToast(`Exported ${filtered.length} rows to CSV`);
@@ -360,6 +364,7 @@ export function ClientsClientShell({
             >
               <option value="name">Name A–Z</option>
               <option value="inquiries">Most inquiries</option>
+              <option value="bookings">Most bookings YTD</option>
             </select>
             {isFiltering && (
               <button
@@ -402,7 +407,7 @@ export function ClientsClientShell({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0,2fr) 100px 120px",
+                gridTemplateColumns: "minmax(0,2fr) 90px 110px 120px",
                 gap: 14,
                 padding: "9px 18px",
                 background: "rgba(11,11,13,0.02)",
@@ -417,6 +422,7 @@ export function ClientsClientShell({
             >
               <span>Client</span>
               <span>Inquiries</span>
+              <span>Bookings YTD</span>
               <span>Status</span>
             </div>
 
@@ -450,7 +456,7 @@ export function ClientsClientShell({
                     key={client.id}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "minmax(0,2fr) 100px 120px",
+                      gridTemplateColumns: "minmax(0,2fr) 90px 110px 120px",
                       alignItems: "center",
                       gap: 14,
                       padding: "13px 18px",
@@ -491,7 +497,14 @@ export function ClientsClientShell({
 
                     {/* Inquiry count */}
                     <div style={{ fontSize: 12, color: C.inkMuted }}>
-                      {client.inquiryCount} {client.inquiryCount === 1 ? "inquiry" : "inquiries"}
+                      {client.inquiryCount} {client.inquiryCount === 1 ? "inq" : "inqs"}
+                    </div>
+
+                    {/* Bookings YTD */}
+                    <div style={{ fontSize: 12, color: client.bookingsYTD > 0 ? C.green : C.inkDim, fontWeight: client.bookingsYTD > 0 ? 600 : 400 }}>
+                      {client.bookingsYTD > 0
+                        ? `${client.bookingsYTD} booking${client.bookingsYTD === 1 ? "" : "s"}`
+                        : "—"}
                     </div>
 
                     {/* Status */}

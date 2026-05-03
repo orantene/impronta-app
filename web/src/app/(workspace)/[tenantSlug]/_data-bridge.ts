@@ -439,6 +439,8 @@ export type WorkspaceClientRow = {
   accountStatus: string | null;
   /** Total inquiries submitted to this tenant */
   inquiryCount: number;
+  /** Confirmed bookings (status in booked/converted) in the current calendar year */
+  bookingsYTD: number;
 };
 
 /**
@@ -455,10 +457,11 @@ export async function loadWorkspaceClients(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
 
-    // Step 1: Get distinct client user IDs + inquiry counts for this tenant.
+    // Step 1: Get all inquiries for this tenant — count all + booked YTD per client.
+    const yearStart = `${new Date().getFullYear()}-01-01`;
     const { data: inquiryAggRows, error: inquiryErr } = await supabase
       .from("inquiries")
-      .select("client_user_id, created_at")
+      .select("client_user_id, created_at, status")
       .eq("tenant_id", tenantId)
       .not("client_user_id", "is", null)
       .order("created_at", { ascending: false });
@@ -468,17 +471,25 @@ export async function loadWorkspaceClients(
       return [];
     }
 
-    // Aggregate: count + track latest per client
-    const clientStats = new Map<string, { count: number; latestAt: string }>();
+    // Aggregate: total inquiries, bookings YTD, latest activity per client
+    const clientStats = new Map<string, { count: number; bookingsYTD: number; latestAt: string }>();
     for (const row of inquiryAggRows ?? []) {
       const uid = (row as { client_user_id: string | null }).client_user_id;
       if (!uid) continue;
-      const existing = clientStats.get(uid);
       const createdAt = (row as { created_at: string }).created_at;
+      const status = (row as { status: string | null }).status;
+      const isBookedThisYear =
+        (status === "booked" || status === "converted") &&
+        createdAt >= yearStart;
+      const existing = clientStats.get(uid);
       if (!existing) {
-        clientStats.set(uid, { count: 1, latestAt: createdAt });
+        clientStats.set(uid, { count: 1, bookingsYTD: isBookedThisYear ? 1 : 0, latestAt: createdAt });
       } else {
-        clientStats.set(uid, { count: existing.count + 1, latestAt: existing.latestAt });
+        clientStats.set(uid, {
+          count: existing.count + 1,
+          bookingsYTD: existing.bookingsYTD + (isBookedThisYear ? 1 : 0),
+          latestAt: existing.latestAt,
+        });
       }
     }
 
@@ -529,6 +540,7 @@ export async function loadWorkspaceClients(
         company: row?.company_name ?? null,
         accountStatus: profile?.account_status ?? null,
         inquiryCount: stats.count,
+        bookingsYTD: stats.bookingsYTD,
       });
     }
 
