@@ -425,3 +425,93 @@ export async function loadWorkspaceClients(
     return [];
   }
 }
+
+// ─── Team members ─────────────────────────────────────────────────────────────
+
+export type WorkspaceTeamMember = {
+  /** profile_id from agency_memberships */
+  id: string;
+  name: string;
+  /** Membership role: viewer | editor | coordinator | admin | owner */
+  role: string;
+  /** Membership status: active | pending_acceptance */
+  status: string;
+  /** ISO timestamp when the membership was accepted or created */
+  joinedAt: string | null;
+};
+
+/**
+ * Load active + pending team members for a workspace.
+ * Ordered by role rank desc (owner first), then by join date asc.
+ *
+ * Returns [] on error. Never falls back to mock data.
+ */
+export async function loadWorkspaceTeamMembers(
+  tenantId: string,
+): Promise<WorkspaceTeamMember[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("agency_memberships")
+      .select(
+        "profile_id, role, status, accepted_at, created_at, profiles:profile_id(display_name)",
+      )
+      .eq("tenant_id", tenantId)
+      .in("status", ["active", "pending_acceptance"])
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      logServerError("workspace.loadTeamMembers", error);
+      return [];
+    }
+
+    type MemberRow = {
+      profile_id: string;
+      role: string;
+      status: string;
+      accepted_at: string | null;
+      created_at: string;
+      profiles:
+        | { display_name: string | null }
+        | { display_name: string | null }[]
+        | null;
+    };
+
+    const ROLE_RANK: Record<string, number> = {
+      owner: 4,
+      admin: 3,
+      coordinator: 2,
+      editor: 1,
+      viewer: 0,
+    };
+
+    const rows = (data ?? []) as unknown as MemberRow[];
+    const out: WorkspaceTeamMember[] = rows.map((row) => {
+      const profileJoin = row.profiles;
+      const profile = Array.isArray(profileJoin) ? profileJoin[0] : profileJoin;
+      const name = profile?.display_name?.trim() || row.profile_id.slice(0, 8);
+      return {
+        id: row.profile_id,
+        name,
+        role: row.role,
+        status: row.status,
+        joinedAt: row.accepted_at ?? row.created_at,
+      };
+    });
+
+    // Sort: higher rank first, then by joinedAt asc
+    out.sort((a, b) => {
+      const ra = ROLE_RANK[a.role] ?? -1;
+      const rb = ROLE_RANK[b.role] ?? -1;
+      if (ra !== rb) return rb - ra;
+      return new Date(a.joinedAt ?? 0).getTime() - new Date(b.joinedAt ?? 0).getTime();
+    });
+
+    return out;
+  } catch (err) {
+    logServerError("workspace.loadTeamMembers", err);
+    return [];
+  }
+}
