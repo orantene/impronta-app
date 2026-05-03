@@ -4,7 +4,11 @@ This project deploys to **Vercel** (project `tulala`, team `oran-tenes-projects`
 
 - Pushes to any branch auto-build a **preview** on Vercel (SSO-gated 401).
 - Push to `phase-1` builds a **preview, not production** — Vercel's internal `link.productionBranch` is stale at `"main"` (Hobby plan won't let us edit). Promote releases with `vercel promote <preview-url> --yes`.
-- Post-deploy GitHub Action (`.github/workflows/vercel-post-deploy-alias.yml`) re-aliases the two ghost-locked domains (`tulala.digital`, `app.tulala.digital`) after every prod deploy. No manual step needed.
+- Post-deploy GitHub Action (`.github/workflows/vercel-post-deploy-alias.yml`) re-aliases the two ghost-locked domains only when triggered by a **GitHub Deployment** event. `vercel promote` does NOT trigger this action — run alias manually after every promote:
+  ```
+  vercel alias set <preview-url> app.tulala.digital --scope oran-tenes-projects
+  vercel alias set <preview-url> tulala.digital --scope oran-tenes-projects
+  ```
 
 ## QA caveat (important for any feature dev)
 

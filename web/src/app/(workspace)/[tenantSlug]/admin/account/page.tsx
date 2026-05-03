@@ -78,7 +78,7 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <p className="flex-none w-32 text-xs text-[var(--admin-nav-idle)]">{label}</p>
+      <p className="flex-none w-32 text-xs text-[var(--admin-workspace-fg)]/50">{label}</p>
       <p className="flex-1 min-w-0 text-sm text-[var(--admin-workspace-fg)] truncate">
         {value}
       </p>
@@ -99,7 +99,7 @@ function RosterUsageBar({
     // Unlimited
     return (
       <div className="flex items-center gap-2 px-4 py-3">
-        <p className="flex-none w-32 text-xs text-[var(--admin-nav-idle)]">
+        <p className="flex-none w-32 text-xs text-[var(--admin-workspace-fg)]/50">
           Roster
         </p>
         <div className="flex-1 flex items-center gap-3">
@@ -119,7 +119,7 @@ function RosterUsageBar({
 
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <p className="flex-none w-32 text-xs text-[var(--admin-nav-idle)]">
+      <p className="flex-none w-32 text-xs text-[var(--admin-workspace-fg)]/50">
         Roster
       </p>
       <div className="flex-1 min-w-0">
@@ -199,7 +199,7 @@ export default async function WorkspaceAccountPage({
               </h2>
               <div className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card-bg)] divide-y divide-[var(--admin-border)]">
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <p className="flex-none w-32 text-xs text-[var(--admin-nav-idle)]">
+                  <p className="flex-none w-32 text-xs text-[var(--admin-workspace-fg)]/50">
                     Current plan
                   </p>
                   <div className="flex items-center gap-2">
