@@ -623,23 +623,33 @@ type ActivityItem = {
 function activityLabel(ev: ActivityItem): { actor: string; action: string; target: string } {
   const actor = ev.actor_name ?? (ev.actor_role === "system" ? "System" : "Team");
   const target = ev.inquiry_company
-    ? `${ev.inquiry_company} (${ev.inquiry_contact})`
+    ? `${ev.inquiry_company} — ${ev.inquiry_contact}`
     : ev.inquiry_contact;
 
+  // Strip the "legacy." prefix added by backfill migration to unrecognized old events
+  const raw = ev.event_type.replace(/^legacy\./, "");
+
   const map: Record<string, string> = {
-    "offer.sent":          "sent an offer to",
-    "offer.accepted":      "accepted offer for",
-    "approval.approved":   "approved inquiry from",
-    "approval.rejected":   "declined inquiry from",
-    "booking.created":     "confirmed booking for",
+    "offer.sent":                     "sent an offer to",
+    "offer.accepted":                 "accepted offer for",
+    "offer.created":                  "drafted an offer for",
+    "offer.draft_updated":            "updated offer draft for",
+    "offer_sent":                     "sent an offer to",
+    "approval.approved":              "approved inquiry from",
+    "approval.rejected":              "declined inquiry from",
+    "approval.submitted":             "submitted approval for",
+    "booking.created":                "confirmed booking for",
     "booking.converted_from_inquiry": "converted inquiry to booking for",
-    "inquiry.cancelled":   "cancelled inquiry from",
-    "participant.status_changed": "updated status for",
+    "inquiry.cancelled":              "cancelled inquiry from",
+    "inquiry.message_sent":           "sent a message about",
+    "inquiry.submitted_v2":           "submitted inquiry from",
+    "inquiry.submitted":              "submitted inquiry from",
+    "participant.status_changed":     "updated status for",
   };
 
   return {
     actor,
-    action: map[ev.event_type] ?? ev.event_type.replace(/\./g, " ") + " for",
+    action: map[raw] ?? raw.replace(/[._]+/g, " ") + " on",
     target,
   };
 }
@@ -657,10 +667,13 @@ function relativeTime(iso: string): string {
 }
 
 function activityIcon(eventType: string): string {
-  if (eventType.startsWith("offer")) return "📨";
-  if (eventType.startsWith("booking")) return "✅";
-  if (eventType.startsWith("approval")) return "👍";
-  if (eventType.startsWith("inquiry.cancelled")) return "✖";
+  const raw = eventType.replace(/^legacy\./, "");
+  if (raw.includes("booking")) return "✅";
+  if (raw.includes("approval.approved") || raw.includes("accepted")) return "👍";
+  if (raw.includes("approval.rejected") || raw.includes("cancelled")) return "✖";
+  if (raw.includes("offer")) return "📨";
+  if (raw.includes("message")) return "💬";
+  if (raw.includes("submitted")) return "📤";
   return "📋";
 }
 
