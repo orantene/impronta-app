@@ -249,3 +249,66 @@ export async function loadWorkspaceRosterForTenant(
     return [];
   }
 }
+
+// ─── Work / Inquiries ────────────────────────────────────────────────────────
+
+/** Terminal statuses excluded from the open Work queue. */
+const INQUIRY_CLOSED_STATUSES = [
+  "booked",
+  "rejected",
+  "expired",
+  "closed_lost",
+  "cancelled",
+  "archived",
+  "converted", // legacy alias for booked
+  "closed",    // legacy alias for closed_lost
+] as const;
+
+export type WorkspaceInquiryRow = {
+  id: string;
+  status: string;
+  contact_name: string;
+  company: string | null;
+  event_date: string | null;
+  event_location: string | null;
+  quantity: number | null;
+  created_at: string;
+  /** next_action_by value: 'admin' | 'coordinator' | 'client' | 'talent' | null */
+  next_action_by: string | null;
+};
+
+/**
+ * Load open inquiries for the Work page. Returns inquiries excluding terminal
+ * statuses, ordered by recency (newest first). Capped at 200 rows — the Work
+ * page is a live queue view, not a full archive.
+ *
+ * Returns [] on error or empty queue. Never falls back to mock data.
+ */
+export async function loadWorkspaceInquiries(
+  tenantId: string,
+): Promise<WorkspaceInquiryRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("inquiries")
+      .select(
+        "id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by",
+      )
+      .eq("tenant_id", tenantId)
+      .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      logServerError("workspace.loadInquiries", error);
+      return [];
+    }
+
+    return (data ?? []) as WorkspaceInquiryRow[];
+  } catch (err) {
+    logServerError("workspace.loadInquiries", err);
+    return [];
+  }
+}
