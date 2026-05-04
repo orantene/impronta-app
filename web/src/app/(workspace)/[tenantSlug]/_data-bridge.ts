@@ -2,7 +2,11 @@ import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
-import { loadClientTrustStatesForTenant } from "@/lib/client-trust/evaluator";
+import {
+  loadClientTrustStatesForTenant,
+  loadClientTrustState,
+  type ClientTrustState,
+} from "@/lib/client-trust/evaluator";
 import { loadFieldCatalog } from "@/lib/profile-fields-service";
 import { loadWorkspaceSubscriptionState, type WorkspaceSubscriptionState } from "@/lib/stripe/workspace-billing";
 import { loadTalentSubscriptionState, type TalentSubscriptionState } from "@/lib/stripe/talent-billing";
@@ -1802,4 +1806,28 @@ export async function loadWorkspaceFieldCatalog(
     logServerError("workspace.loadFieldCatalog", err);
     return [];
   }
+}
+
+// ─── Client trust state (Phase 8.3) ──────────────────────────────────────────
+
+export type { ClientTrustState };
+
+/**
+ * Load the trust state for a client user in a given tenant.
+ * Returns a default Basic state when no row exists yet.
+ */
+export async function loadClientTrustBillingState(
+  userId: string,
+  tenantId: string,
+): Promise<ClientTrustState> {
+  const state = await loadClientTrustState(userId, tenantId);
+  return state ?? {
+    userId,
+    tenantId,
+    trustLevel: "basic",
+    verifiedAt: null,
+    fundedBalanceCents: 0,
+    manualOverride: null,
+    evaluatedAt: new Date().toISOString(),
+  };
 }

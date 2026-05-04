@@ -4,7 +4,9 @@
 import { notFound } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSelfProfile } from "../../_data-bridge";
+import { loadClientSelfProfile, loadClientTrustBillingState } from "../../_data-bridge";
+import { ClientTrustShell } from "./ClientTrustShell";
+import { isStripeConfigured } from "@/lib/stripe/client";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -76,8 +78,12 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
+  const [clientProfile, trustState] = await Promise.all([
+    loadClientSelfProfile(session.user.id, scope.tenantId),
+    loadClientTrustBillingState(session.user.id, scope.tenantId),
+  ]);
   if (!clientProfile) notFound();
+  const stripeEnabled = isStripeConfigured();
 
   const userEmail =
     (session.user.email as string | undefined) ?? "—";
@@ -177,6 +183,15 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
             Email notification preferences will be configurable in a future update.
           </div>
         </Card>
+
+        {/* Phase 8.3 — Trust badge + verification + balance top-up */}
+        <ClientTrustShell
+          tenantSlug={tenantSlug}
+          trustLevel={trustState.trustLevel}
+          verifiedAt={trustState.verifiedAt}
+          fundedBalanceCents={trustState.fundedBalanceCents}
+          stripeEnabled={stripeEnabled}
+        />
       </div>
     </div>
   );

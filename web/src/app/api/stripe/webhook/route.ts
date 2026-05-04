@@ -8,7 +8,10 @@
  *   STRIPE_WEBHOOK_SECRET     — Signing secret from the Stripe Dashboard webhook endpoint
  *
  * Events handled:
- *   checkout.session.completed          → first subscription activated
+ *   checkout.session.completed          → subscription activated OR one-time payment
+ *     • workspace/talent subscriptions  → sync plan to DB
+ *     • client_verification             → set verified_at, re-evaluate trust level
+ *     • client_balance_topup            → append ledger, increment balance, re-evaluate
  *   customer.subscription.updated       → plan change / renewal / cancellation toggle
  *   customer.subscription.deleted       → subscription cancelled → downgrade to free
  *   invoice.payment_failed              → mark past_due
@@ -22,6 +25,10 @@ import { NextResponse } from "next/server";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { syncStripeSubscriptionToDb } from "@/lib/stripe/workspace-billing";
 import { syncTalentSubscriptionToDb } from "@/lib/stripe/talent-billing";
+import {
+  syncClientVerificationToDb,
+  syncClientBalanceTopupToDb,
+} from "@/lib/stripe/client-billing";
 import { logServerError } from "@/lib/server/safe-error";
 import type Stripe from "stripe";
 
@@ -63,6 +70,36 @@ export async function POST(req: Request): Promise<NextResponse> {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+        const checkoutType = session.metadata?.checkout_type;
+
+        // ── One-time payment modes (client trust economics) ─────────────────
+        if (session.mode === "payment") {
+          const userId = session.metadata?.user_id;
+          const tenantId = session.metadata?.tenant_id;
+
+          if (!userId || !tenantId) {
+            logServerError("stripe-webhook.checkout.payment", "Missing user_id or tenant_id in metadata");
+            break;
+          }
+
+          if (checkoutType === "client_verification") {
+            await syncClientVerificationToDb(userId, tenantId);
+          } else if (checkoutType === "client_balance_topup") {
+            const amountCents = parseInt(session.metadata?.amount_cents ?? "0", 10);
+            if (!amountCents) {
+              logServerError("stripe-webhook.checkout.topup", "Missing or zero amount_cents");
+              break;
+            }
+            const paymentIntentId =
+              typeof session.payment_intent === "string"
+                ? session.payment_intent
+                : (session.payment_intent as Stripe.PaymentIntent | null)?.id ?? null;
+            await syncClientBalanceTopupToDb({ userId, tenantId, amountCents, paymentIntentId });
+          }
+          break;
+        }
+
+        // ── Subscription modes (workspace + talent plans) ────────────────────
         if (session.mode !== "subscription") break;
 
         const subId = typeof session.subscription === "string"
@@ -78,10 +115,10 @@ export async function POST(req: Request): Promise<NextResponse> {
           expand: ["items.data.price"],
         });
 
-        const checkoutType = session.metadata?.checkout_type ?? subscription.metadata?.checkout_type;
+        const subCheckoutType = checkoutType ?? subscription.metadata?.checkout_type;
         const planKey = session.metadata?.plan_key ?? subscription.metadata?.plan_key ?? "studio";
 
-        if (checkoutType === "talent_subscription") {
+        if (subCheckoutType === "talent_subscription") {
           await syncTalentSubscriptionToDb(subscription, planKey);
         } else {
           await syncStripeSubscriptionToDb(subscription, planKey);
