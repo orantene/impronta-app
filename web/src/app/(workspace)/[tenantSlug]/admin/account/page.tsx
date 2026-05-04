@@ -1,15 +1,26 @@
 // Phase 3 — canonical workspace Account & Billing page.
 // Server Component — no "use client".
 //
-// Shows plan tier, roster usage, and agency identity for the tenant.
-// Manage-billing CTA gated on manage_billing (admin+).
-// Capability gate: agency.workspace.view (viewer+).
+// Shows plan tier, roster usage, subscription state, and agency identity.
+// Upgrade CTAs wire through Stripe Checkout (paid plans) or direct DB write (free).
+// Manage subscription CTA opens Stripe Billing Portal for active subscribers.
+// Capability gate: agency.workspace.view (viewer+). Billing CTAs: manage_billing (admin+).
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
-import { loadWorkspaceAgencySummary, type WorkspacePlan } from "../../_data-bridge";
+import {
+  loadWorkspaceAgencySummary,
+  loadWorkspaceBillingState,
+  type WorkspacePlan,
+} from "../../_data-bridge";
+import {
+  UpgradePlanButton,
+  ManageSubscriptionButton,
+  SubscriptionStatusBadge,
+} from "./BillingActionButtons";
+import { isStripeConfigured } from "@/lib/stripe/client";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +38,9 @@ const C = {
   surface:    "rgba(11,11,13,0.02)",
   accent:     "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.10)",
+  green:      "#2E7D5B",
+  amber:      "#8A6F1A",
+  amberSoft:  "rgba(180,130,20,0.08)",
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -35,31 +49,35 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 const PLAN_META: Record<
   WorkspacePlan,
-  { label: string; bg: string; color: string; tagline: string }
+  { label: string; bg: string; color: string; tagline: string; price: string | null }
 > = {
   free: {
     label: "Free",
     bg: "rgba(11,11,13,0.07)",
     color: "rgba(11,11,13,0.55)",
     tagline: "Friend-link access only. No commission.",
+    price: null,
   },
   studio: {
     label: "Studio",
     bg: "rgba(180,130,20,0.10)",
     color: "#8A6F1A",
     tagline: "Auto-exclusive roster, ~10–12% commission.",
+    price: "$49 / month",
   },
   agency: {
     label: "Agency",
     bg: "rgba(30,80,160,0.10)",
     color: "#2B5F8A",
     tagline: "Auto-exclusive roster, ~15–20% commission.",
+    price: "$149 / month",
   },
   network: {
     label: "Network",
     bg: "rgba(100,50,200,0.10)",
     color: "#6B3EC2",
     tagline: "Unlimited roster. Platform-wide placement.",
+    price: null,
   },
 };
 
@@ -97,7 +115,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
       <span
         style={{
           flexShrink: 0,
-          width: 120,
+          width: 140,
           fontSize: 12,
           color: C.inkMuted,
         }}
@@ -134,7 +152,7 @@ function RosterUsageBar({ count, limit }: { count: number; limit: number | null 
           fontFamily: FONT,
         }}
       >
-        <span style={{ flexShrink: 0, width: 120, fontSize: 12, color: C.inkMuted }}>Roster</span>
+        <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>Roster</span>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
             {count}
@@ -160,7 +178,7 @@ function RosterUsageBar({ count, limit }: { count: number; limit: number | null 
         fontFamily: FONT,
       }}
     >
-      <span style={{ flexShrink: 0, width: 120, fontSize: 12, color: C.inkMuted }}>Roster</span>
+      <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>Roster</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
           <span
@@ -198,6 +216,10 @@ function RosterUsageBar({ count, limit }: { count: number; limit: number | null 
   );
 }
 
+function Divider() {
+  return <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />;
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function WorkspaceAccountPage({
@@ -213,9 +235,29 @@ export default async function WorkspaceAccountPage({
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
   if (!canView) notFound();
 
-  const canManageBilling = await userHasCapability("manage_billing", scope.tenantId);
+  const [canManageBilling, summary, billingState] = await Promise.all([
+    userHasCapability("manage_billing", scope.tenantId),
+    loadWorkspaceAgencySummary(scope.tenantId),
+    loadWorkspaceBillingState(scope.tenantId),
+  ]);
 
-  const summary = await loadWorkspaceAgencySummary(scope.tenantId);
+  const stripeEnabled = isStripeConfigured();
+  const planMeta = summary ? PLAN_META[summary.plan] : PLAN_META.free;
+
+  // Subscription is "active" when there's a billing record with a non-cancelled status
+  const hasActiveSubscription =
+    !!billingState &&
+    billingState.status !== "cancelled" &&
+    billingState.status !== "incomplete_expired";
+
+  // Format billing period end for display
+  const periodEndLabel = billingState?.currentPeriodEnd
+    ? new Date(billingState.currentPeriodEnd).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
@@ -277,7 +319,7 @@ export default async function WorkspaceAccountPage({
               letterSpacing: -0.1,
             }}
           >
-            Manage →
+            Workspace settings →
           </Link>
         )}
       </div>
@@ -305,37 +347,94 @@ export default async function WorkspaceAccountPage({
                   fontFamily: FONT,
                 }}
               >
-                <span style={{ flexShrink: 0, width: 120, fontSize: 12, color: C.inkMuted }}>
+                <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>
                   Current plan
                 </span>
-                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <span
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
                       padding: "3px 9px",
                       borderRadius: 999,
-                      background: PLAN_META[summary.plan].bg,
-                      color: PLAN_META[summary.plan].color,
+                      background: planMeta.bg,
+                      color: planMeta.color,
                       fontSize: 11.5,
                       fontWeight: 700,
                       letterSpacing: 0.1,
                     }}
                   >
-                    {PLAN_META[summary.plan].label}
+                    {planMeta.label}
                   </span>
                   <span style={{ fontSize: 12, color: C.inkMuted }}>
-                    {PLAN_META[summary.plan].tagline}
+                    {planMeta.tagline}
                   </span>
                 </div>
               </div>
 
-              <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
-
+              <Divider />
               <RosterUsageBar count={summary.talentCount} limit={summary.talentLimit} />
 
-              <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
+              {/* Subscription state rows (only when there's a Stripe record) */}
+              {billingState && (
+                <>
+                  <Divider />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "11px 16px",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>
+                      Billing status
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <SubscriptionStatusBadge status={billingState.status} />
+                      {billingState.cancelAtPeriodEnd && (
+                        <span style={{ fontSize: 11.5, color: C.amber, fontFamily: FONT }}>
+                          Cancels at period end
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
+                  {planMeta.price && (
+                    <>
+                      <Divider />
+                      <DetailRow label="Price" value={planMeta.price} />
+                    </>
+                  )}
+
+                  {periodEndLabel && (
+                    <>
+                      <Divider />
+                      <DetailRow
+                        label={billingState.cancelAtPeriodEnd ? "Access until" : "Next renewal"}
+                        value={periodEndLabel}
+                      />
+                    </>
+                  )}
+
+                  {billingState.trialEnd && billingState.status === "trialing" && (
+                    <>
+                      <Divider />
+                      <DetailRow
+                        label="Trial ends"
+                        value={new Date(billingState.trialEnd).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      />
+                    </>
+                  )}
+                </>
+              )}
+
+              <Divider />
               <DetailRow
                 label="Workspace slug"
                 value={
@@ -345,6 +444,35 @@ export default async function WorkspaceAccountPage({
                 }
               />
             </div>
+
+            {/* Billing CTAs */}
+            {canManageBilling && (
+              <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {hasActiveSubscription ? (
+                  // Existing subscriber → Billing Portal
+                  <ManageSubscriptionButton tenantSlug={tenantSlug} />
+                ) : stripeEnabled && summary.plan === "free" ? (
+                  // Free tier + Stripe configured → show upgrade options
+                  <>
+                    <UpgradePlanButton
+                      plan="studio"
+                      tenantSlug={tenantSlug}
+                      label="Upgrade to Studio — $49/mo"
+                    />
+                    <UpgradePlanButton
+                      plan="agency"
+                      tenantSlug={tenantSlug}
+                      label="Upgrade to Agency — $149/mo"
+                    />
+                  </>
+                ) : !stripeEnabled && summary.plan === "free" ? (
+                  // Stripe not configured yet — show a contact note
+                  <p style={{ fontSize: 12, color: C.inkMuted, margin: 0, fontFamily: FONT }}>
+                    Billing not yet active. Contact support to upgrade.
+                  </p>
+                ) : null}
+              </div>
+            )}
           </section>
 
           {/* ── Agency identity section ── */}
@@ -362,21 +490,21 @@ export default async function WorkspaceAccountPage({
 
               {summary.contactEmail && (
                 <>
-                  <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
+                  <Divider />
                   <DetailRow label="Contact email" value={summary.contactEmail} />
                 </>
               )}
 
               {summary.contactPhone && (
                 <>
-                  <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
+                  <Divider />
                   <DetailRow label="Phone" value={summary.contactPhone} />
                 </>
               )}
 
               {summary.addressCity && (
                 <>
-                  <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
+                  <Divider />
                   <DetailRow
                     label="Location"
                     value={

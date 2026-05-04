@@ -4,6 +4,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import { loadClientTrustStatesForTenant } from "@/lib/client-trust/evaluator";
 import { loadFieldCatalog } from "@/lib/profile-fields-service";
+import { loadWorkspaceSubscriptionState, type WorkspaceSubscriptionState } from "@/lib/stripe/workspace-billing";
 
 // Type-only import — `_state.tsx` is "use client"; import type is erased.
 import type { TalentProfile } from "@/app/prototypes/admin-shell/_state";
@@ -703,6 +704,28 @@ export async function loadWorkspaceAgencySummary(
     };
   } catch (err) {
     logServerError("workspace.loadAgencySummary", err);
+    return null;
+  }
+}
+
+// ─── Billing (Stripe subscription state) ─────────────────────────────────────
+
+export type { WorkspaceSubscriptionState };
+
+/**
+ * Load the current Stripe subscription state for a tenant.
+ * Returns null when the tenant has no active subscription (free tier or
+ * legacy plan). Uses the SSR client so RLS is applied (staff read only).
+ */
+export async function loadWorkspaceBillingState(
+  tenantId: string,
+): Promise<WorkspaceSubscriptionState | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+    return loadWorkspaceSubscriptionState(tenantId, supabase);
+  } catch (err) {
+    logServerError("workspace.loadBillingState", err);
     return null;
   }
 }
