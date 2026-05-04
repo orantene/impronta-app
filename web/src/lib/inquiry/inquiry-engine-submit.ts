@@ -65,6 +65,13 @@ export type SubmitInquiryInput = {
    * the tenant context is not resolvable.
    */
   tenant_id: string;
+  /**
+   * Phase 3.7 — snapshot the client's trust level at submission time so the
+   * pipeline can carry trust signals even after the client's live level changes.
+   * "basic" for unauthenticated guests. Nullable for staff-initiated submissions
+   * where trust is irrelevant.
+   */
+  trust_level_at_submission?: string | null;
 };
 
 export async function submitInquiry(
@@ -113,6 +120,8 @@ export async function submitInquiry(
         // F3 — source attribution fields (nullable for older / staff submissions)
         origin_domain: input.origin_domain ?? null,
         source_workspace_id: input.source_workspace_id ?? null,
+        // Phase 3.7 — trust snapshot at submission time
+        trust_level_at_submission: input.trust_level_at_submission ?? null,
         status: status as never,
         uses_new_engine: true,
         source_type: "agency",

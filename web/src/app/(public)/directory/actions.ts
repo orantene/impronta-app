@@ -17,6 +17,7 @@ import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
 import { getPublicTenantScope, getPublicHostContext } from "@/lib/saas/scope";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
+import { loadClientTrustState } from "@/lib/client-trust/evaluator";
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -423,12 +424,18 @@ export async function submitClientInquiry(
   }
 
   // F3 — resolve origin hostname + source workspace for attribution.
-  const hostCtx = await getPublicHostContext();
+  // Phase 3.7 — snapshot trust level at submission time.
+  const [hostCtx, trustState] = await Promise.all([
+    getPublicHostContext(),
+    loadClientTrustState(user.id, publicScope.tenantId),
+  ]);
   const originDomain = hostCtx.hostname ?? null;
   const sourceWorkspaceId =
     hostCtx.kind === "agency" || hostCtx.kind === "hub"
       ? hostCtx.tenantId
       : null;
+  // Default to "basic" if no trust record exists yet.
+  const trustLevelAtSubmission = trustState?.trustLevel ?? "basic";
 
   const v2 = await submitInquiry(admin, {
     tenant_id: publicScope.tenantId,
@@ -447,6 +454,7 @@ export async function submitClientInquiry(
     source_channel: "directory_client",
     origin_domain: originDomain,
     source_workspace_id: sourceWorkspaceId,
+    trust_level_at_submission: trustLevelAtSubmission,
     client_user_id: user.id,
     talent_profile_ids: talentIds,
     actorUserId: user.id,
@@ -637,6 +645,8 @@ export async function submitGuestInquiry(
       source_channel: "directory_guest" as never,
       origin_domain: guestOriginDomain,
       source_workspace_id: guestSourceWorkspaceId,
+      // Phase 3.7 — guest submissions are always "basic" (no trust record).
+      trust_level_at_submission: "basic",
       status: "new",
       uses_new_engine: true,
       version: 1,

@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadTalentSelfProfile } from "../../_data-bridge";
+import { loadTalentSelfProfile, loadTalentContactPrefs } from "../../_data-bridge";
+import { ContactPrefsShell } from "./ContactPrefsShell";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -89,6 +90,9 @@ export default async function TalentSettingsPage({ params }: { params: PageParam
 
   const talentProfile = await loadTalentSelfProfile(session.user.id, scope.tenantId);
   if (!talentProfile) notFound();
+
+  // Phase 3.7 — contact preferences (null if no record = all tiers open)
+  const contactPrefs = await loadTalentContactPrefs(talentProfile.id, scope.tenantId);
 
   const publicProfileUrl = talentProfile.profileCode
     ? `https://tulala.digital/t/${talentProfile.profileCode}`
@@ -183,6 +187,13 @@ export default async function TalentSettingsPage({ params }: { params: PageParam
           />
         </div>
       </section>
+
+      {/* Phase 3.7 — Contact preferences: per-trust-tier allow/deny toggles */}
+      <ContactPrefsShell
+        tenantSlug={tenantSlug}
+        talentProfileId={talentProfile.id}
+        initialPrefs={contactPrefs}
+      />
 
       {/* Identity info */}
       <div

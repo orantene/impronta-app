@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadClientTrustStatesForTenant } from "@/lib/client-trust/evaluator";
 
 // Type-only import — `_state.tsx` is "use client"; import type is erased.
 import type { TalentProfile } from "@/app/prototypes/admin-shell/_state";
@@ -445,6 +446,8 @@ export type WorkspaceClientRow = {
   inquiryCount: number;
   /** Confirmed bookings (status in booked/converted) in the current calendar year */
   bookingsYTD: number;
+  /** Phase 3.7 — client trust tier for this tenant. null = no trust record (equivalent to basic). */
+  trustLevel: "basic" | "verified" | "silver" | "gold" | null;
 };
 
 /**
@@ -500,13 +503,16 @@ export async function loadWorkspaceClients(
     const userIds = [...clientStats.keys()];
     if (userIds.length === 0) return [];
 
-    // Step 2: Fetch client_profiles + profiles for those users.
-    const { data: profileRows, error: profileErr } = await supabase
-      .from("client_profiles")
-      .select(
-        "user_id, company_name, profiles!inner(display_name, account_status)",
-      )
-      .in("user_id", userIds);
+    // Step 2: Fetch client_profiles + profiles + trust states in parallel.
+    const [profileResult, trustMap] = await Promise.all([
+      supabase
+        .from("client_profiles")
+        .select("user_id, company_name, profiles!inner(display_name, account_status)")
+        .in("user_id", userIds),
+      loadClientTrustStatesForTenant(userIds, tenantId, supabase),
+    ]);
+
+    const { data: profileRows, error: profileErr } = profileResult;
 
     if (profileErr) {
       logServerError("workspace.loadClients.profiles", profileErr);
@@ -545,6 +551,8 @@ export async function loadWorkspaceClients(
         accountStatus: profile?.account_status ?? null,
         inquiryCount: stats.count,
         bookingsYTD: stats.bookingsYTD,
+        // Phase 3.7 — trust level from client_trust_state; null if no record yet.
+        trustLevel: trustMap.get(uid) ?? null,
       });
     }
 
@@ -1610,5 +1618,61 @@ export async function loadClientBookings(
   } catch (err) {
     logServerError("client.loadBookings", err);
     return [];
+  }
+}
+
+// ─── Phase 3.7 — Talent contact preferences ───────────────────────────────────
+
+export type TalentContactPrefs = {
+  talentProfileId: string;
+  allowBasic: boolean;
+  allowVerified: boolean;
+  allowSilver: boolean;
+  allowGold: boolean;
+};
+
+/**
+ * Load contact preferences for a talent profile.
+ * Returns null if no record exists yet (all tiers allowed by default).
+ */
+export async function loadTalentContactPrefs(
+  talentProfileId: string,
+  tenantId: string,
+): Promise<TalentContactPrefs | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from("talent_contact_preferences")
+      .select("talent_profile_id, allow_basic, allow_verified, allow_silver, allow_gold")
+      .eq("talent_profile_id", talentProfileId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (error) {
+      logServerError("talent.loadContactPrefs", error);
+      return null;
+    }
+    if (!data) return null;
+
+    type Row = {
+      talent_profile_id: string;
+      allow_basic: boolean;
+      allow_verified: boolean;
+      allow_silver: boolean;
+      allow_gold: boolean;
+    };
+    const row = data as unknown as Row;
+    return {
+      talentProfileId: row.talent_profile_id,
+      allowBasic: row.allow_basic,
+      allowVerified: row.allow_verified,
+      allowSilver: row.allow_silver,
+      allowGold: row.allow_gold,
+    };
+  } catch (err) {
+    logServerError("talent.loadContactPrefs", err);
+    return null;
   }
 }

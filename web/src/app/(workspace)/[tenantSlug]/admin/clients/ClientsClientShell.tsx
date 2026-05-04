@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import type { WorkspaceClientRow } from "../../_data-bridge";
+import { TrustBadge } from "@/components/trust-badge";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -407,7 +408,7 @@ export function ClientsClientShell({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0,2fr) 90px 110px 120px",
+                gridTemplateColumns: "minmax(0,2fr) 80px 100px 100px 110px",
                 gap: 14,
                 padding: "9px 18px",
                 background: "rgba(11,11,13,0.02)",
@@ -421,6 +422,7 @@ export function ClientsClientShell({
               }}
             >
               <span>Client</span>
+              <span>Trust</span>
               <span>Inquiries</span>
               <span>Bookings YTD</span>
               <span>Status</span>
@@ -456,7 +458,7 @@ export function ClientsClientShell({
                     key={client.id}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "minmax(0,2fr) 90px 110px 120px",
+                      gridTemplateColumns: "minmax(0,2fr) 80px 100px 100px 110px",
                       alignItems: "center",
                       gap: 14,
                       padding: "13px 18px",
@@ -493,6 +495,11 @@ export function ClientsClientShell({
                           </div>
                         )}
                       </div>
+                    </div>
+
+                    {/* Trust badge */}
+                    <div>
+                      <TrustBadge level={client.trustLevel ?? "basic"} size="sm" />
                     </div>
 
                     {/* Inquiry count */}
