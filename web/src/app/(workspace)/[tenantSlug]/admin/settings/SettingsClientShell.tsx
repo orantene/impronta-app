@@ -5,7 +5,7 @@
 // Accordion sections within each tab.
 
 import { useState } from "react";
-import type { WorkspaceTeamMember, WorkspaceAgencySummary } from "../../_data-bridge";
+import type { WorkspaceTeamMember, WorkspaceAgencySummary, WorkspaceFieldGroup } from "../../_data-bridge";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -235,18 +235,21 @@ function SettingsRow({
 
 // ─── Main shell ───────────────────────────────────────────────────────────────
 
-type SettingsTab = "workspace" | "roster" | "team" | "plan" | "advanced";
+type SettingsTab = "workspace" | "roster" | "team" | "plan" | "fields" | "advanced";
 
 export function SettingsClientShell({
   summary,
   teamMembers,
   canManageTeam,
   tenantSlug,
+  fieldGroups,
 }: {
   summary: WorkspaceAgencySummary | null;
   teamMembers: WorkspaceTeamMember[];
   canManageTeam: boolean;
   tenantSlug: string;
+  /** F2 — field catalog from profile_field_definitions with workspace overrides */
+  fieldGroups: WorkspaceFieldGroup[];
 }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
   const [openSections, setOpenSections] = useState<Set<string>>(
@@ -269,6 +272,7 @@ export function SettingsClientShell({
     { id: "roster",    label: "Roster",              emoji: "🎯" },
     { id: "team",      label: "Team & legal",        emoji: "👥" },
     { id: "plan",      label: "Plan & integrations", emoji: "💳" },
+    { id: "fields",    label: "Fields",              emoji: "📋" },
     { id: "advanced",  label: "Advanced",            emoji: "⚙" },
   ];
 
@@ -634,6 +638,156 @@ export function SettingsClientShell({
                 Integrations available via workspace settings.
               </div>
             </AccordionItem>
+          </>
+        )}
+
+        {/* ── Fields tab (F2 cutover — reads profile_field_definitions) ── */}
+        {activeTab === "fields" && (
+          <>
+            {/* Intro */}
+            <div
+              style={{
+                padding: "14px 16px",
+                background: C.white,
+                border: `1px solid ${C.borderSoft}`,
+                borderRadius: 12,
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, marginBottom: 3, fontFamily: FONT }}>
+                Profile field catalog
+              </div>
+              <div style={{ fontSize: 12.5, color: C.inkMuted, fontFamily: FONT, lineHeight: 1.5 }}>
+                These fields power talent profile pages, the directory, and registration flows.
+                Universal fields are always active. Global and type-specific fields can be
+                enabled or disabled for your workspace. Workspace-level overrides do not affect
+                the platform catalog — only your agency's views.
+              </div>
+            </div>
+
+            {/* One accordion per tier group */}
+            {fieldGroups.length === 0 ? (
+              <div style={{ padding: "32px 24px", textAlign: "center", color: C.inkMuted, fontSize: 13, fontFamily: FONT }}>
+                Field catalog unavailable.
+              </div>
+            ) : (
+              fieldGroups.map((group) => {
+                const TIER_LABELS: Record<string, string> = {
+                  universal:     "Universal",
+                  global:        "Global",
+                  "type-specific": "Type-Specific",
+                };
+                const TIER_DESC: Record<string, string> = {
+                  universal:     "Required for all talent — cannot be disabled.",
+                  global:        "Cross-type optional fields. Most talent fill these over time.",
+                  "type-specific": "Only relevant for specific talent types.",
+                };
+                return (
+                  <AccordionItem
+                    key={group.tier}
+                    id={`fields-${group.tier}`}
+                    label={`${TIER_LABELS[group.tier] ?? group.tier} (${group.fields.length})`}
+                    desc={TIER_DESC[group.tier] ?? ""}
+                    open={openSections.has(`fields-${group.tier}`)}
+                    onToggle={() => toggleSection(`fields-${group.tier}`)}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0,2fr) 100px 80px 80px",
+                        gap: 10,
+                        padding: "7px 16px",
+                        background: "rgba(11,11,13,0.02)",
+                        borderBottom: `1px solid ${C.borderSoft}`,
+                        fontFamily: FONT,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: 0.8,
+                        textTransform: "uppercase",
+                        color: C.inkMuted,
+                      }}
+                    >
+                      <span>Field</span>
+                      <span>Kind</span>
+                      <span>Public</span>
+                      <span>Status</span>
+                    </div>
+                    {group.fields.map((f, i) => (
+                      <div
+                        key={f.fieldKey}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0,2fr) 100px 80px 80px",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "10px 16px",
+                          borderTop: i > 0 ? `1px solid ${C.borderSoft}` : "none",
+                          fontFamily: FONT,
+                        }}
+                      >
+                        {/* Field name + key */}
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
+                            {f.label}
+                          </div>
+                          <div style={{ fontSize: 11, color: C.inkDim, fontFamily: '"Fira Code", monospace', marginTop: 1 }}>
+                            {f.fieldKey}
+                          </div>
+                        </div>
+                        {/* Kind */}
+                        <div style={{ fontSize: 11.5, color: C.inkMuted, textTransform: "capitalize" }}>
+                          {f.kind.replace(/_/g, " ")}
+                        </div>
+                        {/* Public */}
+                        <div>
+                          <span
+                            style={{
+                              fontSize: 10.5,
+                              fontWeight: 600,
+                              color: f.showInPublic ? C.greenDeep : C.inkDim,
+                            }}
+                          >
+                            {f.showInPublic ? "Yes" : "No"}
+                          </span>
+                        </div>
+                        {/* Status */}
+                        <div>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "2px 7px",
+                              borderRadius: 999,
+                              fontSize: 10,
+                              fontWeight: 600,
+                              background: f.enabled
+                                ? "rgba(46,125,91,0.08)"
+                                : "rgba(11,11,13,0.05)",
+                              color: f.enabled ? C.greenDeep : C.inkMuted,
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 5,
+                                height: 5,
+                                borderRadius: "50%",
+                                background: f.enabled ? C.green : C.inkMuted,
+                              }}
+                            />
+                            {f.enabled ? "Active" : "Off"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </AccordionItem>
+                );
+              })
+            )}
+
+            <div style={{ padding: "10px 16px", color: C.inkDim, fontSize: 11.5, fontFamily: FONT, lineHeight: 1.5 }}>
+              Full field configuration (required/optional overrides, custom labels, workspace-specific order) available in a future release.
+            </div>
           </>
         )}
 

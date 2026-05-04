@@ -4,7 +4,7 @@
 import { notFound } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
-import { loadWorkspaceTeamMembers, loadWorkspaceAgencySummary } from "../../_data-bridge";
+import { loadWorkspaceTeamMembers, loadWorkspaceAgencySummary, loadWorkspaceFieldCatalog } from "../../_data-bridge";
 import { SettingsClientShell } from "./SettingsClientShell";
 
 export const dynamic = "force-dynamic";
@@ -24,10 +24,11 @@ export default async function WorkspaceSettingsPage({
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
   if (!canView) notFound();
 
-  const [canManageTeam, teamMembers, summary] = await Promise.all([
+  const [canManageTeam, teamMembers, summary, fieldGroups] = await Promise.all([
     userHasCapability("manage_memberships", scope.tenantId),
     loadWorkspaceTeamMembers(scope.tenantId),
     loadWorkspaceAgencySummary(scope.tenantId),
+    loadWorkspaceFieldCatalog(scope.tenantId),
   ]);
 
   return (
@@ -36,6 +37,7 @@ export default async function WorkspaceSettingsPage({
       teamMembers={teamMembers}
       canManageTeam={canManageTeam}
       tenantSlug={tenantSlug}
+      fieldGroups={fieldGroups}
     />
   );
 }

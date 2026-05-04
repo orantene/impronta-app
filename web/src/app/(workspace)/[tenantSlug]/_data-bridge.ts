@@ -3,6 +3,7 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadClientTrustStatesForTenant } from "@/lib/client-trust/evaluator";
+import { loadFieldCatalog } from "@/lib/profile-fields-service";
 
 // Type-only import — `_state.tsx` is "use client"; import type is erased.
 import type { TalentProfile } from "@/app/prototypes/admin-shell/_state";
@@ -1674,5 +1675,71 @@ export async function loadTalentContactPrefs(
   } catch (err) {
     logServerError("talent.loadContactPrefs", err);
     return null;
+  }
+}
+
+// ─── F2 — Workspace field catalog (profile_field_definitions) ─────────────────
+
+export type WorkspaceFieldEntry = {
+  fieldKey: string;
+  label: string;
+  tier: "universal" | "global" | "type-specific";
+  section: string;
+  kind: string;
+  enabled: boolean;
+  adminOnly: boolean;
+  showInPublic: boolean;
+  talentEditable: boolean;
+};
+
+export type WorkspaceFieldGroup = {
+  tier: "universal" | "global" | "type-specific";
+  fields: WorkspaceFieldEntry[];
+};
+
+/**
+ * Load the field catalog for workspace settings display (F2 cutover).
+ * Reads profile_field_definitions via loadFieldCatalog() with workspace
+ * overrides from workspace_profile_field_settings.
+ *
+ * Groups fields by tier for the settings "Fields" tab.
+ * Returns empty groups on error — never throws.
+ */
+export async function loadWorkspaceFieldCatalog(
+  tenantId: string,
+): Promise<WorkspaceFieldGroup[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const resolved = await loadFieldCatalog(supabase, { tenantId });
+
+    const byTier = new Map<"universal" | "global" | "type-specific", WorkspaceFieldEntry[]>();
+    const tiers: ("universal" | "global" | "type-specific")[] = ["universal", "global", "type-specific"];
+    for (const tier of tiers) byTier.set(tier, []);
+
+    for (const f of resolved) {
+      const tier = f.tier as "universal" | "global" | "type-specific";
+      const list = byTier.get(tier) ?? [];
+      list.push({
+        fieldKey: f.fieldKey,
+        label: f.label,
+        tier,
+        section: f.section,
+        kind: f.kind,
+        enabled: f.enabled,
+        adminOnly: f.adminOnly,
+        showInPublic: f.showInPublic,
+        talentEditable: f.talentEditable,
+      });
+      byTier.set(tier, list);
+    }
+
+    return tiers
+      .map((tier) => ({ tier, fields: byTier.get(tier) ?? [] }))
+      .filter((g) => g.fields.length > 0);
+  } catch (err) {
+    logServerError("workspace.loadFieldCatalog", err);
+    return [];
   }
 }
