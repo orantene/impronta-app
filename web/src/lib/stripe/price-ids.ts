@@ -36,14 +36,48 @@ const ENV_MAP: Record<WorkspacePlanKey, Record<BillingInterval, string>> = {
 };
 
 /**
- * Returns the Stripe Price ID for a given plan + interval, or null when
- * the environment variable is not set.
+ * Returns the Stripe Price ID for a given workspace plan + interval, or null
+ * when the environment variable is not set.
  */
 export function getWorkspacePriceId(
   plan: WorkspacePlanKey,
   interval: BillingInterval = "monthly",
 ): string | null {
   const envKey = ENV_MAP[plan]?.[interval];
+  if (!envKey) return null;
+  return process.env[envKey]?.trim() || null;
+}
+
+// ─── Talent plan price IDs ────────────────────────────────────────────────────
+//
+// Env vars:
+//   STRIPE_PRICE_TALENT_PRO_MONTHLY        e.g. price_1PxxxxxxxxxxxxTalentProMonthly
+//   STRIPE_PRICE_TALENT_PRO_ANNUAL         e.g. price_1PxxxxxxxxxxxxTalentProAnnual
+//   STRIPE_PRICE_TALENT_PORTFOLIO_MONTHLY  e.g. price_1PxxxxxxxxxxxxPortfolioMonthly
+//   STRIPE_PRICE_TALENT_PORTFOLIO_ANNUAL   e.g. price_1PxxxxxxxxxxxxPortfolioAnnual
+
+export type TalentPlanKey = "talent_pro" | "talent_portfolio";
+
+const TALENT_ENV_MAP: Record<TalentPlanKey, Record<BillingInterval, string>> = {
+  talent_pro: {
+    monthly: "STRIPE_PRICE_TALENT_PRO_MONTHLY",
+    annual:  "STRIPE_PRICE_TALENT_PRO_ANNUAL",
+  },
+  talent_portfolio: {
+    monthly: "STRIPE_PRICE_TALENT_PORTFOLIO_MONTHLY",
+    annual:  "STRIPE_PRICE_TALENT_PORTFOLIO_ANNUAL",
+  },
+};
+
+/**
+ * Returns the Stripe Price ID for a given talent plan + interval, or null
+ * when the environment variable is not set.
+ */
+export function getTalentPriceId(
+  plan: TalentPlanKey,
+  interval: BillingInterval = "monthly",
+): string | null {
+  const envKey = TALENT_ENV_MAP[plan]?.[interval];
   if (!envKey) return null;
   return process.env[envKey]?.trim() || null;
 }

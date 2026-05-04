@@ -5,6 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadClientTrustStatesForTenant } from "@/lib/client-trust/evaluator";
 import { loadFieldCatalog } from "@/lib/profile-fields-service";
 import { loadWorkspaceSubscriptionState, type WorkspaceSubscriptionState } from "@/lib/stripe/workspace-billing";
+import { loadTalentSubscriptionState, type TalentSubscriptionState } from "@/lib/stripe/talent-billing";
 
 // Type-only import — `_state.tsx` is "use client"; import type is erased.
 import type { TalentProfile } from "@/app/prototypes/admin-shell/_state";
@@ -727,6 +728,42 @@ export async function loadWorkspaceBillingState(
   } catch (err) {
     logServerError("workspace.loadBillingState", err);
     return null;
+  }
+}
+
+// ─── Talent billing ───────────────────────────────────────────────────────────
+
+export type { TalentSubscriptionState };
+
+/**
+ * Load the Stripe subscription state for a talent profile.
+ * Returns null when the talent is on Basic (free — no subscription row).
+ * Also reads talent_plan_key directly from talent_profiles for the current tier.
+ */
+export async function loadTalentBillingState(
+  talentProfileId: string,
+): Promise<{ planKey: string; subscription: TalentSubscriptionState | null }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return { planKey: "talent_basic", subscription: null };
+
+    const [profileRes, subscriptionState] = await Promise.all([
+      supabase
+        .from("talent_profiles")
+        .select("talent_plan_key")
+        .eq("id", talentProfileId)
+        .maybeSingle(),
+      loadTalentSubscriptionState(talentProfileId, supabase),
+    ]);
+
+    const planKey =
+      (profileRes.data as { talent_plan_key: string } | null)?.talent_plan_key
+        ?? "talent_basic";
+
+    return { planKey, subscription: subscriptionState };
+  } catch (err) {
+    logServerError("workspace.loadTalentBillingState", err);
+    return { planKey: "talent_basic", subscription: null };
   }
 }
 

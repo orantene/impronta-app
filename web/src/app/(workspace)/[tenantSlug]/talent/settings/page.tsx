@@ -5,8 +5,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadTalentSelfProfile, loadTalentContactPrefs } from "../../_data-bridge";
+import { loadTalentSelfProfile, loadTalentContactPrefs, loadTalentBillingState } from "../../_data-bridge";
 import { ContactPrefsShell } from "./ContactPrefsShell";
+import { TalentSubscriptionShell } from "./TalentSubscriptionShell";
+import { isStripeConfigured } from "@/lib/stripe/client";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -92,7 +94,12 @@ export default async function TalentSettingsPage({ params }: { params: PageParam
   if (!talentProfile) notFound();
 
   // Phase 3.7 — contact preferences (null if no record = all tiers open)
-  const contactPrefs = await loadTalentContactPrefs(talentProfile.id, scope.tenantId);
+  // Phase 8.2 — talent subscription billing state
+  const [contactPrefs, billing] = await Promise.all([
+    loadTalentContactPrefs(talentProfile.id, scope.tenantId),
+    loadTalentBillingState(talentProfile.id),
+  ]);
+  const stripeEnabled = isStripeConfigured();
 
   const publicProfileUrl = talentProfile.profileCode
     ? `https://tulala.digital/t/${talentProfile.profileCode}`
@@ -193,6 +200,14 @@ export default async function TalentSettingsPage({ params }: { params: PageParam
         tenantSlug={tenantSlug}
         talentProfileId={talentProfile.id}
         initialPrefs={contactPrefs}
+      />
+
+      {/* Phase 8.2 — Personal page plan / talent subscription */}
+      <TalentSubscriptionShell
+        tenantSlug={tenantSlug}
+        planKey={billing.planKey}
+        subscription={billing.subscription}
+        stripeEnabled={stripeEnabled}
       />
 
       {/* Identity info */}

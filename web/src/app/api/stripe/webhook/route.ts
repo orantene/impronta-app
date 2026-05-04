@@ -21,6 +21,7 @@
 import { NextResponse } from "next/server";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { syncStripeSubscriptionToDb } from "@/lib/stripe/workspace-billing";
+import { syncTalentSubscriptionToDb } from "@/lib/stripe/talent-billing";
 import { logServerError } from "@/lib/server/safe-error";
 import type Stripe from "stripe";
 
@@ -64,7 +65,6 @@ export async function POST(req: Request): Promise<NextResponse> {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.mode !== "subscription") break;
 
-        // Retrieve the full subscription object to get period dates etc.
         const subId = typeof session.subscription === "string"
           ? session.subscription
           : session.subscription?.id;
@@ -78,44 +78,59 @@ export async function POST(req: Request): Promise<NextResponse> {
           expand: ["items.data.price"],
         });
 
-        const planKey = (
-          session.metadata?.plan_key ??
-          subscription.metadata?.plan_key ??
-          "studio"
-        );
+        const checkoutType = session.metadata?.checkout_type ?? subscription.metadata?.checkout_type;
+        const planKey = session.metadata?.plan_key ?? subscription.metadata?.plan_key ?? "studio";
 
-        await syncStripeSubscriptionToDb(subscription, planKey);
+        if (checkoutType === "talent_subscription") {
+          await syncTalentSubscriptionToDb(subscription, planKey);
+        } else {
+          await syncStripeSubscriptionToDb(subscription, planKey);
+        }
         break;
       }
 
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
+        const checkoutType = subscription.metadata?.checkout_type;
         const planKey = subscription.metadata?.plan_key ?? "studio";
-        await syncStripeSubscriptionToDb(subscription, planKey);
+
+        if (checkoutType === "talent_subscription") {
+          await syncTalentSubscriptionToDb(subscription, planKey);
+        } else {
+          await syncStripeSubscriptionToDb(subscription, planKey);
+        }
         break;
       }
 
       case "customer.subscription.deleted": {
-        // Stripe sends this when a subscription is fully cancelled (period ended
-        // after cancel_at_period_end, or immediately cancelled).
         const subscription = event.data.object as Stripe.Subscription;
+        const checkoutType = subscription.metadata?.checkout_type;
         const planKey = subscription.metadata?.plan_key ?? "studio";
-        // syncStripeSubscriptionToDb maps "canceled" → "cancelled" → plan_tier="free"
-        await syncStripeSubscriptionToDb(subscription, planKey);
+
+        if (checkoutType === "talent_subscription") {
+          await syncTalentSubscriptionToDb(subscription, planKey);
+        } else {
+          await syncStripeSubscriptionToDb(subscription, planKey);
+        }
         break;
       }
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        // Stripe v22: subscription moved to invoice.parent.subscription_details.subscription
         const subRef = invoice.parent?.subscription_details?.subscription;
         const subId = typeof subRef === "string" ? subRef : subRef?.id;
 
         if (!subId) break;
 
         const subscription = await stripe.subscriptions.retrieve(subId);
+        const checkoutType = subscription.metadata?.checkout_type;
         const planKey = subscription.metadata?.plan_key ?? "studio";
-        await syncStripeSubscriptionToDb(subscription, planKey);
+
+        if (checkoutType === "talent_subscription") {
+          await syncTalentSubscriptionToDb(subscription, planKey);
+        } else {
+          await syncStripeSubscriptionToDb(subscription, planKey);
+        }
         break;
       }
 
