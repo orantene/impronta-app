@@ -34,6 +34,7 @@ const TABS = [
   { id: "clients",     label: "Clients",     segment: "clients"         },
   { id: "operations",  label: "Operations",  segment: "operations"      },
   { id: "production",  label: "Production",  segment: "production"      },
+  { id: "site",        label: "Website",     segment: "site"            },
   { id: "settings",    label: "Settings",    segment: "settings"        },
 ] as const;
 
