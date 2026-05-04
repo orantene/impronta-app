@@ -12,7 +12,7 @@
  *   -----------|------|--------|--------------|------|------------|------------|----------------|---------|-----------|---------------
  *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |     ✓      |       ✓        |    ✓    |           |       ✓
  *   app        |  ✓   |   ✓    |      ✓       |  ✓   |            |     ✓      |                |    ✓    |           |       ✓
- *   hub        |  ✓   |   ✓    |      ✓       |      |            |            |                |         |           |
+ *   hub        |  ✓   |   ✓    |      ✓       |  ✓   |            |  slugs ✓   |                |         |           |
  *   marketing  |  ✓   |   ✓    |      ✓       |      |            |            |                |         |    ✓      |
  *
  *   static        → `/sitemap.xml`, `/robots.txt` (handlers generate their
@@ -31,14 +31,15 @@
  *   appears under both "storefront api" and "app api".
  *
  * Auth-surface policy (documented here so it's alongside the gate):
- *   `/login` + `/register` are allowed on **agency** hosts as well as the
- *   app host. Rationale: the public header includes a sign-in link that
- *   must land on a working page under the current agency brand. Risks:
- *   two auth entry points increase the blast radius of any auth bug and
- *   split the cookie scope conversation across hostnames. Future direction:
- *   centralize the auth surface on the app host and have the agency header
- *   deep-link to `app.impronta.group/login?next=…`. Do not change without
- *   a product decision — see Decision Log for this gate.
+ *   `/login` + `/register` are allowed on **agency** and **hub** hosts as
+ *   well as the app host. Rationale: the public header includes a sign-in
+ *   link that must land on a working page under the current host, and the hub
+ *   now serves workspace-slug paths (Phase 3.15) so unauthenticated workspace
+ *   requests must be able to redirect to `/login` without hitting a 404.
+ *   Risks: multiple auth entry points increase the blast radius of any auth
+ *   bug. Future direction: centralize auth on the app host and have agency /
+ *   hub headers deep-link to `app.tulala.digital/login?next=…`. Do not
+ *   change without a product decision — see Decision Log for this gate.
  *
  * The root `/` is always allowed and kind-branches its content in
  * `app/page.tsx`. Per-route API handlers keep their own kind-aware gates
@@ -280,6 +281,18 @@ export function isPathAllowedForHostKind(
     return anyPrefix(pathname, MARKETING_PAGE_PREFIXES);
   }
 
-  // hub: root, static, shared-api only.
+  // Phase 3.15 — hub: root + static + shared-api (above) + auth + workspace
+  // slug paths. The hub surface (tulala.digital) is the cross-tenant public
+  // directory and also serves as an entry point to any tenant workspace via
+  // the canonical path pattern /<tenantSlug>/{admin,talent,client}. Auth
+  // paths are required so that unauthenticated workspace-slug requests can
+  // redirect to /login without 404ing.
+  if (kind === "hub") {
+    return (
+      anyPrefix(pathname, AUTH_PREFIXES) ||
+      isWorkspaceSlugPath(pathname)
+    );
+  }
+
   return false;
 }
