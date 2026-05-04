@@ -44,6 +44,20 @@ export type SubmitInquiryInput = {
   talent_profile_ids: string[];
   actorUserId: string;
   /**
+   * F3 — origin_domain is the exact hostname where the inquiry form was
+   * submitted (e.g. "improntamodels.com", "tulala.digital"). Read from the
+   * x-impronta-host-name header via getPublicHostContext(). Nullable: callers
+   * that cannot read headers (e.g. staff admin submissions) leave it null.
+   */
+  origin_domain?: string | null;
+  /**
+   * F3 — source_workspace_id is the agency tenant whose storefront originated
+   * the inquiry. For agency-storefront submissions this equals tenant_id. For
+   * hub-originated submissions it equals the hub tenant_id. Nullable for the
+   * same reasons as origin_domain.
+   */
+  source_workspace_id?: string | null;
+  /**
    * Tenant (agency) that owns this inquiry. SaaS P1.B: required.
    * For public storefront submissions, resolve via `getPublicTenantScope()`.
    * For staff-initiated submissions, resolve via `getTenantScope()`.
@@ -96,6 +110,9 @@ export async function submitInquiry(
         interpreted_query: input.interpreted_query ?? null,
         source_page: input.source_page ?? null,
         source_channel: input.source_channel as never,
+        // F3 — source attribution fields (nullable for older / staff submissions)
+        origin_domain: input.origin_domain ?? null,
+        source_workspace_id: input.source_workspace_id ?? null,
         status: status as never,
         uses_new_engine: true,
         source_type: "agency",

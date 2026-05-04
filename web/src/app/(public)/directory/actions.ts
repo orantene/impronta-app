@@ -15,7 +15,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
-import { getPublicTenantScope } from "@/lib/saas/scope";
+import { getPublicTenantScope, getPublicHostContext } from "@/lib/saas/scope";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 
 const GUEST_HEADER = "x-impronta-guest";
@@ -422,6 +422,14 @@ export async function submitClientInquiry(
     return { error: t("public.forms.inquiry.supabaseNotConfigured") };
   }
 
+  // F3 — resolve origin hostname + source workspace for attribution.
+  const hostCtx = await getPublicHostContext();
+  const originDomain = hostCtx.hostname ?? null;
+  const sourceWorkspaceId =
+    hostCtx.kind === "agency" || hostCtx.kind === "hub"
+      ? hostCtx.tenantId
+      : null;
+
   const v2 = await submitInquiry(admin, {
     tenant_id: publicScope.tenantId,
     contact_name,
@@ -437,6 +445,8 @@ export async function submitClientInquiry(
     interpreted_query,
     source_page: source_page || "/directory",
     source_channel: "directory_client",
+    origin_domain: originDomain,
+    source_workspace_id: sourceWorkspaceId,
     client_user_id: user.id,
     talent_profile_ids: talentIds,
     actorUserId: user.id,
@@ -580,6 +590,14 @@ export async function submitGuestInquiry(
     submittedVia: "guest",
   });
 
+  // F3 — resolve origin hostname + source workspace for attribution.
+  const guestHostCtx = await getPublicHostContext();
+  const guestOriginDomain = guestHostCtx.hostname ?? null;
+  const guestSourceWorkspaceId =
+    guestHostCtx.kind === "agency" || guestHostCtx.kind === "hub"
+      ? guestHostCtx.tenantId
+      : null;
+
   const { data: guestSession, error: guestErr } = await admin
     .from("guest_sessions")
     .select("id")
@@ -617,6 +635,8 @@ export async function submitGuestInquiry(
       interpreted_query,
       source_page: source_page || "/directory",
       source_channel: "directory_guest" as never,
+      origin_domain: guestOriginDomain,
+      source_workspace_id: guestSourceWorkspaceId,
       status: "new",
       uses_new_engine: true,
       version: 1,
