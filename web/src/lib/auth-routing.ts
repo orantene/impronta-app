@@ -33,7 +33,15 @@ function isAuthFlowPath(pathname: string): boolean {
     pathname.startsWith("/onboarding") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/login") ||
-    pathname.startsWith("/register")
+    pathname.startsWith("/register") ||
+    // Phase 3.14 — role-specific registration entry points on agency domains.
+    // These live in the (auth) route group (unauthenticated-accessible) but
+    // sit under /talent/ and /client/ URL segments, which auth-routing
+    // ordinarily treats as dashboard paths requiring auth. Treat them as
+    // auth flow paths so unauthenticated visitors can reach them directly
+    // (e.g. improntamodels.com/talent/register).
+    pathname === "/talent/register" ||
+    pathname === "/client/register"
   );
 }
 
@@ -68,7 +76,15 @@ export function resolveAuthRoutingDecision({
     };
   }
 
-  if (userId && (pathname === "/login" || pathname === "/register")) {
+  if (
+    userId &&
+    (pathname === "/login" ||
+      pathname === "/register" ||
+      // Phase 3.14 — redirect already-logged-in users away from the
+      // role-specific register pages, just as we do for /register.
+      pathname === "/talent/register" ||
+      pathname === "/client/register")
+  ) {
     return {
       redirectTo: dashboardDestination,
       loginNext: null,
@@ -77,7 +93,9 @@ export function resolveAuthRoutingDecision({
     };
   }
 
-  if (!isDashboardPath) {
+  // Auth flow paths (including role-specific register pages) are reachable
+  // without auth even when isDashboardPath is true, so let them through.
+  if (!isDashboardPath || authFlowPath) {
     return {
       redirectTo: null,
       loginNext: null,

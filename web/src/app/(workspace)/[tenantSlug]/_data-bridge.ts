@@ -1448,3 +1448,167 @@ export async function loadTalentAgencies(
     return [];
   }
 }
+
+// ─── Client self-dashboard data ───────────────────────────────────────────────
+
+export type ClientSelfProfile = {
+  /** client_profiles.id (UUID, not user_id) */
+  id: string;
+  userId: string;
+  displayName: string;
+  company: string | null;
+  /** Display name of the agency they're viewing this dashboard in context of */
+  agencyName: string;
+  agencySlug: string;
+};
+
+/**
+ * Load the client's own profile and verify they have a relationship with
+ * this agency (at least one inquiry to tenantId). Returns null if the user
+ * is not a registered client or has no relationship with the given tenant.
+ */
+export async function loadClientSelfProfile(
+  userId: string,
+  tenantId: string,
+): Promise<ClientSelfProfile | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    // Parallel: fetch client profile + agency name + verify relationship
+    const [profileRes, agencyRes, inquiryCountRes] = await Promise.all([
+      supabase
+        .from("client_profiles")
+        .select("id, company_name, profiles!inner(display_name)")
+        .eq("user_id", userId)
+        .maybeSingle(),
+
+      supabase
+        .from("agencies")
+        .select("display_name, slug")
+        .eq("id", tenantId)
+        .maybeSingle(),
+
+      supabase
+        .from("inquiries")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("client_user_id", userId),
+    ]);
+
+    if (profileRes.error) logServerError("client.loadSelfProfile.profile", profileRes.error);
+    if (!profileRes.data) return null;
+
+    // Must have at least one inquiry to this tenant to access the dashboard
+    if ((inquiryCountRes.count ?? 0) === 0) return null;
+
+    type ProfileRaw = {
+      id: string;
+      company_name: string | null;
+      profiles: { display_name: string | null } | { display_name: string | null }[] | null;
+    };
+
+    const row = profileRes.data as unknown as ProfileRaw;
+    const profileJoin = row.profiles;
+    const profile = Array.isArray(profileJoin) ? profileJoin[0] : profileJoin;
+
+    const agencyRow = agencyRes.data as { display_name: string; slug: string } | null;
+
+    return {
+      id: row.id,
+      userId,
+      displayName: profile?.display_name?.trim() || userId.slice(0, 8),
+      company: row.company_name ?? null,
+      agencyName: agencyRow?.display_name ?? "Agency",
+      agencySlug: agencyRow?.slug ?? "",
+    };
+  } catch (err) {
+    logServerError("client.loadSelfProfile", err);
+    return null;
+  }
+}
+
+export type ClientInquiryRow = {
+  id: string;
+  status: string;
+  event_date: string | null;
+  event_location: string | null;
+  company: string | null;
+  quantity: number | null;
+  created_at: string;
+  next_action_by: string | null;
+};
+
+/**
+ * Load all inquiries submitted by this client to this tenant.
+ * Ordered by most recent first. Cap at 200.
+ */
+export async function loadClientInquiries(
+  userId: string,
+  tenantId: string,
+): Promise<ClientInquiryRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("inquiries")
+      .select("id, status, event_date, event_location, company, quantity, created_at, next_action_by")
+      .eq("tenant_id", tenantId)
+      .eq("client_user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      logServerError("client.loadInquiries", error);
+      return [];
+    }
+
+    return (data ?? []) as ClientInquiryRow[];
+  } catch (err) {
+    logServerError("client.loadInquiries", err);
+    return [];
+  }
+}
+
+export type ClientBookingRow = {
+  id: string;
+  event_date: string | null;
+  event_location: string | null;
+  company: string | null;
+  quantity: number | null;
+  created_at: string;
+};
+
+/**
+ * Load confirmed bookings for a client at this tenant.
+ * Booked = status IN ('booked', 'converted'). Ordered by event_date ascending.
+ */
+export async function loadClientBookings(
+  userId: string,
+  tenantId: string,
+): Promise<ClientBookingRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("inquiries")
+      .select("id, event_date, event_location, company, quantity, created_at")
+      .eq("tenant_id", tenantId)
+      .eq("client_user_id", userId)
+      .in("status", ["booked", "converted"])
+      .order("event_date", { ascending: true, nullsFirst: false })
+      .limit(200);
+
+    if (error) {
+      logServerError("client.loadBookings", error);
+      return [];
+    }
+
+    return (data ?? []) as ClientBookingRow[];
+  } catch (err) {
+    logServerError("client.loadBookings", err);
+    return [];
+  }
+}

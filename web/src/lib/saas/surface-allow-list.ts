@@ -111,6 +111,10 @@ const APP_WORKSPACE_PREFIXES = [
   // allow-list 404s the request before Next routing can run the
   // redirect, so the operator hits a blank "Not found" page.
   "/account",
+  // Phase 3.11 — Tulala HQ platform super_admin console.
+  // Lives at /platform/admin/* on the app host (no tenant slug).
+  // Gated inside layout.tsx to app_role === 'super_admin'.
+  "/platform",
 ] as const;
 
 /**
@@ -162,6 +166,12 @@ const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   "sitemap.xml", "robots.txt",
   // Prototypes + internals
   "prototypes", "_next", "share",
+  // Phase 3.11 — HQ super_admin console at /platform/admin/*.
+  // "platform" must be reserved so isWorkspaceSlugPath() never treats it
+  // as a tenant slug — Next.js static segment `platform/` already takes
+  // priority over the dynamic `[tenantSlug]` segment, but reserving it
+  // here keeps the allow-list table consistent with the routing truth.
+  "platform",
 ]);
 
 function isWorkspaceSlugPath(pathname: string): boolean {
