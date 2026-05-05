@@ -54,3 +54,7 @@ supabase/.temp/
 # Throwaway dev artifacts
 tmp-*
 *.tmp
+
+# Claude Code & related agent runtime artifacts (never commit)
+.claude/
+.codex-artifacts/

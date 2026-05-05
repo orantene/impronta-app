@@ -1,0 +1,30 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/publish-scheduled",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/inquiry-engine",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/domain-verification",
+      "schedule": "*/10 * * * *"
+    }
+  ],
+  "functions": {
+    "src/app/api/cron/domain-verification/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/publish-scheduled/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/inquiry-engine/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/stripe/webhook/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
