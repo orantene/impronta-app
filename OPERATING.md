@@ -180,6 +180,18 @@ super_admin bypass policy:
 
 These documents are binding product logic. Code, schema, or copy that conflicts must be raised as a Decision-Log amendment before being changed — not silently re-interpreted.
 
+**Capability registry count (H14 — last verified 2026-05-05):** `lib/access/capabilities.ts` now defines **64 capability keys** (up from 14 at initial design). New families added across Phase 8 build:
+- `booking.payment.*` (6 keys) — transaction lifecycle controls: `select_receiver`, `change_receiver`, `request`, `mark_received`, `refund`, `payout_mark_external`.
+- `agency.payout_account.manage` — workspace owner manages connected payout destinations.
+- `payout_account.connect_self` — talent connects their own payout account.
+- `talent.contact_prefs.set` — talent sets per-trust-tier contact preferences (Phase 3.7; note: key is `talent.contact_prefs.set`, not `talent.contact_policy.manage`).
+- `agency.client_trust.view` — agency staff views client trust tier (Phase 3.7; note: key is `agency.client_trust.view`, not `agency.client.view_trust_tier`).
+- `manage_agency_domains` — reserved in design docs but not yet present in registry; add when Phase 4 custom-domain flow is built.
+- `inquiry.send_to_talent` — two-way trust-gated inquiry dispatch (Phase 3.7).
+- `client.account.verify` / `client.account.fund` — client trust economics (Phase 8.3).
+- Taxonomy/registration families: `workspace.taxonomy.configure`, `workspace.registration.configure`, `agency.talent.approve_registration`, `platform.taxonomy.manage` (4 keys, Phase taxonomy work).
+- Talent-subscription/page families: `talent.subscription.*`, `talent.page.*`, `platform.talent_plans.configure`, `agency.roster.set_personal_page_distribution` (9 keys, Phase 8.2).
+
 - [`docs/talent-relationship-model.md`](docs/talent-relationship-model.md) — Talent / agency / hub / visibility / inquiry-ownership rules. Establishes:
   - Hubs ≠ agencies (criteria-based vs configurable join modes)
   - Agency join modes: `open` / `open_by_approval` / `exclusive`
@@ -190,7 +202,7 @@ These documents are binding product logic. Code, schema, or copy that conflicts 
   - Profile lifecycle states (Draft / Invited / Awaiting approval / Published / Claimed / Verified / Inactive / Removed)
   - Plan-ladder distribution rules (Free auto-assigned; Studio+ manual; Agency exclusive; Network hub-level)
   - Relationship-gated capabilities (the "explain why" UI rule)
-  - 14 capability keys reserved in `lib/access/capabilities.ts`
+  - 14 capability keys reserved in `lib/access/capabilities.ts` (talent-relationship model)
 
 - [`docs/transaction-architecture.md`](docs/transaction-architecture.md) — v1 payment / transaction model. Establishes:
   - **One booking = one payout receiver in v1.** Receiver explicitly selected per booking; not auto-derived.
@@ -200,7 +212,7 @@ These documents are binding product logic. Code, schema, or copy that conflicts 
   - Booking payment state machine (draft → payment_requested → pending → paid → payout_pending → payout_sent, plus refunded / cancelled / disputed / failed off-paths).
   - Payment events extend `inquiry_events` with a nullable `booking_id`. New event types reserved.
   - Provider seam: v1 `'manual'`, v2 `'stripe'` / `'stripe_connect'`. Same schema.
-  - 10 capability keys reserved in `lib/access/capabilities.ts`.
+  - 10 capability keys reserved in `lib/access/capabilities.ts` (transaction-architecture model).
   - Reserved tables (deferred migrations): `booking_transactions`, `payout_accounts`. Reserved column on future `plans` table: `platform_fee_basis_points`.
 
 - [`docs/taxonomy-and-registration.md`](docs/taxonomy-and-registration.md) — Master taxonomy + workspace-scoped enablement + adaptive registration. Establishes:
