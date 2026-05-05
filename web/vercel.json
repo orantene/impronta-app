@@ -1,18 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/publish-scheduled",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/inquiry-engine",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/domain-verification",
-      "schedule": "*/10 * * * *"
-    }
-  ],
   "functions": {
     "src/app/api/cron/domain-verification/route.ts": {
       "maxDuration": 60
