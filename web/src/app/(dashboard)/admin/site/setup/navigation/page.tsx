@@ -8,8 +8,7 @@ import {
   SetupSection,
 } from "@/components/admin/setup/setup-page";
 import { loadMenuForStaff } from "@/lib/site-admin/server/navigation-reads";
-import { requireStaff } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -22,17 +21,19 @@ export const dynamic = "force-dynamic";
  * editor or onto the live canvas in edit mode.
  */
 export default async function SiteSetupNavigationPage() {
-  const auth = await requireStaff();
-  if (!auth.ok) redirect("/login");
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) {
+    if (guard.error === "No active tenant for this request.") {
+      redirect("/admin?err=no_tenant");
+    }
+    redirect("/login");
+  }
 
-  const scope = await requireTenantScope().catch(() => null);
-  if (!scope) redirect("/admin?err=no_tenant");
-
-  const tenantId = scope.tenantId;
+  const tenantId = guard.tenantId;
 
   const [header, footer] = await Promise.all([
-    loadMenuForStaff(auth.supabase, tenantId, "header", "en"),
-    loadMenuForStaff(auth.supabase, tenantId, "footer", "en"),
+    loadMenuForStaff(guard.supabase, tenantId, "header", "en"),
+    loadMenuForStaff(guard.supabase, tenantId, "footer", "en"),
   ]);
 
   return (

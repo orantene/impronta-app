@@ -15,6 +15,7 @@ import {
 } from "@vis.gl/react-google-maps";
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import type { LocationItem, LocationSectionCopy } from "./location-section";
 import { normalizeGoogleApiKeyInput } from "@/lib/env/google-maps-browser-key";
 import {
@@ -165,16 +166,21 @@ function PinPreviewPortal({
   loc,
   locale,
   copy,
+  publicPathPrefix = "",
 }: {
   loc: LocationItem;
   locale: Locale;
   copy: LocationSectionCopy;
+  publicPathPrefix?: string;
 }) {
   const map = useMap();
   const [px, setPx] = useState<{ x: number; y: number } | null>(null);
   const [mapDiv, setMapDiv] = useState<HTMLElement | null>(null);
   const [visible, setVisible] = useState(false);
-  const directoryHref = withLocalePath(`/directory?location=${loc.citySlug}`, locale);
+  const directoryHref = withLocalePath(
+    prefixPublicHref(`/directory?location=${loc.citySlug}`, publicPathPrefix),
+    locale,
+  );
 
   // Capture map.getDiv() once (stable reference)
   useEffect(() => {
@@ -375,11 +381,13 @@ export function LocationMap({
   locale,
   copy,
   apiKey: apiKeyProp,
+  publicPathPrefix = "",
 }: {
   locations: LocationItem[];
   locale: Locale;
   copy: LocationSectionCopy;
   apiKey?: string;
+  publicPathPrefix?: string;
 }) {
   const apiKey =
     normalizeGoogleApiKeyInput(apiKeyProp) ??
@@ -464,6 +472,7 @@ export function LocationMap({
                   loc={selectedLoc}
                   locale={locale}
                   copy={copy}
+                  publicPathPrefix={publicPathPrefix}
                 />
               ) : null}
             </Map>

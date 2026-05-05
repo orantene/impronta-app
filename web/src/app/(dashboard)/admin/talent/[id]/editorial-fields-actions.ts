@@ -10,15 +10,15 @@
  *   booking_note, package_teasers(jsonb), social_links(jsonb),
  *   embedded_media(jsonb), service_category_slug.
  *
- * Guards: admin role + updateTalentProfile-parity auth path (service role
- * via requireAdminClient). No tenant scope here — talent is cross-tenant;
- * tenant-scoped listing is handled by `agency_talent_roster` elsewhere.
+ * Guards: tenant-scoped staff auth via requireStaffTenantAction + an explicit
+ * roster check (`agency_talent_roster`) so this write path can't update a
+ * talent profile that isn't on the active workspace roster.
  */
 
 import { z } from "zod";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
 
@@ -111,8 +111,8 @@ export async function saveTalentEditorialFields(
   _prev: TalentEditorialActionState,
   formData: FormData,
 ): Promise<TalentEditorialActionState> {
-  const auth = await requireAdmin();
-  if (!auth.ok) return { ok: false, error: auth.error };
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) return { ok: false, error: guard.error };
 
   const talentId = single(formData, "talent_id");
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(talentId)) {
@@ -175,6 +175,24 @@ export async function saveTalentEditorialFields(
   if (!supabase) {
     return { ok: false, error: "Server is missing service-role credentials." };
   }
+
+  const { data: rosterRow, error: rosterError } = await guard.supabase
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", guard.tenantId)
+    .eq("talent_profile_id", talentId)
+    .maybeSingle();
+  if (rosterError) {
+    logServerError("admin/saveTalentEditorialFields/roster-check", rosterError);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+  if (!rosterRow) {
+    return {
+      ok: false,
+      error: "This talent is not on the active workspace roster.",
+    };
+  }
+
   const { error } = await supabase
     .from("talent_profiles")
     .update(update)

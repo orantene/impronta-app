@@ -343,7 +343,10 @@ export default async function WorkspaceAdminLayout({
         <Suspense fallback={
           <div style={{ height: 52, background: "#fff", borderBottom: `1px solid ${C.borderSoft}` }} />
         }>
-          <WorkspaceTopbar tenantSlug={tenantSlug} />
+          <WorkspaceTopbar
+            tenantSlug={tenantSlug}
+            isSuperAdmin={session.profile?.app_role === "super_admin"}
+          />
         </Suspense>
 
         {/* ── Content area ── */}

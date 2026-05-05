@@ -4,7 +4,7 @@ import { DirectoryDiscoveryHeaderActions } from "@/components/directory/director
 import type { DirectoryDiscoveryHeaderCopy } from "@/components/directory/directory-discovery-header-actions";
 import { SavedEntryButton } from "@/components/directory/saved-entry-button";
 import type { Locale } from "@/i18n/config";
-import { withLocalePath } from "@/i18n/pathnames";
+import { publicLocaleHref } from "@/i18n/client-directory-href";
 
 export function PublicHeaderDiscoveryTools({
   locale,
@@ -20,7 +20,11 @@ export function PublicHeaderDiscoveryTools({
   directoryHeaderCopy: DirectoryDiscoveryHeaderCopy;
   savedDirectoryAria: string;
 }) {
-  const directoryHref = withLocalePath("/directory", locale);
+  const directoryHref = publicLocaleHref(
+    pathnameWithoutLocale,
+    "/directory",
+    locale,
+  );
 
   if (pathnameWithoutLocale === "/directory") {
     return (

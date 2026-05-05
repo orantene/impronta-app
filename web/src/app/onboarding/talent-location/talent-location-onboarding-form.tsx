@@ -15,16 +15,19 @@ const GENDER_OPTIONS = [
 
 export function TalentLocationOnboardingForm({
   action,
+  nextPath,
 }: {
   action: (
     prev: OnboardingActionState,
     formData: FormData,
   ) => Promise<OnboardingActionState>;
+  nextPath?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
 
   return (
     <form action={formAction} className="space-y-8">
+      {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
       {/* ── Identity ── */}
       <div className="space-y-4">

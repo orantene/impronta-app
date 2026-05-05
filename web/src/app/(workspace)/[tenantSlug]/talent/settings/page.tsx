@@ -3,15 +3,22 @@
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadTalentSelfProfile, loadTalentContactPrefs, loadTalentBillingState } from "../../_data-bridge";
+import {
+  loadTalentSelfProfile,
+  loadTalentContactPrefs,
+  loadTalentBillingState,
+  loadTalentPayoutAccountForTenant,
+} from "../../_data-bridge";
 import { ContactPrefsShell } from "./ContactPrefsShell";
 import { TalentSubscriptionShell } from "./TalentSubscriptionShell";
+import { connectTalentPayoutAccountAction } from "./actions";
 import { isStripeConfigured } from "@/lib/stripe/client";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
+type SearchParams = Promise<{ paymsg?: string; payerr?: string }>;
 
 const C = {
   ink:         "#0B0B0D",
@@ -39,25 +46,8 @@ function SettingRow({
   href: string;
   external?: boolean;
 }) {
-  const Comp = external ? "a" : Link;
-  const extra = external ? { target: "_blank" as const, rel: "noopener noreferrer" } : {};
-  return (
-    <Comp
-      href={href}
-      {...(extra as any)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        padding: "14px 16px",
-        textDecoration: "none",
-        borderBottom: `1px solid ${C.borderSoft}`,
-        fontFamily: FONT,
-        transition: "background 100ms",
-      }}
-      className="setting-row"
-    >
+  const content = (
+    <>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
           {label}
@@ -70,7 +60,43 @@ function SettingRow({
           : <path d="M9 5l7 7-7 7" />
         }
       </svg>
-    </Comp>
+    </>
+  );
+
+  const commonStyle = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "14px 16px",
+    textDecoration: "none",
+    borderBottom: `1px solid ${C.borderSoft}`,
+    fontFamily: FONT,
+    transition: "background 100ms",
+  } as const;
+
+  if (external) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={commonStyle}
+        className="setting-row"
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      style={commonStyle}
+      className="setting-row"
+    >
+      {content}
+    </Link>
   );
 }
 
@@ -82,12 +108,19 @@ function SectionHead({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default async function TalentSettingsPage({ params }: { params: PageParams }) {
+export default async function TalentSettingsPage({
+  params,
+  searchParams,
+}: {
+  params: PageParams;
+  searchParams: SearchParams;
+}) {
   const { tenantSlug } = await params;
+  const { paymsg, payerr } = await searchParams;
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
-  const scope = await getTenantScopeBySlug(tenantSlug);
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   const talentProfile = await loadTalentSelfProfile(session.user.id, scope.tenantId);
@@ -99,6 +132,7 @@ export default async function TalentSettingsPage({ params }: { params: PageParam
     loadTalentContactPrefs(talentProfile.id, scope.tenantId),
     loadTalentBillingState(talentProfile.id),
   ]);
+  const payoutAccount = await loadTalentPayoutAccountForTenant(scope.tenantId, talentProfile.id);
   const stripeEnabled = isStripeConfigured();
 
   const publicProfileUrl = talentProfile.profileCode
@@ -108,6 +142,16 @@ export default async function TalentSettingsPage({ params }: { params: PageParam
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
       <style>{`.setting-row:hover { background: ${C.surfaceAlt}; }`}</style>
+      {paymsg ? (
+        <div style={{ border: `1px solid ${C.borderSoft}`, background: C.accentSoft, color: C.accent, borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
+          {paymsg}
+        </div>
+      ) : null}
+      {payerr ? (
+        <div style={{ border: `1px solid ${C.borderSoft}`, background: "rgba(163,58,58,0.11)", color: "#A33A3A", borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
+          {payerr}
+        </div>
+      ) : null}
 
       {/* Header */}
       <div>
@@ -209,6 +253,52 @@ export default async function TalentSettingsPage({ params }: { params: PageParam
         subscription={billing.subscription}
         stripeEnabled={stripeEnabled}
       />
+
+      {/* Phase 8.4 — Talent payout account */}
+      <section>
+        <SectionHead>Payout account</SectionHead>
+        <div
+          style={{
+            background: C.cardBg,
+            border: `1px solid ${C.borderSoft}`,
+            borderRadius: 14,
+            padding: "16px 18px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>My payout receiver account</div>
+              <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
+                {payoutAccount
+                  ? `${payoutAccount.displayName} · ${payoutAccount.status}`
+                  : "Not connected yet"}
+              </div>
+            </div>
+            {!payoutAccount ? (
+              <form action={connectTalentPayoutAccountAction}>
+                <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                <input type="hidden" name="talentProfileId" value={talentProfile.id} />
+                <button
+                  type="submit"
+                  style={{
+                    height: 32,
+                    padding: "0 12px",
+                    borderRadius: 8,
+                    border: `1px solid ${C.borderSoft}`,
+                    background: C.cardBg,
+                    color: C.ink,
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    fontFamily: FONT,
+                  }}
+                >
+                  Connect payout account
+                </button>
+              </form>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       {/* Identity info */}
       <div

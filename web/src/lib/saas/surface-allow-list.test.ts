@@ -1,9 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { isPathAllowedForHostKind } from "./surface-allow-list";
+import {
+  isPathAllowedForHostKind,
+  resolvePathBasedTenantPublicPath,
+} from "./surface-allow-list";
 
-test("agency host: storefront + storefront api + auth + root + static allowed", () => {
+test("agency host: storefront + workspace + auth + root + static allowed", () => {
   const allowed = [
     "/",
     "/directory",
@@ -12,9 +15,23 @@ test("agency host: storefront + storefront api + auth + root + static allowed", 
     "/p/about",
     "/posts/spring-2026",
     "/models",
-    "/contact",
+    "/share/test-token",
+    "/admin",
+    "/admin/queue",
+    "/client",
+    "/client/overview",
+    "/talent",
+    "/talent/my-profile",
+    "/onboarding/role",
+    "/invite/some-signed-token",
+    "/account",
+    "/platform/admin",
+    "/impronta/admin",
+    "/impronta/client",
+    "/impronta/talent",
     "/login",
     "/register",
+    "/join",
     "/forgot-password",
     "/update-password",
     "/auth/callback",
@@ -24,6 +41,12 @@ test("agency host: storefront + storefront api + auth + root + static allowed", 
     "/api/ai/interpret-search",
     "/api/ai/refine-suggestions",
     "/api/ai/inquiry-draft",
+    "/api/admin/search",
+    "/api/admin/inspector/talent",
+    "/api/location-cities",
+    "/api/location-countries",
+    "/api/location-place-details",
+    "/api/location-country-details",
     "/api/analytics/events",
     "/api/cron/inquiry-engine",
     "/sitemap.xml",
@@ -38,20 +61,12 @@ test("agency host: storefront + storefront api + auth + root + static allowed", 
   }
 
   const blocked = [
-    "/admin",
-    "/admin/queue",
-    "/client",
-    "/client/overview",
-    "/talent",
-    "/talent/my-profile",
-    "/onboarding/role",
-    "/invite/some-signed-token",
-    "/api/admin/search",
-    "/api/admin/inspector/talent",
-    "/api/location-cities",
-    "/api/location-countries",
-    "/api/location-place-details",
-    "/api/location-country-details",
+    "/contact",
+    "/get-started",
+    "/pricing",
+    "/legal/privacy",
+    "/api/directoryz",
+    "/api/admins",
   ];
   for (const p of blocked) {
     assert.equal(
@@ -74,6 +89,7 @@ test("app host: workspaces + app api + auth + root + static allowed", () => {
     "/onboarding/role",
     "/login",
     "/register",
+    "/join",
     "/auth/callback",
     "/api/admin/search",
     "/api/admin/inspector/talent",
@@ -136,16 +152,24 @@ test("canonical talent surface: /t/* allowed on agency + app, 404 on hub + marke
   }
   // Prefix-boundary: /talent (workspace) is NOT /t (canonical).
   assert.equal(isPathAllowedForHostKind("app", "/talent"), true);
-  assert.equal(isPathAllowedForHostKind("agency", "/talent"), false);
+  assert.equal(isPathAllowedForHostKind("agency", "/talent"), true);
 });
 
-test("hub host: only root + static + bearer-gated shared api allowed", () => {
+test("hub host: auth + workspace slug paths + shared routes allowed", () => {
   const allowed = [
     "/",
     "/sitemap.xml",
     "/robots.txt",
     "/api/cron/inquiry-engine",
     "/api/analytics/events",
+    "/login",
+    "/register",
+    "/join",
+    "/auth/callback",
+    "/impronta/admin",
+    "/impronta/admin/queue",
+    "/impronta/client",
+    "/impronta/talent",
   ];
   for (const p of allowed) {
     assert.equal(
@@ -161,14 +185,12 @@ test("hub host: only root + static + bearer-gated shared api allowed", () => {
     "/admin",
     "/client",
     "/talent",
-    "/login",
-    "/register",
     "/onboarding/role",
+    "/impronta/onboarding/role",
     "/models",
     "/contact",
     "/posts/spring-2026",
     "/p/about",
-    "/auth/callback",
     "/api/directory",
     "/api/ai/search",
     "/api/admin/search",
@@ -180,6 +202,48 @@ test("hub host: only root + static + bearer-gated shared api allowed", () => {
       false,
       `hub must 404 ${p}`,
     );
+  }
+});
+
+test("path-based tenant public routes strip the tenant prefix before agency dispatch", () => {
+  const cases = [
+    ["/impronta", "/"],
+    ["/impronta/t/jane-doe", "/t/jane-doe"],
+    ["/impronta/directory", "/directory"],
+    ["/impronta/directory/cart", "/directory/cart"],
+    ["/impronta/models", "/models"],
+    ["/impronta/p/about", "/p/about"],
+    ["/impronta/posts/spring-2026", "/posts/spring-2026"],
+    ["/impronta/contact", "/contact"],
+    ["/impronta/talent/register", "/talent/register"],
+    ["/impronta/client/register", "/client/register"],
+    ["/impronta/join", "/join"],
+  ] as const;
+
+  for (const [path, stripped] of cases) {
+    assert.deepEqual(
+      resolvePathBasedTenantPublicPath(path),
+      { tenantSlug: "impronta", pathnameWithoutTenant: stripped },
+      `${path} should strip to ${stripped}`,
+    );
+  }
+});
+
+test("path-based tenant public routes do not swallow workspace or reserved routes", () => {
+  const blocked = [
+    "/impronta/admin",
+    "/impronta/client",
+    "/impronta/client/inquiries/new",
+    "/impronta/talent",
+    "/impronta/onboarding/role",
+    "/impronta/api/directory",
+    "/pricing",
+    "/directory",
+    "/t/jane-doe",
+  ];
+
+  for (const path of blocked) {
+    assert.equal(resolvePathBasedTenantPublicPath(path), null, `${path} must not strip`);
   }
 });
 
@@ -218,6 +282,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/client",
     "/talent",
     "/login",
+    "/join",
     "/onboarding/role",
     "/models",
     "/contact",

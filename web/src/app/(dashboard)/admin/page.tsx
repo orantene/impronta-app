@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   Calendar,
@@ -31,7 +32,7 @@ import {
   loadAdminTier1AlertCount,
   loadAdminTranslationHealth,
 } from "@/lib/dashboard/admin-dashboard-data";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { getTenantScope } from "@/lib/saas";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { cn } from "@/lib/utils";
@@ -55,20 +56,25 @@ export const dynamic = "force-dynamic";
  * health, identity) — no new queries introduced.
  */
 export default async function AdminHomePage() {
-  const [auth, overview, tier1AlertCount, translationHealth, scope] =
+  const [guard, overview, tier1AlertCount, translationHealth, scope] =
     await Promise.all([
-      requireStaff(),
+      requireStaffTenantAction(),
       loadAdminOverviewData(),
       loadAdminTier1AlertCount(),
       loadAdminTranslationHealth(),
       getTenantScope().catch(() => null),
     ]);
 
-  const identity = scope
-    ? await loadPublicIdentity(scope.tenantId).catch(() => null)
-    : null;
+  if (!guard.ok) {
+    redirect(
+      guard.error === "No active tenant for this request."
+        ? "/admin?err=no_tenant"
+        : "/login",
+    );
+  }
 
-  const firstName = resolveFirstName(auth.ok ? auth.user.email ?? null : null);
+  const identity = await loadPublicIdentity(guard.tenantId).catch(() => null);
+  const firstName = resolveFirstName(guard.user.email ?? null);
   const tenantName =
     identity?.public_name?.trim() ||
     scope?.membership.display_name ||

@@ -17,7 +17,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import { Toaster } from "sonner";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../_data-bridge";
 import { signOut } from "@/app/auth/actions";
@@ -72,7 +72,7 @@ export default async function ClientLayout({
   if (!session.user) redirect(`/login?next=/${tenantSlug}/client`);
 
   // ── Tenant resolution ────────────────────────────────────────────────────────
-  const scope = await getTenantScopeBySlug(tenantSlug);
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   // ── Client profile gate ────────────────────────────────────────────────────

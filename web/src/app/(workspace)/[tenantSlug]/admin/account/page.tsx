@@ -10,9 +10,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadWorkspaceAgencySummary,
   loadWorkspaceBillingState,
+  loadWorkspacePayoutSnapshot,
   type WorkspacePlan,
 } from "../../_data-bridge";
 import {
@@ -20,11 +22,16 @@ import {
   ManageSubscriptionButton,
   SubscriptionStatusBadge,
 } from "./BillingActionButtons";
+import {
+  createStaffPayoutAccountAction,
+  createWorkspacePayoutAccountAction,
+} from "./payout-account-actions";
 import { isStripeConfigured } from "@/lib/stripe/client";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
+type SearchParams = Promise<{ pmsg?: string; perr?: string }>;
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -224,10 +231,13 @@ function Divider() {
 
 export default async function WorkspaceAccountPage({
   params,
+  searchParams,
 }: {
   params: PageParams;
+  searchParams: SearchParams;
 }) {
   const { tenantSlug } = await params;
+  const { pmsg, perr } = await searchParams;
 
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
@@ -235,11 +245,18 @@ export default async function WorkspaceAccountPage({
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
   if (!canView) notFound();
 
-  const [canManageBilling, summary, billingState] = await Promise.all([
+  const session = await getCachedActorSession();
+  if (!session.user) notFound();
+
+  const [canManageBilling, canManageWorkspacePayout, summary, billingState, payout] = await Promise.all([
     userHasCapability("manage_billing", scope.tenantId),
+    userHasCapability("agency.payout_account.manage", scope.tenantId),
     loadWorkspaceAgencySummary(scope.tenantId),
     loadWorkspaceBillingState(scope.tenantId),
+    loadWorkspacePayoutSnapshot(scope.tenantId, session.user.id),
   ]);
+  const canManagePayout = canManageWorkspacePayout || canManageBilling;
+  const canCreateSelfPayout = ["owner", "admin", "coordinator"].includes(scope.membership.role);
 
   const stripeEnabled = isStripeConfigured();
   const planMeta = summary ? PLAN_META[summary.plan] : PLAN_META.free;
@@ -261,6 +278,16 @@ export default async function WorkspaceAccountPage({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
+      {pmsg ? (
+        <div style={{ border: `1px solid ${C.border}`, background: C.accentSoft, color: C.accent, borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
+          {pmsg}
+        </div>
+      ) : null}
+      {perr ? (
+        <div style={{ border: `1px solid ${C.border}`, background: C.amberSoft, color: C.amber, borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
+          {perr}
+        </div>
+      ) : null}
 
       {/* ── Header ── */}
       <div
@@ -551,6 +578,96 @@ export default async function WorkspaceAccountPage({
           <p style={{ fontSize: 13, color: C.inkMuted }}>Account details unavailable.</p>
         </div>
       )}
+
+      {/* ── Payout accounts (Phase 8.4) ── */}
+      <section>
+        <SectionHead>Payout Accounts</SectionHead>
+        <div
+          style={{
+            background: C.cardBg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          <DetailRow
+            label="Workspace account"
+            value={
+              payout.workspaceAccount
+                ? `${payout.workspaceAccount.displayName} · ${payout.workspaceAccount.status}`
+                : "Not connected"
+            }
+          />
+          <Divider />
+          <DetailRow
+            label="My staff account"
+            value={
+              payout.selfStaffAccount
+                ? `${payout.selfStaffAccount.displayName} · ${payout.selfStaffAccount.status}`
+                : "Not connected"
+            }
+          />
+          <Divider />
+          <DetailRow
+            label="Connected receivers"
+            value={`${payout.connectedCount}`}
+          />
+        </div>
+
+        {(canManagePayout || canCreateSelfPayout) ? (
+          <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {canManagePayout && !payout.workspaceAccount ? (
+              <form action={createWorkspacePayoutAccountAction}>
+                <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                <button
+                  type="submit"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    height: 34,
+                    padding: "0 14px",
+                    borderRadius: 8,
+                    background: C.cardBg,
+                    border: `1px solid ${C.border}`,
+                    color: C.ink,
+                    fontFamily: FONT,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Create workspace payout account
+                </button>
+              </form>
+            ) : null}
+
+            {canCreateSelfPayout && !payout.selfStaffAccount ? (
+              <form action={createStaffPayoutAccountAction}>
+                <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                <button
+                  type="submit"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    height: 34,
+                    padding: "0 14px",
+                    borderRadius: 8,
+                    background: C.cardBg,
+                    border: `1px solid ${C.border}`,
+                    color: C.ink,
+                    fontFamily: FONT,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Connect my payout account
+                </button>
+              </form>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }

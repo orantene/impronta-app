@@ -4,7 +4,7 @@
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadWorkspaceRosterEnriched } from "../../_data-bridge";
 
@@ -110,7 +110,7 @@ function ProfileCard({
 
         {isPublished ? (
           <Link
-            href={`/${tenantSlug}/client/inquiries`}
+            href={`/${tenantSlug}/client/inquiries/new?talent=${encodeURIComponent(id)}`}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -157,7 +157,7 @@ export default async function ClientDiscoverPage({ params }: { params: PageParam
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
-  const scope = await getTenantScopeBySlug(tenantSlug);
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);

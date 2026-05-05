@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ContactTalentButton,
   OpenInquiryCartButton,
   SaveTalentButton,
 } from "@/components/directory/directory-inquiry-actions";
 import { Button } from "@/components/ui/button";
+import { clientLocaleHref } from "@/i18n/client-directory-href";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 export function ProfileDiscoveryCta({
@@ -16,6 +18,7 @@ export function ProfileDiscoveryCta({
   sourcePage,
   mode,
   initialSaved = false,
+  portalInquiryHref,
   profileCta,
   inquiry,
 }: {
@@ -25,9 +28,11 @@ export function ProfileDiscoveryCta({
   sourcePage: string;
   mode: "header" | "sidebar" | "footer";
   initialSaved?: boolean;
+  portalInquiryHref?: string | null;
   profileCta: DirectoryUiCopy["profileCta"];
   inquiry: DirectoryUiCopy["inquiry"];
 }) {
+  const pathname = usePathname();
   const talent = { id: talentId, profileCode, displayName };
 
   if (mode === "header") {
@@ -46,6 +51,7 @@ export function ProfileDiscoveryCta({
           talent={talent}
           sourcePage={sourcePage}
           initialSaved={initialSaved}
+          portalInquiryHref={portalInquiryHref}
           inquiry={inquiry}
           label={profileCta.contactAboutTalent}
           className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
@@ -67,6 +73,7 @@ export function ProfileDiscoveryCta({
         />
         <OpenInquiryCartButton
           inquiry={inquiry}
+          portalInquiryHref={portalInquiryHref}
           label={profileCta.openInquiryCart}
           className="w-full border-[var(--impronta-gold-border)] text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"
         />
@@ -90,13 +97,16 @@ export function ProfileDiscoveryCta({
         variant="outline"
         className="border-[var(--impronta-gold-border)] text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"
       >
-        <Link href="/directory">{profileCta.browseMoreTalent}</Link>
+        <Link href={clientLocaleHref(pathname, "/directory")}>
+          {profileCta.browseMoreTalent}
+        </Link>
       </Button>
       <ContactTalentButton
         talent={talent}
         sourcePage={sourcePage}
         initialSaved={initialSaved}
         variant="ghost"
+        portalInquiryHref={portalInquiryHref}
         inquiry={inquiry}
         label={profileCta.contactImpronta}
         className="text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"

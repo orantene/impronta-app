@@ -45,6 +45,7 @@ import {
   PublishedShellFooter,
   shouldRenderSnapshotShell,
 } from "@/components/site-shell/PublishedShell";
+import { getPublicPathPrefix } from "@/lib/saas";
 
 /**
  * Agency-surface storefront (what was the old root homepage).
@@ -69,6 +70,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     previewActive,
     editActive,
     snapshotShellActive,
+    publicPathPrefix,
   ] = await Promise.all([
     getHomepageData({ tenantId }),
     cmsLocale
@@ -84,6 +86,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     cmsLocale
       ? shouldRenderSnapshotShell(tenantId, cmsLocale)
       : Promise.resolve(false),
+    getPublicPathPrefix(),
   ]);
   // Suppress the draft banner when the in-place edit chrome is engaged — the
   // top bar already signals draft state and its "Publish" button replaces the
@@ -352,6 +355,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                 types={talentTypes}
                 locale={locale}
                 sectionKicker={t("public.home.browseByType.sectionKicker")}
+                publicPathPrefix={publicPathPrefix}
               />
 
               <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -362,11 +366,11 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                 talent={featuredTalent}
                 locale={locale}
                 copy={featuredCopy}
+                publicPathPrefix={publicPathPrefix}
               />
 
               <BestForSection
                 labels={fitLabels}
-                locale={locale}
                 copy={bestForCopy}
               />
 
@@ -379,6 +383,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                 locale={locale}
                 copy={locationCopy}
                 mapsApiKey={mapsApiKey}
+                publicPathPrefix={publicPathPrefix}
               />
 
               <HowItWorks copy={howItWorksCopy} />
@@ -387,7 +392,11 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                 <hr className="border-[var(--impronta-gold-border)]" />
               </div>
 
-              <CtaSection locale={locale} copy={ctaCopy} />
+              <CtaSection
+                locale={locale}
+                copy={ctaCopy}
+                publicPathPrefix={publicPathPrefix}
+              />
             </>
           )}
             </>

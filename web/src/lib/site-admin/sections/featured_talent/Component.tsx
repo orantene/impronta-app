@@ -24,6 +24,7 @@ export async function FeaturedTalentComponent({
   props,
   tenantId,
   locale,
+  publicPathPrefix,
 }: SectionComponentProps<FeaturedTalentV1>) {
   const {
     eyebrow,
@@ -87,6 +88,7 @@ export async function FeaturedTalentComponent({
                 key={card.id}
                 card={card}
                 priority={i < columns}
+                publicPathPrefix={publicPathPrefix}
               />
             ))}
           </div>

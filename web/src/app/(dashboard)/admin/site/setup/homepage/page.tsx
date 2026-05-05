@@ -8,8 +8,7 @@ import {
 } from "@/components/admin/setup/setup-page";
 import { hasPhase5Capability } from "@/lib/site-admin";
 import { loadHomepageForStaff } from "@/lib/site-admin/server/homepage";
-import { requireStaff } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -23,17 +22,19 @@ export const dynamic = "force-dynamic";
  * composer or straight to the live homepage in edit mode.
  */
 export default async function SiteSetupHomepagePage() {
-  const auth = await requireStaff();
-  if (!auth.ok) redirect("/login");
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) {
+    if (guard.error === "No active tenant for this request.") {
+      redirect("/admin?err=no_tenant");
+    }
+    redirect("/login");
+  }
 
-  const scope = await requireTenantScope().catch(() => null);
-  if (!scope) redirect("/admin?err=no_tenant");
-
-  const tenantId = scope.tenantId;
+  const tenantId = guard.tenantId;
 
   const [canCompose, homepage] = await Promise.all([
     hasPhase5Capability("agency.site_admin.homepage.compose", tenantId),
-    loadHomepageForStaff(auth.supabase, tenantId, "en"),
+    loadHomepageForStaff(guard.supabase, tenantId, "en"),
   ]);
 
   const status = homepage?.page?.status ?? "missing";

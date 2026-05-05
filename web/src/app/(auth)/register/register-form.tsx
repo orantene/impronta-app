@@ -5,7 +5,13 @@ import { signUpWithEmail, type AuthActionState } from "@/app/auth/actions";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-export function RegisterForm({ nextPath }: { nextPath?: string }) {
+export function RegisterForm({
+  nextPath,
+  submitLabel = "Sign up with email",
+}: {
+  nextPath?: string;
+  submitLabel?: string;
+}) {
   const [state, formAction, pending] = useActionState<
     AuthActionState,
     FormData
@@ -55,7 +61,7 @@ export function RegisterForm({ nextPath }: { nextPath?: string }) {
         <p className="text-sm text-smuted-foreground">At least 8 characters.</p>
       </div>
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Creating account…" : "Sign up with email"}
+        {pending ? "Creating account…" : submitLabel}
       </Button>
       <p className="text-center text-sm text-smuted-foreground">
         Already have an account?{" "}

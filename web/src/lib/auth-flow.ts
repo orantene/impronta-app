@@ -2,6 +2,7 @@ import {
   stripDefaultLocalePrefixFromPath,
   stripLocaleFromPathname,
 } from "@/i18n/pathnames";
+import { isWorkspaceOnboardingPath } from "@/lib/saas/workspace-signup";
 
 export type AccessProfile = {
   account_status: string | null;
@@ -56,6 +57,10 @@ export function isPostAuthNextAllowedForActiveUser(
     return true;
   }
 
+  if (isWorkspaceOnboardingPath(normalizedNext)) {
+    return true;
+  }
+
   const isPublicPostAuth =
     path === "/login" ||
     path === "/register" ||
@@ -86,8 +91,36 @@ export function isPostAuthNextAllowedForActiveUser(
   return path === dashboardBase || path.startsWith(`${dashboardBase}/`);
 }
 
+export function isOnboardingNextAllowed(normalizedNext: string): boolean {
+  if (isWorkspaceOnboardingPath(normalizedNext)) {
+    return true;
+  }
+
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(
+    postAuthPathnameOnly(normalizedNext),
+  );
+  const path =
+    pathnameWithoutLocale === "" ? "/" : pathnameWithoutLocale;
+
+  const segments = path.split("/").filter(Boolean);
+  if (segments.length === 0) return false;
+
+  const surface = segments.length === 1 ? segments[0] : segments[1];
+  return surface === "client" || surface === "talent";
+}
+
 export function getSiteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000")
+    .trim()
+    .replace(/\/$/, "");
+}
+
+export function getAppUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "http://localhost:3000"
+  )
     .trim()
     .replace(/\/$/, "");
 }
@@ -164,7 +197,18 @@ export function resolvePostAuthDestination(
 
   const destination = resolveAuthenticatedDestination(profile);
 
-  if (destination === "/onboarding/role" || destination === "/") {
+  if (destination === "/onboarding/role") {
+    if (safeNext !== "/" && isWorkspaceOnboardingPath(safeNext)) {
+      return stripDefaultLocalePrefixFromPath(safeNext);
+    }
+    if (safeNext !== "/" && isOnboardingNextAllowed(safeNext)) {
+      const next = stripDefaultLocalePrefixFromPath(safeNext);
+      return `/onboarding/role?next=${encodeURIComponent(next)}`;
+    }
+    return destination;
+  }
+
+  if (destination === "/") {
     return destination;
   }
 

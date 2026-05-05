@@ -4,8 +4,23 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ThreadType, WorkspaceMessage } from "../../_data-bridge";
 import { loadInquiryMessages } from "../../_data-bridge";
+
+async function inquiryBelongsToTenant(
+  supabase: SupabaseClient,
+  tenantId: string,
+  inquiryId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("id", inquiryId)
+    .maybeSingle();
+  return Boolean(data);
+}
 
 // ─── sendMessage ──────────────────────────────────────────────────────────────
 
@@ -29,6 +44,10 @@ export async function sendMessage(
 
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { error: "Database unavailable." };
+
+    if (!(await inquiryBelongsToTenant(supabase, scope.tenantId, inquiryId))) {
+      return { error: "Inquiry not found in this workspace." };
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "Not authenticated." };
@@ -72,6 +91,9 @@ export async function fetchMessages(
     if (!scope) return [];
     const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
     if (!canView) return [];
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+    if (!(await inquiryBelongsToTenant(supabase, scope.tenantId, inquiryId))) return [];
     return loadInquiryMessages(scope.tenantId, inquiryId, threadType);
   } catch (err) {
     logServerError("messages.fetchMessages", err);
@@ -93,31 +115,19 @@ export async function markThreadRead(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return;
 
+    if (!(await inquiryBelongsToTenant(supabase, scope.tenantId, inquiryId))) return;
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Get the latest message id in this thread
-    const { data: lastMsg } = await supabase
-      .from("inquiry_messages")
-      .select("id")
-      .eq("inquiry_id", inquiryId)
-      .eq("thread_type", threadType)
-      .eq("tenant_id", scope.tenantId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    await supabase
-      .from("inquiry_message_reads")
-      .upsert({
-        inquiry_id: inquiryId,
-        thread_type: threadType,
-        user_id: user.id,
-        tenant_id: scope.tenantId,
-        last_read_at: new Date().toISOString(),
-        last_read_message_id: lastMsg?.id ?? null,
-      }, { onConflict: "inquiry_id,thread_type,user_id" });
+    const { error } = await supabase.rpc("inquiry_mark_thread_read", {
+      p_inquiry_id: inquiryId,
+      p_thread_type: threadType,
+    });
+    if (error) {
+      logServerError("messages.markThreadRead.rpc", error);
+      return;
+    }
   } catch (err) {
     logServerError("messages.markThreadRead", err);
   }

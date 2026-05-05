@@ -17,8 +17,7 @@ import {
   SetupStepRow,
   type SetupStepStatus,
 } from "@/components/admin/setup/setup-step-row";
-import { requireStaff } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { getThemePreset } from "@/lib/site-admin/presets/theme-presets";
 
 export const dynamic = "force-dynamic";
@@ -36,16 +35,16 @@ export const dynamic = "force-dynamic";
  * fast (one server fetch per step) and easy to scan at a glance.
  */
 export default async function SiteSetupHubPage() {
-  const auth = await requireStaff();
-  if (!auth.ok) redirect("/login");
-
-  const scope = await requireTenantScope().catch(() => null);
-  if (!scope) {
-    redirect("/admin?err=no_tenant");
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) {
+    if (guard.error === "No active tenant for this request.") {
+      redirect("/admin?err=no_tenant");
+    }
+    redirect("/login");
   }
 
-  const tenantId = scope.tenantId;
-  const supabase = auth.supabase;
+  const tenantId = guard.tenantId;
+  const supabase = guard.supabase;
 
   // Fetch the data each step needs in parallel. Failures degrade gracefully —
   // a step shows "—" status rather than blowing up the whole hub.

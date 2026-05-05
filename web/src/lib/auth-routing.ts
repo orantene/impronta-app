@@ -34,6 +34,7 @@ function isAuthFlowPath(pathname: string): boolean {
     pathname.startsWith("/auth") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
+    pathname === "/join" ||
     // Phase 3.14 — role-specific registration entry points on agency domains.
     // These live in the (auth) route group (unauthenticated-accessible) but
     // sit under /talent/ and /client/ URL segments, which auth-routing
@@ -80,6 +81,7 @@ export function resolveAuthRoutingDecision({
     userId &&
     (pathname === "/login" ||
       pathname === "/register" ||
+      pathname === "/join" ||
       // Phase 3.14 — redirect already-logged-in users away from the
       // role-specific register pages, just as we do for /register.
       pathname === "/talent/register" ||

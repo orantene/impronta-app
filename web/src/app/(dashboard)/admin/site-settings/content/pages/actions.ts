@@ -81,6 +81,22 @@ function emptyToNull(s: string | null | undefined): string | null {
   return t ? t : null;
 }
 
+async function loadWorkspacePlanTier(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("agencies")
+    .select("plan_tier")
+    .eq("id", tenantId)
+    .maybeSingle<{ plan_tier: string | null }>();
+  if (error) {
+    logServerError("cms/savePage/planTier", error);
+    return null;
+  }
+  return data?.plan_tier ?? null;
+}
+
 function buildPageSnapshotFromSave(args: {
   locale: Locale;
   slugPath: string;
@@ -284,6 +300,16 @@ export async function saveCmsPage(
 
   const heroForInsert =
     parsed.data.hero !== undefined ? normalizeHeroJson(parsed.data.hero) : {};
+
+  const workspacePlanTier = await loadWorkspacePlanTier(session.supabase, tenantId);
+  if (workspacePlanTier === "free") {
+    return {
+      ok: false,
+      error:
+        "Free workspaces include one landing page. Upgrade to Studio to add more pages.",
+    };
+  }
+
   const rowInsert = {
     locale: parsed.data.locale,
     slug: slugPath,

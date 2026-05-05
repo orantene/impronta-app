@@ -18,7 +18,6 @@ import React, {
   useRef,
   useState,
   useTransition,
-  type CSSProperties,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type {
@@ -372,12 +371,11 @@ function InquiryRow({
 // ─── LEFT PANE: Inbox list ────────────────────────────────────────────────────
 
 function InboxList({
-  inquiries, activeId, onSelect, tenantSlug,
+  inquiries, activeId, onSelect,
 }: {
   inquiries: WorkspaceInquiryForMessages[];
   activeId: string | null;
   onSelect: (id: string) => void;
-  tenantSlug: string;
 }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<AdminFilter>("all");
@@ -614,10 +612,25 @@ function MessageStream({
   closed?: boolean;
 }) {
   const [messages, setMessages] = useState<WorkspaceMessage[]>(initialMessages);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [sending, startSending] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Resolve current viewer id once so realtime rows can be marked as mine.
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+    let cancelled = false;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return;
+      setViewerUserId(data.user?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -627,7 +640,7 @@ function MessageStream({
   // Sync initial messages when inquiry changes
   useEffect(() => {
     setMessages(initialMessages);
-  }, [inquiryId, threadType]);
+  }, [initialMessages, inquiryId, threadType]);
 
   // Realtime subscription
   useEffect(() => {
@@ -649,20 +662,25 @@ function MessageStream({
         if (row.thread_type !== threadType) return;
         setMessages(prev => {
           if (prev.some(m => m.id === row.id)) return prev;
+          const knownSenderName = prev.find((m) => m.sender_user_id === row.sender_user_id)?.sender_name;
+          const isMine = viewerUserId != null && row.sender_user_id === viewerUserId;
           return [...prev, {
             id: row.id,
             sender_user_id: row.sender_user_id,
-            sender_name: row.sender_user_id.slice(0, 8),
+            sender_name: knownSenderName ?? (isMine ? "You" : row.sender_user_id.slice(0, 8)),
             body: row.body,
             created_at: row.created_at,
-            is_mine: false, // will be corrected on next load
+            is_mine: isMine,
           }];
         });
+        // Thread is open on screen; mark new non-self messages as read.
+        if (!viewerUserId || row.sender_user_id === viewerUserId) return;
+        void markThreadRead(tenantSlug, inquiryId, threadType);
       })
       .subscribe();
 
     return () => { void supabase.removeChannel(channel); };
-  }, [inquiryId, threadType]);
+  }, [inquiryId, threadType, tenantSlug, viewerUserId]);
 
   const handleSend = useCallback(() => {
     const trimmed = body.trim();
@@ -672,7 +690,7 @@ function MessageStream({
     const optimisticId = `opt-${Date.now()}`;
     const optimistic: WorkspaceMessage = {
       id: optimisticId,
-      sender_user_id: "me",
+      sender_user_id: viewerUserId ?? "me",
       sender_name: "You",
       body: trimmed,
       created_at: new Date().toISOString(),
@@ -703,7 +721,7 @@ function MessageStream({
         });
       }
     });
-  }, [body, sending, tenantSlug, inquiryId, threadType]);
+  }, [body, sending, tenantSlug, inquiryId, threadType, viewerUserId]);
 
   // Group messages by date for headers
   const grouped = useMemo(() => {
@@ -886,14 +904,23 @@ function InquiryDetail({
       setClientMsgs(priv);
       setTalentMsgs(grp);
       setLoading(false);
-      // Mark client thread as read when opened
-      void markThreadRead(tenantSlug, inquiry.id, "private");
     }).catch(() => {
       setClientMsgs([]);
       setTalentMsgs([]);
       setLoading(false);
     });
   }, [inquiry.id, tenantSlug]);
+
+  // When the user is actively looking at a thread, keep its watermark current.
+  useEffect(() => {
+    if (activeTab === "client") {
+      void markThreadRead(tenantSlug, inquiry.id, "private");
+      return;
+    }
+    if (activeTab === "talent") {
+      void markThreadRead(tenantSlug, inquiry.id, "group");
+    }
+  }, [activeTab, inquiry.id, tenantSlug]);
 
   const displayName = inquiry.company || inquiry.contact_name;
   const tabDefs: { id: TabId; label: string }[] = [
@@ -1168,7 +1195,6 @@ export default function MessagesShell({
             inquiries={inquiries}
             activeId={activeId}
             onSelect={handleSelect}
-            tenantSlug={tenantSlug}
           />
         </div>
         <div data-messages-detail style={{

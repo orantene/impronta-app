@@ -8,13 +8,16 @@ import {
 
 /**
  * Scheduled job: coordinator timeouts, expirations, failed-effect retries.
- * Protect with `CRON_SECRET` query param or Authorization header.
+ * Auth (audit H12): Authorization header bearer only — query-param token
+ * was removed because it leaks via access logs.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
-  const url = new URL(request.url);
-  const token = url.searchParams.get("token") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!secret || token !== secret) {
+  if (!secret) {
+    return NextResponse.json({ error: "Not configured" }, { status: 503 });
+  }
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token || token !== secret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

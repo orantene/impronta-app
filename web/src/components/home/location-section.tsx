@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MapPin } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { LocationMapLazy } from "./location-map-lazy";
 
 export type LocationFeaturedPreview = {
@@ -38,12 +39,14 @@ export function LocationSection({
   locale,
   copy,
   mapsApiKey,
+  publicPathPrefix = "",
 }: {
   locations: LocationItem[];
   locale: Locale;
   copy: LocationSectionCopy;
   /** Maps JS API key; from `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` or server fallback `GOOGLE_PLACES_API_KEY`. */
   mapsApiKey?: string;
+  publicPathPrefix?: string;
 }) {
   if (locations.length === 0) return null;
 
@@ -63,7 +66,13 @@ export function LocationSection({
             {locations.map((loc) => (
               <Link
                 key={loc.id}
-                href={withLocalePath(`/directory?location=${loc.citySlug}`, locale)}
+                href={withLocalePath(
+                  prefixPublicHref(
+                    `/directory?location=${loc.citySlug}`,
+                    publicPathPrefix,
+                  ),
+                  locale,
+                )}
                 className="group flex shrink-0 items-center gap-2.5 rounded-xl border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-4 py-3 transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5"
               >
                 <MapPin className="size-4 text-[var(--impronta-gold)]" />
@@ -87,6 +96,7 @@ export function LocationSection({
           locale={locale}
           copy={copy}
           apiKey={mapsApiKey}
+          publicPathPrefix={publicPathPrefix}
         />
       </div>
     </section>

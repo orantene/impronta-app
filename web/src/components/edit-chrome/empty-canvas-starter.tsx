@@ -25,6 +25,7 @@ import { useActionState, useEffect, useState, type ComponentType } from "react";
 
 import {
   applyStarterComposition,
+  loadStarterAvailability,
   type StarterActionState,
 } from "@/lib/site-admin/edit-mode/starter-action";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -45,6 +46,15 @@ interface RecipeTile {
 }
 
 const TILES: RecipeTile[] = [
+  {
+    slug: "free-quickstart-5",
+    label: "Free One-Page",
+    summary:
+      "Single-page Free launch template — hero, services, 5 live roster profiles, and final CTA.",
+    info: "Built for Free launch speed. Pulls real published profiles from your workspace roster (up to five).",
+    sections: 4,
+    Wire: WireClassic,
+  },
   {
     slug: "editorial-bridal",
     label: "Editorial",
@@ -122,6 +132,12 @@ export function EmptyCanvasStarter() {
     applyStarterComposition,
     undefined,
   );
+  const [allowedSlugs, setAllowedSlugs] = useState<ReadonlySet<string>>(
+    new Set(["free-quickstart-5"]),
+  );
+  const [planTier, setPlanTier] = useState<string | null>(null);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
   const [pendingSlug, setPendingSlug] = useState<string | null>(null);
 
   useEffect(() => {
@@ -138,7 +154,30 @@ export function EmptyCanvasStarter() {
     }
   }, [state]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await loadStarterAvailability();
+      if (cancelled) return;
+      if (!res.ok) {
+        setAvailabilityError(res.error);
+        setAvailabilityLoaded(true);
+        return;
+      }
+      setPlanTier(res.plan);
+      setAllowedSlugs(new Set(res.allowedSlugs));
+      setAvailabilityLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const error = state && !state.ok ? state.error : null;
+  const visibleTiles = TILES.filter((tile) => allowedSlugs.has(tile.slug));
+  const freePlan = planTier === "free";
+  const showTemplateGallery =
+    availabilityLoaded && !availabilityError && planTier !== "free";
 
   return (
     <div className="mx-auto my-16 w-full max-w-3xl px-6">
@@ -162,7 +201,7 @@ export function EmptyCanvasStarter() {
         ) : null}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {TILES.map((tile) => {
+          {visibleTiles.map((tile) => {
             const busy = pending && pendingSlug === tile.slug;
             const Wire = tile.Wire;
             return (
@@ -202,6 +241,21 @@ export function EmptyCanvasStarter() {
             );
           })}
         </div>
+        {!availabilityLoaded ? (
+          <p className="mt-3 text-[11px] text-zinc-500">Loading starters…</p>
+        ) : null}
+        {availabilityError ? (
+          <p className="mt-3 text-[11px] text-zinc-500">
+            Couldn&apos;t load full template access. Showing available starters
+            only.
+          </p>
+        ) : null}
+        {freePlan ? (
+          <p className="mt-3 text-[11px] text-zinc-500">
+            Free includes one single-page starter with up to 5 live roster
+            profiles. Upgrade to Studio to unlock additional starter templates.
+          </p>
+        ) : null}
 
         <p className="mt-6 text-[11px] leading-relaxed text-zinc-500">
           Every starter creates a draft composition with real-looking default
@@ -209,13 +263,15 @@ export function EmptyCanvasStarter() {
           preset — after it&apos;s applied.
         </p>
 
-        <div className="mt-6 border-t border-zinc-100 pt-4">
-          <WorkspaceTemplateGallery
-            defaultOpen={false}
-            enableSave={false}
-            reloadOnApply
-          />
-        </div>
+        {showTemplateGallery ? (
+          <div className="mt-6 border-t border-zinc-100 pt-4">
+            <WorkspaceTemplateGallery
+              defaultOpen={false}
+              enableSave={false}
+              reloadOnApply
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

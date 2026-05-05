@@ -28,7 +28,7 @@ import {
   fetchGa4ChannelSessions,
   fetchGa4LandingPages,
 } from "@/lib/server/ga4-reporting";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -84,8 +84,13 @@ const DEEP_LINKS: DeepLink[] = [
 ];
 
 export default async function AdminAnalyticsPage() {
-  const auth = await requireStaff();
-  if (!auth.ok) redirect("/login");
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) {
+    if (guard.error === "No active tenant for this request.") {
+      redirect("/admin?err=no_tenant");
+    }
+    redirect("/login");
+  }
 
   const range = rangeFromKey("30d");
   const internal = await loadExecutiveOverviewInternal(range);

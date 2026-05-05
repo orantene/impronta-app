@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 
 export type FeaturedTalentCard = {
   id: string;
@@ -26,10 +27,12 @@ export function FeaturedTalentSection({
   talent,
   locale,
   copy,
+  publicPathPrefix = "",
 }: {
   talent: FeaturedTalentCard[];
   locale: Locale;
   copy: FeaturedTalentSectionCopy;
+  publicPathPrefix?: string;
 }) {
   if (talent.length === 0) return null;
 
@@ -46,7 +49,12 @@ export function FeaturedTalentSection({
             </p>
           </div>
           <Button variant="ghost" size="sm" className="hidden text-[var(--impronta-muted)] hover:text-[var(--impronta-gold)] sm:flex" asChild>
-            <Link href={withLocalePath("/directory?sort=featured", locale)}>
+            <Link
+              href={withLocalePath(
+                prefixPublicHref("/directory?sort=featured", publicPathPrefix),
+                locale,
+              )}
+            >
               {copy.viewAll} <ArrowRight className="ml-1 size-4" />
             </Link>
           </Button>
@@ -56,7 +64,10 @@ export function FeaturedTalentSection({
           {talent.map((t, i) => (
             <Link
               key={t.id}
-              href={withLocalePath(`/t/${t.profileCode}`, locale)}
+              href={withLocalePath(
+                prefixPublicHref(`/t/${t.profileCode}`, publicPathPrefix),
+                locale,
+              )}
               className={`group relative overflow-hidden rounded-lg bg-[var(--impronta-surface)]${i >= 4 ? " hidden sm:block" : ""}`}
             >
               <div className="relative aspect-[3/4] w-full overflow-hidden">
@@ -90,7 +101,12 @@ export function FeaturedTalentSection({
 
         <div className="mt-6 text-center sm:hidden">
           <Button variant="outline" size="sm" asChild>
-            <Link href={withLocalePath("/directory?sort=featured", locale)}>
+            <Link
+              href={withLocalePath(
+                prefixPublicHref("/directory?sort=featured", publicPathPrefix),
+                locale,
+              )}
+            >
               {copy.viewAllMobile} <ArrowRight className="ml-1 size-4" />
             </Link>
           </Button>

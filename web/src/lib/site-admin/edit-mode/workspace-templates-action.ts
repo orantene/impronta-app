@@ -84,6 +84,58 @@ function shortToken(): string {
   return randomBytes(3).toString("hex");
 }
 
+const WORKSPACE_TEMPLATE_PLANS = [
+  "free",
+  "studio",
+  "agency",
+  "network",
+  "legacy",
+] as const;
+type WorkspaceTemplatePlan = (typeof WORKSPACE_TEMPLATE_PLANS)[number];
+
+function normalizeWorkspaceTemplatePlan(
+  planTier: string | null | undefined,
+): WorkspaceTemplatePlan {
+  if (!planTier) return "free";
+  return (WORKSPACE_TEMPLATE_PLANS as readonly string[]).includes(planTier)
+    ? (planTier as WorkspaceTemplatePlan)
+    : "free";
+}
+
+async function loadWorkspaceTemplatePlan(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+): Promise<WorkspaceTemplatePlan> {
+  const { data, error } = await admin
+    .from("agencies")
+    .select("plan_tier")
+    .eq("id", tenantId)
+    .maybeSingle<{ plan_tier: string | null }>();
+  if (error) {
+    console.warn("[workspace-templates] failed to load workspace plan_tier", {
+      tenantId,
+      error: error.message,
+    });
+    return "free";
+  }
+  return normalizeWorkspaceTemplatePlan(data?.plan_tier);
+}
+
+async function ensureTemplateAccess(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const plan = await loadWorkspaceTemplatePlan(admin, tenantId);
+  if (plan === "free") {
+    return {
+      ok: false,
+      error:
+        "Free workspaces include one landing template. Upgrade to Studio to unlock template library tools.",
+    };
+  }
+  return { ok: true };
+}
+
 // ── 1. saveCurrentHomepageAsTemplate ─────────────────────────────────────
 
 export async function saveCurrentHomepageAsTemplate(input: {
@@ -105,6 +157,8 @@ export async function saveCurrentHomepageAsTemplate(input: {
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server is missing service-role credentials." };
+  const templateAccess = await ensureTemplateAccess(admin, scope.tenantId);
+  if (!templateAccess.ok) return templateAccess;
 
   const state = await loadHomepageForStaff(
     admin,
@@ -207,6 +261,8 @@ export async function listWorkspaceTemplates(input?: {
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server is missing service-role credentials." };
+  const templateAccess = await ensureTemplateAccess(admin, scope.tenantId);
+  if (!templateAccess.ok) return templateAccess;
 
   const wantAll = input?.scope === "all";
   let query = admin
@@ -253,6 +309,8 @@ export async function applyWorkspaceTemplate(input: {
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server is missing service-role credentials." };
+  const templateAccess = await ensureTemplateAccess(admin, scope.tenantId);
+  if (!templateAccess.ok) return templateAccess;
 
   const { data: tmpl, error: tErr } = await admin
     .from("cms_workspace_templates")

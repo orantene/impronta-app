@@ -27,6 +27,7 @@ import {
   listPagesForPickerAction,
   duplicatePageAction,
   type PagePickerItem,
+  type PagePickerAvailability,
 } from "@/app/(dashboard)/admin/site-settings/pages/actions";
 import type { EditDevice } from "./edit-context";
 import { CHROME } from "./kit";
@@ -211,6 +212,9 @@ function PagePicker({
 }) {
   const [open, setOpen] = useState(false);
   const [pages, setPages] = useState<PagePickerItem[] | null>(null);
+  const [availability, setAvailability] = useState<PagePickerAvailability | null>(
+    null,
+  );
   const [loadingPages, setLoadingPages] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
@@ -221,6 +225,7 @@ function PagePicker({
   useEffect(() => {
     if (!open) {
       setPages(null);
+      setAvailability(null);
       setFetchErr(null);
     }
   }, [open]);
@@ -231,15 +236,20 @@ function PagePicker({
     setLoadingPages(true);
     listPagesForPickerAction()
       .then((result) => {
-        if (result.ok) setPages(result.pages);
+        if (result.ok) {
+          setPages(result.pages);
+          setAvailability(result.availability);
+        }
         else {
           setFetchErr(result.error);
           setPages([]);
+          setAvailability(null);
         }
       })
       .catch(() => {
         setFetchErr("Failed to load pages.");
         setPages([]);
+        setAvailability(null);
       })
       .finally(() => setLoadingPages(false));
   }, [open, pages, loadingPages]);
@@ -262,6 +272,13 @@ function PagePicker({
   }
 
   async function handleDuplicate(sourceId: string) {
+    if (availability && !availability.canCreatePages) {
+      setFetchErr(
+        availability.createPageHint ??
+          "Upgrade your plan to create additional pages.",
+      );
+      return;
+    }
     setDuplicatingId(sourceId);
     try {
       const result = await duplicatePageAction(sourceId);
@@ -354,34 +371,83 @@ function PagePicker({
           </div>
 
           {/* ── Add new page ── */}
-          <Link
-            href="/admin/site-settings/pages/new"
-            target="_blank"
-            role="menuitem"
-            className="flex cursor-pointer items-center gap-[8px] rounded-[6px] px-[10px] py-[7px] no-underline transition-colors"
-            style={{ color: CHROME.blue }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = CHROME.blueBg;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "transparent";
-            }}
-            onClick={() => setOpen(false)}
-          >
-            <span
-              className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
-              style={{ width: 18, height: 18, background: CHROME.blueBg, color: CHROME.blue }}
-              aria-hidden
+          {availability && !availability.canCreatePages ? (
+            <div
+              role="menuitem"
+              aria-disabled
+              className="flex items-center gap-[8px] rounded-[6px] px-[10px] py-[7px]"
+              style={{ color: CHROME.muted }}
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </span>
-            <span className="flex-1 font-semibold tracking-[-0.005em]" style={{ fontSize: 12.5 }}>
-              Add new page
-            </span>
-          </Link>
+              <span
+                className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
+                style={{
+                  width: 18,
+                  height: 18,
+                  background: CHROME.paper2,
+                  color: CHROME.muted2,
+                }}
+                aria-hidden
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </span>
+              <span
+                className="flex-1 font-semibold tracking-[-0.005em]"
+                style={{ fontSize: 12.5 }}
+              >
+                Add new page
+              </span>
+            </div>
+          ) : (
+            <Link
+              href="/admin/site-settings/pages/new"
+              target="_blank"
+              role="menuitem"
+              className="flex cursor-pointer items-center gap-[8px] rounded-[6px] px-[10px] py-[7px] no-underline transition-colors"
+              style={{ color: CHROME.blue }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = CHROME.blueBg;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+              }}
+              onClick={() => setOpen(false)}
+            >
+              <span
+                className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
+                style={{ width: 18, height: 18, background: CHROME.blueBg, color: CHROME.blue }}
+                aria-hidden
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </span>
+              <span className="flex-1 font-semibold tracking-[-0.005em]" style={{ fontSize: 12.5 }}>
+                Add new page
+              </span>
+            </Link>
+          )}
+          {availability?.createPageHint ? (
+            <div
+              className="px-[10px] pb-[4px]"
+              style={{ fontSize: 11, color: CHROME.muted2, lineHeight: 1.35 }}
+            >
+              {availability.createPageHint}
+            </div>
+          ) : null}
 
           {/* ── Divider ── */}
           <div aria-hidden style={{ height: 1, background: CHROME.line, margin: "6px 2px" }} />
@@ -506,7 +572,7 @@ function PagePicker({
                   <button
                     type="button"
                     title={`Duplicate "${page.title}"`}
-                    disabled={isDuplicating}
+                    disabled={isDuplicating || (availability?.canCreatePages === false)}
                     className="inline-flex shrink-0 items-center justify-center rounded-[5px] opacity-0 transition-opacity group-hover:opacity-100"
                     style={{ width: 24, height: 24, color: CHROME.muted }}
                     onClick={() => void handleDuplicate(page.id)}

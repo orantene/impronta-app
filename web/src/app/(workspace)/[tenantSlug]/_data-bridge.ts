@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   loadClientTrustStatesForTenant,
@@ -10,6 +11,8 @@ import {
 import { loadFieldCatalog } from "@/lib/profile-fields-service";
 import { loadWorkspaceSubscriptionState, type WorkspaceSubscriptionState } from "@/lib/stripe/workspace-billing";
 import { loadTalentSubscriptionState, type TalentSubscriptionState } from "@/lib/stripe/talent-billing";
+import { getFeeBasisPoints, feePercent } from "@/lib/bookings/commission";
+import { loadTransactionsForTenant } from "@/lib/bookings/transactions";
 
 // Type-only import — `_state.tsx` is "use client"; import type is erased.
 import type { TalentProfile } from "@/app/prototypes/admin-shell/_state";
@@ -17,7 +20,6 @@ import type { TalentProfile } from "@/app/prototypes/admin-shell/_state";
 // Site-admin helpers used by loadWebsiteData.
 import { listPagesForStaff } from "@/lib/site-admin/server/pages-reads";
 import { loadIdentityForStaff } from "@/lib/site-admin/server/reads";
-import { getTenantPreviewOrigin } from "@/lib/site-admin/server/tenant-hosts";
 
 /**
  * _data-bridge.ts — Phase 3 workspace server-side data bridge.
@@ -580,6 +582,18 @@ export type WorkspaceBookingRow = {
   event_location: string | null;
   quantity: number | null;
   created_at: string;
+  /** Gross booking revenue in cents (from agency_bookings.total_client_revenue). Null if not set. */
+  grossRevenueCents: number | null;
+  /** Booking currency from agency_bookings.currency_code. */
+  currencyCode: string | null;
+  /** Active transaction status for this booking (null = no transaction yet). */
+  transactionStatus: string | null;
+  /** Snapshotted transaction amounts when an active transaction exists. */
+  transactionGrossCents: number | null;
+  transactionFeeBasisPoints: number | null;
+  transactionFeeCents: number | null;
+  transactionNetCents: number | null;
+  transactionCurrency: string | null;
 };
 
 /**
@@ -596,10 +610,14 @@ export async function loadWorkspaceBookings(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
 
+    // Inquiries in booked/converted state + their linked agency_booking revenue.
+    // Active transaction snapshots are loaded separately so the list always
+    // reflects the canonical transaction amounts, not a recomputed preview.
     const { data, error } = await supabase
       .from("inquiries")
       .select(
-        "id, contact_name, company, event_date, event_location, quantity, created_at",
+        `id, contact_name, company, event_date, event_location, quantity, created_at,
+         agency_bookings!agency_bookings_source_inquiry_id_fkey(id, total_client_revenue, currency_code)`,
       )
       .eq("tenant_id", tenantId)
       .in("status", ["booked", "converted"])
@@ -607,11 +625,75 @@ export async function loadWorkspaceBookings(
       .limit(200);
 
     if (error) {
+      // Fallback: if the join fails (e.g. fkey names differ), load plain rows
       logServerError("workspace.loadBookings", error);
-      return [];
+      const { data: plain } = await supabase
+        .from("inquiries")
+        .select("id, contact_name, company, event_date, event_location, quantity, created_at")
+        .eq("tenant_id", tenantId)
+        .in("status", ["booked", "converted"])
+        .order("event_date", { ascending: true, nullsFirst: false })
+        .limit(200);
+      return (plain ?? []).map((r: Record<string, unknown>) => ({
+        ...(r as Omit<
+          WorkspaceBookingRow,
+          | "grossRevenueCents"
+          | "currencyCode"
+          | "transactionStatus"
+          | "transactionGrossCents"
+          | "transactionFeeBasisPoints"
+          | "transactionFeeCents"
+          | "transactionNetCents"
+          | "transactionCurrency"
+        >),
+        grossRevenueCents: null,
+        currencyCode: null,
+        transactionStatus: null,
+        transactionGrossCents: null,
+        transactionFeeBasisPoints: null,
+        transactionFeeCents: null,
+        transactionNetCents: null,
+        transactionCurrency: null,
+      }));
     }
 
-    return (data ?? []) as WorkspaceBookingRow[];
+    const transactionsByBookingId = await loadTransactionsForTenant(tenantId, supabase);
+
+    return (data ?? []).map((r: Record<string, unknown>) => {
+      // total_client_revenue is NUMERIC in PG — convert to cents (×100)
+      const bookingJoin = r["agency_bookings"] as
+        | { id?: string; total_client_revenue?: number | string | null; currency_code?: string | null }
+        | {
+            id?: string;
+            total_client_revenue?: number | string | null;
+            currency_code?: string | null;
+          }[]
+        | null
+        | undefined;
+      const booking =
+        Array.isArray(bookingJoin) ? bookingJoin[0] ?? null : bookingJoin ?? null;
+      const rawRevenue = booking?.total_client_revenue;
+      const grossRevenueCents = rawRevenue != null ? Math.round(Number(rawRevenue) * 100) : null;
+      const tx = booking?.id ? transactionsByBookingId.get(booking.id) ?? null : null;
+
+      return {
+        id: r.id as string,
+        contact_name: r.contact_name as string,
+        company: r.company as string | null,
+        event_date: r.event_date as string | null,
+        event_location: r.event_location as string | null,
+        quantity: r.quantity as number | null,
+        created_at: r.created_at as string,
+        grossRevenueCents,
+        currencyCode: booking?.currency_code ?? null,
+        transactionStatus: tx?.status ?? null,
+        transactionGrossCents: tx?.grossAmountCents ?? null,
+        transactionFeeBasisPoints: tx?.platformFeeBasisPoints ?? null,
+        transactionFeeCents: tx?.platformFeeCents ?? null,
+        transactionNetCents: tx?.netAmountCents ?? null,
+        transactionCurrency: tx?.currency ?? null,
+      };
+    });
   } catch (err) {
     logServerError("workspace.loadBookings", err);
     return [];
@@ -713,6 +795,166 @@ export async function loadWorkspaceAgencySummary(
   }
 }
 
+export type WorkspaceDomainSummary = {
+  primaryHost: string | null;
+  primaryHostKind: "subdomain" | "custom" | null;
+  primaryHostStatus:
+    | "pending"
+    | "dns_verification_sent"
+    | "verified"
+    | "ssl_provisioned"
+    | "active"
+    | "failed"
+    | "suspended"
+    | null;
+  subdomainHost: string | null;
+  customDomainHost: string | null;
+  customDomainStatus:
+    | "pending"
+    | "dns_verification_sent"
+    | "verified"
+    | "ssl_provisioned"
+    | "active"
+    | "failed"
+    | "suspended"
+    | null;
+  customDomainVerifiedAt: string | null;
+  verificationToken: string | null;
+  failureReason: string | null;
+  customDomains: {
+    hostname: string;
+    isPrimary: boolean;
+    status:
+      | "pending"
+      | "dns_verification_sent"
+      | "verified"
+      | "ssl_provisioned"
+      | "active"
+      | "failed"
+      | "suspended";
+    verificationToken: string | null;
+    verifiedAt: string | null;
+    failureReason: string | null;
+  }[];
+  subdomains: {
+    hostname: string;
+    isPrimary: boolean;
+    status:
+      | "pending"
+      | "dns_verification_sent"
+      | "verified"
+      | "ssl_provisioned"
+      | "active"
+      | "failed"
+      | "suspended";
+  }[];
+};
+
+/**
+ * Load current branded host + custom-domain state for workspace settings.
+ * Returns null hosts when the domain registry is unavailable or no rows exist.
+ */
+export async function loadWorkspaceDomainSummary(
+  tenantId: string,
+): Promise<WorkspaceDomainSummary> {
+  const empty: WorkspaceDomainSummary = {
+    primaryHost: null,
+    primaryHostKind: null,
+    primaryHostStatus: null,
+    subdomainHost: null,
+    customDomainHost: null,
+    customDomainStatus: null,
+    customDomainVerifiedAt: null,
+    verificationToken: null,
+    failureReason: null,
+    customDomains: [],
+    subdomains: [],
+  };
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return empty;
+
+    const { data, error } = await supabase
+      .from("agency_domains")
+      .select("hostname, kind, is_primary, status, verification_token, verified_at, failure_reason, updated_at")
+      .eq("tenant_id", tenantId)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      logServerError("workspace.loadDomainSummary", error);
+      return empty;
+    }
+
+    const rows = (data ?? []) as {
+      hostname: string;
+      kind: "subdomain" | "custom";
+      is_primary: boolean;
+      status:
+        | "pending"
+        | "dns_verification_sent"
+        | "verified"
+        | "ssl_provisioned"
+        | "active"
+        | "failed"
+        | "suspended";
+      verification_token: string | null;
+      verified_at: string | null;
+      failure_reason: string | null;
+      updated_at: string;
+    }[];
+
+    const subdomains = rows.filter((row) => row.kind === "subdomain");
+    const customs = rows.filter((row) => row.kind === "custom");
+
+    const preferredSubdomain =
+      subdomains.find((row) => row.is_primary)
+      ?? subdomains.find((row) => row.hostname.endsWith(".tulala.digital"))
+      ?? subdomains.find((row) => row.hostname.endsWith(".lvh.me"))
+      ?? subdomains.find((row) => row.hostname.endsWith(".studiobooking.io"))
+      ?? subdomains[0]
+      ?? null;
+
+    const custom =
+      customs.find((row) => row.is_primary)
+      ?? customs[0]
+      ?? null;
+    const primary =
+      rows.find((row) => row.is_primary)
+      ?? custom
+      ?? preferredSubdomain
+      ?? null;
+
+    return {
+      primaryHost: primary?.hostname ?? null,
+      primaryHostKind: primary?.kind ?? null,
+      primaryHostStatus: primary?.status ?? null,
+      subdomainHost: preferredSubdomain?.hostname ?? null,
+      customDomainHost: custom?.hostname ?? null,
+      customDomainStatus: custom?.status ?? null,
+      customDomainVerifiedAt: custom?.verified_at ?? null,
+      verificationToken: custom?.verification_token ?? null,
+      failureReason: custom?.failure_reason ?? null,
+      customDomains: customs.map((row) => ({
+        hostname: row.hostname,
+        isPrimary: row.is_primary,
+        status: row.status,
+        verificationToken: row.verification_token,
+        verifiedAt: row.verified_at,
+        failureReason: row.failure_reason,
+      })),
+      subdomains: subdomains.map((row) => ({
+        hostname: row.hostname,
+        isPrimary: row.is_primary,
+        status: row.status,
+      })),
+    };
+  } catch (err) {
+    logServerError("workspace.loadDomainSummary", err);
+    return empty;
+  }
+}
+
 // ─── Billing (Stripe subscription state) ─────────────────────────────────────
 
 export type { WorkspaceSubscriptionState };
@@ -731,6 +973,147 @@ export async function loadWorkspaceBillingState(
     return loadWorkspaceSubscriptionState(tenantId, supabase);
   } catch (err) {
     logServerError("workspace.loadBillingState", err);
+    return null;
+  }
+}
+
+// ─── Payout accounts (Phase 8.4) ────────────────────────────────────────────
+
+export type PayoutAccountSummary = {
+  id: string;
+  ownerType: "agency" | "profile" | "talent";
+  ownerId: string;
+  displayName: string;
+  provider: string;
+  status: "pending_verification" | "connected" | "restricted" | "disconnected" | "failed";
+  connectedAt: string | null;
+  lastVerifiedAt: string | null;
+};
+
+export type WorkspacePayoutSnapshot = {
+  workspaceAccount: PayoutAccountSummary | null;
+  selfStaffAccount: PayoutAccountSummary | null;
+  connectedCount: number;
+};
+
+/**
+ * Returns workspace payout account + current staff profile payout account.
+ * Safe fallback when payout tables are not yet applied: returns null accounts.
+ */
+export async function loadWorkspacePayoutSnapshot(
+  tenantId: string,
+  profileId: string,
+): Promise<WorkspacePayoutSnapshot> {
+  const empty: WorkspacePayoutSnapshot = {
+    workspaceAccount: null,
+    selfStaffAccount: null,
+    connectedCount: 0,
+  };
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return empty;
+
+    const { data, error } = await supabase
+      .from("payout_accounts")
+      .select("id, owner_type, owner_id, display_name, provider, status, connected_at, last_verified_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      logServerError("workspace.loadPayoutSnapshot", error);
+      return empty;
+    }
+
+    const rows = (data ?? []) as {
+      id: string;
+      owner_type: "agency" | "profile" | "talent";
+      owner_id: string;
+      display_name: string;
+      provider: string;
+      status: "pending_verification" | "connected" | "restricted" | "disconnected" | "failed";
+      connected_at: string | null;
+      last_verified_at: string | null;
+    }[];
+
+    const toSummary = (row: (typeof rows)[number]): PayoutAccountSummary => ({
+      id: row.id,
+      ownerType: row.owner_type,
+      ownerId: row.owner_id,
+      displayName: row.display_name,
+      provider: row.provider,
+      status: row.status,
+      connectedAt: row.connected_at,
+      lastVerifiedAt: row.last_verified_at,
+    });
+
+    const workspaceAccountRaw = rows.find(
+      (row) => row.owner_type === "agency" && row.owner_id === tenantId,
+    );
+    const selfStaffAccountRaw = rows.find(
+      (row) => row.owner_type === "profile" && row.owner_id === profileId,
+    );
+
+    return {
+      workspaceAccount: workspaceAccountRaw ? toSummary(workspaceAccountRaw) : null,
+      selfStaffAccount: selfStaffAccountRaw ? toSummary(selfStaffAccountRaw) : null,
+      connectedCount: rows.filter((row) => row.status === "connected").length,
+    };
+  } catch (err) {
+    logServerError("workspace.loadPayoutSnapshot", err);
+    return empty;
+  }
+}
+
+/**
+ * Talent-owned payout account in one workspace.
+ * Returns null when no account exists or payout tables are not applied yet.
+ */
+export async function loadTalentPayoutAccountForTenant(
+  tenantId: string,
+  talentProfileId: string,
+): Promise<PayoutAccountSummary | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from("payout_accounts")
+      .select("id, owner_type, owner_id, display_name, provider, status, connected_at, last_verified_at")
+      .eq("tenant_id", tenantId)
+      .eq("owner_type", "talent")
+      .eq("owner_id", talentProfileId)
+      .order("created_at", { ascending: false })
+      .maybeSingle();
+
+    if (error || !data) {
+      if (error) logServerError("workspace.loadTalentPayoutAccount", error);
+      return null;
+    }
+
+    const row = data as {
+      id: string;
+      owner_type: "agency" | "profile" | "talent";
+      owner_id: string;
+      display_name: string;
+      provider: string;
+      status: "pending_verification" | "connected" | "restricted" | "disconnected" | "failed";
+      connected_at: string | null;
+      last_verified_at: string | null;
+    };
+
+    return {
+      id: row.id,
+      ownerType: row.owner_type,
+      ownerId: row.owner_id,
+      displayName: row.display_name,
+      provider: row.provider,
+      status: row.status,
+      connectedAt: row.connected_at,
+      lastVerifiedAt: row.last_verified_at,
+    };
+  } catch (err) {
+    logServerError("workspace.loadTalentPayoutAccount", err);
     return null;
   }
 }
@@ -913,49 +1296,103 @@ export async function loadInquiriesForMessages(
     const { data: { user } } = await supabase.auth.getUser();
     const myUserId = user?.id ?? null;
 
-    const [inquiryRes, readsRes] = await Promise.all([
-      supabase
-        .from("inquiries")
-        .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by")
-        .eq("tenant_id", tenantId)
-        .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`)
-        .order("created_at", { ascending: false })
-        .limit(200),
-
-      myUserId ? supabase
-        .from("inquiry_message_reads")
-        .select("inquiry_id, thread_type, last_read_message_id")
-        .eq("tenant_id", tenantId)
-        .eq("user_id", myUserId) : Promise.resolve({ data: [], error: null }),
-    ]);
+    const inquiryRes = await supabase
+      .from("inquiries")
+      .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by")
+      .eq("tenant_id", tenantId)
+      .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`)
+      .order("created_at", { ascending: false })
+      .limit(200);
 
     if (inquiryRes.error) {
       logServerError("workspace.loadInquiriesForMessages.inquiries", inquiryRes.error);
       return [];
     }
 
-    // Count unread per inquiry (rough signal: no read receipt = unread)
-    const readMap = new Map<string, Set<string>>();
-    for (const r of (readsRes.data ?? []) as { inquiry_id: string; thread_type: string; last_read_message_id: string | null }[]) {
-      if (!readMap.has(r.inquiry_id)) readMap.set(r.inquiry_id, new Set());
-      readMap.get(r.inquiry_id)!.add(r.thread_type);
+    type InquiryRow = {
+      id: string;
+      status: string;
+      contact_name: string;
+      company: string | null;
+      event_date: string | null;
+      event_location: string | null;
+      quantity: number | null;
+      created_at: string;
+      next_action_by: string | null;
+    };
+    const inquiryRows = (inquiryRes.data ?? []) as InquiryRow[];
+    const inquiryIds = inquiryRows.map((row) => row.id);
+
+    // True unread count:
+    //  messages from others where created_at > last_read_at watermark
+    //  (or all messages if no watermark exists yet).
+    const unreadByInquiry = new Map<string, number>();
+    if (myUserId && inquiryIds.length > 0) {
+      const [readsRes, messagesRes] = await Promise.all([
+        supabase
+          .from("inquiry_message_reads")
+          .select("inquiry_id, thread_type, last_read_at")
+          .eq("tenant_id", tenantId)
+          .eq("user_id", myUserId)
+          .in("inquiry_id", inquiryIds),
+        supabase
+          .from("inquiry_messages")
+          .select("inquiry_id, thread_type, sender_user_id, created_at")
+          .eq("tenant_id", tenantId)
+          .is("deleted_at", null)
+          .in("inquiry_id", inquiryIds),
+      ]);
+
+      if (readsRes.error) {
+        logServerError("workspace.loadInquiriesForMessages.reads", readsRes.error);
+      }
+      if (messagesRes.error) {
+        logServerError("workspace.loadInquiriesForMessages.messages", messagesRes.error);
+      }
+
+      const readAtByInquiryThread = new Map<string, string>();
+      for (const row of (readsRes.data ?? []) as {
+        inquiry_id: string;
+        thread_type: string;
+        last_read_at: string | null;
+      }[]) {
+        const key = `${row.inquiry_id}:${row.thread_type}`;
+        if (row.last_read_at) {
+          readAtByInquiryThread.set(key, row.last_read_at);
+        }
+      }
+
+      for (const row of (messagesRes.data ?? []) as {
+        inquiry_id: string;
+        thread_type: string;
+        sender_user_id: string | null;
+        created_at: string;
+      }[]) {
+        if (row.sender_user_id && row.sender_user_id === myUserId) continue;
+        const key = `${row.inquiry_id}:${row.thread_type}`;
+        const lastReadAt = readAtByInquiryThread.get(key);
+        if (lastReadAt && new Date(row.created_at).getTime() <= new Date(lastReadAt).getTime()) {
+          continue;
+        }
+        unreadByInquiry.set(
+          row.inquiry_id,
+          (unreadByInquiry.get(row.inquiry_id) ?? 0) + 1,
+        );
+      }
     }
 
-    return (inquiryRes.data ?? []).map((row) => {
-      const reads = readMap.get((row as { id: string }).id);
-      // Simple heuristic: unread_count=1 if missing private read, +1 if missing group read
-      const unread = (reads?.has("private") ? 0 : 1) + (reads?.has("group") ? 0 : 1);
+    return inquiryRows.map((row) => {
       return {
-        id: (row as { id: string }).id,
-        status: (row as { status: string }).status,
-        contact_name: (row as { contact_name: string }).contact_name,
-        company: (row as { company: string | null }).company,
-        event_date: (row as { event_date: string | null }).event_date,
-        event_location: (row as { event_location: string | null }).event_location,
-        quantity: (row as { quantity: number | null }).quantity,
-        created_at: (row as { created_at: string }).created_at,
-        next_action_by: (row as { next_action_by: string | null }).next_action_by,
-        unread_count: unread,
+        id: row.id,
+        status: row.status,
+        contact_name: row.contact_name,
+        company: row.company,
+        event_date: row.event_date,
+        event_location: row.event_location,
+        quantity: row.quantity,
+        created_at: row.created_at,
+        next_action_by: row.next_action_by,
+        unread_count: unreadByInquiry.get(row.id) ?? 0,
       };
     });
   } catch (err) {
@@ -1101,8 +1538,7 @@ export type WebsiteData = {
   redirects: WebsiteRedirectItem[];
   seoTitle: string | null;
   seoDescription: string | null;
-  /** Fully-qualified storefront URL, e.g. "https://impronta.tulala.digital" */
-  liveUrl: string | null;
+  domainSummary: WorkspaceDomainSummary;
 };
 
 /**
@@ -1112,15 +1548,30 @@ export type WebsiteData = {
  * Returns a safe empty state on any error — the page renders gracefully.
  */
 export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
+  const emptyDomainSummary: WorkspaceDomainSummary = {
+    primaryHost: null,
+    primaryHostKind: null,
+    primaryHostStatus: null,
+    subdomainHost: null,
+    customDomainHost: null,
+    customDomainStatus: null,
+    customDomainVerifiedAt: null,
+    verificationToken: null,
+    failureReason: null,
+    customDomains: [],
+    subdomains: [],
+  };
   const empty: WebsiteData = {
     pages: [], posts: [], redirects: [],
-    seoTitle: null, seoDescription: null, liveUrl: null,
+    seoTitle: null,
+    seoDescription: null,
+    domainSummary: emptyDomainSummary,
   };
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return empty;
 
-    const [pagesRaw, postsRes, redirectsRes, identity, liveUrl] = await Promise.all([
+    const [pagesRaw, postsRes, redirectsRes, identity, domainSummary] = await Promise.all([
       listPagesForStaff(supabase, tenantId).catch(() => []),
       supabase
         .from("cms_posts")
@@ -1135,7 +1586,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
         .order("updated_at", { ascending: false })
         .limit(50),
       loadIdentityForStaff(supabase, tenantId).catch(() => null),
-      getTenantPreviewOrigin(supabase, tenantId).catch(() => null),
+      loadWorkspaceDomainSummary(tenantId).catch(() => emptyDomainSummary),
     ]);
 
     type PostRow = { id: string; slug: string; title: string; status: string; updated_at: string | null };
@@ -1166,7 +1617,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       })),
       seoTitle: identity?.seo_default_title ?? null,
       seoDescription: identity?.seo_default_description ?? null,
-      liveUrl,
+      domainSummary,
     };
   } catch (err) {
     logServerError("workspace.loadWebsiteData", err);
@@ -1232,7 +1683,7 @@ export async function loadRecentActivity(
     const rows = data as unknown as EventRow[];
 
     const actorIds = [...new Set(rows.map((r) => r.actor_user_id).filter(Boolean) as string[])];
-    let nameMap: Map<string, string> = new Map();
+    const nameMap: Map<string, string> = new Map();
 
     if (actorIds.length > 0) {
       const { data: profiles } = await supabase
@@ -1293,6 +1744,7 @@ export async function loadTalentSelfProfile(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
+    const trusted = createServiceRoleClient() ?? supabase;
 
     // Step 1: Get the talent's profile
     const { data: profileRow, error: profileErr } = await supabase
@@ -1335,7 +1787,7 @@ export async function loadTalentSelfProfile(
     const p = profileRow as unknown as ProfileRaw;
 
     // Step 2: Verify the talent is rostered in this tenant
-    const { data: rosterRow, error: rosterErr } = await supabase
+    const { data: rosterRow, error: rosterErr } = await trusted
       .from("agency_talent_roster")
       .select("status, agencies!tenant_id ( display_name )")
       .eq("talent_profile_id", p.id)
@@ -1394,6 +1846,8 @@ export type TalentInquiryRow = {
   created_at: string;
   /** participant status: invited | accepted | declined | pending */
   participantStatus: string;
+  /** Unread count in the group thread for this talent user. */
+  unreadCount: number;
 };
 
 /**
@@ -1407,6 +1861,10 @@ export async function loadTalentInquiries(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const myUserId = user?.id ?? null;
 
     const { data, error } = await supabase
       .from("inquiry_participants")
@@ -1446,7 +1904,7 @@ export async function loadTalentInquiries(
       } | null;
     };
 
-    return ((data ?? []) as unknown as PartRow[])
+    const rows = ((data ?? []) as unknown as PartRow[])
       .filter((r) => r.inquiries)
       .map((r) => ({
         id: r.inquiries!.id,
@@ -1457,7 +1915,67 @@ export async function loadTalentInquiries(
         event_location: r.inquiries!.event_location,
         created_at: r.inquiries!.created_at,
         participantStatus: r.status,
+        unreadCount: 0,
       }));
+
+    if (!myUserId || rows.length === 0) return rows;
+
+    const inquiryIds = rows.map((row) => row.id);
+    const [readsRes, messagesRes] = await Promise.all([
+      supabase
+        .from("inquiry_message_reads")
+        .select("inquiry_id, last_read_at")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", myUserId)
+        .eq("thread_type", "group")
+        .in("inquiry_id", inquiryIds),
+      supabase
+        .from("inquiry_messages")
+        .select("inquiry_id, sender_user_id, created_at")
+        .eq("tenant_id", tenantId)
+        .eq("thread_type", "group")
+        .is("deleted_at", null)
+        .in("inquiry_id", inquiryIds),
+    ]);
+
+    if (readsRes.error) {
+      logServerError("talent.loadInquiries.reads", readsRes.error);
+    }
+    if (messagesRes.error) {
+      logServerError("talent.loadInquiries.messages", messagesRes.error);
+    }
+
+    const lastReadAtByInquiry = new Map<string, string>();
+    for (const row of (readsRes.data ?? []) as {
+      inquiry_id: string;
+      last_read_at: string | null;
+    }[]) {
+      if (row.last_read_at) {
+        lastReadAtByInquiry.set(row.inquiry_id, row.last_read_at);
+      }
+    }
+
+    const unreadByInquiry = new Map<string, number>();
+    for (const row of (messagesRes.data ?? []) as {
+      inquiry_id: string;
+      sender_user_id: string | null;
+      created_at: string;
+    }[]) {
+      if (row.sender_user_id && row.sender_user_id === myUserId) continue;
+      const lastReadAt = lastReadAtByInquiry.get(row.inquiry_id);
+      if (lastReadAt && new Date(row.created_at).getTime() <= new Date(lastReadAt).getTime()) {
+        continue;
+      }
+      unreadByInquiry.set(
+        row.inquiry_id,
+        (unreadByInquiry.get(row.inquiry_id) ?? 0) + 1,
+      );
+    }
+
+    return rows.map((row) => ({
+      ...row,
+      unreadCount: unreadByInquiry.get(row.id) ?? 0,
+    }));
   } catch (err) {
     logServerError("talent.loadInquiries", err);
     return [];
@@ -1482,8 +2000,9 @@ export async function loadTalentAgencies(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
+    const trusted = createServiceRoleClient() ?? supabase;
 
-    const { data, error } = await supabase
+    const { data, error } = await trusted
       .from("agency_talent_roster")
       .select(`
         status,
@@ -1536,9 +2055,11 @@ export type ClientSelfProfile = {
 };
 
 /**
- * Load the client's own profile and verify they have a relationship with
- * this agency (at least one inquiry to tenantId). Returns null if the user
- * is not a registered client or has no relationship with the given tenant.
+ * Load the client's own profile and verify they have an active relationship
+ * with this agency. Historical inquiry count is kept as a fallback for local
+ * environments that do not have a service key, but the canonical gate is now
+ * agency_client_relationships so a freshly registered branded client can
+ * enter the workspace before creating their first inquiry.
  */
 export async function loadClientSelfProfile(
   userId: string,
@@ -1547,33 +2068,24 @@ export async function loadClientSelfProfile(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
+    const trusted = createServiceRoleClient();
 
-    // Parallel: fetch client profile + agency name + verify relationship
-    const [profileRes, agencyRes, inquiryCountRes] = await Promise.all([
+    const [profileRes, agencyRes] = await Promise.all([
       supabase
         .from("client_profiles")
         .select("id, company_name, profiles!inner(display_name)")
         .eq("user_id", userId)
         .maybeSingle(),
 
-      supabase
+      (trusted ?? supabase)
         .from("agencies")
         .select("display_name, slug")
         .eq("id", tenantId)
         .maybeSingle(),
-
-      supabase
-        .from("inquiries")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("client_user_id", userId),
     ]);
 
     if (profileRes.error) logServerError("client.loadSelfProfile.profile", profileRes.error);
     if (!profileRes.data) return null;
-
-    // Must have at least one inquiry to this tenant to access the dashboard
-    if ((inquiryCountRes.count ?? 0) === 0) return null;
 
     type ProfileRaw = {
       id: string;
@@ -1582,6 +2094,36 @@ export async function loadClientSelfProfile(
     };
 
     const row = profileRes.data as unknown as ProfileRaw;
+
+    let hasRelationship = false;
+    if (trusted) {
+      const { data: relationship, error: relationshipErr } = await trusted
+        .from("agency_client_relationships")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("client_profile_id", row.id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (relationshipErr) {
+        logServerError("client.loadSelfProfile.relationship", relationshipErr);
+      }
+      hasRelationship = Boolean(relationship);
+    } else {
+      const { count, error: inquiryCountErr } = await supabase
+        .from("inquiries")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("client_user_id", userId);
+
+      if (inquiryCountErr) {
+        logServerError("client.loadSelfProfile.inquiryFallback", inquiryCountErr);
+      }
+      hasRelationship = (count ?? 0) > 0;
+    }
+
+    if (!hasRelationship) return null;
+
     const profileJoin = row.profiles;
     const profile = Array.isArray(profileJoin) ? profileJoin[0] : profileJoin;
 
@@ -1610,6 +2152,8 @@ export type ClientInquiryRow = {
   quantity: number | null;
   created_at: string;
   next_action_by: string | null;
+  /** Unread count in the private client thread. */
+  unreadCount: number;
 };
 
 /**
@@ -1637,7 +2181,65 @@ export async function loadClientInquiries(
       return [];
     }
 
-    return (data ?? []) as ClientInquiryRow[];
+    const rows = (data ?? []) as Omit<ClientInquiryRow, "unreadCount">[];
+    if (rows.length === 0) return [];
+
+    const inquiryIds = rows.map((row) => row.id);
+    const [readsRes, messagesRes] = await Promise.all([
+      supabase
+        .from("inquiry_message_reads")
+        .select("inquiry_id, last_read_at")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId)
+        .eq("thread_type", "private")
+        .in("inquiry_id", inquiryIds),
+      supabase
+        .from("inquiry_messages")
+        .select("inquiry_id, sender_user_id, created_at")
+        .eq("tenant_id", tenantId)
+        .eq("thread_type", "private")
+        .is("deleted_at", null)
+        .in("inquiry_id", inquiryIds),
+    ]);
+
+    if (readsRes.error) {
+      logServerError("client.loadInquiries.reads", readsRes.error);
+    }
+    if (messagesRes.error) {
+      logServerError("client.loadInquiries.messages", messagesRes.error);
+    }
+
+    const lastReadAtByInquiry = new Map<string, string>();
+    for (const row of (readsRes.data ?? []) as {
+      inquiry_id: string;
+      last_read_at: string | null;
+    }[]) {
+      if (row.last_read_at) {
+        lastReadAtByInquiry.set(row.inquiry_id, row.last_read_at);
+      }
+    }
+
+    const unreadByInquiry = new Map<string, number>();
+    for (const row of (messagesRes.data ?? []) as {
+      inquiry_id: string;
+      sender_user_id: string | null;
+      created_at: string;
+    }[]) {
+      if (row.sender_user_id && row.sender_user_id === userId) continue;
+      const lastReadAt = lastReadAtByInquiry.get(row.inquiry_id);
+      if (lastReadAt && new Date(row.created_at).getTime() <= new Date(lastReadAt).getTime()) {
+        continue;
+      }
+      unreadByInquiry.set(
+        row.inquiry_id,
+        (unreadByInquiry.get(row.inquiry_id) ?? 0) + 1,
+      );
+    }
+
+    return rows.map((row) => ({
+      ...row,
+      unreadCount: unreadByInquiry.get(row.id) ?? 0,
+    }));
   } catch (err) {
     logServerError("client.loadInquiries", err);
     return [];
@@ -1805,6 +2407,38 @@ export async function loadWorkspaceFieldCatalog(
   } catch (err) {
     logServerError("workspace.loadFieldCatalog", err);
     return [];
+  }
+}
+
+// ─── Commission context (Phase 8.4) ──────────────────────────────────────────
+
+export type CommissionContext = {
+  planTier: string;
+  feeBasisPoints: number;
+  feePercent: string;
+};
+
+/**
+ * Returns the workspace plan tier and the corresponding platform fee basis points.
+ * Used by the bookings page to display the fee rate and by transaction creation.
+ */
+export async function loadCommissionContext(tenantId: string): Promise<CommissionContext> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return { planTier: "free", feeBasisPoints: 0, feePercent: "0%" };
+
+    const { data } = await supabase
+      .from("agencies")
+      .select("plan_tier")
+      .eq("id", tenantId)
+      .maybeSingle();
+
+    const planTier = (data as { plan_tier?: string } | null)?.plan_tier ?? "free";
+    const bps = getFeeBasisPoints(planTier);
+    return { planTier, feeBasisPoints: bps, feePercent: feePercent(bps) };
+  } catch (err) {
+    logServerError("workspace.loadCommissionContext", err);
+    return { planTier: "free", feeBasisPoints: 0, feePercent: "0%" };
   }
 }
 

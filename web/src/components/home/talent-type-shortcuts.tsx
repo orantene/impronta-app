@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import {
   Sparkles,
@@ -27,10 +28,12 @@ export function TalentTypeShortcuts({
   types,
   locale,
   sectionKicker,
+  publicPathPrefix = "",
 }: {
   types: { id: string; slug: string; name: string; imageUrl?: string | null }[];
   locale: Locale;
   sectionKicker: string;
+  publicPathPrefix?: string;
 }) {
   // 2026 reset — feed shows parent_categories now (term_type='parent_category',
   // is_public_filter=TRUE), not specific talent_types. Icon map is keyed by
@@ -80,7 +83,10 @@ export function TalentTypeShortcuts({
             {shortcuts.map((s) => (
               <Link
                 key={s.slug}
-                href={withLocalePath(`/directory?tax=${s.taxId}`, locale)}
+                href={withLocalePath(
+                  prefixPublicHref(`/directory?tax=${s.taxId}`, publicPathPrefix),
+                  locale,
+                )}
                 className="group flex shrink-0 items-center gap-2.5 rounded-full border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-5 py-2.5 text-m font-medium text-[var(--impronta-foreground)] transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5 hover:text-[var(--impronta-gold)]"
               >
                 {s.imageUrl ? (

@@ -49,6 +49,15 @@ if (process.env.SKIP_MIGRATION_DRIFT_CHECK === "1") {
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) {
+  // L11: In CI, missing env vars are a hard failure — a deploy without the
+  // drift check is as dangerous as a deploy with a pending migration. Local
+  // builds skip gracefully because secrets are typically not available there.
+  if (process.env.CI === "true") {
+    console.error(
+      "[check-migrations-applied] FATAL: running in CI but NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing. Set both env vars in the CI environment or set SKIP_MIGRATION_DRIFT_CHECK=1 to intentionally bypass.",
+    );
+    process.exit(1);
+  }
   console.warn(
     "[check-migrations-applied] NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing — skipping drift check (build will succeed). To enforce, set both env vars.",
   );

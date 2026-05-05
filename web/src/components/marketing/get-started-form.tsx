@@ -15,6 +15,10 @@ import {
   type GetStartedActionResult,
 } from "@/app/(marketing)/get-started/actions";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import {
+  reservedBrandedSubdomainHost,
+  workspacePathHost,
+} from "@/lib/saas/workspace-public-url";
 
 type AudienceKey = "operator" | "agency" | "organization";
 type RosterBucket = "1-5" | "6-20" | "21-50" | "50+";
@@ -24,6 +28,20 @@ type Props = {
   initialAudience?: AudienceKey;
   tier?: TierKey;
 };
+
+function preferredLinkPreview(slug: string, tier?: TierKey): string {
+  if (tier === "studio" || tier === "agency" || tier === "network") {
+    return reservedBrandedSubdomainHost(slug);
+  }
+
+  return workspacePathHost(slug);
+}
+
+function preferredLinkLabel(tier?: TierKey): string {
+  return tier === "studio" || tier === "agency" || tier === "network"
+    ? "Preferred branded host"
+    : "Preferred public URL";
+}
 
 const AUDIENCE_OPTIONS: { key: AudienceKey; label: string; description: string }[] = [
   {
@@ -163,25 +181,54 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
           className="mt-4 text-[0.9375rem] leading-[1.6]"
           style={{ color: "var(--plt-muted)" }}
         >
-          We&rsquo;ll email{" "}
-          <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>{" "}
-          with your setup link, usually within the hour. Check spam if you
-          don&rsquo;t see it by tomorrow.
+          {state.workspaceSignupUrl ? (
+            <>
+              Finish account setup with{" "}
+              <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>{" "}
+              and we&apos;ll create your free workspace and its public Tulala URL
+              automatically.
+            </>
+          ) : (
+            <>
+              We&apos;ll email{" "}
+              <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>{" "}
+              with your setup link, usually within the hour. Check spam if you
+              don&apos;t see it by tomorrow.
+            </>
+          )}
         </p>
+        {state.workspaceSignupUrl ? (
+          <a
+            href={state.workspaceSignupUrl}
+            className="mt-6 inline-flex items-center justify-center rounded-full px-5 py-3 text-[0.875rem] font-medium transition-colors hover:opacity-90"
+            style={{
+              background: "var(--plt-forest)",
+              color: "var(--plt-on-inverse)",
+            }}
+          >
+            Create account and open workspace
+          </a>
+        ) : null}
         <ul
           className="mt-6 space-y-2.5 text-[0.9375rem]"
           style={{ color: "var(--plt-ink-soft)" }}
         >
           <li className="flex items-start gap-2.5">
             <SuccessTick />
-            Your subdomain:{" "}
-            <strong>{(state.subdomain ?? "your-roster") + "." + PLATFORM_BRAND.domain}</strong>
+            {preferredLinkLabel(tier)}:{" "}
+            <strong>{preferredLinkPreview(state.subdomain ?? "your-roster", tier)}</strong>
           </li>
           <li className="flex items-start gap-2.5">
-            <SuccessTick /> Free plan — no credit card on file
+            <SuccessTick />{" "}
+            {state.workspaceSignupUrl
+              ? "Free plan — no credit card on file"
+              : "We'll confirm the right plan and launch path with you by email"}
           </li>
           <li className="flex items-start gap-2.5">
-            <SuccessTick /> Full export available from day one
+            <SuccessTick />{" "}
+            {state.workspaceSignupUrl
+              ? "Upgrade later to branded subdomains or custom domains"
+              : "Your preferred link name is saved with this signup"}
           </li>
         </ul>
         <p
@@ -369,7 +416,7 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
           className="text-[0.8125rem] font-medium"
           style={{ color: "var(--plt-ink)" }}
         >
-          Pick your link
+          Pick your link name
         </label>
         <div
           className="mt-2 flex items-stretch overflow-hidden rounded-xl border transition-colors"
@@ -387,6 +434,18 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
                 : "none",
           }}
         >
+          {tier === "studio" || tier === "agency" || tier === "network" ? null : (
+            <span
+              className="plt-mono inline-flex items-center border-r px-4 text-[0.8125rem]"
+              style={{
+                borderColor: "var(--plt-hairline)",
+                color: "var(--plt-muted)",
+                background: "var(--plt-bg-deep)",
+              }}
+            >
+              {PLATFORM_BRAND.domain}/
+            </span>
+          )}
           <input
             id="subdomain"
             name="subdomain"
@@ -406,18 +465,20 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
             autoComplete="off"
             spellCheck={false}
           />
-          <span
-            className="plt-mono inline-flex items-center border-l px-4 text-[0.8125rem]"
-            style={{
-              borderColor: "var(--plt-hairline)",
-              color: "var(--plt-muted)",
-              background: "var(--plt-bg-deep)",
-            }}
-          >
-            .{PLATFORM_BRAND.domain}
-          </span>
+          {tier === "studio" || tier === "agency" || tier === "network" ? (
+            <span
+              className="plt-mono inline-flex items-center border-l px-4 text-[0.8125rem]"
+              style={{
+                borderColor: "var(--plt-hairline)",
+                color: "var(--plt-muted)",
+                background: "var(--plt-bg-deep)",
+              }}
+            >
+              .{PLATFORM_BRAND.domain}
+            </span>
+          ) : null}
         </div>
-        <SubdomainHint state={subdomainState} serverError={errors.subdomain} />
+        <SubdomainHint state={subdomainState} serverError={errors.subdomain} tier={tier} />
       </div>
 
       <fieldset className="mt-6">
@@ -499,9 +560,11 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
 function SubdomainHint({
   state,
   serverError,
+  tier,
 }: {
   state: SubdomainState;
   serverError?: string;
+  tier?: TierKey;
 }) {
   if (serverError) {
     return (
@@ -539,7 +602,7 @@ function SubdomainHint({
             />
           </svg>
           <strong>
-            {state.value}.{PLATFORM_BRAND.domain}
+            {preferredLinkPreview(state.value, tier)}
           </strong>{" "}
           is available.
         </p>

@@ -10,12 +10,43 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { resolveWorkspacePublicAddress } from "@/lib/saas/workspace-public-url";
+import { resolveWorkspacePreviewUrl } from "@/lib/site-admin/server/tenant-hosts";
 import { userHasCapability } from "@/lib/access";
-import { loadWebsiteData } from "../../_data-bridge";
+import {
+  checkCustomDomainProvisioningAction,
+  connectCustomDomainAction,
+  removeCustomDomainAction,
+  switchPrimaryDomainAction,
+  verifyCustomDomainNowAction,
+} from "../settings/domain-actions";
+import {
+  buildCustomDomainRoutingRecords,
+  customDomainCanBecomePrimary,
+  customDomainNeedsRouting,
+} from "@/lib/saas/custom-domain-routing";
+import {
+  filterOperatorFacingCustomDomains,
+  filterOperatorFacingSubdomains,
+  findPrimaryCustomDomain,
+  isLocalPreviewHost,
+  listAlternateCustomDomains,
+  resolveCustomDomainAliasRedirect,
+  suggestAlternateCustomDomainHostname,
+} from "@/lib/saas/domain-display";
+import { loadWebsiteData, loadWorkspaceAgencySummary } from "../../_data-bridge";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
+type PageSearchParams = Promise<{
+  dmsg?: string | string[];
+  derr?: string | string[];
+}>;
+type WebsiteDomainSummary = Awaited<ReturnType<typeof loadWebsiteData>>["domainSummary"];
+type DomainLifecycleStatus = NonNullable<WebsiteDomainSummary["primaryHostStatus"]>;
+type DomainHealth = "ok" | "warn";
+type DomainSummaryState = { status: DomainHealth; value: string };
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -53,6 +84,210 @@ function fmtDate(iso: string | null): string {
   } catch {
     return "—";
   }
+}
+
+const TXT_READY_STATUSES = new Set(["verified", "ssl_provisioned", "active"]);
+const ROUTING_READY_STATUSES = new Set(["ssl_provisioned", "active"]);
+const CUSTOM_DOMAIN_ELIGIBLE_PLANS = new Set(["agency", "network", "legacy"]);
+const DOMAIN_STATUS_LABEL: Record<DomainLifecycleStatus, string> = {
+  pending: "Pending",
+  dns_verification_sent: "Waiting on DNS",
+  verified: "Verified",
+  ssl_provisioned: "SSL provisioned",
+  active: "Active",
+  failed: "Needs attention",
+  suspended: "Suspended",
+};
+
+function firstParam(value: string | string[] | undefined): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim().slice(0, 200);
+  if (Array.isArray(value)) {
+    const first = value.find((item) => typeof item === "string" && item.trim());
+    if (first) return first.trim().slice(0, 200);
+  }
+  return null;
+}
+
+function isTxtReadyStatus(status: string | null): boolean {
+  return TXT_READY_STATUSES.has(status ?? "");
+}
+
+function isRoutingReadyStatus(status: string | null): boolean {
+  return ROUTING_READY_STATUSES.has(status ?? "");
+}
+
+function formatDomainDate(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function describeCustomDomainStatus(domain: {
+  status: string;
+  verifiedAt: string | null;
+  failureReason: string | null;
+}): string {
+  if (domain.status === "ssl_provisioned") {
+    return "Routing detected. HTTPS is still finishing on Vercel.";
+  }
+  if (domain.status === "verified") {
+    return domain.verifiedAt
+      ? `Ownership verified ${formatDomainDate(domain.verifiedAt)}. Add the routing record to go live.`
+      : "Ownership verified. Add the routing record to go live.";
+  }
+  if (domain.verifiedAt) {
+    return `Verified ${formatDomainDate(domain.verifiedAt)}`;
+  }
+  return domain.failureReason ?? "Awaiting verification";
+}
+
+function describeSuggestedAlternateDomain(
+  hostname: string,
+  primaryHostname: string,
+): string {
+  return hostname.startsWith("www.")
+    ? `Add ${hostname} so visitors who type the www version still land on ${primaryHostname}.`
+    : `Add ${hostname} so the bare domain also resolves and redirects to ${primaryHostname}.`;
+}
+
+function describeAliasRedirectMode(mode: "bare_to_www" | "www_to_bare"): string {
+  return mode === "bare_to_www" ? "Bare to www" : "www to bare";
+}
+
+function describeAliasRedirectPolicy(mode: "bare_to_www" | "www_to_bare", primaryHostname: string): string {
+  return mode === "bare_to_www"
+    ? `Requests to the bare domain redirect to ${primaryHostname}.`
+    : `Requests to the www host redirect to ${primaryHostname}.`;
+}
+
+function customDomainsForDisplay(domainSummary: WebsiteDomainSummary) {
+  return filterOperatorFacingCustomDomains(domainSummary.customDomains);
+}
+
+function subdomainsForDisplay(domainSummary: WebsiteDomainSummary) {
+  return filterOperatorFacingSubdomains(domainSummary.subdomains);
+}
+
+function formatPrimaryDomainUrl(hostname: string): string {
+  if (process.env.NODE_ENV !== "production" && isLocalPreviewHost(hostname)) {
+    return `http://${hostname}:3000`;
+  }
+  return `https://${hostname}`;
+}
+
+function resolveDnsSummary(
+  kind: "path" | "subdomain" | "custom" | null,
+  domainSummary: WebsiteDomainSummary,
+): DomainSummaryState {
+  const displayCustomDomains = customDomainsForDisplay(domainSummary);
+  if (kind === "path") {
+    return { status: "ok", value: "Tulala-managed" };
+  }
+  if (kind === "subdomain" && displayCustomDomains.length === 0) {
+    return { status: "ok", value: "Platform-managed" };
+  }
+  if (displayCustomDomains.length > 0) {
+    const readyCount = displayCustomDomains.filter((domain) => isTxtReadyStatus(domain.status)).length;
+    const failed = displayCustomDomains.some(
+      (domain) => domain.status === "failed" || domain.status === "suspended",
+    );
+    if (failed) {
+      return { status: "warn", value: "Needs attention" };
+    }
+    if (readyCount === displayCustomDomains.length) {
+      return { status: "ok", value: "Verified" };
+    }
+    return {
+      status: "warn",
+      value: `Pending ${readyCount}/${displayCustomDomains.length}`,
+    };
+  }
+  return { status: "warn", value: "Not configured" };
+}
+
+function resolveSslSummary(
+  kind: "path" | "subdomain" | "custom" | null,
+  domainSummary: WebsiteDomainSummary,
+): DomainSummaryState {
+  const displayCustomDomains = customDomainsForDisplay(domainSummary);
+  if (kind === "path") {
+    return { status: "ok", value: "Active · auto-renew" };
+  }
+  if (kind === "subdomain") {
+    return { status: "ok", value: "Active · auto-renew" };
+  }
+  if (displayCustomDomains.length === 0) {
+    return { status: "warn", value: "Unavailable" };
+  }
+  if (displayCustomDomains.every((domain) => domain.status === "active")) {
+    return { status: "ok", value: "Active · auto-renew" };
+  }
+  if (displayCustomDomains.some((domain) => domain.status === "failed")) {
+    return { status: "warn", value: "Blocked" };
+  }
+  if (displayCustomDomains.some((domain) => domain.status === "suspended")) {
+    return { status: "warn", value: "Suspended" };
+  }
+  if (displayCustomDomains.some((domain) => domain.status === "ssl_provisioned")) {
+    return { status: "ok", value: "Provisioned" };
+  }
+  if (displayCustomDomains.some((domain) => domain.status === "verified")) {
+    return { status: "warn", value: "Queued after DNS" };
+  }
+  if (kind === "custom") {
+    return { status: "warn", value: "Waiting on DNS" };
+  }
+  return { status: "ok", value: "Active · auto-renew" };
+}
+
+function resolveRecordSummary(
+  kind: "path" | "subdomain" | "custom" | null,
+  domainSummary: WebsiteDomainSummary,
+): DomainSummaryState {
+  const displayCustomDomains = customDomainsForDisplay(domainSummary);
+  if (kind === "path") {
+    return { status: "ok", value: "Path-based" };
+  }
+  if (kind === "subdomain" && displayCustomDomains.length === 0) {
+    return { status: "ok", value: "Tulala-managed" };
+  }
+  const verificationRows = displayCustomDomains.filter((domain) => Boolean(domain.verificationToken));
+  if (verificationRows.length === 0) {
+    if (displayCustomDomains.length > 0) {
+      const matchedCount = displayCustomDomains.filter((domain) => isRoutingReadyStatus(domain.status)).length;
+      return {
+        status: matchedCount === displayCustomDomains.length ? "ok" : "warn",
+        value: `${matchedCount}/${displayCustomDomains.length} matched`,
+      };
+    }
+    return kind === "custom"
+      ? { status: "warn", value: "No records yet" }
+      : { status: "ok", value: "Tulala-managed" };
+  }
+  const matchedCount = verificationRows.filter((domain) => isTxtReadyStatus(domain.status)).length;
+  return {
+    status: matchedCount === verificationRows.length ? "ok" : "warn",
+    value: `${matchedCount}/${verificationRows.length} matched`,
+  };
+}
+
+function buildDnsRecordRows(domainSummary: WebsiteDomainSummary) {
+  return customDomainsForDisplay(domainSummary)
+    .filter((domain) => Boolean(domain.verificationToken))
+    .map((domain) => ({
+      hostname: domain.hostname,
+      value: domain.verificationToken ?? "",
+      matched: isTxtReadyStatus(domain.status),
+      status: domain.status,
+      isPrimary: domain.isPrimary,
+    }));
 }
 
 // ─── Page status chip ─────────────────────────────────────────────────────────
@@ -270,6 +505,64 @@ function ConfigStatusRow({
   );
 }
 
+function DomainStatusPill({ status }: { status: DomainLifecycleStatus }) {
+  const tone = status === "active" || status === "verified" || status === "ssl_provisioned"
+    ? { bg: C.successSoft, color: C.successDeep }
+    : status === "failed"
+      ? { bg: "rgba(165,38,38,0.08)", color: "#8D1F1F" }
+      : { bg: C.amberSoft, color: C.amberDeep };
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 8px",
+        borderRadius: 999,
+        background: tone.bg,
+        color: tone.color,
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: 0.3,
+        fontFamily: FONT,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {DOMAIN_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+function NoticeBanner({
+  kind,
+  message,
+}: {
+  kind: "success" | "error";
+  message: string;
+}) {
+  const styles = kind === "success"
+    ? { bg: C.successSoft, border: "rgba(26,115,72,0.14)", color: C.successDeep }
+    : { bg: "rgba(165,38,38,0.06)", border: "rgba(165,38,38,0.12)", color: "#8D1F1F" };
+
+  return (
+    <div
+      style={{
+        marginBottom: 12,
+        padding: "10px 12px",
+        borderRadius: 10,
+        background: styles.bg,
+        border: `1px solid ${styles.border}`,
+        color: styles.color,
+        fontSize: 12,
+        lineHeight: 1.45,
+        fontFamily: FONT,
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
 // ─── Section heading ──────────────────────────────────────────────────────────
 
 function SectionHead({ children }: { children: React.ReactNode }) {
@@ -290,28 +583,170 @@ function SectionHead({ children }: { children: React.ReactNode }) {
   );
 }
 
+function DomainActionButton({
+  label,
+  tone = "default",
+}: {
+  label: string;
+  tone?: "default" | "danger";
+}) {
+  const styles = tone === "danger"
+    ? {
+        border: "1px solid rgba(165,38,38,0.18)",
+        background: "rgba(165,38,38,0.03)",
+        color: "#8D1F1F",
+      }
+    : {
+        border: `1px solid ${C.border}`,
+        background: C.cardBg,
+        color: C.ink,
+      };
+
+  return (
+    <button
+      type="submit"
+      style={{
+        border: styles.border,
+        borderRadius: 999,
+        background: styles.background,
+        color: styles.color,
+        fontSize: 11,
+        fontWeight: 600,
+        padding: "4px 10px",
+        cursor: "pointer",
+        fontFamily: FONT,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function DomainConnectSubmitButton({ hasExistingDomains }: { hasExistingDomains: boolean }) {
+  return (
+    <button
+      type="submit"
+      style={{
+        flexShrink: 0,
+        border: "none",
+        borderRadius: 10,
+        background: C.accent,
+        color: C.cardBg,
+        fontSize: 12.5,
+        fontWeight: 600,
+        padding: "11px 14px",
+        cursor: "pointer",
+        fontFamily: FONT,
+      }}
+    >
+      {hasExistingDomains ? "Add domain" : "Connect domain"}
+    </button>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function WorkspaceSitePage({
   params,
+  searchParams,
 }: {
   params: PageParams;
+  searchParams: PageSearchParams;
 }) {
   const { tenantSlug } = await params;
+  const rawSearchParams = await searchParams;
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
   if (!canView) notFound();
 
-  const canManage = await userHasCapability(
-    "agency.site_admin.branding.edit",
-    scope.tenantId,
+  const [canManage, canManageDomains, data, summary] = await Promise.all([
+    userHasCapability("agency.site_admin.branding.edit", scope.tenantId),
+    userHasCapability("manage_agency_domains", scope.tenantId),
+    loadWebsiteData(scope.tenantId),
+    loadWorkspaceAgencySummary(scope.tenantId),
+  ]);
+  const workspacePlan = summary?.plan ?? "free";
+  const domainMessage = firstParam(rawSearchParams.dmsg);
+  const domainError = firstParam(rawSearchParams.derr);
+
+  const publicAddress = resolveWorkspacePublicAddress({
+    slug: summary?.slug ?? tenantSlug,
+    plan: workspacePlan,
+    domainState: {
+      primaryHost: data.domainSummary.primaryHost,
+      primaryHostKind: data.domainSummary.primaryHostKind,
+      subdomainHost: data.domainSummary.subdomainHost,
+    },
+  });
+  const primaryHost = publicAddress.primaryHost;
+  const primaryKind = publicAddress.primaryKind;
+  const publicUrl = publicAddress.primaryKind === "path"
+    ? publicAddress.primaryUrl
+    : formatPrimaryDomainUrl(primaryHost);
+  const previewUrl = resolveWorkspacePreviewUrl({
+    slug: summary?.slug ?? tenantSlug,
+    plan: workspacePlan,
+    primaryHost: data.domainSummary.primaryHost,
+    primaryHostKind: data.domainSummary.primaryHostKind,
+    subdomainHost: data.domainSummary.subdomainHost,
+    domainRows: [
+      ...data.domainSummary.subdomains.map((domain) => ({
+        hostname: domain.hostname,
+        kind: "subdomain" as const,
+        status: domain.status,
+        isPrimary: domain.isPrimary,
+      })),
+      ...data.domainSummary.customDomains.map((domain) => ({
+        hostname: domain.hostname,
+        kind: "custom" as const,
+        status: domain.status,
+        isPrimary: domain.isPrimary,
+      })),
+    ],
+  });
+  const liveUrl = publicUrl;
+  const canonicalHost = primaryHost;
+  const dnsSummary = resolveDnsSummary(primaryKind, data.domainSummary);
+  const sslSummary = resolveSslSummary(primaryKind, data.domainSummary);
+  const recordSummary = resolveRecordSummary(primaryKind, data.domainSummary);
+  const opensLocalPreview = previewUrl !== publicUrl;
+  const pathHost = publicAddress.pathHost;
+  const brandedHost = publicAddress.actualBrandedSubdomainHost ?? publicAddress.reservedBrandedSubdomainHost;
+  const dnsRecordRows = buildDnsRecordRows(data.domainSummary);
+  const connectedCustomDomains = customDomainsForDisplay(data.domainSummary)
+    .slice()
+    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.hostname.localeCompare(b.hostname));
+  const primaryCustomDomain = findPrimaryCustomDomain(connectedCustomDomains);
+  const alternateCustomDomains = primaryCustomDomain
+    ? listAlternateCustomDomains(connectedCustomDomains)
+    : [];
+  const aliasRedirect = resolveCustomDomainAliasRedirect(connectedCustomDomains);
+  const suggestedAlternateDomain = suggestAlternateCustomDomainHostname(connectedCustomDomains);
+  const customDomainFeatureUnlocked =
+    data.domainSummary.customDomains.length > 0 ||
+    CUSTOM_DOMAIN_ELIGIBLE_PLANS.has(workspacePlan);
+  const canAddCustomDomains =
+    canManageDomains && CUSTOM_DOMAIN_ELIGIBLE_PLANS.has(workspacePlan);
+  const customDomainLockedCopy = workspacePlan === "free"
+    ? "Branded subdomains unlock on Studio. Custom domains unlock on Agency and Network."
+    : "Studio includes the branded Tulala subdomain. Custom domains unlock on Agency and Network.";
+  const redirectMode = aliasRedirect?.mode
+    ?? (primaryCustomDomain && suggestedAlternateDomain
+      ? suggestedAlternateDomain.startsWith("www.")
+        ? "www_to_bare"
+        : "bare_to_www"
+      : null);
+  const pendingRoutingDomains = connectedCustomDomains.filter((domain) =>
+    customDomainNeedsRouting(domain.status),
   );
-
-  const data = await loadWebsiteData(scope.tenantId);
-
-  const liveUrl = data.liveUrl ?? `https://${tenantSlug}.tulala.digital`;
+  const brandedHosts = subdomainsForDisplay(data.domainSummary)
+    .slice()
+    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.hostname.localeCompare(b.hostname));
+  const brandedHostStatus = publicAddress.actualBrandedSubdomainHost
+    ? brandedHosts.find((domain) => domain.hostname === publicAddress.actualBrandedSubdomainHost)?.status ?? null
+    : null;
   const builderHref = `/admin/site-settings/sections`;
 
   const publishedPages  = data.pages.filter((p) => p.status === "published").length;
@@ -381,7 +816,7 @@ export default async function WorkspaceSitePage({
             </span>
           )}
           <a
-            href={liveUrl}
+            href={previewUrl}
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -469,7 +904,7 @@ export default async function WorkspaceSitePage({
             {liveUrl}
           </span>
           <a
-            href={liveUrl}
+            href={previewUrl}
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -930,10 +1365,10 @@ export default async function WorkspaceSitePage({
                 marginBottom: 14,
               }}
             >
-              <SectionHead>Domain</SectionHead>
+              <SectionHead>Domain &amp; SSL</SectionHead>
               {canManage && (
                 <Link
-                  href="/admin/site-settings/identity"
+                  href={`/${tenantSlug}/admin/settings?section=domain`}
                   style={{
                     fontSize: 11,
                     color: C.indigoDeep,
@@ -946,6 +1381,8 @@ export default async function WorkspaceSitePage({
                 </Link>
               )}
             </div>
+            {domainMessage ? <NoticeBanner kind="success" message={domainMessage} /> : null}
+            {domainError ? <NoticeBanner kind="error" message={domainError} /> : null}
             <div
               style={{
                 fontFamily: FONT,
@@ -960,14 +1397,899 @@ export default async function WorkspaceSitePage({
               {liveUrl.replace(/^https?:\/\//, "")}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              <ConfigStatusRow label="Status" status="ok" value="Active" />
-              <ConfigStatusRow label="SSL" status="ok" value="Valid" />
-              <ConfigStatusRow
-                label="Host"
-                status="ok"
-                value={`${tenantSlug}.tulala.digital`}
-              />
+              <ConfigStatusRow label="DNS" status={dnsSummary.status} value={dnsSummary.value} />
+              <ConfigStatusRow label="SSL" status={sslSummary.status} value={sslSummary.value} />
+              <ConfigStatusRow label="Records" status={recordSummary.status} value={recordSummary.value} />
             </div>
+            {opensLocalPreview && (
+              <div
+                style={{
+                  marginTop: 12,
+                  fontSize: 11.5,
+                  lineHeight: 1.45,
+                  color: C.inkMuted,
+                }}
+              >
+                Local preview opens on{" "}
+                <span style={{ fontFamily: MONO, color: C.ink }}>
+                  {previewUrl.replace(/^https?:\/\//, "")}
+                </span>
+                . The public primary URL stays{" "}
+                <span style={{ fontFamily: MONO, color: C.ink }}>
+                  {primaryHost}
+                </span>
+                .
+              </div>
+            )}
+            <div
+              style={{
+                marginTop: 16,
+                paddingTop: 14,
+                borderTop: `1px solid ${C.borderSoft}`,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <SectionHead>Routing surfaces</SectionHead>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  alignItems: "flex-start",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: C.ink,
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {pathHost}
+                  </div>
+                  <div style={{ marginTop: 3, fontSize: 11.5, color: C.inkMuted }}>
+                    {publicAddress.primaryKind === "path"
+                      ? "Current public URL on Tulala"
+                      : "Always available on Tulala"}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    color: C.inkDim,
+                    flexShrink: 0,
+                  }}
+                >
+                  Path
+                </span>
+              </div>
+              {brandedHost ? (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "flex-start",
+                    paddingTop: 10,
+                    borderTop: `1px solid ${C.borderSoft}`,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: C.ink,
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {brandedHost}
+                    </div>
+                    <div style={{ marginTop: 3, fontSize: 11.5, color: C.inkMuted }}>
+                      {publicAddress.actualBrandedSubdomainHost
+                        ? publicAddress.primaryKind === "subdomain"
+                          ? "Current branded public host"
+                          : "Branded fallback host"
+                        : workspacePlan === "free"
+                          ? "Unlocks on Studio"
+                          : "Reserved branded host"}
+                    </div>
+                  </div>
+                  {brandedHostStatus ? (
+                    canManageDomains && publicAddress.primaryKind === "custom" ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          gap: 8,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <form action={switchPrimaryDomainAction}>
+                          <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                          <input type="hidden" name="hostname" value={brandedHost} />
+                          <input type="hidden" name="returnTo" value="site" />
+                          <DomainActionButton label="Use subdomain" />
+                        </form>
+                        <DomainStatusPill status={brandedHostStatus} />
+                      </div>
+                    ) : (
+                      <DomainStatusPill status={brandedHostStatus} />
+                    )
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: 0.5,
+                        textTransform: "uppercase",
+                        color: C.inkDim,
+                        flexShrink: 0,
+                      }}
+                    >
+                      Studio+
+                    </span>
+                  )}
+                </div>
+              ) : null}
+            </div>
+            {dnsRecordRows.length > 0 ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.borderSoft}`,
+                }}
+              >
+                <SectionHead>DNS records</SectionHead>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {dnsRecordRows.map((record) => (
+                    <div
+                      key={`${record.hostname}-${record.value}`}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "48px minmax(0, 1fr)",
+                        gap: 10,
+                        alignItems: "start",
+                        paddingTop: 10,
+                        borderTop: `1px solid ${C.borderSoft}`,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          color: C.inkDim,
+                          letterSpacing: 0.5,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        TXT
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontFamily: MONO,
+                            fontSize: 12,
+                            color: C.ink,
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {record.hostname}
+                        </div>
+                        <div
+                          style={{
+                            marginTop: 4,
+                            fontFamily: MONO,
+                            fontSize: 11,
+                            color: C.inkMuted,
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {record.value}
+                        </div>
+                        <div
+                          style={{
+                            marginTop: 6,
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <DomainStatusPill status={record.status} />
+                          {!record.matched && canManageDomains ? (
+                            <form action={verifyCustomDomainNowAction}>
+                              <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                              <input type="hidden" name="hostname" value={record.hostname} />
+                              <input type="hidden" name="returnTo" value="site" />
+                              <button
+                                type="submit"
+                                style={{
+                                  border: `1px solid ${C.border}`,
+                                  borderRadius: 999,
+                                  background: C.cardBg,
+                                  color: C.ink,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  padding: "4px 10px",
+                                  cursor: "pointer",
+                                  fontFamily: FONT,
+                                }}
+                              >
+                                Check DNS
+                              </button>
+                            </form>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {pendingRoutingDomains.length > 0 ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.borderSoft}`,
+                }}
+              >
+                <SectionHead>Routing records</SectionHead>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {pendingRoutingDomains.map((domain) => (
+                    <div
+                      key={`${domain.hostname}-routing`}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                        paddingTop: 10,
+                        borderTop: `1px solid ${C.borderSoft}`,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: MONO,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: C.ink,
+                              wordBreak: "break-all",
+                            }}
+                          >
+                            {domain.hostname}
+                          </span>
+                          <DomainStatusPill status={domain.status} />
+                        </div>
+                        <div style={{ marginTop: 4, fontSize: 11.5, color: C.inkMuted, lineHeight: 1.5 }}>
+                          {domain.status === "ssl_provisioned"
+                            ? "Routing is detected. HTTPS is still finishing on Vercel."
+                            : "Ownership is verified. Add the routing record below so Vercel can serve the site."}
+                        </div>
+                      </div>
+                      {buildCustomDomainRoutingRecords(domain.hostname).map((record) => (
+                        <div
+                          key={`${domain.hostname}-${record.type}-${record.host}`}
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "56px minmax(0, 1fr)",
+                            gap: 10,
+                            alignItems: "start",
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            background: C.surfaceAlt,
+                            border: `1px solid ${C.borderSoft}`,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              color: C.inkDim,
+                              letterSpacing: 0.5,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {record.type}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontFamily: MONO,
+                                fontSize: 12,
+                                color: C.ink,
+                                wordBreak: "break-all",
+                              }}
+                            >
+                              {record.host}
+                            </div>
+                            <div
+                              style={{
+                                marginTop: 4,
+                                fontFamily: MONO,
+                                fontSize: 11,
+                                color: C.inkMuted,
+                                wordBreak: "break-all",
+                              }}
+                            >
+                              {record.value}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {canManageDomains ? (
+                        <form action={checkCustomDomainProvisioningAction}>
+                          <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                          <input type="hidden" name="hostname" value={domain.hostname} />
+                          <input type="hidden" name="returnTo" value="site" />
+                          <button
+                            type="submit"
+                            style={{
+                              alignSelf: "flex-start",
+                              border: `1px solid ${C.border}`,
+                              borderRadius: 999,
+                              background: C.cardBg,
+                              color: C.ink,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: "4px 10px",
+                              cursor: "pointer",
+                              fontFamily: FONT,
+                            }}
+                          >
+                            Check routing
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {primaryCustomDomain ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.borderSoft}`,
+                }}
+              >
+                <SectionHead>Primary custom domain</SectionHead>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "flex-start",
+                    paddingTop: 10,
+                    borderTop: `1px solid ${C.borderSoft}`,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: MONO,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: C.ink,
+                          wordBreak: "break-all",
+                        }}
+                      >
+                        {primaryCustomDomain.hostname}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "2px 7px",
+                          borderRadius: 999,
+                          background: C.indigoSoft,
+                          color: C.indigoDeep,
+                          letterSpacing: 0.4,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        Primary
+                      </span>
+                    </div>
+                    <div style={{ marginTop: 3, fontSize: 11.5, color: C.inkMuted }}>
+                      {describeCustomDomainStatus(primaryCustomDomain)}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      gap: 8,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {canManageDomains && brandedHost ? (
+                      <form action={switchPrimaryDomainAction}>
+                        <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                        <input type="hidden" name="hostname" value={brandedHost} />
+                        <input type="hidden" name="returnTo" value="site" />
+                        <DomainActionButton label="Use subdomain" />
+                      </form>
+                    ) : null}
+                    {canManageDomains ? (
+                      <form action={removeCustomDomainAction}>
+                        <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                        <input type="hidden" name="hostname" value={primaryCustomDomain.hostname} />
+                        <input type="hidden" name="returnTo" value="site" />
+                        <DomainActionButton label="Remove" tone="danger" />
+                      </form>
+                    ) : null}
+                    <DomainStatusPill status={primaryCustomDomain.status} />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {!primaryCustomDomain && connectedCustomDomains.length > 0 ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.borderSoft}`,
+                }}
+              >
+                <SectionHead>Connected domains</SectionHead>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {connectedCustomDomains.map((domain) => (
+                    <div
+                      key={domain.hostname}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        alignItems: "flex-start",
+                        paddingTop: 10,
+                        borderTop: `1px solid ${C.borderSoft}`,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: MONO,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: C.ink,
+                              wordBreak: "break-all",
+                            }}
+                          >
+                            {domain.hostname}
+                          </span>
+                        </div>
+                        <div style={{ marginTop: 3, fontSize: 11.5, color: C.inkMuted }}>
+                          {describeCustomDomainStatus(domain)}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          gap: 8,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {canManageDomains && customDomainCanBecomePrimary(domain.status) ? (
+                          <form action={switchPrimaryDomainAction}>
+                            <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                            <input type="hidden" name="hostname" value={domain.hostname} />
+                            <input type="hidden" name="returnTo" value="site" />
+                            <DomainActionButton label="Make primary" />
+                          </form>
+                        ) : null}
+                        {canManageDomains ? (
+                          <form action={removeCustomDomainAction}>
+                            <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                            <input type="hidden" name="hostname" value={domain.hostname} />
+                            <input type="hidden" name="returnTo" value="site" />
+                            <DomainActionButton label="Remove" tone="danger" />
+                          </form>
+                        ) : null}
+                        <DomainStatusPill status={domain.status} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {alternateCustomDomains.length > 0 ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.borderSoft}`,
+                }}
+              >
+                <SectionHead>Alternate domains</SectionHead>
+                <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.inkMuted, marginBottom: 10 }}>
+                  Additional domains that redirect to {primaryCustomDomain?.hostname}.
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {alternateCustomDomains.map((domain) => (
+                    <div
+                      key={domain.hostname}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        alignItems: "flex-start",
+                        paddingTop: 10,
+                        borderTop: `1px solid ${C.borderSoft}`,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: MONO,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: C.ink,
+                              wordBreak: "break-all",
+                            }}
+                          >
+                            {domain.hostname}
+                          </span>
+                        </div>
+                        <div style={{ marginTop: 3, fontSize: 11.5, color: C.inkMuted }}>
+                          {describeCustomDomainStatus(domain)}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          gap: 8,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {canManageDomains && customDomainCanBecomePrimary(domain.status) ? (
+                          <form action={switchPrimaryDomainAction}>
+                            <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                            <input type="hidden" name="hostname" value={domain.hostname} />
+                            <input type="hidden" name="returnTo" value="site" />
+                            <DomainActionButton label="Make primary" />
+                          </form>
+                        ) : null}
+                        {canManageDomains ? (
+                          <form action={removeCustomDomainAction}>
+                            <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                            <input type="hidden" name="hostname" value={domain.hostname} />
+                            <input type="hidden" name="returnTo" value="site" />
+                            <DomainActionButton label="Remove" tone="danger" />
+                          </form>
+                        ) : null}
+                        <DomainStatusPill status={domain.status} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {primaryCustomDomain && redirectMode ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  background: C.surfaceAlt,
+                  border: `1px solid ${C.borderSoft}`,
+                }}
+              >
+                <SectionHead>Redirect mode</SectionHead>
+                <div
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: C.ink,
+                    marginBottom: 4,
+                  }}
+                >
+                  {describeAliasRedirectMode(redirectMode)}
+                </div>
+                <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.inkMuted }}>
+                  {describeAliasRedirectPolicy(
+                    redirectMode,
+                    primaryCustomDomain.hostname,
+                  )}
+                </div>
+                {!aliasRedirect && suggestedAlternateDomain ? (
+                  <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.inkMuted, marginTop: 10 }}>
+                    Connect {suggestedAlternateDomain} first to control the redirect between the bare and www host.
+                  </div>
+                ) : null}
+                {aliasRedirect && canManageDomains && customDomainCanBecomePrimary(aliasRedirect.alternateDomain.status) ? (
+                  <form action={switchPrimaryDomainAction} style={{ marginTop: 10 }}>
+                    <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                    <input type="hidden" name="hostname" value={aliasRedirect.alternateDomain.hostname} />
+                    <input type="hidden" name="returnTo" value="site" />
+                    <button
+                      type="submit"
+                      style={{
+                        border: `1px solid ${C.border}`,
+                        borderRadius: 999,
+                        background: C.cardBg,
+                        color: C.ink,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      {aliasRedirect.mode === "bare_to_www" ? "Prefer bare" : "Prefer www"}
+                    </button>
+                  </form>
+                ) : aliasRedirect && canManageDomains ? (
+                  <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.inkMuted, marginTop: 10 }}>
+                    {aliasRedirect.alternateDomain.hostname} must finish routing and SSL checks before it can become canonical.
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {suggestedAlternateDomain && primaryCustomDomain ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  background: C.surfaceAlt,
+                  border: `1px dashed ${C.border}`,
+                }}
+              >
+                <SectionHead>Recommended alias</SectionHead>
+                <div
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: C.ink,
+                    wordBreak: "break-all",
+                    marginBottom: 4,
+                  }}
+                >
+                  {suggestedAlternateDomain}
+                </div>
+                <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.inkMuted }}>
+                  {describeSuggestedAlternateDomain(
+                    suggestedAlternateDomain,
+                    primaryCustomDomain.hostname,
+                  )}
+                </div>
+                {canAddCustomDomains ? (
+                  <form action={connectCustomDomainAction} style={{ marginTop: 10 }}>
+                    <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                    <input type="hidden" name="hostname" value={suggestedAlternateDomain} />
+                    <input type="hidden" name="returnTo" value="site" />
+                    <button
+                      type="submit"
+                      style={{
+                        border: `1px solid ${C.border}`,
+                        borderRadius: 999,
+                        background: C.cardBg,
+                        color: C.ink,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      Add alias
+                    </button>
+                  </form>
+                ) : (
+                  <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.inkMuted, marginTop: 10 }}>
+                    {canManageDomains
+                      ? "This plan cannot add more custom domains. Upgrade to Agency or Network to add aliases."
+                      : "Only the workspace owner can add alternate domains."}
+                  </div>
+                )}
+              </div>
+            ) : null}
+            {brandedHosts.length > 0 ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.borderSoft}`,
+                }}
+              >
+                <SectionHead>Branded hosts</SectionHead>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {brandedHosts.map((domain) => (
+                    <div
+                      key={domain.hostname}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        alignItems: "flex-start",
+                        paddingTop: 10,
+                        borderTop: `1px solid ${C.borderSoft}`,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: MONO,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: C.ink,
+                              wordBreak: "break-all",
+                            }}
+                          >
+                            {domain.hostname}
+                          </span>
+                          {domain.isPrimary ? (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: "2px 7px",
+                                borderRadius: 999,
+                                background: C.indigoSoft,
+                                color: C.indigoDeep,
+                                letterSpacing: 0.4,
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Primary
+                            </span>
+                          ) : null}
+                        </div>
+                        <div style={{ marginTop: 3, fontSize: 11.5, color: C.inkMuted }}>
+                          Permanent branded fallback host
+                        </div>
+                      </div>
+                      <DomainStatusPill status={domain.status} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {customDomainFeatureUnlocked ? (
+              canAddCustomDomains ? (
+                <form
+                  action={connectCustomDomainAction}
+                  style={{
+                    marginTop: 16,
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    background: C.surfaceAlt,
+                    border: `1px solid ${C.borderSoft}`,
+                  }}
+                >
+                  <input type="hidden" name="tenantSlug" value={tenantSlug} />
+                  <input type="hidden" name="returnTo" value="site" />
+                  <SectionHead>
+                    {connectedCustomDomains.length > 0 ? "Add another domain" : "Connect a custom domain"}
+                  </SectionHead>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 10,
+                      alignItems: "center",
+                    }}
+                  >
+                    <input
+                      type="text"
+                      name="hostname"
+                      placeholder="studio.example.com"
+                      style={{
+                        flex: "1 1 260px",
+                        minWidth: 0,
+                        border: `1px solid ${C.border}`,
+                        borderRadius: 10,
+                        background: C.cardBg,
+                        color: C.ink,
+                        padding: "11px 12px",
+                        fontSize: 13,
+                        fontFamily: FONT,
+                      }}
+                    />
+                    <DomainConnectSubmitButton hasExistingDomains={connectedCustomDomains.length > 0} />
+                  </div>
+                  <div style={{ fontSize: 11.5, color: C.inkMuted, lineHeight: 1.5, marginTop: 8 }}>
+                    Use only the hostname. We&apos;ll generate a verification token and keep the current public URL live while DNS updates.
+                  </div>
+                </form>
+              ) : (
+                <div
+                  style={{
+                    marginTop: 16,
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    background: C.surfaceAlt,
+                    border: `1px solid ${C.borderSoft}`,
+                    color: C.inkMuted,
+                    fontSize: 11.5,
+                    lineHeight: 1.5,
+                    fontFamily: FONT,
+                  }}
+                >
+                  {canManageDomains
+                    ? "This plan cannot add more custom domains. Upgrade to Agency or Network to connect additional hosts."
+                    : "Only the workspace owner can connect or replace custom domains."}
+                </div>
+              )
+            ) : (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  background: C.surfaceAlt,
+                  border: `1px solid ${C.borderSoft}`,
+                  color: C.inkMuted,
+                  fontSize: 11.5,
+                  lineHeight: 1.5,
+                  fontFamily: FONT,
+                }}
+              >
+                {customDomainLockedCopy}
+              </div>
+            )}
           </div>
 
           {/* SEO column */}
@@ -1057,7 +2379,7 @@ export default async function WorkspaceSitePage({
                     maxWidth: "60%",
                   }}
                 >
-                  {liveUrl.replace(/^https?:\/\//, "")}
+                  {canonicalHost}
                 </span>
               </div>
             </div>

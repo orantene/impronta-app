@@ -19,6 +19,7 @@ export function LocationMapLazy(props: {
   locale: Locale;
   copy: LocationSectionCopy;
   apiKey?: string;
+  publicPathPrefix?: string;
 }) {
   return <LocationMapClient {...props} />;
 }

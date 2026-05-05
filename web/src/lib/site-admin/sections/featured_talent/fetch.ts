@@ -22,6 +22,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getCachedDirectoryFirstPage } from "@/lib/directory/cache";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
+import { resolvePublicRosterDisplayCap } from "@/lib/saas/roster-seat-limit";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 import {
   formatCityCountryLabel,
@@ -53,6 +54,21 @@ function clampLimit(n: number | undefined): number {
   return Math.max(FEATURED_LIMIT_MIN, Math.min(FEATURED_LIMIT_MAX, Math.trunc(raw)));
 }
 
+async function resolveTenantFeaturedLimitCap(tenantId: string): Promise<number | null> {
+  const supabase = createPublicSupabaseClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("agencies")
+    .select("plan_tier, talent_seat_limit")
+    .eq("id", tenantId)
+    .maybeSingle<{ plan_tier: string | null; talent_seat_limit: number | null }>();
+  if (error) return null;
+  return resolvePublicRosterDisplayCap(
+    data?.plan_tier ?? null,
+    data?.talent_seat_limit ?? null,
+  );
+}
+
 function projectDirectoryCard(c: DirectoryCardDTO): FeaturedTalentCardDTO {
   return {
     id: c.id,
@@ -79,7 +95,14 @@ export async function fetchFeaturedTalentForSection(
   if (!tenantId) return [];
   if (!isSupabaseConfigured()) return [];
 
-  const limit = clampLimit(props.limit);
+  const requestedLimit = clampLimit(props.limit);
+  const tenantLimitCap = await resolveTenantFeaturedLimitCap(tenantId);
+  if (tenantLimitCap != null && tenantLimitCap <= 0) {
+    return [];
+  }
+  const limit = tenantLimitCap == null
+    ? requestedLimit
+    : Math.min(requestedLimit, tenantLimitCap);
   const mode = props.sourceMode ?? "auto_featured_flag";
 
   try {

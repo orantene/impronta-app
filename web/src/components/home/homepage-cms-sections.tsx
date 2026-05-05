@@ -30,6 +30,8 @@ import {
   type SectionRegistryEntry,
 } from "@/lib/site-admin/sections/types";
 import { presentationScopedCss, presentationVideoBackground } from "@/lib/site-admin/sections/shared/presentation";
+import { getPublicPathPrefix } from "@/lib/saas";
+import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
 
 interface HomepageCmsSectionsProps {
   snapshot: HomepageSnapshot;
@@ -53,7 +55,10 @@ export async function HomepageCmsSections({
   // Edit-mode wrapper: when active, each rendered section is wrapped in a
   // div carrying section identity so the client chrome can target it for
   // hover/selection overlays. View mode renders identically to before.
-  const editMode = await isEditModeActiveForTenant(tenantId);
+  const [editMode, publicPathPrefix] = await Promise.all([
+    isEditModeActiveForTenant(tenantId),
+    getPublicPathPrefix(),
+  ]);
 
   return (
     <>
@@ -130,20 +135,25 @@ export async function HomepageCmsSections({
         }
         const Component = registryEntry.Component;
         const key = `${entry.slotKey}:${entry.sectionId}:${entry.sortOrder}`;
+        const payloadForRender = prefixPublicHrefsDeep(
+          migrated.payload,
+          publicPathPrefix,
+        );
         const rendered = (
           <Component
             key={key}
-            props={migrated.payload as never}
+            props={payloadForRender as never}
             tenantId={tenantId}
             locale={locale}
             preview={false}
             sectionId={entry.sectionId}
+            publicPathPrefix={publicPathPrefix}
           />
         );
         // Pixel-first companion: emit per-section scoped CSS when the
         // operator wrote any custom CSS. Scoped to the wrapper's
         // `data-section-id` attribute so it can't leak across sections.
-        const payload = migrated.payload as { presentation?: unknown };
+        const payload = payloadForRender as { presentation?: unknown };
         const presentation = (payload?.presentation ?? undefined) as Parameters<typeof presentationScopedCss>[1];
         const scopedCss = presentationScopedCss(entry.sectionId, presentation);
         const videoBg = presentationVideoBackground(presentation);

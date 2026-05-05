@@ -2,7 +2,7 @@
 // Placeholder for saved talent shortlists (Phase 5+ feature).
 
 import { notFound } from "next/navigation";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
 
@@ -25,7 +25,7 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
-  const scope = await getTenantScopeBySlug(tenantSlug);
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);

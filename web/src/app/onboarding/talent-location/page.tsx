@@ -2,13 +2,17 @@ import { redirect } from "next/navigation";
 import { completeTalentLocationOnboarding } from "@/app/onboarding/actions";
 import { TalentLocationOnboardingForm } from "./talent-location-onboarding-form";
 import { loadAccessProfile } from "@/lib/access-profile";
-import { resolveAuthenticatedDestination } from "@/lib/auth-flow";
+import { normalizeOptionalNextPath, resolveAuthenticatedDestination } from "@/lib/auth-flow";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export default async function TalentLocationOnboardingPage() {
+export default async function TalentLocationOnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   if (!isSupabaseConfigured()) {
     return (
       <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center px-4 py-16">
@@ -38,6 +42,9 @@ export default async function TalentLocationOnboardingPage() {
     redirect(destination);
   }
 
+  const { next } = await searchParams;
+  const nextPath = normalizeOptionalNextPath(next);
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
@@ -48,7 +55,10 @@ export default async function TalentLocationOnboardingPage() {
           </p>
         </div>
         <div className="mt-6">
-          <TalentLocationOnboardingForm action={completeTalentLocationOnboarding} />
+          <TalentLocationOnboardingForm
+            action={completeTalentLocationOnboarding}
+            nextPath={nextPath}
+          />
         </div>
       </div>
     </div>

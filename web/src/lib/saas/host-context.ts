@@ -38,7 +38,10 @@ export type HostContext =
       kind: "agency";
       tenantId: string;
       hostname: string;
-      domainKind: "subdomain" | "custom";
+      domainKind: "subdomain" | "custom" | "path";
+      isPrimary: boolean;
+      canonicalHost: string | null;
+      canonicalHostKind: "subdomain" | "custom" | null;
       /**
        * Phase 4 — denormalized from agency_domains.tenant_slug.
        * Set by the middleware and propagated via x-impronta-tenant-slug header.
@@ -164,7 +167,7 @@ export async function resolveTenantContext(
 
   const { data, error } = await supabase
     .from("agency_domains")
-    .select("kind, tenant_id, hostname, status, tenant_slug")
+    .select("kind, tenant_id, hostname, status, tenant_slug, is_primary")
     .eq("hostname", hostname)
     .in("status", ["active", "ssl_provisioned", "verified"])
     .limit(1)
@@ -197,11 +200,33 @@ export async function resolveTenantContext(
         if (!data.tenant_id) {
           value = { kind: "not_found", tenantId: null, hostname };
         } else {
+          let canonicalHost: string | null = null;
+          let canonicalHostKind: "subdomain" | "custom" | null = null;
+          if (!data.is_primary) {
+            const primary = await supabase
+              .from("agency_domains")
+              .select("hostname, kind")
+              .eq("tenant_id", data.tenant_id)
+              .in("kind", ["subdomain", "custom"])
+              .eq("is_primary", true)
+              .in("status", ["active", "ssl_provisioned", "verified"])
+              .limit(1)
+              .maybeSingle();
+
+            if (!primary.error) {
+              canonicalHost = (primary.data?.hostname as string | undefined) ?? null;
+              canonicalHostKind = (primary.data?.kind as "subdomain" | "custom" | undefined) ?? null;
+            }
+          }
+
           value = {
             kind: "agency",
             tenantId: data.tenant_id as string,
             hostname: data.hostname,
             domainKind: data.kind,
+            isPrimary: Boolean(data.is_primary),
+            canonicalHost,
+            canonicalHostKind,
             // Phase 4 — denormalized slug from agency_domains.tenant_slug.
             // Falls back to empty string if the column is NULL (pre-migration rows).
             tenantSlug: (data.tenant_slug as string | null) ?? "",
@@ -218,6 +243,76 @@ export async function resolveTenantContext(
 }
 
 /**
+ * Phase 3.15 — resolve `/<tenantSlug>/...` public workspace paths on hub /
+ * marketing hosts. This intentionally does not use agencies directly from
+ * middleware; the SECURITY DEFINER RPC exposes only the small public slug →
+ * tenant mapping needed for path-based storefront dispatch.
+ */
+export async function resolveTenantContextFromPathSlug(
+  request: NextRequest,
+  hostInput: string,
+  slugInput: string,
+): Promise<HostContext | null> {
+  const hostname = normalize(hostInput);
+  const slug = slugInput.trim().toLowerCase();
+  if (!hostname || !slug) return null;
+
+  const cacheKey = `${hostname}/_path/${slug}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached.kind === "not_found" ? null : cached;
+
+  const supabase = buildEdgeSupabase(request);
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .rpc("resolve_public_tenant_by_slug", { p_slug: slug });
+
+  let value: HostContext;
+  const row = Array.isArray(data) ? data[0] : null;
+  if (error || !row?.tenant_id || !row?.tenant_slug) {
+    // Backward-compatible fallback for local DBs that have not applied the
+    // RPC migration yet but do have an active agency_domains tenant_slug row.
+    const fallback = await supabase
+      .from("agency_domains")
+      .select("tenant_id, tenant_slug")
+      .eq("tenant_slug", slug)
+      .in("kind", ["subdomain", "custom"])
+      .in("status", ["active", "ssl_provisioned", "verified"])
+      .limit(1)
+      .maybeSingle();
+
+    if (fallback.error || !fallback.data?.tenant_id || !fallback.data?.tenant_slug) {
+      value = { kind: "not_found", tenantId: null, hostname };
+    } else {
+      value = {
+        kind: "agency",
+        tenantId: fallback.data.tenant_id as string,
+        hostname,
+        domainKind: "path",
+        isPrimary: false,
+        canonicalHost: null,
+        canonicalHostKind: null,
+        tenantSlug: fallback.data.tenant_slug as string,
+      };
+    }
+  } else {
+    value = {
+      kind: "agency",
+      tenantId: row.tenant_id as string,
+      hostname,
+      domainKind: "path",
+      isPrimary: false,
+      canonicalHost: null,
+      canonicalHostKind: null,
+      tenantSlug: row.tenant_slug as string,
+    };
+  }
+
+  cacheSet(cacheKey, value);
+  return value.kind === "not_found" ? null : value;
+}
+
+/**
  * Header constants used to communicate host context from middleware to
  * downstream server code. Always defined on internal requests; never
  * trusted from the external client (middleware strips then sets).
@@ -230,4 +325,3 @@ export const HOST_NAME_HEADER = "x-impronta-host-name";
  * from agency_domains.tenant_slug (denormalized, backfilled from agencies.slug).
  */
 export const HOST_TENANT_SLUG_HEADER = "x-impronta-tenant-slug";
-

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { requireStaff } from "@/lib/server/action-guards";
-import { getTenantPreviewOrigin } from "@/lib/site-admin/server/tenant-hosts";
+import { getTenantPreviewUrl } from "@/lib/site-admin/server/tenant-hosts";
 import { requireTenantScope } from "@/lib/saas";
 
 export const dynamic = "force-dynamic";
@@ -24,12 +24,12 @@ export default async function SiteSettingsStructureRedirect() {
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) redirect("/admin");
 
-  const previewOrigin = await getTenantPreviewOrigin(
+  const previewUrl = await getTenantPreviewUrl(
     auth.supabase,
     scope.tenantId,
   ).catch(() => null);
-  if (previewOrigin) {
-    redirect(`${previewOrigin.replace(/\/$/, "")}/?edit=1`);
+  if (previewUrl) {
+    redirect(`${previewUrl.replace(/\/$/, "")}/?edit=1`);
   }
   redirect("/?edit=1");
 }

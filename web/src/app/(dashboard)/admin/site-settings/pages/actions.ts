@@ -482,6 +482,8 @@ export async function endPagePreviewAction(
   _prev: PageActionState,
   _formData: FormData,
 ): Promise<PageActionState> {
+  void _prev;
+  void _formData;
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -510,13 +512,22 @@ export type PagePickerItem = {
   status: "draft" | "published" | "archived";
 };
 
+export type PagePickerAvailability = {
+  canCreatePages: boolean;
+  createPageHint: string | null;
+};
+
+const FREE_PLAN_PAGE_HINT =
+  "Free workspaces include one landing page. Upgrade to Studio to add more pages.";
+
 /**
  * Returns a flat list of non-archived pages for the active tenant.
  * Used by the editor topbar PagePicker component — called directly
  * from a client component (no FormData needed).
  */
 export async function listPagesForPickerAction(): Promise<
-  { ok: true; pages: PagePickerItem[] } | { ok: false; error: string }
+  { ok: true; pages: PagePickerItem[]; availability: PagePickerAvailability }
+  | { ok: false; error: string }
 > {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -535,7 +546,22 @@ export async function listPagesForPickerAction(): Promise<
     return { ok: false, error: "Failed to load pages." };
   }
 
-  return { ok: true, pages: (data ?? []) as PagePickerItem[] };
+  const { data: agency, error: agencyError } = await auth.supabase
+    .from("agencies")
+    .select("plan_tier")
+    .eq("id", scope.tenantId)
+    .maybeSingle<{ plan_tier: string | null }>();
+  if (agencyError) {
+    logServerError("site-admin/pages/list-for-picker.plan", agencyError);
+  }
+
+  const isFreePlan = (agency?.plan_tier ?? "free") === "free";
+  const availability: PagePickerAvailability = {
+    canCreatePages: !isFreePlan,
+    createPageHint: isFreePlan ? FREE_PLAN_PAGE_HINT : null,
+  };
+
+  return { ok: true, pages: (data ?? []) as PagePickerItem[], availability };
 }
 
 // ---- duplicate page -------------------------------------------------------
@@ -556,6 +582,19 @@ export async function duplicatePageAction(
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No workspace." };
+
+  const { data: agency, error: agencyError } = await auth.supabase
+    .from("agencies")
+    .select("plan_tier")
+    .eq("id", scope.tenantId)
+    .maybeSingle<{ plan_tier: string | null }>();
+  if (agencyError) {
+    logServerError("site-admin/pages/duplicate.plan", agencyError);
+  }
+
+  if ((agency?.plan_tier ?? "free") === "free") {
+    return { ok: false, error: FREE_PLAN_PAGE_HINT };
+  }
 
   // Fetch source page
   const { data: source, error: fetchErr } = await auth.supabase

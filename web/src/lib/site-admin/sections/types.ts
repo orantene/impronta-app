@@ -84,6 +84,11 @@ export interface SectionComponentProps<TShape> {
    * legacy renderers / test harnesses keep working without changes.
    */
   sectionId?: string;
+  /**
+   * Path prefix for public tenant storefronts rendered as
+   * `/<tenantSlug>/...` on the hub/marketing/local app host.
+   */
+  publicPathPrefix?: string;
 }
 
 export interface SectionEditorProps<TShape> {

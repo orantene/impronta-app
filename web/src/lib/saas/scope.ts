@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCurrentUserTenants, type TenantMembership } from "@/lib/saas/tenant";
 
 /**
@@ -156,6 +157,59 @@ export const getTenantScopeBySlug = cache(
   },
 );
 
+export type TenantPortalScope = {
+  tenantId: string;
+  slug: string;
+  displayName: string;
+  agencyStatus: string;
+};
+
+/**
+ * Resolve a workspace slug for branded client/talent portals.
+ *
+ * Staff/admin routes must keep using getTenantScopeBySlug(), which proves an
+ * agency_memberships row. Client and talent portal routes prove access later
+ * through agency_client_relationships or agency_talent_roster, so they only
+ * need a trusted slug -> tenant lookup here.
+ */
+export const getTenantPortalScopeBySlug = cache(
+  async (slug: string): Promise<TenantPortalScope | null> => {
+    const normalized = slug.trim().toLowerCase();
+    if (!normalized) return null;
+
+    const admin = createServiceRoleClient();
+    if (!admin) return null;
+
+    try {
+      const { data, error } = await admin
+        .from("agencies")
+        .select("id, slug, display_name, status")
+        .eq("slug", normalized)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        logServerError("saas/scope.getTenantPortalScopeBySlug", error);
+        return null;
+      }
+      if (!data) return null;
+      if (data.status === "cancelled" || data.status === "archived") {
+        return null;
+      }
+
+      return {
+        tenantId: data.id,
+        slug: data.slug,
+        displayName: data.display_name,
+        agencyStatus: data.status,
+      };
+    } catch (error) {
+      logServerError("saas/scope.getTenantPortalScopeBySlug", error);
+      return null;
+    }
+  },
+);
+
 /**
  * Phase 4 stub — resolves a tenant from a hostname. Used by storefront
  * routing middleware to attach tenant scope to anonymous public requests.
@@ -199,6 +253,7 @@ export const TENANT_HEADER_NAME = ACTIVE_TENANT_HEADER;
 const HOST_CONTEXT_HEADER = "x-impronta-host-context";
 const HOST_NAME_HEADER = "x-impronta-host-name";
 const HOST_TENANT_SLUG_HEADER = "x-impronta-tenant-slug";
+export const PUBLIC_PATH_PREFIX_HEADER = "x-impronta-public-path-prefix";
 
 /**
  * Route context resolved by edge middleware for this request.
@@ -266,6 +321,21 @@ export async function getPublicHostContext(): Promise<PublicHostContext> {
     }
   } catch {
     return { kind: "unknown", tenantId: null, hostname: null };
+  }
+}
+
+/**
+ * Path-based tenant storefront prefix for requests rendered from
+ * `/<tenantSlug>/...` on hub/marketing/local app hosts. Empty string means
+ * the current public surface is hostname-based (or not tenant-scoped).
+ */
+export async function getPublicPathPrefix(): Promise<string> {
+  try {
+    const h = await headers();
+    const prefix = h.get(PUBLIC_PATH_PREFIX_HEADER) ?? "";
+    return /^\/[a-z0-9][a-z0-9-]{1,62}$/.test(prefix) ? prefix : "";
+  } catch {
+    return "";
   }
 }
 

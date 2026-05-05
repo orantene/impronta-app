@@ -7,8 +7,7 @@
  * startClientBalanceTopup → variable Stripe Checkout → webhook adds balance
  */
 
-import { headers } from "next/headers";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import {
@@ -17,8 +16,10 @@ import {
   type AllowedTopupAmount,
   ALLOWED_TOPUP_AMOUNTS_CENTS,
 } from "@/lib/stripe/client-billing";
+import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { loadClientSelfProfile } from "../../_data-bridge";
 import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,26 +27,13 @@ export type ClientTrustActionResult =
   | { ok: true; redirectUrl: string }
   | { ok: false; error: string };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function deriveAppBaseUrl(): Promise<string> {
-  try {
-    const h = await headers();
-    const host = h.get("host") ?? "localhost:3000";
-    const proto = host.includes("localhost") ? "http" : "https";
-    return `${proto}://${host}`;
-  } catch {
-    return "http://localhost:3000";
-  }
-}
-
 async function resolveContext(tenantSlug: string) {
   if (!isStripeConfigured()) return { ok: false as const, error: "Billing is not available yet." };
 
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false as const, error: "Not authenticated." };
 
-  const scope = await getTenantScopeBySlug(tenantSlug);
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) return { ok: false as const, error: "Workspace not found." };
 
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
@@ -71,6 +59,26 @@ export async function startClientVerification(
 ): Promise<ClientTrustActionResult> {
   const ctx = await resolveContext(tenantSlug);
   if (!ctx.ok) return ctx;
+
+  // Audit H4 — prevent double-charge: a client who is already verified should
+  // not be able to start a second checkout session, even from a stale tab.
+  // Stripe Checkout idempotency wouldn't catch this because each click creates
+  // a new Session id; the only safe place to gate is server-side here.
+  const sb = createServiceRoleClient();
+  if (sb) {
+    const { data: existingTrust } = await sb
+      .from("client_trust_state")
+      .select("verified_at")
+      .eq("user_id", ctx.userId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if ((existingTrust as { verified_at?: string | null } | null)?.verified_at) {
+      return {
+        ok: false,
+        error: "Your account is already verified — no further fee is required.",
+      };
+    }
+  }
 
   const appBaseUrl = await deriveAppBaseUrl();
 

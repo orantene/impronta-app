@@ -2,9 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireStaff } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
-import { getTenantScope } from "@/lib/saas/scope";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import type { WorkspacePlan } from "@/lib/dashboard/admin-workspace-summary";
 
 /**
@@ -14,7 +13,7 @@ import type { WorkspacePlan } from "@/lib/dashboard/admin-workspace-summary";
  * later via a manual UPDATE.
  */
 const SEAT_LIMITS: Record<WorkspacePlan, number | null> = {
-  free: 10,
+  free: 5,
   studio: 50,
   agency: 200,
   network: null,
@@ -51,14 +50,9 @@ export async function changeWorkspacePlan(
     return { ok: false, error: "Unknown plan." };
   }
 
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, error: auth.error };
-  }
-
-  const scope = await getTenantScope();
-  if (!scope) {
-    return { ok: false, error: "No active workspace." };
   }
 
   const { error } = await auth.supabase
@@ -68,7 +62,7 @@ export async function changeWorkspacePlan(
       talent_seat_limit: SEAT_LIMITS[plan],
       updated_at: new Date().toISOString(),
     })
-    .eq("id", scope.tenantId);
+    .eq("id", auth.tenantId);
 
   if (error) {
     logServerError("admin/changeWorkspacePlan", error);

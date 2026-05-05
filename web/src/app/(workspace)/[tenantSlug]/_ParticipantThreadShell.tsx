@@ -1,0 +1,305 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+export type ParticipantThreadMessage = {
+  id: string;
+  sender_user_id: string | null;
+  sender_name: string;
+  body: string;
+  created_at: string;
+  is_mine: boolean;
+};
+
+export type ParticipantThreadSendResult =
+  | { id: string; created_at: string }
+  | { error: string };
+
+type ThreadType = "private" | "group";
+
+const C = {
+  ink: "#0B0B0D",
+  inkMuted: "rgba(11,11,13,0.55)",
+  inkDim: "rgba(11,11,13,0.35)",
+  borderSoft: "rgba(24,24,27,0.08)",
+  cardBg: "#ffffff",
+  surface: "rgba(11,11,13,0.02)",
+  red: "#A33A3A",
+  redSoft: "rgba(163,58,58,0.10)",
+} as const;
+
+const FONT = '"Inter", system-ui, sans-serif';
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function ParticipantThreadShell({
+  inquiryId,
+  threadType,
+  initialMessages,
+  accent,
+  accentSoft,
+  sendMessage,
+  markRead,
+}: {
+  inquiryId: string;
+  threadType: ThreadType;
+  initialMessages: ParticipantThreadMessage[];
+  accent: string;
+  accentSoft: string;
+  sendMessage: (body: string) => Promise<ParticipantThreadSendResult>;
+  markRead: () => Promise<void>;
+}) {
+  const [messages, setMessages] = useState<ParticipantThreadMessage[]>(initialMessages);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+  const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [sending, startSending] = useTransition();
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+    let cancelled = false;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setViewerUserId(data.user?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages, inquiryId, threadType]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`participant_inquiry_messages:${inquiryId}:${threadType}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "inquiry_messages",
+          filter: `inquiry_id=eq.${inquiryId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            sender_user_id: string | null;
+            body: string;
+            created_at: string;
+            thread_type: string;
+          };
+          if (row.thread_type !== threadType) return;
+
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === row.id)) return prev;
+            const knownSenderName = prev.find((m) => m.sender_user_id === row.sender_user_id)?.sender_name;
+            const isMine = viewerUserId != null && row.sender_user_id === viewerUserId;
+            return [
+              ...prev,
+              {
+                id: row.id,
+                sender_user_id: row.sender_user_id,
+                sender_name: knownSenderName ?? (isMine ? "You" : row.sender_user_id?.slice(0, 8) ?? "Unknown"),
+                body: row.body,
+                created_at: row.created_at,
+                is_mine: isMine,
+              },
+            ];
+          });
+
+          if (!viewerUserId || row.sender_user_id === viewerUserId) return;
+          void markRead();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [inquiryId, markRead, threadType, viewerUserId]);
+
+  const grouped = useMemo(() => {
+    return messages;
+  }, [messages]);
+
+  const handleSend = useCallback(() => {
+    const trimmed = body.trim();
+    if (!trimmed || sending) return;
+
+    const optimisticId = `opt-${Date.now()}`;
+    const optimistic: ParticipantThreadMessage = {
+      id: optimisticId,
+      sender_user_id: viewerUserId,
+      sender_name: "You",
+      body: trimmed,
+      created_at: new Date().toISOString(),
+      is_mine: true,
+    };
+
+    setError(null);
+    setMessages((prev) => [...prev, optimistic]);
+    setBody("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+
+    startSending(async () => {
+      const result = await sendMessage(trimmed);
+      if ("error" in result) {
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+        setBody(trimmed);
+        setError(result.error);
+        return;
+      }
+
+      setMessages((prev) => {
+        const opt = prev.find((m) => m.id === optimisticId);
+        if (!opt) return prev;
+        return [
+          ...prev.filter((m) => m.id !== optimisticId && m.id !== result.id),
+          { ...opt, id: result.id, created_at: result.created_at },
+        ];
+      });
+    });
+  }, [body, sending, sendMessage, viewerUserId]);
+
+  return (
+    <section style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 12, background: C.cardBg, overflow: "hidden" }}>
+      <div
+        style={{
+          maxHeight: "min(56vh, 560px)",
+          overflowY: "auto",
+          padding: "14px 14px 8px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        {grouped.length === 0 ? (
+          <div style={{ padding: "24px 10px", textAlign: "center", fontSize: 12.5, color: C.inkMuted }}>
+            No messages yet. Send the first message below.
+          </div>
+        ) : (
+          grouped.map((m) => (
+            <div key={m.id} style={{ display: "flex", justifyContent: m.is_mine ? "flex-end" : "flex-start" }}>
+              <div style={{ maxWidth: "78%" }}>
+                {!m.is_mine ? (
+                  <div style={{ fontSize: 10.5, color: C.inkMuted, marginBottom: 3, paddingLeft: 2 }}>
+                    {m.sender_name}
+                  </div>
+                ) : null}
+                <div
+                  style={{
+                    padding: "8px 11px",
+                    borderRadius: 10,
+                    background: m.is_mine ? accent : C.surface,
+                    color: m.is_mine ? "#fff" : C.ink,
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    border: m.is_mine ? "none" : `1px solid ${C.borderSoft}`,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {m.body}
+                </div>
+                <div
+                  style={{
+                    marginTop: 3,
+                    fontSize: 10,
+                    color: C.inkDim,
+                    textAlign: m.is_mine ? "right" : "left",
+                    padding: "0 2px",
+                  }}
+                >
+                  {formatTime(m.created_at)}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {error ? (
+        <div style={{ borderTop: `1px solid ${C.borderSoft}`, background: C.redSoft, color: C.red, padding: "8px 12px", fontSize: 12 }}>
+          {error}
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          borderTop: `1px solid ${C.borderSoft}`,
+          padding: 10,
+          display: "flex",
+          gap: 8,
+          alignItems: "flex-end",
+        }}
+      >
+        <textarea
+          ref={textareaRef}
+          value={body}
+          rows={1}
+          placeholder="Write a message..."
+          onChange={(event) => {
+            setBody(event.target.value);
+            event.currentTarget.style.height = "auto";
+            event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 140)}px`;
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              handleSend();
+            }
+          }}
+          style={{
+            flex: 1,
+            minHeight: 36,
+            maxHeight: 140,
+            resize: "none",
+            border: `1px solid ${C.borderSoft}`,
+            borderRadius: 8,
+            padding: "8px 10px",
+            fontSize: 13,
+            fontFamily: FONT,
+            color: C.ink,
+            background: "#fff",
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleSend}
+          disabled={sending || body.trim().length === 0}
+          style={{
+            height: 36,
+            padding: "0 12px",
+            borderRadius: 8,
+            border: "none",
+            background: sending || body.trim().length === 0 ? accentSoft : accent,
+            color: sending || body.trim().length === 0 ? C.inkMuted : "#fff",
+            fontSize: 12.5,
+            fontWeight: 600,
+            cursor: sending || body.trim().length === 0 ? "default" : "pointer",
+          }}
+        >
+          Send
+        </button>
+      </div>
+    </section>
+  );
+}

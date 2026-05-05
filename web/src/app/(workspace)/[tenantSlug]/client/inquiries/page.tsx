@@ -3,7 +3,8 @@
 // with status chips, event details, and timestamps.
 
 import { notFound } from "next/navigation";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import Link from "next/link";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadClientInquiries } from "../../_data-bridge";
 
@@ -73,12 +74,194 @@ function isTerminal(status: string) {
   return ["booked", "converted", "rejected", "expired", "closed", "closed_lost", "archived"].includes(status);
 }
 
+type InquiryRow = Awaited<ReturnType<typeof loadClientInquiries>>[number];
+
+function InquiryTable({
+  rows,
+  label,
+  tenantSlug,
+}: {
+  rows: InquiryRow[];
+  label: string;
+  tenantSlug: string;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <section>
+      <div
+        style={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: 0.8,
+          textTransform: "uppercase",
+          color: C.inkMuted,
+          marginBottom: 10,
+          fontFamily: FONT,
+        }}
+      >
+        {label} ({rows.length})
+      </div>
+      <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
+        {rows.map((inq, idx) => {
+          const s = statusTone(inq.status);
+          const needsAction = inq.next_action_by === "client";
+          const hasUnread = inq.unreadCount > 0;
+          return (
+            <div
+              key={inq.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                gap: 16,
+                alignItems: "center",
+                padding: "14px 18px",
+                borderBottom: idx < rows.length - 1 ? `1px solid ${C.borderSoft}` : "none",
+                fontFamily: FONT,
+                background: needsAction || hasUnread ? "rgba(29,78,216,0.03)" : "transparent",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                {/* Status + action indicator */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      background: s.bg,
+                      color: s.color,
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      letterSpacing: 0.3,
+                      textTransform: "uppercase" as const,
+                      fontFamily: FONT,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {s.label}
+                  </span>
+                  {needsAction && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "1px 7px",
+                        borderRadius: 999,
+                        background: C.accentSoft,
+                        color: C.blueDeep,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: 0.3,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.blueDeep, display: "inline-block" }} />
+                      Your turn
+                    </span>
+                  )}
+                  {hasUnread && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: "1px 7px",
+                        borderRadius: 999,
+                        background: C.accentSoft,
+                        color: C.blueDeep,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: 0.3,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      {inq.unreadCount} new
+                    </span>
+                  )}
+                </div>
+
+                {/* Primary line */}
+                <div
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: C.ink,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    letterSpacing: -0.1,
+                  }}
+                >
+                  {inq.company ?? "Booking inquiry"}
+                  {inq.event_location && (
+                    <span style={{ fontWeight: 400, color: C.inkMuted, marginLeft: 8 }}>
+                      · {inq.event_location}
+                    </span>
+                  )}
+                </div>
+
+                {/* Meta */}
+                <div style={{ display: "flex", gap: 14, marginTop: 3 }}>
+                  {inq.event_date && (
+                    <span style={{ fontSize: 12, color: C.inkMuted }}>
+                      📅 {fmtDate(inq.event_date)}
+                    </span>
+                  )}
+                  {inq.quantity && (
+                    <span style={{ fontSize: 12, color: C.inkMuted }}>
+                      {inq.quantity} talent
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  textAlign: "right",
+                  flexShrink: 0,
+                  fontSize: 11.5,
+                  color: C.inkDim,
+                  fontFamily: FONT,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                  gap: 8,
+                }}
+              >
+                <span>{relativeDate(inq.created_at)}</span>
+                <Link
+                  href={`/${tenantSlug}/client/inquiries/${inq.id}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    height: 28,
+                    padding: "0 10px",
+                    borderRadius: 8,
+                    border: `1px solid ${C.borderSoft}`,
+                    color: C.blueDeep,
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                  }}
+                >
+                  Open thread
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default async function ClientInquiriesPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
-  const scope = await getTenantScopeBySlug(tenantSlug);
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
@@ -88,138 +271,6 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
 
   const open   = inquiries.filter((i) => !isTerminal(i.status));
   const closed = inquiries.filter((i) => isTerminal(i.status));
-
-  function InquiryTable({ rows, label }: { rows: typeof inquiries; label: string }) {
-    if (rows.length === 0) return null;
-    return (
-      <section>
-        <div
-          style={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            letterSpacing: 0.8,
-            textTransform: "uppercase",
-            color: C.inkMuted,
-            marginBottom: 10,
-            fontFamily: FONT,
-          }}
-        >
-          {label} ({rows.length})
-        </div>
-        <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
-          {rows.map((inq, idx) => {
-            const s = statusTone(inq.status);
-            const needsAction = inq.next_action_by === "client";
-            return (
-              <div
-                key={inq.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  gap: 16,
-                  alignItems: "center",
-                  padding: "14px 18px",
-                  borderBottom: idx < rows.length - 1 ? `1px solid ${C.borderSoft}` : "none",
-                  fontFamily: FONT,
-                  background: needsAction ? "rgba(29,78,216,0.03)" : "transparent",
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  {/* Status + action indicator */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        background: s.bg,
-                        color: s.color,
-                        fontSize: 10.5,
-                        fontWeight: 700,
-                        letterSpacing: 0.3,
-                        textTransform: "uppercase" as const,
-                        fontFamily: FONT,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {s.label}
-                    </span>
-                    {needsAction && (
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          padding: "1px 7px",
-                          borderRadius: 999,
-                          background: C.accentSoft,
-                          color: C.blueDeep,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: 0.3,
-                          fontFamily: FONT,
-                        }}
-                      >
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.blueDeep, display: "inline-block" }} />
-                        Your turn
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Primary line */}
-                  <div
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      color: C.ink,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      letterSpacing: -0.1,
-                    }}
-                  >
-                    {inq.company ?? "Booking inquiry"}
-                    {inq.event_location && (
-                      <span style={{ fontWeight: 400, color: C.inkMuted, marginLeft: 8 }}>
-                        · {inq.event_location}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Meta */}
-                  <div style={{ display: "flex", gap: 14, marginTop: 3 }}>
-                    {inq.event_date && (
-                      <span style={{ fontSize: 12, color: C.inkMuted }}>
-                        📅 {fmtDate(inq.event_date)}
-                      </span>
-                    )}
-                    {inq.quantity && (
-                      <span style={{ fontSize: 12, color: C.inkMuted }}>
-                        {inq.quantity} talent
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    textAlign: "right",
-                    flexShrink: 0,
-                    fontSize: 11.5,
-                    color: C.inkDim,
-                    fontFamily: FONT,
-                  }}
-                >
-                  {relativeDate(inq.created_at)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-    );
-  }
 
   return (
     <div style={{ fontFamily: FONT }}>
@@ -264,8 +315,8 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-          <InquiryTable rows={open}   label="Open" />
-          <InquiryTable rows={closed} label="Closed" />
+          <InquiryTable rows={open} label="Open" tenantSlug={tenantSlug} />
+          <InquiryTable rows={closed} label="Closed" tenantSlug={tenantSlug} />
         </div>
       )}
     </div>

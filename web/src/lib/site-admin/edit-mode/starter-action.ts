@@ -48,6 +48,25 @@ export type StarterActionState =
   | { ok: false; error: string; code?: string }
   | undefined;
 
+const FREE_STARTER_SLUG = "free-quickstart-5" as const;
+const WORKSPACE_STARTER_PLANS = [
+  "free",
+  "studio",
+  "agency",
+  "network",
+  "legacy",
+] as const;
+type WorkspaceStarterPlan = (typeof WORKSPACE_STARTER_PLANS)[number];
+
+export type StarterAvailabilityResult =
+  | {
+      ok: true;
+      plan: WorkspaceStarterPlan;
+      allowedSlugs: ReadonlyArray<string>;
+      freeStarterSlug: string;
+    }
+  | { ok: false; error: string };
+
 // ── Recipes ───────────────────────────────────────────────────────────────
 
 interface RecipeEntry {
@@ -65,6 +84,66 @@ interface Recipe {
 }
 
 const RECIPES: Record<string, Recipe> = {
+  "free-quickstart-5": {
+    slug: "free-quickstart-5",
+    label: "Free Quickstart (5 profiles)",
+    presetSlug: "classic",
+    entries: [
+      {
+        slotKey: "hero",
+        sectionTypeKey: "hero",
+        propsOverride: {
+          headline: "Your studio, live in one page.",
+          subheadline:
+            "A simple launch page with services, five example profiles, and one clear inquiry CTA.",
+          primaryCta: { label: "Book a call", href: "/contact" },
+          secondaryCta: { label: "See profiles", href: "/directory" },
+        },
+      },
+      {
+        slotKey: "services",
+        sectionTypeKey: "category_grid",
+        propsOverride: {
+          eyebrow: "Services",
+          headline: "What this studio offers",
+          items: [
+            { label: "Makeup", tagline: "Editorial + events" },
+            { label: "Hair", tagline: "Set + ceremony ready" },
+            { label: "Photography", tagline: "Portrait + campaign" },
+            { label: "Styling", tagline: "Wardrobe + direction" },
+          ],
+          columnsDesktop: 4,
+          variant: "portrait-masonry",
+        },
+      },
+      {
+        slotKey: "featured",
+        sectionTypeKey: "featured_talent",
+        propsOverride: {
+          eyebrow: "Roster",
+          headline: "Five live profiles",
+          intro:
+            "This section auto-loads real published profiles from your workspace roster, up to five.",
+          sourceMode: "auto_recent",
+          limit: 5,
+          columnsDesktop: 3,
+          variant: "grid",
+        },
+      },
+      {
+        slotKey: "final_cta",
+        sectionTypeKey: "cta_banner",
+        propsOverride: {
+          eyebrow: "Ready to book",
+          headline: "Tell us your date and project.",
+          copy:
+            "Share your event details and we'll return availability with a suggested team within one business day.",
+          primaryCta: { label: "Start inquiry", href: "/contact" },
+          variant: "centered-overlay",
+        },
+      },
+    ],
+  },
   "editorial-bridal": {
     slug: "editorial-bridal",
     label: "Editorial Bridal starter",
@@ -657,6 +736,59 @@ function shortToken(): string {
   return randomBytes(3).toString("hex");
 }
 
+function normalizeWorkspaceStarterPlan(
+  planTier: string | null | undefined,
+): WorkspaceStarterPlan {
+  if (!planTier) return "free";
+  return (WORKSPACE_STARTER_PLANS as readonly string[]).includes(planTier)
+    ? (planTier as WorkspaceStarterPlan)
+    : "free";
+}
+
+async function loadWorkspaceStarterPlan(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+): Promise<WorkspaceStarterPlan> {
+  const { data, error } = await admin
+    .from("agencies")
+    .select("plan_tier")
+    .eq("id", tenantId)
+    .maybeSingle<{ plan_tier: string | null }>();
+  if (error) {
+    console.warn("[starter-action] failed to load workspace plan_tier", {
+      tenantId,
+      error: error.message,
+    });
+    return "free";
+  }
+  return normalizeWorkspaceStarterPlan(data?.plan_tier);
+}
+
+function allowedStarterSlugsForPlan(
+  plan: WorkspaceStarterPlan,
+): ReadonlyArray<string> {
+  if (plan === "free") return [FREE_STARTER_SLUG];
+  return Object.keys(RECIPES).filter((slug) => slug !== FREE_STARTER_SLUG);
+}
+
+export async function loadStarterAvailability(): Promise<StarterAvailabilityResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "Select an agency workspace first." };
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return { ok: false, error: "Server is missing service-role credentials." };
+  }
+  const plan = await loadWorkspaceStarterPlan(admin, scope.tenantId);
+  return {
+    ok: true,
+    plan,
+    allowedSlugs: allowedStarterSlugsForPlan(plan),
+    freeStarterSlug: FREE_STARTER_SLUG,
+  };
+}
+
 // ── Action ────────────────────────────────────────────────────────────────
 
 export async function applyStarterComposition(
@@ -682,6 +814,17 @@ export async function applyStarterComposition(
   const admin = createServiceRoleClient();
   if (!admin) {
     return { ok: false, error: "Server is missing service-role credentials." };
+  }
+  const plan = await loadWorkspaceStarterPlan(admin, scope.tenantId);
+  const allowedSlugs = allowedStarterSlugsForPlan(plan);
+  if (!allowedSlugs.includes(slug)) {
+    return {
+      ok: false,
+      error:
+        plan === "free"
+          ? "Free workspaces include one starter template. Upgrade to Studio to unlock additional starters."
+          : `Starter "${slug}" is not available on this workspace plan.`,
+    };
   }
 
   // 1. Apply preset. Load current branding version first for CAS.

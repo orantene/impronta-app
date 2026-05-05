@@ -9,8 +9,7 @@ import {
 import { hasPhase5Capability } from "@/lib/site-admin";
 import { listThemePresets } from "@/lib/site-admin/presets/theme-presets";
 import { loadDesignForStaff } from "@/lib/site-admin/server/design";
-import { requireStaff } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 import { ThemeKitsGrid, type ThemeKitView } from "./theme-kits-grid";
 
@@ -26,20 +25,22 @@ export const dynamic = "force-dynamic";
  * wants the change to go live.
  */
 export default async function SiteSetupThemePage() {
-  const auth = await requireStaff();
-  if (!auth.ok) redirect("/login");
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) {
+    if (guard.error === "No active tenant for this request.") {
+      redirect("/admin?err=no_tenant");
+    }
+    redirect("/login");
+  }
 
-  const scope = await requireTenantScope().catch(() => null);
-  if (!scope) redirect("/admin?err=no_tenant");
-
-  const tenantId = scope.tenantId;
+  const tenantId = guard.tenantId;
 
   const [canEdit, canPublish] = await Promise.all([
     hasPhase5Capability("agency.site_admin.design.edit", tenantId),
     hasPhase5Capability("agency.site_admin.design.publish", tenantId),
   ]);
 
-  const branding = await loadDesignForStaff(auth.supabase, tenantId);
+  const branding = await loadDesignForStaff(guard.supabase, tenantId);
 
   const presets = listThemePresets();
   const activeSlug = branding?.theme_preset_slug ?? null;

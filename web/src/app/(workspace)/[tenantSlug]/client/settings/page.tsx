@@ -2,7 +2,7 @@
 // Profile info, notification preferences, and account management.
 
 import { notFound } from "next/navigation";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadClientTrustBillingState } from "../../_data-bridge";
 import { ClientTrustShell } from "./ClientTrustShell";
@@ -75,7 +75,7 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
-  const scope = await getTenantScopeBySlug(tenantSlug);
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   const [clientProfile, trustState] = await Promise.all([

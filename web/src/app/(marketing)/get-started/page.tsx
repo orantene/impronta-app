@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   MarketingContainer,
   MarketingEyebrow,
@@ -10,12 +11,19 @@ import { FaqSection } from "@/components/marketing/faq-section";
 import { GetStartedForm } from "@/components/marketing/get-started-form";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import {
+  reservedBrandedSubdomainHost,
+  workspacePathHost,
+} from "@/lib/saas/workspace-public-url";
 
 export const metadata: Metadata = {
   title: "Start free — claim your roster link",
   description:
-    "Put your roster on the internet, properly. A free subdomain, a branded directory site, and a structured inquiry inbox — built for independent operators, representation businesses, casting, staffing, and placement operations.",
+    "Put your roster on the internet, properly. A free Tulala URL, a branded directory site, and a structured inquiry inbox — built for independent operators, representation businesses, casting, staffing, and placement operations.",
 };
+
+const FREE_LINK_EXAMPLE = workspacePathHost("your-roster");
+const STUDIO_LINK_EXAMPLE = reservedBrandedSubdomainHost("your-roster");
 
 type AudienceKey = "operator" | "agency" | "organization";
 
@@ -24,7 +32,7 @@ const HEADLINE_BY_TIER: Record<string, { eyebrow: string; title: string; subtitl
     eyebrow: "Start free",
     title: "Your roster, online in ten minutes.",
     subtitle:
-      "A free subdomain, up to ten people profiles, and the full inquiry → offer → booking pipeline. Email + in-app notifications included.",
+      "A free Tulala URL, up to five people profiles, and the full inquiry → offer → booking pipeline. Email + in-app notifications included.",
   },
   studio: {
     eyebrow: "Studio · $19/mo",
@@ -48,7 +56,7 @@ const HEADLINE_BY_TIER: Record<string, { eyebrow: string; title: string; subtitl
     eyebrow: "Start free",
     title: "Put your roster on the internet, properly.",
     subtitle:
-      "Claim your subdomain, add your roster, and share one polished link. Every plan ships with the full inquiry → offer → booking pipeline.",
+      "Claim your roster link, add your roster, and share one polished URL. Every plan ships with the full inquiry → offer → booking pipeline.",
   },
 };
 
@@ -130,10 +138,10 @@ function HeroSection({
               style={{ color: "var(--plt-ink-soft)" }}
             >
               <li className="inline-flex items-center gap-2">
-                <Dot /> Free subdomain, no card
+                <Dot /> Free Tulala URL, no card
               </li>
               <li className="inline-flex items-center gap-2">
-                <Dot /> One profile or forty
+                <Dot /> One profile or five
               </li>
               <li className="inline-flex items-center gap-2">
                 <Dot /> Upgrade any time
@@ -195,13 +203,13 @@ function HeroSection({
               style={{ color: "var(--plt-muted)" }}
             >
               Already have an account?{" "}
-              <a
+              <Link
                 href="/waitlist?intent=signin"
                 className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                 style={{ color: "var(--plt-ink)" }}
               >
                 Sign in
-              </a>
+              </Link>
             </p>
           </div>
         </div>
@@ -348,14 +356,14 @@ function AudienceCard({ audience }: { audience: Audience }) {
 const STEPS = [
   {
     numeral: "01",
-    title: "Claim your free subdomain.",
-    body: `your-roster.${PLATFORM_BRAND.domain} — pick it in the form above. It's live before you finish your coffee, no credit card on file.`,
-    caption: `your-roster.${PLATFORM_BRAND.domain}`,
+    title: "Claim your free roster URL.",
+    body: `${FREE_LINK_EXAMPLE} — pick the link name in the form above. We create it automatically as soon as you finish account setup, no credit card on file.`,
+    caption: FREE_LINK_EXAMPLE,
   },
   {
     numeral: "02",
     title: "Add your first roster.",
-    body: "One profile or forty. Name, category, portfolio, specs, rates, availability — the fields that matter for the people you represent, structured the same way every time.",
+    body: "One profile or five. Name, category, portfolio, specs, rates, availability — the fields that matter for the people you represent, structured the same way every time.",
     caption: "Structured people profiles",
   },
   {
@@ -478,11 +486,11 @@ function PlanLadderSection() {
             tier="Free"
             price="$0"
             cadence="forever"
-            tagline="The pipeline, on a free subdomain."
+            tagline="The pipeline, on a free Tulala URL."
             highlights={[
               "Inquiry → offer → booking pipeline",
               "Email + in-app notifications",
-              `your-roster.${PLATFORM_BRAND.domain}`,
+              FREE_LINK_EXAMPLE,
               "Up to 10 people profiles",
               "Hub discovery (opt-in)",
             ]}
@@ -494,6 +502,7 @@ function PlanLadderSection() {
             tagline="Where your inquiries actually happen."
             highlights={[
               "Everything in Free, plus:",
+              `Optional branded host: ${STUDIO_LINK_EXAMPLE}`,
               "WhatsApp inquiry notifications",
               "Up to 50 people profiles",
               "Up to 3 seats",
@@ -747,7 +756,7 @@ function ProductPreviewSection() {
                   aria-hidden
                 />
                 <span className="plt-mono" style={{ color: "var(--plt-ink-soft)" }}>
-                  your-roster.{PLATFORM_BRAND.domain}
+                  {FREE_LINK_EXAMPLE}
                 </span>
                 <span className="plt-mono ml-auto">Shared</span>
               </div>

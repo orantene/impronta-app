@@ -18,6 +18,8 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { mapStripeStatus } from "@/lib/stripe/utils";
+import type { AllowedStatus } from "@/lib/stripe/utils";
 import type Stripe from "stripe";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -83,9 +85,32 @@ export async function getOrCreateStripeCustomer(
       billing_email: ownerEmail,
     });
 
+    // Audit C6 — race fix: if a concurrent call won the insert race, our
+    // freshly-created Stripe customer is now an orphan. Clean it up.
     if (error) {
+      if ((error as { code?: string }).code === "23505") {
+        try {
+          await stripe.customers.del(customer.id);
+        } catch (delErr) {
+          logServerError("workspace-billing.getOrCreateCustomer.deleteOrphan", delErr);
+        }
+        const { data: winner } = await sb
+          .from("stripe_customers")
+          .select("stripe_customer_id")
+          .eq("tenant_id", tenantId)
+          .maybeSingle();
+        if (winner?.stripe_customer_id) {
+          return { ok: true, data: winner.stripe_customer_id };
+        }
+        return { ok: false, error: "Could not acquire Stripe customer record." };
+      }
       logServerError("workspace-billing.getOrCreateCustomer.insert", error);
-      // Not fatal — customer exists in Stripe, return the ID anyway
+      try {
+        await stripe.customers.del(customer.id);
+      } catch (delErr) {
+        logServerError("workspace-billing.getOrCreateCustomer.deleteOnInsertFail", delErr);
+      }
+      return { ok: false, error: "Could not record Stripe customer locally." };
     }
 
     return { ok: true, data: customer.id };
@@ -375,22 +400,7 @@ export async function loadWorkspaceSubscriptionState(
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-type AllowedStatus =
-  | "trialing"
-  | "active"
-  | "past_due"
-  | "cancelled"
-  | "paused"
-  | "incomplete"
-  | "incomplete_expired";
-
-function mapStripeStatus(stripeStatus: string): AllowedStatus {
-  const ALLOWED = new Set<string>([
-    "trialing", "active", "past_due", "paused", "incomplete", "incomplete_expired",
-  ]);
-  if (ALLOWED.has(stripeStatus)) return stripeStatus as AllowedStatus;
-  // Stripe uses "canceled" (US spelling); our check uses "cancelled" (UK)
-  if (stripeStatus === "canceled") return "cancelled";
-  return "incomplete";
-}
+// mapStripeStatus and AllowedStatus are imported from @/lib/stripe/utils.
+// Re-export AllowedStatus so callers that previously imported it from this
+// module continue to compile without changes.
+export type { AllowedStatus };

@@ -12,7 +12,8 @@ import {
   ORIGINAL_PATHNAME_HEADER,
 } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
+import { publicLocaleHref } from "@/i18n/client-directory-href";
+import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import {
   isStaffRole,
@@ -40,9 +41,11 @@ export async function PublicHeader() {
   const user = actor.user;
   const profile: AccessProfileWithDisplayName | null = actor.profile;
 
+  const headerHref = (href: string) =>
+    publicLocaleHref(pathnameWithoutLocale, href, locale);
   const accountLink = resolveAccountHref(Boolean(user), profile);
   const destination = resolveAuthenticatedDestination(profile);
-  const secondaryAction = !user
+  const rawSecondaryAction = !user
     ? null
     : destination === "/onboarding/role"
       ? { href: "/onboarding/role", label: t("public.header.finishSetup") }
@@ -51,9 +54,16 @@ export async function PublicHeader() {
         : profile?.app_role === "talent"
           ? { href: "/talent/edit-profile", label: t("public.header.myProfile") }
           : { href: "/client/overview", label: t("public.header.dashboard") };
+  const secondaryAction = rawSecondaryAction
+    ? { ...rawSecondaryAction, href: headerHref(rawSecondaryAction.href) }
+    : null;
 
   const savedIds = await getSavedTalentIds();
-  const cmsHeaderLinks = await getPublicCmsNavigationLinks(locale, "header");
+  const cmsHeaderLinksRaw = await getPublicCmsNavigationLinks(locale, "header");
+  const cmsHeaderLinks = cmsHeaderLinksRaw.map((link) => ({
+    ...link,
+    href: headerHref(link.href),
+  }));
 
   const hostContext = await getPublicHostContext();
   const tenantIdForIdentity =
@@ -200,7 +210,7 @@ export async function PublicHeader() {
   // duplicating the logo + label markup.
   const brandLink = (
     <Link
-      href={withLocalePath("/", locale)}
+      href={headerHref("/")}
       className={brandLinkClass}
       data-brand-slot
     >
@@ -267,13 +277,13 @@ export async function PublicHeader() {
             pathnameWithoutLocale={pathnameWithoutLocale}
             brandLabel={brandLabel}
             ctaLabel={showCtaInMobileMenu ? ctaLabel : null}
-            ctaHref={showCtaInMobileMenu ? ctaHref : null}
+            ctaHref={showCtaInMobileMenu && ctaHref ? headerHref(ctaHref) : null}
             openMenuLabel={t("public.header.openMenuAria")}
             closeMenuLabel={t("public.header.closeMenuAria")}
           />
           <Button variant="ghost" size="icon" className="shrink-0" asChild>
             <Link
-              href={withLocalePath("/directory", locale)}
+              href={headerHref("/directory")}
               aria-label={t("public.header.searchTalentAria")}
             >
               <Search className="size-5" />
@@ -361,12 +371,12 @@ export async function PublicHeader() {
               className={`mr-1 hidden md:inline-flex ${showCtaInMobileBar ? "sm:inline-flex" : ""}`}
               asChild
             >
-              <Link href={ctaHref!}>{ctaLabel!}</Link>
+              <Link href={headerHref(ctaHref!)}>{ctaLabel!}</Link>
             </Button>
           ) : null}
           {showCtaInMobileBar && !showCtaInDesktopBar ? (
             <Button size="sm" className="mr-1 inline-flex md:hidden" asChild>
-              <Link href={ctaHref!}>{ctaLabel!}</Link>
+              <Link href={headerHref(ctaHref!)}>{ctaLabel!}</Link>
             </Button>
           ) : null}
           <PublicLanguageToggle
@@ -391,7 +401,7 @@ export async function PublicHeader() {
                   asChild
                 >
                   <Link
-                    href={withLocalePath(accountLink.href, locale)}
+                    href={headerHref(accountLink.href)}
                     aria-label={accountLink.label}
                   >
                     {t("public.header.setup")}
@@ -407,7 +417,7 @@ export async function PublicHeader() {
                       : t("public.header.signedInRole")
                   }
                   dashboardAction={{
-                    href: withLocalePath(accountLink.href, locale),
+                    href: headerHref(accountLink.href),
                     label: t("public.header.dashboard"),
                   }}
                   secondaryAction={secondaryAction}
@@ -429,7 +439,7 @@ export async function PublicHeader() {
           ) : (
             <Button size="icon" variant="ghost" className="shrink-0" asChild>
               <Link
-                href={withLocalePath(accountLink.href, locale)}
+                href={headerHref(accountLink.href)}
                 aria-label={accountLink.label}
               >
                 <UserRound className="size-5" />

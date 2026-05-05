@@ -21,7 +21,7 @@ const FAQS: QA[] = [
   {
     id: "free-plan",
     q: "Is there really a free plan?",
-    a: "Yes — a genuinely useful free plan, not a trial in disguise. You get a free subdomain, up to 10 people profiles, a structured inquiry inbox, and optional exposure on the shared discovery hub. No credit card required.",
+    a: "Yes — a genuinely useful free plan, not a trial in disguise. You get a free subdomain, up to 5 people profiles, a structured inquiry inbox, and optional exposure on the shared discovery hub. No credit card required.",
   },
   {
     id: "custom-domain",

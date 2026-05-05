@@ -34,6 +34,13 @@ export type HubItem = {
 const READ_KEY = "tulala_notif_read_v1";
 const DISMISSED_KEY = "tulala_notif_dismissed_v1";
 
+function escapeCssIdent(value: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+  return value.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+
 function readSet(key: string): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
@@ -104,7 +111,7 @@ export function NotificationsBell({
   const items: HubItem[] = useMemo(() => {
     const out: HubItem[] = [];
     // Action: pending approvals
-    pendingTalent.forEach((p, i) => {
+    pendingTalent.forEach((p) => {
       out.push({
         id: `pending-${p.id}`,
         bucket: "action",
@@ -188,10 +195,11 @@ export function NotificationsBell({
 
   const dim = size === "sm" ? 28 : 32;
   const iconSize = size === "sm" ? 14 : 15;
+  const escapedPopoverId = escapeCssIdent(popoverId);
 
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
-      <style>{`#${CSS.escape(popoverId)}:popover-open{display:flex}`}</style>
+      <style>{`#${escapedPopoverId}:popover-open{display:flex}`}</style>
       <button type="button"
         ref={buttonRef}
         {...({ popoverTarget: popoverId } as Record<string, string>)}

@@ -16,6 +16,7 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { getTalentPriceId, type TalentPlanKey } from "@/lib/stripe/price-ids";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { mapStripeStatus } from "@/lib/stripe/utils";
 import type Stripe from "stripe";
 import type { BillingResult } from "@/lib/stripe/workspace-billing";
 
@@ -76,8 +77,36 @@ export async function getOrCreateTalentStripeCustomer(
       stripe_customer_id: customer.id,
       billing_email: email,
     });
+
+    // Audit C6 — race fix: if a concurrent call won the insert race, our
+    // freshly-created Stripe customer is now an orphan. Delete it and
+    // return the winner's customer id.
     if (error) {
+      if ((error as { code?: string }).code === "23505") {
+        try {
+          await stripe.customers.del(customer.id);
+        } catch (delErr) {
+          logServerError("talent-billing.getOrCreateCustomer.deleteOrphan", delErr);
+        }
+        const { data: winner } = await sb
+          .from("talent_stripe_customers")
+          .select("stripe_customer_id")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (winner?.stripe_customer_id) {
+          return { ok: true, data: winner.stripe_customer_id };
+        }
+        return { ok: false, error: "Could not acquire Stripe customer record." };
+      }
+      // Non-uniqueness error: log and bail. Don't return the orphaned
+      // Stripe customer id because subsequent calls won't find it in the DB.
       logServerError("talent-billing.getOrCreateCustomer.insert", error);
+      try {
+        await stripe.customers.del(customer.id);
+      } catch (delErr) {
+        logServerError("talent-billing.getOrCreateCustomer.deleteOnInsertFail", delErr);
+      }
+      return { ok: false, error: "Could not record Stripe customer locally." };
     }
 
     return { ok: true, data: customer.id };
@@ -240,12 +269,37 @@ export async function syncTalentSubscriptionToDb(
     : null;
 
   const status = mapStripeStatus(subscription.status);
-  const newPlanKey =
-    status === "cancelled" || status === "incomplete_expired"
-      ? "talent_basic"
-      : planKey;
+  const isTerminallyCancelled = status === "cancelled" || status === "incomplete_expired";
+  const newPlanKey = isTerminallyCancelled ? "talent_basic" : planKey;
 
   try {
+    // Audit H2 — guard against out-of-order webhook deliveries: if the
+    // existing row is already in a terminal state, a stale 'updated'
+    // event for the same subscription must NOT re-promote the talent.
+    // We also short-circuit when the existing row's status is more recent
+    // than what this event is asking us to write.
+    const { data: existingRow } = await sb
+      .from("talent_subscriptions")
+      .select("status, plan_key, updated_at")
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle();
+
+    const existingStatus = (existingRow as { status?: string } | null)?.status;
+    if (
+      existingStatus === "cancelled" || existingStatus === "incomplete_expired"
+    ) {
+      if (!isTerminallyCancelled) {
+        // The DB says the subscription is already terminal, but this event
+        // wants to bring it back to active. That's almost certainly a stale
+        // delivery. Log and skip the upsert; profile plan stays talent_basic.
+        logServerError(
+          "talent-billing.syncSubscription.staleEvent",
+          `subscription ${subscription.id} already terminal=${existingStatus}, refusing to re-promote to status=${status}`,
+        );
+        return { ok: true, data: undefined };
+      }
+    }
+
     const { error: subError } = await sb
       .from("talent_subscriptions")
       .upsert(
@@ -254,7 +308,12 @@ export async function syncTalentSubscriptionToDb(
           user_id:                userId,
           stripe_subscription_id: subscription.id,
           stripe_customer_id:     customerId,
-          plan_key:               planKey === "talent_basic" ? "talent_pro" : planKey,
+          // Audit H2: when terminally cancelled, write the LAST plan tier
+          // we knew about so the row's plan_key reflects what they had.
+          // talent_profiles.talent_plan_key is set to talent_basic separately.
+          plan_key:               isTerminallyCancelled
+                                    ? ((existingRow as { plan_key?: string } | null)?.plan_key ?? "talent_pro")
+                                    : (planKey === "talent_basic" ? "talent_pro" : planKey),
           status,
           current_period_end:     periodEnd,
           cancel_at_period_end:   subscription.cancel_at_period_end ?? false,
@@ -353,16 +412,4 @@ export async function loadTalentSubscriptionState(
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-type AllowedStatus =
-  | "trialing" | "active" | "past_due" | "cancelled"
-  | "paused" | "incomplete" | "incomplete_expired";
-
-function mapStripeStatus(stripeStatus: string): AllowedStatus {
-  const ALLOWED = new Set<string>([
-    "trialing", "active", "past_due", "paused", "incomplete", "incomplete_expired",
-  ]);
-  if (ALLOWED.has(stripeStatus)) return stripeStatus as AllowedStatus;
-  if (stripeStatus === "canceled") return "cancelled";
-  return "incomplete";
-}
+// mapStripeStatus is imported from @/lib/stripe/utils (L3 dedup).

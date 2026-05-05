@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
-import type { Locale } from "@/i18n/config";
-import { withLocalePath } from "@/i18n/pathnames";
+import { clientLocaleHref } from "@/i18n/client-directory-href";
 
 export type FitLabelItem = {
   id: string;
@@ -23,14 +23,13 @@ const COLLAPSED_LIMIT = 6;
 
 export function BestForSection({
   labels,
-  locale,
   copy,
 }: {
   labels: FitLabelItem[];
-  locale: Locale;
   copy: BestForSectionCopy;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const pathname = usePathname();
 
   if (labels.length === 0) return null;
 
@@ -52,7 +51,7 @@ export function BestForSection({
           {visible.map((label) => (
             <Link
               key={label.id}
-              href={withLocalePath(`/directory?tax=${label.id}`, locale)}
+              href={clientLocaleHref(pathname, `/directory?tax=${label.id}`)}
               className="group flex items-center justify-between rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] p-5 transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5"
             >
               <span className="text-m font-medium text-foreground transition-colors group-hover:text-[var(--impronta-gold)]">

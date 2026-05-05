@@ -22,12 +22,21 @@ import {
 import { updateSession } from "@/lib/supabase/middleware";
 import {
   resolveTenantContext,
+  resolveTenantContextFromPathSlug,
+  type HostContext,
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
   HOST_TENANT_SLUG_HEADER,
 } from "@/lib/saas/host-context";
-import { TENANT_HEADER_NAME } from "@/lib/saas/scope";
-import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
+import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
+import {
+  PUBLIC_PATH_PREFIX_HEADER,
+  TENANT_HEADER_NAME,
+} from "@/lib/saas/scope";
+import {
+  isPathAllowedForHostKind,
+  resolvePathBasedTenantPublicPath,
+} from "@/lib/saas/surface-allow-list";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
   PREVIEW_COOKIE_OPTIONS,
@@ -48,9 +57,36 @@ function clientIp(request: NextRequest): string {
   return "unknown";
 }
 
+function isTenantHostContext(
+  context: HostContext,
+): context is Extract<HostContext, { kind: "agency" | "hub" }> {
+  return context.kind === "agency" || context.kind === "hub";
+}
+
+function isLocalhostHost(hostHeader: string): boolean {
+  const hostname = hostHeader.split(":")[0]?.trim().toLowerCase();
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
 export async function middleware(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
+
+  // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
+  // The Stripe webhook + cron + analytics-events endpoints must reach their
+  // route handlers regardless of host. Stripe sends webhooks to the public
+  // endpoint we register; the originating Host header is whatever Stripe
+  // resolves and may not match any seeded `agency_domains` row, especially
+  // if we ever point Stripe at a `*.vercel.app` preview. Each of these
+  // endpoints has its own auth (signature, bearer token, allow-list) so
+  // tenant-host gating is unnecessary and actively harmful here.
+  if (
+    pathname.startsWith("/api/stripe/") ||
+    pathname.startsWith("/api/cron/") ||
+    pathname === "/api/analytics/events"
+  ) {
+    return NextResponse.next();
+  }
 
   // SaaS Phase 4 — unified host resolution. Every hostname (marketing /
   // app / hub / agency) is resolved via a single DB-driven lookup in
@@ -62,11 +98,19 @@ export async function middleware(request: NextRequest) {
   // www → apex redirect can't be configured while the apex is ghost-attached
   // to a deleted Vercel project (see project memory). Handle it here so SEO
   // stays consistent regardless of which host the request lands on.
+  // Audit H11 — only redirect safe (idempotent) methods. POST/PUT/DELETE/PATCH
+  // would lose their body on a 308 with some clients; reject explicitly.
   if (hostHeader.toLowerCase() === TULALA_WWW_HOST) {
-    const target = new URL(request.url);
-    target.hostname = TULALA_APEX_HOST;
-    target.port = "";
-    return NextResponse.redirect(target, 308);
+    if (request.method === "GET" || request.method === "HEAD") {
+      const target = new URL(request.url);
+      target.hostname = TULALA_APEX_HOST;
+      target.port = "";
+      return NextResponse.redirect(target, 308);
+    }
+    return new NextResponse("Misdirected request: use the apex host for this method.", {
+      status: 421,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
   }
 
   const hostContext = await resolveTenantContext(request, hostHeader);
@@ -79,6 +123,25 @@ export async function middleware(request: NextRequest) {
       status: 404,
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
+  }
+
+  if (
+    hostContext.kind === "agency" &&
+    (request.method === "GET" || request.method === "HEAD")
+  ) {
+    const canonicalHost = resolveCanonicalCustomDomainRedirectHost({
+      currentHost: hostContext.hostname,
+      domainKind: hostContext.domainKind,
+      isPrimary: hostContext.isPrimary,
+      canonicalHost: hostContext.canonicalHost,
+      canonicalHostKind: hostContext.canonicalHostKind,
+    });
+
+    if (canonicalHost) {
+      const target = new URL(request.url);
+      target.hostname = canonicalHost;
+      return NextResponse.redirect(target, 308);
+    }
   }
 
   // ── Preview handoff ─────────────────────────────────────────────────────
@@ -121,7 +184,8 @@ export async function middleware(request: NextRequest) {
     const canonical = langSettings.publicLocales.find(
       (c) => c.toLowerCase() === parts[1].toLowerCase(),
     );
-    if (canonical && parts[1] !== canonical) {
+    // Audit H11 — locale-canonicalization redirect: only safe methods.
+    if (canonical && parts[1] !== canonical && (request.method === "GET" || request.method === "HEAD")) {
       parts[1] = canonical;
       const url = request.nextUrl.clone();
       url.pathname = parts.join("/") || "/";
@@ -130,7 +194,11 @@ export async function middleware(request: NextRequest) {
   }
 
   const withoutLocalePrefix = stripDefaultLocalePrefixFromPath(pathname, langSettings);
-  if (withoutLocalePrefix !== pathname) {
+  // Audit H11 — locale-strip redirect: only safe methods.
+  if (
+    withoutLocalePrefix !== pathname &&
+    (request.method === "GET" || request.method === "HEAD")
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
     return NextResponse.redirect(url, 308);
@@ -174,6 +242,26 @@ export async function middleware(request: NextRequest) {
     ? stripNonDefaultLocalePrefix(pathname, langSettings)
     : pathname;
 
+  const canResolvePathBasedTenant =
+    hostContext.kind === "hub" ||
+    hostContext.kind === "marketing" ||
+    (hostContext.kind === "app" && isLocalhostHost(hostHeader));
+  const pathBasedTenant = canResolvePathBasedTenant
+    ? resolvePathBasedTenantPublicPath(canonicalPath)
+    : null;
+  const pathBasedTenantContext = pathBasedTenant
+    ? await resolveTenantContextFromPathSlug(
+        request,
+        hostHeader,
+        pathBasedTenant.tenantSlug,
+      )
+    : null;
+  const effectiveHostContext = pathBasedTenantContext ?? hostContext;
+  const effectiveCanonicalPath =
+    pathBasedTenantContext && pathBasedTenant
+      ? pathBasedTenant.pathnameWithoutTenant
+      : canonicalPath;
+
   // CMS clean-URL rewrite (agency storefronts only). Any single-segment
   // path on an agency host that is NOT in the explicit allow-list gets
   // rewritten internally to /p/{slug}. The CMS page catch-all at
@@ -185,10 +273,10 @@ export async function middleware(request: NextRequest) {
   // catch-all route, not from the middleware.
   let cmsSlugRewrite: string | null = null;
   if (
-    hostContext.kind === "agency" &&
-    !isPathAllowedForHostKind("agency", canonicalPath)
+    effectiveHostContext.kind === "agency" &&
+    !isPathAllowedForHostKind("agency", effectiveCanonicalPath)
   ) {
-    const slugMatch = canonicalPath.match(
+    const slugMatch = effectiveCanonicalPath.match(
       /^\/([a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)$/,
     );
     if (slugMatch) {
@@ -196,7 +284,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (!cmsSlugRewrite && !isPathAllowedForHostKind(hostContext.kind, canonicalPath)) {
+  if (
+    !cmsSlugRewrite &&
+    (
+      effectiveHostContext.kind === "not_found" ||
+      !isPathAllowedForHostKind(effectiveHostContext.kind, effectiveCanonicalPath)
+    )
+  ) {
     return new NextResponse("Not found", {
       status: 404,
       headers: { "content-type": "text/plain; charset=utf-8" },
@@ -291,8 +385,10 @@ export async function middleware(request: NextRequest) {
 
   const cmsRedirect = await tryCmsRedirectResponse(
     request,
-    originalPathname,
-    hostContext.kind === "agency" ? hostContext.tenantId : null,
+    pathBasedTenantContext && pathBasedTenant
+      ? pathBasedTenant.pathnameWithoutTenant
+      : originalPathname,
+    effectiveHostContext.kind === "agency" ? effectiveHostContext.tenantId : null,
   );
   if (cmsRedirect) {
     syncLocaleCookieForPath(cmsRedirect, originalPathname, langSettings);
@@ -304,17 +400,17 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);
 
-  requestHeaders.set(HOST_CONTEXT_HEADER, hostContext.kind);
-  requestHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+  requestHeaders.set(HOST_CONTEXT_HEADER, effectiveHostContext.kind);
+  requestHeaders.set(HOST_NAME_HEADER, effectiveHostContext.hostname);
 
-  if (hostContext.kind === "agency" || hostContext.kind === "hub") {
+  if (isTenantHostContext(effectiveHostContext)) {
     // Phase 5/6 M1 — hub is also a tenant on the org abstraction (kind='hub'
     // agencies row, seeded in 20260625100000). Setting the tenant header on
     // hub requests lets the public render path call the same tenant-scoped
     // CMS reads that agency tenants use. Surface allow-list still gates
     // hub from /admin etc., so this widens data access without widening
     // the route surface.
-    requestHeaders.set(TENANT_HEADER_NAME, hostContext.tenantId);
+    requestHeaders.set(TENANT_HEADER_NAME, effectiveHostContext.tenantId);
   } else {
     // Strip any spoofed header on non-tenant contexts (marketing / app).
     // Downstream code must never honour a client-supplied tenant id.
@@ -324,18 +420,32 @@ export async function middleware(request: NextRequest) {
   // Phase 4 — propagate tenant slug for agency hosts.
   // Used by layouts for branded-shortcut redirect (/admin → /<slug>/admin)
   // without an extra DB roundtrip. Only set for agency kind; cleared otherwise.
-  if (hostContext.kind === "agency" && hostContext.tenantSlug) {
-    requestHeaders.set(HOST_TENANT_SLUG_HEADER, hostContext.tenantSlug);
+  if (effectiveHostContext.kind === "agency" && effectiveHostContext.tenantSlug) {
+    requestHeaders.set(HOST_TENANT_SLUG_HEADER, effectiveHostContext.tenantSlug);
   } else {
     requestHeaders.delete(HOST_TENANT_SLUG_HEADER);
   }
 
+  if (effectiveHostContext.kind === "agency" && effectiveHostContext.domainKind === "path") {
+    requestHeaders.set(PUBLIC_PATH_PREFIX_HEADER, `/${effectiveHostContext.tenantSlug}`);
+  } else {
+    requestHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
+  }
+
   let pathnameForAuth = originalPathname;
   const nextUrl = request.nextUrl.clone();
+  let brandedWorkspaceShortcutRewrite = false;
 
   if (shouldRewriteLocalePublicPath(originalPathname, langSettings)) {
     nextUrl.pathname = stripNonDefaultLocalePrefix(originalPathname, langSettings);
     pathnameForAuth = nextUrl.pathname;
+  }
+
+  let pathBasedTenantRewrite = false;
+  if (pathBasedTenantContext && pathBasedTenant) {
+    nextUrl.pathname = pathBasedTenant.pathnameWithoutTenant;
+    pathnameForAuth = nextUrl.pathname;
+    pathBasedTenantRewrite = true;
   }
 
   // Apply CMS clean-URL rewrite — map the slug portion to /p/{slug}
@@ -345,6 +455,27 @@ export async function middleware(request: NextRequest) {
   if (cmsSlugRewrite) {
     nextUrl.pathname = cmsSlugRewrite;
     pathnameForAuth = cmsSlugRewrite;
+  }
+
+  // Phase 3.12 / 3.13 — branded workspace shortcuts on agency hosts.
+  // Keep the branded URL (`/admin`, `/talent`, `/client`) but route through
+  // the canonical slug handlers (`/<slug>/admin`, etc.) via internal rewrite.
+  if (
+    hostContext.kind === "agency" &&
+    hostContext.tenantSlug &&
+    !pathnameForAuth.startsWith(`/${hostContext.tenantSlug}/`) &&
+    (
+      pathnameForAuth === "/admin" ||
+      pathnameForAuth.startsWith("/admin/") ||
+      pathnameForAuth === "/talent" ||
+      pathnameForAuth.startsWith("/talent/") ||
+      pathnameForAuth === "/client" ||
+      pathnameForAuth.startsWith("/client/")
+    )
+  ) {
+    nextUrl.pathname = `/${hostContext.tenantSlug}${pathnameForAuth}`;
+    pathnameForAuth = nextUrl.pathname;
+    brandedWorkspaceShortcutRewrite = true;
   }
 
   const innerRequest = new NextRequest(nextUrl, {
@@ -362,7 +493,12 @@ export async function middleware(request: NextRequest) {
     return sessionRes;
   }
 
-  if (shouldRewriteLocalePublicPath(originalPathname, langSettings) || cmsSlugRewrite) {
+  if (
+    shouldRewriteLocalePublicPath(originalPathname, langSettings) ||
+    pathBasedTenantRewrite ||
+    cmsSlugRewrite ||
+    brandedWorkspaceShortcutRewrite
+  ) {
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = pathnameForAuth;
 

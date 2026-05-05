@@ -2,6 +2,7 @@ import "server-only";
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { hasCapability } from "@/lib/saas/capabilities";
+import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { findTenantMembership } from "@/lib/saas/tenant";
 
 /**
@@ -144,7 +145,7 @@ export async function pickUpRepresentationRequest(
 
   const { data: row, error: loadErr } = await session.supabase
     .from("talent_representation_requests")
-    .select("id, status, target_type, target_id")
+    .select("id, status, target_type, target_id, talent_profile_id")
     .eq("id", requestId)
     .maybeSingle();
   if (loadErr || !row) return fail(loadErr?.message ?? "Request not found.");
@@ -157,6 +158,27 @@ export async function pickUpRepresentationRequest(
     row.target_id as string,
   );
   if (!allowed) return fail("Not authorized to review this request.");
+
+  // Free/paid seat caps are enforced on roster growth. If this request would
+  // create a new non-removed roster row, require one free seat before moving
+  // to accepted (the DB trigger effectuation runs on this transition).
+  if (row.target_type === "agency") {
+    const { data: existingRoster } = await session.supabase
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", row.target_id as string)
+      .eq("talent_profile_id", row.talent_profile_id as string)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (!existingRoster) {
+      const seatAvailability = await checkRosterSeatAvailability(
+        session.supabase,
+        row.target_id as string,
+        1,
+      );
+      if (!seatAvailability.ok) return fail(seatAvailability.message);
+    }
+  }
 
   const { error } = await session.supabase
     .from("talent_representation_requests")

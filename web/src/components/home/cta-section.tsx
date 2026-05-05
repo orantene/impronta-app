@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 
 export type CtaSectionCopy = {
   title: string;
@@ -13,9 +14,11 @@ export type CtaSectionCopy = {
 export function CtaSection({
   locale,
   copy,
+  publicPathPrefix = "",
 }: {
   locale: Locale;
   copy: CtaSectionCopy;
+  publicPathPrefix?: string;
 }) {
   return (
     <section className="w-full px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
@@ -26,10 +29,19 @@ export function CtaSection({
         <p className="mt-4 text-base text-[var(--impronta-muted)]">{copy.body}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button asChild size="lg">
-            <Link href={withLocalePath("/directory", locale)}>{copy.searchTalent}</Link>
+            <Link
+              href={withLocalePath(
+                prefixPublicHref("/directory", publicPathPrefix),
+                locale,
+              )}
+            >
+              {copy.searchTalent}
+            </Link>
           </Button>
           <Button asChild variant="outline" size="lg">
-            <Link href="/register">{copy.createAccount}</Link>
+            <Link href={prefixPublicHref("/register", publicPathPrefix)}>
+              {copy.createAccount}
+            </Link>
           </Button>
         </div>
       </div>

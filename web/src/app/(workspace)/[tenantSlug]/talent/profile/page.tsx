@@ -3,7 +3,7 @@
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadTalentSelfProfile } from "../../_data-bridge";
 
@@ -88,7 +88,7 @@ export default async function TalentProfilePage({ params }: { params: PageParams
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
-  const scope = await getTenantScopeBySlug(tenantSlug);
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   const talentProfile = await loadTalentSelfProfile(session.user.id, scope.tenantId);

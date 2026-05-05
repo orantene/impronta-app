@@ -118,13 +118,33 @@ export async function saveSectionDraftAction(
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Tenant scope required" };
 
+  let nextProps = input.props;
+  // Free-plan guardrail: featured roster sections are capped at 5 cards.
+  // This keeps the one-page Free storefront contract enforced even if an
+  // operator edits the slider above 5 in the inspector.
+  if (input.sectionTypeKey === "featured_talent") {
+    const { data: agency, error } = await auth.supabase
+      .from("agencies")
+      .select("plan_tier")
+      .eq("id", scope.tenantId)
+      .maybeSingle<{ plan_tier: string | null }>();
+    if (!error && agency?.plan_tier === "free") {
+      const raw = (nextProps as { limit?: unknown }).limit;
+      const normalized =
+        typeof raw === "number" && Number.isFinite(raw)
+          ? Math.max(1, Math.min(5, Math.trunc(raw)))
+          : 5;
+      nextProps = { ...nextProps, limit: normalized };
+    }
+  }
+
   const parsed = sectionUpsertSchema.safeParse({
     id: input.id,
     tenantId: scope.tenantId,
     sectionTypeKey: input.sectionTypeKey,
     schemaVersion: input.schemaVersion,
     name: input.name,
-    props: input.props,
+    props: nextProps,
     expectedVersion: input.expectedVersion,
   });
   if (!parsed.success) {

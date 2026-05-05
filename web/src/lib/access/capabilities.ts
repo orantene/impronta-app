@@ -276,6 +276,14 @@ export const CAPABILITIES = {
     scope: "tenant",
     deprecated: false,
   }),
+  manage_agency_domains: define({
+    key: "manage_agency_domains",
+    displayName: "Manage workspace domains",
+    description: "Attach custom domains and handle DNS verification for your storefront.",
+    category: "site",
+    scope: "tenant",
+    deprecated: false,
+  }),
   "agency.site_admin.identity.edit": define({
     key: "agency.site_admin.identity.edit",
     displayName: "Edit business identity",
@@ -683,7 +691,6 @@ export const CAPABILITIES = {
     description: "Connect your own bank or payment provider to receive payouts.",
     category: "billing",
     scope: "tenant",
-    gating: "relationship",
     deprecated: false,
   }),
   "agency.payout_account.manage": define({

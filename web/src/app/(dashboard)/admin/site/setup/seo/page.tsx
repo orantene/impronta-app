@@ -7,7 +7,7 @@ import {
   SetupPage,
   SetupSection,
 } from "@/components/admin/setup/setup-page";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +23,13 @@ export const dynamic = "force-dynamic";
  * for an inline form without changing the chrome.
  */
 export default async function SiteSetupSeoPage() {
-  const auth = await requireStaff();
-  if (!auth.ok) redirect("/login");
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) {
+    if (guard.error === "No active tenant for this request.") {
+      redirect("/admin?err=no_tenant");
+    }
+    redirect("/login");
+  }
 
   return (
     <SetupPage

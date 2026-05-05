@@ -63,6 +63,25 @@ test("new onboarding users resolve to /onboarding/role", () => {
   );
 });
 
+test("post-auth preserves branded portal next for onboarding users", () => {
+  assert.equal(
+    resolvePostAuthDestination(onboardingUser, "/impronta/client/inquiries/new?talent=abc"),
+    "/onboarding/role?next=%2Fimpronta%2Fclient%2Finquiries%2Fnew%3Ftalent%3Dabc",
+  );
+  assert.equal(
+    resolvePostAuthDestination(onboardingUser, "/en/impronta/talent"),
+    "/onboarding/role?next=%2Fimpronta%2Ftalent",
+  );
+  assert.equal(
+    resolvePostAuthDestination(onboardingUser, "/admin"),
+    "/onboarding/role",
+  );
+  assert.equal(
+    resolvePostAuthDestination(onboardingUser, "/onboarding/workspace?lead=abc123"),
+    "/onboarding/workspace?lead=abc123",
+  );
+});
+
 test("talent users resolve to /talent and are redirected away from /admin", () => {
   assert.equal(resolveAuthenticatedDestination(activeTalent), "/talent");
   assert.deepEqual(resolveAccountHref(true, activeTalent), {
@@ -155,3 +174,9 @@ test("post-auth maps bare / to role home for active users", () => {
   assert.equal(resolvePostAuthDestination(activeTalent, "/"), "/talent");
 });
 
+test("active users may continue into workspace signup onboarding", () => {
+  assert.equal(
+    resolvePostAuthDestination(activeAdmin, "/onboarding/workspace?lead=abc123"),
+    "/onboarding/workspace?lead=abc123",
+  );
+});

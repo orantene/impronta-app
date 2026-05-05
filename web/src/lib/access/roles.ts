@@ -112,6 +112,11 @@ const COORDINATOR_CAPS: readonly CapabilityKey[] = [
   "convert_to_booking",
   "cancel_inquiry",
   "publish_cms_pages",
+  // Booking transactions (manual provider v1)
+  "booking.payment.select_receiver",
+  "booking.payment.request",
+  // Payout account self-connect (relationship gate applies at evaluation time)
+  "payout_account.connect_self",
   // Phase 5 publish surfaces
   "agency.site_admin.pages.publish",
   "agency.site_admin.sections.publish",
@@ -130,6 +135,11 @@ const ADMIN_CAPS: readonly CapabilityKey[] = [
   "manage_field_catalog",
   "manage_storefront_settings",
   "manage_agency_settings",
+  // Booking transactions (manual provider v1)
+  "booking.payment.change_receiver",
+  "booking.payment.mark_received",
+  "booking.payment.refund",
+  "booking.payment.payout_mark_external",
   // Phase 5 admin-only
   "agency.site_admin.identity.edit",
   "agency.site_admin.branding.edit",
@@ -139,7 +149,9 @@ const ADMIN_CAPS: readonly CapabilityKey[] = [
 
 const OWNER_CAPS: readonly CapabilityKey[] = [
   ...ADMIN_CAPS,
+  "manage_agency_domains",
   "manage_billing",
+  "agency.payout_account.manage",
   "transfer_ownership",
   "suspend_tenant",
 ];

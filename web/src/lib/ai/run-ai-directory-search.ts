@@ -26,7 +26,6 @@ import {
 import { logSearchQuery } from "@/lib/search-queries/log-search-query";
 import { canonicalDirectoryQueryForAiSearch } from "@/lib/ai/normalize-search-query";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import {
   parseDirectoryLocation,
   parseDirectoryQuery,
@@ -84,7 +83,7 @@ export type RunAiDirectorySearchResult = {
 
 const aiSearchInflight = new Map<string, Promise<RunAiDirectorySearchResult>>();
 
-function buildAiSearchDedupeKey(input: RunAiDirectorySearchInput): string {
+export function buildAiSearchDedupeKey(input: RunAiDirectorySearchInput): string {
   const tax = [...(input.taxonomyTermIds ?? [])].map((id) => id.toLowerCase()).sort();
   const loc = parseDirectoryLocation(input.locationSlug ?? undefined);
   const sort = parseDirectorySort(input.sortRaw ?? undefined);
@@ -109,10 +108,25 @@ function buildAiSearchDedupeKey(input: RunAiDirectorySearchInput): string {
     amax: input.ageMax ?? null,
     ff,
     cursor: input.cursor?.trim() || null,
+    tenantId: input.tenantId ?? null,
     log: input.logAnalytics !== false,
     total: Boolean(input.includeTotalCount),
     src: input.analyticsSource ?? "ai_search",
     dbg: Boolean(input.includeDebug),
+  });
+}
+
+export function buildClassicAfterHybridCursor(input: {
+  resultsLength: number;
+  limit: number;
+  contextStamp: string;
+}): string | null {
+  const nextOffset = input.resultsLength;
+  if (nextOffset <= 0 || nextOffset < input.limit) return null;
+  return encodeDirectoryCursor({
+    offset: nextOffset,
+    mode: "classic_after_hybrid",
+    hybridContextStamp: input.contextStamp,
   });
 }
 
@@ -405,10 +419,10 @@ async function runAiDirectorySearchOnce(
     flags.ai_search_quality_v2 &&
     results.length > 0
   ) {
-    nextCursor = encodeDirectoryCursor({
-      offset: limit,
-      mode: "classic_after_hybrid",
-      hybridContextStamp: computeHybridContextStamp({
+    nextCursor = buildClassicAfterHybridCursor({
+      resultsLength: results.length,
+      limit,
+      contextStamp: computeHybridContextStamp({
         canonicalQuery: canonicalQ,
         taxonomyTermIds,
         locationSlug,

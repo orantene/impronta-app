@@ -13,7 +13,6 @@
  *   Free downgrade → changeWorkspacePlan("free") (existing, no Stripe)
  */
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
@@ -23,23 +22,9 @@ import {
   createWorkspaceCheckoutSession,
   createBillingPortalSession,
 } from "@/lib/stripe/workspace-billing";
+import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { logServerError } from "@/lib/server/safe-error";
 import type { WorkspacePlanKey } from "@/lib/stripe/price-ids";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function deriveAppBaseUrl(): Promise<string> {
-  // In production: use the request host from Next.js headers.
-  // In development: fall back to localhost.
-  try {
-    const h = await headers();
-    const host = h.get("host") ?? "localhost:3000";
-    const proto = host.includes("localhost") ? "http" : "https";
-    return `${proto}://${host}`;
-  } catch {
-    return "http://localhost:3000";
-  }
-}
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 

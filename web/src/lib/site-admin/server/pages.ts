@@ -256,6 +256,19 @@ function bustPageTags(tenantId: string, pageId: string): void {
   updateTag(tagFor(tenantId, "pages-all"));
 }
 
+async function loadTenantPlanTier(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("agencies")
+    .select("plan_tier")
+    .eq("id", tenantId)
+    .maybeSingle<{ plan_tier: string | null }>();
+  if (error) return null;
+  return data?.plan_tier ?? null;
+}
+
 // ---- upsert ---------------------------------------------------------------
 
 /**
@@ -306,6 +319,14 @@ export async function upsertPage(
   if (!values.id) {
     if (values.expectedVersion !== 0) {
       return fail("VALIDATION_FAILED", "expectedVersion must be 0 on create");
+    }
+
+    const planTier = await loadTenantPlanTier(supabase, tenantId);
+    if (planTier === "free") {
+      return fail(
+        "VALIDATION_FAILED",
+        "Free workspaces include one landing page. Upgrade to Studio to add more pages.",
+      );
     }
 
     const { data, error } = await supabase

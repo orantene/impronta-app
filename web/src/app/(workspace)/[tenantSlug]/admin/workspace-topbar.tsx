@@ -40,7 +40,16 @@ const TABS = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function WorkspaceTopbar({ tenantSlug }: { tenantSlug: string }) {
+export function WorkspaceTopbar({
+  tenantSlug,
+  isSuperAdmin = false,
+}: {
+  tenantSlug: string;
+  /** M16: when true, renders a "Platform" link to /platform/admin. Only
+   *  pass true when the authenticated user's app_role === 'super_admin'.
+   */
+  isSuperAdmin?: boolean;
+}) {
   const pathname = usePathname();
 
   // Detect active tab from URL.
@@ -138,6 +147,65 @@ export function WorkspaceTopbar({ tenantSlug }: { tenantSlug: string }) {
             </Link>
           );
         })}
+
+        {/* M16: Platform HQ link — visible only when the actor is super_admin */}
+        {isSuperAdmin && (
+          <>
+            {/* Soft divider before the platform link */}
+            <span
+              aria-hidden
+              style={{
+                width: 1,
+                height: 16,
+                background: C.borderSoft,
+                margin: "0 6px",
+                flexShrink: 0,
+              }}
+            />
+            <Link
+              href="/platform/admin"
+              prefetch={false}
+              style={{
+                background: "transparent",
+                cursor: "pointer",
+                padding: "8px 12px",
+                fontFamily: FONT_BODY,
+                fontSize: 13,
+                fontWeight: pathname.startsWith("/platform/admin") ? 600 : 500,
+                color: pathname.startsWith("/platform/admin") ? C.ink : C.inkMuted,
+                letterSpacing: 0.1,
+                borderRadius: 7,
+                position: "relative",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                textDecoration: "none",
+                whiteSpace: "nowrap" as const,
+                transition: "color 100ms",
+                opacity: 0.75,
+              }}
+            >
+              Platform
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  bottom: -1,
+                  left: 8,
+                  right: 8,
+                  height: 2,
+                  background: C.fill,
+                  borderRadius: 2,
+                  opacity: pathname.startsWith("/platform/admin") ? 1 : 0,
+                  transform: pathname.startsWith("/platform/admin") ? "scaleX(1)" : "scaleX(0.4)",
+                  transformOrigin: "center",
+                  transition: "opacity 200ms, transform 280ms cubic-bezier(.4,0,.2,1)",
+                  pointerEvents: "none",
+                }}
+              />
+            </Link>
+          </>
+        )}
       </nav>
     </header>
   );

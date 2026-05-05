@@ -41,7 +41,9 @@ import {
   resolveResidenceLocationEmbed,
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { isTalentIdWithinTenantPublicDisplayCap } from "@/lib/saas/public-profile-cap";
 import {
   loadPublicIdentity,
   loadPublicBranding,
@@ -600,7 +602,10 @@ export default async function PublicTalentProfilePage({
   // own approved-hub-directory surface). The surface-allow-list already 404s
   // this at the middleware edge; this is defense-in-depth for direct route
   // access in tests, prerender, or middleware bypass.
-  const hostCtx = await getPublicHostContext();
+  const [hostCtx, publicPathPrefix] = await Promise.all([
+    getPublicHostContext(),
+    getPublicPathPrefix(),
+  ]);
   if (hostCtx.kind === "hub") {
     notFound();
   }
@@ -663,6 +668,17 @@ export default async function PublicTalentProfilePage({
     );
     if (!decision.visible) notFound();
   }
+
+  // Free-plan contract hardening: on agency surfaces, direct profile URLs
+  // must still honor the plan-capped public directory slice.
+  if (!resolvedPreview && surface === "agency" && hostCtx.kind === "agency" && pub) {
+    const withinCap = await isTalentIdWithinTenantPublicDisplayCap(
+      pub,
+      hostCtx.tenantId,
+      profile.id,
+    );
+    if (!withinCap) notFound();
+  }
   const fieldValues = await fetchPublicFieldValues(fieldValuesClient, profile.id);
   type DetailEntry = { key: string; label: string; value: string; groupSort: number; sort: number };
 
@@ -717,6 +733,21 @@ export default async function PublicTalentProfilePage({
   basicInfoDetailRows.sort(sortDetail);
   otherDetailRows.sort(sortDetail);
   const initialSavedIds = await getSavedTalentIds();
+  const portalInquiryNext = prefixPublicHref(
+    `/client/inquiries/new?talent=${encodeURIComponent(profile.id)}`,
+    publicPathPrefix,
+  );
+  const portalInquiryHref =
+    hostCtx.kind === "agency"
+      ? prefixPublicHref(
+          `/client/register?intent=inquiry&next=${encodeURIComponent(portalInquiryNext)}`,
+          publicPathPrefix,
+        )
+      : null;
+  const profileSourcePage = prefixPublicHref(
+    `/t/${encodeURIComponent(profile.profile_code)}`,
+    publicPathPrefix,
+  );
 
   // Fetch media. In preview mode, the profile owner should see pending assets too.
   const media: MediaAsset[] = pub
@@ -1028,8 +1059,9 @@ export default async function PublicTalentProfilePage({
                   talentId={profile.id}
                   profileCode={profile.profile_code}
                   displayName={name}
-                  sourcePage={`/t/${encodeURIComponent(profile.profile_code)}`}
+                  sourcePage={profileSourcePage}
                   initialSaved={initialSavedIds.includes(profile.id)}
+                  portalInquiryHref={portalInquiryHref}
                   mode="header"
                   profileCta={ui.profileCta}
                   inquiry={ui.inquiry}
@@ -1334,8 +1366,9 @@ export default async function PublicTalentProfilePage({
                     talentId={profile.id}
                     profileCode={profile.profile_code}
                     displayName={name}
-                    sourcePage={`/t/${encodeURIComponent(profile.profile_code)}`}
+                    sourcePage={profileSourcePage}
                     initialSaved={initialSavedIds.includes(profile.id)}
+                    portalInquiryHref={portalInquiryHref}
                     mode="sidebar"
                     profileCta={ui.profileCta}
                     inquiry={ui.inquiry}
@@ -1347,7 +1380,7 @@ export default async function PublicTalentProfilePage({
                     profileCode={profile.profile_code}
                     displayName={name}
                     canonicalUrl={canonicalShareUrl}
-                    sourcePage={`/t/${encodeURIComponent(profile.profile_code)}`}
+                    sourcePage={profileSourcePage}
                     labels={shareLabels}
                   />
                 </div>
@@ -1383,8 +1416,9 @@ export default async function PublicTalentProfilePage({
                 talentId={profile.id}
                 profileCode={profile.profile_code}
                 displayName={name}
-                sourcePage={`/t/${encodeURIComponent(profile.profile_code)}`}
+                sourcePage={profileSourcePage}
                 initialSaved={initialSavedIds.includes(profile.id)}
+                portalInquiryHref={portalInquiryHref}
                 mode="footer"
                 profileCta={ui.profileCta}
                 inquiry={ui.inquiry}
@@ -1449,4 +1483,3 @@ function SectionLabel({
     </h2>
   );
 }
-

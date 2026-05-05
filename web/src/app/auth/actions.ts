@@ -1,7 +1,7 @@
 "use server";
 
 import {
-  getSiteUrl,
+  getAppUrl,
   normalizeNextPath,
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
@@ -29,7 +29,7 @@ export async function requestPasswordReset(
     return { error: SUPABASE_ENV_HELP };
   }
 
-  const origin = getSiteUrl();
+  const origin = getAppUrl();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/update-password")}`,
   });
@@ -94,7 +94,7 @@ export async function signUpWithEmail(
   if (!supabase) {
     return { error: SUPABASE_ENV_HELP };
   }
-  const origin = getSiteUrl();
+  const origin = getAppUrl();
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
   const { data, error } = await supabase.auth.signUp({
     email,

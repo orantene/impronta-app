@@ -1,6 +1,6 @@
 import { chooseClientRole, chooseTalentRole } from "@/app/onboarding/actions";
 import { loadAccessProfile } from "@/lib/access-profile";
-import { resolveAuthenticatedDestination } from "@/lib/auth-flow";
+import { normalizeOptionalNextPath, resolveAuthenticatedDestination } from "@/lib/auth-flow";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ function onboardingErrorMessage(code: string | undefined): string | null {
 export default async function OnboardingRolePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   if (!isSupabaseConfigured()) {
     return (
@@ -63,7 +63,8 @@ export default async function OnboardingRolePage({
     redirect(destination);
   }
 
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+  const nextPath = normalizeOptionalNextPath(next);
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center px-4 py-16">
@@ -85,6 +86,7 @@ export default async function OnboardingRolePage({
 
         <div className="flex flex-col gap-3">
           <form action={chooseTalentRole} className="contents">
+            {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
             <button
               type="submit"
               className={cn(
@@ -105,6 +107,7 @@ export default async function OnboardingRolePage({
           </form>
 
           <form action={chooseClientRole} className="contents">
+            {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
             <button
               type="submit"
               className={cn(

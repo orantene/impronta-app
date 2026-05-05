@@ -8,30 +8,17 @@
  * Existing subscribers → Stripe Billing Portal.
  */
 
-import { headers } from "next/headers";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import {
   createTalentCheckoutSession,
   createTalentBillingPortalSession,
 } from "@/lib/stripe/talent-billing";
+import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { loadTalentSelfProfile } from "../../_data-bridge";
 import { logServerError } from "@/lib/server/safe-error";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function deriveAppBaseUrl(): Promise<string> {
-  try {
-    const h = await headers();
-    const host = h.get("host") ?? "localhost:3000";
-    const proto = host.includes("localhost") ? "http" : "https";
-    return `${proto}://${host}`;
-  } catch {
-    return "http://localhost:3000";
-  }
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,7 +45,7 @@ export async function startTalentUpgrade(
     return { ok: false, error: "Not authenticated." };
   }
 
-  const scope = await getTenantScopeBySlug(tenantSlug);
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) return { ok: false, error: "Workspace not found." };
 
   const talentProfile = await loadTalentSelfProfile(session.user.id, scope.tenantId);

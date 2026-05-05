@@ -4,6 +4,7 @@ import { parseDirectoryLocale } from "@/lib/directory/search-params";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { isTalentOnTenantRoster } from "@/lib/saas/talent-roster";
+import { isTalentIdWithinTenantPublicDisplayCap } from "@/lib/saas/public-profile-cap";
 import {
   formatCityCountryLabel,
   resolveResidenceLocationEmbed,
@@ -68,6 +69,15 @@ export async function GET(
       talentId,
     );
     if (!onRoster) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const withinCap = await isTalentIdWithinTenantPublicDisplayCap(
+      supabase,
+      hostContext.tenantId,
+      talentId,
+    );
+    if (!withinCap) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
   }

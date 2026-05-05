@@ -2,11 +2,19 @@
 
 import crypto from "node:crypto";
 import { headers } from "next/headers";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { getAppUrl } from "@/lib/auth-flow";
 import { sendEmail } from "@/lib/email";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
+import {
+  buildWorkspaceOnboardingPath,
+  isReservedWorkspaceSlug,
+  isSelfServeWorkspaceLeadEligible,
+  WORKSPACE_SLUG_REGEX,
+} from "@/lib/saas/workspace-signup";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -18,56 +26,6 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
  * digest emails, and returns a `lead_id` so the analytics funnel is
  * joinable. Honeypot + IP rate limit harden the public endpoint.
  */
-
-const RESERVED_SUBDOMAINS = new Set([
-  "www",
-  "api",
-  "app",
-  "hub",
-  "admin",
-  "dashboard",
-  "docs",
-  "help",
-  "support",
-  "status",
-  "mail",
-  "email",
-  "blog",
-  "press",
-  "jobs",
-  "careers",
-  "about",
-  "legal",
-  "privacy",
-  "terms",
-  "security",
-  "auth",
-  "login",
-  "signup",
-  "signin",
-  "logout",
-  "impronta",
-  "rostra",
-  "tulala",
-  "marketing",
-  "cdn",
-  "assets",
-  "static",
-  "media",
-  "images",
-  "files",
-  "download",
-  "uploads",
-  "test",
-  "staging",
-  "dev",
-  "beta",
-  "alpha",
-  "demo",
-  "example",
-]);
-
-const SUBDOMAIN_REGEX = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 
 const SignupSchema = z.object({
   audience: z.enum(["operator", "agency", "organization"]),
@@ -96,8 +54,35 @@ export type GetStartedFieldErrors = Partial<
 >;
 
 export type GetStartedActionResult =
-  | { ok: true; leadId: string; name: string; email: string; subdomain: string | null }
+  | {
+      ok: true;
+      leadId: string;
+      name: string;
+      email: string;
+      subdomain: string | null;
+      workspaceSignupUrl: string | null;
+    }
   | { ok: false; errors: GetStartedFieldErrors };
+
+async function isRequestedLinkTaken(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<{ taken: boolean; error: boolean }> {
+  const hostCandidate = `${slug}.${PLATFORM_BRAND.domain}`;
+  const [{ data: existingDomain, error: domainError }, { data: existingSlug, error: slugError }] =
+    await Promise.all([
+      supabase.from("agency_domains").select("id").eq("hostname", hostCandidate).maybeSingle(),
+      supabase.from("agencies").select("id").eq("slug", slug).maybeSingle(),
+    ]);
+
+  if (domainError || slugError) {
+    if (domainError) logServerError("get-started/domain-check", domainError);
+    if (slugError) logServerError("get-started/slug-check", slugError);
+    return { taken: false, error: true };
+  }
+
+  return { taken: Boolean(existingDomain || existingSlug), error: false };
+}
 
 export async function submitGetStartedSignup(
   _prev: GetStartedActionResult | null,
@@ -111,6 +96,7 @@ export async function submitGetStartedSignup(
       name: "",
       email: "",
       subdomain: null,
+      workspaceSignupUrl: null,
     };
   }
 
@@ -157,7 +143,7 @@ export async function submitGetStartedSignup(
   const subdomain = input.subdomain && input.subdomain.length > 0 ? input.subdomain : null;
 
   if (subdomain) {
-    if (!SUBDOMAIN_REGEX.test(subdomain)) {
+    if (!WORKSPACE_SLUG_REGEX.test(subdomain)) {
       return {
         ok: false,
         errors: {
@@ -166,7 +152,7 @@ export async function submitGetStartedSignup(
         },
       };
     }
-    if (RESERVED_SUBDOMAINS.has(subdomain)) {
+    if (isReservedWorkspaceSlug(subdomain)) {
       return { ok: false, errors: { subdomain: "That one's reserved — try another." } };
     }
   }
@@ -181,20 +167,14 @@ export async function submitGetStartedSignup(
   }
 
   if (subdomain) {
-    const hostCandidate = `${subdomain}.${PLATFORM_BRAND.domain}`;
-    const { data: existing, error: checkError } = await supabase
-      .from("agency_domains")
-      .select("id")
-      .eq("hostname", hostCandidate)
-      .maybeSingle();
-    if (checkError) {
-      logServerError("get-started/subdomain-check", checkError);
+    const availability = await isRequestedLinkTaken(supabase, subdomain);
+    if (availability.error) {
       return {
         ok: false,
         errors: { form: "Couldn't check subdomain right now. Try again." },
       };
     }
-    if (existing) {
+    if (availability.taken) {
       return { ok: false, errors: { subdomain: `${subdomain} is already taken.` } };
     }
   }
@@ -207,6 +187,7 @@ export async function submitGetStartedSignup(
     .slice(0, 32);
   const userAgent = h.get("user-agent")?.slice(0, 400) ?? null;
 
+  const selfServeEligible = isSelfServeWorkspaceLeadEligible(input.tierInterest);
   const { data: inserted, error: insertError } = await supabase
     .from("saas_marketing_signups")
     .insert({
@@ -242,6 +223,9 @@ export async function submitGetStartedSignup(
         html: renderLeadConfirmationEmail({
           name: input.name.trim(),
           subdomain,
+          workspaceSignupUrl: selfServeEligible
+            ? `${getAppUrl()}${buildWorkspaceOnboardingPath(inserted.id as string)}`
+            : null,
         }),
         replyTo: process.env.EMAIL_REPLY_TO,
       }),
@@ -267,6 +251,9 @@ export async function submitGetStartedSignup(
     name: input.name.trim(),
     email: input.email,
     subdomain,
+    workspaceSignupUrl: selfServeEligible
+      ? `${getAppUrl()}${buildWorkspaceOnboardingPath(inserted.id as string)}`
+      : null,
   };
 }
 
@@ -292,12 +279,27 @@ async function sendFounderDigest(params: {
   });
 }
 
-function renderLeadConfirmationEmail(args: { name: string; subdomain: string | null }): string {
+function renderLeadConfirmationEmail(args: {
+  name: string;
+  subdomain: string | null;
+  workspaceSignupUrl: string | null;
+}): string {
   const subdomainLine = args.subdomain
     ? `<p style="margin:20px 0 0;color:#3a4541;">Your link preference: <strong style="color:#0f1714;">${escapeHtml(
         args.subdomain,
       )}.${PLATFORM_BRAND.domain}</strong></p>`
     : "";
+  const selfServeBlock = args.workspaceSignupUrl
+    ? `<div style="margin:28px 0 0;padding:20px;border-radius:16px;background:#f4f2e8;border:1px solid rgba(15,23,20,0.08);">
+        <p style="margin:0;color:#3a4541;font-size:15px;line-height:1.6;">Your free workspace is ready to claim. Create your account and we&apos;ll open the tenant automatically.</p>
+        <p style="margin:18px 0 0;">
+          <a href="${escapeHtml(args.workspaceSignupUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#1f4a3a;color:#fffdf7;font-size:14px;font-weight:600;text-decoration:none;">Create my workspace</a>
+        </p>
+      </div>`
+    : "";
+  const followupCopy = args.workspaceSignupUrl
+    ? "If you'd rather have us help you shape the setup first, just reply to this email with a little context about your roster."
+    : "In the meantime, reply to this email if you'd like to tell us more about your roster or what you're trying to replace. The more context we have, the faster we can tailor your setup.";
   return `<!doctype html>
 <html><body style="margin:0;padding:32px 16px;background:#f1ede3;font-family:'Geist',Inter,system-ui,sans-serif;color:#0f1714;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fffdf7;border-radius:20px;border:1px solid rgba(15,23,20,0.08);">
@@ -308,9 +310,14 @@ function renderLeadConfirmationEmail(args: { name: string; subdomain: string | n
       )}.</h1>
       <p style="margin:20px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">Thanks for signing up to ${
         PLATFORM_BRAND.name
-      }. We're reviewing signups in the order they arrive and sending setup links within a day — usually within an hour during working hours.</p>
+      }. ${
+        args.workspaceSignupUrl
+          ? "For Free-plan workspaces, you can finish signup right away."
+          : "We're reviewing signups in the order they arrive and sending setup links within a day — usually within an hour during working hours."
+      }</p>
       ${subdomainLine}
-      <p style="margin:28px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">In the meantime, reply to this email if you'd like to tell us more about your roster or what you're trying to replace. The more context we have, the faster we can tailor your setup.</p>
+      ${selfServeBlock}
+      <p style="margin:28px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">${followupCopy}</p>
       <hr style="border:none;border-top:1px solid rgba(15,23,20,0.08);margin:32px 0;"/>
       <p style="margin:0;color:#6b766f;font-size:13px;line-height:1.6;">— The ${
         PLATFORM_BRAND.name
@@ -375,20 +382,16 @@ export async function checkSubdomainAvailability(
 ): Promise<{ available: boolean; reason?: string }> {
   const cleaned = candidate.trim().toLowerCase();
   if (!cleaned) return { available: false, reason: "empty" };
-  if (!SUBDOMAIN_REGEX.test(cleaned)) {
+  if (!WORKSPACE_SLUG_REGEX.test(cleaned)) {
     return { available: false, reason: "format" };
   }
-  if (RESERVED_SUBDOMAINS.has(cleaned)) {
+  if (isReservedWorkspaceSlug(cleaned)) {
     return { available: false, reason: "reserved" };
   }
   const supabase = createServiceRoleClient();
   if (!supabase) return { available: true };
-  const hostCandidate = `${cleaned}.${PLATFORM_BRAND.domain}`;
-  const { data } = await supabase
-    .from("agency_domains")
-    .select("id")
-    .eq("hostname", hostCandidate)
-    .maybeSingle();
-  if (data) return { available: false, reason: "taken" };
+  const availability = await isRequestedLinkTaken(supabase, cleaned);
+  if (availability.error) return { available: true };
+  if (availability.taken) return { available: false, reason: "taken" };
   return { available: true };
 }

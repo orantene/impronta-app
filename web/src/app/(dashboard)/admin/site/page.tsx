@@ -7,7 +7,7 @@ import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { SiteShell } from "@/components/admin/site-control-center/site-shell";
 import { loadAdminWorkspaceSummary } from "@/lib/dashboard/admin-workspace-summary";
 import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 /**
  * Window-grid glyph from the mockup — rect 3,4,18,14 rounded 2 + three
@@ -44,8 +44,13 @@ export const dynamic = "force-dynamic";
  * component.
  */
 export default async function AdminSiteControlCenterPage() {
-  const auth = await requireStaff();
-  if (!auth.ok) redirect("/login");
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) {
+    if (guard.error === "No active tenant for this request.") {
+      redirect("/admin?err=no_tenant");
+    }
+    redirect("/login");
+  }
 
   const workspace = await loadAdminWorkspaceSummary();
   const activePlan = workspace?.plan ?? "free";

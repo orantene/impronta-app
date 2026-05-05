@@ -12,16 +12,19 @@
  *   -----------|------|--------|--------------|------|------------|------------|----------------|---------|-----------|---------------
  *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |     ✓      |       ✓        |    ✓    |           |       ✓
  *   app        |  ✓   |   ✓    |      ✓       |  ✓   |            |     ✓      |                |    ✓    |           |       ✓
- *   hub        |  ✓   |   ✓    |      ✓       |  ✓   |            |  slugs ✓   |                |         |           |
- *   marketing  |  ✓   |   ✓    |      ✓       |      |            |            |                |         |    ✓      |
+ *   hub        |  ✓   |   ✓    |      ✓       |  ✓   | path-slug  |  slugs ✓   |                |         |           |
+ *   marketing  |  ✓   |   ✓    |      ✓       |      | path-slug  |            |                |         |    ✓      |
  *
  *   static        → `/sitemap.xml`, `/robots.txt` (handlers generate their
  *                   own host-appropriate output)
  *   shared api    → `/api/cron` (bearer-token gated, host-agnostic),
  *                   `/api/analytics/events` (write-only allow-listed writer)
  *   auth          → `/login`, `/register`, `/forgot-password`,
- *                   `/update-password`, `/auth` (OAuth/magic-link callback)
+ *                   `/join`, `/update-password`, `/auth` (OAuth/magic-link callback)
  *   storefront    → `/directory`, `/t`, `/p`, `/posts`, `/models`, `/contact`
+ *   path-slug     → `/<tenantSlug>` and `/<tenantSlug>/{t,directory,p,posts,models,...}`.
+ *                   Middleware resolves the first segment to a tenant and
+ *                   strips it before calling this allow-list as an agency path.
  *   workspaces    → `/admin`, `/client`, `/talent`, `/onboarding`, `/invite`
  *   storefront api→ `/api/directory`, `/api/ai`
  *   app api       → `/api/admin`, `/api/ai`, `/api/location-*`
@@ -63,16 +66,23 @@ const PROTOTYPE_PREFIX = "/prototypes" as const;
  * API paths reachable on every surface:
  *   - `/api/cron/*`          → scheduler bearer-token protected
  *   - `/api/analytics/events`→ write-only, name allow-listed
+ *   - `/api/stripe/*`        → Stripe webhook signature-protected; must NOT be
+ *                              gated by host-resolution because Stripe sends
+ *                              events to whatever public endpoint we register
+ *                              and the originating Host header may not match
+ *                              any seeded `agency_domains` row.
  * These never leak tenant data and have their own gates.
  */
 const SHARED_API_PREFIXES = [
   "/api/cron",
   "/api/analytics/events",
+  "/api/stripe",
 ] as const;
 
 const AUTH_PREFIXES = [
   "/login",
   "/register",
+  "/join",
   "/forgot-password",
   "/update-password",
   "/auth",
@@ -175,6 +185,43 @@ const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   "platform",
 ]);
 
+const PATH_BASED_TENANT_RESERVED_PREFIXES = new Set([
+  ...WORKSPACE_SLUG_RESERVED_PREFIXES,
+  "contact",
+  "directory",
+  "get-started",
+  "operators",
+  "agencies",
+  "organizations",
+  "how-it-works",
+  "hub",
+  "network",
+  "integrations",
+  "pricing",
+  "faq",
+  "waitlist",
+  "legal",
+  "models",
+  "p",
+  "posts",
+  "share",
+]);
+
+const PATH_BASED_STOREFRONT_PREFIXES = [
+  "/directory",
+  "/t",
+  "/p",
+  "/posts",
+  "/models",
+  "/share",
+] as const;
+
+const PATH_BASED_REGISTER_PATHS = [
+  "/client/register",
+  "/talent/register",
+  "/join",
+] as const;
+
 function isWorkspaceSlugPath(pathname: string): boolean {
   // pathname must be "/<tenantSlug>/<surface>" or "/<tenantSlug>/<surface>/..."
   const parts = pathname.split("/");
@@ -187,6 +234,56 @@ function isWorkspaceSlugPath(pathname: string): boolean {
   // Basic slug shape: lowercase alphanum + hyphen, 2–63 chars.
   if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(tenantSlug)) return false;
   return (WORKSPACE_SLUG_SURFACES as readonly string[]).includes(surface);
+}
+
+export type PathBasedTenantPublicPath = {
+  tenantSlug: string;
+  pathnameWithoutTenant: string;
+};
+
+function isTenantSlugCandidate(segment: string | undefined): segment is string {
+  if (!segment) return false;
+  if (PATH_BASED_TENANT_RESERVED_PREFIXES.has(segment)) return false;
+  return /^[a-z0-9][a-z0-9-]{1,62}$/.test(segment);
+}
+
+/**
+ * Phase 3.15 — path-based public workspace shape.
+ *
+ * This is deliberately separate from isPathAllowedForHostKind(): it only
+ * recognizes `/<tenantSlug>/...` candidates. Middleware resolves the slug to
+ * a real tenant, then strips the prefix and re-runs the normal agency
+ * allow-list against the unprefixed path.
+ */
+export function resolvePathBasedTenantPublicPath(
+  pathname: string,
+): PathBasedTenantPublicPath | null {
+  const parts = pathname.split("/").filter(Boolean);
+  const tenantSlug = parts[0];
+  if (!isTenantSlugCandidate(tenantSlug)) return null;
+
+  if (parts.length === 1) {
+    return { tenantSlug, pathnameWithoutTenant: "/" };
+  }
+
+  const rest = `/${parts.slice(1).join("/")}`;
+  if (
+    PATH_BASED_REGISTER_PATHS.includes(rest as typeof PATH_BASED_REGISTER_PATHS[number]) ||
+    anyPrefix(rest, PATH_BASED_STOREFRONT_PREFIXES)
+  ) {
+    return { tenantSlug, pathnameWithoutTenant: rest };
+  }
+
+  const firstRestSegment = parts[1];
+  if (
+    firstRestSegment &&
+    !WORKSPACE_SLUG_RESERVED_PREFIXES.has(firstRestSegment) &&
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(firstRestSegment)
+  ) {
+    return { tenantSlug, pathnameWithoutTenant: rest };
+  }
+
+  return null;
 }
 
 /**

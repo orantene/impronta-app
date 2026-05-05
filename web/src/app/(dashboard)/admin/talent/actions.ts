@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/lib/admin/validation";
 import { requireStaff } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas/scope";
+import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   readCanonicalLocationSelection,
@@ -798,6 +800,15 @@ export async function createTalentProfile(
     };
   }
 
+  const seatAvailability = await checkRosterSeatAvailability(
+    admin,
+    scope.tenantId,
+    1,
+  );
+  if (!seatAvailability.ok) {
+    return { error: seatAvailability.message };
+  }
+
   const { data: codeRow, error: codeErr } = await admin.rpc("generate_profile_code");
   if (codeErr || !codeRow) {
     logServerError("admin/createTalentProfile/code", codeErr);
@@ -833,9 +844,12 @@ export async function createTalentProfile(
     return { error: CLIENT_ERROR.update };
   }
   const talentProfileId = inserted.id as string;
+  const originDomain = (await headers()).get("host")?.toLowerCase() ?? null;
 
   const { error: rosterErr } = await admin.from("agency_talent_roster").insert({
     tenant_id: scope.tenantId,
+    source_workspace_id: scope.tenantId,
+    origin_domain: originDomain,
     talent_profile_id: talentProfileId,
     source_type: "agency_created",
     status: "active",

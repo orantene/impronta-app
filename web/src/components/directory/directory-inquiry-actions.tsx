@@ -23,6 +23,7 @@ type SharedActionProps = {
   talent: TalentSummary;
   className?: string;
   sourcePage: string;
+  portalInquiryHref?: string | null;
 };
 
 export function SaveTalentButton({
@@ -121,6 +122,7 @@ export function ContactTalentButton({
   talent,
   sourcePage,
   className,
+  portalInquiryHref,
   initialSaved = false,
   variant = "default",
   inquiry,
@@ -153,6 +155,15 @@ export function ContactTalentButton({
       className={cn("gap-2", className)}
       disabled={pending}
       onClick={() => {
+        if (portalInquiryHref) {
+          trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
+            talent_id: talent.id,
+            source_page: sourcePage,
+          });
+          router.push(portalInquiryHref);
+          return;
+        }
+
         state.setSearchContext({
           ...(state.searchContext ?? {
             q: "",
@@ -207,10 +218,12 @@ export function ContactTalentButton({
 
 export function OpenInquiryCartButton({
   className,
+  portalInquiryHref,
   inquiry,
   label,
 }: {
   className?: string;
+  portalInquiryHref?: string | null;
   inquiry: DirectoryUiCopy["inquiry"];
   label?: string;
 }) {
@@ -224,6 +237,10 @@ export function OpenInquiryCartButton({
       variant="outline"
       className={cn("gap-2", className)}
       onClick={() => {
+        if (portalInquiryHref) {
+          router.push(portalInquiryHref);
+          return;
+        }
         if (inquiryModal) {
           inquiryModal.openInquiry();
         } else {

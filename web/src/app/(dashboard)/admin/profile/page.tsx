@@ -5,8 +5,7 @@ import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { ProfileShell } from "@/components/admin/profile-settings/profile-shell";
 import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -22,21 +21,14 @@ export const dynamic = "force-dynamic";
  */
 
 export default async function AdminProfileSettingsPage() {
-  const auth = await requireStaff();
-  if (!auth.ok) redirect("/login");
-
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) {
-    return (
-      <div className={ADMIN_PAGE_STACK}>
-        <AdminPageHeader
-          icon={UserCircle}
-          title="Profile settings"
-          description="Supabase not configured."
-        />
-      </div>
-    );
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) {
+    if (guard.error === "No active tenant for this request.") {
+      redirect("/admin?err=no_tenant");
+    }
+    redirect("/login");
   }
+  const supabase = guard.supabase;
 
   const [groupsRes, fieldsRes, termsRes] = await Promise.all([
     supabase

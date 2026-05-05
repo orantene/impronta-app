@@ -8,8 +8,7 @@ import {
 } from "@/components/admin/setup/setup-page";
 import { buildPostPublicPathname } from "@/lib/cms/paths";
 import type { Locale } from "@/i18n/config";
-import { requireStaff } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -29,15 +28,17 @@ type Row = {
  * table. Posts feed `/posts/...` (English) and `/es/posts/...` (Spanish).
  */
 export default async function SiteSetupPostsPage() {
-  const auth = await requireStaff();
-  if (!auth.ok) redirect("/login");
+  const guard = await requireStaffTenantAction();
+  if (!guard.ok) {
+    if (guard.error === "No active tenant for this request.") {
+      redirect("/admin?err=no_tenant");
+    }
+    redirect("/login");
+  }
 
-  const scope = await requireTenantScope().catch(() => null);
-  if (!scope) redirect("/admin?err=no_tenant");
+  const tenantId = guard.tenantId;
 
-  const tenantId = scope.tenantId;
-
-  const { data, error } = await auth.supabase
+  const { data, error } = await guard.supabase
     .from("cms_posts")
     .select("id,locale,slug,title,status,updated_at")
     .eq("tenant_id", tenantId)

@@ -36,6 +36,7 @@ import {
   loadDirectoryFacetDefinitionsByKey,
 } from "@/lib/directory/apply-directory-field-facet-filters";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
+import { resolvePublicRosterDisplayCap } from "@/lib/saas/roster-seat-limit";
 
 /**
  * Directory `q`: primary path is Postgres RPC `directory_search_public_talent_ids` (FTS + ILIKE + similarity).
@@ -100,6 +101,11 @@ type MediaRow = {
   variant_kind: string;
   sort_order: number;
   created_at: string;
+};
+
+type AgencySeatRow = {
+  plan_tier: string | null;
+  talent_seat_limit: number | null;
 };
 
 function cardResidenceLocation(profile: TalentProfileRow): LocationRow | null {
@@ -388,10 +394,34 @@ export async function fetchDirectoryPage(
 
   let filteredTalentIds: string[] | null = null;
   let tenantRosterIds: string[] | null = null;
+  let tenantRosterDisplayCap: number | null = null;
   if (tenantScopeId) {
-    tenantRosterIds = await auditTime(audit, timings, "tenantRosterIdsMs", () =>
-      listTalentIdsOnTenantRoster(supabase, tenantScopeId),
-    );
+    const [rosterIds, agencySeatRow] = await Promise.all([
+      auditTime(audit, timings, "tenantRosterIdsMs", () =>
+        listTalentIdsOnTenantRoster(supabase, tenantScopeId),
+      ),
+      auditTime(audit, timings, "tenantPlanSeatMs", () =>
+        supabase
+          .from("agencies")
+          .select("plan_tier, talent_seat_limit")
+          .eq("id", tenantScopeId)
+          .maybeSingle<AgencySeatRow>(),
+      ),
+    ]);
+    tenantRosterIds = rosterIds;
+    if (!agencySeatRow.error) {
+      tenantRosterDisplayCap = resolvePublicRosterDisplayCap(
+        agencySeatRow.data?.plan_tier ?? null,
+        agencySeatRow.data?.talent_seat_limit ?? null,
+      );
+    }
+    if (tenantRosterDisplayCap != null && offset >= tenantRosterDisplayCap) {
+      return {
+        items: [],
+        nextCursor: null,
+        taxonomyTermIds,
+      };
+    }
     if (tenantRosterIds.length === 0) {
       return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
     }
@@ -561,6 +591,9 @@ export async function fetchDirectoryPage(
     }
 
     totalCount = totalCountRaw ?? 0;
+    if (tenantRosterDisplayCap != null) {
+      totalCount = Math.min(totalCount, tenantRosterDisplayCap);
+    }
   }
 
   let query = supabase
@@ -634,7 +667,18 @@ export async function fetchDirectoryPage(
   }
 
   // Stable ordering: sort columns + id tie-break; search does not affect order within the filtered set.
-  query = applySort(query, sort).range(offset, offset + limit - 1);
+  const cappedLimit = tenantRosterDisplayCap != null
+    ? Math.max(0, Math.min(limit, tenantRosterDisplayCap - offset))
+    : limit;
+  if (cappedLimit <= 0) {
+    return {
+      items: [],
+      nextCursor: null,
+      ...(totalCount !== undefined ? { totalCount } : {}),
+      taxonomyTermIds,
+    };
+  }
+  query = applySort(query, sort).range(offset, offset + cappedLimit - 1);
 
   const { data: profileRows, error } = await auditTime(
     audit,

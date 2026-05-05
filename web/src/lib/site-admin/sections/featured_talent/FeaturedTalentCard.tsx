@@ -21,6 +21,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import type { FeaturedTalentCardDTO } from "./fetch";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 
 function profileHref(card: FeaturedTalentCardDTO): string {
   const code = encodeURIComponent(card.profileCode);
@@ -32,12 +33,14 @@ function profileHref(card: FeaturedTalentCardDTO): string {
 export function FeaturedTalentCard({
   card,
   priority,
+  publicPathPrefix = "",
 }: {
   card: FeaturedTalentCardDTO;
   /** First row can opt into Next/Image priority for LCP. */
   priority?: boolean;
+  publicPathPrefix?: string;
 }) {
-  const href = profileHref(card);
+  const href = prefixPublicHref(profileHref(card), publicPathPrefix);
   return (
     <Link
       href={href}

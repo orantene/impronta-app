@@ -26,6 +26,8 @@ import { loadPublishedShell } from "@/lib/site-admin/server/shell-reads";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { isSiteShellEnabledForTenant } from "@/lib/site-admin/site-shell-flag";
 import type { Locale } from "@/i18n/config";
+import { getPublicPathPrefix } from "@/lib/saas";
+import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
 
 interface Props {
   tenantId: string;
@@ -73,7 +75,7 @@ export async function PublishedShellHeader({
   const shell = await loadPublishedShell(tenantId, locale);
   if (!shell) return null;
   const slot = shell.snapshot.slots.find((s) => s.slotKey === "header");
-  return slot ? renderShellSlot(slot, tenantId, locale) : null;
+  return slot ? await renderShellSlot(slot, tenantId, locale) : null;
 }
 
 /**
@@ -91,7 +93,7 @@ export async function PublishedShellFooter({
   const shell = await loadPublishedShell(tenantId, locale);
   if (!shell) return null;
   const slot = shell.snapshot.slots.find((s) => s.slotKey === "footer");
-  return slot ? renderShellSlot(slot, tenantId, locale) : null;
+  return slot ? await renderShellSlot(slot, tenantId, locale) : null;
 }
 
 /**
@@ -111,7 +113,7 @@ export async function PublishedShell({ tenantId, locale, children }: Props) {
   );
 }
 
-function renderShellSlot(
+async function renderShellSlot(
   slot: {
     slotKey: string;
     sortOrder: number;
@@ -121,7 +123,7 @@ function renderShellSlot(
   },
   tenantId: string,
   locale: string,
-): React.ReactNode {
+): Promise<React.ReactNode> {
   const reg = getSectionType(slot.sectionTypeKey);
   if (!reg) {
     if (process.env.NODE_ENV !== "production") {
@@ -132,6 +134,8 @@ function renderShellSlot(
     return null;
   }
   const Comp = reg.Component;
+  const publicPathPrefix = await getPublicPathPrefix();
+  const props = prefixPublicHrefsDeep(slot.props, publicPathPrefix);
   // Phase B.2.B — wrap each shell section in the same `data-cms-section`
   // outer the homepage composer uses (see homepage-cms-sections.tsx). The
   // EditShell selection layer queries `[data-cms-section]` to detect
@@ -153,7 +157,8 @@ function renderShellSlot(
         tenantId={tenantId}
         locale={locale}
         preview={false}
-        props={slot.props}
+        props={props}
+        publicPathPrefix={publicPathPrefix}
       />
     </div>
   );
