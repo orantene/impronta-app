@@ -28,12 +28,12 @@ const FONT_BODY = '"Inter", system-ui, sans-serif';
 
 const TABS = [
   { id: "overview",    label: "Overview",    segment: null              },
+  { id: "work",        label: "Work",        segment: "work"            },
   { id: "messages",    label: "Messages",    segment: "messages"        },
   { id: "calendar",    label: "Calendar",    segment: "calendar"        },
   { id: "roster",      label: "Talent",      segment: "roster"          },
+  { id: "bookings",    label: "Bookings",    segment: "bookings"        },
   { id: "clients",     label: "Clients",     segment: "clients"         },
-  { id: "operations",  label: "Operations",  segment: "operations"      },
-  { id: "production",  label: "Production",  segment: "production"      },
   { id: "site",        label: "Website",     segment: "site"            },
   { id: "settings",    label: "Settings",    segment: "settings"        },
 ] as const;
@@ -92,12 +92,10 @@ export function WorkspaceTopbar({
             ? `/${tenantSlug}/admin/${tab.segment}`
             : `/${tenantSlug}/admin`;
 
-          // "work" is the pipeline sub-page — highlight Operations tab when on /work
           const active =
             tab.segment === null
               ? activeSegment === ""
-              : activeSegment === tab.segment ||
-                (tab.segment === "operations" && activeSegment === "work");
+              : activeSegment === tab.segment;
 
           return (
             <Link
