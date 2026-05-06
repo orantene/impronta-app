@@ -318,6 +318,12 @@ export default async function TalentLayout({
                 ?
               </div>
 
+              {/* EN/ES language toggle stubs */}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 0, height: 28, borderRadius: 7, border: `1px solid ${C.borderSoft}`, overflow: "hidden", flexShrink: 0 }}>
+                <button type="button" aria-pressed style={{ padding: "0 8px", height: "100%", background: C.ink, color: "#fff", border: "none", fontFamily: FONT_BODY, fontSize: 11, fontWeight: 700, letterSpacing: 0.3, cursor: "pointer" }}>EN</button>
+                <button type="button" style={{ padding: "0 8px", height: "100%", background: "transparent", color: C.inkMuted, border: "none", fontFamily: FONT_BODY, fontSize: 11, fontWeight: 600, letterSpacing: 0.3, cursor: "pointer" }}>ES</button>
+              </div>
+
               {/* Sign-out */}
               <form action={signOut}>
                 <button

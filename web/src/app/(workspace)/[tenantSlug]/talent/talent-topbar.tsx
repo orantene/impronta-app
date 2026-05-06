@@ -22,6 +22,9 @@ const NAV_ITEMS = [
   { label: "Settings",    path: "settings"  },
 ] as const;
 
+// "Public page" is a link-out to the talent's live public profile,
+// not a route within the app — rendered separately after the nav items.
+
 export function TalentTopbar({
   tenantSlug,
   publicProfileUrl,
@@ -96,32 +99,37 @@ export function TalentTopbar({
           );
         })}
 
-        <div style={{ flex: 1 }} />
-
+        {/* Public page — styled as a nav tab, links out to the live public profile */}
         {publicProfileUrl && (
           <a
             href={publicProfileUrl}
             target="_blank"
             rel="noopener noreferrer"
             style={{
+              fontFamily: FONT,
+              fontSize: 13,
+              fontWeight: 500,
+              color: C.inkMuted,
+              letterSpacing: 0.1,
+              textDecoration: "none",
+              padding: "8px 12px",
+              borderRadius: 7,
+              position: "relative",
               display: "inline-flex",
               alignItems: "center",
               gap: 5,
-              fontFamily: FONT,
-              fontSize: 12,
-              fontWeight: 500,
-              color: C.inkMuted,
-              textDecoration: "none",
-              padding: "6px 4px",
-              flexShrink: 0,
+              transition: "color 120ms",
+              whiteSpace: "nowrap",
             }}
           >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            Public page
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
             </svg>
-            Preview profile
           </a>
         )}
+
+        <div style={{ flex: 1 }} />
       </div>
     </div>
   );

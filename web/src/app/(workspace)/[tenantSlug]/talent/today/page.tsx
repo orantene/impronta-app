@@ -96,37 +96,44 @@ function relativeDate(iso: string): string {
   return fmtDate(iso);
 }
 
-// ─── Stat tile ─────────────────────────────────────────────────────────────────
+// ─── Horizontal stats strip (matching prototype) ──────────────────────────────
 
-function StatTile({ label, value, sub, accent = false }: { label: string; value: string; sub?: string; accent?: boolean }) {
+function StatStrip({ cells }: {
+  cells: Array<{ label: string; value: string; sub?: string; subAccent?: boolean }>;
+}) {
   return (
     <div
       style={{
-        background: accent ? C.accentSoft : C.cardBg,
-        border: `1px solid ${accent ? "rgba(15,79,62,0.24)" : C.borderSoft}`,
-        borderRadius: 12,
-        padding: "14px 16px",
+        background: C.cardBg,
+        border: `1px solid ${C.borderSoft}`,
+        borderRadius: 14,
+        display: "grid",
+        gridTemplateColumns: `repeat(${cells.length}, 1fr)`,
         fontFamily: FONT,
+        overflow: "hidden",
       }}
     >
-      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" as const, color: C.inkMuted, marginBottom: 4 }}>
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 28,
-          fontWeight: 600,
-          color: accent ? C.accent : C.ink,
-          letterSpacing: -0.5,
-          lineHeight: 1,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 4 }}>{sub}</div>
-      )}
+      {cells.map((cell, i) => (
+        <div
+          key={cell.label}
+          style={{
+            padding: "14px 20px",
+            borderLeft: i > 0 ? `1px solid ${C.borderSoft}` : "none",
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.1, marginBottom: 4 }}>
+            {cell.label}
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: C.ink, letterSpacing: -0.4, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+            {cell.value}
+          </div>
+          {cell.sub && (
+            <div style={{ fontSize: 11.5, color: cell.subAccent ? C.successDeep : C.inkMuted, marginTop: 3 }}>
+              {cell.sub}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -148,6 +155,40 @@ function participantStatusLabel(participantStatus: string, inquiryStatus: string
   return "";
 }
 
+// Client initial avatar (matches prototype's circular letter avatar)
+function ClientAvatar({ name }: { name: string }) {
+  const initials = name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+  // Deterministic pastel background from first char code
+  const hue = ((name.charCodeAt(0) ?? 65) * 137) % 360;
+  return (
+    <div
+      aria-hidden
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: "50%",
+        background: `hsl(${hue}, 28%, 88%)`,
+        color: `hsl(${hue}, 40%, 32%)`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 12,
+        fontWeight: 700,
+        flexShrink: 0,
+        fontFamily: FONT,
+        letterSpacing: 0.2,
+        userSelect: "none",
+      }}
+    >
+      {initials || "?"}
+    </div>
+  );
+}
+
 function InquiryRow({
   inquiry,
   tenantSlug,
@@ -165,87 +206,99 @@ function InquiryRow({
   };
   tenantSlug: string;
 }) {
-  const isActive = ["submitted", "coordination", "offer_pending", "approved"].includes(inquiry.status);
-  const isBooked = inquiry.status === "booked" || inquiry.status === "converted";
   const needsAction = inquiry.participantStatus === "invited" || inquiry.status === "offer_pending";
-  const contextLabel = participantStatusLabel(inquiry.participantStatus, inquiry.status);
-  // Use updated_at for recency signal; fall back to created_at
+  const isHold = inquiry.participantStatus === "pending" && inquiry.status !== "booked";
   const activityAt = inquiry.updated_at ?? inquiry.created_at;
+  const isLate = (() => {
+    try { return Date.now() - new Date(activityAt).getTime() > 12 * 60 * 60 * 1000; } catch { return false; }
+  })();
+
+  // Badge label: "Offer" or "Hold" matching prototype
+  const badgeLabel = isHold ? "Hold" : "Offer";
+  const badgeBg = isHold ? "rgba(138,111,26,0.12)" : "rgba(15,79,62,0.10)";
+  const badgeColor = isHold ? C.amberDeep : C.accent;
+
+  // Date sub-line: formatted event date or "—"
+  const dateLabel = inquiry.event_date
+    ? new Date(inquiry.event_date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+    : "—";
 
   return (
     <Link
       href={`/${tenantSlug}/talent/inbox/${inquiry.id}`}
       style={{
-        display: "grid",
-        gridTemplateColumns: "1fr auto",
-        gap: 12,
+        display: "flex",
         alignItems: "center",
-        padding: "13px 16px",
+        gap: 12,
+        padding: "12px 16px",
         textDecoration: "none",
         borderBottom: `1px solid ${C.borderSoft}`,
         transition: "background 100ms",
         fontFamily: FONT,
-        background: needsAction ? "rgba(15,79,62,0.03)" : "transparent",
+        background: needsAction ? "rgba(15,79,62,0.025)" : "transparent",
       }}
       className="inq-row"
     >
-      <div style={{ minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-          <StatusChip status={inquiry.status} />
-          {(isActive || isBooked) && (
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: isBooked ? C.successDeep : C.indigoDeep,
-                flexShrink: 0,
-              }}
-            />
-          )}
-          {contextLabel && (
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                color: needsAction ? C.accent : C.inkMuted,
-                background: needsAction ? C.accentSoft : "rgba(11,11,13,0.05)",
-                padding: "1px 6px",
-                borderRadius: 999,
-                whiteSpace: "nowrap",
-                fontFamily: FONT,
-              }}
-            >
-              {contextLabel}
-            </span>
-          )}
-        </div>
+      {/* Company avatar */}
+      <ClientAvatar name={inquiry.contact_name} />
+
+      {/* Main content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Top line: company · job description */}
         <div
           style={{
-            fontSize: 13.5,
+            fontSize: 13,
             fontWeight: 600,
             color: C.ink,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            marginBottom: 3,
           }}
         >
           {inquiry.contact_name}
           {inquiry.company && (
-            <span style={{ color: C.inkMuted, fontWeight: 400, marginLeft: 6 }}>
-              · {inquiry.company}
+            <span style={{ color: C.inkMuted, fontWeight: 400 }}> · {inquiry.company}</span>
+          )}
+        </div>
+        {/* Bottom line: badge + date + location */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "1px 7px",
+              borderRadius: 5,
+              background: badgeBg,
+              color: badgeColor,
+              fontSize: 10.5,
+              fontWeight: 700,
+              fontFamily: FONT,
+              letterSpacing: 0.1,
+            }}
+          >
+            {badgeLabel}
+          </span>
+          <span style={{ fontSize: 11.5, color: C.inkMuted }}>
+            {dateLabel}
+          </span>
+          {inquiry.event_location && (
+            <span style={{ fontSize: 11.5, color: C.inkDim }}>
+              · {inquiry.event_location}
             </span>
           )}
         </div>
-        {(inquiry.event_location || inquiry.event_date) && (
-          <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
-            {[inquiry.event_location, fmtDate(inquiry.event_date)].filter(Boolean).join(" · ")}
-          </div>
-        )}
       </div>
-      <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11, color: C.inkDim }}>
+
+      {/* Time ago */}
+      <div style={{ flexShrink: 0, fontSize: 11, color: isLate ? "#B04A22" : C.inkDim, textAlign: "right" }}>
         {relativeDate(activityAt)}
       </div>
+
+      {/* Chevron */}
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden style={{ flexShrink: 0, color: C.inkDim }}>
+        <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
     </Link>
   );
 }
@@ -367,13 +420,38 @@ export default async function TalentTodayPage({ params }: { params: PageParams }
         </div>
       </div>
 
-      {/* ── Stat tiles ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-        <StatTile label="Active inquiries" value={activeInquiries.length.toString()} sub="in progress" />
-        <StatTile label="Needs reply" value={pendingInquiries.length.toString()} sub={pendingInquiries.length > 0 ? "action required" : "you're up to date"} accent={pendingInquiries.length > 0} />
-        <StatTile label="Booked" value={bookedInquiries.length.toString()} sub="confirmed jobs" />
-        <StatTile label="Total" value={allInquiries.length.toString()} sub="all time" />
-      </div>
+      {/* ── Stats strip (prototype-matching horizontal 3-col) ── */}
+      {(() => {
+        // Next upcoming booking date
+        const nextBooking = upcomingBookings[0];
+        const nextLabel = nextBooking?.event_date
+          ? new Date(nextBooking.event_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+          : null;
+        const profileStatus = talentProfile.workflowStatus === "published" ? "Live" : "Draft";
+
+        return (
+          <StatStrip
+            cells={[
+              {
+                label: "Confirmed",
+                value: bookedInquiries.length.toString(),
+                sub: nextLabel ? `next ${nextLabel}` : "no upcoming bookings",
+              },
+              {
+                label: "Needs reply",
+                value: pendingInquiries.length.toString(),
+                sub: pendingInquiries.length > 0 ? "action required" : "you're up to date",
+                subAccent: pendingInquiries.length > 0,
+              },
+              {
+                label: "Profile",
+                value: profileStatus,
+                sub: talentProfile.primaryTypeLabel ?? undefined,
+              },
+            ]}
+          />
+        );
+      })()}
 
       {/* ── Next on the calendar ── */}
       {upcomingBookings.length > 0 && (
@@ -384,15 +462,26 @@ export default async function TalentTodayPage({ params }: { params: PageParams }
                 Next on the calendar
               </h2>
               <p style={{ margin: "2px 0 0", fontFamily: FONT, fontSize: 12, color: C.inkMuted }}>
-                {upcomingBookings.length} upcoming confirmed job{upcomingBookings.length !== 1 ? "s" : ""}
+                {upcomingBookings.length} upcoming · next{" "}
+                {upcomingBookings[0]?.event_date
+                  ? new Date(upcomingBookings[0].event_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                  : "soon"}
               </p>
             </div>
-            <Link
-              href={`/${tenantSlug}/talent/calendar`}
-              style={{ fontSize: 12, color: C.indigoDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}
-            >
-              View calendar →
-            </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Link
+                href={`/${tenantSlug}/talent/calendar`}
+                style={{ fontSize: 12, color: C.inkMuted, fontWeight: 500, textDecoration: "none", fontFamily: FONT }}
+              >
+                + Add manually
+              </Link>
+              <Link
+                href={`/${tenantSlug}/talent/calendar`}
+                style={{ fontSize: 12, color: C.indigoDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}
+              >
+                See calendar →
+              </Link>
+            </div>
           </div>
           <div
             style={{
@@ -457,15 +546,23 @@ export default async function TalentTodayPage({ params }: { params: PageParams }
       {/* ── Recent activity / inquiries list ── */}
       {prioritized.length > 0 ? (
         <section>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
-            <h2 style={{ margin: 0, fontFamily: FONT, fontSize: 17, fontWeight: 600, color: C.ink, letterSpacing: -0.2 }}>
-              Your inquiries
-            </h2>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+            <div>
+              <h2 style={{ margin: 0, fontFamily: FONT, fontSize: 17, fontWeight: 600, color: C.ink, letterSpacing: -0.2 }}>
+                {pendingInquiries.length > 0 ? "Needs your reply" : "Your inquiries"}
+              </h2>
+              {pendingInquiries.length > 0 && (
+                <p style={{ margin: "2px 0 0", fontFamily: FONT, fontSize: 12, color: C.inkMuted }}>
+                  {pendingInquiries.filter((i) => i.status === "offer_pending").length} offers
+                  {" · "}{pendingInquiries.filter((i) => i.participantStatus === "pending" && i.status !== "offer_pending").length} holds
+                </p>
+              )}
+            </div>
             <Link
               href={`/${tenantSlug}/talent/inbox`}
               style={{ fontSize: 12, color: C.indigoDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}
             >
-              View all →
+              Open inbox →
             </Link>
           </div>
 
