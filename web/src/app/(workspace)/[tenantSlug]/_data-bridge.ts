@@ -764,6 +764,8 @@ export type WorkspaceAgencySummary = {
   contactPhone: string | null;
   addressCity: string | null;
   addressCountry: string | null;
+  /** Preferred Stripe presentment currency (lowercase ISO 4217). Null = Adaptive Pricing auto-detect. */
+  preferredCurrency: string | null;
 };
 
 /**
@@ -783,7 +785,7 @@ export async function loadWorkspaceAgencySummary(
     const [agencyRes, identityRes, rosterCountRes] = await Promise.all([
       supabase
         .from("agencies")
-        .select("slug, display_name, plan_tier, talent_seat_limit")
+        .select("slug, display_name, plan_tier, talent_seat_limit, preferred_currency")
         .eq("id", tenantId)
         .maybeSingle(),
       supabase
@@ -809,6 +811,7 @@ export async function loadWorkspaceAgencySummary(
       display_name: string;
       plan_tier: string | null;
       talent_seat_limit: number | null;
+      preferred_currency: string | null;
     };
     const identity = identityRes.data as {
       contact_email: string | null;
@@ -827,6 +830,7 @@ export async function loadWorkspaceAgencySummary(
       contactPhone: identity?.contact_phone ?? null,
       addressCity: identity?.address_city ?? null,
       addressCountry: identity?.address_country ?? null,
+      preferredCurrency: row.preferred_currency ?? null,
     };
   } catch (err) {
     logServerError("workspace.loadAgencySummary", err);
@@ -1441,6 +1445,76 @@ export async function loadInquiriesForMessages(
 }
 
 /**
+ * Count total unread messages across all open inquiries for the current user.
+ * Used by the workspace nav to show a badge on the Messages tab.
+ * Returns 0 on any error (badge is non-critical).
+ */
+export async function loadTotalUnreadMessages(tenantId: string): Promise<number> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return 0;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    const myUserId = user?.id ?? null;
+    if (!myUserId) return 0;
+
+    // Only count open inquiries
+    const { data: inquiryRows, error: inquiryErr } = await supabase
+      .from("inquiries")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`);
+
+    if (inquiryErr || !inquiryRows?.length) return 0;
+    const inquiryIds = inquiryRows.map((r: { id: string }) => r.id);
+
+    const [readsRes, messagesRes] = await Promise.all([
+      supabase
+        .from("inquiry_message_reads")
+        .select("inquiry_id, thread_type, last_read_at")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", myUserId)
+        .in("inquiry_id", inquiryIds),
+      supabase
+        .from("inquiry_messages")
+        .select("inquiry_id, thread_type, sender_user_id, created_at")
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null)
+        .neq("sender_user_id", myUserId)
+        .in("inquiry_id", inquiryIds),
+    ]);
+
+    if (messagesRes.error) {
+      logServerError("workspace.loadTotalUnreadMessages", messagesRes.error);
+      return 0;
+    }
+
+    // Build read watermark map: "inquiryId:threadType" → last_read_at
+    const readAtMap = new Map<string, string>();
+    for (const r of (readsRes.data ?? []) as {
+      inquiry_id: string; thread_type: string; last_read_at: string | null;
+    }[]) {
+      if (r.last_read_at) readAtMap.set(`${r.inquiry_id}:${r.thread_type}`, r.last_read_at);
+    }
+
+    let total = 0;
+    for (const m of (messagesRes.data ?? []) as {
+      inquiry_id: string; thread_type: string; created_at: string;
+    }[]) {
+      const key = `${m.inquiry_id}:${m.thread_type}`;
+      const lastRead = readAtMap.get(key);
+      if (!lastRead || new Date(m.created_at).getTime() > new Date(lastRead).getTime()) {
+        total += 1;
+      }
+    }
+    return total;
+  } catch (err) {
+    logServerError("workspace.loadTotalUnreadMessages", err);
+    return 0;
+  }
+}
+
+/**
  * Load messages for a specific inquiry thread (private or group).
  * Returns messages with sender display_name resolved.
  */
@@ -1748,6 +1822,68 @@ export async function loadRecentActivity(
       }));
   } catch (err) {
     logServerError("workspace.loadRecentActivity", err);
+    return [];
+  }
+}
+
+// ─── Inquiry activity feed ────────────────────────────────────────────────────
+
+export type InquiryActivityItem = {
+  id: string;
+  event_type: string;
+  actor_name: string | null;
+  actor_role: string | null;
+  created_at: string;
+};
+
+/**
+ * Load the most recent inquiry_events rows for a single inquiry.
+ * Used by the work detail page activity panel.
+ */
+export async function loadInquiryActivity(
+  tenantId: string,
+  inquiryId: string,
+  limit = 20,
+): Promise<InquiryActivityItem[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("inquiry_events")
+      .select("id, event_type, actor_user_id, actor_role, created_at")
+      .eq("inquiry_id", inquiryId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      logServerError("workspace.loadInquiryActivity", error);
+      return [];
+    }
+    if (!data?.length) return [];
+
+    type EventRow = { id: string; event_type: string; actor_user_id: string | null; actor_role: string | null; created_at: string };
+    const rows = data as EventRow[];
+    const actorIds = [...new Set(rows.map((r) => r.actor_user_id).filter(Boolean) as string[])];
+    const nameMap = new Map<string, string>();
+    if (actorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", actorIds);
+      for (const p of (profiles ?? []) as { id: string; display_name: string | null }[]) {
+        if (p.display_name) nameMap.set(p.id, p.display_name);
+      }
+    }
+    return rows.map((r) => ({
+      id: r.id,
+      event_type: r.event_type,
+      actor_name: r.actor_user_id ? (nameMap.get(r.actor_user_id) ?? null) : null,
+      actor_role: r.actor_role,
+      created_at: r.created_at,
+    }));
+  } catch (err) {
+    logServerError("workspace.loadInquiryActivity", err);
     return [];
   }
 }

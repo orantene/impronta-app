@@ -399,7 +399,17 @@ function InboxList({
           .toLowerCase().includes(q)
       );
     }
-    return list;
+
+    // 3-tier sort: unread first → needs-me → recency
+    return [...list].sort((a, b) => {
+      const unreadA = a.unread_count > 0 ? 0 : 1;
+      const unreadB = b.unread_count > 0 ? 0 : 1;
+      if (unreadA !== unreadB) return unreadA - unreadB;
+      const needsA = a.next_action_by === "coordinator" ? 0 : 1;
+      const needsB = b.next_action_by === "coordinator" ? 0 : 1;
+      if (needsA !== needsB) return needsA - needsB;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
   }, [inquiries, filter, search]);
 
   const chips: { id: AdminFilter; label: string; count?: number }[] = [
@@ -407,7 +417,7 @@ function InboxList({
     { id: "needs-me", label: "Needs me",  count: needsMe },
     { id: "unread",   label: "Unread",    count: unreadCount },
     { id: "inquiry",  label: "Inquiry" },
-    { id: "hold",     label: "Offer" },
+    { id: "hold",     label: "Offer pending" },
     { id: "booked",   label: "Booked" },
     { id: "past",     label: "Past" },
   ];
@@ -526,14 +536,37 @@ function InboxList({
               }}>Clear search</button>
             )}
           </div>
-        ) : filtered.map(i => (
-          <InquiryRow
-            key={i.id}
-            inquiry={i}
-            active={i.id === activeId}
-            onClick={() => onSelect(i.id)}
-          />
-        ))}
+        ) : (() => {
+          // Render inbox rows with date-group separators (Today / Yesterday / date)
+          const items: React.ReactNode[] = [];
+          let lastDateKey = "";
+          for (const i of filtered) {
+            const dk = new Date(i.created_at).toDateString();
+            if (dk !== lastDateKey) {
+              lastDateKey = dk;
+              items.push(
+                <div key={`hdr-${dk}`} style={{
+                  padding: "6px 14px 3px",
+                  fontSize: 10, fontWeight: 700, letterSpacing: 0.6,
+                  textTransform: "uppercase", color: C.inkDim,
+                  background: C.surface,
+                  borderBottom: `1px solid ${C.borderSoft}`,
+                }}>
+                  {formatDateGroup(i.created_at)}
+                </div>
+              );
+            }
+            items.push(
+              <InquiryRow
+                key={i.id}
+                inquiry={i}
+                active={i.id === activeId}
+                onClick={() => onSelect(i.id)}
+              />
+            );
+          }
+          return items;
+        })()}
       </div>
     </aside>
   );
@@ -606,6 +639,7 @@ function MessageStream({
   initialMessages,
   placeholder,
   closed,
+  closedReason,
 }: {
   inquiryId: string;
   threadType: ThreadType;
@@ -613,6 +647,7 @@ function MessageStream({
   initialMessages: WorkspaceMessage[];
   placeholder: string;
   closed?: boolean;
+  closedReason?: string;
 }) {
   const [messages, setMessages] = useState<WorkspaceMessage[]>(initialMessages);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
@@ -810,7 +845,7 @@ function MessageStream({
           fontSize: 12, color: C.inkMuted, fontFamily: FONT,
         }}>
           <span aria-hidden style={{ fontSize: 14 }}>🔒</span>
-          This thread is closed.
+          {closedReason ?? "This thread is closed."}
         </div>
       ) : (
         <div style={{
@@ -893,6 +928,10 @@ function InquiryDetail({
   const bucket = stageBucketOf(inquiry.status);
   const sc = stageStyle(bucket);
   const closed = inquiry.status === "rejected" || inquiry.status === "expired";
+  const closedReason =
+    inquiry.status === "rejected" ? "Closed · the client passed on this inquiry"
+    : inquiry.status === "expired" ? "Closed · this inquiry auto-expired"
+    : "This thread is closed.";
 
   // Load messages when inquiry changes
   useEffect(() => {
@@ -1039,6 +1078,7 @@ function InquiryDetail({
             initialMessages={clientMsgs ?? []}
             placeholder={`Reply to ${inquiry.contact_name}…`}
             closed={closed}
+            closedReason={closedReason}
           />
         ) : activeTab === "talent" ? (
           <MessageStream
@@ -1048,6 +1088,7 @@ function InquiryDetail({
             initialMessages={talentMsgs ?? []}
             placeholder="Message talent group…"
             closed={closed}
+            closedReason={closedReason}
           />
         ) : (
           <BookingDetail inquiry={inquiry} />

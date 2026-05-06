@@ -43,12 +43,15 @@ const TABS = [
 export function WorkspaceTopbar({
   tenantSlug,
   isSuperAdmin = false,
+  unreadMessages = 0,
 }: {
   tenantSlug: string;
   /** M16: when true, renders a "Platform" link to /platform/admin. Only
    *  pass true when the authenticated user's app_role === 'super_admin'.
    */
   isSuperAdmin?: boolean;
+  /** Total unread message count across all open inquiries. Shown as a red badge on Messages tab. */
+  unreadMessages?: number;
 }) {
   const pathname = usePathname();
 
@@ -97,6 +100,11 @@ export function WorkspaceTopbar({
               ? activeSegment === ""
               : activeSegment === tab.segment;
 
+          const badge =
+            tab.id === "messages" && unreadMessages > 0
+              ? unreadMessages > 99 ? "99+" : String(unreadMessages)
+              : null;
+
           return (
             <Link
               key={tab.id}
@@ -122,6 +130,29 @@ export function WorkspaceTopbar({
               }}
             >
               {tab.label}
+              {badge && (
+                <span
+                  aria-label={`${badge} unread`}
+                  style={{
+                    minWidth: 18,
+                    height: 16,
+                    padding: "0 4px",
+                    borderRadius: 999,
+                    background: "#C0392B",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    lineHeight: "16px",
+                    textAlign: "center",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {badge}
+                </span>
+              )}
 
               {/* Active underline — matches prototype exactly */}
               <span

@@ -12,7 +12,7 @@ import {
   feePercent,
   formatCents,
 } from "@/lib/bookings/commission";
-import { loadCommissionContext } from "../../../_data-bridge";
+import { loadCommissionContext, loadInquiryActivity, type InquiryActivityItem } from "../../../_data-bridge";
 import {
   cancelTransactionAction,
   createAgencyPayoutAccountAction,
@@ -132,7 +132,7 @@ export default async function WorkspaceWorkDetailPage({
     .eq("source_inquiry_id", inquiryId)
     .maybeSingle();
 
-  const [transaction, commission, payoutCandidates] = await Promise.all([
+  const [transaction, commission, payoutCandidates, activityItems] = await Promise.all([
     booking ? loadActiveBookingTransaction(booking.id as string, supabase) : Promise.resolve(null),
     loadCommissionContext(scope.tenantId),
     booking && canRunBillingActions
@@ -142,6 +142,7 @@ export default async function WorkspaceWorkDetailPage({
           supabase,
         })
       : Promise.resolve([]),
+    loadInquiryActivity(scope.tenantId, inquiryId, 15),
   ]);
 
   const grossRevenueCents = readRevenueCents(
@@ -609,6 +610,72 @@ export default async function WorkspaceWorkDetailPage({
           </div>
         )}
       </section>
+
+      {/* ── Activity feed ── */}
+      {activityItems.length > 0 && (
+        <section style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.cardBg, padding: 14 }}>
+          <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12 }}>
+            Activity
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {(activityItems as InquiryActivityItem[]).map((evt, i) => {
+              const label = (() => {
+                const t = evt.event_type;
+                if (t === "inquiry_submitted")     return "Inquiry submitted";
+                if (t === "status_changed")        return "Status changed";
+                if (t === "offer_sent")            return "Offer sent";
+                if (t === "offer_approved")        return "Offer approved";
+                if (t === "offer_declined")        return "Offer declined";
+                if (t === "offer_revised")         return "Offer revised";
+                if (t === "booking_created")       return "Booking created";
+                if (t === "booking_confirmed")     return "Booking confirmed";
+                if (t === "talent_assigned")       return "Talent assigned";
+                if (t === "talent_accepted")       return "Talent accepted";
+                if (t === "talent_declined")       return "Talent declined";
+                if (t === "payment_requested")     return "Payment requested";
+                if (t === "payment_received")      return "Payment received";
+                if (t === "payout_sent")           return "Payout sent";
+                if (t === "coordinator_accepted")  return "Coordinator accepted";
+                if (t === "note_added")            return "Note added";
+                if (t === "message_sent")          return "Message sent";
+                return t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+              })();
+              const when = new Date(evt.created_at).toLocaleDateString("en-AU", {
+                day: "numeric", month: "short", year: "numeric",
+                hour: "2-digit", minute: "2-digit",
+              });
+              return (
+                <div
+                  key={evt.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    padding: "9px 0",
+                    borderTop: i > 0 ? `1px solid ${C.borderSoft}` : "none",
+                    fontFamily: FONT,
+                  }}
+                >
+                  <span style={{
+                    flexShrink: 0, marginTop: 2,
+                    width: 7, height: 7, borderRadius: "50%",
+                    background: "rgba(11,11,13,0.18)",
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 500, color: C.ink }}>{label}</div>
+                    {evt.actor_name && (
+                      <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>
+                        {evt.actor_name}{evt.actor_role ? ` · ${evt.actor_role}` : ""}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ flexShrink: 0, fontSize: 11, color: C.inkMuted }}>{when}</div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

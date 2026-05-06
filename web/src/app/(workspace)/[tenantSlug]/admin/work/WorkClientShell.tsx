@@ -442,8 +442,17 @@ export function WorkClientShell({
           </div>
         </div>
 
-        {/* Source filter chips */}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {/* Source filter — segmented control */}
+        <div style={{
+          display: "inline-flex",
+          alignItems: "center",
+          marginBottom: 10,
+          background: "rgba(11,11,13,0.04)",
+          border: `1px solid ${C.borderSoft}`,
+          borderRadius: 999,
+          padding: 3,
+          gap: 2,
+        }}>
           {SOURCE_CHIPS.map((chip) => {
             const active = sourceFilter === chip.id;
             return (
@@ -454,16 +463,18 @@ export function WorkClientShell({
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  padding: "4px 11px",
+                  padding: "4px 12px",
                   borderRadius: 999,
-                  border: active ? "none" : `1px solid ${C.border}`,
-                  background: active ? C.ink : "transparent",
-                  color: active ? "#fff" : C.inkMuted,
+                  border: "none",
+                  background: active ? C.white : "transparent",
+                  color: active ? C.ink : C.inkMuted,
                   fontFamily: FONT,
                   fontSize: 11.5,
                   fontWeight: active ? 600 : 500,
                   cursor: "pointer",
-                  transition: "background 100ms",
+                  transition: "background 100ms, color 100ms",
+                  boxShadow: active ? "0 1px 3px rgba(11,11,13,0.10)" : "none",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {chip.label}
