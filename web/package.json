@@ -30,6 +30,7 @@
     "create:test-clients": "node --env-file=.env.local scripts/create-test-clients.mjs",
     "create:test-admin": "node --env-file=.env.local scripts/create-test-admin.mjs",
     "seed:phase5-qa": "node --env-file=.env.local scripts/seed-phase5-qa.mjs",
+    "backfill:page-snapshots": "node --env-file=.env.local scripts/backfill-page-snapshots.mjs",
     "register:tulum-demo-talent": "node --env-file=.env.local scripts/register-tulum-demo-talent.mjs",
     "verify:dashboard-users": "node scripts/verify-dashboard-users.mjs",
     "verify:talent-submission-reads": "node scripts/verify-talent-submission-reads.mjs",
