@@ -30,7 +30,6 @@ import {
   DeleteTalentButton,
 } from "./EditorSections";
 import { CompletenessCard } from "./CompletenessDial";
-import { computeCompleteness } from "./completeness";
 import { WorkflowPipe } from "./WorkflowPipe";
 
 export const dynamic = "force-dynamic";
@@ -314,18 +313,16 @@ export default async function WorkspaceRosterTalentPage({
           isArchived={talent.is_archived}
         />
         <CompletenessCard
-          snap={computeCompleteness({
-            initial: {
-              display_name: talent.display_name,
-              short_bio: talent.short_bio,
-              home_city_text: talent.home_city_text,
-              photo_url: talent.photo_url,
-            },
-            taxonomy: talentTaxonomy,
-            languages,
-            areas,
-            portfolio,
-          })}
+          initial={{
+            display_name: talent.display_name,
+            short_bio: talent.short_bio,
+            home_city_text: talent.home_city_text,
+            photo_url: talent.photo_url,
+          }}
+          taxonomy={talentTaxonomy}
+          languages={languages}
+          areas={areas}
+          portfolio={portfolio}
         />
       </div>
 

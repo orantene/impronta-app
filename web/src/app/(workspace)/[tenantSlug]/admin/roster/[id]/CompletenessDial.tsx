@@ -8,8 +8,8 @@
 
 import * as React from "react";
 import { type CompletenessSnapshot, computeCompleteness } from "./completeness";
+import type { TalentTaxonomyAssignment, TalentLanguageRow, TalentServiceAreaRow, PortfolioMediaRow } from "./talent-data";
 
-export { computeCompleteness };
 export type { CompletenessSnapshot };
 
 const C = {
@@ -87,12 +87,21 @@ function ProgressRing({ ratio, size = 64, stroke, trackBg }: { ratio: number; si
 }
 
 export function CompletenessCard({
-  snap,
+  initial,
+  taxonomy,
+  languages,
+  areas,
+  portfolio,
   onJumpToSection,
 }: {
-  snap: CompletenessSnapshot;
+  initial: { display_name?: string; short_bio?: string | null; home_city_text?: string | null; photo_url?: string | null };
+  taxonomy: TalentTaxonomyAssignment[];
+  languages: TalentLanguageRow[];
+  areas: TalentServiceAreaRow[];
+  portfolio: PortfolioMediaRow[];
   onJumpToSection?: (key: keyof CompletenessSnapshot) => void;
 }) {
+  const snap = computeCompleteness({ initial, taxonomy, languages, areas, portfolio });
   const { filled, total, ratio } = score(snap);
   const colors = ringColor(ratio);
   const pct = Math.round(ratio * 100);
