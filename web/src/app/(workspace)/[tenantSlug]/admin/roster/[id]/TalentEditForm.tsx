@@ -52,6 +52,12 @@ export type TalentEditInitial = {
   photo_url: string | null;
   /** Height in cm. Shown in imperial (ft/in) on roster cards. Editable as cm here. */
   height_cm: number | null;
+  gender: string | null;
+  date_of_birth: string | null;
+  invitation_email: string | null;
+  home_city_text: string | null;
+  /** Instagram handle extracted from social_links JSONB. Stored back as social_links. */
+  instagram: string | null;
 };
 
 // ─── Field / input helpers ────────────────────────────────────────────────────
@@ -556,77 +562,91 @@ export function TalentEditForm({
         </div>
 
         {state?.error && (
-          <div
-            role="alert"
-            style={{
-              background: C.errorSoft,
-              border: `1px solid rgba(192,57,43,0.20)`,
-              borderRadius: 8,
-              padding: "10px 14px",
-              fontSize: 13,
-              color: C.error,
-              fontFamily: F,
-            }}
-          >
+          <div role="alert" style={{ background: C.errorSoft, border: `1px solid rgba(192,57,43,0.20)`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.error, fontFamily: F }}>
             {state.error}
           </div>
         )}
-
         {state?.success && (
-          <div
-            role="status"
-            style={{
-              background: C.greenSoft,
-              border: `1px solid rgba(46,125,91,0.20)`,
-              borderRadius: 8,
-              padding: "10px 14px",
-              fontSize: 13,
-              color: C.greenDeep,
-              fontFamily: F,
-            }}
-          >
+          <div role="status" style={{ background: C.greenSoft, border: `1px solid rgba(46,125,91,0.20)`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.greenDeep, fontFamily: F }}>
             Saved successfully.
           </div>
         )}
 
-        {/* Display name */}
-        <Field label="Display name" required>
-          <input
-            name="display_name"
-            required
-            autoComplete="off"
-            defaultValue={initial.display_name}
-            style={inputStyle()}
-          />
-        </Field>
+        {/* ── Identity ── */}
+        <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginBottom: 2 }}>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Identity</span>
+        </div>
 
-        {/* First / Last name */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Field label="First name">
-            <input
-              name="first_name"
-              autoComplete="off"
-              defaultValue={initial.first_name ?? ""}
-              style={inputStyle()}
-            />
+            <input name="first_name" autoComplete="off" defaultValue={initial.first_name ?? ""} style={inputStyle()} />
           </Field>
           <Field label="Last name">
-            <input
-              name="last_name"
-              autoComplete="off"
-              defaultValue={initial.last_name ?? ""}
-              style={inputStyle()}
-            />
+            <input name="last_name" autoComplete="off" defaultValue={initial.last_name ?? ""} style={inputStyle()} />
           </Field>
         </div>
 
-        {/* Talent type */}
-        <Field label="Primary talent type" hint="Drives search and filtering on your site.">
-          <select
-            name="talent_type_term_id"
-            defaultValue={initial.primary_type_term_id ?? ""}
-            style={inputStyle()}
-          >
+        <Field label="Display name" required hint="This is the name shown publicly on the roster and storefront.">
+          <input name="display_name" required autoComplete="off" defaultValue={initial.display_name} style={inputStyle()} />
+        </Field>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Field label="Gender">
+            <select name="gender" defaultValue={initial.gender ?? ""} style={inputStyle()}>
+              <option value="">— none —</option>
+              <option value="woman">Woman</option>
+              <option value="man">Man</option>
+              <option value="non_binary">Non-binary</option>
+              <option value="other">Other</option>
+            </select>
+          </Field>
+          <Field label="Date of birth">
+            <input name="date_of_birth" type="date" autoComplete="off" defaultValue={initial.date_of_birth ?? ""} style={inputStyle()} />
+          </Field>
+        </div>
+
+        {/* ── Contact ── */}
+        <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Contact</span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Field label="Email" hint="Used for invite / booking comms. Won't be shown publicly.">
+            <input name="invitation_email" type="email" autoComplete="off" defaultValue={initial.invitation_email ?? ""} placeholder="talent@example.com" style={inputStyle()} />
+          </Field>
+          <Field label="Phone">
+            <input name="phone" type="tel" autoComplete="off" defaultValue={initial.phone ?? ""} placeholder="+1 555 000 0000" style={inputStyle()} />
+          </Field>
+        </div>
+
+        <Field label="Instagram" hint="Handle only — e.g. @sofiamodel. Shown as a link on the profile.">
+          <input name="instagram" type="text" autoComplete="off" defaultValue={initial.instagram ?? ""} placeholder="@handle" style={inputStyle()} />
+        </Field>
+
+        {/* ── Physical ── */}
+        <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Physical</span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 14, alignItems: "end" }}>
+          <Field label="Height (cm)" hint="e.g. 175">
+            <input name="height_cm" type="number" min={50} max={280} step={0.5} autoComplete="off"
+              defaultValue={initial.height_cm != null ? String(initial.height_cm) : ""} placeholder="cm"
+              style={{ ...inputStyle(false), width: 100 }}
+            />
+          </Field>
+          <Field label="Home city" hint="Free-text city. Shown on roster card until a full location is set.">
+            <input name="home_city_text" autoComplete="off" defaultValue={initial.home_city_text ?? ""} placeholder="e.g. Playa del Carmen" style={inputStyle()} />
+          </Field>
+        </div>
+
+        {/* ── Primary talent type ── */}
+        <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Role</span>
+        </div>
+
+        <Field label="Primary talent type" hint="Drives search and filtering on your storefront.">
+          <select name="talent_type_term_id" defaultValue={initial.primary_type_term_id ?? ""} style={inputStyle()}>
             <option value="">— none —</option>
             {talentTypes.map((t) => (
               <option key={t.id} value={t.id}>{t.name_en}</option>
@@ -634,90 +654,48 @@ export function TalentEditForm({
           </select>
         </Field>
 
-        {/* Phone + Height */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 14, alignItems: "end" }}>
-          <Field label="Phone">
-            <input
-              name="phone"
-              type="tel"
-              autoComplete="off"
-              defaultValue={initial.phone ?? ""}
-              placeholder="+1 555 000 0000"
-              style={inputStyle()}
-            />
+        {/* ── Bio ── */}
+        <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Bio</span>
+        </div>
+
+        <Field label="Short bio" hint="2–3 lines. Shown on talent cards and inquiry threads.">
+          <textarea name="short_bio" rows={3} defaultValue={initial.short_bio ?? ""} placeholder="Brief intro for clients." style={{ ...inputStyle(), resize: "vertical" }} />
+        </Field>
+
+        {/* ── Visibility & status ── */}
+        <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Status & visibility</span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+          <Field label="Workflow status" hint="Controls dashboard stage.">
+            <select name="workflow_status" defaultValue={initial.workflow_status} style={inputStyle()}>
+              <option value="draft">Draft</option>
+              <option value="invited">Invited</option>
+              <option value="approved">Approved</option>
+              <option value="published">Published</option>
+              <option value="hidden">Hidden</option>
+            </select>
           </Field>
-          <Field label="Height (cm)" hint="e.g. 175">
-            <input
-              name="height_cm"
-              type="number"
-              min={50}
-              max={280}
-              step={0.5}
-              autoComplete="off"
-              defaultValue={initial.height_cm != null ? String(initial.height_cm) : ""}
-              placeholder="cm"
-              style={{ ...inputStyle(false), width: 88 }}
-            />
+          <Field label="Profile visibility" hint="Whether the public URL is reachable.">
+            <select name="visibility" defaultValue={initial.visibility} style={inputStyle()}>
+              <option value="hidden">Hidden</option>
+              <option value="public">Public</option>
+              <option value="private">Private</option>
+            </select>
+          </Field>
+          <Field label="Roster visibility" hint="Where it appears on your site.">
+            <select name="agency_visibility" defaultValue={initial.agency_visibility} style={inputStyle()}>
+              <option value="roster_only">Roster only</option>
+              <option value="site_visible">Site visible</option>
+              <option value="featured">Featured</option>
+            </select>
           </Field>
         </div>
 
-        {/* Short bio */}
-        <Field label="Short bio" hint="2–3 lines for clients. Full bio is managed on the profile page.">
-          <textarea
-            name="short_bio"
-            rows={3}
-            defaultValue={initial.short_bio ?? ""}
-            placeholder="Brief intro for client-facing pages."
-            style={{ ...inputStyle(), resize: "vertical" }}
-          />
-        </Field>
-
-        {/* Workflow status */}
-        <Field
-          label="Workflow status"
-          hint="Controls whether this profile is visible to clients."
-        >
-          <select
-            name="workflow_status"
-            defaultValue={initial.workflow_status}
-            style={inputStyle()}
-          >
-            <option value="draft">Draft</option>
-            <option value="invited">Invited</option>
-            <option value="approved">Approved</option>
-            <option value="published">Published</option>
-            <option value="hidden">Hidden</option>
-          </select>
-        </Field>
-
-        {/* Profile visibility */}
-        <Field label="Profile visibility" hint="Whether the profile page is publicly reachable.">
-          <select
-            name="visibility"
-            defaultValue={initial.visibility}
-            style={inputStyle()}
-          >
-            <option value="hidden">Hidden</option>
-            <option value="public">Public</option>
-            <option value="private">Private</option>
-          </select>
-        </Field>
-
-        {/* Agency visibility */}
-        <Field label="Roster visibility" hint="Where this profile appears in your agency site.">
-          <select
-            name="agency_visibility"
-            defaultValue={initial.agency_visibility}
-            style={inputStyle()}
-          >
-            <option value="roster_only">Roster only (not on storefront)</option>
-            <option value="site_visible">Site visible</option>
-            <option value="featured">Featured</option>
-          </select>
-        </Field>
-
         {/* Save */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8 }}>
           <button
             type="submit"
             disabled={pending}

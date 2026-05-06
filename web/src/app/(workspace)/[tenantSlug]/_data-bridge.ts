@@ -263,6 +263,8 @@ export type WorkspaceRosterItem = {
   addedAt?: string;
   /** talent_profiles.profile_code — used for public profile URL /t/<profileCode> */
   profileCode?: string | null;
+  /** Invitation email stored on admin-created profiles before the talent claims their account. */
+  invitationEmail?: string | null;
 };
 
 function deriveProfileState(row: RosterRow): TalentProfile["state"] {
@@ -408,6 +410,8 @@ export async function loadWorkspaceRosterEnriched(
           workflow_status,
           height_cm,
           profile_code,
+          invitation_email,
+          home_city_text,
           talent_profile_taxonomy (
             relationship_type,
             taxonomy_terms ( term_type, slug, name_en )
@@ -464,17 +468,22 @@ export async function loadWorkspaceRosterEnriched(
     for (const row of rows) {
       const profile = row.talent_profiles;
       if (!profile) continue;
+      const p = profile as typeof profile & { invitation_email?: string | null; home_city_text?: string | null };
+      // city: prefer talent_service_areas home_base (set when talent registers),
+      // fall back to admin-entered home_city_text for agency-created profiles.
+      const city = deriveCity(profile) ?? (p.home_city_text?.trim() || undefined);
       out.push({
         id: profile.id,
         name: deriveDisplayName(profile),
         state: deriveProfileState(row),
         height: deriveHeightLabel(profile),
-        city: deriveCity(profile),
+        city,
         primaryType: derivePrimaryType(profile),
         primaryTypeLabel: derivePrimaryTypeLabel(profile),
         thumb: thumbByTalentId.get(profile.id),
         addedAt: row.created_at,
         profileCode: (profile as { profile_code?: string | null }).profile_code ?? null,
+        invitationEmail: p.invitation_email ?? null,
       });
     }
     return out;

@@ -43,6 +43,31 @@ const editSchema = z.object({
   last_name: z.string().optional().transform((v) => v?.trim() ?? ""),
   short_bio: z.string().optional().transform((v) => v?.trim() ?? ""),
   phone: z.string().optional().transform((v) => v?.trim() ?? ""),
+  invitation_email: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() ?? "")
+    .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+      message: "Enter a valid email address.",
+    }),
+  home_city_text: z.string().optional().transform((v) => v?.trim() ?? ""),
+  gender: z
+    .enum(["woman", "man", "non_binary", "other", ""])
+    .optional()
+    .transform((v) => (v === "" ? null : (v ?? null))),
+  date_of_birth: z
+    .string()
+    .optional()
+    .transform((v) => (v?.trim() ? v.trim() : null)),
+  /** Instagram handle — stored inside social_links JSONB. */
+  instagram: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (!v || v.trim() === "") return null;
+      // Normalise: strip leading @ and whitespace
+      return v.trim().replace(/^@/, "");
+    }),
   workflow_status: z
     .enum(["draft", "invited", "approved", "published", "hidden"])
     .optional(),
@@ -120,16 +145,21 @@ export async function updateRosterTalentProfile(
   if (!ctx.ok) return { error: ctx.error };
 
   const raw = editSchema.safeParse({
-    display_name: trim(formData.get("display_name")),
-    first_name: trim(formData.get("first_name")),
-    last_name: trim(formData.get("last_name")),
-    short_bio: trim(formData.get("short_bio")),
-    phone: trim(formData.get("phone")),
-    workflow_status: trim(formData.get("workflow_status")) || undefined,
-    visibility: trim(formData.get("visibility")) || undefined,
+    display_name:      trim(formData.get("display_name")),
+    first_name:        trim(formData.get("first_name")),
+    last_name:         trim(formData.get("last_name")),
+    short_bio:         trim(formData.get("short_bio")),
+    phone:             trim(formData.get("phone")),
+    invitation_email:  trim(formData.get("invitation_email")),
+    home_city_text:    trim(formData.get("home_city_text")),
+    gender:            trim(formData.get("gender")),
+    date_of_birth:     trim(formData.get("date_of_birth")) || undefined,
+    instagram:         trim(formData.get("instagram")) || undefined,
+    workflow_status:   trim(formData.get("workflow_status")) || undefined,
+    visibility:        trim(formData.get("visibility")) || undefined,
     agency_visibility: trim(formData.get("agency_visibility")) || undefined,
     talent_type_term_id: trim(formData.get("talent_type_term_id")) || undefined,
-    height_cm: trim(formData.get("height_cm")) || undefined,
+    height_cm:         trim(formData.get("height_cm")) || undefined,
   });
 
   if (!raw.success) {
@@ -148,15 +178,44 @@ export async function updateRosterTalentProfile(
 
   if (beforeErr || !before) return { error: "Talent profile not found." };
 
+  // ── Build social_links JSONB — merge instagram into existing entries ──────
+  let socialLinksPatch: { label: string; href: string }[] | undefined;
+  if ("instagram" in d) {
+    // Load current social_links to preserve non-instagram entries
+    const { data: currentProfile } = await admin
+      .from("talent_profiles")
+      .select("social_links")
+      .eq("id", talentId)
+      .maybeSingle();
+    const currentLinks: { label: string; href: string }[] =
+      (currentProfile as { social_links?: { label: string; href: string }[] } | null)?.social_links ?? [];
+    // Remove old instagram entry, then prepend new one if provided
+    const filtered = currentLinks.filter(
+      (l) => l.label?.toLowerCase() !== "instagram",
+    );
+    if (d.instagram) {
+      socialLinksPatch = [
+        { label: "Instagram", href: `https://instagram.com/${d.instagram}` },
+        ...filtered,
+      ];
+    } else {
+      socialLinksPatch = filtered;
+    }
+  }
+
   // ── Update talent_profiles ─────────────────────────────────────────────────
   const profilePatch: Record<string, unknown> = {
-    display_name: d.display_name,
-    first_name: d.first_name || null,
-    last_name: d.last_name || null,
-    short_bio: d.short_bio || null,
-    phone: d.phone || null,
-    // height_cm: present = update, undefined = unchanged (don't null it out on re-save)
+    display_name:     d.display_name,
+    first_name:       d.first_name || null,
+    last_name:        d.last_name || null,
+    short_bio:        d.short_bio || null,
+    phone:            d.phone || null,
+    invitation_email: d.invitation_email || null,
+    home_city_text:   d.home_city_text || null,
+    ...(d.gender !== undefined ? { gender: d.gender } : {}),
+    ...(d.date_of_birth !== undefined ? { date_of_birth: d.date_of_birth } : {}),
     ...(d.height_cm !== undefined ? { height_cm: d.height_cm } : {}),
+    ...(socialLinksPatch !== undefined ? { social_links: socialLinksPatch } : {}),
     updated_at: new Date().toISOString(),
   };
 

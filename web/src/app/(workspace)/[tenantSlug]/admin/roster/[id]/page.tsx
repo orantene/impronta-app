@@ -38,7 +38,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     admin
       .from("talent_profiles")
       .select(
-        "id, display_name, first_name, last_name, short_bio, phone, workflow_status, visibility, profile_code, created_at, height_cm",
+        "id, display_name, first_name, last_name, short_bio, phone, workflow_status, visibility, profile_code, created_at, height_cm, gender, date_of_birth, invitation_email, home_city_text, social_links",
       )
       .eq("id", talentId)
       .is("deleted_at", null)
@@ -86,6 +86,11 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     profile_code: string | null;
     created_at: string | null;
     height_cm: number | null;
+    gender: string | null;
+    date_of_birth: string | null;
+    invitation_email: string | null;
+    home_city_text: string | null;
+    social_links: { label: string; href: string }[] | null;
   };
   type RosterRow = { status: string; agency_visibility: string };
 
@@ -119,6 +124,11 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     primary_type_term_id: primaryTermId as string | null,
     photo_url,
     height_cm: p.height_cm ?? null,
+    gender: p.gender ?? null,
+    date_of_birth: p.date_of_birth ?? null,
+    invitation_email: p.invitation_email ?? null,
+    home_city_text: p.home_city_text ?? null,
+    instagram: (p.social_links ?? []).find((l) => l.label?.toLowerCase() === "instagram")?.href?.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "@").replace(/\/$/, "") ?? null,
   };
 }
 
@@ -179,6 +189,11 @@ export default async function WorkspaceRosterTalentPage({
     profile_code: talent.profile_code,
     photo_url: talent.photo_url,
     height_cm: talent.height_cm,
+    gender: talent.gender,
+    date_of_birth: talent.date_of_birth,
+    invitation_email: talent.invitation_email,
+    home_city_text: talent.home_city_text,
+    instagram: talent.instagram,
   };
 
   return (

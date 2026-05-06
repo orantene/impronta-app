@@ -617,11 +617,16 @@ function TalentCard({
         >
           {talent.primaryTypeLabel ?? "No type set"}
         </div>
-        {talent.city && (
-          <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>
-            📍 {talent.city}
-          </div>
-        )}
+        {/* Height + city row */}
+        <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 2, display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {talent.height && (
+            <span>{talent.height}</span>
+          )}
+          {talent.height && talent.city && <span style={{ opacity: 0.4 }}>·</span>}
+          {talent.city && (
+            <span>📍 {talent.city}</span>
+          )}
+        </div>
       </div>
     </a>
   );
@@ -739,7 +744,7 @@ function TalentListRow({
         {!talent.thumb && initials}
       </div>
 
-      {/* Name + type + city */}
+      {/* Name + type + city + height */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -767,11 +772,22 @@ function TalentListRow({
         >
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
             {talent.primaryTypeLabel ?? "No type"}
+            {talent.height && (
+              <span style={{ color: C.inkDim }}>{" · "}{talent.height}</span>
+            )}
             {talent.city && (
               <span style={{ color: C.inkDim }}>{" · "}{talent.city}</span>
             )}
           </span>
         </div>
+        {talent.addedAt && (() => {
+          const days = Math.floor((Date.now() - new Date(talent.addedAt).getTime()) / 86400000);
+          if (days < 0) return null;
+          const label = days === 0 ? "Added today" : days === 1 ? "Added 1 day ago" : `Added ${days} days ago`;
+          return (
+            <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 1 }}>{label}</div>
+          );
+        })()}
       </div>
 
       {/* State pill */}

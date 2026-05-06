@@ -1,15 +1,5 @@
 "use server";
 
-/**
- * Minimal talent-create action for the canonical workspace admin shell.
- *
- * Creates a `talent_profiles` row + an `agency_talent_roster` row and
- * redirects to the roster list on success. Fields exposed here are the
- * minimum needed to get a profile into the roster — the full editor lives
- * in the legacy `(dashboard)/admin/talent/[id]` page and will be ported
- * to the canonical shell in a later phase.
- */
-
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -31,14 +21,24 @@ const trimmed = z
   .transform((v) => (typeof v === "string" ? v.trim() : ""));
 
 const schema = z.object({
-  display_name: z
-    .string()
-    .transform((v) => v.trim())
-    .pipe(z.string().min(1, "Display name is required.")),
+  // Required: at least first or last name (or display_name)
+  display_name: trimmed,
   first_name: trimmed,
   last_name: trimmed,
   short_bio: trimmed,
   phone: trimmed,
+  invitation_email: z
+    .string()
+    .optional()
+    .transform((v) => (typeof v === "string" ? v.trim() : ""))
+    .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+      message: "Enter a valid email address.",
+    }),
+  home_city_text: trimmed,
+  gender: z
+    .enum(["woman", "man", "non_binary", "other", ""])
+    .optional()
+    .transform((v) => (v === "" ? null : (v ?? null))),
   talent_type_term_id: z
     .string()
     .uuid()
@@ -47,6 +47,17 @@ const schema = z.object({
   agency_visibility: z
     .enum(["roster_only", "site_visible", "featured"])
     .default("roster_only"),
+  management_method: z
+    .enum(["agency", "invited", "draft"])
+    .default("draft"),
+  height_cm: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (!v || v.trim() === "") return null;
+      const n = parseFloat(v.trim());
+      return isNaN(n) || n < 50 || n > 280 ? null : n;
+    }),
 });
 
 export async function createRosterTalent(
@@ -66,16 +77,39 @@ export async function createRosterTalent(
 
   // ── Validate form ──────────────────────────────────────────────────────────
   const raw = schema.safeParse({
-    display_name: formData.get("display_name"),
-    first_name: formData.get("first_name"),
-    last_name: formData.get("last_name"),
-    short_bio: formData.get("short_bio"),
-    phone: formData.get("phone"),
+    display_name:       formData.get("display_name") || "",
+    first_name:         formData.get("first_name") || "",
+    last_name:          formData.get("last_name") || "",
+    short_bio:          formData.get("short_bio") || "",
+    phone:              formData.get("phone") || "",
+    invitation_email:   formData.get("invitation_email") || "",
+    home_city_text:     formData.get("home_city_text") || "",
+    gender:             formData.get("gender") || "",
     talent_type_term_id: formData.get("talent_type_term_id") || undefined,
-    agency_visibility: formData.get("agency_visibility") || "roster_only",
+    agency_visibility:  formData.get("agency_visibility") || "roster_only",
+    management_method:  formData.get("management_method") || "draft",
+    height_cm:          formData.get("height_cm") || undefined,
   });
   if (!raw.success) {
     return { error: raw.error.issues[0]?.message ?? "Validation failed." };
+  }
+
+  const d = raw.data;
+
+  // Derive the display name: prefer explicit, then first+last
+  const resolvedDisplayName =
+    d.display_name ||
+    `${d.first_name} ${d.last_name}`.trim() ||
+    d.first_name ||
+    d.last_name;
+
+  if (!resolvedDisplayName) {
+    return { error: "Enter at least a first name or display name." };
+  }
+
+  // Validate: invited method requires email
+  if (d.management_method === "invited" && !d.invitation_email) {
+    return { error: "An email address is required when marking as invited." };
   }
 
   const admin = createServiceRoleClient();
@@ -94,19 +128,27 @@ export async function createRosterTalent(
     return { error: "Could not allocate a profile code. Try again." };
   }
 
+  // Map method → workflow_status
+  const workflowStatus =
+    d.management_method === "invited" ? "invited" : "draft";
+
   // ── Insert talent_profiles ─────────────────────────────────────────────────
   const { data: inserted, error: insertErr } = await admin
     .from("talent_profiles")
     .insert({
-      profile_code: String(codeRow),
-      display_name: raw.data.display_name,
-      first_name: raw.data.first_name || null,
-      last_name: raw.data.last_name || null,
-      short_bio: raw.data.short_bio || null,
-      phone: raw.data.phone || null,
-      workflow_status: "draft",
-      visibility: "hidden",
-      membership_tier: "free",
+      profile_code:      String(codeRow),
+      display_name:      resolvedDisplayName,
+      first_name:        d.first_name || null,
+      last_name:         d.last_name || null,
+      short_bio:         d.short_bio || null,
+      phone:             d.phone || null,
+      gender:            d.gender ?? null,
+      height_cm:         d.height_cm ?? null,
+      invitation_email:  d.invitation_email || null,
+      home_city_text:    d.home_city_text || null,
+      workflow_status:   workflowStatus,
+      visibility:        "hidden",
+      membership_tier:   "free",
       membership_status: "active",
     })
     .select("id")
@@ -122,14 +164,14 @@ export async function createRosterTalent(
 
   // ── Insert agency_talent_roster ────────────────────────────────────────────
   const { error: rosterErr } = await admin.from("agency_talent_roster").insert({
-    tenant_id: scope.tenantId,
+    tenant_id:           scope.tenantId,
     source_workspace_id: scope.tenantId,
-    origin_domain: originDomain,
-    talent_profile_id: talentProfileId,
-    source_type: "agency_created",
-    status: "active",
-    agency_visibility: raw.data.agency_visibility,
-    added_by: session.user.id,
+    origin_domain:       originDomain,
+    talent_profile_id:   talentProfileId,
+    source_type:         "agency_created",
+    status:              "active",
+    agency_visibility:   d.agency_visibility,
+    added_by:            session.user.id,
   });
 
   if (rosterErr) {
@@ -139,19 +181,26 @@ export async function createRosterTalent(
     return { error: "Could not add the profile to your roster. Try again." };
   }
 
-  // ── Optional: tag primary talent type ─────────────────────────────────────
-  if (raw.data.talent_type_term_id) {
+  // ── Tag primary talent type ────────────────────────────────────────────────
+  if (d.talent_type_term_id) {
     const { error: taxErr } = await admin.from("talent_profile_taxonomy").insert({
-      talent_profile_id: talentProfileId,
-      taxonomy_term_id: raw.data.talent_type_term_id,
-      is_primary: true,
+      talent_profile_id:  talentProfileId,
+      taxonomy_term_id:   d.talent_type_term_id,
+      relationship_type:  "primary_role",  // ← required for roster card display
+      is_primary:         true,
     });
     if (taxErr) {
-      // Non-fatal — taxonomy can be assigned later
+      // Non-fatal — taxonomy can be assigned from the edit page
       logServerError("roster/new.createRosterTalent/taxonomy", taxErr);
     }
   }
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
+
+  // When admin fills the profile themselves, go straight to the edit page.
+  if (d.management_method === "agency") {
+    redirect(`/${tenantSlug}/admin/roster/${talentProfileId}`);
+  }
+
   redirect(`/${tenantSlug}/admin/roster`);
 }

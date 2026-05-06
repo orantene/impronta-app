@@ -125,9 +125,9 @@ export default async function WorkspaceRosterNewPage({
             lineHeight: 1.5,
           }}
         >
-          Create a roster entry without an account. The talent can claim it later
-          by registering with a matching email. Draft entries stay private until
-          they are approved and visible for the storefront.
+          Add a profile to your roster. Choose how you want to manage it: fill
+          it yourself, mark as invited so the talent can claim it, or save as a
+          draft to complete later. The profile stays private until approved.
         </p>
       </div>
       {seatUsage.atLimit ? (
