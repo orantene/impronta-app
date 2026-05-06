@@ -18,10 +18,13 @@ const FONT = '"Inter", system-ui, sans-serif';
 export function TodaysFocusCard({
   awaitingClientCount,
   draftCount,
+  oldestWaitDays,
   tenantSlug,
 }: {
   awaitingClientCount: number;
   draftCount: number;
+  /** Days since the oldest coordinator-pending inquiry was created. null = none. */
+  oldestWaitDays?: number | null;
   tenantSlug: string;
 }) {
   // No action needed — quiet day message
@@ -33,8 +36,11 @@ export function TodaysFocusCard({
   let ctaLabel = "Open workflow";
 
   if (awaitingClientCount > 0) {
+    const ageClause = oldestWaitDays != null && oldestWaitDays > 0
+      ? ` The oldest has been waiting ${oldestWaitDays} ${oldestWaitDays === 1 ? "day" : "days"}.`
+      : "";
     title = `${awaitingClientCount} ${awaitingClientCount === 1 ? "inquiry is" : "inquiries are"} waiting for a client decision.`;
-    body = "The ball is in their court. Send a nudge or share polaroids to move it forward.";
+    body = `The ball is in their court. Send a nudge or share polaroids to move it forward.${ageClause}`;
     ctaLabel = "View pipeline";
   } else {
     title = `${draftCount} ${draftCount === 1 ? "draft hasn't" : "drafts haven't"} been sent yet.`;

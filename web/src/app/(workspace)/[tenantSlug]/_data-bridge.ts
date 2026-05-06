@@ -53,6 +53,8 @@ export type WorkspaceOverviewMetrics = {
   awaitingClientCount: number;
   /** Inquiries in draft state. */
   draftInquiryCount: number;
+  /** Days since the oldest coordinator-pending inquiry was created. Null if none. */
+  oldestCoordinatorWaitDays: number | null;
 };
 
 export async function loadWorkspaceOverviewMetrics(
@@ -62,7 +64,7 @@ export async function loadWorkspaceOverviewMetrics(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
-    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes] = await Promise.all([
+    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes] = await Promise.all([
       // Roster: total + published count
       supabase
         .from("agency_talent_roster")
@@ -107,6 +109,16 @@ export async function loadWorkspaceOverviewMetrics(
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
         .in("status", ["draft"]),
+
+      // Oldest coordinator-pending inquiry (for urgency signal in TodaysFocusCard)
+      supabase
+        .from("inquiries")
+        .select("created_at")
+        .eq("tenant_id", tenantId)
+        .eq("next_action_by", "coordinator")
+        .not("status", "in", `(rejected,expired,cancelled,booked,converted)`)
+        .order("created_at", { ascending: true })
+        .limit(1),
     ]);
 
     if (rosterRes.error) {
@@ -133,6 +145,11 @@ export async function loadWorkspaceOverviewMetrics(
       (r) => r.status === "active" && r.talent_profiles?.workflow_status === "published",
     ).length;
 
+    const oldestCoordCreatedAt = (oldestCoordRes.data?.[0] as { created_at: string } | undefined)?.created_at ?? null;
+    const oldestCoordinatorWaitDays = oldestCoordCreatedAt
+      ? Math.floor((Date.now() - new Date(oldestCoordCreatedAt).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+
     return {
       rosterTotal,
       rosterPublished,
@@ -141,6 +158,7 @@ export async function loadWorkspaceOverviewMetrics(
       pendingApprovals: pendingRes.count ?? 0,
       awaitingClientCount: awaitingClientRes.count ?? 0,
       draftInquiryCount: draftInqRes.count ?? 0,
+      oldestCoordinatorWaitDays,
     };
   } catch (err) {
     logServerError("workspace.loadOverviewMetrics", err);

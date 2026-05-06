@@ -123,17 +123,21 @@ function StatusStrip({
   pending,
   inProgress,
   expired,
+  activeTone,
+  onFilter,
 }: {
   confirmed: number;
   pending: number;
   inProgress: number;
   expired: number;
+  activeTone: Tone | null;
+  onFilter: (tone: Tone | null) => void;
 }) {
-  const items = [
-    { label: "Confirmed",   value: confirmed,  color: C.green },
-    { label: "Pending",     value: pending,    color: C.amber },
-    { label: "In progress", value: inProgress, color: C.inkMuted },
-    { label: "Expired",     value: expired,    color: C.red },
+  const items: { label: string; value: number; color: string; tone: Tone }[] = [
+    { label: "Confirmed",   value: confirmed,  color: C.green,   tone: "green" },
+    { label: "Submitted",   value: pending,    color: C.amber,   tone: "amber" },
+    { label: "In progress", value: inProgress, color: C.inkMuted, tone: "ink" },
+    { label: "Expired",     value: expired,    color: C.red,     tone: "red" },
   ];
   return (
     <div
@@ -143,34 +147,44 @@ function StatusStrip({
         flexWrap: "wrap",
       }}
     >
-      {items.map(({ label, value, color }) => (
-        <div
-          key={label}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            padding: "8px 14px",
-            background: C.cardBg,
-            border: `1px solid ${C.borderSoft}`,
-            borderRadius: 8,
-            flex: "1 1 120px",
-          }}
-        >
-          <span
-            aria-hidden
-            style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }}
-          />
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontFamily: FONT, fontSize: 22, fontWeight: 600, color: C.ink, letterSpacing: -0.8, lineHeight: 1 }}>
-              {value}
-            </span>
-            <span style={{ fontFamily: FONT, fontSize: 10.5, fontWeight: 500, color: C.inkMuted, letterSpacing: 0.1 }}>
-              {label}
-            </span>
-          </div>
-        </div>
-      ))}
+      {items.map(({ label, value, color, tone }) => {
+        const isActive = activeTone === tone;
+        return (
+          <button
+            key={label}
+            type="button"
+            onClick={() => onFilter(isActive ? null : tone)}
+            aria-pressed={isActive}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "8px 14px",
+              background: isActive ? `${color}14` : C.cardBg,
+              border: `1px solid ${isActive ? color + "55" : C.borderSoft}`,
+              borderRadius: 8,
+              flex: "1 1 120px",
+              cursor: "pointer",
+              transition: "background 120ms, border-color 120ms",
+              fontFamily: FONT,
+              outline: "none",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 1, textAlign: "left" }}>
+              <span style={{ fontSize: 22, fontWeight: 600, color: isActive ? color : C.ink, letterSpacing: -0.8, lineHeight: 1 }}>
+                {value}
+              </span>
+              <span style={{ fontSize: 10.5, fontWeight: isActive ? 700 : 500, color: isActive ? color : C.inkMuted, letterSpacing: 0.1 }}>
+                {label}
+              </span>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -187,6 +201,7 @@ export function CalendarShell({
   const today = new Date();
   const [displayYear, setDisplayYear]   = useState(today.getFullYear());
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
+  const [activeTone, setActiveTone]     = useState<Tone | null>(null);
 
   const goToPrev = useCallback(() => {
     setDisplayMonth((m) => {
@@ -237,25 +252,53 @@ export function CalendarShell({
     dayMap[day].push({ id: ev.id, title: label.slice(0, 28), tone: statusTone(ev.status) });
   }
 
-  // Status strip counts for this month
+  // Status strip counts for this month (always from unfiltered month events)
   const allMonthEvents = Object.values(dayMap).flat();
   const confirmed  = allMonthEvents.filter((e) => e.tone === "green").length;
   const pending    = allMonthEvents.filter((e) => e.tone === "amber").length;
   const inProgress = allMonthEvents.filter((e) => e.tone === "ink").length;
   const expired    = allMonthEvents.filter((e) => e.tone === "red").length;
 
+  // Apply tone filter to dayMap when active
+  const filteredDayMap = activeTone
+    ? Object.fromEntries(
+        Object.entries(dayMap).map(([day, evts]) => [
+          day,
+          evts.filter((e) => e.tone === activeTone),
+        ]).filter(([, evts]) => evts.length > 0),
+      )
+    : dayMap;
+
   const totalEvents = events.length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONT }}>
 
-      {/* Status strip */}
+      {/* Status strip — click to filter calendar view */}
       <StatusStrip
         confirmed={confirmed}
         pending={pending}
         inProgress={inProgress}
         expired={expired}
+        activeTone={activeTone}
+        onFilter={setActiveTone}
       />
+      {activeTone && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.inkMuted, fontFamily: FONT }}>
+          <span>Showing {activeTone === "green" ? "confirmed" : activeTone === "amber" ? "submitted" : activeTone === "ink" ? "in-progress" : "expired"} events only.</span>
+          <button
+            type="button"
+            onClick={() => setActiveTone(null)}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 12, color: C.accent, fontWeight: 600, padding: 0,
+              fontFamily: FONT,
+            }}
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       {/* Calendar card */}
       <div
@@ -348,7 +391,7 @@ export function CalendarShell({
           {/* Day cells */}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day       = i + 1;
-            const dayEvents = dayMap[day] ?? [];
+            const dayEvents = filteredDayMap[day] ?? [];
             const isToday   = isCurrentMonth && day === today.getDate();
             const isoDate   = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             const ariaLabel = `${monthLabel.split(" ")[0]} ${day}${dayEvents.length > 0 ? `, ${dayEvents.length} event${dayEvents.length !== 1 ? "s" : ""}` : ""}${isToday ? " (today)" : ""}`;

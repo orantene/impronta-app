@@ -311,6 +311,7 @@ export default async function WorkspaceAdminOverviewPage({
     pendingApprovals: 0,
     awaitingClientCount: 0,
     draftInquiryCount: 0,
+    oldestCoordinatorWaitDays: null,
   };
 
   return (
@@ -327,6 +328,7 @@ export default async function WorkspaceAdminOverviewPage({
       <TodaysFocusCard
         awaitingClientCount={m.awaitingClientCount}
         draftCount={m.draftInquiryCount}
+        oldestWaitDays={m.oldestCoordinatorWaitDays}
         tenantSlug={tenantSlug}
       />
 
@@ -457,6 +459,15 @@ export default async function WorkspaceAdminOverviewPage({
           affordance="Open clients"
           href={`/${tenantSlug}/admin/clients`}
         />
+        {m.pendingApprovals > 0 && (
+          <SecondaryCard
+            title="Approval queue"
+            description="Talent waiting for agency approval before going live."
+            meta={`${m.pendingApprovals} pending`}
+            affordance="Review approvals"
+            href={`/${tenantSlug}/admin/roster`}
+          />
+        )}
       </div>
 
       {/* ── Recent activity feed ── */}
