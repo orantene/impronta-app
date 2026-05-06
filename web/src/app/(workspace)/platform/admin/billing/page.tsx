@@ -2,6 +2,8 @@
 // MRR by plan, invoice ledger, dunning queue.
 // Real billing data is Phase 8 work. Page structure matches prototype now.
 
+import Link from "next/link";
+
 const HQ = {
   card: "#16161A",
   cardSoft: "rgba(255,255,255,0.04)",
@@ -151,6 +153,27 @@ export default function PlatformBillingPage() {
           MRR by plan, invoice ledger, and refund tools. Billing integration ships in
           Phase 8.
         </p>
+        <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link
+            href="/platform/admin/billing/discount-codes"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 12px",
+              borderRadius: 8,
+              background: "rgba(93,211,160,0.12)",
+              border: "1px solid rgba(93,211,160,0.28)",
+              color: HQ.green,
+              fontSize: 12.5,
+              fontWeight: 600,
+              fontFamily: F,
+              textDecoration: "none",
+            }}
+          >
+            Discount codes →
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
