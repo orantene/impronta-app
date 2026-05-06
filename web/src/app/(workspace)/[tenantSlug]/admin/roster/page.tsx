@@ -64,6 +64,8 @@ export default async function WorkspaceRosterPage({
   );
 
   // Check if the signed-in admin is also a talent on this roster.
+  // Note: `talent_profiles!talent_profile_id` is a forward many-to-one FK,
+  // so Supabase returns a single object (or null), NOT an array.
   let isOnRoster = false;
   if (currentUserId) {
     const supabase = await createSupabaseServerClient();
@@ -74,10 +76,10 @@ export default async function WorkspaceRosterPage({
         .eq("tenant_id", scope.tenantId)
         .neq("status", "removed")
         .limit(200);
-      isOnRoster = (rosterCheck ?? []).some(
-        (row: { talent_profiles: { user_id?: string | null }[] | null }) =>
-          (row.talent_profiles ?? []).some((p) => p.user_id === currentUserId),
-      );
+      const rows = (rosterCheck ?? []) as Array<{
+        talent_profiles: { user_id?: string | null } | null;
+      }>;
+      isOnRoster = rows.some((row) => row.talent_profiles?.user_id === currentUserId);
     }
   }
 
