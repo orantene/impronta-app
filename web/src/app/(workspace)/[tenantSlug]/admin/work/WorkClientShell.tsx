@@ -94,7 +94,15 @@ function downloadCsv(filename: string, rows: Record<string, string>[]) {
 
 // ─── Status strip ─────────────────────────────────────────────────────────────
 
-function WorkStatusStrip({ inquiries }: { inquiries: WorkspaceInquiryRow[] }) {
+function WorkStatusStrip({
+  inquiries,
+  activeStage,
+  onFilter,
+}: {
+  inquiries: WorkspaceInquiryRow[];
+  activeStage: Stage | "all";
+  onFilter: (s: Stage | "all") => void;
+}) {
   const counts = {
     new:      inquiries.filter((i) => deriveStage(i.status) === "new").length,
     active:   inquiries.filter((i) => deriveStage(i.status) === "active").length,
@@ -132,9 +140,12 @@ function WorkStatusStrip({ inquiries }: { inquiries: WorkspaceInquiryRow[] }) {
     >
       {items.map((it, i) => {
         const count = counts[it.id];
+        const isActive = activeStage === it.id;
         return (
-          <div
+          <button
             key={it.id}
+            type="button"
+            onClick={() => onFilter(isActive ? "all" : it.id)}
             style={{
               flex: 1,
               minWidth: 80,
@@ -142,25 +153,29 @@ function WorkStatusStrip({ inquiries }: { inquiries: WorkspaceInquiryRow[] }) {
               textAlign: "left",
               borderRight: i < items.length - 1 ? `1px solid ${C.borderSoft}` : "none",
               opacity: count === 0 ? 0.45 : 1,
+              background: isActive ? `rgba(${it.id === "new" ? "27,110,156" : it.id === "booked" || it.id === "approved" ? "26,94,60" : "212,160,23"},0.07)` : "transparent",
+              border: "none",
+              cursor: count > 0 ? "pointer" : "default",
+              borderRadius: i === 0 ? "8px 0 0 8px" : i === items.length - 1 ? "0 8px 8px 0" : 0,
+              fontFamily: FONT,
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: it.tone }} />
-              <span style={{ fontSize: 11, color: C.inkMuted, fontWeight: 500 }}>{it.label}</span>
+              <span style={{ fontSize: 11, color: isActive ? C.ink : C.inkMuted, fontWeight: isActive ? 700 : 500 }}>{it.label}</span>
             </div>
             <div
               style={{
                 fontSize: 22,
                 fontWeight: 500,
-                color: C.ink,
+                color: isActive ? C.ink : C.ink,
                 letterSpacing: -0.4,
                 lineHeight: 1,
-                fontFamily: FONT,
               }}
             >
               {count}
             </div>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -232,6 +247,7 @@ export function WorkClientShell({
   const [sort, setSort] = useState<"newest" | "oldest" | "client">("newest");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [dateFilter, setDateFilter] = useState<string | null>(dateParam);
+  const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -243,6 +259,7 @@ export function WorkClientShell({
     .filter((iq) => {
       if (!matchesSource(iq, sourceFilter)) return false;
       if (dateFilter && iq.event_date !== dateFilter) return false;
+      if (stageFilter !== "all" && deriveStage(iq.status) !== stageFilter) return false;
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
       return (
@@ -259,7 +276,7 @@ export function WorkClientShell({
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-  const isFiltering = !!search.trim() || sort !== "newest";
+  const isFiltering = !!search.trim() || sort !== "newest" || stageFilter !== "all";
 
   const exportCsv = () => {
     downloadCsv(
@@ -360,7 +377,11 @@ export function WorkClientShell({
       </div>
 
       {/* ── Status strip ── */}
-      <WorkStatusStrip inquiries={inquiries} />
+      <WorkStatusStrip
+        inquiries={inquiries}
+        activeStage={stageFilter}
+        onFilter={setStageFilter}
+      />
 
       {/* ── Pipeline section ── */}
       <section>
@@ -463,7 +484,7 @@ export function WorkClientShell({
             {(isFiltering || sourceFilter !== "all" || dateFilter) && (
               <button
                 type="button"
-                onClick={() => { setSearch(""); setSort("newest"); setSourceFilter("all"); setDateFilter(null); }}
+                onClick={() => { setSearch(""); setSort("newest"); setSourceFilter("all"); setDateFilter(null); setStageFilter("all"); }}
                 style={{
                   padding: "4px 10px",
                   background: "transparent",
@@ -579,7 +600,7 @@ export function WorkClientShell({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1fr) 120px 100px",
+                  gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1fr) 120px 40px 100px",
                   gap: 14,
                   padding: "9px 18px",
                   background: "rgba(11,11,13,0.02)",
@@ -595,6 +616,7 @@ export function WorkClientShell({
                 <span>Client · context</span>
                 <span>Event</span>
                 <span>Stage</span>
+                <span title="Quantity">#</span>
                 <span>Received</span>
               </div>
 
@@ -614,7 +636,7 @@ export function WorkClientShell({
                     href={`/${tenantSlug}/admin/messages?inquiry=${iq.id}`}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1fr) 120px 100px",
+                      gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1fr) 120px 40px 100px",
                       alignItems: "center",
                       gap: 14,
                       padding: "13px 18px",
@@ -672,6 +694,18 @@ export function WorkClientShell({
                     {/* Stage */}
                     <div>
                       <StagePill status={iq.status} />
+                    </div>
+
+                    {/* Quantity */}
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: (iq.quantity ?? 0) > 1 ? C.ink : C.inkDim,
+                        fontWeight: (iq.quantity ?? 0) > 1 ? 600 : 400,
+                        textAlign: "center",
+                      }}
+                    >
+                      {iq.quantity ?? 1}
                     </div>
 
                     {/* Received */}
