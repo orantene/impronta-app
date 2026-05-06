@@ -83,7 +83,9 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/api/stripe/") ||
     pathname.startsWith("/api/cron/") ||
-    pathname === "/api/analytics/events"
+    pathname === "/api/analytics/events" ||
+    // Dev-only sign-in shortcut — blocked by the route handler in production
+    (process.env.NODE_ENV === "development" && pathname.startsWith("/api/dev/"))
   ) {
     return NextResponse.next();
   }
