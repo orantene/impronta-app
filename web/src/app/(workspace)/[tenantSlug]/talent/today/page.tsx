@@ -291,12 +291,19 @@ export default async function TalentTodayPage({ params }: { params: PageParams }
       : "Check back later or browse your full inquiry history.";
   }
 
-  // Recent: show 5 most active inquiries, prioritizing active + pending
+  // Recent: show 8 most active inquiries, prioritizing active + pending
   const prioritized = [
     ...pendingInquiries,
     ...activeInquiries.filter((i) => !pendingInquiries.find((p) => p.id === i.id)),
     ...allInquiries.filter((i) => !activeInquiries.find((a) => a.id === i.id) && !pendingInquiries.find((p) => p.id === i.id)),
   ].slice(0, 8);
+
+  // Upcoming confirmed bookings (future dates only), sorted by event_date asc
+  const today = new Date().toISOString().slice(0, 10);
+  const upcomingBookings = bookedInquiries
+    .filter((i) => i.event_date && i.event_date >= today)
+    .sort((a, b) => (a.event_date ?? "").localeCompare(b.event_date ?? ""))
+    .slice(0, 5);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: FONT }}>
@@ -304,15 +311,60 @@ export default async function TalentTodayPage({ params }: { params: PageParams }
 
       {/* ── Header ── */}
       <div>
-        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.accent, marginBottom: 4 }}>
-          {talentProfile.agencyName}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.accent, marginBottom: 4 }}>
+              {talentProfile.agencyName}
+            </div>
+            <h1 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink, margin: 0, letterSpacing: -0.5, lineHeight: 1.1 }}>
+              {headline}
+            </h1>
+            <p style={{ fontFamily: FONT, fontSize: 13, color: C.inkMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
+              {subline}
+            </p>
+          </div>
+          {pendingInquiries.length > 0 && (
+            <Link
+              href={`/${tenantSlug}/talent/inbox`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                height: 36,
+                padding: "0 16px",
+                borderRadius: 8,
+                background: C.fill,
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                fontFamily: FONT,
+                flexShrink: 0,
+              }}
+            >
+              Reply now →
+            </Link>
+          )}
         </div>
-        <h1 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink, margin: 0, letterSpacing: -0.5, lineHeight: 1.1 }}>
-          {headline}
-        </h1>
-        <p style={{ fontFamily: FONT, fontSize: 13, color: C.inkMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
-          {subline}
-        </p>
+        {/* Location + calendar quick access */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+          {talentProfile.homeCity && (
+            <span style={{ fontSize: 12, color: C.inkMuted, fontFamily: FONT }}>
+              📍 {talentProfile.homeCity}
+            </span>
+          )}
+          {talentProfile.primaryTypeLabel && (
+            <span style={{ fontSize: 12, color: C.inkMuted, fontFamily: FONT }}>
+              · {talentProfile.primaryTypeLabel}
+            </span>
+          )}
+          <Link
+            href={`/${tenantSlug}/talent/calendar`}
+            style={{ fontSize: 12, color: C.indigoDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT, marginLeft: "auto" }}
+          >
+            Open calendar →
+          </Link>
+        </div>
       </div>
 
       {/* ── Stat tiles ── */}
@@ -322,6 +374,85 @@ export default async function TalentTodayPage({ params }: { params: PageParams }
         <StatTile label="Booked" value={bookedInquiries.length.toString()} sub="confirmed jobs" />
         <StatTile label="Total" value={allInquiries.length.toString()} sub="all time" />
       </div>
+
+      {/* ── Next on the calendar ── */}
+      {upcomingBookings.length > 0 && (
+        <section>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
+            <div>
+              <h2 style={{ margin: 0, fontFamily: FONT, fontSize: 17, fontWeight: 600, color: C.ink, letterSpacing: -0.2 }}>
+                Next on the calendar
+              </h2>
+              <p style={{ margin: "2px 0 0", fontFamily: FONT, fontSize: 12, color: C.inkMuted }}>
+                {upcomingBookings.length} upcoming confirmed job{upcomingBookings.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+            <Link
+              href={`/${tenantSlug}/talent/calendar`}
+              style={{ fontSize: 12, color: C.indigoDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}
+            >
+              View calendar →
+            </Link>
+          </div>
+          <div
+            style={{
+              background: C.cardBg,
+              border: `1px solid ${C.borderSoft}`,
+              borderRadius: 14,
+              overflow: "hidden",
+            }}
+          >
+            {upcomingBookings.map((bk, i) => {
+              const d = bk.event_date ? new Date(bk.event_date) : null;
+              const month = d ? d.toLocaleDateString("en-GB", { month: "short" }) : null;
+              const day = d ? d.getDate() : null;
+              return (
+                <Link
+                  key={bk.id}
+                  href={`/${tenantSlug}/talent/inbox`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "12px 16px",
+                    borderTop: i > 0 ? `1px solid ${C.borderSoft}` : "none",
+                    textDecoration: "none",
+                    fontFamily: FONT,
+                  }}
+                >
+                  {/* Date badge */}
+                  <div style={{ flexShrink: 0, width: 40, textAlign: "center" }}>
+                    {month && day ? (
+                      <>
+                        <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" as const, color: C.inkDim, lineHeight: 1 }}>
+                          {month}
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: C.successDeep, lineHeight: 1.2, fontVariantNumeric: "tabular-nums" }}>
+                          {day}
+                        </div>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 10, color: C.inkDim }}>TBD</span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {bk.contact_name}
+                      {bk.company && (
+                        <span style={{ fontWeight: 400, color: C.inkMuted, marginLeft: 6 }}>· {bk.company}</span>
+                      )}
+                    </div>
+                    {bk.event_location && (
+                      <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>{bk.event_location}</div>
+                    )}
+                  </div>
+                  <StatusChip status={bk.status} />
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ── Recent activity / inquiries list ── */}
       {prioritized.length > 0 ? (

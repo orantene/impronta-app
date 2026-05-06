@@ -25,7 +25,7 @@ import { notFound, redirect } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadWorkspaceAgencySummary, loadTotalUnreadMessages } from "../_data-bridge";
+import { loadWorkspaceAgencySummary, loadTotalUnreadMessages, loadPendingRosterCount } from "../_data-bridge";
 import { signOut } from "@/app/auth/actions";
 import { WorkspaceTopbar } from "./workspace-topbar";
 
@@ -107,9 +107,10 @@ export default async function WorkspaceAdminLayout({
   if (!canView) notFound();
 
   // ── Shell data ────────────────────────────────────────────────────────────
-  const [summary, unreadMessages] = await Promise.all([
+  const [summary, unreadMessages, pendingRoster] = await Promise.all([
     loadWorkspaceAgencySummary(scope.tenantId),
     loadTotalUnreadMessages(scope.tenantId),
+    loadPendingRosterCount(scope.tenantId),
   ]);
 
   const displayName = summary?.displayName ?? scope.membership.display_name;
@@ -361,6 +362,7 @@ export default async function WorkspaceAdminLayout({
             tenantSlug={tenantSlug}
             isSuperAdmin={session.profile?.app_role === "super_admin"}
             unreadMessages={unreadMessages}
+            pendingRoster={pendingRoster}
           />
         </Suspense>
 

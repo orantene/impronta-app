@@ -195,6 +195,25 @@ export async function loadWorkspaceOverviewMetrics(
   }
 }
 
+/**
+ * Return the count of roster rows with status = 'pending' for this tenant.
+ * Used by the admin layout to badge the Talent tab.
+ */
+export async function loadPendingRosterCount(tenantId: string): Promise<number> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return 0;
+    const { count } = await supabase
+      .from("agency_talent_roster")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending");
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 // ─── Roster ──────────────────────────────────────────────────────────────────
 
 // Mirror of prototype/_data-bridge.ts RosterRow — kept local to avoid

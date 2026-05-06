@@ -151,7 +151,7 @@ export default async function WorkspaceWorkDetailPage({
 
   const { data: inquiry } = await supabase
     .from("inquiries")
-    .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by")
+    .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source")
     .eq("tenant_id", scope.tenantId)
     .eq("id", inquiryId)
     .maybeSingle();
@@ -178,6 +178,10 @@ export default async function WorkspaceWorkDetailPage({
       : Promise.resolve([]),
     loadInquiryActivity(scope.tenantId, inquiryId, 15),
   ]);
+
+  // Age of this inquiry in days
+  const ageDays = Math.floor((Date.now() - new Date(inquiry.created_at).getTime()) / (1000 * 60 * 60 * 24));
+  const inquirySource = (inquiry as { source?: string | null }).source ?? null;
 
   const grossRevenueCents = readRevenueCents(
     (booking as { total_client_revenue: number | string | null } | null)?.total_client_revenue ?? null,
@@ -298,6 +302,33 @@ export default async function WorkspaceWorkDetailPage({
             Quantity
             <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>{inquiry.quantity ?? 0}</div>
           </div>
+          <div style={{ fontSize: 12.5, color: C.inkMuted }}>
+            Age
+            <div style={{ marginTop: 2, fontSize: 13, color: ageDays > 7 ? C.red : C.ink, fontWeight: 600 }}>
+              {ageDays === 0 ? "Today" : `${ageDays}d`}
+            </div>
+          </div>
+          {inquirySource && (
+            <div style={{ fontSize: 12.5, color: C.inkMuted }}>
+              Source
+              <div style={{ marginTop: 2 }}>
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "rgba(11,11,13,0.05)",
+                  color: C.ink,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: 0.3,
+                  textTransform: "capitalize",
+                }}>
+                  {inquirySource}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
