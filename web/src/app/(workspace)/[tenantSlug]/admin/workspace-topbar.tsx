@@ -186,6 +186,70 @@ export function WorkspaceTopbar({
         })}
 
         {/* M16: Platform HQ link — visible only when the actor is super_admin */}
+        {/* ── Right-side spacer + search stubs ── */}
+        <div style={{ flex: 1, minWidth: 16 }} />
+
+        {/* Search ⌘K stub #1 — command palette trigger */}
+        <button
+          type="button"
+          aria-label="Search"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            height: 30,
+            padding: "0 10px",
+            borderRadius: 7,
+            border: `1px solid ${C.border}`,
+            background: "transparent",
+            color: C.inkMuted,
+            fontFamily: FONT_BODY,
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          Search
+          <span style={{ fontSize: 10, opacity: 0.55, letterSpacing: 0.2 }}>⌘K</span>
+        </button>
+
+        {/* Search ⌘K stub #2 — in-page filter */}
+        <button
+          type="button"
+          aria-label="Filter"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            height: 30,
+            padding: "0 10px",
+            borderRadius: 7,
+            border: `1px solid ${C.border}`,
+            background: "transparent",
+            color: C.inkMuted,
+            fontFamily: FONT_BODY,
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+            marginLeft: 4,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          Search
+          <span style={{ fontSize: 10, opacity: 0.55, letterSpacing: 0.2 }}>⌘K</span>
+        </button>
+
         {isSuperAdmin && (
           <>
             {/* Soft divider before the platform link */}
