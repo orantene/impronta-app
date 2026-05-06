@@ -261,6 +261,8 @@ export type WorkspaceRosterItem = {
   thumb?: string;
   /** ISO timestamp when this talent was added to the roster. Used for "Newest" sort. */
   addedAt?: string;
+  /** talent_profiles.profile_code — used for public profile URL /t/<profileCode> */
+  profileCode?: string | null;
 };
 
 function deriveProfileState(row: RosterRow): TalentProfile["state"] {
@@ -405,6 +407,7 @@ export async function loadWorkspaceRosterEnriched(
           last_name,
           workflow_status,
           height_cm,
+          profile_code,
           talent_profile_taxonomy (
             relationship_type,
             taxonomy_terms ( term_type, slug, name_en )
@@ -471,6 +474,7 @@ export async function loadWorkspaceRosterEnriched(
         primaryTypeLabel: derivePrimaryTypeLabel(profile),
         thumb: thumbByTalentId.get(profile.id),
         addedAt: row.created_at,
+        profileCode: (profile as { profile_code?: string | null }).profile_code ?? null,
       });
     }
     return out;

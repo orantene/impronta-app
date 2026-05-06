@@ -25,7 +25,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 /** Derive a short category group from the primaryTypeLabel.
- *  Falls back to the full label if no heuristic matches. */
+ *  One-item groups that fall through are collapsed into "Other" by buildCategoryTabs. */
 function deriveCategoryGroup(label: string | undefined): string {
   if (!label) return "Other";
   const normalized = label.toLowerCase();
@@ -39,8 +39,8 @@ function deriveCategoryGroup(label: string | undefined): string {
   if (normalized.includes("dancer")) return "Dancers";
   if (normalized.includes("actor") || normalized.includes("actress")) return "Actors";
   if (normalized.includes("makeup") || normalized.includes("stylist") || normalized.includes("hair")) return "Stylists";
-  // Fall back to the full label as its own category
-  return label;
+  if (normalized.includes("ambassador") || normalized.includes("promotional") || normalized.includes("brand")) return "Brand Talent";
+  return "Other";
 }
 
 function buildCategoryTabs(items: WorkspaceRosterItem[]): string[] {
@@ -65,6 +65,7 @@ function ProfileCard({
   state,
   thumb,
   tenantSlug,
+  profileCode,
 }: {
   id: string;
   name: string;
@@ -73,6 +74,7 @@ function ProfileCard({
   state: string;
   thumb?: string;
   tenantSlug: string;
+  profileCode?: string | null;
 }) {
   const initials = name
     .split(/\s+/)
@@ -165,45 +167,69 @@ function ProfileCard({
 
         <div style={{ flex: 1 }} />
 
-        {isPublished ? (
-          <Link
-            href={`/${tenantSlug}/client/inquiries/new?talent=${encodeURIComponent(id)}`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: 10,
-              height: 32,
-              borderRadius: 8,
-              background: C.accent,
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              textDecoration: "none",
-              fontFamily: FONT,
-            }}
-          >
-            Request booking
-          </Link>
-        ) : (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: 10,
-              height: 32,
-              borderRadius: 8,
-              background: C.surface,
-              color: C.inkDim,
-              fontSize: 12,
-              fontWeight: 500,
-              fontFamily: FONT,
-            }}
-          >
-            Not available
-          </div>
-        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+          {isPublished ? (
+            <Link
+              href={`/${tenantSlug}/client/inquiries/new?talent=${encodeURIComponent(id)}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: 32,
+                borderRadius: 8,
+                background: C.accent,
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 600,
+                textDecoration: "none",
+                fontFamily: FONT,
+              }}
+            >
+              Request booking
+            </Link>
+          ) : (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: 32,
+                borderRadius: 8,
+                background: C.surface,
+                color: C.inkDim,
+                fontSize: 12,
+                fontWeight: 500,
+                fontFamily: FONT,
+              }}
+            >
+              Not available
+            </div>
+          )}
+          {profileCode && (
+            <a
+              href={`https://tulala.digital/t/${profileCode}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                height: 30,
+                borderRadius: 8,
+                background: "transparent",
+                border: `1px solid ${C.borderSoft}`,
+                color: C.inkMuted,
+                fontSize: 11.5,
+                fontWeight: 500,
+                textDecoration: "none",
+                fontFamily: FONT,
+              }}
+            >
+              View profile ↗
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -337,6 +363,7 @@ export function DiscoverShell({
                 state={t.state}
                 thumb={t.thumb}
                 tenantSlug={tenantSlug}
+                profileCode={t.profileCode}
               />
             ))}
           </div>
