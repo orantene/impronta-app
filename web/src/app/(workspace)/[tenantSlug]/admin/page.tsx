@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadWorkspaceOverviewMetrics, loadRecentActivity } from "../_data-bridge";
+import { loadWorkspaceOverviewMetrics, loadRecentActivity, loadWorkspaceAgencySummary } from "../_data-bridge";
 import { OverviewGreeting } from "./overview-greeting";
 import { TodaysFocusCard } from "./todays-focus-card";
 import { WorkspaceActivationBanner } from "./activation-banner";
@@ -270,6 +270,262 @@ function SecondaryCard({
   );
 }
 
+// ─── Plan snapshot card ───────────────────────────────────────────────────────
+
+function PlanSnapshotCard({
+  planTier,
+  talentUsed,
+  talentLimit,
+  openInquiries,
+  storefrontHost,
+  tenantSlug,
+}: {
+  planTier: string;
+  talentUsed: number;
+  talentLimit: number | null;
+  openInquiries: number;
+  storefrontHost: string | null;
+  tenantSlug: string;
+}) {
+  const planLabel = { free: "Free", studio: "Studio", agency: "Agency", network: "Network" }[planTier] ?? "Free";
+  const isFreePlan = planTier === "free";
+
+  // Per-plan inquiry cap (soft — just for display)
+  const inquiryCap = isFreePlan ? 5 : null;
+
+  const features: { label: string; detail: string; usage?: string }[] = [
+    {
+      label: "Public roster",
+      detail: "Searchable across the Tulala network.",
+      usage: talentLimit != null
+        ? `${talentUsed} / ${talentLimit} talent`
+        : talentUsed > 0 ? `${talentUsed} talent` : undefined,
+    },
+    {
+      label: "Inbound inquiries",
+      detail: "Clients message you through your storefront.",
+      usage: inquiryCap != null ? `${openInquiries} / ${inquiryCap} this month` : undefined,
+    },
+    {
+      label: "Storefront page",
+      detail: storefrontHost ? `Lives at ${storefrontHost}.` : "Your public agency page.",
+    },
+    {
+      label: "Talent + client messaging",
+      detail: "Two-thread conversations on every inquiry.",
+    },
+    {
+      label: "Listed in the public directory",
+      detail: "Brands looking for talent can find you.",
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        background: C.cardBg,
+        border: `1px solid ${C.borderSoft}`,
+        borderRadius: 14,
+        padding: "18px 20px 16px",
+        fontFamily: FONT,
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 14,
+          flexWrap: "wrap",
+          gap: 8,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 0.9,
+              textTransform: "uppercase",
+              color: isFreePlan ? C.coral : C.accent,
+              fontFamily: FONT,
+            }}
+          >
+            Today on {planLabel}
+          </span>
+          <span
+            style={{
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: C.ink,
+              fontFamily: FONT,
+            }}
+          >
+            What works right now
+          </span>
+        </div>
+        <Link
+          href={`/${tenantSlug}/admin/settings?tab=plan`}
+          style={{
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: C.inkMuted,
+            textDecoration: "none",
+            fontFamily: FONT,
+          }}
+        >
+          Compare plans →
+        </Link>
+      </div>
+
+      {/* Feature list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {features.map((f, i) => (
+          <div
+            key={f.label}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "9px 0",
+              borderBottom: i < features.length - 1 ? `1px solid ${C.borderSoft}` : "none",
+            }}
+          >
+            {/* Check dot */}
+            <span
+              aria-hidden
+              style={{
+                width: 16,
+                height: 16,
+                borderRadius: "50%",
+                background: C.accentSoft,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                fontSize: 9,
+                color: C.accent,
+                fontWeight: 700,
+              }}
+            >
+              ✓
+            </span>
+            {/* Label + detail */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: C.ink,
+                  fontFamily: FONT,
+                }}
+              >
+                {f.label}
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: C.inkMuted,
+                  fontFamily: FONT,
+                  marginLeft: 6,
+                }}
+              >
+                {f.detail}
+              </span>
+            </div>
+            {/* Usage pill */}
+            {f.usage && (
+              <span
+                style={{
+                  flexShrink: 0,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: C.inkMuted,
+                  fontFamily: FONT,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {f.usage}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          marginTop: 14,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
+        {isFreePlan ? (
+          <span
+            style={{
+              fontSize: 11.5,
+              color: C.inkMuted,
+              fontFamily: FONT,
+              flex: 1,
+              minWidth: 0,
+              lineHeight: 1.4,
+            }}
+          >
+            Caps are soft. We&apos;ll nudge before you run out — never block mid-conversation.
+          </span>
+        ) : (
+          <span style={{ flex: 1 }} />
+        )}
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <Link
+            href={`/${tenantSlug}/admin/roster`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              height: 30,
+              padding: "0 12px",
+              borderRadius: 7,
+              background: "transparent",
+              border: `1px solid ${C.borderSoft}`,
+              color: C.ink,
+              fontFamily: FONT,
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Open roster
+          </Link>
+          <Link
+            href={`/${tenantSlug}/admin/work`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              height: 30,
+              padding: "0 12px",
+              borderRadius: 7,
+              background: C.accent,
+              color: "#fff",
+              fontFamily: FONT,
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            See pipeline
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function WorkspaceAdminOverviewPage({
@@ -279,22 +535,18 @@ export default async function WorkspaceAdminOverviewPage({
 }) {
   const { tenantSlug } = await params;
 
-  const [scope, session, metrics, activityItems] = await Promise.all([
+  const [scope, session] = await Promise.all([
     getTenantScopeBySlug(tenantSlug),
     getCachedActorSession(),
-    (async () => {
-      const s = await getTenantScopeBySlug(tenantSlug);
-      if (!s) return null;
-      return loadWorkspaceOverviewMetrics(s.tenantId);
-    })(),
-    (async () => {
-      const s = await getTenantScopeBySlug(tenantSlug);
-      if (!s) return [];
-      return loadRecentActivity(s.tenantId);
-    })(),
   ]);
 
   if (!scope) notFound();
+
+  const [metrics, activityItems, agencySummary] = await Promise.all([
+    loadWorkspaceOverviewMetrics(scope.tenantId),
+    loadRecentActivity(scope.tenantId),
+    loadWorkspaceAgencySummary(scope.tenantId),
+  ]);
 
   const userName = titleCase(
     userDisplayName(
@@ -334,6 +586,18 @@ export default async function WorkspaceAdminOverviewPage({
         nextBookingLabel={m.nextBookingLabel}
         tenantSlug={tenantSlug}
       />
+
+      {/* ── Plan snapshot — "Today on Free / What works right now" ── */}
+      {agencySummary && (
+        <PlanSnapshotCard
+          planTier={agencySummary.plan}
+          talentUsed={agencySummary.talentCount}
+          talentLimit={agencySummary.talentLimit}
+          openInquiries={m.openInquiries}
+          storefrontHost={`${agencySummary.slug}.tulala.digital`}
+          tenantSlug={tenantSlug}
+        />
+      )}
 
       {/* ── Greeting row ── */}
       <div
@@ -415,15 +679,16 @@ export default async function WorkspaceAdminOverviewPage({
           tone={m.awaitingClientCount + m.draftInquiryCount > 0 ? "#8A6F1A" : C.accent}
         />
         <PrimaryCard
-          title="Workflow"
-          description="Every inquiry grouped by where it's stuck — from first brief to confirmed booking."
-          meta={
-            m.openInquiries > 0
-              ? `${m.openInquiries} active · ${m.awaitingClientCount} awaiting client`
-              : "No open inquiries"
+          title="Your storefront"
+          description={
+            agencySummary
+              ? `Live at ${agencySummary.slug}.tulala.digital. Anyone with the link can see your published roster.`
+              : "Your public agency page is live."
           }
-          affordance="Open workflow"
-          href={`/${tenantSlug}/admin/work`}
+          meta={`${m.rosterPublished} published · ${m.rosterTotal} total`}
+          affordance="Manage site"
+          href={`/${tenantSlug}/admin/site`}
+          tone={C.green}
         />
       </div>
 
