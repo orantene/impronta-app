@@ -312,6 +312,8 @@ export default async function WorkspaceAdminOverviewPage({
     awaitingClientCount: 0,
     draftInquiryCount: 0,
     oldestCoordinatorWaitDays: null,
+    nextBookingLabel: null,
+    nextBookingDate: null,
   };
 
   return (
@@ -329,6 +331,7 @@ export default async function WorkspaceAdminOverviewPage({
         awaitingClientCount={m.awaitingClientCount}
         draftCount={m.draftInquiryCount}
         oldestWaitDays={m.oldestCoordinatorWaitDays}
+        nextBookingLabel={m.nextBookingLabel}
         tenantSlug={tenantSlug}
       />
 

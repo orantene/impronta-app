@@ -227,6 +227,86 @@ function BookingListItem({
   );
 }
 
+// ─── Aggregate stat strip ─────────────────────────────────────────────────────
+
+function BookingStatStrip({
+  bookings,
+  upcomingCount,
+  feeBasisPoints,
+}: {
+  bookings: BookingRow[];
+  upcomingCount: number;
+  feeBasisPoints: number;
+}) {
+  let totalGrossCents = 0;
+  let totalFeeCents = 0;
+  let hasRevenue = false;
+
+  for (const b of bookings) {
+    const gross = b.transactionGrossCents ?? b.grossRevenueCents;
+    if (gross != null && gross > 0) {
+      hasRevenue = true;
+      totalGrossCents += gross;
+      const fee = b.transactionFeeCents ?? Math.round(gross * feeBasisPoints / 10000);
+      totalFeeCents += fee;
+    }
+  }
+
+  const displayCurrency =
+    bookings.find((b) => b.transactionCurrency ?? b.currencyCode)?.transactionCurrency ??
+    bookings.find((b) => b.currencyCode)?.currencyCode ??
+    "USD";
+
+  const items = [
+    { label: "Total", value: String(bookings.length), tone: "#0F4F3E" },
+    { label: "Upcoming", value: String(upcomingCount), tone: "#3B5E9E" },
+    ...(hasRevenue
+      ? [
+          { label: "Gross revenue", value: formatCents(totalGrossCents, displayCurrency), tone: "#2E7D5B" },
+          { label: "Platform fees", value: formatCents(totalFeeCents, displayCurrency), tone: "#8B4F16" },
+        ]
+      : []),
+  ];
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 0,
+        padding: 4,
+        borderRadius: 12,
+        background: "#ffffff",
+        border: "1px solid rgba(24,24,27,0.06)",
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        fontFamily: FONT,
+        overflowX: "auto",
+        scrollbarWidth: "none",
+        marginBottom: 8,
+      }}
+    >
+      {items.map((it, i) => (
+        <div
+          key={it.label}
+          style={{
+            flex: 1,
+            minWidth: 80,
+            padding: "10px 14px",
+            borderRight: i < items.length - 1 ? "1px solid rgba(24,24,27,0.06)" : "none",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: it.tone }} />
+            <span style={{ fontSize: 10.5, color: C.inkMuted, fontWeight: 500 }}>{it.label}</span>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 600, color: C.ink, letterSpacing: -0.3, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+            {it.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SectionHead({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -365,6 +445,15 @@ export default async function WorkspaceBookingsPage({
           <span style={{ fontWeight: 700 }}>{commission.feePercent}</span>
           {" "}platform fee · {commission.planTier.charAt(0).toUpperCase() + commission.planTier.slice(1)} plan
         </div>
+      )}
+
+      {/* ── Aggregate stats ── */}
+      {bookings.length > 0 && (
+        <BookingStatStrip
+          bookings={bookings}
+          upcomingCount={upcoming.length}
+          feeBasisPoints={commission.feeBasisPoints}
+        />
       )}
 
       {bookings.length === 0 ? (

@@ -99,6 +99,12 @@ export default async function TalentProfilePage({ params }: { params: PageParams
     ? `https://tulala.digital/t/${talentProfile.profileCode}`
     : null;
 
+  // Derive section completeness from real data
+  const identityComplete = !!(talentProfile.displayName && talentProfile.primaryTypeLabel && talentProfile.homeCity);
+  const mediaComplete = !!talentProfile.headshotUrl;
+  const measurementsComplete = talentProfile.hasHeight;
+  const experienceComplete = false; // requires credits data — always prompt to fill
+
   // Profile editor is the legacy route — still fully functional
   const editBase = `/talent/my-profile`;
 
@@ -162,23 +168,45 @@ export default async function TalentProfilePage({ params }: { params: PageParams
         }}
       >
         {/* Avatar */}
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.15)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 22,
-            fontWeight: 700,
-            flexShrink: 0,
-            letterSpacing: -0.5,
-          }}
-        >
-          {talentProfile.displayName.charAt(0).toUpperCase()}
-        </div>
+        {talentProfile.headshotUrl ? (
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              flexShrink: 0,
+              overflow: "hidden",
+              border: "2px solid rgba(255,255,255,0.25)",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={talentProfile.headshotUrl}
+              alt={talentProfile.displayName}
+              width={64}
+              height={64}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 22,
+              fontWeight: 700,
+              flexShrink: 0,
+              letterSpacing: -0.5,
+            }}
+          >
+            {talentProfile.displayName.charAt(0).toUpperCase()}
+          </div>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.3, lineHeight: 1.1 }}>
             {talentProfile.displayName}
@@ -211,6 +239,76 @@ export default async function TalentProfilePage({ params }: { params: PageParams
         </div>
       </div>
 
+      {/* Completeness banner */}
+      {(() => {
+        const sections = [identityComplete, mediaComplete, measurementsComplete, experienceComplete];
+        const doneCount = sections.filter(Boolean).length;
+        const total = sections.length;
+        const pct = Math.round((doneCount / total) * 100);
+        if (pct === 100) return null;
+        return (
+          <div
+            style={{
+              background: pct >= 50 ? C.accentSoft : C.amberSoft,
+              border: `1px solid ${pct >= 50 ? "rgba(15,79,62,0.15)" : "rgba(138,111,26,0.18)"}`,
+              borderRadius: 12,
+              padding: "14px 18px",
+              fontFamily: FONT,
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+            }}
+          >
+            {/* Dial */}
+            <div style={{ flexShrink: 0, position: "relative", width: 44, height: 44 }}>
+              <svg width="44" height="44" viewBox="0 0 44 44" style={{ transform: "rotate(-90deg)" }} aria-hidden>
+                <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="4" />
+                <circle
+                  cx="22" cy="22" r="18"
+                  fill="none"
+                  stroke={pct >= 50 ? C.accent : C.amberDeep}
+                  strokeWidth="4"
+                  strokeDasharray={`${2 * Math.PI * 18}`}
+                  strokeDashoffset={`${2 * Math.PI * 18 * (1 - pct / 100)}`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div style={{
+                position: "absolute", inset: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, fontWeight: 700,
+                color: pct >= 50 ? C.accent : C.amberDeep,
+              }}>
+                {pct}%
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
+                {doneCount} of {total} sections complete
+              </div>
+              <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
+                {pct < 50
+                  ? "Add more info to get discovered by clients."
+                  : "Almost there — finish the remaining sections."}
+              </div>
+            </div>
+            <Link
+              href={editBase}
+              style={{
+                flexShrink: 0,
+                display: "inline-flex", alignItems: "center",
+                height: 30, padding: "0 12px", borderRadius: 8,
+                background: pct >= 50 ? C.accent : C.amberDeep,
+                color: "#fff", fontSize: 12, fontWeight: 600,
+                textDecoration: "none", fontFamily: FONT,
+              }}
+            >
+              Complete →
+            </Link>
+          </div>
+        );
+      })()}
+
       {/* Profile sections */}
       <section>
         <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" as const, color: C.inkDim, marginBottom: 10 }}>
@@ -221,25 +319,25 @@ export default async function TalentProfilePage({ params }: { params: PageParams
             href={`${editBase}#identity`}
             title="Identity & basics"
             description="Name, type, location, bio, and contact info"
-            status={isPublished ? "complete" : "incomplete"}
+            status={identityComplete ? "complete" : "incomplete"}
           />
           <SectionCard
             href={`${editBase}#media`}
             title="Media & portfolio"
             description="Polaroids, lookbook images, and video clips"
-            status="incomplete"
+            status={mediaComplete ? "complete" : "incomplete"}
           />
           <SectionCard
             href={`${editBase}#measurements`}
             title="Measurements & stats"
             description="Height, sizes, and physical attributes"
-            status="incomplete"
+            status={measurementsComplete ? "complete" : "incomplete"}
           />
           <SectionCard
             href={`${editBase}#experience`}
             title="Experience & credits"
             description="Previous campaigns, shows, and editorial work"
-            status="incomplete"
+            status={experienceComplete ? "complete" : "incomplete"}
           />
           <div style={{ padding: "14px 16px" }}>
             <Link

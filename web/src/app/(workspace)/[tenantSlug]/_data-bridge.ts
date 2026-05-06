@@ -55,6 +55,10 @@ export type WorkspaceOverviewMetrics = {
   draftInquiryCount: number;
   /** Days since the oldest coordinator-pending inquiry was created. Null if none. */
   oldestCoordinatorWaitDays: number | null;
+  /** Label for the next upcoming confirmed booking (contact_name + event_date). Null if none. */
+  nextBookingLabel: string | null;
+  /** ISO date of the next upcoming booking. Null if none. */
+  nextBookingDate: string | null;
 };
 
 export async function loadWorkspaceOverviewMetrics(
@@ -64,7 +68,7 @@ export async function loadWorkspaceOverviewMetrics(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
-    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes] = await Promise.all([
+    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes] = await Promise.all([
       // Roster: total + published count
       supabase
         .from("agency_talent_roster")
@@ -119,6 +123,16 @@ export async function loadWorkspaceOverviewMetrics(
         .not("status", "in", `(rejected,expired,cancelled,booked,converted)`)
         .order("created_at", { ascending: true })
         .limit(1),
+
+      // Next upcoming confirmed booking (for quiet-day overview signal)
+      supabase
+        .from("inquiries")
+        .select("contact_name, event_date")
+        .eq("tenant_id", tenantId)
+        .in("status", ["booked", "converted"])
+        .gte("event_date", new Date().toISOString().slice(0, 10))
+        .order("event_date", { ascending: true })
+        .limit(1),
     ]);
 
     if (rosterRes.error) {
@@ -150,6 +164,19 @@ export async function loadWorkspaceOverviewMetrics(
       ? Math.floor((Date.now() - new Date(oldestCoordCreatedAt).getTime()) / (1000 * 60 * 60 * 24))
       : null;
 
+    type NextBookingRow = { contact_name: string | null; event_date: string | null };
+    const nextBookingRow = (nextBookingRes.data?.[0] as NextBookingRow | undefined) ?? null;
+    const nextBookingDate = nextBookingRow?.event_date ?? null;
+    const nextBookingLabel = nextBookingRow?.contact_name
+      ? (() => {
+          if (!nextBookingDate) return nextBookingRow.contact_name;
+          const d = new Date(nextBookingDate);
+          const month = d.toLocaleDateString("en-GB", { month: "short" });
+          const day = d.getDate();
+          return `${nextBookingRow.contact_name} · ${month} ${day}`;
+        })()
+      : null;
+
     return {
       rosterTotal,
       rosterPublished,
@@ -159,6 +186,8 @@ export async function loadWorkspaceOverviewMetrics(
       awaitingClientCount: awaitingClientRes.count ?? 0,
       draftInquiryCount: draftInqRes.count ?? 0,
       oldestCoordinatorWaitDays,
+      nextBookingLabel,
+      nextBookingDate,
     };
   } catch (err) {
     logServerError("workspace.loadOverviewMetrics", err);
@@ -1928,6 +1957,12 @@ export type TalentSelfProfile = {
   profileCode: string | null;
   /** Display name of the agency they're viewing this in context of */
   agencyName: string;
+  /** Public URL of the talent's "card" variant media asset, or null */
+  headshotUrl: string | null;
+  /** True if short_bio or bio_en is non-empty */
+  hasBio: boolean;
+  /** True if height_cm is non-null */
+  hasHeight: boolean;
 };
 
 /**
@@ -1953,6 +1988,9 @@ export async function loadTalentSelfProfile(
         last_name,
         workflow_status,
         profile_code,
+        short_bio,
+        bio_en,
+        height_cm,
         talent_profile_taxonomy (
           relationship_type,
           taxonomy_terms ( name_en )
@@ -1977,6 +2015,9 @@ export async function loadTalentSelfProfile(
       last_name: string | null;
       workflow_status: string | null;
       profile_code: string | null;
+      short_bio: string | null;
+      bio_en: string | null;
+      height_cm: number | null;
       talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_en: string | null } | null }[] | null;
       talent_service_areas: { service_kind: string | null; locations: { display_name_en: string | null } | null }[] | null;
     };
@@ -1993,6 +2034,24 @@ export async function loadTalentSelfProfile(
       .maybeSingle();
 
     if (rosterErr || !rosterRow) return null;
+
+    // Step 3: Fetch the talent's card-variant headshot
+    const admin = createServiceRoleClient();
+    const mediaClient = admin ?? supabase;
+    const { data: mediaRow } = await mediaClient
+      .from("media_assets")
+      .select("storage_path")
+      .eq("owner_talent_profile_id", p.id)
+      .eq("variant_kind", "card")
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const BUCKET = "media-public";
+    const headshotUrl = mediaRow?.storage_path
+      ? mediaClient.storage.from(BUCKET).getPublicUrl(mediaRow.storage_path).data.publicUrl
+      : null;
 
     type RosterRaw = {
       status: string;
@@ -2026,6 +2085,9 @@ export async function loadTalentSelfProfile(
       rosterStatus: roster.status,
       profileCode: p.profile_code ?? null,
       agencyName: agencyRow?.display_name ?? "Agency",
+      headshotUrl,
+      hasBio: !!(p.short_bio?.trim() || p.bio_en?.trim()),
+      hasHeight: p.height_cm !== null,
     };
   } catch (err) {
     logServerError("talent.loadSelfProfile", err);

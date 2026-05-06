@@ -102,14 +102,14 @@ function ClientsStatusStrip({
 }) {
   const activeCount = clients.filter((c) => c.accountStatus === "active").length;
   const inactiveCount = clients.filter((c) => c.accountStatus !== "active").length;
-  const totalInquiries = clients.reduce((sum, c) => sum + c.inquiryCount, 0);
+  const verifiedPlusCount = clients.filter((c) => c.trustLevel && c.trustLevel !== "basic").length;
   const totalBookings = clients.reduce((sum, c) => sum + c.bookingsYTD, 0);
 
-  const items: { id: "active" | "inactive" | "total" | "bookings"; label: string; value: number; tone: string; clickId?: "active" | "inactive" }[] = [
-    { id: "active",   label: "Active",          value: activeCount,    tone: "#2E7D5B",             clickId: "active" },
-    { id: "inactive", label: "Registered",      value: inactiveCount,  tone: "rgba(11,11,13,0.38)", clickId: "inactive" },
-    { id: "total",    label: "Inquiries total",  value: totalInquiries, tone: "#3B5E9E" },
-    { id: "bookings", label: "Bookings YTD",     value: totalBookings,  tone: "#8B4F16" },
+  const items: { id: "active" | "inactive" | "verified" | "bookings"; label: string; value: number; tone: string; clickId?: "active" | "inactive" }[] = [
+    { id: "active",   label: "Active",       value: activeCount,       tone: "#2E7D5B",             clickId: "active" },
+    { id: "inactive", label: "Registered",   value: inactiveCount,     tone: "rgba(11,11,13,0.38)", clickId: "inactive" },
+    { id: "verified", label: "Verified+",    value: verifiedPlusCount, tone: "#3B5E9E" },
+    { id: "bookings", label: "Bookings YTD", value: totalBookings,     tone: "#8B4F16" },
   ];
 
   return (
@@ -409,7 +409,7 @@ export function ClientsClientShell({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0,2fr) 80px 100px 100px 110px",
+                gridTemplateColumns: "minmax(0,2fr) 100px 110px 80px",
                 gap: 14,
                 padding: "9px 18px",
                 background: "rgba(11,11,13,0.02)",
@@ -423,10 +423,9 @@ export function ClientsClientShell({
               }}
             >
               <span>Client</span>
-              <span>Trust</span>
-              <span>Inquiries</span>
               <span>Bookings YTD</span>
               <span>Status</span>
+              <span>Trust</span>
             </div>
 
             {/* Rows */}
@@ -463,7 +462,7 @@ export function ClientsClientShell({
                     href={rowHref}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "minmax(0,2fr) 80px 100px 100px 110px",
+                      gridTemplateColumns: "minmax(0,2fr) 100px 110px 80px",
                       alignItems: "center",
                       gap: 14,
                       padding: "13px 18px",
@@ -496,22 +495,12 @@ export function ClientsClientShell({
                         >
                           {client.name}
                         </div>
-                        {client.company && (
-                          <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>
-                            {client.company}
-                          </div>
-                        )}
+                        <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>
+                          {client.company
+                            ? client.company
+                            : `${client.inquiryCount} ${client.inquiryCount === 1 ? "inquiry" : "inquiries"}`}
+                        </div>
                       </div>
-                    </div>
-
-                    {/* Trust badge */}
-                    <div>
-                      <TrustBadge level={client.trustLevel ?? "basic"} size="sm" />
-                    </div>
-
-                    {/* Inquiry count */}
-                    <div style={{ fontSize: 12, color: C.inkMuted }}>
-                      {client.inquiryCount} {client.inquiryCount === 1 ? "inq" : "inqs"}
                     </div>
 
                     {/* Bookings YTD */}
@@ -550,6 +539,11 @@ export function ClientsClientShell({
                         />
                         {client.accountStatus ?? "registered"}
                       </span>
+                    </div>
+
+                    {/* Trust badge */}
+                    <div>
+                      <TrustBadge level={client.trustLevel ?? "basic"} size="sm" />
                     </div>
                   </Link>
                 );
