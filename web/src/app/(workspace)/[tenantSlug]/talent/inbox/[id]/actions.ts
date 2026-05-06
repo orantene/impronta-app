@@ -147,6 +147,105 @@ export async function markTalentInquiryThreadRead(
   }
 }
 
+// ─── Accept / decline invitation ────────────────────────────────────────────
+
+export type InvitationActionResult = { ok: true } | { error: string };
+
+async function resolveParticipant(tenantSlug: string, inquiryId: string) {
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
+  if (!scope) return { ok: false as const, error: "Workspace not found." };
+
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false as const, error: "Database unavailable." };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, error: "Not authenticated." };
+
+  const talent = await loadTalentSelfProfile(user.id, scope.tenantId);
+  if (!talent) return { ok: false as const, error: "Talent profile not found." };
+
+  const { data: participant } = await supabase
+    .from("inquiry_participants")
+    .select("id")
+    .eq("inquiry_id", inquiryId)
+    .eq("talent_profile_id", talent.id)
+    .eq("status", "invited")
+    .maybeSingle();
+
+  if (!participant) return { ok: false as const, error: "Invitation not found or already actioned." };
+
+  return { ok: true as const, supabase, participantId: (participant as { id: string }).id, tenantSlug, inquiryId };
+}
+
+export async function acceptTalentInvitation(
+  tenantSlug: string,
+  inquiryId: string,
+): Promise<InvitationActionResult> {
+  const ctx = await resolveParticipant(tenantSlug, inquiryId);
+  if (!ctx.ok) return { error: ctx.error };
+
+  const { error } = await ctx.supabase
+    .from("inquiry_participants")
+    .update({ status: "active", updated_at: new Date().toISOString() })
+    .eq("id", ctx.participantId);
+
+  if (error) {
+    logServerError("talent.acceptInvitation", error);
+    return { error: "Could not accept invitation. Try again." };
+  }
+
+  revalidatePath(`/${tenantSlug}/talent/inbox/${inquiryId}`);
+  revalidatePath(`/${tenantSlug}/talent/inbox`);
+  return { ok: true };
+}
+
+export async function declineTalentInvitation(
+  tenantSlug: string,
+  inquiryId: string,
+): Promise<InvitationActionResult> {
+  const ctx = await resolveParticipant(tenantSlug, inquiryId);
+  if (!ctx.ok) return { error: ctx.error };
+
+  const { error } = await ctx.supabase
+    .from("inquiry_participants")
+    .update({ status: "declined", updated_at: new Date().toISOString() })
+    .eq("id", ctx.participantId);
+
+  if (error) {
+    logServerError("talent.declineInvitation", error);
+    return { error: "Could not decline invitation. Try again." };
+  }
+
+  revalidatePath(`/${tenantSlug}/talent/inbox/${inquiryId}`);
+  revalidatePath(`/${tenantSlug}/talent/inbox`);
+  return { ok: true };
+}
+
+// Form-action wrappers for invitation (redirect-based, usable as <form action>)
+export async function acceptInvitationFormAction(
+  tenantSlug: string,
+  inquiryId: string,
+  _formData: FormData,
+): Promise<void> {
+  const res = await acceptTalentInvitation(tenantSlug, inquiryId);
+  if ("error" in res) {
+    redirect(`/${tenantSlug}/talent/inbox/${inquiryId}?err=${encodeURIComponent(res.error)}`);
+  }
+  redirect(`/${tenantSlug}/talent/inbox/${inquiryId}?ok=${encodeURIComponent("You've accepted this booking — welcome to the team!")}`);
+}
+
+export async function declineInvitationFormAction(
+  tenantSlug: string,
+  inquiryId: string,
+  _formData: FormData,
+): Promise<void> {
+  const res = await declineTalentInvitation(tenantSlug, inquiryId);
+  if ("error" in res) {
+    redirect(`/${tenantSlug}/talent/inbox/${inquiryId}?err=${encodeURIComponent(res.error)}`);
+  }
+  redirect(`/${tenantSlug}/talent/inbox?declined=1`);
+}
+
 export async function sendTalentInquiryMessageAction(formData: FormData): Promise<never> {
   const tenantSlug = String(formData.get("tenantSlug") ?? "");
   const inquiryId = String(formData.get("inquiryId") ?? "");

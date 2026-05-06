@@ -8,6 +8,8 @@ import ParticipantThreadShell from "../../../_ParticipantThreadShell";
 import {
   markTalentInquiryThreadRead,
   sendTalentInquiryMessage,
+  acceptInvitationFormAction,
+  declineInvitationFormAction,
 } from "./actions";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -192,6 +194,9 @@ export default async function TalentInquiryThreadPage({
 
   const sendMessageForThread = sendTalentInquiryMessage.bind(null, tenantSlug, inquiryId);
   const markReadForThread = markTalentInquiryThreadRead.bind(null, tenantSlug, inquiryId);
+  const acceptInvitationAction = acceptInvitationFormAction.bind(null, tenantSlug, inquiryId);
+  const declineInvitationAction = declineInvitationFormAction.bind(null, tenantSlug, inquiryId);
+  const isInvited = participant.status === "invited";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONT }}>
@@ -217,14 +222,14 @@ export default async function TalentInquiryThreadPage({
               fontWeight: 700,
             }}
           >
-            Group thread
+            {talent.agencyName}
             <span
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 borderRadius: 999,
-                background: C.accentSoft,
-                color: C.accent,
+                background: isInvited ? "rgba(138,111,26,0.10)" : C.accentSoft,
+                color: isInvited ? "#8A6F1A" : C.accent,
                 padding: "1px 7px",
                 fontSize: 10.5,
                 letterSpacing: 0.2,
@@ -234,11 +239,13 @@ export default async function TalentInquiryThreadPage({
             </span>
           </div>
           <h1 style={{ margin: "4px 0 0", fontSize: 22, color: C.ink, letterSpacing: 0 }}>
-            {inquiry.contact_name}
+            {inquiry.company ?? inquiry.contact_name}
           </h1>
           <div style={{ marginTop: 4, fontSize: 12.5, color: C.inkMuted }}>
-            {statusLabel(String(inquiry.status))} · {fmtDate(inquiry.event_date)} ·{" "}
-            {inquiry.event_location ?? "Location TBD"}
+            {statusLabel(String(inquiry.status))}
+            {inquiry.event_date && ` · ${fmtDate(inquiry.event_date)}`}
+            {inquiry.event_location && ` · ${inquiry.event_location.split(",")[0]}`}
+            {(inquiry.quantity ?? 0) > 1 && ` · ${inquiry.quantity} talent`}
           </div>
         </div>
         <Link
@@ -287,6 +294,66 @@ export default async function TalentInquiryThreadPage({
           {err}
         </div>
       ) : null}
+
+      {/* Invitation action banner */}
+      {isInvited && (
+        <div
+          style={{
+            borderRadius: 12,
+            border: "1px solid rgba(138,111,26,0.25)",
+            background: "rgba(138,111,26,0.05)",
+            padding: "14px 18px",
+            fontFamily: FONT,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#5C4A0F", marginBottom: 4 }}>
+            You've been invited to this booking
+          </div>
+          <p style={{ fontSize: 12.5, color: "#7A6218", margin: "0 0 12px", lineHeight: 1.5 }}>
+            {talent.agencyName} has invited you to participate in this inquiry. Accept to join the group thread and confirm your availability.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <form action={acceptInvitationAction}>
+              <button
+                type="submit"
+                style={{
+                  height: 34,
+                  padding: "0 16px",
+                  borderRadius: 8,
+                  background: C.accent,
+                  border: "none",
+                  color: "#fff",
+                  fontFamily: FONT,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Accept invitation
+              </button>
+            </form>
+            <form action={declineInvitationAction}>
+              <button
+                type="submit"
+                style={{
+                  height: 34,
+                  padding: "0 16px",
+                  borderRadius: 8,
+                  background: "transparent",
+                  border: "1px solid rgba(138,111,26,0.30)",
+                  color: "#7A6218",
+                  fontFamily: FONT,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Decline
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <ParticipantThreadShell
         inquiryId={inquiryId}
