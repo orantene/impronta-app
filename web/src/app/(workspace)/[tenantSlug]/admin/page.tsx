@@ -845,10 +845,10 @@ export default async function WorkspaceAdminOverviewPage({
           }}
         >
           {[
-            { title: "Revenue", desc: "Monthly revenue, top clients, trend." },
+            { title: "Revenue",          desc: "Monthly revenue, top clients, trend." },
             { title: "Conversion funnel", desc: "Inquiry → offer → booking drop-off." },
-            { title: "Top performers", desc: "Most-booked talent and best clients." },
-            { title: "Team workload", desc: "Per-coordinator queue depth and SLA risk." },
+            { title: "Top performers",   desc: "Most-booked talent and best clients." },
+            { title: "Team workload",    desc: "Per-coordinator queue depth and SLA risk." },
           ].map(({ title, desc }) => (
             <Link
               key={title}
@@ -863,7 +863,6 @@ export default async function WorkspaceAdminOverviewPage({
                 padding: "14px 16px 12px",
                 textDecoration: "none",
                 transition: "border-color 120ms",
-                opacity: 0.72,
               }}
             >
               <div style={{ fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
@@ -872,22 +871,8 @@ export default async function WorkspaceAdminOverviewPage({
               <div style={{ fontFamily: FONT, fontSize: 11.5, color: C.inkMuted, lineHeight: 1.4 }}>
                 {desc}
               </div>
-              <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: C.inkMuted, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    padding: "1px 7px",
-                    borderRadius: 999,
-                    background: "rgba(11,11,13,0.05)",
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    letterSpacing: 0.4,
-                    color: C.inkDim,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Coming soon
-                </span>
+              <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: C.accent, marginTop: 2 }}>
+                Open →
               </div>
             </Link>
           ))}
@@ -974,39 +959,97 @@ export default async function WorkspaceAdminOverviewPage({
         </div>
       </div>
 
-      {/* ── Quick-action tiles ── */}
+      {/* ── Operations + Production pointer cards (matches prototype's
+            "Pointers to the new Operations + Production pages" block) ── */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-          gap: 10,
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 12,
         }}
       >
-        <QuickTile
-          label="Roster"
-          description="Add talent, review profiles, and manage approvals."
-          href={`/${tenantSlug}/admin/roster`}
-        />
-        <QuickTile
-          label="Work"
-          description="All active inquiries, offers, and confirmed bookings."
-          href={`/${tenantSlug}/admin/work`}
-        />
-        <QuickTile
-          label="Clients"
-          description="Client accounts, trust tiers, and booking history."
-          href={`/${tenantSlug}/admin/clients`}
-        />
-        <QuickTile
-          label="Messages"
-          description="All inquiry threads across your workspace."
-          href={`/${tenantSlug}/admin/messages`}
-        />
-        <QuickTile
-          label="Settings"
-          description="Plan, team members, taxonomy, and workspace config."
-          href={`/${tenantSlug}/admin/settings`}
-        />
+        <Link
+          href={`/${tenantSlug}/admin/operations`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "16px 18px",
+            background: C.cardBg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 12,
+            textDecoration: "none",
+            transition: "border-color 120ms",
+          }}
+        >
+          <div
+            aria-hidden
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: "rgba(83, 109, 195, 0.12)",
+              color: "#536DC3",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              fontSize: 18,
+            }}
+          >
+            ⚡
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
+              Operations
+            </div>
+            <div style={{ fontFamily: FONT, fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
+              Analytics, queues, automations, comms.
+            </div>
+          </div>
+          <span style={{ color: C.inkMuted, fontSize: 14 }} aria-hidden>→</span>
+        </Link>
+        <Link
+          href={`/${tenantSlug}/admin/production`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "16px 18px",
+            background: C.cardBg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 12,
+            textDecoration: "none",
+            transition: "border-color 120ms",
+          }}
+        >
+          <div
+            aria-hidden
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: "rgba(15, 79, 62, 0.10)",
+              color: C.accent,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              fontSize: 18,
+            }}
+          >
+            🎬
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
+              Production
+            </div>
+            <div style={{ fontFamily: FONT, fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
+              Casting, crew, on-set, rights & safety.
+            </div>
+          </div>
+          <span style={{ color: C.inkMuted, fontSize: 14 }} aria-hidden>→</span>
+        </Link>
       </div>
 
     </div>

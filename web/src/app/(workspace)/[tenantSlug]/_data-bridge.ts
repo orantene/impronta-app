@@ -266,6 +266,10 @@ export type WorkspaceRosterItem = {
   profileCode?: string | null;
   /** Invitation email stored on admin-created profiles before the talent claims their account. */
   invitationEmail?: string | null;
+  /** 0..100 score across the 9-point profile completeness checklist (mirrors
+   *  CompletenessDial.tsx in the edit page). Used for the per-card chip on
+   *  the roster list so admins see at-a-glance which profiles need work. */
+  completenessPercent?: number;
 };
 
 function deriveProfileState(row: RosterRow): TalentProfile["state"] {
@@ -416,6 +420,7 @@ export async function loadWorkspaceRosterEnriched(
           profile_code,
           invitation_email,
           home_city_text,
+          short_bio,
           user_id,
           talent_profile_taxonomy (
             relationship_type,
@@ -439,33 +444,69 @@ export async function loadWorkspaceRosterEnriched(
 
     const rows = (data ?? []) as unknown as (RosterRow & { created_at?: string })[];
 
-    // Batch-load card avatars from media_assets for all talent IDs.
+    // Batch-load card avatars + portfolio counts + languages counts in
+    // parallel for completeness scoring.
     const talentIds = rows
       .map((r) => r.talent_profiles?.id)
       .filter(Boolean) as string[];
 
     const thumbByTalentId = new Map<string, string>();
+    const portfolioCountByTalentId = new Map<string, number>();
+    const languagesCountByTalentId = new Map<string, number>();
+
     if (talentIds.length > 0) {
       const admin = createServiceRoleClient();
       const mediaClient = admin ?? supabase;
-      const { data: mediaRows } = await mediaClient
-        .from("media_assets")
-        .select("owner_talent_profile_id, storage_path")
-        .in("owner_talent_profile_id", talentIds)
-        .eq("variant_kind", "card")
-        .is("deleted_at", null);
+
+      const [mediaRes, portfolioRes, languagesRes] = await Promise.all([
+        mediaClient
+          .from("media_assets")
+          .select("owner_talent_profile_id, storage_path, variant_kind")
+          .in("owner_talent_profile_id", talentIds)
+          .in("variant_kind", ["card", "portfolio", "gallery"])
+          .is("deleted_at", null),
+        // Languages count per talent.
+        supabase
+          .from("talent_languages")
+          .select("talent_profile_id")
+          .in("talent_profile_id", talentIds),
+        // Service areas already nested in main query — but languages aren't.
+        Promise.resolve(null),
+      ]);
+      // (third slot reserved for parity; unused)
+      void languagesRes;
+      void portfolioRes;
 
       const BUCKET = "media-public";
-      for (const m of (mediaRows ?? []) as {
+      for (const m of ((mediaRes.data ?? []) as Array<{
         owner_talent_profile_id: string;
         storage_path: string;
-      }[]) {
-        if (!thumbByTalentId.has(m.owner_talent_profile_id)) {
-          const { data: urlData } = mediaClient.storage
-            .from(BUCKET)
-            .getPublicUrl(m.storage_path);
-          thumbByTalentId.set(m.owner_talent_profile_id, urlData.publicUrl);
+        variant_kind: string;
+      }>)) {
+        if (m.variant_kind === "card") {
+          if (!thumbByTalentId.has(m.owner_talent_profile_id)) {
+            const { data: urlData } = mediaClient.storage.from(BUCKET).getPublicUrl(m.storage_path);
+            thumbByTalentId.set(m.owner_talent_profile_id, urlData.publicUrl);
+          }
+        } else {
+          // portfolio / gallery
+          portfolioCountByTalentId.set(
+            m.owner_talent_profile_id,
+            (portfolioCountByTalentId.get(m.owner_talent_profile_id) ?? 0) + 1,
+          );
         }
+      }
+
+      // Re-execute languages query (the Promise.resolve above was a placeholder).
+      const { data: langRows } = await supabase
+        .from("talent_languages")
+        .select("talent_profile_id")
+        .in("talent_profile_id", talentIds);
+      for (const l of ((langRows ?? []) as Array<{ talent_profile_id: string }>)) {
+        languagesCountByTalentId.set(
+          l.talent_profile_id,
+          (languagesCountByTalentId.get(l.talent_profile_id) ?? 0) + 1,
+        );
       }
     }
 
@@ -473,10 +514,50 @@ export async function loadWorkspaceRosterEnriched(
     for (const row of rows) {
       const profile = row.talent_profiles;
       if (!profile) continue;
-      const p = profile as typeof profile & { invitation_email?: string | null; home_city_text?: string | null };
-      // city: prefer talent_service_areas home_base (set when talent registers),
-      // fall back to admin-entered home_city_text for agency-created profiles.
+      const p = profile as typeof profile & {
+        invitation_email?: string | null;
+        home_city_text?: string | null;
+        short_bio?: string | null;
+      };
       const city = deriveCity(profile) ?? (p.home_city_text?.trim() || undefined);
+
+      // ── 9-point completeness checklist (mirrors CompletenessDial.tsx) ──
+      const taxonomy = (profile as {
+        talent_profile_taxonomy?: Array<{ relationship_type: string }>;
+      }).talent_profile_taxonomy ?? [];
+      const areas = (profile as {
+        talent_service_areas?: Array<{ service_kind: string }>;
+      }).talent_service_areas ?? [];
+      const hasName              = Boolean(deriveDisplayName(profile));
+      const hasShortBio          = Boolean(p.short_bio?.trim());
+      const hasPhoto             = Boolean(thumbByTalentId.get(profile.id));
+      const hasPrimaryRole       = taxonomy.some((t) => t.relationship_type === "primary_role");
+      const hasSecondaryDepth    = taxonomy.some(
+        (t) =>
+          t.relationship_type === "secondary_role" ||
+          t.relationship_type === "skill"          ||
+          t.relationship_type === "context"        ||
+          t.relationship_type === "attribute",
+      );
+      const hasLanguage          = (languagesCountByTalentId.get(profile.id) ?? 0) > 0;
+      const hasHomeCity          =
+        Boolean(p.home_city_text?.trim()) ||
+        areas.some((a) => a.service_kind === "home_base");
+      const hasServiceArea       = areas.length > 0;
+      const hasPortfolio         = (portfolioCountByTalentId.get(profile.id) ?? 0) > 0;
+      // hasLongBio is Phase 3.13 — not counted yet.
+      const filled =
+        Number(hasName) +
+        Number(hasShortBio) +
+        Number(hasPhoto) +
+        Number(hasPrimaryRole) +
+        Number(hasSecondaryDepth) +
+        Number(hasLanguage) +
+        Number(hasHomeCity) +
+        Number(hasServiceArea) +
+        Number(hasPortfolio);
+      const completenessPercent = Math.round((filled / 9) * 100);
+
       out.push({
         id: profile.id,
         name: deriveDisplayName(profile),
@@ -489,6 +570,7 @@ export async function loadWorkspaceRosterEnriched(
         addedAt: row.created_at,
         profileCode: (profile as { profile_code?: string | null }).profile_code ?? null,
         invitationEmail: p.invitation_email ?? null,
+        completenessPercent,
       });
     }
     return out;

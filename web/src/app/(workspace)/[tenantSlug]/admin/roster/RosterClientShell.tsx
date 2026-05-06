@@ -593,16 +593,32 @@ function TalentCard({
       <div style={{ padding: "10px 12px 12px" }}>
         <div
           style={{
-            fontSize: 13.5,
-            fontWeight: 600,
-            color: C.ink,
-            letterSpacing: -0.1,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
           }}
         >
-          {talent.name}
+          <span
+            style={{
+              fontSize: 13.5,
+              fontWeight: 600,
+              color: C.ink,
+              letterSpacing: -0.1,
+              flex: 1,
+              minWidth: 0,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {talent.name}
+          </span>
+          {/* Completeness chip — only shown when state isn't published-and-complete.
+              Mirrors the dial in the edit page (9-point checklist). */}
+          {typeof talent.completenessPercent === "number" &&
+           talent.completenessPercent < 100 && (
+            <CompletenessChip percent={talent.completenessPercent} />
+          )}
         </div>
         <div
           style={{
@@ -629,6 +645,39 @@ function TalentCard({
         </div>
       </div>
     </a>
+  );
+}
+
+// ─── Completeness chip (small ring + %) ──────────────────────────────────────
+// Visible when completenessPercent < 100. Color tier matches the edit-page
+// CompletenessDial: amber < 60, accent < 90, success ≥ 90.
+
+function CompletenessChip({ percent }: { percent: number }) {
+  let bg: string;
+  let fg: string;
+  if (percent >= 90) { bg = "rgba(46,125,91,0.10)"; fg = "#1E5C40"; }
+  else if (percent >= 60) { bg = "rgba(15,79,62,0.10)"; fg = "#0F4F3E"; }
+  else { bg = "rgba(138,111,26,0.12)"; fg = "#8A6F1A"; }
+  return (
+    <span
+      title={`Profile is ${percent}% complete`}
+      style={{
+        flexShrink: 0,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        padding: "1px 6px",
+        borderRadius: 999,
+        background: bg,
+        color: fg,
+        fontSize: 9.5,
+        fontWeight: 700,
+        fontVariantNumeric: "tabular-nums",
+        letterSpacing: 0.2,
+      }}
+    >
+      {percent}%
+    </span>
   );
 }
 
