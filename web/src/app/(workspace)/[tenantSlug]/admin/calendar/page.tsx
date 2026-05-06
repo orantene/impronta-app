@@ -30,19 +30,40 @@ export default async function WorkspaceCalendarPage({ params }: { params: PagePa
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONT }}>
       {/* Page header */}
-      <div>
-        <div style={{
-          fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7,
-          textTransform: "uppercase", color: C.accent, marginBottom: 4,
-        }}>
-          {scope.membership.display_name}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{
+            fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7,
+            textTransform: "uppercase", color: C.accent, marginBottom: 4,
+          }}>
+            {scope.membership.display_name}
+          </div>
+          <h1 style={{
+            fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink,
+            margin: 0, letterSpacing: -0.5, lineHeight: 1.1,
+          }}>
+            Calendar
+          </h1>
         </div>
-        <h1 style={{
-          fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink,
-          margin: 0, letterSpacing: -0.5, lineHeight: 1.1,
-        }}>
-          Calendar
-        </h1>
+        {/* New booking CTA — links to work pipeline where bookings originate */}
+        <a
+          href={`/${tenantSlug}/admin/work`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            height: 34,
+            padding: "0 14px",
+            borderRadius: 8,
+            background: C.accent,
+            color: "#fff",
+            fontFamily: FONT,
+            fontSize: 12.5,
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          + New inquiry
+        </a>
       </div>
 
       {/* Interactive calendar shell */}

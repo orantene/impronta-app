@@ -4,7 +4,8 @@
 // Interactive month-grid calendar reading real inquiry event_date data.
 // Matches the prototype CalendarPage design in _pages.tsx lines 3902–4140.
 
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
+import Link from "next/link";
 import type { CalendarEvent } from "../../_data-bridge";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -411,8 +412,6 @@ function DayCell({
   tenantSlug: string;
 }) {
   const [hovered, setHovered] = useState(false);
-  void isoDate; // reserved for future day-detail drawer
-  void tenantSlug;
 
   return (
     <div
@@ -452,11 +451,17 @@ function DayCell({
         {day}
       </div>
 
-      {/* Event chips (max 2 visible) */}
+      {/* Event chips (max 2 visible) — click through to the messages thread */}
       {dayEvents.slice(0, 2).map((ev, idx) => {
         const { text, bg } = toneColor(ev.tone);
         return (
-          <EventChip key={idx} title={ev.title} text={text} bg={bg} />
+          <EventChip
+            key={idx}
+            title={ev.title}
+            text={text}
+            bg={bg}
+            href={`/${tenantSlug}/admin/messages?inquiry=${ev.id}`}
+          />
         );
       })}
 
@@ -476,28 +481,39 @@ function EventChip({
   title,
   text,
   bg,
+  href,
 }: {
   title: string;
   text: string;
   bg: string;
+  href?: string;
 }) {
+  const style: React.CSSProperties = {
+    display: "block",
+    fontSize: 10.5,
+    color: text,
+    background: bg,
+    padding: "2px 6px",
+    borderRadius: 5,
+    fontWeight: 500,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    fontFamily: FONT,
+    width: "100%",
+    textDecoration: "none",
+    cursor: "pointer",
+  };
+
+  if (href) {
+    return (
+      <Link href={href} style={style} title={title} onClick={(e) => e.stopPropagation()}>
+        {title}
+      </Link>
+    );
+  }
   return (
-    <div
-      style={{
-        fontSize: 10.5,
-        color: text,
-        background: bg,
-        padding: "2px 6px",
-        borderRadius: 5,
-        fontWeight: 500,
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        fontFamily: FONT,
-        width: "100%",
-      }}
-      title={title}
-    >
+    <div style={style} title={title}>
       {title}
     </div>
   );

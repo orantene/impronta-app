@@ -1235,7 +1235,7 @@ export function RosterClientShell({
 
               {/* Invite ghost button */}
               <a
-                href={`/${tenantSlug}/admin/roster/invite`}
+                href={`/${tenantSlug}/admin/roster/new`}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",

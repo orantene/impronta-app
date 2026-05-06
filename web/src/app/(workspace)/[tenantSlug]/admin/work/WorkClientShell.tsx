@@ -5,6 +5,7 @@
 // search / sort / filter state client-side.
 
 import { useState } from "react";
+import Link from "next/link";
 import type { WorkspaceInquiryRow } from "../../_data-bridge";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -186,6 +187,26 @@ function StagePill({ status }: { status: string }) {
 
 // ─── Main shell ───────────────────────────────────────────────────────────────
 
+type SourceFilter = "all" | "direct" | "hub" | "manual" | "marketplace";
+
+const SOURCE_CHIPS: { id: SourceFilter; label: string }[] = [
+  { id: "all",         label: "All sources" },
+  { id: "direct",      label: "Direct" },
+  { id: "hub",         label: "Hub" },
+  { id: "manual",      label: "Manual" },
+  { id: "marketplace", label: "Marketplace" },
+];
+
+function matchesSource(iq: WorkspaceInquiryRow, source: SourceFilter): boolean {
+  if (source === "all") return true;
+  const s = (iq.source ?? "").toLowerCase();
+  if (source === "direct")      return s === "direct" || s === "website" || s === "domain";
+  if (source === "hub")         return s === "hub";
+  if (source === "manual")      return s === "manual" || s === "internal";
+  if (source === "marketplace") return s === "marketplace" || s === "platform";
+  return true;
+}
+
 export function WorkClientShell({
   inquiries,
   tenantSlug,
@@ -197,6 +218,7 @@ export function WorkClientShell({
 }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "client">("newest");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -206,6 +228,7 @@ export function WorkClientShell({
 
   const filtered = inquiries
     .filter((iq) => {
+      if (!matchesSource(iq, sourceFilter)) return false;
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
       return (
@@ -394,10 +417,10 @@ export function WorkClientShell({
               <option value="oldest">Oldest</option>
               <option value="client">Client A–Z</option>
             </select>
-            {isFiltering && (
+            {(isFiltering || sourceFilter !== "all") && (
               <button
                 type="button"
-                onClick={() => { setSearch(""); setSort("newest"); }}
+                onClick={() => { setSearch(""); setSort("newest"); setSourceFilter("all"); }}
                 style={{
                   padding: "4px 10px",
                   background: "transparent",
@@ -417,6 +440,36 @@ export function WorkClientShell({
               </button>
             )}
           </div>
+        </div>
+
+        {/* Source filter chips */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+          {SOURCE_CHIPS.map((chip) => {
+            const active = sourceFilter === chip.id;
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => setSourceFilter(chip.id)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  padding: "4px 11px",
+                  borderRadius: 999,
+                  border: active ? "none" : `1px solid ${C.border}`,
+                  background: active ? C.ink : "transparent",
+                  color: active ? "#fff" : C.inkMuted,
+                  fontFamily: FONT,
+                  fontSize: 11.5,
+                  fontWeight: active ? 600 : 500,
+                  cursor: "pointer",
+                  transition: "background 100ms",
+                }}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Table */}
@@ -502,8 +555,9 @@ export function WorkClientShell({
                 ].filter(Boolean).join(" · ");
 
                 return (
-                  <div
+                  <Link
                     key={iq.id}
+                    href={`/${tenantSlug}/admin/messages?inquiry=${iq.id}`}
                     style={{
                       display: "grid",
                       gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1fr) 120px 100px",
@@ -514,6 +568,8 @@ export function WorkClientShell({
                       cursor: "pointer",
                       transition: "background 0.12s",
                       fontFamily: FONT,
+                      textDecoration: "none",
+                      color: "inherit",
                     }}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.background = "rgba(11,11,13,0.025)")
@@ -573,7 +629,7 @@ export function WorkClientShell({
                     >
                       {formatRelativeDate(iq.created_at)}
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </>

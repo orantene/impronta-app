@@ -402,6 +402,8 @@ export type WorkspaceInquiryRow = {
   created_at: string;
   /** next_action_by value: 'admin' | 'coordinator' | 'client' | 'talent' | null */
   next_action_by: string | null;
+  /** Inquiry source: 'direct' | 'hub' | 'manual' | 'marketplace' | null */
+  source: string | null;
 };
 
 /**
@@ -421,7 +423,7 @@ export async function loadWorkspaceInquiries(
     const { data, error } = await supabase
       .from("inquiries")
       .select(
-        "id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by",
+        "id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source",
       )
       .eq("tenant_id", tenantId)
       .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`)
@@ -457,6 +459,8 @@ export type WorkspaceClientRow = {
   bookingsYTD: number;
   /** Phase 3.7 — client trust tier for this tenant. null = no trust record (equivalent to basic). */
   trustLevel: "basic" | "verified" | "silver" | "gold" | null;
+  /** Most recent inquiry ID for deep-linking to messages. */
+  latestInquiryId: string | null;
 };
 
 /**
@@ -477,7 +481,7 @@ export async function loadWorkspaceClients(
     const yearStart = `${new Date().getFullYear()}-01-01`;
     const { data: inquiryAggRows, error: inquiryErr } = await supabase
       .from("inquiries")
-      .select("client_user_id, created_at, status")
+      .select("id, client_user_id, created_at, status")
       .eq("tenant_id", tenantId)
       .not("client_user_id", "is", null)
       .order("created_at", { ascending: false });
@@ -488,10 +492,11 @@ export async function loadWorkspaceClients(
     }
 
     // Aggregate: total inquiries, bookings YTD, latest activity per client
-    const clientStats = new Map<string, { count: number; bookingsYTD: number; latestAt: string }>();
+    const clientStats = new Map<string, { count: number; bookingsYTD: number; latestAt: string; latestInquiryId: string }>();
     for (const row of inquiryAggRows ?? []) {
       const uid = (row as { client_user_id: string | null }).client_user_id;
       if (!uid) continue;
+      const inquiryId = (row as { id: string }).id;
       const createdAt = (row as { created_at: string }).created_at;
       const status = (row as { status: string | null }).status;
       const isBookedThisYear =
@@ -499,12 +504,13 @@ export async function loadWorkspaceClients(
         createdAt >= yearStart;
       const existing = clientStats.get(uid);
       if (!existing) {
-        clientStats.set(uid, { count: 1, bookingsYTD: isBookedThisYear ? 1 : 0, latestAt: createdAt });
+        clientStats.set(uid, { count: 1, bookingsYTD: isBookedThisYear ? 1 : 0, latestAt: createdAt, latestInquiryId: inquiryId });
       } else {
         clientStats.set(uid, {
           count: existing.count + 1,
           bookingsYTD: existing.bookingsYTD + (isBookedThisYear ? 1 : 0),
           latestAt: existing.latestAt,
+          latestInquiryId: existing.latestInquiryId, // keep first = most recent (rows ordered desc)
         });
       }
     }
@@ -562,6 +568,7 @@ export async function loadWorkspaceClients(
         bookingsYTD: stats.bookingsYTD,
         // Phase 3.7 — trust level from client_trust_state; null if no record yet.
         trustLevel: trustMap.get(uid) ?? null,
+        latestInquiryId: stats.latestInquiryId,
       });
     }
 

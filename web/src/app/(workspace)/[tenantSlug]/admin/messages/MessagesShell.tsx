@@ -378,7 +378,10 @@ function InboxList({
   onSelect: (id: string) => void;
 }) {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<AdminFilter>("all");
+  // Default to "needs-me" so users land on their action items; fall back to "all" if none exist.
+  const [filter, setFilter] = useState<AdminFilter>(
+    inquiries.some(i => i.next_action_by === "coordinator") ? "needs-me" : "all"
+  );
 
   const needsMe = inquiries.filter(i => i.next_action_by === "coordinator").length;
   const unreadCount = inquiries.filter(i => i.unread_count > 0).length;
@@ -1136,12 +1139,17 @@ function EmptyDetail() {
 export default function MessagesShell({
   inquiries,
   tenantSlug,
+  initialInquiryId,
 }: {
   inquiries: WorkspaceInquiryForMessages[];
   tenantSlug: string;
+  /** Deep-link: pre-select a specific inquiry (e.g. from ?inquiry= URL param). */
+  initialInquiryId?: string | null;
 }) {
   const [activeId, setActiveId] = useState<string | null>(
-    inquiries[0]?.id ?? null
+    (initialInquiryId && inquiries.some(i => i.id === initialInquiryId))
+      ? initialInquiryId
+      : (inquiries[0]?.id ?? null)
   );
   const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
 

@@ -4,6 +4,7 @@
 // Receives pre-fetched client rows from the server.
 
 import { useState } from "react";
+import Link from "next/link";
 import type { WorkspaceClientRow } from "../../_data-bridge";
 import { TrustBadge } from "@/components/trust-badge";
 
@@ -453,9 +454,13 @@ export function ClientsClientShell({
             ) : (
               filtered.map((client, idx) => {
                 const isActive = client.accountStatus === "active";
+                const rowHref = client.latestInquiryId
+                  ? `/${tenantSlug}/admin/messages?inquiry=${client.latestInquiryId}`
+                  : `/${tenantSlug}/admin/messages`;
                 return (
-                  <div
+                  <Link
                     key={client.id}
+                    href={rowHref}
                     style={{
                       display: "grid",
                       gridTemplateColumns: "minmax(0,2fr) 80px 100px 100px 110px",
@@ -465,6 +470,8 @@ export function ClientsClientShell({
                       borderTop: idx > 0 ? `1px solid ${C.borderSoft}` : "none",
                       cursor: "pointer",
                       transition: "background 0.12s",
+                      textDecoration: "none",
+                      color: "inherit",
                     }}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.background = "rgba(11,11,13,0.025)")
@@ -544,7 +551,7 @@ export function ClientsClientShell({
                         {client.accountStatus ?? "registered"}
                       </span>
                     </div>
-                  </div>
+                  </Link>
                 );
               })
             )}

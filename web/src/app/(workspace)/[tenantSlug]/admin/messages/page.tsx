@@ -10,6 +10,7 @@ import MessagesShell from "./MessagesShell";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
+type PageSearchParams = Promise<{ inquiry?: string }>;
 
 const C = {
   ink:    "#0B0B0D",
@@ -17,8 +18,16 @@ const C = {
 } as const;
 const FONT = '"Inter", system-ui, sans-serif';
 
-export default async function WorkspaceMessagesPage({ params }: { params: PageParams }) {
+export default async function WorkspaceMessagesPage({
+  params,
+  searchParams,
+}: {
+  params: PageParams;
+  searchParams: PageSearchParams;
+}) {
   const { tenantSlug } = await params;
+  const { inquiry: initialInquiryId } = await searchParams;
+
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
@@ -46,7 +55,11 @@ export default async function WorkspaceMessagesPage({ params }: { params: PagePa
       </div>
 
       {/* Two-pane shell */}
-      <MessagesShell inquiries={inquiries} tenantSlug={tenantSlug} />
+      <MessagesShell
+        inquiries={inquiries}
+        tenantSlug={tenantSlug}
+        initialInquiryId={initialInquiryId ?? null}
+      />
     </div>
   );
 }
