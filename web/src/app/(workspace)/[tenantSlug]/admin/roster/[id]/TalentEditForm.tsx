@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { useActionState } from "react";
+import { useActionState, useRef, useState, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   type RosterTalentEditState,
+  type RegisterPhotoResult,
   updateRosterTalentProfile,
   updateRosterTalentWorkflow,
+  registerRosterTalentPhoto,
 } from "./actions";
 
 // ─── Design tokens (match workspace shell) ────────────────────────────────────
@@ -46,6 +49,7 @@ export type TalentEditInitial = {
   agency_visibility: string;
   primary_type_term_id: string | null;
   profile_code: string | null;
+  photo_url: string | null;
 };
 
 // ─── Field / input helpers ────────────────────────────────────────────────────
@@ -96,6 +100,190 @@ function Field({
         <span style={{ fontFamily: F, fontSize: 11.5, color: C.inkDim }}>{hint}</span>
       )}
     </label>
+  );
+}
+
+// ─── Photo upload component ───────────────────────────────────────────────────
+
+/** Centre-crop to 1:1, convert to WebP, 1200×1200 max. */
+async function prepareAvatarFile(file: File): Promise<{ blob: Blob; width: number; height: number }> {
+  const url = URL.createObjectURL(file);
+  const img = await new Promise<HTMLImageElement>((res, rej) => {
+    const el = document.createElement("img");
+    el.onload = () => res(el);
+    el.onerror = () => rej(new Error("Could not load image"));
+    el.src = url;
+  });
+  URL.revokeObjectURL(url);
+
+  const size = Math.min(img.naturalWidth, img.naturalHeight, 1200);
+  const ox = (img.naturalWidth  - Math.min(img.naturalWidth, img.naturalHeight)) / 2;
+  const oy = (img.naturalHeight - Math.min(img.naturalWidth, img.naturalHeight)) / 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img, ox, oy, Math.min(img.naturalWidth, img.naturalHeight), Math.min(img.naturalWidth, img.naturalHeight), 0, 0, size, size);
+  const blob = await new Promise<Blob>((res, rej) =>
+    canvas.toBlob((b) => (b ? res(b) : rej(new Error("Encode failed"))), "image/webp", 0.92)
+  );
+  return { blob, width: size, height: size };
+}
+
+function PhotoUploader({
+  talentId,
+  tenantSlug,
+  initialUrl,
+  displayName,
+}: {
+  talentId: string;
+  tenantSlug: string;
+  initialUrl: string | null;
+  displayName: string;
+}) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(initialUrl);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
+
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.replace(/[^a-zA-ZÀ-ÿ]/g, "")[0]?.toUpperCase() ?? "")
+    .join("");
+
+  const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Image must be under 20 MB.");
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    try {
+      const { blob, width, height } = await prepareAvatarFile(file);
+      const storagePath = `${talentId}/public/${crypto.randomUUID()}.webp`;
+      if (!supabase) throw new Error("Storage client unavailable.");
+      const { error: upErr } = await supabase.storage
+        .from("media-public")
+        .upload(storagePath, blob, { contentType: "image/webp", upsert: false });
+      if (upErr) throw new Error(upErr.message);
+
+      const result: RegisterPhotoResult = await registerRosterTalentPhoto(tenantSlug, talentId, storagePath, width, height);
+      if (!result.ok) throw new Error(result.error);
+      setPhotoUrl(result.publicUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }, [talentId, tenantSlug, supabase]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+      {/* Avatar circle */}
+      <button
+        type="button"
+        title="Change photo"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        style={{
+          position: "relative",
+          width: 88,
+          height: 88,
+          borderRadius: "50%",
+          border: `2px solid ${C.border}`,
+          overflow: "hidden",
+          cursor: "pointer",
+          background: C.accentSoft,
+          flexShrink: 0,
+          padding: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photoUrl}
+            alt={displayName}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <span style={{
+            fontFamily: F,
+            fontSize: 28,
+            fontWeight: 700,
+            color: C.accent,
+            letterSpacing: -1,
+          }}>
+            {initials || "?"}
+          </span>
+        )}
+        {/* Hover overlay */}
+        <span style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(11,11,13,0.45)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: uploading ? 1 : 0,
+          transition: "opacity 120ms",
+          fontSize: 11,
+          fontWeight: 600,
+          color: "#fff",
+          fontFamily: F,
+          // Show on hover via CSS class trick
+        }}
+          className="photo-upload-overlay"
+        >
+          {uploading ? "…" : "Change"}
+        </span>
+      </button>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        button:hover .photo-upload-overlay { opacity: 1 !important; }
+      `}} />
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleFile}
+      />
+
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        style={{
+          fontFamily: F,
+          fontSize: 12,
+          fontWeight: 500,
+          color: C.accent,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: 0,
+          opacity: uploading ? 0.5 : 1,
+        }}
+      >
+        {uploading ? "Uploading…" : photoUrl ? "Change photo" : "Add photo"}
+      </button>
+
+      {error && (
+        <p style={{ fontFamily: F, fontSize: 11.5, color: C.error, margin: 0, textAlign: "center" }}>
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -534,8 +722,30 @@ export function TalentEditForm({
         </div>
       </form>
 
-      {/* ── Right: status sidebar ── */}
-      <div style={{ width: 260, flexShrink: 0 }}>
+      {/* ── Right: photo + status sidebar ── */}
+      <div style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Photo uploader */}
+        <div style={{
+          background: C.card,
+          border: `1px solid ${C.border}`,
+          borderRadius: 14,
+          padding: "20px 16px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 2,
+        }}>
+          <p style={{ fontFamily: F, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.4, textTransform: "uppercase", margin: "0 0 12px" }}>
+            Profile photo
+          </p>
+          <PhotoUploader
+            talentId={talentId}
+            tenantSlug={tenantSlug}
+            initialUrl={initial.photo_url}
+            displayName={initial.display_name}
+          />
+        </div>
+
         <WorkflowSidebar
           tenantSlug={tenantSlug}
           talentId={talentId}

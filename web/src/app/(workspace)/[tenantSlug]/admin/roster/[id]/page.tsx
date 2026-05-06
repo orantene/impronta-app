@@ -34,7 +34,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
   const admin = createServiceRoleClient();
   if (!admin) return null;
 
-  const [profileRes, rosterRes, taxRes] = await Promise.all([
+  const [profileRes, rosterRes, taxRes, mediaRes] = await Promise.all([
     admin
       .from("talent_profiles")
       .select(
@@ -57,6 +57,15 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
       .select("taxonomy_term_id, relationship_type")
       .eq("talent_profile_id", talentId)
       .eq("relationship_type", "primary_role"),
+
+    // Load current card (avatar) photo
+    admin
+      .from("media_assets")
+      .select("bucket_id, storage_path")
+      .eq("owner_talent_profile_id", talentId)
+      .eq("variant_kind", "card")
+      .is("deleted_at", null)
+      .maybeSingle(),
   ]);
 
   if (profileRes.error) {
@@ -87,6 +96,13 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
         t.relationship_type === "primary_role",
     )?.taxonomy_term_id ?? null;
 
+  // Derive photo URL from media_assets card row
+  type MediaRow = { bucket_id: string; storage_path: string } | null;
+  const photoRow = mediaRes.data as MediaRow;
+  const photo_url = photoRow?.bucket_id && photoRow?.storage_path
+    ? admin.storage.from(photoRow.bucket_id).getPublicUrl(photoRow.storage_path).data.publicUrl
+    : null;
+
   return {
     id: p.id,
     display_name: p.display_name ?? "",
@@ -100,6 +116,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     created_at: p.created_at ?? null,
     agency_visibility: r.agency_visibility ?? "roster_only",
     primary_type_term_id: primaryTermId as string | null,
+    photo_url,
   };
 }
 
@@ -158,6 +175,7 @@ export default async function WorkspaceRosterTalentPage({
     agency_visibility: talent.agency_visibility,
     primary_type_term_id: talent.primary_type_term_id,
     profile_code: talent.profile_code,
+    photo_url: talent.photo_url,
   };
 
   return (

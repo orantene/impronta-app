@@ -233,6 +233,72 @@ export async function updateRosterTalentProfile(
   return { success: true };
 }
 
+// ─── Register roster photo after client-side storage upload ──────────────────
+
+export type RegisterPhotoResult =
+  | { ok: true; publicUrl: string }
+  | { ok: false; error: string };
+
+/**
+ * Called after the client has already uploaded the file bytes to Supabase storage.
+ * Soft-deletes the previous card-variant asset, then inserts the new media_assets row.
+ * The storage path must be under `{talentId}/public/` — validated here.
+ */
+export async function registerRosterTalentPhoto(
+  tenantSlug: string,
+  talentId: string,
+  storagePath: string,
+  width: number,
+  height: number,
+): Promise<RegisterPhotoResult> {
+  const ctx = await resolveEditContext(tenantSlug, talentId);
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+
+  if (!storagePath.startsWith(`${talentId}/`)) {
+    return { ok: false, error: "Invalid storage path." };
+  }
+
+  const { admin } = ctx;
+  const BUCKET = "media-public";
+  const now = new Date().toISOString();
+
+  // Soft-delete previous card asset if any.
+  await admin
+    .from("media_assets")
+    .update({ deleted_at: now, updated_at: now })
+    .eq("owner_talent_profile_id", talentId)
+    .eq("variant_kind", "card")
+    .is("deleted_at", null);
+
+  const { data: inserted, error: insErr } = await admin
+    .from("media_assets")
+    .insert({
+      owner_talent_profile_id: talentId,
+      uploaded_by_user_id: ctx.userId,
+      bucket_id: BUCKET,
+      storage_path: storagePath,
+      variant_kind: "card",
+      sort_order: 0,
+      approval_state: "approved",
+      width,
+      height,
+      metadata: { slot: "avatar", crop_mode: "avatar" },
+    })
+    .select("id")
+    .single();
+
+  if (insErr || !inserted) {
+    logServerError("roster/[id].registerRosterTalentPhoto/insert", insErr);
+    return { ok: false, error: "Could not save photo. Try again." };
+  }
+
+  const publicUrl = admin.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+
+  revalidatePath(`/${tenantSlug}/admin/roster`);
+  revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);
+  return { ok: true, publicUrl };
+}
+
 // ─── Quick workflow toggle (sidebar) ─────────────────────────────────────────
 
 const workflowSchema = z.object({
