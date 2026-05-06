@@ -61,52 +61,58 @@ export function CurrencyPicker({
       }}
     >
       <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>
-        Billing currency
+        Currency preference
       </span>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>
-        <select
-          defaultValue={currentValue ?? ""}
-          onChange={handleChange}
-          disabled={pending}
-          style={{
-            height: 32,
-            paddingLeft: 10,
-            paddingRight: 28,
-            borderRadius: 7,
-            border: `1px solid ${C.border}`,
-            background: C.cardBg,
-            fontFamily: FONT,
-            fontSize: 12.5,
-            fontWeight: 500,
-            color: C.ink,
-            cursor: pending ? "not-allowed" : "pointer",
-            opacity: pending ? 0.7 : 1,
-            outline: "none",
-            appearance: "auto" as const,
-          }}
-        >
-          {SUPPORTED_CURRENCIES.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <select
+            defaultValue={currentValue ?? ""}
+            onChange={handleChange}
+            disabled={pending}
+            style={{
+              height: 32,
+              paddingLeft: 10,
+              paddingRight: 28,
+              borderRadius: 7,
+              border: `1px solid ${C.border}`,
+              background: C.cardBg,
+              fontFamily: FONT,
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: C.ink,
+              cursor: pending ? "not-allowed" : "pointer",
+              opacity: pending ? 0.7 : 1,
+              outline: "none",
+              appearance: "auto" as const,
+            }}
+          >
+            {SUPPORTED_CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
+              </option>
+            ))}
+          </select>
 
-        {status === "saving" && (
-          <span style={{ fontSize: 11.5, color: C.inkMuted, fontFamily: FONT }}>
-            Saving…
-          </span>
-        )}
-        {status === "saved" && (
-          <span style={{ fontSize: 11.5, color: C.green, fontFamily: FONT }}>
-            ✓ Saved
-          </span>
-        )}
-        {status === "error" && (
-          <span style={{ fontSize: 11.5, color: C.red, fontFamily: FONT }}>
-            {errorMsg}
-          </span>
-        )}
+          {status === "saving" && (
+            <span style={{ fontSize: 11.5, color: C.inkMuted, fontFamily: FONT }}>
+              Saving…
+            </span>
+          )}
+          {status === "saved" && (
+            <span style={{ fontSize: 11.5, color: C.green, fontFamily: FONT }}>
+              ✓ Saved
+            </span>
+          )}
+          {status === "error" && (
+            <span style={{ fontSize: 11.5, color: C.red, fontFamily: FONT }}>
+              {errorMsg}
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: 11, color: C.inkMuted, fontFamily: FONT, lineHeight: 1.4 }}>
+          Stripe automatically presents checkout in each customer&apos;s local currency.
+          This preference is stored for display and future native-currency pricing.
+        </span>
       </div>
     </div>
   );
