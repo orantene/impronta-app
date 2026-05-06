@@ -9,6 +9,10 @@ import { notFound } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { loadWorkspaceRosterEnriched } from "../../_data-bridge";
+import {
+  resolvePublicRosterDisplayCap,
+} from "@/lib/saas/roster-seat-limit";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { RosterClientShell } from "./RosterClientShell";
 
 export const dynamic = "force-dynamic";
@@ -33,11 +37,30 @@ export default async function WorkspaceRosterPage({
 
   if (!canView) notFound();
 
+  const admin = createServiceRoleClient();
+  const agency = admin
+    ? await admin
+        .from("agencies")
+        .select("plan_tier, talent_seat_limit")
+        .eq("id", scope.tenantId)
+        .maybeSingle<{ plan_tier: string | null; talent_seat_limit: number | null }>()
+    : null;
+  const planTier = agency?.data?.plan_tier ?? null;
+  const rosterLimit = resolvePublicRosterDisplayCap(
+    planTier,
+    agency?.data?.talent_seat_limit ?? null,
+  );
+
   return (
     <RosterClientShell
       roster={roster}
       tenantSlug={tenantSlug}
       canEdit={canEdit}
+      seatUsage={{
+        planTier,
+        used: roster.length,
+        limit: rosterLimit,
+      }}
     />
   );
 }

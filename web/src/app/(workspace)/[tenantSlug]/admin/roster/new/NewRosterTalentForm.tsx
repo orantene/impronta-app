@@ -79,9 +79,16 @@ function Field({
 export function NewRosterTalentForm({
   tenantSlug,
   talentTypes,
+  seatUsage,
 }: {
   tenantSlug: string;
   talentTypes: TalentTypeOption[];
+  seatUsage?: {
+    used: number;
+    limit: number | null;
+    atLimit: boolean;
+    message: string | null;
+  };
 }) {
   const boundAction = createRosterTalent.bind(null, tenantSlug);
   const [state, action, pending] = useActionState<
@@ -119,6 +126,22 @@ export function NewRosterTalentForm({
           {state.error}
         </div>
       )}
+
+      {seatUsage?.limit != null ? (
+        <div
+          style={{
+            borderRadius: 8,
+            border: `1px solid ${C.border}`,
+            background: C.surface,
+            padding: "9px 12px",
+            fontSize: 12.5,
+            color: C.inkMuted,
+            fontFamily: F,
+          }}
+        >
+          {seatUsage.used}/{seatUsage.limit} roster spots used
+        </div>
+      ) : null}
 
       {/* Display name — required */}
       <Field label="Display name" required>
@@ -181,7 +204,7 @@ export function NewRosterTalentForm({
       {/* Roster visibility */}
       <Field
         label="Roster visibility"
-        hint="Profile starts in draft. Storefront visibility also requires workflow approval."
+        hint="Storefront requires both: roster visibility + published workflow status."
       >
         <select
           name="agency_visibility"

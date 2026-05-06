@@ -13,6 +13,7 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { NewRosterTalentForm } from "./NewRosterTalentForm";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +65,20 @@ export default async function WorkspaceRosterNewPage({
   const canEdit = await userHasCapability("agency.roster.edit", scope.tenantId);
   if (!canEdit) notFound();
 
-  const talentTypes = await loadTalentTypes();
+  const [talentTypes, seatCheck] = await Promise.all([
+    loadTalentTypes(),
+    (async () => {
+      const admin = createServiceRoleClient();
+      if (!admin) return null;
+      return checkRosterSeatAvailability(admin, scope.tenantId, 1);
+    })(),
+  ]);
+  const seatUsage = {
+    used: seatCheck?.current ?? 0,
+    limit: seatCheck?.limit ?? null,
+    atLimit: seatCheck ? !seatCheck.ok : false,
+    message: seatCheck && !seatCheck.ok ? seatCheck.message : null,
+  };
 
   return (
     <div style={{ fontFamily: F, color: C.ink }}>
@@ -112,12 +126,77 @@ export default async function WorkspaceRosterNewPage({
           }}
         >
           Create a roster entry without an account. The talent can claim it later
-          by registering with a matching email. Profile starts in draft / hidden
-          until you approve it.
+          by registering with a matching email. Draft entries stay private until
+          they are approved and visible for the storefront.
         </p>
       </div>
-
-      <NewRosterTalentForm tenantSlug={tenantSlug} talentTypes={talentTypes} />
+      {seatUsage.atLimit ? (
+        <div
+          style={{
+            border: `1px solid ${C.border}`,
+            borderRadius: 12,
+            padding: 18,
+            background: "#fff",
+            maxWidth: 560,
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontFamily: F,
+              color: C.ink,
+              fontSize: 14,
+              lineHeight: 1.5,
+            }}
+          >
+            {seatUsage.message ?? "This workspace reached its roster limit."}
+          </p>
+          <div style={{ marginTop: 12, display: "flex", gap: 12 }}>
+            <Link
+              href={`/${tenantSlug}/admin/account`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                height: 34,
+                padding: "0 14px",
+                borderRadius: 8,
+                background: C.accent,
+                color: "#fff",
+                textDecoration: "none",
+                fontFamily: F,
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              Upgrade plan
+            </Link>
+            <Link
+              href={`/${tenantSlug}/admin/roster`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                height: 34,
+                padding: "0 14px",
+                borderRadius: 8,
+                border: `1px solid ${C.border}`,
+                color: C.inkMuted,
+                textDecoration: "none",
+                fontFamily: F,
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              Back to roster
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <NewRosterTalentForm
+          tenantSlug={tenantSlug}
+          talentTypes={talentTypes}
+          seatUsage={seatUsage}
+        />
+      )}
     </div>
   );
 }
