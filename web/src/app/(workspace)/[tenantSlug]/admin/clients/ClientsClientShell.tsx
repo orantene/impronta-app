@@ -107,7 +107,7 @@ function ClientsStatusStrip({
 
   const items: { id: "active" | "inactive" | "verified" | "bookings"; label: string; value: number; tone: string; clickId?: "active" | "inactive" }[] = [
     { id: "active",   label: "Active",       value: activeCount,       tone: "#2E7D5B",             clickId: "active" },
-    { id: "inactive", label: "Registered",   value: inactiveCount,     tone: "rgba(11,11,13,0.38)", clickId: "inactive" },
+    { id: "inactive", label: "Dormant",      value: inactiveCount,     tone: "rgba(11,11,13,0.38)", clickId: "inactive" },
     { id: "verified", label: "Verified+",    value: verifiedPlusCount, tone: "#3B5E9E" },
     { id: "bookings", label: "Bookings YTD", value: totalBookings,     tone: "#8B4F16" },
   ];
@@ -288,6 +288,29 @@ export function ClientsClientShell({
               Export CSV
             </button>
           )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => { /* TODO: open add-client drawer */ }}
+              style={{
+                height: 32,
+                padding: "0 14px",
+                borderRadius: 8,
+                border: "none",
+                background: C.ink,
+                color: "#fff",
+                fontFamily: FONT,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              Add client
+            </button>
+          )}
         </div>
       </div>
 
@@ -409,7 +432,7 @@ export function ClientsClientShell({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0,2fr) 100px 110px 80px",
+                gridTemplateColumns: "minmax(0,2fr) 100px 110px 80px 32px",
                 gap: 14,
                 padding: "9px 18px",
                 background: "rgba(11,11,13,0.02)",
@@ -426,6 +449,7 @@ export function ClientsClientShell({
               <span>Bookings YTD</span>
               <span>Status</span>
               <span>Trust</span>
+              <span></span>
             </div>
 
             {/* Rows */}
@@ -462,7 +486,7 @@ export function ClientsClientShell({
                     href={rowHref}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "minmax(0,2fr) 100px 110px 80px",
+                      gridTemplateColumns: "minmax(0,2fr) 100px 110px 80px 32px",
                       alignItems: "center",
                       gap: 14,
                       padding: "13px 18px",
@@ -544,6 +568,33 @@ export function ClientsClientShell({
                     {/* Trust badge */}
                     <div>
                       <TrustBadge level={client.trustLevel ?? "basic"} size="sm" />
+                    </div>
+
+                    {/* Row action menu stub */}
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        aria-label={`Actions for ${client.name}`}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 6,
+                          border: `1px solid ${C.borderSoft}`,
+                          background: "transparent",
+                          color: C.inkMuted,
+                          fontFamily: FONT,
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          letterSpacing: 1,
+                        }}
+                      >
+                        ···
+                      </button>
                     </div>
                   </Link>
                 );
