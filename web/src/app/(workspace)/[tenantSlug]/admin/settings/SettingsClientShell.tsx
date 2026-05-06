@@ -717,6 +717,29 @@ export function SettingsClientShell({
     });
   };
 
+  // Default section to open when switching tabs so no tab appears empty.
+  const TAB_DEFAULT_SECTION: Record<SettingsTab, string | null> = {
+    workspace: "account",
+    roster:    "talent-types",
+    team:      "team",
+    plan:      "plan",
+    fields:    null,
+    advanced:  "features",
+  };
+
+  const handleTabSwitch = (tabId: SettingsTab) => {
+    setActiveTab(tabId);
+    const def = TAB_DEFAULT_SECTION[tabId];
+    if (def) {
+      setOpenSections((prev) => {
+        if (prev.has(def)) return prev;
+        const next = new Set(prev);
+        next.add(def);
+        return next;
+      });
+    }
+  };
+
   const planChip = PLAN_CHIP[summary?.plan ?? "free"] ?? PLAN_CHIP.free;
   const workspacePlan = summary?.plan ?? "free";
   const workspaceSlug = summary?.slug ?? tenantSlug;
@@ -856,7 +879,7 @@ export function SettingsClientShell({
             <button
               key={t.id}
               type="button"
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => handleTabSwitch(t.id)}
               style={{
                 flexShrink: 0,
                 padding: "7px 14px",

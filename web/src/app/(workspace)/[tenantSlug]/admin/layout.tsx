@@ -72,7 +72,13 @@ function initials(name: string): string {
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
+    .map((w) => {
+      // Skip leading non-alphabetic characters (digits, punctuation) so
+      // avatar never shows "0" or a symbol as the initial.
+      const ch = w.replace(/[^a-zA-ZÀ-ÿ]/g, "")[0];
+      return ch ? ch.toUpperCase() : "";
+    })
+    .filter(Boolean)
     .join("");
 }
 

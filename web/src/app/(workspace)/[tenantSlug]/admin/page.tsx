@@ -270,62 +270,6 @@ function SecondaryCard({
   );
 }
 
-// ─── Nav tile (Operations / Production pointers) ──────────────────────────────
-
-function NavTile({
-  icon,
-  title,
-  description,
-  href,
-}: {
-  icon: string;
-  title: string;
-  description: string;
-  href: string;
-}) {
-  return (
-    <Link
-      href={href}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        padding: "16px 18px",
-        background: C.cardBg,
-        border: `1px solid ${C.borderSoft}`,
-        borderRadius: 14,
-        textDecoration: "none",
-        transition: "border-color 120ms",
-      }}
-    >
-      <div
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 10,
-          background: C.accentSoft,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 20,
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: C.ink, letterSpacing: -0.1 }}>
-          {title}
-        </div>
-        <div style={{ fontFamily: FONT, fontSize: 12, color: C.inkMuted, marginTop: 2, lineHeight: 1.3 }}>
-          {description}
-        </div>
-      </div>
-      <span style={{ fontSize: 16, color: C.inkDim, flexShrink: 0 }}>›</span>
-    </Link>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function WorkspaceAdminOverviewPage({
@@ -512,29 +456,6 @@ export default async function WorkspaceAdminOverviewPage({
           description="Client accounts and booking history."
           affordance="Open clients"
           href={`/${tenantSlug}/admin/clients`}
-        />
-      </div>
-
-      {/* ── Nav tiles: Operations + Production ── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-          gap: 12,
-          marginTop: 4,
-        }}
-      >
-        <NavTile
-          icon="⚡"
-          title="Operations"
-          description="Analytics, queues, automations, comms."
-          href={`/${tenantSlug}/admin/operations`}
-        />
-        <NavTile
-          icon="🎬"
-          title="Production"
-          description="Casting, crew, on-set, rights & safety."
-          href={`/${tenantSlug}/admin/production`}
         />
       </div>
 

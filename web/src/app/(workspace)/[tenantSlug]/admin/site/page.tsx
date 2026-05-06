@@ -188,7 +188,7 @@ function resolveDnsSummary(
 ): DomainSummaryState {
   const displayCustomDomains = customDomainsForDisplay(domainSummary);
   if (kind === "path") {
-    return { status: "ok", value: "Tulala-managed" };
+    return { status: "ok", value: "Platform-managed" };
   }
   if (kind === "subdomain" && displayCustomDomains.length === 0) {
     return { status: "ok", value: "Platform-managed" };
@@ -269,7 +269,7 @@ function resolveRecordSummary(
     }
     return kind === "custom"
       ? { status: "warn", value: "No records yet" }
-      : { status: "ok", value: "Tulala-managed" };
+      : { status: "ok", value: "Platform-managed" };
   }
   const matchedCount = verificationRows.filter((domain) => isTxtReadyStatus(domain.status)).length;
   return {
