@@ -275,24 +275,45 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
   return (
     <div style={{ fontFamily: FONT }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+        <div>
+          <h1
+            style={{
+              fontFamily: FONT_DISPLAY,
+              fontSize: 24,
+              fontWeight: 600,
+              color: C.ink,
+              margin: 0,
+              letterSpacing: -0.4,
+            }}
+          >
+            Your inquiries
+          </h1>
+          <p style={{ fontSize: 13, color: C.inkMuted, margin: "6px 0 0" }}>
+            {inquiries.length === 0
+              ? "No inquiries yet."
+              : `${inquiries.length} total · ${open.length} open`}
+          </p>
+        </div>
+        <Link
+          href={`/${tenantSlug}/client/discover`}
           style={{
-            fontFamily: FONT_DISPLAY,
-            fontSize: 24,
+            display: "inline-flex",
+            alignItems: "center",
+            height: 34,
+            padding: "0 14px",
+            borderRadius: 8,
+            background: C.accent,
+            color: "#fff",
+            fontSize: 12.5,
             fontWeight: 600,
-            color: C.ink,
-            margin: 0,
-            letterSpacing: -0.4,
+            textDecoration: "none",
+            flexShrink: 0,
+            fontFamily: FONT,
           }}
         >
-          Your inquiries
-        </h1>
-        <p style={{ fontSize: 13, color: C.inkMuted, margin: "6px 0 0" }}>
-          {inquiries.length === 0
-            ? "No inquiries yet."
-            : `${inquiries.length} total · ${open.length} open`}
-        </p>
+          + Send new inquiry
+        </Link>
       </div>
 
       {inquiries.length === 0 ? (

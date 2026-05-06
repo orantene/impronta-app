@@ -2037,6 +2037,8 @@ export type TalentInquiryRow = {
   event_date: string | null;
   event_location: string | null;
   created_at: string;
+  /** Last activity timestamp — prefer this over created_at for display age. */
+  updated_at: string;
   /** participant status: invited | accepted | declined | pending */
   participantStatus: string;
   /** Unread count in the group thread for this talent user. */
@@ -2071,6 +2073,7 @@ export async function loadTalentInquiries(
           event_date,
           event_location,
           created_at,
+          updated_at,
           tenant_id
         )
       `)
@@ -2094,6 +2097,7 @@ export async function loadTalentInquiries(
         event_date: string | null;
         event_location: string | null;
         created_at: string;
+        updated_at: string;
       } | null;
     };
 
@@ -2107,6 +2111,7 @@ export async function loadTalentInquiries(
         event_date: r.inquiries!.event_date,
         event_location: r.inquiries!.event_location,
         created_at: r.inquiries!.created_at,
+        updated_at: r.inquiries!.updated_at,
         participantStatus: r.status,
         unreadCount: 0,
       }));

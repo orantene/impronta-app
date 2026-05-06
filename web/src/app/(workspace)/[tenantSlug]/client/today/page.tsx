@@ -130,15 +130,21 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
 
   const firstName = clientProfile.displayName.split(" ")[0] ?? clientProfile.displayName;
 
-  const activeInquiries  = allInquiries.filter((i) =>
-    ["submitted", "coordination", "offer_pending", "approved"].includes(i.status),
-  );
-  const bookedInquiries  = allInquiries.filter((i) =>
-    i.status === "booked" || i.status === "converted",
-  );
-  const actionRequired   = allInquiries.filter((i) =>
+  // Three buckets matching the prototype
+  const needsDecision  = allInquiries.filter((i) =>
     i.next_action_by === "client" || i.status === "offer_pending",
   );
+  const agencyHasIt    = allInquiries.filter((i) =>
+    ["submitted", "coordination"].includes(i.status) && i.next_action_by !== "client",
+  );
+  const confirmed      = allInquiries.filter((i) =>
+    ["booked", "converted", "approved"].includes(i.status),
+  );
+
+  // For stats
+  const activeCount    = allInquiries.filter((i) =>
+    ["submitted", "coordination", "offer_pending", "approved"].includes(i.status),
+  ).length;
 
   // Context-aware headline
   let headline: string;
@@ -146,132 +152,72 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   if (allInquiries.length === 0) {
     headline = `Welcome, ${firstName}.`;
     subline = `You're all set. Submit your first booking enquiry from the Discover tab.`;
-  } else if (actionRequired.length > 0) {
-    headline = `${actionRequired.length === 1 ? "1 inquiry needs" : `${actionRequired.length} inquiries need`} your attention.`;
-    subline = "Check your Inquiries tab to respond.";
-  } else if (activeInquiries.length > 0) {
-    headline = `${activeInquiries.length} active ${activeInquiries.length === 1 ? "inquiry" : "inquiries"} in progress.`;
+  } else if (needsDecision.length > 0) {
+    headline = `${needsDecision.length === 1 ? "1 inquiry needs" : `${needsDecision.length} inquiries need`} your attention.`;
+    subline = "Review and respond to keep the process moving.";
+  } else if (agencyHasIt.length > 0) {
+    headline = `${agencyHasIt.length} active ${agencyHasIt.length === 1 ? "inquiry" : "inquiries"} in progress.`;
     subline = `${clientProfile.agencyName} is coordinating — you'll hear back soon.`;
   } else {
     headline = `Hi ${firstName} — nothing urgent right now.`;
-    subline = bookedInquiries.length > 0
-      ? `${bookedInquiries.length} confirmed booking${bookedInquiries.length > 1 ? "s" : ""} on your record.`
+    subline = confirmed.length > 0
+      ? `${confirmed.length} confirmed booking${confirmed.length > 1 ? "s" : ""} on your record.`
       : "Browse the roster to discover talent and submit a new inquiry.";
   }
-
-  // Top 6 inquiries: prioritize action-required, then active, then rest
-  const prioritized = [
-    ...actionRequired,
-    ...activeInquiries.filter((i) => !actionRequired.find((a) => a.id === i.id)),
-    ...allInquiries.filter((i) =>
-      !activeInquiries.find((a) => a.id === i.id) && !actionRequired.find((a) => a.id === i.id),
-    ),
-  ].slice(0, 6);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: FONT }}>
       <style>{`.client-inq-row:hover { background: ${C.surfaceAlt}; }`}</style>
 
       {/* Header */}
-      <div>
-        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.accent, marginBottom: 4 }}>
-          {clientProfile.agencyName}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.accent, marginBottom: 4 }}>
+            {clientProfile.agencyName}
+          </div>
+          <h1 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink, margin: 0, letterSpacing: -0.5, lineHeight: 1.1 }}>
+            {headline}
+          </h1>
+          <p style={{ fontFamily: FONT, fontSize: 13, color: C.inkMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
+            {subline}
+          </p>
         </div>
-        <h1 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink, margin: 0, letterSpacing: -0.5, lineHeight: 1.1 }}>
-          {headline}
-        </h1>
-        <p style={{ fontFamily: FONT, fontSize: 13, color: C.inkMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
-          {subline}
-        </p>
+        <Link
+          href={`/${tenantSlug}/client/discover`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            height: 34,
+            padding: "0 14px",
+            borderRadius: 8,
+            background: C.accent,
+            color: "#fff",
+            fontSize: 12.5,
+            fontWeight: 600,
+            textDecoration: "none",
+            flexShrink: 0,
+            fontFamily: FONT,
+          }}
+        >
+          + New inquiry
+        </Link>
       </div>
 
       {/* Stat tiles */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-        <StatTile label="Active" value={activeInquiries.length.toString()} sub="in progress" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+        <StatTile label="Active" value={activeCount.toString()} sub="in progress" />
         <StatTile
-          label="Action needed"
-          value={actionRequired.length.toString()}
-          sub={actionRequired.length > 0 ? "awaiting your reply" : "you're up to date"}
-          accent={actionRequired.length > 0}
+          label="Needs your reply"
+          value={needsDecision.length.toString()}
+          sub={needsDecision.length > 0 ? "awaiting your decision" : "you're up to date"}
+          accent={needsDecision.length > 0}
         />
-        <StatTile label="Booked" value={bookedInquiries.length.toString()} sub="confirmed jobs" />
+        <StatTile label="Confirmed" value={confirmed.length.toString()} sub="booked or approved" />
         <StatTile label="Total" value={allInquiries.length.toString()} sub="all time" />
       </div>
 
-      {/* Recent inquiries */}
-      {prioritized.length > 0 ? (
-        <section>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
-            <h2 style={{ margin: 0, fontFamily: FONT, fontSize: 17, fontWeight: 600, color: C.ink, letterSpacing: -0.2 }}>
-              Your inquiries
-            </h2>
-            <Link href={`/${tenantSlug}/client/inquiries`} style={{ fontSize: 12, color: C.blueDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}>
-              View all →
-            </Link>
-          </div>
-
-          <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
-            {prioritized.map((inq) => (
-              <div
-                key={inq.id}
-                className="client-inq-row"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  gap: 12,
-                  alignItems: "center",
-                  padding: "13px 16px",
-                  borderBottom: `1px solid ${C.borderSoft}`,
-                  fontFamily: FONT,
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                    <StatusChip status={inq.status} />
-                    {inq.next_action_by === "client" && (
-                      <span
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          background: C.blueDeep,
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      color: C.ink,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {inq.company ?? "Booking inquiry"}
-                    {inq.event_location && (
-                      <span style={{ color: C.inkMuted, fontWeight: 400, marginLeft: 6 }}>
-                        · {inq.event_location}
-                      </span>
-                    )}
-                  </div>
-                  {inq.event_date && (
-                    <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
-                      {fmtDate(inq.event_date)}
-                      {inq.quantity && ` · ${inq.quantity} talent`}
-                    </div>
-                  )}
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11, color: C.inkDim }}>
-                  {relativeDate(inq.created_at)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : (
+      {allInquiries.length === 0 ? (
+        /* Empty state */
         <div
           style={{
             padding: "40px 20px",
@@ -306,7 +252,175 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
             Discover talent →
           </Link>
         </div>
+      ) : (
+        /* Three-bucket layout */
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* Bucket 1 — Needs your decision */}
+          {needsDecision.length > 0 && (
+            <BucketSection
+              title="Needs your decision"
+              description="The agency has sent something — review and respond to keep things moving."
+              accentBar="#1D4ED8"
+              items={needsDecision}
+              tenantSlug={tenantSlug}
+            />
+          )}
+
+          {/* Bucket 2 — Agency has it */}
+          {agencyHasIt.length > 0 && (
+            <BucketSection
+              title="Agency is coordinating"
+              description="These are in progress — no action from you right now."
+              items={agencyHasIt}
+              tenantSlug={tenantSlug}
+            />
+          )}
+
+          {/* Bucket 3 — Confirmed */}
+          {confirmed.length > 0 && (
+            <BucketSection
+              title="Coming up"
+              description="Confirmed bookings and approved inquiries."
+              accentBar="#1A7348"
+              items={confirmed}
+              tenantSlug={tenantSlug}
+            />
+          )}
+
+          <div style={{ textAlign: "center", paddingTop: 4 }}>
+            <Link href={`/${tenantSlug}/client/inquiries`} style={{ fontSize: 12.5, color: C.blueDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}>
+              View all inquiries →
+            </Link>
+          </div>
+        </div>
       )}
     </div>
+  );
+}
+
+type ClientInquiry = Awaited<ReturnType<typeof loadClientInquiries>>[number];
+
+function BucketSection({
+  title,
+  description,
+  accentBar,
+  items,
+  tenantSlug,
+}: {
+  title: string;
+  description: string;
+  accentBar?: string;
+  items: ClientInquiry[];
+  tenantSlug: string;
+}) {
+  const C2 = {
+    ink:        "#0B0B0D",
+    inkMuted:   "rgba(11,11,13,0.55)",
+    inkDim:     "rgba(11,11,13,0.35)",
+    borderSoft: "rgba(24,24,27,0.08)",
+    cardBg:     "#ffffff",
+    surfaceAlt: "rgba(11,11,13,0.025)",
+    blueDeep:   "#1D4ED8",
+  };
+  return (
+    <section>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
+        {accentBar && (
+          <div
+            style={{
+              width: 3,
+              height: 16,
+              borderRadius: 2,
+              background: accentBar,
+              flexShrink: 0,
+              alignSelf: "center",
+            }}
+          />
+        )}
+        <div>
+          <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: C2.ink, letterSpacing: -0.1 }}>
+            {title}
+            <span
+              style={{
+                marginLeft: 6,
+                fontSize: 11,
+                fontWeight: 600,
+                color: C2.inkMuted,
+                background: "rgba(11,11,13,0.06)",
+                padding: "1px 6px",
+                borderRadius: 999,
+              }}
+            >
+              {items.length}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: C2.inkMuted, marginTop: 1, fontFamily: FONT }}>
+            {description}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: C2.cardBg, border: `1px solid ${C2.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
+        {items.map((inq, idx) => (
+          <div
+            key={inq.id}
+            className="client-inq-row"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              gap: 12,
+              alignItems: "center",
+              padding: "13px 16px",
+              borderBottom: idx < items.length - 1 ? `1px solid ${C2.borderSoft}` : "none",
+              fontFamily: FONT,
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                <StatusChip status={inq.status} />
+                {inq.next_action_by === "client" && (
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: C2.blueDeep,
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+              </div>
+              <div
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: C2.ink,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {inq.company ?? "Booking inquiry"}
+                {inq.event_location && (
+                  <span style={{ color: C2.inkMuted, fontWeight: 400, marginLeft: 6 }}>
+                    · {inq.event_location}
+                  </span>
+                )}
+              </div>
+              {inq.event_date && (
+                <div style={{ fontSize: 11.5, color: C2.inkMuted, marginTop: 2 }}>
+                  {fmtDate(inq.event_date)}
+                  {inq.quantity && ` · ${inq.quantity} talent`}
+                </div>
+              )}
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11, color: C2.inkDim }}>
+              {relativeDate(inq.created_at)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

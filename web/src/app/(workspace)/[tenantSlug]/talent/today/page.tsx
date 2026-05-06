@@ -133,6 +133,21 @@ function StatTile({ label, value, sub, accent = false }: { label: string; value:
 
 // ─── Inquiry row ──────────────────────────────────────────────────────────────
 
+function participantStatusLabel(participantStatus: string, inquiryStatus: string): string {
+  if (participantStatus === "declined") return "You declined";
+  if (participantStatus === "invited") {
+    if (["offer_pending"].includes(inquiryStatus)) return "Review offer";
+    return "Awaiting your response";
+  }
+  if (participantStatus === "pending") return "Pending confirmation";
+  // accepted
+  if (["booked", "converted"].includes(inquiryStatus)) return "Confirmed";
+  if (inquiryStatus === "approved") return "Approved";
+  if (inquiryStatus === "offer_pending") return "Review offer";
+  if (["submitted", "coordination"].includes(inquiryStatus)) return "Agency coordinating";
+  return "";
+}
+
 function InquiryRow({
   inquiry,
   tenantSlug,
@@ -145,12 +160,18 @@ function InquiryRow({
     event_date: string | null;
     event_location: string | null;
     created_at: string;
+    updated_at: string;
     participantStatus: string;
   };
   tenantSlug: string;
 }) {
   const isActive = ["submitted", "coordination", "offer_pending", "approved"].includes(inquiry.status);
   const isBooked = inquiry.status === "booked" || inquiry.status === "converted";
+  const needsAction = inquiry.participantStatus === "invited" || inquiry.status === "offer_pending";
+  const contextLabel = participantStatusLabel(inquiry.participantStatus, inquiry.status);
+  // Use updated_at for recency signal; fall back to created_at
+  const activityAt = inquiry.updated_at ?? inquiry.created_at;
+
   return (
     <Link
       href={`/${tenantSlug}/talent/inbox`}
@@ -164,6 +185,7 @@ function InquiryRow({
         borderBottom: `1px solid ${C.borderSoft}`,
         transition: "background 100ms",
         fontFamily: FONT,
+        background: needsAction ? "rgba(15,79,62,0.03)" : "transparent",
       }}
       className="inq-row"
     >
@@ -180,6 +202,22 @@ function InquiryRow({
                 flexShrink: 0,
               }}
             />
+          )}
+          {contextLabel && (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: needsAction ? C.accent : C.inkMuted,
+                background: needsAction ? C.accentSoft : "rgba(11,11,13,0.05)",
+                padding: "1px 6px",
+                borderRadius: 999,
+                whiteSpace: "nowrap",
+                fontFamily: FONT,
+              }}
+            >
+              {contextLabel}
+            </span>
           )}
         </div>
         <div
@@ -206,7 +244,7 @@ function InquiryRow({
         )}
       </div>
       <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11, color: C.inkDim }}>
-        {relativeDate(inquiry.created_at)}
+        {relativeDate(activityAt)}
       </div>
     </Link>
   );
