@@ -33,13 +33,14 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 // ─── Stage derivation from status ────────────────────────────────────────────
 
-type Stage = "new" | "active" | "awaiting" | "offer";
+type Stage = "new" | "active" | "awaiting" | "offer" | "approved";
 
 function deriveStage(status: string): Stage {
   if (["new", "submitted"].includes(status)) return "new";
   if (["offer_pending", "offer_sent", "offer_countered", "pending_offer"].includes(status))
     return "offer";
   if (["waiting_for_client", "talent_suggested"].includes(status)) return "awaiting";
+  if (status === "approved") return "approved";
   return "active"; // coordination, reviewing, in_progress, qualified, assigned, etc.
 }
 
@@ -48,6 +49,7 @@ const STAGE_META: Record<Stage, { label: string; bg: string; color: string; dot:
   active:   { label: "In progress",     bg: C.amberSoft,  color: C.amber,    dot: C.amber },
   awaiting: { label: "Awaiting client", bg: C.amberSoft,  color: C.amber,    dot: "#D4A017" },
   offer:    { label: "Offer sent",      bg: C.violetSoft, color: C.violet,   dot: C.violet },
+  approved: { label: "Approved",        bg: C.greenSoft,  color: C.greenDeep, dot: C.green },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ function WorkStatusStrip({ inquiries }: { inquiries: WorkspaceInquiryRow[] }) {
     active:   inquiries.filter((i) => deriveStage(i.status) === "active").length,
     awaiting: inquiries.filter((i) => deriveStage(i.status) === "awaiting").length,
     offer:    inquiries.filter((i) => deriveStage(i.status) === "offer").length,
+    approved: inquiries.filter((i) => deriveStage(i.status) === "approved").length,
   };
 
   const items: { id: Stage; label: string; tone: string }[] = [
@@ -102,6 +105,7 @@ function WorkStatusStrip({ inquiries }: { inquiries: WorkspaceInquiryRow[] }) {
     { id: "active",   label: "In progress",     tone: C.amber },
     { id: "awaiting", label: "Awaiting client", tone: "#D4A017" },
     { id: "offer",    label: "Offer sent",      tone: C.violet },
+    { id: "approved", label: "Approved",        tone: C.green },
   ];
 
   return (

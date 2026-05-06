@@ -3,10 +3,10 @@
 // an inquiry pre-filled with that talent.
 
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadWorkspaceRosterEnriched } from "../../_data-bridge";
+import { DiscoverShell } from "./DiscoverShell";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -14,149 +14,12 @@ type PageParams = Promise<{ tenantSlug: string }>;
 const C = {
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.55)",
-  inkDim:     "rgba(11,11,13,0.35)",
   borderSoft: "rgba(24,24,27,0.08)",
-  cardBg:     "#ffffff",
   surface:    "rgba(11,11,13,0.02)",
-  accent:     "#1D4ED8",
-  accentSoft: "rgba(29,78,216,0.08)",
-  blue:       "#2563EB",
-  blueDeep:   "#1D4ED8",
-  greenDeep:  "#1A7348",
-  greenSoft:  "rgba(26,115,72,0.10)",
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
-
-function ProfileCard({
-  id,
-  name,
-  primaryTypeLabel,
-  city,
-  state,
-  thumb,
-  tenantSlug,
-}: {
-  id: string;
-  name: string;
-  primaryTypeLabel?: string;
-  city?: string;
-  state: string;
-  thumb?: string;
-  tenantSlug: string;
-}) {
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
-
-  const isPublished = state === "published";
-
-  return (
-    <div
-      style={{
-        background: C.cardBg,
-        border: `1px solid ${C.borderSoft}`,
-        borderRadius: 14,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: FONT,
-      }}
-    >
-      {/* Avatar area */}
-      <div
-        style={{
-          height: 120,
-          background: thumb
-            ? `url(${thumb}) center/cover no-repeat`
-            : "rgba(11,11,13,0.03)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {!thumb && (
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              background: C.accentSoft,
-              color: C.accent,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-              fontWeight: 700,
-              letterSpacing: 0.5,
-            }}
-          >
-            {initials}
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div style={{ padding: "12px 14px 14px", flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
-          {name}
-        </div>
-        {primaryTypeLabel && (
-          <div style={{ fontSize: 11.5, color: C.inkMuted }}>{primaryTypeLabel}</div>
-        )}
-        {city && (
-          <div style={{ fontSize: 11, color: C.inkDim, marginTop: 2 }}>{city}</div>
-        )}
-
-        <div style={{ flex: 1 }} />
-
-        {isPublished ? (
-          <Link
-            href={`/${tenantSlug}/client/inquiries/new?talent=${encodeURIComponent(id)}`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: 10,
-              height: 32,
-              borderRadius: 8,
-              background: C.accent,
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              textDecoration: "none",
-              fontFamily: FONT,
-            }}
-          >
-            Request booking
-          </Link>
-        ) : (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: 10,
-              height: 32,
-              borderRadius: 8,
-              background: C.surface,
-              color: C.inkDim,
-              fontSize: 12,
-              fontWeight: 500,
-              fontFamily: FONT,
-            }}
-          >
-            Not available
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default async function ClientDiscoverPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
@@ -169,7 +32,6 @@ export default async function ClientDiscoverPage({ params }: { params: PageParam
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  // Show only published + active talent
   const roster = await loadWorkspaceRosterEnriched(scope.tenantId);
   const visible = roster.filter((r) => r.state === "published");
 
@@ -197,26 +59,7 @@ export default async function ClientDiscoverPage({ params }: { params: PageParam
       </div>
 
       {visible.length > 0 ? (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {visible.map((t) => (
-            <ProfileCard
-              key={t.id}
-              id={t.id}
-              name={t.name}
-              primaryTypeLabel={t.primaryTypeLabel}
-              city={t.city}
-              state={t.state}
-              thumb={t.thumb}
-              tenantSlug={tenantSlug}
-            />
-          ))}
-        </div>
+        <DiscoverShell roster={roster} tenantSlug={tenantSlug} />
       ) : (
         <div
           style={{

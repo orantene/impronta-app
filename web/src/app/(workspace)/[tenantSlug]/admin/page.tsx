@@ -493,18 +493,32 @@ export default async function WorkspaceAdminOverviewPage({
           >
             Recent activity
           </h2>
-          <Link
-            href={`/${tenantSlug}/admin/work`}
-            style={{
-              fontFamily: FONT,
-              fontSize: 12,
-              fontWeight: 600,
-              color: C.accent,
-              textDecoration: "none",
-            }}
-          >
-            View pipeline →
-          </Link>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <Link
+              href={`/${tenantSlug}/admin/work`}
+              style={{
+                fontFamily: FONT,
+                fontSize: 12,
+                fontWeight: 500,
+                color: C.inkMuted,
+                textDecoration: "none",
+              }}
+            >
+              View pipeline →
+            </Link>
+            <Link
+              href={`/${tenantSlug}/admin/work`}
+              style={{
+                fontFamily: FONT,
+                fontSize: 12,
+                fontWeight: 600,
+                color: C.accent,
+                textDecoration: "none",
+              }}
+            >
+              All activity →
+            </Link>
+          </div>
         </div>
 
         {/* Feed card */}
@@ -534,6 +548,41 @@ export default async function WorkspaceAdminOverviewPage({
             ))
           )}
         </div>
+      </div>
+
+      {/* ── Quick-action tiles ── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+          gap: 10,
+        }}
+      >
+        <QuickTile
+          label="Roster"
+          description="Add talent, review profiles, and manage approvals."
+          href={`/${tenantSlug}/admin/roster`}
+        />
+        <QuickTile
+          label="Work"
+          description="All active inquiries, offers, and confirmed bookings."
+          href={`/${tenantSlug}/admin/work`}
+        />
+        <QuickTile
+          label="Clients"
+          description="Client accounts, trust tiers, and booking history."
+          href={`/${tenantSlug}/admin/clients`}
+        />
+        <QuickTile
+          label="Messages"
+          description="All inquiry threads across your workspace."
+          href={`/${tenantSlug}/admin/messages`}
+        />
+        <QuickTile
+          label="Settings"
+          description="Plan, team members, taxonomy, and workspace config."
+          href={`/${tenantSlug}/admin/settings`}
+        />
       </div>
 
     </div>
