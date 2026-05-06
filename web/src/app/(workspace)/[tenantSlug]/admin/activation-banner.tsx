@@ -79,7 +79,7 @@ export function WorkspaceActivationBanner({
       desc: "Share with a client — it's live now.",
       done: false,
       cta: "Open",
-      href: `/${tenantSlug}/admin/site`,
+      href: `/${tenantSlug}/admin/website`,
       mins: 1,
     },
     {

@@ -750,7 +750,7 @@ export default async function WorkspaceAdminOverviewPage({
           }
           meta={`${m.rosterPublished} published · ${m.rosterTotal} total`}
           affordance="Manage site"
-          href={`/${tenantSlug}/admin/site`}
+          href={`/${tenantSlug}/admin/website`}
           tone={C.green}
         />
       </div>
