@@ -7,12 +7,10 @@
 // to nudge the user toward a complete, publishable profile.
 
 import * as React from "react";
-import type {
-  TalentTaxonomyAssignment,
-  TalentLanguageRow,
-  TalentServiceAreaRow,
-  PortfolioMediaRow,
-} from "./talent-data";
+import { type CompletenessSnapshot, computeCompleteness } from "./completeness";
+
+export { computeCompleteness };
+export type { CompletenessSnapshot };
 
 const C = {
   ink:        "#0B0B0D",
@@ -31,55 +29,6 @@ const C = {
 } as const;
 
 const F = '"Inter", system-ui, sans-serif';
-
-export type CompletenessSnapshot = {
-  hasName: boolean;
-  hasShortBio: boolean;
-  hasLongBio: boolean;
-  hasPhoto: boolean;
-  hasPrimaryRole: boolean;
-  hasSecondaryDepth: boolean;     // skills OR contexts OR attributes ≥ 1
-  hasLanguage: boolean;
-  hasHomeCity: boolean;
-  hasServiceArea: boolean;
-  hasPortfolio: boolean;          // ≥ 1 portfolio image
-};
-
-export function computeCompleteness(args: {
-  initial: {
-    display_name?: string;
-    short_bio?: string | null;
-    home_city_text?: string | null;
-    photo_url?: string | null;
-  };
-  taxonomy: TalentTaxonomyAssignment[];
-  languages: TalentLanguageRow[];
-  areas: TalentServiceAreaRow[];
-  portfolio: PortfolioMediaRow[];
-}): CompletenessSnapshot {
-  const { initial, taxonomy, languages, areas, portfolio } = args;
-  const galleryCount = portfolio.filter(
-    (p) => p.variantKind === "portfolio" || p.variantKind === "gallery",
-  ).length;
-  return {
-    hasName:           Boolean(initial.display_name?.trim()),
-    hasShortBio:       Boolean(initial.short_bio?.trim()),
-    hasLongBio:        false,                                // Phase 3.13 (bio_en/bio_es)
-    hasPhoto:          Boolean(initial.photo_url),
-    hasPrimaryRole:    taxonomy.some((t) => t.relationshipType === "primary_role"),
-    hasSecondaryDepth: taxonomy.some(
-      (t) => t.relationshipType === "secondary_role" ||
-             t.relationshipType === "skill" ||
-             t.relationshipType === "context" ||
-             t.relationshipType === "attribute",
-    ),
-    hasLanguage:       languages.length > 0,
-    hasHomeCity:       Boolean(initial.home_city_text?.trim()) ||
-                       areas.some((a) => a.serviceKind === "home_base"),
-    hasServiceArea:    areas.length > 0,
-    hasPortfolio:      galleryCount > 0,
-  };
-}
 
 const CHECKLIST: Array<{ key: keyof CompletenessSnapshot; label: string; sectionId?: string }> = [
   { key: "hasName",           label: "Display name" },

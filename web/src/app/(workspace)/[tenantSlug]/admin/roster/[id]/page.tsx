@@ -29,7 +29,8 @@ import {
   GallerySection,
   DeleteTalentButton,
 } from "./EditorSections";
-import { CompletenessCard, computeCompleteness } from "./CompletenessDial";
+import { CompletenessCard } from "./CompletenessDial";
+import { computeCompleteness } from "./completeness";
 import { WorkflowPipe } from "./WorkflowPipe";
 
 export const dynamic = "force-dynamic";
@@ -212,55 +213,6 @@ export default async function WorkspaceRosterTalentPage({
 
   if (!talent) notFound();
 
-  // ── DEBUG: surface render exceptions inline so we can find the bug ──
-  // Remove after talent detail page render is verified.
-  try {
-    return await renderTalentDetail({
-      tenantSlug,
-      talentId,
-      talent,
-      talentTypes,
-      allTerms,
-      talentTaxonomy,
-      languages,
-      areas,
-      portfolio,
-    });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack ?? "" : "";
-    logServerError("roster/[id].render", err);
-    return (
-      <div style={{ fontFamily: "monospace", fontSize: 12, color: "#0B0B0D", background: "#FFF8E1", padding: 20, borderRadius: 12, border: "1px solid rgba(212,160,23,0.4)" }}>
-        <h2 style={{ fontSize: 18, marginTop: 0 }}>RENDER ERROR (debug)</h2>
-        <p><strong>Message:</strong> {msg}</p>
-        <pre style={{ whiteSpace: "pre-wrap", overflowX: "auto", fontSize: 11 }}>{stack}</pre>
-      </div>
-    );
-  }
-}
-
-async function renderTalentDetail({
-  tenantSlug,
-  talentId,
-  talent,
-  talentTypes,
-  allTerms,
-  talentTaxonomy,
-  languages,
-  areas,
-  portfolio,
-}: {
-  tenantSlug: string;
-  talentId: string;
-  talent: NonNullable<Awaited<ReturnType<typeof loadTalentForEdit>>>;
-  talentTypes: Awaited<ReturnType<typeof loadTalentTypes>>;
-  allTerms: Awaited<ReturnType<typeof loadAllTaxonomyTerms>>;
-  talentTaxonomy: Awaited<ReturnType<typeof loadTalentTaxonomy>>;
-  languages: Awaited<ReturnType<typeof loadTalentLanguages>>;
-  areas: Awaited<ReturnType<typeof loadTalentServiceAreas>>;
-  portfolio: Awaited<ReturnType<typeof loadTalentPortfolio>>;
-}) {
   const initial: TalentEditInitial = {
     display_name: talent.display_name,
     first_name: talent.first_name,
