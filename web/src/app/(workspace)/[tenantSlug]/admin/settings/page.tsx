@@ -9,6 +9,7 @@ import {
   loadWorkspaceAgencySummary,
   loadWorkspaceDomainSummary,
   loadWorkspaceFieldCatalog,
+  loadWorkspaceOverviewMetrics,
 } from "../../_data-bridge";
 import { SettingsClientShell } from "./SettingsClientShell";
 
@@ -46,13 +47,14 @@ export default async function WorkspaceSettingsPage({
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
   if (!canView) notFound();
 
-  const [canManageTeam, canManageDomains, teamMembers, summary, domainSummary, fieldGroups] = await Promise.all([
+  const [canManageTeam, canManageDomains, teamMembers, summary, domainSummary, fieldGroups, overviewMetrics] = await Promise.all([
     userHasCapability("manage_memberships", scope.tenantId),
     userHasCapability("manage_agency_domains", scope.tenantId),
     loadWorkspaceTeamMembers(scope.tenantId),
     loadWorkspaceAgencySummary(scope.tenantId),
     loadWorkspaceDomainSummary(scope.tenantId),
     loadWorkspaceFieldCatalog(scope.tenantId),
+    loadWorkspaceOverviewMetrics(scope.tenantId),
   ]);
 
   const domainMessage = firstParam(rawSearchParams.dmsg);
@@ -74,6 +76,7 @@ export default async function WorkspaceSettingsPage({
       openDomainSection={openDomainSection}
       domainMessage={domainMessage}
       domainError={domainError}
+      pendingApprovals={overviewMetrics?.pendingApprovals ?? 0}
     />
   );
 }

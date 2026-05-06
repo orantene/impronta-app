@@ -357,6 +357,37 @@ export async function loadWorkspaceRosterEnriched(
     }
 
     const rows = (data ?? []) as unknown as RosterRow[];
+
+    // Batch-load card avatars from media_assets for all talent IDs.
+    const talentIds = rows
+      .map((r) => r.talent_profiles?.id)
+      .filter(Boolean) as string[];
+
+    const thumbByTalentId = new Map<string, string>();
+    if (talentIds.length > 0) {
+      const admin = createServiceRoleClient();
+      const mediaClient = admin ?? supabase;
+      const { data: mediaRows } = await mediaClient
+        .from("media_assets")
+        .select("owner_talent_profile_id, storage_path")
+        .in("owner_talent_profile_id", talentIds)
+        .eq("variant_kind", "card")
+        .is("deleted_at", null);
+
+      const BUCKET = "media-public";
+      for (const m of (mediaRows ?? []) as {
+        owner_talent_profile_id: string;
+        storage_path: string;
+      }[]) {
+        if (!thumbByTalentId.has(m.owner_talent_profile_id)) {
+          const { data: urlData } = mediaClient.storage
+            .from(BUCKET)
+            .getPublicUrl(m.storage_path);
+          thumbByTalentId.set(m.owner_talent_profile_id, urlData.publicUrl);
+        }
+      }
+    }
+
     const out: WorkspaceRosterItem[] = [];
     for (const row of rows) {
       const profile = row.talent_profiles;
@@ -369,6 +400,7 @@ export async function loadWorkspaceRosterEnriched(
         city: deriveCity(profile),
         primaryType: derivePrimaryType(profile),
         primaryTypeLabel: derivePrimaryTypeLabel(profile),
+        thumb: thumbByTalentId.get(profile.id),
       });
     }
     return out;

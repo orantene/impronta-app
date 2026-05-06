@@ -35,6 +35,7 @@ import {
   suggestAlternateCustomDomainHostname,
 } from "@/lib/saas/domain-display";
 import { loadWebsiteData, loadWorkspaceAgencySummary } from "../../_data-bridge";
+import { CopyUrlButton } from "./CopyUrlButton";
 
 export const dynamic = "force-dynamic";
 
@@ -921,6 +922,7 @@ export default async function WorkspaceSitePage({
           >
             Open ↗
           </a>
+          <CopyUrlButton url={liveUrl} />
           <span
             style={{
               marginLeft: "auto",

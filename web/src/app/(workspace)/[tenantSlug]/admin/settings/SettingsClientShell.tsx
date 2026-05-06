@@ -162,6 +162,7 @@ function AccordionItem({
   open,
   onToggle,
   children,
+  badge,
 }: {
   id: string;
   label: string;
@@ -169,6 +170,8 @@ function AccordionItem({
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
+  /** Optional badge count shown next to the label (e.g. pending approvals). */
+  badge?: string;
 }) {
   return (
     <div
@@ -204,8 +207,29 @@ function AccordionItem({
         onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
-            {label}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 14.5, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
+              {label}
+            </span>
+            {badge && (
+              <span style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 20,
+                height: 18,
+                padding: "0 5px",
+                borderRadius: 999,
+                background: "#B04A22",
+                color: "#fff",
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: 0,
+                lineHeight: 1,
+              }}>
+                {badge}
+              </span>
+            )}
           </div>
           <div
             style={{
@@ -690,6 +714,7 @@ export function SettingsClientShell({
   openDomainSection,
   domainMessage,
   domainError,
+  pendingApprovals,
 }: {
   summary: WorkspaceAgencySummary | null;
   domainSummary: WorkspaceDomainSummary;
@@ -702,6 +727,8 @@ export function SettingsClientShell({
   openDomainSection: boolean;
   domainMessage: string | null;
   domainError: string | null;
+  /** Count of roster rows with status='pending' — talent awaiting agency approval. */
+  pendingApprovals: number;
 }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
   const [openSections, setOpenSections] = useState<Set<string>>(
@@ -738,6 +765,35 @@ export function SettingsClientShell({
         return next;
       });
     }
+  };
+
+  // All section IDs per tab for expand-all / collapse-all.
+  const TAB_ALL_SECTIONS: Record<SettingsTab, string[]> = {
+    workspace: ["account", "domain", "branding", "general"],
+    roster:    ["talent-types", "custom-fields", "pending-approvals"],
+    team:      ["team"],
+    plan:      ["plan", "integrations"],
+    fields:    fieldGroups.map((g) => `fields-${g.tier}`),
+    advanced:  ["features"],
+  };
+
+  const currentTabSections = TAB_ALL_SECTIONS[activeTab] ?? [];
+  const allExpanded = currentTabSections.length > 0 && currentTabSections.every((id) => openSections.has(id));
+
+  const handleExpandAll = () => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      for (const id of currentTabSections) next.add(id);
+      return next;
+    });
+  };
+
+  const handleCollapseAll = () => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      for (const id of currentTabSections) next.delete(id);
+      return next;
+    });
   };
 
   const planChip = PLAN_CHIP[summary?.plan ?? "free"] ?? PLAN_CHIP.free;
@@ -838,25 +894,48 @@ export function SettingsClientShell({
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
 
       {/* ── Header ── */}
-      <div style={{ marginBottom: 24 }}>
-        <p style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>
-          Configuration
-        </p>
-        <h1
-          style={{
-            fontFamily: FONT,
-            fontSize: 26,
-            fontWeight: 600,
-            color: C.ink,
-            letterSpacing: -0.4,
-            margin: 0,
-          }}
-        >
-          Settings
-        </h1>
-        <p style={{ fontFamily: FONT, fontSize: 12.5, color: C.inkMuted, marginTop: 4, lineHeight: 1.4 }}>
-          Plan, team, branding, and workspace identity.
-        </p>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+        <div>
+          <p style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>
+            Configuration
+          </p>
+          <h1
+            style={{
+              fontFamily: FONT,
+              fontSize: 26,
+              fontWeight: 600,
+              color: C.ink,
+              letterSpacing: -0.4,
+              margin: 0,
+            }}
+          >
+            Settings
+          </h1>
+          <p style={{ fontFamily: FONT, fontSize: 12.5, color: C.inkMuted, marginTop: 4, lineHeight: 1.4 }}>
+            Plan, team, branding, and workspace identity.
+          </p>
+        </div>
+        {/* Expand / collapse all — only show when there are multiple sections */}
+        {currentTabSections.length > 1 && (
+          <button
+            type="button"
+            onClick={allExpanded ? handleCollapseAll : handleExpandAll}
+            style={{
+              background: "none",
+              border: `1px solid ${C.border}`,
+              borderRadius: 8,
+              padding: "6px 12px",
+              fontFamily: FONT,
+              fontSize: 12,
+              fontWeight: 600,
+              color: C.inkMuted,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {allExpanded ? "Collapse all" : "Expand all"}
+          </button>
+        )}
       </div>
 
       {/* ── Tab bar ── */}
@@ -1384,6 +1463,42 @@ export function SettingsClientShell({
                 }
               />
             </AccordionItem>
+
+            <AccordionItem
+              id="general"
+              label="General"
+              desc="Timezone, locale, and default currency for this workspace."
+              open={openSections.has("general")}
+              onToggle={() => toggleSection("general")}
+            >
+              <SettingsRow
+                title="Timezone"
+                desc="Default timezone for event dates and scheduling"
+                action={
+                  <span style={{ fontSize: 12, color: C.inkMuted, fontFamily: FONT }}>
+                    UTC
+                  </span>
+                }
+              />
+              <SettingsRow
+                title="Locale"
+                desc="Language and date formatting"
+                action={
+                  <span style={{ fontSize: 12, color: C.inkMuted, fontFamily: FONT }}>
+                    en-US
+                  </span>
+                }
+              />
+              <SettingsRow
+                title="Default currency"
+                desc="Used for quotes and bookings unless overridden"
+                action={
+                  <span style={{ fontSize: 12, color: C.inkMuted, fontFamily: FONT }}>
+                    USD
+                  </span>
+                }
+              />
+            </AccordionItem>
           </>
         )}
 
@@ -1427,6 +1542,32 @@ export function SettingsClientShell({
                     style={{ fontSize: 12, color: C.accent, fontFamily: FONT, fontWeight: 600, textDecoration: "none" }}
                   >
                     Open field catalog →
+                  </Link>
+                }
+              />
+            </AccordionItem>
+
+            <AccordionItem
+              id="pending-approvals"
+              label="Pending approvals"
+              desc={
+                pendingApprovals > 0
+                  ? `${pendingApprovals} talent ${pendingApprovals === 1 ? "request" : "requests"} waiting for your approval.`
+                  : "No pending talent approval requests."
+              }
+              open={openSections.has("pending-approvals")}
+              onToggle={() => toggleSection("pending-approvals")}
+              badge={pendingApprovals > 0 ? String(pendingApprovals) : undefined}
+            >
+              <SettingsRow
+                title="Review approval requests"
+                desc="Talent who requested to join your roster"
+                action={
+                  <Link
+                    href={`/${tenantSlug}/admin/roster`}
+                    style={{ fontSize: 12, color: C.accent, fontFamily: FONT, fontWeight: 600, textDecoration: "none" }}
+                  >
+                    Open roster →
                   </Link>
                 }
               />
