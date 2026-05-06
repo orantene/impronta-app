@@ -1046,6 +1046,28 @@ function InquiryDetail({
           }}>
             {stageWord(inquiry.status)}
           </span>
+
+          {/* Pipeline link */}
+          <a
+            href={`/${tenantSlug}/admin/work/${inquiry.id}`}
+            style={{
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "4px 8px",
+              borderRadius: 7,
+              border: `1px solid rgba(24,24,27,0.10)`,
+              color: C.inkMuted,
+              fontSize: 11,
+              fontWeight: 500,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+            title="Open in pipeline"
+          >
+            Pipeline ↗
+          </a>
         </div>
 
         {/* Tab bar */}
@@ -1125,7 +1147,12 @@ function BookingDetail({ inquiry }: { inquiry: WorkspaceInquiryForMessages }) {
     }] : []),
     ...(inquiry.event_location ? [{ label: "Location", value: inquiry.event_location }] : []),
     ...(inquiry.quantity ? [{ label: "Talent",   value: `${inquiry.quantity} talent` }] : []),
-    { label: "Next action by", value: inquiry.next_action_by ?? "—" },
+    { label: "Next action", value: (() => {
+      const raw = inquiry.next_action_by;
+      if (!raw) return "—";
+      const MAP: Record<string, string> = { client: "⏳ Client", coordinator: "⏳ You", talent: "⏳ Talent", agency: "⏳ Agency" };
+      return MAP[raw] ?? raw;
+    })() },
   ];
 
   return (

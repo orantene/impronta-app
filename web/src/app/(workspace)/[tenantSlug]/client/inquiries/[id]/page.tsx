@@ -149,26 +149,50 @@ export default async function ClientInquiryThreadPage({
             {inquiry.company ?? client.agencyName}
           </h1>
           <div style={{ marginTop: 4, fontSize: 12.5, color: C.inkMuted }}>
-            {statusLabel(String(inquiry.status))} · {fmtDate((inquiry.event_date as string | null) ?? null)} ·{" "}
-            {(inquiry.event_location as string | null) ?? "Location TBD"}
+            {statusLabel(String(inquiry.status))}
+            {(inquiry.event_date as string | null) && ` · ${fmtDate(inquiry.event_date as string)}`}
+            {(inquiry.event_location as string | null) && ` · ${(inquiry.event_location as string).split(",")[0]}`}
+            {(inquiry.quantity as number | null) && (inquiry.quantity as number) > 1 && ` · ${inquiry.quantity as number} talent`}
           </div>
         </div>
-        <Link
-          href={`/${tenantSlug}/client/inquiries`}
-          style={{
-            height: 32,
-            padding: "0 12px",
-            borderRadius: 8,
-            border: `1px solid ${C.borderSoft}`,
-            display: "inline-flex",
-            alignItems: "center",
-            textDecoration: "none",
-            color: C.ink,
-            fontSize: 12.5,
-          }}
-        >
-          Back to inquiries
-        </Link>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          {["booked", "converted"].includes(String(inquiry.status)) && (
+            <Link
+              href={`/${tenantSlug}/client/bookings`}
+              style={{
+                height: 32,
+                padding: "0 12px",
+                borderRadius: 8,
+                border: `1px solid rgba(15,79,62,0.30)`,
+                background: "rgba(15,79,62,0.06)",
+                display: "inline-flex",
+                alignItems: "center",
+                textDecoration: "none",
+                color: "#0F4F3E",
+                fontSize: 12.5,
+                fontWeight: 600,
+              }}
+            >
+              View booking →
+            </Link>
+          )}
+          <Link
+            href={`/${tenantSlug}/client/inquiries`}
+            style={{
+              height: 32,
+              padding: "0 12px",
+              borderRadius: 8,
+              border: `1px solid ${C.borderSoft}`,
+              display: "inline-flex",
+              alignItems: "center",
+              textDecoration: "none",
+              color: C.ink,
+              fontSize: 12.5,
+            }}
+          >
+            ← Back
+          </Link>
+        </div>
       </div>
 
       {ok ? (
