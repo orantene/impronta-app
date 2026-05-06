@@ -839,24 +839,30 @@ function TalentListRow({
         })()}
       </div>
 
-      {/* State pill */}
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-          padding: "3px 9px",
-          borderRadius: 999,
-          background: pillBg,
-          color: pillColor,
-          fontSize: 10.5,
-          fontWeight: 600,
-          flexShrink: 0,
-          textTransform: "capitalize",
-        }}
-      >
-        <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
-        {stateLabel(talent.state)}
+      {/* Completeness chip + State pill */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {typeof talent.completenessPercent === "number" &&
+         talent.completenessPercent < 100 && (
+          <CompletenessChip percent={talent.completenessPercent} />
+        )}
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "3px 9px",
+            borderRadius: 999,
+            background: pillBg,
+            color: pillColor,
+            fontSize: 10.5,
+            fontWeight: 600,
+            flexShrink: 0,
+            textTransform: "capitalize",
+          }}
+        >
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
+          {stateLabel(talent.state)}
+        </div>
       </div>
     </a>
   );
