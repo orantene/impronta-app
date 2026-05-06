@@ -976,6 +976,53 @@ export default async function WorkspaceSitePage({
         </div>
       </section>
 
+      {/* ── Setup banner (shown when site is not yet live) ── */}
+      {publishedPages === 0 && (
+        <section
+          style={{
+            background: "linear-gradient(135deg, rgba(15,79,62,0.06) 0%, #fff 70%)",
+            border: "1px solid rgba(15,79,62,0.16)",
+            borderRadius: 14,
+            padding: "20px 24px",
+            fontFamily: FONT,
+          }}
+        >
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" as const, color: C.accent, marginBottom: 6 }}>
+            Get your site live
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 600, color: C.ink, letterSpacing: -0.2, marginBottom: 4 }}>
+            Your website is ready to build.
+          </div>
+          <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 0 16px", lineHeight: 1.5, maxWidth: 520 }}>
+            Publish your first page to make your agency discoverable. Start with the Home page — it takes about 5 minutes.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link
+              href={builderHref}
+              style={{
+                display: "inline-flex", alignItems: "center", height: 36, padding: "0 16px",
+                borderRadius: 8, background: C.fill, color: "#fff",
+                fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: FONT,
+              }}
+            >
+              Open page editor →
+            </Link>
+            <a
+              href={previewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex", alignItems: "center", height: 36, padding: "0 16px",
+                borderRadius: 8, border: "1px solid rgba(24,24,27,0.10)", background: "#fff",
+                color: C.ink, fontSize: 13, fontWeight: 500, textDecoration: "none", fontFamily: FONT,
+              }}
+            >
+              Preview site ↗
+            </a>
+          </div>
+        </section>
+      )}
+
       {/* ── Pages section ── */}
       <section>
         <div

@@ -1465,6 +1465,39 @@ export function SettingsClientShell({
             </AccordionItem>
 
             <AccordionItem
+              id="catalog"
+              label="Talent catalog"
+              desc="Taxonomy categories, talent types, and profile field configuration."
+              open={openSections.has("catalog")}
+              onToggle={() => toggleSection("catalog")}
+            >
+              <SettingsRow
+                title="Talent types & taxonomy"
+                desc="Manage categories, specialties, and classification terms for your roster"
+                action={
+                  <Link
+                    href={`/${tenantSlug}/admin/taxonomy`}
+                    style={{ fontSize: 12.5, color: C.accent, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}
+                  >
+                    Manage →
+                  </Link>
+                }
+              />
+              <SettingsRow
+                title="Profile fields"
+                desc="Configure which fields appear on talent profiles for this workspace"
+                action={
+                  <Link
+                    href={`/${tenantSlug}/admin/fields`}
+                    style={{ fontSize: 12.5, color: C.accent, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}
+                  >
+                    Manage →
+                  </Link>
+                }
+              />
+            </AccordionItem>
+
+            <AccordionItem
               id="general"
               label="General"
               desc="Timezone, locale, and default currency for this workspace."
@@ -1722,6 +1755,18 @@ export function SettingsClientShell({
                         : " · unlimited seats"}
                     </div>
                   )}
+                  {/* Plan theme description */}
+                  <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1, fontFamily: FONT }}>
+                    {workspacePlan === "free"
+                      ? "Free · unlimited seats on tulala.digital"
+                      : workspacePlan === "studio"
+                      ? "Studio · branded subdomain + up to 25 talent"
+                      : workspacePlan === "agency"
+                      ? "Agency · custom domain + unlimited talent + 15% commission"
+                      : workspacePlan === "network"
+                      ? "Network · multi-agency hub + API access"
+                      : workspacePlan}
+                  </div>
                 </div>
               </div>
 

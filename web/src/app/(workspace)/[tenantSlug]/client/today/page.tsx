@@ -295,6 +295,62 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           </div>
         </div>
       )}
+
+      {/* Sticky bottom action bar */}
+      <div
+        style={{
+          position: "sticky",
+          bottom: 20,
+          display: "flex",
+          justifyContent: "center",
+          gap: 10,
+          pointerEvents: "none",
+        }}
+      >
+        <Link
+          href={`/${tenantSlug}/admin/messages`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            height: 40,
+            padding: "0 18px",
+            borderRadius: 999,
+            background: "#fff",
+            border: "1px solid rgba(24,24,27,0.12)",
+            boxShadow: "0 4px 16px rgba(11,11,13,0.10)",
+            color: C.ink,
+            fontFamily: FONT,
+            fontSize: 13,
+            fontWeight: 600,
+            textDecoration: "none",
+            pointerEvents: "all",
+          }}
+        >
+          💬 Ask a question
+        </Link>
+        <Link
+          href={`/${tenantSlug}/client/discover`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            height: 40,
+            padding: "0 18px",
+            borderRadius: 999,
+            background: C.accent,
+            color: "#fff",
+            fontFamily: FONT,
+            fontSize: 13,
+            fontWeight: 600,
+            textDecoration: "none",
+            boxShadow: "0 4px 16px rgba(29,78,216,0.25)",
+            pointerEvents: "all",
+          }}
+        >
+          + New inquiry
+        </Link>
+      </div>
     </div>
   );
 }
