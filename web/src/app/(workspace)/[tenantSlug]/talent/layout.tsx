@@ -257,30 +257,92 @@ export default async function TalentLayout({
 
             <div style={{ flex: 1 }} />
 
-            {/* Sign-out */}
-            <form action={signOut}>
-              <button
-                type="submit"
-                title="Sign out"
-                aria-label="Sign out"
+            {/* ── Right-side utilities ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+
+              {/* Talent pill — current surface indicator */}
+              <div
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  border: `1px solid ${C.borderSoft}`,
-                  background: "transparent",
-                  color: C.inkMuted,
-                  fontSize: 13,
-                  cursor: "pointer",
+                  height: 30,
+                  padding: "0 12px",
+                  borderRadius: 999,
+                  background: C.ink,
+                  color: "#fff",
                   fontFamily: FONT_BODY,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: 0.1,
                 }}
               >
-                ↩
-              </button>
-            </form>
+                Talent
+              </div>
+
+              {/* Workspace link */}
+              <a
+                href={`/${tenantSlug}/admin`}
+                title="Switch to Workspace"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  height: 30,
+                  padding: "0 10px",
+                  borderRadius: 999,
+                  background: "transparent",
+                  border: `1px solid ${C.borderSoft}`,
+                  color: C.inkMuted,
+                  fontFamily: FONT_BODY,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  textDecoration: "none",
+                  letterSpacing: 0.1,
+                }}
+              >
+                Workspace
+              </a>
+
+              {/* Notification bell (stub — no unread count on talent surface yet) */}
+              <div
+                aria-label="Notifications"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer" }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: C.inkMuted }}>
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </div>
+
+              {/* Help */}
+              <div aria-label="Help" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer", color: C.inkMuted, fontFamily: FONT_BODY, fontSize: 14, fontWeight: 600 }}>
+                ?
+              </div>
+
+              {/* Sign-out */}
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  title="Sign out"
+                  aria-label="Sign out"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    border: `1px solid ${C.borderSoft}`,
+                    background: "transparent",
+                    color: C.inkMuted,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    fontFamily: FONT_BODY,
+                  }}
+                >
+                  ↩
+                </button>
+              </form>
+            </div>
           </div>
         </header>
 

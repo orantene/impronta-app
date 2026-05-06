@@ -14,12 +14,12 @@ const C = {
 } as const;
 
 const NAV_ITEMS = [
-  { label: "Today",     path: "today"     },
-  { label: "Messages",  path: "inbox"     },
-  { label: "Calendar",  path: "calendar"  },
-  { label: "Profile",   path: "profile"   },
-  { label: "Agencies",  path: "agencies"  },
-  { label: "Settings",  path: "settings"  },
+  { label: "Today",       path: "today"     },
+  { label: "Messages",    path: "inbox"     },
+  { label: "Profile",     path: "profile"   },
+  { label: "Calendar",    path: "calendar"  },
+  { label: "Agencies",    path: "agencies"  },
+  { label: "Settings",    path: "settings"  },
 ] as const;
 
 export function TalentTopbar({

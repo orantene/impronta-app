@@ -1122,8 +1122,70 @@ export function RosterClientShell({
   const seatLimitReached = seatLimit != null && seatUsed >= seatLimit;
   const showFreeSeatBanner = seatUsage?.planTier === "free" && seatLimit != null;
 
+  const pendingApprovals = roster.filter((r) => r.state === "awaiting-approval").length;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+
+      {/* ── Self-registration review banner ── */}
+      {pendingApprovals > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "10px 16px",
+            borderRadius: 10,
+            background: C.amberSoft,
+            border: `1px solid rgba(138,111,26,0.20)`,
+            marginBottom: 20,
+            fontFamily: FONT,
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: C.amber,
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              flex: 1,
+              fontSize: 13,
+              fontWeight: 500,
+              color: C.amber,
+              lineHeight: 1.4,
+            }}
+          >
+            <strong style={{ fontWeight: 700 }}>
+              {pendingApprovals} self-registration{pendingApprovals === 1 ? "" : "s"}
+            </strong>{" "}
+            waiting for review — Approve, request changes, or reject.{" "}
+            <span style={{ color: C.inkMuted, fontWeight: 400 }}>Average review time: under 24h.</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setStateFilter("awaiting-approval")}
+            style={{
+              padding: "5px 12px",
+              borderRadius: 999,
+              background: C.amber,
+              border: "none",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: FONT,
+              flexShrink: 0,
+            }}
+          >
+            Review →
+          </button>
+        </div>
+      )}
 
       {/* ── Page header ── */}
       <div
