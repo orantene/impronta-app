@@ -26,17 +26,27 @@ const FONT_BODY = '"Inter", system-ui, sans-serif';
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 // segment: the URL segment after /admin/  (null = the /admin root itself)
 
+// 2026-05-06 — aligned to prototype `WORKSPACE_PAGES` (_state.tsx L105–115):
+// Overview · Messages · Calendar · Roster · Clients · Operations ·
+// Production · Website · Settings.
+//
+// Work and Bookings are folded into Messages (filter chips by stage) +
+// per-inquiry detail pipeline link, matching the prototype's mental
+// model. Both routes still exist (`/admin/work`, `/admin/bookings`) for
+// deep links from inside Messages — they're just removed from the
+// top-level nav so the workspace shell mirrors the prototype 1:1.
+//
+// Website maps to `segment: "website"` which redirects to `/admin/site`
+// where the implementation lives (see admin/website/page.tsx).
 const TABS = [
   { id: "overview",    label: "Overview",    segment: null              },
-  { id: "work",        label: "Work",        segment: "work"            },
   { id: "messages",    label: "Messages",    segment: "messages"        },
   { id: "calendar",    label: "Calendar",    segment: "calendar"        },
-  { id: "roster",      label: "Talent",      segment: "roster"          },
-  { id: "bookings",    label: "Bookings",    segment: "bookings"        },
+  { id: "roster",      label: "Roster",      segment: "roster"          },
   { id: "clients",     label: "Clients",     segment: "clients"         },
   { id: "operations",  label: "Operations",  segment: "operations"      },
   { id: "production",  label: "Production",  segment: "production"      },
-  { id: "site",        label: "Website",     segment: "site"            },
+  { id: "website",     label: "Website",     segment: "website"         },
   { id: "settings",    label: "Settings",    segment: "settings"        },
 ] as const;
 
@@ -67,9 +77,17 @@ export function WorkspaceTopbar({
     ? pathname.slice(adminBase.length)
     : "";
   // Strip leading slash; take first segment only
-  const activeSegment = after.startsWith("/")
+  const rawSegment = after.startsWith("/")
     ? after.slice(1).split("/")[0]
     : "";
+  // Aliases — keep nav highlight correct when the user lands on a folded
+  // route. /admin/site is the implementation directory for "Website";
+  // /admin/work and /admin/bookings live under Messages mentally.
+  const activeSegment =
+    rawSegment === "site"     ? "website"
+    : rawSegment === "work"     ? "messages"
+    : rawSegment === "bookings" ? "messages"
+    : rawSegment;
 
   return (
     <header
