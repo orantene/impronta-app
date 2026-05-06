@@ -49,6 +49,13 @@ import {
   archiveInquiriesBulk,
   nudgeInquiriesBulk,
 } from "./flag-actions";
+import {
+  uploadInquiryAttachment,
+  createInitialOffer,
+  sendOffer,
+  markOfferAccepted,
+  markOfferRejected,
+} from "./detail-actions";
 import LineupDrawer from "./LineupDrawer";
 import { OfferTab, FilesTab, PaymentTab } from "./DetailTabs";
 
@@ -1104,6 +1111,10 @@ const SMART_REPLIES: Record<string, string[]> = {
   ],
 };
 
+function draftKey(inquiryId: string, threadType: ThreadType): string {
+  return `msgshell:draft:${inquiryId}:${threadType}`;
+}
+
 function MessageStream({
   inquiryId,
   threadType,
@@ -1123,12 +1134,36 @@ function MessageStream({
   closedReason?: string;
   smartReplyContext: keyof typeof SMART_REPLIES;
 }) {
+  const router = useRouter();
   const [messages, setMessages] = useState<WorkspaceMessage[]>(initialMessages);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [sending, startSending] = useTransition();
+  const [attaching, setAttaching] = useState(false);
+  const [attachToast, setAttachToast] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Restore draft on inquiry/thread switch (localStorage).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = draftKey(inquiryId, threadType);
+    const saved = window.localStorage.getItem(key);
+    if (saved && saved !== body) setBody(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inquiryId, threadType]);
+
+  // Persist draft on body change (debounced via rAF).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = draftKey(inquiryId, threadType);
+    const handle = window.requestAnimationFrame(() => {
+      if (body) window.localStorage.setItem(key, body);
+      else window.localStorage.removeItem(key);
+    });
+    return () => window.cancelAnimationFrame(handle);
+  }, [body, inquiryId, threadType]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -1201,7 +1236,12 @@ function MessageStream({
       is_mine: true,
     };
     setMessages(prev => [...prev, optimistic]);
-    if (!textOverride) setBody("");
+    if (!textOverride) {
+      setBody("");
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(draftKey(inquiryId, threadType));
+      }
+    }
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
     startSending(async () => {
@@ -1221,6 +1261,36 @@ function MessageStream({
       }
     });
   }, [body, sending, tenantSlug, inquiryId, threadType, viewerUserId]);
+
+  // Upload file as inquiry attachment + post a tiny "📎 filename" system message
+  // referencing the Files tab. The file lives in inquiry-files bucket; metadata
+  // shows up in Files tab automatically via revalidatePath.
+  const handleAttachFile = useCallback(async (file: File | null) => {
+    if (!file) return;
+    setAttaching(true);
+    setAttachToast(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("visibility", "shared");
+      const res = await uploadInquiryAttachment(tenantSlug, inquiryId, fd);
+      if (res.ok) {
+        const sizeKb = Math.max(1, Math.round(file.size / 1024));
+        const note = `📎 Shared file: ${file.name} (${sizeKb} KB) — see Files tab.`;
+        await sendMessage(tenantSlug, inquiryId, threadType, note);
+        setAttachToast(`Uploaded "${file.name}"`);
+        router.refresh();
+      } else {
+        setAttachToast(`Upload failed: ${res.error}`);
+      }
+    } catch (err) {
+      setAttachToast(`Upload error: ${err instanceof Error ? err.message : "unknown"}`);
+    } finally {
+      setAttaching(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      window.setTimeout(() => setAttachToast(null), 3500);
+    }
+  }, [tenantSlug, inquiryId, threadType, router]);
 
   const grouped = useMemo(() => {
     const out: Array<{ type: "header"; date: string } | { type: "msg"; msg: WorkspaceMessage; showSender: boolean; isFirst: boolean }> = [];
@@ -1342,7 +1412,43 @@ function MessageStream({
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+            {/* File attach */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              hidden
+              onChange={(e) => handleAttachFile(e.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={attaching || sending}
+              aria-label="Attach file"
+              title="Attach file (saved to Files tab + visible to client)"
+              style={{
+                flexShrink: 0, width: 36, height: 36, borderRadius: 10,
+                background: attaching ? C.accentSoft : "transparent",
+                border: `1px solid ${C.border}`,
+                color: attaching ? C.accent : C.inkMuted,
+                cursor: attaching ? "default" : "pointer", padding: 0,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                transition: "background 120ms, color 120ms",
+              }}
+            >
+              {attaching ? (
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="20 30">
+                    <animateTransform attributeName="transform" type="rotate" from="0 10 10" to="360 10 10" dur="0.9s" repeatCount="indefinite"/>
+                  </circle>
+                </svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden>
+                  <path d="M14.5 5.5l-7 7a3 3 0 104.24 4.24L17.5 8.5a5 5 0 10-7.07-7.07L4.5 7.5"
+                    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </button>
             <textarea
               ref={textareaRef}
               value={body}
@@ -1393,14 +1499,225 @@ function MessageStream({
             </button>
           </div>
           <div style={{
+            display: "flex", alignItems: "center", gap: 6,
             fontSize: 10.5, color: C.inkDim, fontFamily: FONT,
             marginTop: 5, paddingLeft: 2,
           }}>
-            {threadType === "private"
-              ? "Client thread · visible to client + coordinator"
-              : "Group thread · visible to talent participants + coordinator"}
+            <span style={{ flex: 1 }}>
+              {threadType === "private"
+                ? "Client thread · visible to client + coordinator"
+                : "Group thread · visible to talent participants + coordinator"}
+            </span>
+            {body && body.length > 0 && (
+              <span style={{ color: C.inkDim, fontStyle: "italic" }}>
+                Draft saved
+              </span>
+            )}
           </div>
+          {attachToast && (
+            <div style={{
+              marginTop: 6, padding: "6px 10px",
+              background: attachToast.startsWith("Uploaded") ? C.successSoft : C.coralSoft,
+              color: attachToast.startsWith("Uploaded") ? C.success : C.coralDeep,
+              borderRadius: 8,
+              fontSize: 11.5, fontFamily: FONT,
+            }}>
+              {attachToast}
+            </div>
+          )}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── RIGHT PANE: Sticky next-action bar ───────────────────────────────────────
+
+/**
+ * Resolves the single most useful next action for the admin POV based on
+ * the inquiry's current stage + offer status. Mirrors the prototype's
+ * resolveShellAction with admin-specific outcomes.
+ */
+type ShellActionTone = "primary" | "success" | "ghost";
+type ShellAction = {
+  label: string;
+  tone: ShellActionTone;
+  onClick: () => void | Promise<void>;
+};
+type ResolvedShellAction = {
+  hint?: string;
+  primary?: ShellAction;
+  secondary?: ShellAction;
+};
+
+function resolveAdminShellAction(
+  inquiry: WorkspaceInquiryForMessages,
+  bundle: MessagesDetailBundle | null,
+  callbacks: {
+    onJumpTab: (id: TabId) => void;
+    onCreateOffer: () => void | Promise<void>;
+    onSendOffer: () => void | Promise<void>;
+    onMarkAccepted: () => void | Promise<void>;
+    onMarkRejected: () => void | Promise<void>;
+  },
+): ResolvedShellAction {
+  const { onJumpTab, onCreateOffer, onSendOffer, onMarkAccepted, onMarkRejected } = callbacks;
+  const offer = bundle?.currentOffer ?? null;
+  const lineupTotal  = inquiry.lineupTotal;
+  const lineupConfirmed = inquiry.lineupConfirmed;
+
+  // Booked → push toward call sheet / files.
+  if (inquiry.status === "booked" || inquiry.status === "converted") {
+    return {
+      hint: "Booked. Build the call sheet and share with talent + client.",
+      primary: { label: "Open Files tab", tone: "primary", onClick: () => onJumpTab("files") },
+      secondary: { label: "Open Booking", tone: "ghost", onClick: () => onJumpTab("booking") },
+    };
+  }
+
+  // Approved → coordinator needs to lock the booking.
+  if (inquiry.status === "approved") {
+    return {
+      hint: "Client approved. Convert to a booking and prep production.",
+      primary: { label: "Mark booked", tone: "success", onClick: onMarkAccepted },
+      secondary: { label: "Open Booking", tone: "ghost", onClick: () => onJumpTab("booking") },
+    };
+  }
+
+  // Offer pending → waiting on client to accept/reject; admin can override.
+  if (inquiry.status === "offer_pending") {
+    if (offer?.status === "sent") {
+      return {
+        hint: "Offer sent · awaiting client. You can mark it accepted or revise.",
+        primary: { label: "Mark accepted", tone: "success", onClick: onMarkAccepted },
+        secondary: { label: "Mark declined", tone: "ghost", onClick: onMarkRejected },
+      };
+    }
+    // Offer is still draft on this side
+    if (offer?.status === "draft") {
+      return {
+        hint: "Draft offer ready. Send it to the client.",
+        primary: { label: "Send offer to client", tone: "primary", onClick: onSendOffer },
+        secondary: { label: "Edit offer", tone: "ghost", onClick: () => onJumpTab("offer") },
+      };
+    }
+    return {
+      hint: "Offer pending — review the offer tab.",
+      primary: { label: "Open Offer tab", tone: "primary", onClick: () => onJumpTab("offer") },
+    };
+  }
+
+  // Coordination → coordinator is shortlisting + building offer.
+  if (inquiry.status === "coordination") {
+    if (lineupTotal === 0) {
+      return {
+        hint: "Build the lineup — pick talent from your roster.",
+        primary: { label: "Open Lineup", tone: "primary", onClick: () => callbacks.onJumpTab("offer") },
+      };
+    }
+    if (!offer) {
+      return {
+        hint: `${lineupTotal} on lineup. Build a draft offer to send to the client.`,
+        primary: { label: "Build draft offer", tone: "primary", onClick: onCreateOffer },
+        secondary: { label: "Open Offer tab", tone: "ghost", onClick: () => onJumpTab("offer") },
+      };
+    }
+    if (offer.status === "draft") {
+      return {
+        hint: `Draft offer at ${offer.currencyCode} ${offer.totalClientPrice ?? 0}. Send when ready.`,
+        primary: { label: "Send offer to client", tone: "primary", onClick: onSendOffer },
+        secondary: { label: "Edit offer", tone: "ghost", onClick: () => onJumpTab("offer") },
+      };
+    }
+    return {
+      hint: "Coordinating with talent — keep the client informed.",
+      secondary: { label: "Open Offer tab", tone: "ghost", onClick: () => onJumpTab("offer") },
+    };
+  }
+
+  // Submitted (new inquiry) → triage + reply.
+  if (inquiry.status === "submitted") {
+    return {
+      hint: lineupConfirmed > 0
+        ? "Reply to the client to acknowledge."
+        : "New inquiry. Reply, then start lining up talent.",
+      primary: { label: "Reply to client", tone: "primary", onClick: () => onJumpTab("client") },
+      secondary: { label: "Build lineup", tone: "ghost", onClick: () => onJumpTab("offer") },
+    };
+  }
+
+  // Closed states — no next action.
+  if (inquiry.status === "rejected" || inquiry.status === "expired" || inquiry.status === "draft") {
+    return {};
+  }
+
+  // Default: nudge to reply.
+  return {
+    hint: "Reply to keep this moving.",
+    primary: { label: "Reply to client", tone: "primary", onClick: () => onJumpTab("client") },
+  };
+}
+
+function NextActionBar({ resolved, busy }: { resolved: ResolvedShellAction; busy: boolean }) {
+  if (!resolved.hint && !resolved.primary && !resolved.secondary) return null;
+
+  return (
+    <div style={{
+      flexShrink: 0,
+      padding: "10px 14px",
+      background: "rgba(255,255,255,0.97)",
+      backdropFilter: "blur(6px)",
+      borderTop: `1px solid ${C.border}`,
+      display: "flex", alignItems: "center", gap: 10,
+      fontFamily: FONT,
+    }}>
+      {resolved.hint && (
+        <span style={{
+          flex: 1, minWidth: 0, fontSize: 12, color: C.inkMuted,
+          overflow: "hidden", textOverflow: "ellipsis",
+          fontWeight: 500,
+        }}>
+          {resolved.hint}
+        </span>
+      )}
+      {!resolved.hint && <span style={{ flex: 1 }} />}
+      {resolved.secondary && (
+        <button
+          type="button"
+          onClick={() => { void resolved.secondary?.onClick(); }}
+          disabled={busy}
+          style={{
+            padding: "7px 12px", borderRadius: 8,
+            background: "transparent", color: C.ink,
+            border: `1px solid ${C.border}`,
+            fontSize: 12, fontWeight: 600,
+            cursor: busy ? "default" : "pointer",
+            fontFamily: FONT, opacity: busy ? 0.6 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {resolved.secondary.label}
+        </button>
+      )}
+      {resolved.primary && (
+        <button
+          type="button"
+          onClick={() => { void resolved.primary?.onClick(); }}
+          disabled={busy}
+          style={{
+            padding: "7px 14px", borderRadius: 8,
+            background: resolved.primary.tone === "success" ? C.success : C.accent,
+            color: "#fff",
+            border: "none",
+            fontSize: 12.5, fontWeight: 700, letterSpacing: 0.1,
+            cursor: busy ? "default" : "pointer",
+            fontFamily: FONT, opacity: busy ? 0.6 : 1,
+            whiteSpace: "nowrap",
+            boxShadow: "0 1px 2px rgba(15,79,62,0.18)",
+          }}
+        >
+          {busy ? "Working…" : resolved.primary.label}
+        </button>
       )}
     </div>
   );
@@ -1421,12 +1738,14 @@ function InquiryDetail({
   onBack: () => void;
   detailBundle: MessagesDetailBundle | null;
 }) {
+  const router = useRouter();
   const isBooked = inquiry.status === "booked" || inquiry.status === "converted";
   const [activeTab, setActiveTab] = useState<TabId>("client");
   const [lineupOpen, setLineupOpen] = useState(false);
   const [clientMsgs, setClientMsgs] = useState<WorkspaceMessage[] | null>(null);
   const [talentMsgs, setTalentMsgs] = useState<WorkspaceMessage[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const bucket = stageBucketOf(inquiry.status);
   const sc = stageStyle(bucket);
@@ -1473,6 +1792,68 @@ function InquiryDetail({
       void markThreadRead(tenantSlug, inquiry.id, "group");
     }
   }, [activeTab, inquiry.id, tenantSlug]);
+
+  const handleCreateOffer = useCallback(async () => {
+    setActionBusy(true);
+    try {
+      const res = await createInitialOffer(tenantSlug, inquiry.id);
+      if (res.ok) {
+        setActiveTab("offer");
+        router.refresh();
+      }
+    } finally {
+      setActionBusy(false);
+    }
+  }, [tenantSlug, inquiry.id, router]);
+
+  const handleSendOffer = useCallback(async () => {
+    if (!detailBundle?.currentOffer) return;
+    setActionBusy(true);
+    try {
+      const res = await sendOffer(tenantSlug, inquiry.id, detailBundle.currentOffer.id);
+      if (res.ok) {
+        setActiveTab("offer");
+        router.refresh();
+      }
+    } finally {
+      setActionBusy(false);
+    }
+  }, [tenantSlug, inquiry.id, detailBundle?.currentOffer, router]);
+
+  const handleMarkAccepted = useCallback(async () => {
+    if (!detailBundle?.currentOffer) return;
+    if (!confirm("Mark this offer as accepted by the client?")) return;
+    setActionBusy(true);
+    try {
+      const res = await markOfferAccepted(tenantSlug, inquiry.id, detailBundle.currentOffer.id);
+      if (res.ok) router.refresh();
+    } finally {
+      setActionBusy(false);
+    }
+  }, [tenantSlug, inquiry.id, detailBundle?.currentOffer, router]);
+
+  const handleMarkRejected = useCallback(async () => {
+    if (!detailBundle?.currentOffer) return;
+    const reason = prompt("Reason for rejection (optional)");
+    setActionBusy(true);
+    try {
+      const res = await markOfferRejected(tenantSlug, inquiry.id, detailBundle.currentOffer.id, reason ?? undefined);
+      if (res.ok) router.refresh();
+    } finally {
+      setActionBusy(false);
+    }
+  }, [tenantSlug, inquiry.id, detailBundle?.currentOffer, router]);
+
+  const resolvedAction = useMemo(
+    () => resolveAdminShellAction(inquiry, detailBundle, {
+      onJumpTab: setActiveTab,
+      onCreateOffer: handleCreateOffer,
+      onSendOffer: handleSendOffer,
+      onMarkAccepted: handleMarkAccepted,
+      onMarkRejected: handleMarkRejected,
+    }),
+    [inquiry, detailBundle, handleCreateOffer, handleSendOffer, handleMarkAccepted, handleMarkRejected],
+  );
 
   const offerBadge =
     detailBundle?.currentOffer?.status === "draft"   ? "Draft" :
@@ -1768,6 +2149,9 @@ function InquiryDetail({
           <BookingDetail inquiry={inquiry} tenantSlug={tenantSlug} />
         )}
       </div>
+
+      {/* Sticky next-action bar */}
+      <NextActionBar resolved={resolvedAction} busy={actionBusy} />
 
       {/* Lineup drawer (overlay) */}
       <LineupDrawer

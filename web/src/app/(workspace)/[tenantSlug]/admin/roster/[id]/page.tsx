@@ -29,6 +29,7 @@ import {
   GallerySection,
   DeleteTalentButton,
 } from "./EditorSections";
+import { CompletenessCard, computeCompleteness } from "./CompletenessDial";
 
 export const dynamic = "force-dynamic";
 
@@ -282,6 +283,24 @@ export default async function WorkspaceRosterTalentPage({
             )}
           </p>
         )}
+      </div>
+
+      {/* Profile completeness — visible above the form so admins know what to fill */}
+      <div style={{ marginBottom: 16 }}>
+        <CompletenessCard
+          snap={computeCompleteness({
+            initial: {
+              display_name: talent.display_name,
+              short_bio: talent.short_bio,
+              home_city_text: talent.home_city_text,
+              photo_url: talent.photo_url,
+            },
+            taxonomy: talentTaxonomy,
+            languages,
+            areas,
+            portfolio,
+          })}
+        />
       </div>
 
       {/* Edit form + sidebar */}
