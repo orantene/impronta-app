@@ -35,6 +35,7 @@ function ProfileCard({
   primaryTypeLabel,
   city,
   state,
+  thumb,
   tenantSlug,
 }: {
   id: string;
@@ -42,6 +43,7 @@ function ProfileCard({
   primaryTypeLabel?: string;
   city?: string;
   state: string;
+  thumb?: string;
   tenantSlug: string;
 }) {
   const initials = name
@@ -69,29 +71,33 @@ function ProfileCard({
       <div
         style={{
           height: 120,
-          background: "rgba(11,11,13,0.03)",
+          background: thumb
+            ? `url(${thumb}) center/cover no-repeat`
+            : "rgba(11,11,13,0.03)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: "50%",
-            background: C.accentSoft,
-            color: C.accent,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 18,
-            fontWeight: 700,
-            letterSpacing: 0.5,
-          }}
-        >
-          {initials}
-        </div>
+        {!thumb && (
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: C.accentSoft,
+              color: C.accent,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+            }}
+          >
+            {initials}
+          </div>
+        )}
       </div>
 
       {/* Info */}
@@ -206,6 +212,7 @@ export default async function ClientDiscoverPage({ params }: { params: PageParam
               primaryTypeLabel={t.primaryTypeLabel}
               city={t.city}
               state={t.state}
+              thumb={t.thumb}
               tenantSlug={tenantSlug}
             />
           ))}
