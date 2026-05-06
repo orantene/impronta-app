@@ -172,6 +172,8 @@ export async function createTalentCheckoutSession(opts: {
         },
       },
       allow_promotion_codes: true,
+      // Adaptive Pricing: auto-converts to customer's local currency at checkout.
+      adaptive_pricing: { enabled: true },
     });
 
     if (!session.url) {

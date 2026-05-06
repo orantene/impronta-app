@@ -175,6 +175,10 @@ export async function createWorkspaceCheckoutSession(opts: {
       },
       // Allow promotion codes for early-access discounts
       allow_promotion_codes: true,
+      // Adaptive Pricing: Stripe auto-converts the USD price to the customer's
+      // local currency at checkout (e.g. MXN for Mexico, EUR for Europe).
+      // No extra Price objects needed — Stripe handles FX and settles to USD.
+      adaptive_pricing: { enabled: true },
     });
 
     if (!session.url) {

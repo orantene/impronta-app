@@ -188,6 +188,8 @@ export async function createClientVerificationCheckoutSession(opts: {
           checkout_type: "client_verification",
         },
       },
+      // Adaptive Pricing: auto-converts to customer's local currency at checkout.
+      adaptive_pricing: { enabled: true },
     });
 
     if (!session.url) {
@@ -273,6 +275,8 @@ export async function createClientBalanceTopupCheckoutSession(opts: {
           checkout_type: "client_balance_topup",
         },
       },
+      // Adaptive Pricing: auto-converts to customer's local currency at checkout.
+      adaptive_pricing: { enabled: true },
     });
 
     if (!session.url) {
