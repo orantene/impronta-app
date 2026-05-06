@@ -2272,6 +2272,10 @@ export type TalentAgencyRow = {
   rosterStatus: string;
   plan: string;
   addedAt: string;
+  /** Whether this is the talent's primary agency (is_primary = true on the roster row). */
+  isPrimary: boolean;
+  /** Agency visibility tier on this roster: roster_only | site_visible | featured */
+  agencyVisibility: string;
 };
 
 /**
@@ -2290,6 +2294,8 @@ export async function loadTalentAgencies(
       .select(`
         status,
         created_at,
+        is_primary,
+        agency_visibility,
         agencies!tenant_id ( id, display_name, slug, plan_tier )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -2304,6 +2310,8 @@ export async function loadTalentAgencies(
     type RosterRow2 = {
       status: string;
       created_at: string;
+      is_primary: boolean;
+      agency_visibility: string;
       agencies: { id: string; display_name: string; slug: string; plan_tier: string | null } | { id: string; display_name: string; slug: string; plan_tier: string | null }[] | null;
     };
 
@@ -2316,6 +2324,8 @@ export async function loadTalentAgencies(
         rosterStatus: row.status,
         plan: agency?.plan_tier ?? "free",
         addedAt: row.created_at,
+        isPrimary: row.is_primary ?? false,
+        agencyVisibility: row.agency_visibility ?? "roster_only",
       };
     });
   } catch (err) {
