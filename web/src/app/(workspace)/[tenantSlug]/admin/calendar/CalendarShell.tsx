@@ -233,7 +233,7 @@ export function CalendarShell({
     year: "numeric",
   });
 
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone.replace("_", " ");
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll("_", " ");
   const tzShort =
     new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
       .formatToParts(new Date())

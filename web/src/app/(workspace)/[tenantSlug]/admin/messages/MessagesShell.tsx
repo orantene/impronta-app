@@ -231,7 +231,7 @@ function FunnelDots({ status }: { status: string }) {
 
 // ─── TYPE filter ──────────────────────────────────────────────────────────────
 
-type AdminFilter = "all" | "needs-me" | "unread" | "inquiry" | "hold" | "booked" | "past";
+type AdminFilter = "all" | "needs-me" | "unread" | "inquiry" | "hold" | "past";
 
 // ─── LEFT PANE: Inbox row ──────────────────────────────────────────────────────
 
@@ -418,7 +418,6 @@ function InboxList({
     { id: "unread",   label: "Unread",    count: unreadCount },
     { id: "inquiry",  label: "Inquiry" },
     { id: "hold",     label: "Offer pending" },
-    { id: "booked",   label: "Booked" },
     { id: "past",     label: "Past" },
   ];
 

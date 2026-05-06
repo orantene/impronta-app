@@ -454,8 +454,8 @@ export function ClientsClientShell({
               filtered.map((client, idx) => {
                 const isActive = client.accountStatus === "active";
                 const rowHref = client.latestInquiryId
-                  ? `/${tenantSlug}/admin/messages?inquiry=${client.latestInquiryId}`
-                  : `/${tenantSlug}/admin/messages`;
+                  ? `/${tenantSlug}/admin/work/${client.latestInquiryId}`
+                  : `/${tenantSlug}/admin/work`;
                 return (
                   <Link
                     key={client.id}

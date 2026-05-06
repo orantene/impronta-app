@@ -336,7 +336,11 @@ export default async function WorkspaceWorkDetailPage({
           </div>
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
             Event date
-            <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>{inquiry.event_date ?? "TBD"}</div>
+            <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>
+              {inquiry.event_date
+                ? new Date(inquiry.event_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                : "TBD"}
+            </div>
           </div>
           {(inquiry as { event_location?: string | null }).event_location && (
             <div style={{ fontSize: 12.5, color: C.inkMuted }}>
