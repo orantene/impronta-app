@@ -1,6 +1,7 @@
 // Phase 3 — canonical workspace Work (pipeline) page.
 // Server Component — no "use client".
 
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
@@ -30,10 +31,12 @@ export default async function WorkspaceWorkPage({
   ]);
 
   return (
-    <WorkClientShell
-      inquiries={inquiries}
-      tenantSlug={tenantSlug}
-      canCreate={canCreate}
-    />
+    <Suspense>
+      <WorkClientShell
+        inquiries={inquiries}
+        tenantSlug={tenantSlug}
+        canCreate={canCreate}
+      />
+    </Suspense>
   );
 }

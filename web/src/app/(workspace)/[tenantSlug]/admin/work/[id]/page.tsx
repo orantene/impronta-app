@@ -67,6 +67,40 @@ function transactionStatusLabel(status: string): string {
   return "Draft";
 }
 
+function InquiryStatusChip({ status }: { status: string }) {
+  const map: Record<string, { bg: string; color: string; label: string }> = {
+    submitted:     { bg: "rgba(43,95,138,0.10)", color: "#1B6E9C", label: "Submitted" },
+    coordination:  { bg: "rgba(43,95,138,0.10)", color: "#1B6E9C", label: "In review" },
+    offer_pending: { bg: C.amberSoft,            color: C.amber,   label: "Offer pending" },
+    offer_sent:    { bg: C.amberSoft,            color: C.amber,   label: "Offer sent" },
+    approved:      { bg: C.accentSoft,           color: C.accent,  label: "Approved" },
+    booked:        { bg: "rgba(26,115,72,0.10)", color: "#1A7348", label: "Booked" },
+    converted:     { bg: "rgba(26,115,72,0.10)", color: "#1A7348", label: "Booked" },
+    rejected:      { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", label: "Rejected" },
+    expired:       { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", label: "Expired" },
+    draft:         { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", label: "Draft" },
+  };
+  const s = map[status] ?? { bg: "rgba(11,11,13,0.05)", color: "rgba(11,11,13,0.45)", label: status.replace(/_/g, " ") };
+  return (
+    <span style={{
+      display: "inline-flex",
+      alignItems: "center",
+      padding: "3px 10px",
+      borderRadius: 999,
+      background: s.bg,
+      color: s.color,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+      fontFamily: FONT,
+      whiteSpace: "nowrap",
+    }}>
+      {s.label}
+    </span>
+  );
+}
+
 export default async function WorkspaceWorkDetailPage({
   params,
   searchParams,
@@ -117,7 +151,7 @@ export default async function WorkspaceWorkDetailPage({
 
   const { data: inquiry } = await supabase
     .from("inquiries")
-    .select("id, status, contact_name, company, event_date, event_location, quantity, created_at")
+    .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by")
     .eq("tenant_id", scope.tenantId)
     .eq("id", inquiryId)
     .maybeSingle();
@@ -235,15 +269,31 @@ export default async function WorkspaceWorkDetailPage({
         <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }}>
           Inquiry
         </div>
-        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
+        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
             Status
-            <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>{inquiry.status}</div>
+            <div style={{ marginTop: 4 }}>
+              <InquiryStatusChip status={inquiry.status} />
+            </div>
+          </div>
+          <div style={{ fontSize: 12.5, color: C.inkMuted }}>
+            Next action
+            <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>
+              {(inquiry as { next_action_by?: string | null }).next_action_by ?? "—"}
+            </div>
           </div>
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
             Event date
             <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>{inquiry.event_date ?? "TBD"}</div>
           </div>
+          {(inquiry as { event_location?: string | null }).event_location && (
+            <div style={{ fontSize: 12.5, color: C.inkMuted }}>
+              Location
+              <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>
+                {(inquiry as { event_location?: string | null }).event_location}
+              </div>
+            </div>
+          )}
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
             Quantity
             <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>{inquiry.quantity ?? 0}</div>

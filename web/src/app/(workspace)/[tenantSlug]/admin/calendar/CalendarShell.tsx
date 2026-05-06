@@ -474,8 +474,10 @@ function DayCell({
         transition: "background 120ms",
       }}
     >
-      {/* Day number */}
-      <div
+      {/* Day number — links to work pipeline filtered by this date */}
+      <Link
+        href={`/${tenantSlug}/admin/work?date=${isoDate}`}
+        title={`View work for ${isoDate}`}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -489,10 +491,12 @@ function DayCell({
           color: isToday ? "#fff" : C.ink,
           fontVariantNumeric: "tabular-nums",
           fontFamily: FONT,
+          textDecoration: "none",
+          alignSelf: "flex-start",
         }}
       >
         {day}
-      </div>
+      </Link>
 
       {/* Event chips (max 2 visible) — click through to the messages thread */}
       {dayEvents.slice(0, 2).map((ev, idx) => {

@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import type { WorkspaceInquiryRow } from "../../_data-bridge";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -220,9 +221,13 @@ export function WorkClientShell({
   tenantSlug: string;
   canCreate: boolean;
 }) {
+  const searchParams = useSearchParams();
+  const dateParam = searchParams.get("date"); // e.g. "2026-05-15" from calendar click
+
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "client">("newest");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [dateFilter, setDateFilter] = useState<string | null>(dateParam);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -233,6 +238,7 @@ export function WorkClientShell({
   const filtered = inquiries
     .filter((iq) => {
       if (!matchesSource(iq, sourceFilter)) return false;
+      if (dateFilter && iq.event_date !== dateFilter) return false;
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
       return (
@@ -421,10 +427,39 @@ export function WorkClientShell({
               <option value="oldest">Oldest</option>
               <option value="client">Client A–Z</option>
             </select>
-            {(isFiltering || sourceFilter !== "all") && (
+            {/* Date filter chip (set from calendar navigation) */}
+            {dateFilter && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 0 }}>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "3px 10px 3px 10px",
+                  background: C.amberSoft, color: C.amber,
+                  border: `1px solid rgba(212,160,23,0.25)`, borderRadius: "999px 0 0 999px",
+                  fontFamily: FONT, fontSize: 11.5, fontWeight: 600, whiteSpace: "nowrap",
+                }}>
+                  📅 {dateFilter}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDateFilter(null)}
+                  aria-label="Clear date filter"
+                  style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    height: "100%", padding: "3px 8px",
+                    background: C.amberSoft, color: C.amber,
+                    border: `1px solid rgba(212,160,23,0.25)`, borderLeft: "none",
+                    borderRadius: "0 999px 999px 0",
+                    cursor: "pointer", fontFamily: FONT, fontSize: 13, fontWeight: 600,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {(isFiltering || sourceFilter !== "all" || dateFilter) && (
               <button
                 type="button"
-                onClick={() => { setSearch(""); setSort("newest"); setSourceFilter("all"); }}
+                onClick={() => { setSearch(""); setSort("newest"); setSourceFilter("all"); setDateFilter(null); }}
                 style={{
                   padding: "4px 10px",
                   background: "transparent",
@@ -440,7 +475,7 @@ export function WorkClientShell({
                   gap: 4,
                 }}
               >
-                <span aria-hidden>×</span> Clear
+                <span aria-hidden>×</span> Clear all
               </button>
             )}
           </div>
