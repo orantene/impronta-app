@@ -383,7 +383,7 @@ export default async function WorkspaceAdminOverviewPage({
         <StatItem dot={C.amber}  label="Open inquiries" value={m.openInquiries}     href="work"     tenantSlug={tenantSlug} />
         <StatItem dot={C.blue}   label="Team"           value={m.teamMembers}       href="settings" tenantSlug={tenantSlug} />
         {m.pendingApprovals > 0 && (
-          <StatItem dot={C.coral} label="Pending approvals" value={m.pendingApprovals} href="roster" tenantSlug={tenantSlug} />
+          <StatItem dot={C.coral} label="Pending approvals" value={m.pendingApprovals} href="roster?filter=awaiting-approval" tenantSlug={tenantSlug} />
         )}
         {m.awaitingClientCount > 0 && (
           <StatItem dot="#D4A017" label="Awaiting client" value={m.awaitingClientCount} href="work" tenantSlug={tenantSlug} />
@@ -468,7 +468,7 @@ export default async function WorkspaceAdminOverviewPage({
             description="Talent waiting for agency approval before going live."
             meta={`${m.pendingApprovals} pending`}
             affordance="Review approvals"
-            href={`/${tenantSlug}/admin/roster`}
+            href={`/${tenantSlug}/admin/roster?filter=awaiting-approval`}
           />
         )}
       </div>

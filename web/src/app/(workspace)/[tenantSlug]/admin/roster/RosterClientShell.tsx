@@ -1028,6 +1028,7 @@ export function RosterClientShell({
   tenantSlug,
   canEdit,
   seatUsage,
+  initialStateFilter,
 }: {
   roster: RosterTalent[];
   tenantSlug: string;
@@ -1037,9 +1038,10 @@ export function RosterClientShell({
     used: number;
     limit: number | null;
   };
+  initialStateFilter?: StateFilter;
 }) {
   const [search, setSearch] = useState("");
-  const [stateFilter, setStateFilter] = useState<StateFilter>("all");
+  const [stateFilter, setStateFilter] = useState<StateFilter>(initialStateFilter ?? "all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");

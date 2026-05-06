@@ -507,16 +507,19 @@ function DayCell({
             title={ev.title}
             text={text}
             bg={bg}
-            href={`/${tenantSlug}/admin/messages?inquiry=${ev.id}`}
+            href={`/${tenantSlug}/admin/work/${ev.id}`}
           />
         );
       })}
 
-      {/* Overflow count */}
+      {/* Overflow count — links to pipeline filtered to this date's items */}
       {dayEvents.length > 2 && (
-        <span style={{ fontSize: 10, color: C.accent, fontWeight: 600, fontFamily: FONT }}>
+        <a
+          href={`/${tenantSlug}/admin/work`}
+          style={{ fontSize: 10, color: C.accent, fontWeight: 600, fontFamily: FONT, textDecoration: "none" }}
+        >
           +{dayEvents.length - 2} more
-        </span>
+        </a>
       )}
     </div>
   );

@@ -18,13 +18,20 @@ import { RosterClientShell } from "./RosterClientShell";
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
+type SearchParams = Promise<{ filter?: string }>;
+
+const STATE_FILTERS = new Set(["all","published","awaiting-approval","claimed","invited","draft"]);
 
 export default async function WorkspaceRosterPage({
   params,
+  searchParams,
 }: {
   params: PageParams;
+  searchParams: SearchParams;
 }) {
   const { tenantSlug } = await params;
+  const { filter } = await searchParams;
+  const initialStateFilter = (filter && STATE_FILTERS.has(filter) ? filter : "all") as "all" | "published" | "awaiting-approval" | "claimed" | "invited" | "draft";
 
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
@@ -56,6 +63,7 @@ export default async function WorkspaceRosterPage({
       roster={roster}
       tenantSlug={tenantSlug}
       canEdit={canEdit}
+      initialStateFilter={initialStateFilter}
       seatUsage={{
         planTier,
         used: roster.length,
