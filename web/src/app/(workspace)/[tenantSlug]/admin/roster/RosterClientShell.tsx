@@ -5,7 +5,8 @@
 // search / filter / sort / view / bulk-select state client-side.
 // No API calls; state is ephemeral (page reload resets filters).
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { bulkSetWorkflowStatus } from "./bulk-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -870,11 +871,13 @@ function BulkActionBar({
   onClear,
   onPublish,
   onArchive,
+  pending,
 }: {
   count: number;
   onClear: () => void;
   onPublish: () => void;
   onArchive: () => void;
+  pending?: boolean;
 }) {
   return (
     <div
@@ -902,6 +905,7 @@ function BulkActionBar({
       <button
         type="button"
         onClick={onPublish}
+        disabled={pending}
         style={{
           padding: "5px 12px",
           borderRadius: 999,
@@ -910,15 +914,17 @@ function BulkActionBar({
           color: "#fff",
           fontSize: 12,
           fontWeight: 600,
-          cursor: "pointer",
+          cursor: pending ? "not-allowed" : "pointer",
+          opacity: pending ? 0.55 : 1,
           fontFamily: FONT,
         }}
       >
-        Publish
+        {pending ? "Saving…" : "Publish"}
       </button>
       <button
         type="button"
         onClick={onArchive}
+        disabled={pending}
         style={{
           padding: "5px 12px",
           borderRadius: 999,
@@ -927,7 +933,8 @@ function BulkActionBar({
           color: "rgba(255,255,255,0.80)",
           fontSize: 12,
           fontWeight: 500,
-          cursor: "pointer",
+          cursor: pending ? "not-allowed" : "pointer",
+          opacity: pending ? 0.55 : 1,
           fontFamily: FONT,
         }}
       >
@@ -1020,10 +1027,16 @@ export function RosterClientShell({
   roster,
   tenantSlug,
   canEdit,
+  seatUsage,
 }: {
   roster: RosterTalent[];
   tenantSlug: string;
   canEdit: boolean;
+  seatUsage?: {
+    planTier: string | null;
+    used: number;
+    limit: number | null;
+  };
 }) {
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
@@ -1034,6 +1047,7 @@ export function RosterClientShell({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [bulkPending, startBulkTransition] = useTransition();
 
   // Unique non-empty type labels actually present in the roster
   const usedTypes = Array.from(
@@ -1097,6 +1111,14 @@ export function RosterClientShell({
   };
 
   const isSearching = !!search.trim() || stateFilter !== "all" || typeFilter !== "all";
+  const seatLimit = seatUsage?.limit ?? null;
+  const seatUsed = seatUsage?.used ?? roster.length;
+  const freeSeatCopy =
+    seatLimit != null
+      ? `${seatUsed}/${seatLimit} people used`
+      : `${seatUsed} people`;
+  const seatLimitReached = seatLimit != null && seatUsed >= seatLimit;
+  const showFreeSeatBanner = seatUsage?.planTier === "free" && seatLimit != null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -1145,6 +1167,38 @@ export function RosterClientShell({
           <p style={{ fontFamily: FONT, fontSize: 12.5, color: C.inkMuted, marginTop: 4, lineHeight: 1.4 }}>
             Profiles you represent. Each one moves through draft → invited → published → claimed.
           </p>
+          {showFreeSeatBanner ? (
+            <div
+              style={{
+                marginTop: 8,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 10px",
+                borderRadius: 999,
+                border: `1px solid ${seatLimitReached ? "rgba(138,111,26,0.35)" : C.borderSoft}`,
+                background: seatLimitReached ? C.amberSoft : C.greenSoft,
+                color: seatLimitReached ? C.amber : C.greenDeep,
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              <span>{freeSeatCopy}</span>
+              {seatLimitReached ? (
+                <a
+                  href={`/${tenantSlug}/admin/account`}
+                  style={{
+                    color: "inherit",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 2,
+                    fontWeight: 700,
+                  }}
+                >
+                  Upgrade
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {/* Header actions */}
@@ -1243,7 +1297,7 @@ export function RosterClientShell({
 
               {/* Invite ghost button */}
               <a
-                href={`/${tenantSlug}/admin/roster/new`}
+                href={seatLimitReached ? `/${tenantSlug}/admin/account` : `/${tenantSlug}/admin/roster/new`}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -1252,34 +1306,35 @@ export function RosterClientShell({
                   borderRadius: 8,
                   border: `1px solid ${C.borderSoft}`,
                   background: "transparent",
-                  color: C.ink,
+                  color: seatLimitReached ? C.inkMuted : C.ink,
                   fontFamily: FONT,
                   fontSize: 12.5,
                   fontWeight: 500,
                   textDecoration: "none",
+                  opacity: seatLimitReached ? 0.7 : 1,
                 }}
               >
-                Invite
+                {seatLimitReached ? "Upgrade to invite" : "Invite"}
               </a>
 
               {/* Add talent primary */}
               <a
-                href={`/${tenantSlug}/admin/roster/new`}
+                href={seatLimitReached ? `/${tenantSlug}/admin/account` : `/${tenantSlug}/admin/roster/new`}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
                   height: 32,
                   padding: "0 14px",
                   borderRadius: 8,
-                  background: C.accent,
-                  color: "#fff",
+                  background: seatLimitReached ? "rgba(11,11,13,0.16)" : C.accent,
+                  color: seatLimitReached ? C.ink : "#fff",
                   fontFamily: FONT,
                   fontSize: 12.5,
                   fontWeight: 600,
                   textDecoration: "none",
                 }}
               >
-                Add talent
+                {seatLimitReached ? "Limit reached" : "Add talent"}
               </a>
             </>
           )}
@@ -1400,14 +1455,31 @@ export function RosterClientShell({
       {selected.size > 0 && canEdit && (
         <BulkActionBar
           count={selected.size}
+          pending={bulkPending}
           onClear={clearSelected}
           onPublish={() => {
-            showToast(`Published ${selected.size} profile${selected.size === 1 ? "" : "s"}`);
-            clearSelected();
+            const ids = [...selected];
+            startBulkTransition(async () => {
+              const res = await bulkSetWorkflowStatus(tenantSlug, ids, "published");
+              if (res.ok) {
+                showToast(`Published ${res.updatedCount} profile${res.updatedCount === 1 ? "" : "s"}`);
+              } else {
+                showToast(`Error: ${res.error}`);
+              }
+              clearSelected();
+            });
           }}
           onArchive={() => {
-            showToast(`Archived ${selected.size} profile${selected.size === 1 ? "" : "s"}`);
-            clearSelected();
+            const ids = [...selected];
+            startBulkTransition(async () => {
+              const res = await bulkSetWorkflowStatus(tenantSlug, ids, "hidden");
+              if (res.ok) {
+                showToast(`Archived ${res.updatedCount} profile${res.updatedCount === 1 ? "" : "s"}`);
+              } else {
+                showToast(`Error: ${res.error}`);
+              }
+              clearSelected();
+            });
           }}
         />
       )}
