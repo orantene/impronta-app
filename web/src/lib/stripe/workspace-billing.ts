@@ -137,6 +137,8 @@ export async function createWorkspaceCheckoutSession(opts: {
   displayName: string;
   tenantSlug: string;
   appBaseUrl: string;
+  /** Preferred presentment currency (lowercase ISO 4217). Null/empty = Adaptive Pricing auto-detect. */
+  preferredCurrency?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -175,10 +177,13 @@ export async function createWorkspaceCheckoutSession(opts: {
       },
       // Allow promotion codes for early-access discounts
       allow_promotion_codes: true,
-      // Adaptive Pricing: Stripe auto-converts the USD price to the customer's
-      // local currency at checkout (e.g. MXN for Mexico, EUR for Europe).
-      // No extra Price objects needed — Stripe handles FX and settles to USD.
-      adaptive_pricing: { enabled: true },
+      // Currency: if the workspace has a preferred currency, lock checkout to
+      // that ISO 4217 code. Otherwise let Stripe Adaptive Pricing auto-detect
+      // the customer's local currency (adaptive_pricing cannot be used together
+      // with an explicit currency on subscription-mode sessions).
+      ...(opts.preferredCurrency
+        ? { currency: opts.preferredCurrency }
+        : { adaptive_pricing: { enabled: true } }),
     });
 
     if (!session.url) {

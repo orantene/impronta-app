@@ -25,6 +25,7 @@ import {
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { logServerError } from "@/lib/server/safe-error";
 import type { WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { loadWorkspaceAgencySummary } from "../../_data-bridge";
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
@@ -63,13 +64,17 @@ export async function startWorkspaceUpgrade(
 
   const appBaseUrl = await deriveAppBaseUrl();
 
+  // Load the agency's preferred currency preference (best-effort — null = adaptive)
+  const agencySummary = await loadWorkspaceAgencySummary(scope.tenantId);
+
   const result = await createWorkspaceCheckoutSession({
-    tenantId:    scope.tenantId,
+    tenantId:          scope.tenantId,
     planKey,
-    ownerEmail:  session.user.email ?? "",
-    displayName: scope.membership.display_name ?? tenantSlug,
+    ownerEmail:        session.user.email ?? "",
+    displayName:       scope.membership.display_name ?? tenantSlug,
     tenantSlug,
     appBaseUrl,
+    preferredCurrency: agencySummary?.preferredCurrency ?? null,
   });
 
   if (!result.ok) {

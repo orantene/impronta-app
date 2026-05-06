@@ -22,6 +22,7 @@ import {
   ManageSubscriptionButton,
   SubscriptionStatusBadge,
 } from "./BillingActionButtons";
+import { CurrencyPicker } from "./CurrencyPicker";
 import {
   createStaffPayoutAccountAction,
   createWorkspacePayoutAccountAction,
@@ -470,6 +471,17 @@ export default async function WorkspaceAccountPage({
                   </span>
                 }
               />
+
+              {/* Billing currency preference — only billing managers can change */}
+              {canManageBilling && (
+                <>
+                  <Divider />
+                  <CurrencyPicker
+                    tenantSlug={tenantSlug}
+                    currentValue={summary.preferredCurrency}
+                  />
+                </>
+              )}
             </div>
 
             {/* Billing CTAs */}
