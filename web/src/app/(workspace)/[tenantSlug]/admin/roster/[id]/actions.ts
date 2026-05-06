@@ -57,6 +57,15 @@ const editSchema = z.object({
     .uuid()
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  /** Height in centimetres. Stored as NUMERIC in talent_profiles. */
+  height_cm: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (!v || v.trim() === "") return null;
+      const n = parseFloat(v.trim());
+      return isNaN(n) || n < 50 || n > 280 ? null : n;
+    }),
 });
 
 // ─── Guard: resolve scope, check capability, verify roster membership ─────────
@@ -120,6 +129,7 @@ export async function updateRosterTalentProfile(
     visibility: trim(formData.get("visibility")) || undefined,
     agency_visibility: trim(formData.get("agency_visibility")) || undefined,
     talent_type_term_id: trim(formData.get("talent_type_term_id")) || undefined,
+    height_cm: trim(formData.get("height_cm")) || undefined,
   });
 
   if (!raw.success) {
@@ -145,6 +155,8 @@ export async function updateRosterTalentProfile(
     last_name: d.last_name || null,
     short_bio: d.short_bio || null,
     phone: d.phone || null,
+    // height_cm: present = update, undefined = unchanged (don't null it out on re-save)
+    ...(d.height_cm !== undefined ? { height_cm: d.height_cm } : {}),
     updated_at: new Date().toISOString(),
   };
 

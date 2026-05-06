@@ -50,6 +50,8 @@ export type TalentEditInitial = {
   primary_type_term_id: string | null;
   profile_code: string | null;
   photo_url: string | null;
+  /** Height in cm. Shown in imperial (ft/in) on roster cards. Editable as cm here. */
+  height_cm: number | null;
 };
 
 // ─── Field / input helpers ────────────────────────────────────────────────────
@@ -632,17 +634,32 @@ export function TalentEditForm({
           </select>
         </Field>
 
-        {/* Phone */}
-        <Field label="Phone">
-          <input
-            name="phone"
-            type="tel"
-            autoComplete="off"
-            defaultValue={initial.phone ?? ""}
-            placeholder="+1 555 000 0000"
-            style={inputStyle()}
-          />
-        </Field>
+        {/* Phone + Height */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 14, alignItems: "end" }}>
+          <Field label="Phone">
+            <input
+              name="phone"
+              type="tel"
+              autoComplete="off"
+              defaultValue={initial.phone ?? ""}
+              placeholder="+1 555 000 0000"
+              style={inputStyle()}
+            />
+          </Field>
+          <Field label="Height (cm)" hint="e.g. 175">
+            <input
+              name="height_cm"
+              type="number"
+              min={50}
+              max={280}
+              step={0.5}
+              autoComplete="off"
+              defaultValue={initial.height_cm != null ? String(initial.height_cm) : ""}
+              placeholder="cm"
+              style={{ ...inputStyle(false), width: 88 }}
+            />
+          </Field>
+        </div>
 
         {/* Short bio */}
         <Field label="Short bio" hint="2–3 lines for clients. Full bio is managed on the profile page.">

@@ -38,7 +38,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     admin
       .from("talent_profiles")
       .select(
-        "id, display_name, first_name, last_name, short_bio, phone, workflow_status, visibility, profile_code, created_at",
+        "id, display_name, first_name, last_name, short_bio, phone, workflow_status, visibility, profile_code, created_at, height_cm",
       )
       .eq("id", talentId)
       .is("deleted_at", null)
@@ -85,6 +85,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     visibility: string | null;
     profile_code: string | null;
     created_at: string | null;
+    height_cm: number | null;
   };
   type RosterRow = { status: string; agency_visibility: string };
 
@@ -117,6 +118,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     agency_visibility: r.agency_visibility ?? "roster_only",
     primary_type_term_id: primaryTermId as string | null,
     photo_url,
+    height_cm: p.height_cm ?? null,
   };
 }
 
@@ -176,6 +178,7 @@ export default async function WorkspaceRosterTalentPage({
     primary_type_term_id: talent.primary_type_term_id,
     profile_code: talent.profile_code,
     photo_url: talent.photo_url,
+    height_cm: talent.height_cm,
   };
 
   return (
