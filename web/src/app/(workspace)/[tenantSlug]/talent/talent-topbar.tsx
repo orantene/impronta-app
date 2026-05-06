@@ -15,7 +15,7 @@ const C = {
 
 const NAV_ITEMS = [
   { label: "Today",     path: "today"     },
-  { label: "Inbox",     path: "inbox"     },
+  { label: "Messages",  path: "inbox"     },
   { label: "Calendar",  path: "calendar"  },
   { label: "Profile",   path: "profile"   },
   { label: "Agencies",  path: "agencies"  },

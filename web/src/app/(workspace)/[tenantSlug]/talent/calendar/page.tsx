@@ -78,11 +78,20 @@ export default async function TalentCalendarPage({ params }: { params: PageParam
   const upcomingByMonth = groupByMonth(upcoming);
   const pastByMonth     = groupByMonth(past);
 
+  function eventStyle(status: string): { dot: string; bg: string; color: string; label: string } {
+    if (status === "booked" || status === "converted") return { dot: C.successDeep, bg: C.successSoft, color: C.successDeep, label: "Booked" };
+    if (status === "offer_pending") return { dot: C.amberDeep, bg: C.amberSoft, color: C.amberDeep, label: "Review offer" };
+    if (status === "approved") return { dot: C.accent, bg: C.accentSoft, color: C.accent, label: "Approved" };
+    return { dot: C.indigoDeep, bg: C.indigoSoft, color: C.indigoDeep, label: status.replace(/_/g, " ") };
+  }
+
   function EventRow({ inq }: { inq: typeof withDates[0] }) {
+    const s = eventStyle(inq.status);
     const isBooked = inq.status === "booked" || inq.status === "converted";
-    const dotColor = isBooked ? C.successDeep : C.indigoDeep;
+    const needsAction = inq.status === "offer_pending" || inq.participantStatus === "invited";
     return (
-      <div
+      <Link
+        href={`/${tenantSlug}/talent/inbox`}
         style={{
           display: "grid",
           gridTemplateColumns: "80px 1fr",
@@ -91,6 +100,8 @@ export default async function TalentCalendarPage({ params }: { params: PageParam
           alignItems: "flex-start",
           borderBottom: `1px solid ${C.borderSoft}`,
           fontFamily: FONT,
+          textDecoration: "none",
+          background: needsAction ? "rgba(138,111,26,0.03)" : "transparent",
         }}
       >
         {/* Date */}
@@ -106,17 +117,21 @@ export default async function TalentCalendarPage({ params }: { params: PageParam
         {/* Details */}
         <div style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.dot, flexShrink: 0 }} />
             <span
               style={{
                 fontSize: 10.5, fontWeight: 700, padding: "1px 7px", borderRadius: 999,
-                background: isBooked ? C.successSoft : C.indigoSoft,
-                color: isBooked ? C.successDeep : C.indigoDeep,
-                textTransform: "uppercase" as const, letterSpacing: 0.3,
+                background: s.bg, color: s.color,
+                textTransform: "capitalize" as const, letterSpacing: 0.3,
               }}
             >
-              {isBooked ? "Booked" : inq.status.replace(/_/g, " ")}
+              {s.label}
             </span>
+            {needsAction && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: C.amberDeep, background: C.amberSoft, padding: "1px 6px", borderRadius: 999 }}>
+                Action needed
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>
             {inq.contact_name}
@@ -128,7 +143,7 @@ export default async function TalentCalendarPage({ params }: { params: PageParam
             <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>{inq.event_location}</div>
           )}
         </div>
-      </div>
+      </Link>
     );
   }
 
