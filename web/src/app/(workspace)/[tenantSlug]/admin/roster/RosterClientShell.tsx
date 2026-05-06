@@ -450,10 +450,12 @@ function FilterBar({
 // Individual talent card (grid view)
 function TalentCard({
   talent,
+  tenantSlug,
   selected,
   onSelect,
 }: {
   talent: RosterTalent;
+  tenantSlug: string;
   selected: boolean;
   onSelect?: (id: string) => void;
 }) {
@@ -467,10 +469,12 @@ function TalentCard({
     .toUpperCase();
 
   return (
-    <div
+    <a
+      href={`/${tenantSlug}/admin/roster/${talent.id}`}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
+        display: "block",
         position: "relative",
         background: C.white,
         border: `1px solid ${selected ? C.accent : C.borderSoft}`,
@@ -479,6 +483,7 @@ function TalentCard({
         textAlign: "left",
         fontFamily: FONT,
         overflow: "hidden",
+        textDecoration: "none",
         transition: "border-color 0.15s, box-shadow 0.15s",
         boxShadow: hover
           ? "0 6px 20px -10px rgba(11,11,13,0.18)"
@@ -615,18 +620,20 @@ function TalentCard({
           </div>
         )}
       </div>
-    </div>
+    </a>
   );
 }
 
 // Individual talent list row
 function TalentListRow({
   talent,
+  tenantSlug,
   isFirst,
   selected,
   onSelect,
 }: {
   talent: RosterTalent;
+  tenantSlug: string;
   isFirst: boolean;
   selected: boolean;
   onSelect?: (id: string) => void;
@@ -643,7 +650,8 @@ function TalentListRow({
     .toUpperCase();
 
   return (
-    <div
+    <a
+      href={`/${tenantSlug}/admin/roster/${talent.id}`}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -653,6 +661,8 @@ function TalentListRow({
         padding: "10px 14px",
         borderTop: isFirst ? "none" : `1px solid ${C.borderSoft}`,
         cursor: "pointer",
+        textDecoration: "none",
+        color: "inherit",
         background: hover
           ? "rgba(11,11,13,0.02)"
           : selected
@@ -780,7 +790,7 @@ function TalentListRow({
         <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
         {stateLabel(talent.state)}
       </div>
-    </div>
+    </a>
   );
 }
 
@@ -1328,6 +1338,7 @@ export function RosterClientShell({
             <TalentCard
               key={talent.id}
               talent={talent}
+              tenantSlug={tenantSlug}
               selected={selected.has(talent.id)}
               onSelect={canEdit ? toggleSelect : undefined}
             />
@@ -1368,6 +1379,7 @@ export function RosterClientShell({
             <TalentListRow
               key={talent.id}
               talent={talent}
+              tenantSlug={tenantSlug}
               isFirst={i === 0}
               selected={selected.has(talent.id)}
               onSelect={canEdit ? toggleSelect : undefined}
