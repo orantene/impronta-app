@@ -222,7 +222,7 @@ export default async function WorkspaceWorkDetailPage({
             {inquiry.company ?? "No company"} · {inquiry.event_location ?? "Location TBD"}
           </div>
         </div>
-        <div style={{ display: "inline-flex", gap: 8 }}>
+        <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
           <Link
             href={`/${tenantSlug}/admin/work`}
             style={{
@@ -237,10 +237,10 @@ export default async function WorkspaceWorkDetailPage({
               fontSize: 12.5,
             }}
           >
-            Back to pipeline
+            ← Pipeline
           </Link>
           <Link
-            href={`/${tenantSlug}/admin/bookings`}
+            href={`/${tenantSlug}/admin/messages?inquiry=${inquiryId}`}
             style={{
               height: 32,
               padding: "0 12px",
@@ -250,11 +250,49 @@ export default async function WorkspaceWorkDetailPage({
               color: C.ink,
               display: "inline-flex",
               alignItems: "center",
+              gap: 5,
               fontSize: 12.5,
             }}
           >
-            Bookings
+            💬 Messages
           </Link>
+          {!booking && (
+            <Link
+              href={`/${tenantSlug}/admin/bookings?fromInquiry=${inquiryId}`}
+              style={{
+                height: 32,
+                padding: "0 12px",
+                borderRadius: 8,
+                border: `1px solid ${C.accent}`,
+                textDecoration: "none",
+                color: C.accent,
+                display: "inline-flex",
+                alignItems: "center",
+                fontSize: 12.5,
+                fontWeight: 600,
+              }}
+            >
+              + Create booking
+            </Link>
+          )}
+          {booking && (
+            <Link
+              href={`/${tenantSlug}/admin/bookings/${(booking as { id: string }).id}`}
+              style={{
+                height: 32,
+                padding: "0 12px",
+                borderRadius: 8,
+                border: `1px solid ${C.border}`,
+                textDecoration: "none",
+                color: C.ink,
+                display: "inline-flex",
+                alignItems: "center",
+                fontSize: 12.5,
+              }}
+            >
+              View booking →
+            </Link>
+          )}
         </div>
       </div>
 
@@ -283,7 +321,17 @@ export default async function WorkspaceWorkDetailPage({
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
             Next action
             <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>
-              {(inquiry as { next_action_by?: string | null }).next_action_by ?? "—"}
+              {((): string => {
+                const raw = (inquiry as { next_action_by?: string | null }).next_action_by;
+                if (!raw) return "—";
+                const MAP: Record<string, string> = {
+                  client:      "⏳ Client",
+                  coordinator: "⏳ You",
+                  talent:      "⏳ Talent",
+                  agency:      "⏳ Agency",
+                };
+                return MAP[raw] ?? raw;
+              })()}
             </div>
           </div>
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>

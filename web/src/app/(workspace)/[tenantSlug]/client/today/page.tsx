@@ -135,10 +135,13 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
     i.next_action_by === "client" || i.status === "offer_pending",
   );
   const agencyHasIt    = allInquiries.filter((i) =>
-    ["submitted", "coordination"].includes(i.status) && i.next_action_by !== "client",
+    !["booked", "converted"].includes(i.status) &&
+    i.next_action_by !== "client" &&
+    i.status !== "offer_pending" &&
+    !["declined", "cancelled", "expired"].includes(i.status),
   );
   const confirmed      = allInquiries.filter((i) =>
-    ["booked", "converted", "approved"].includes(i.status),
+    ["booked", "converted"].includes(i.status),
   );
 
   // For stats
@@ -212,7 +215,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           sub={needsDecision.length > 0 ? "awaiting your decision" : "you're up to date"}
           accent={needsDecision.length > 0}
         />
-        <StatTile label="Confirmed" value={confirmed.length.toString()} sub="booked or approved" />
+        <StatTile label="Confirmed" value={confirmed.length.toString()} sub="confirmed bookings" />
         <StatTile label="Total" value={allInquiries.length.toString()} sub="all time" />
       </div>
 
@@ -281,7 +284,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           {confirmed.length > 0 && (
             <BucketSection
               title="Coming up"
-              description="Confirmed bookings and approved inquiries."
+              description="Confirmed and fully booked events."
               accentBar="#1A7348"
               items={confirmed}
               tenantSlug={tenantSlug}
@@ -308,7 +311,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
         }}
       >
         <Link
-          href={`/${tenantSlug}/admin/messages`}
+          href={`/${tenantSlug}/client/inquiries`}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -327,7 +330,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
             pointerEvents: "all",
           }}
         >
-          💬 Ask a question
+          My inquiries
         </Link>
         <Link
           href={`/${tenantSlug}/client/discover`}
@@ -419,9 +422,9 @@ function BucketSection({
 
       <div style={{ background: C2.cardBg, border: `1px solid ${C2.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
         {items.map((inq, idx) => (
-          <div
+          <a
             key={inq.id}
-            className="client-inq-row"
+            href={`/${tenantSlug}/client/inquiries/${inq.id}`}
             style={{
               display: "grid",
               gridTemplateColumns: "1fr auto",
@@ -430,6 +433,8 @@ function BucketSection({
               padding: "13px 16px",
               borderBottom: idx < items.length - 1 ? `1px solid ${C2.borderSoft}` : "none",
               fontFamily: FONT,
+              textDecoration: "none",
+              color: "inherit",
             }}
           >
             <div style={{ minWidth: 0 }}>
@@ -474,7 +479,7 @@ function BucketSection({
             <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11, color: C2.inkDim }}>
               {relativeDate(inq.created_at)}
             </div>
-          </div>
+          </a>
         ))}
       </div>
     </section>
