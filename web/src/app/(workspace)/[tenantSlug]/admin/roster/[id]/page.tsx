@@ -188,14 +188,26 @@ export default async function WorkspaceRosterTalentPage({
   const canEdit = await userHasCapability("agency.roster.edit", scope.tenantId);
   if (!canEdit) notFound();
 
+  // ── DEBUG: surface real loader errors instead of crashing the page render ──
+  const safe = async <T,>(label: string, fn: () => Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await fn();
+    } catch (err) {
+      logServerError(`roster/[id].${label}`, err);
+      // eslint-disable-next-line no-console
+      console.error(`[talent-detail] ${label} threw:`, err instanceof Error ? err.message : err);
+      return fallback;
+    }
+  };
+
   const [talent, talentTypes, allTerms, talentTaxonomy, languages, areas, portfolio] = await Promise.all([
-    loadTalentForEdit(scope.tenantId, talentId),
-    loadTalentTypes(),
-    loadAllTaxonomyTerms(),
-    loadTalentTaxonomy(talentId),
-    loadTalentLanguages(scope.tenantId, talentId),
-    loadTalentServiceAreas(scope.tenantId, talentId),
-    loadTalentPortfolio(talentId),
+    safe("loadTalentForEdit", () => loadTalentForEdit(scope.tenantId, talentId), null),
+    safe("loadTalentTypes", () => loadTalentTypes(), [] as Awaited<ReturnType<typeof loadTalentTypes>>),
+    safe("loadAllTaxonomyTerms", () => loadAllTaxonomyTerms(), [] as Awaited<ReturnType<typeof loadAllTaxonomyTerms>>),
+    safe("loadTalentTaxonomy", () => loadTalentTaxonomy(talentId), [] as Awaited<ReturnType<typeof loadTalentTaxonomy>>),
+    safe("loadTalentLanguages", () => loadTalentLanguages(scope.tenantId, talentId), [] as Awaited<ReturnType<typeof loadTalentLanguages>>),
+    safe("loadTalentServiceAreas", () => loadTalentServiceAreas(scope.tenantId, talentId), [] as Awaited<ReturnType<typeof loadTalentServiceAreas>>),
+    safe("loadTalentPortfolio", () => loadTalentPortfolio(talentId), [] as Awaited<ReturnType<typeof loadTalentPortfolio>>),
   ]);
 
   if (!talent) notFound();
