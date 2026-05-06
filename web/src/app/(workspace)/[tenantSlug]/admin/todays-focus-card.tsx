@@ -120,7 +120,7 @@ export function TodaysFocusCard({
       : "";
     title = `${awaitingClientCount} ${awaitingClientCount === 1 ? "inquiry is" : "inquiries are"} waiting for a client decision.`;
     body = `The ball is in their court. Send a nudge or share polaroids to move it forward.${ageClause}`;
-    ctaLabel = "View pipeline";
+    ctaLabel = "Open today's pulse";
   } else {
     title = `${draftCount} ${draftCount === 1 ? "draft hasn't" : "drafts haven't"} been sent yet.`;
     body = "Finish the brief and send while the client's still warm.";

@@ -473,6 +473,99 @@ export default async function WorkspaceAdminOverviewPage({
         )}
       </div>
 
+      {/* ── Analytics stub section ── */}
+      <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 10,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: FONT,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              color: C.inkDim,
+            }}
+          >
+            Analytics
+          </span>
+          <span style={{ flex: 1, height: 1, background: C.border }} />
+          <Link
+            href={`/${tenantSlug}/admin/operations`}
+            style={{
+              fontFamily: FONT,
+              fontSize: 11.5,
+              fontWeight: 500,
+              color: C.inkMuted,
+              textDecoration: "none",
+            }}
+          >
+            All operations →
+          </Link>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+            gap: 10,
+          }}
+        >
+          {[
+            { title: "Revenue", desc: "Monthly revenue, top clients, trend." },
+            { title: "Conversion funnel", desc: "Inquiry → offer → booking drop-off." },
+            { title: "Top performers", desc: "Most-booked talent and best clients." },
+            { title: "Team workload", desc: "Per-coordinator queue depth and SLA risk." },
+          ].map(({ title, desc }) => (
+            <Link
+              key={title}
+              href={`/${tenantSlug}/admin/operations`}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 5,
+                background: C.cardBg,
+                border: `1px solid ${C.borderSoft}`,
+                borderRadius: 12,
+                padding: "14px 16px 12px",
+                textDecoration: "none",
+                transition: "border-color 120ms",
+                opacity: 0.72,
+              }}
+            >
+              <div style={{ fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
+                {title}
+              </div>
+              <div style={{ fontFamily: FONT, fontSize: 11.5, color: C.inkMuted, lineHeight: 1.4 }}>
+                {desc}
+              </div>
+              <div style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: C.inkMuted, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    padding: "1px 7px",
+                    borderRadius: 999,
+                    background: "rgba(11,11,13,0.05)",
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    letterSpacing: 0.4,
+                    color: C.inkDim,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Coming soon
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {/* ── Recent activity feed ── */}
       <div style={{ marginTop: 8 }}>
         {/* Section header */}
