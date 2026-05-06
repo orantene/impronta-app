@@ -451,6 +451,69 @@ function PlanSnapshotCard({
             )}
           </div>
         ))}
+
+        {/* Upgrade nudge rows — locked features on free / studio */}
+        {(planTier === "free" || planTier === "studio") && (() => {
+          const upgradePlan = planTier === "free" ? "Studio" : "Agency";
+          const lockedItems = planTier === "free"
+            ? ["Priority messaging", "Custom Tulala subdomain", "Team analytics & reporting"]
+            : ["Custom domain", "Priority support", "Advanced analytics"];
+          return (
+            <>
+              {lockedItems.map((item, i) => (
+                <div
+                  key={item}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "9px 0",
+                    borderTop: `1px solid ${C.borderSoft}`,
+                    opacity: 0.55,
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: "50%",
+                      background: "rgba(11,11,13,0.05)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      fontSize: 8,
+                      color: C.inkDim,
+                    }}
+                  >
+                    🔒
+                  </span>
+                  <span style={{ fontSize: 12.5, fontWeight: 500, color: C.inkMuted, fontFamily: FONT }}>
+                    {item}
+                  </span>
+                  {i === 0 && (
+                    <Link
+                      href={`/${tenantSlug}/admin/settings?tab=plan`}
+                      style={{
+                        marginLeft: "auto",
+                        flexShrink: 0,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: C.inkMuted,
+                        textDecoration: "none",
+                        fontFamily: FONT,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      More with {upgradePlan} →
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </>
+          );
+        })()}
       </div>
 
       {/* Footer */}
