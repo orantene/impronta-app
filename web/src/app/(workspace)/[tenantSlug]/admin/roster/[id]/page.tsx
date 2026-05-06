@@ -15,6 +15,20 @@ import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { TalentEditForm, type TalentEditInitial } from "./TalentEditForm";
+import {
+  loadAllTaxonomyTerms,
+  loadTalentTaxonomy,
+  loadTalentLanguages,
+  loadTalentServiceAreas,
+  loadTalentPortfolio,
+} from "./talent-data";
+import {
+  TaxonomySection,
+  LanguagesSection,
+  ServiceAreasSection,
+  GallerySection,
+  DeleteTalentButton,
+} from "./EditorSections";
 
 export const dynamic = "force-dynamic";
 
@@ -169,9 +183,14 @@ export default async function WorkspaceRosterTalentPage({
   const canEdit = await userHasCapability("agency.roster.edit", scope.tenantId);
   if (!canEdit) notFound();
 
-  const [talent, talentTypes] = await Promise.all([
+  const [talent, talentTypes, allTerms, talentTaxonomy, languages, areas, portfolio] = await Promise.all([
     loadTalentForEdit(scope.tenantId, talentId),
     loadTalentTypes(),
+    loadAllTaxonomyTerms(),
+    loadTalentTaxonomy(talentId),
+    loadTalentLanguages(scope.tenantId, talentId),
+    loadTalentServiceAreas(scope.tenantId, talentId),
+    loadTalentPortfolio(talentId),
   ]);
 
   if (!talent) notFound();
@@ -272,6 +291,60 @@ export default async function WorkspaceRosterTalentPage({
         initial={initial}
         talentTypes={talentTypes}
       />
+
+      {/* Extended sections — taxonomy + languages + service areas + gallery */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 24 }}>
+        <TaxonomySection
+          tenantSlug={tenantSlug}
+          talentId={talentId}
+          allTerms={allTerms}
+          currentAssignments={talentTaxonomy}
+        />
+        <LanguagesSection
+          tenantSlug={tenantSlug}
+          talentId={talentId}
+          languages={languages}
+        />
+        <ServiceAreasSection
+          tenantSlug={tenantSlug}
+          talentId={talentId}
+          areas={areas}
+        />
+        <GallerySection
+          tenantSlug={tenantSlug}
+          talentId={talentId}
+          portfolio={portfolio}
+        />
+
+        {/* Danger zone */}
+        <section style={{
+          background: "#fff",
+          border: "1px solid rgba(176,74,34,0.20)",
+          borderRadius: 14,
+          padding: 18,
+          fontFamily: F,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <h3 style={{
+              fontFamily: F, fontSize: 14, fontWeight: 700, color: "#8C3318",
+              margin: 0, letterSpacing: -0.05,
+            }}>Danger zone</h3>
+          </div>
+          <p style={{
+            fontSize: 12.5, color: C.inkMuted, margin: "0 0 10px",
+            lineHeight: 1.5,
+          }}>
+            Removing a talent hides them from your roster, public site, and discovery.
+            The talent's underlying profile is kept intact in case they're on
+            another agency or claim their account later.
+          </p>
+          <DeleteTalentButton
+            tenantSlug={tenantSlug}
+            talentId={talentId}
+            talentName={talent.display_name || "this talent"}
+          />
+        </section>
+      </div>
     </div>
   );
 }
