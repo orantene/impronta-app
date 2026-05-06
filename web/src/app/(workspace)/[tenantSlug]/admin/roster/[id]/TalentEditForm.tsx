@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useActionState, useRef, useState, useCallback } from "react";
+import { useActionState, useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   type RosterTalentEditState,
@@ -345,11 +346,17 @@ function WorkflowSidebar({
   agencyVisibility: string;
   profileCode: string | null;
 }) {
+  const router = useRouter();
   const boundAction = updateRosterTalentWorkflow.bind(null, tenantSlug, talentId);
   const [state, action, pending] = useActionState<RosterTalentEditState, FormData>(
     boundAction,
     undefined,
   );
+
+  // Refresh page data when workflow action succeeds so sidebar reflects new state.
+  useEffect(() => {
+    if (state?.success) router.refresh();
+  }, [state, router]);
 
   // Approve: set workflow_status=approved, visibility=public
   // Hide: set workflow_status=draft, visibility=hidden
@@ -527,11 +534,17 @@ export function TalentEditForm({
   initial: TalentEditInitial;
   talentTypes: TalentTypeOption[];
 }) {
+  const router = useRouter();
   const boundAction = updateRosterTalentProfile.bind(null, tenantSlug, talentId);
   const [state, action, pending] = useActionState<RosterTalentEditState, FormData>(
     boundAction,
     undefined,
   );
+
+  // Refresh page data when save succeeds (updates sidebar workflow badge and photo).
+  useEffect(() => {
+    if (state?.success) router.refresh();
+  }, [state, router]);
 
   return (
     <div

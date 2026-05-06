@@ -229,6 +229,7 @@ type RosterRow = {
     last_name: string | null;
     workflow_status: string | null;
     height_cm: number | null;
+    user_id: string | null;
     talent_profile_taxonomy:
       | {
           relationship_type: string | null;
@@ -272,8 +273,10 @@ function deriveProfileState(row: RosterRow): TalentProfile["state"] {
   if (row.status === "active" && row.talent_profiles?.workflow_status === "published") {
     return "published";
   }
-  if (row.talent_profiles?.workflow_status === "draft") return "draft";
+  // "Claimed" = talent has linked a user account to this profile.
+  if (row.talent_profiles?.user_id) return "claimed";
   if (row.talent_profiles?.workflow_status === "invited") return "invited";
+  if (row.talent_profiles?.workflow_status === "draft") return "draft";
   return "draft";
 }
 
@@ -341,6 +344,7 @@ export async function loadWorkspaceRosterForTenant(
           last_name,
           workflow_status,
           height_cm,
+          user_id,
           talent_profile_taxonomy (
             relationship_type,
             taxonomy_terms ( term_type, slug, name_en )
@@ -412,6 +416,7 @@ export async function loadWorkspaceRosterEnriched(
           profile_code,
           invitation_email,
           home_city_text,
+          user_id,
           talent_profile_taxonomy (
             relationship_type,
             taxonomy_terms ( term_type, slug, name_en )
