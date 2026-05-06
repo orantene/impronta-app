@@ -250,6 +250,55 @@ export function WorkspaceTopbar({
           <span style={{ fontSize: 10, opacity: 0.55, letterSpacing: 0.2 }}>⌘K</span>
         </button>
 
+        {/* AI / sparkle stub */}
+        <button
+          type="button"
+          aria-label="AI suggestions"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 30,
+            height: 30,
+            borderRadius: 7,
+            border: `1px solid ${C.border}`,
+            background: "transparent",
+            color: C.inkMuted,
+            cursor: "pointer",
+            flexShrink: 0,
+            marginLeft: 4,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3L12 17l-6.2 4L8.2 13.7 2 9.2h7.6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+          </svg>
+        </button>
+
+        {/* Layout / split-panel stub */}
+        <button
+          type="button"
+          aria-label="Toggle layout"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 30,
+            height: 30,
+            borderRadius: 7,
+            border: `1px solid ${C.border}`,
+            background: "transparent",
+            color: C.inkMuted,
+            cursor: "pointer",
+            flexShrink: 0,
+            marginLeft: 4,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M12 3v18" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+        </button>
+
         {isSuperAdmin && (
           <>
             {/* Soft divider before the platform link */}

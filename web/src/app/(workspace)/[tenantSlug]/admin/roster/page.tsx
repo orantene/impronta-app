@@ -13,6 +13,8 @@ import {
   resolvePublicRosterDisplayCap,
 } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { RosterClientShell } from "./RosterClientShell";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +38,9 @@ export default async function WorkspaceRosterPage({
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
+  const session = await getCachedActorSession();
+  const currentUserId = session.user?.id ?? null;
+
   const [canView, canEdit, roster] = await Promise.all([
     userHasCapability("agency.roster.view", scope.tenantId),
     userHasCapability("agency.roster.edit", scope.tenantId),
@@ -58,12 +63,31 @@ export default async function WorkspaceRosterPage({
     agency?.data?.talent_seat_limit ?? null,
   );
 
+  // Check if the signed-in admin is also a talent on this roster.
+  let isOnRoster = false;
+  if (currentUserId) {
+    const supabase = await createSupabaseServerClient();
+    if (supabase) {
+      const { data: rosterCheck } = await supabase
+        .from("agency_talent_roster")
+        .select("id, talent_profiles!talent_profile_id ( user_id )")
+        .eq("tenant_id", scope.tenantId)
+        .neq("status", "removed")
+        .limit(200);
+      isOnRoster = (rosterCheck ?? []).some(
+        (row: { talent_profiles: { user_id?: string | null }[] | null }) =>
+          (row.talent_profiles ?? []).some((p) => p.user_id === currentUserId),
+      );
+    }
+  }
+
   return (
     <RosterClientShell
       roster={roster}
       tenantSlug={tenantSlug}
       canEdit={canEdit}
       initialStateFilter={initialStateFilter}
+      isOnRoster={isOnRoster}
       seatUsage={{
         planTier,
         used: roster.length,

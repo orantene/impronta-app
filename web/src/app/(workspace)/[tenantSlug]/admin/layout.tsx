@@ -25,7 +25,7 @@ import { notFound, redirect } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadWorkspaceAgencySummary, loadTotalUnreadMessages, loadPendingRosterCount } from "../_data-bridge";
+import { loadWorkspaceAgencySummary, loadTotalUnreadMessages, loadPendingRosterCount, loadWorkspaceOverviewMetrics } from "../_data-bridge";
 import { signOut } from "@/app/auth/actions";
 import { WorkspaceTopbar } from "./workspace-topbar";
 
@@ -107,10 +107,11 @@ export default async function WorkspaceAdminLayout({
   if (!canView) notFound();
 
   // ── Shell data ────────────────────────────────────────────────────────────
-  const [summary, unreadMessages, pendingRoster] = await Promise.all([
+  const [summary, unreadMessages, pendingRoster, overviewMetrics] = await Promise.all([
     loadWorkspaceAgencySummary(scope.tenantId),
     loadTotalUnreadMessages(scope.tenantId),
     loadPendingRosterCount(scope.tenantId),
+    loadWorkspaceOverviewMetrics(scope.tenantId),
   ]);
 
   const displayName = summary?.displayName ?? scope.membership.display_name;
@@ -258,70 +259,94 @@ export default async function WorkspaceAdminLayout({
               /
             </span>
 
-            {/* Acting-as: agency name + plan badge */}
+            {/* Acting-as: agency name + plan badge + sub-line */}
             <div
               style={{
                 display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "5px 9px",
-                borderRadius: 999,
+                flexDirection: "column",
+                gap: 1,
+                padding: "3px 0",
               }}
             >
-              {/* Active dot */}
-              <span
-                aria-hidden
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: C.green,
-                  flexShrink: 0,
-                }}
-              />
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontFamily: FONT_BODY,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: C.ink,
-                  letterSpacing: -0.05,
-                  minWidth: 0,
-                  overflow: "hidden",
-                  maxWidth: 200,
-                }}
-              >
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                {/* Active dot */}
                 <span
+                  aria-hidden
                   style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: C.green,
+                    flexShrink: 0,
                   }}
-                >
-                  {displayName}
-                </span>
-                {/* Plan chip */}
+                />
                 <span
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    padding: "1px 7px",
-                    borderRadius: 999,
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: 0.3,
-                    background: chip.bg,
-                    color: chip.color,
-                    flexShrink: 0,
+                    gap: 6,
                     fontFamily: FONT_BODY,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: C.ink,
+                    letterSpacing: -0.1,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    maxWidth: 220,
                   }}
                 >
-                  {chip.label}
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {displayName}
+                  </span>
+                  {/* Plan chip */}
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "1px 7px",
+                      borderRadius: 999,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: 0.3,
+                      background: chip.bg,
+                      color: chip.color,
+                      flexShrink: 0,
+                      fontFamily: FONT_BODY,
+                    }}
+                  >
+                    {chip.label}
+                  </span>
                 </span>
-              </span>
+              </div>
+              {/* Pipeline sub-line: open inquiries · confirmed bookings */}
+              {overviewMetrics && (overviewMetrics.openInquiries > 0 || overviewMetrics.nextBookingDate) && (
+                <div
+                  style={{
+                    fontFamily: FONT_BODY,
+                    fontSize: 11,
+                    color: C.inkMuted,
+                    paddingLeft: 14,
+                    letterSpacing: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  {overviewMetrics.openInquiries > 0
+                    ? `${overviewMetrics.openInquiries} pending`
+                    : null}
+                  {overviewMetrics.openInquiries > 0 && overviewMetrics.nextBookingDate
+                    ? " · "
+                    : null}
+                  {overviewMetrics.nextBookingDate
+                    ? `next: ${overviewMetrics.nextBookingLabel ?? "upcoming"}`
+                    : null}
+                </div>
+              )}
             </div>
 
             <div style={{ flex: 1 }} />
@@ -403,6 +428,57 @@ export default async function WorkspaceAdminLayout({
                 style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer", color: C.inkMuted, fontFamily: FONT_BODY, fontSize: 14, fontWeight: 600 }}
               >
                 ?
+              </div>
+
+              {/* Language toggle stubs */}
+              <div
+                aria-label="Language"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0,
+                  height: 28,
+                  borderRadius: 7,
+                  border: `1px solid ${C.borderSoft}`,
+                  overflow: "hidden",
+                  flexShrink: 0,
+                }}
+              >
+                <button
+                  type="button"
+                  aria-pressed
+                  style={{
+                    padding: "0 8px",
+                    height: "100%",
+                    background: C.ink,
+                    color: "#fff",
+                    border: "none",
+                    fontFamily: FONT_BODY,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: 0.3,
+                    cursor: "pointer",
+                  }}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    padding: "0 8px",
+                    height: "100%",
+                    background: "transparent",
+                    color: C.inkMuted,
+                    border: "none",
+                    fontFamily: FONT_BODY,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: 0.3,
+                    cursor: "pointer",
+                  }}
+                >
+                  ES
+                </button>
               </div>
 
               {/* Sign-out */}

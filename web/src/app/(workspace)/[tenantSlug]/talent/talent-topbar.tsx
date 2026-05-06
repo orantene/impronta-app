@@ -75,21 +75,23 @@ export function TalentTopbar({
               }}
             >
               {label}
-              {active && (
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    bottom: -14,
-                    left: 8,
-                    right: 8,
-                    height: 3,
-                    background: C.fill,
-                    borderRadius: 2,
-                    pointerEvents: "none",
-                  }}
-                />
-              )}
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  bottom: -1,
+                  left: 8,
+                  right: 8,
+                  height: 2,
+                  background: C.fill,
+                  borderRadius: 2,
+                  opacity: active ? 1 : 0,
+                  transform: active ? "scaleX(1)" : "scaleX(0.4)",
+                  transformOrigin: "center",
+                  transition: "opacity 200ms, transform 280ms cubic-bezier(.4,0,.2,1)",
+                  pointerEvents: "none",
+                }}
+              />
             </Link>
           );
         })}

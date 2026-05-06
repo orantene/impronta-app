@@ -1029,6 +1029,7 @@ export function RosterClientShell({
   canEdit,
   seatUsage,
   initialStateFilter,
+  isOnRoster = false,
 }: {
   roster: RosterTalent[];
   tenantSlug: string;
@@ -1039,6 +1040,8 @@ export function RosterClientShell({
     limit: number | null;
   };
   initialStateFilter?: StateFilter;
+  /** True when the signed-in admin also appears as talent in this roster. */
+  isOnRoster?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<StateFilter>(initialStateFilter ?? "all");
@@ -1184,6 +1187,56 @@ export function RosterClientShell({
           >
             Review →
           </button>
+        </div>
+      )}
+
+      {/* ── "You're on this roster" info bar ── */}
+      {isOnRoster && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "10px 16px",
+            borderRadius: 10,
+            background: "rgba(37,99,235,0.06)",
+            border: "1px solid rgba(37,99,235,0.14)",
+            marginBottom: 20,
+            fontFamily: FONT,
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: "#2563EB",
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              flex: 1,
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#1D4ED8",
+              lineHeight: 1.4,
+            }}
+          >
+            You&rsquo;re on this roster too — your profile is visible to clients through this workspace.{" "}
+            <a
+              href={`/${tenantSlug}/talent`}
+              style={{
+                color: "#1D4ED8",
+                fontWeight: 700,
+                textDecoration: "underline",
+                textDecorationThickness: "1px",
+                textUnderlineOffset: "2px",
+              }}
+            >
+              View your talent profile →
+            </a>
+          </span>
         </div>
       )}
 
