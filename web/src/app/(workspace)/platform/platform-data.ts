@@ -35,6 +35,7 @@ export type PlatformUserRow = {
   primaryTenant: string | null;
   isTalent: boolean;
   createdAt: string;
+  emailConfirmed: boolean;
 };
 
 export type PlatformStats = {
@@ -148,12 +149,14 @@ export async function loadPlatformUsers(): Promise<PlatformUserRow[]> {
     return [];
   }
 
-  // Fetch emails via auth admin API
+  // Fetch emails and confirmation status via auth admin API
   const { data: usersData } = await sb.auth.admin.listUsers({ perPage: 1000 });
   const emailById: Record<string, string> = {};
+  const confirmedById: Record<string, boolean> = {};
   if (usersData?.users) {
     for (const u of usersData.users) {
       if (u.email) emailById[u.id] = u.email;
+      confirmedById[u.id] = Boolean(u.email_confirmed_at);
     }
   }
 
@@ -164,19 +167,20 @@ export async function loadPlatformUsers(): Promise<PlatformUserRow[]> {
   if (profileIds.length > 0) {
     const { data: memberships } = await sb
       .from("agency_memberships")
-      .select("user_id, tenant_id, agencies!inner(display_name, slug)")
-      .in("user_id", profileIds)
+      // Note: the column is `profile_id` (= auth.users.id), not `user_id`.
+      .select("profile_id, tenant_id, agencies!inner(display_name, slug)")
+      .in("profile_id", profileIds)
       .eq("status", "active");
 
     if (memberships) {
       const primaryMap: Record<string, string> = {};
       for (const m of memberships as Array<{
-        user_id: string;
+        profile_id: string;
         tenant_id: string;
         agencies: unknown;
       }>) {
-        tenantCounts[m.user_id] = (tenantCounts[m.user_id] ?? 0) + 1;
-        if (!primaryMap[m.user_id]) {
+        tenantCounts[m.profile_id] = (tenantCounts[m.profile_id] ?? 0) + 1;
+        if (!primaryMap[m.profile_id]) {
           // Supabase returns the join as an array or single object depending on
           // the relationship type — handle both.
           const ag = m.agencies;
@@ -186,7 +190,7 @@ export async function loadPlatformUsers(): Promise<PlatformUserRow[]> {
               ?.display_name ??
             (agFirst as { display_name?: string; slug?: string } | null)?.slug ??
             m.tenant_id;
-          primaryMap[m.user_id] = name;
+          primaryMap[m.profile_id] = name;
         }
       }
       for (const [uid, name] of Object.entries(primaryMap)) {
@@ -211,6 +215,7 @@ export async function loadPlatformUsers(): Promise<PlatformUserRow[]> {
     primaryTenant: primaryTenants[r.id] ?? null,
     isTalent: r.app_role === "talent",
     createdAt: formatDate(r.created_at),
+    emailConfirmed: confirmedById[r.id] ?? true,
   }));
 }
 

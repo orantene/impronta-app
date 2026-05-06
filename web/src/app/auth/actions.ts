@@ -14,6 +14,28 @@ import { redirect } from "next/navigation";
 
 export type AuthActionState = { error?: string; message?: string } | void;
 
+/** Maps Supabase auth error codes to actionable user-facing messages. */
+function mapSignUpError(error: unknown): string {
+  const code = (error as { code?: string })?.code;
+  switch (code) {
+    case "email_address_invalid":
+      return "That email address doesn't look right. Check the format and try again.";
+    case "email_address_not_authorized":
+      return "Signups aren't allowed for that email domain. Try a different address.";
+    case "weak_password":
+      return "Password is too weak. Use at least 8 characters, ideally mixing letters, numbers, and symbols.";
+    case "over_email_send_rate_limit":
+      return "Too many signup attempts for this address. Wait a few minutes and try again.";
+    case "user_already_exists":
+    case "email_exists":
+      return "An account with that email already exists. Try signing in, or reset your password if you've forgotten it.";
+    case "signup_disabled":
+      return "New account signups are temporarily disabled. Contact us for access.";
+    default:
+      return CLIENT_ERROR.signUp;
+  }
+}
+
 /** Unauthenticated: request Supabase to email a password reset link. */
 export async function requestPasswordReset(
   _prev: AuthActionState,
@@ -105,7 +127,7 @@ export async function signUpWithEmail(
   });
   if (error) {
     logServerError("auth/signUpWithEmail", error);
-    return { error: CLIENT_ERROR.signUp };
+    return { error: mapSignUpError(error) };
   }
 
   if (!data.session) {

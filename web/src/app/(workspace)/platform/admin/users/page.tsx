@@ -1,7 +1,10 @@
 // Phase 3.11 — Platform HQ · Users
 // All registered users across every tenant.
+// Super-admin can confirm unverified email addresses from this page
+// (useful for localhost QA and prod support).
 
 import { loadPlatformUsers } from "../../platform-data";
+import { confirmPlatformUserEmail } from "./actions";
 
 const HQ = {
   card: "#16161A",
@@ -12,6 +15,7 @@ const HQ = {
   inkDim: "rgba(245,242,235,0.38)",
   green: "#5DD3A0",
   amber: "#9BA8B7",
+  red: "#F36772",
 } as const;
 
 const F = '"Inter", system-ui, sans-serif';
@@ -47,11 +51,17 @@ function roleChip(role: string | null) {
   );
 }
 
-export default async function PlatformUsersPage() {
+export default async function PlatformUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ confirmed?: string }>;
+}) {
+  const { confirmed } = await searchParams;
   const users = await loadPlatformUsers();
 
   const talentCount = users.filter((u) => u.isTalent).length;
   const adminCount = users.filter((u) => u.appRole === "admin" || u.appRole === "super_admin").length;
+  const unconfirmedCount = users.filter((u) => !u.emailConfirmed).length;
 
   return (
     <>
@@ -79,8 +89,29 @@ export default async function PlatformUsersPage() {
           }}
         >
           {users.length} total · {talentCount} talent · {adminCount} admin/staff
+          {unconfirmedCount > 0 && (
+            <> · <span style={{ color: HQ.amber }}>{unconfirmedCount} email unconfirmed</span></>
+          )}
         </p>
       </div>
+
+      {/* Success banner */}
+      {confirmed === "1" && (
+        <div
+          style={{
+            background: "rgba(93,211,160,0.08)",
+            border: `1px solid rgba(93,211,160,0.22)`,
+            borderRadius: 10,
+            padding: "10px 14px",
+            fontSize: 13,
+            color: HQ.green,
+            fontFamily: F,
+            marginBottom: 16,
+          }}
+        >
+          Email confirmed successfully.
+        </div>
+      )}
 
       {/* Table card */}
       <section
@@ -103,7 +134,7 @@ export default async function PlatformUsersPage() {
           >
             <thead>
               <tr style={{ borderBottom: `1px solid ${HQ.border}` }}>
-                {["Name", "Email", "Role", "Primary tenant", "Tenants", "Joined"].map((h) => (
+                {["Name", "Email", "Role", "Primary tenant", "Tenants", "Joined", ""].map((h) => (
                   <th
                     key={h}
                     style={{
@@ -126,7 +157,7 @@ export default async function PlatformUsersPage() {
               {users.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     style={{
                       padding: 32,
                       textAlign: "center",
@@ -149,12 +180,32 @@ export default async function PlatformUsersPage() {
                     <td
                       style={{
                         padding: "12px 12px",
-                        color: HQ.inkMuted,
                         fontFamily: FM,
                         fontSize: 11.5,
                       }}
                     >
-                      {u.email}
+                      <span style={{ color: u.emailConfirmed ? HQ.inkMuted : HQ.amber }}>
+                        {u.email}
+                      </span>
+                      {!u.emailConfirmed && (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            marginLeft: 6,
+                            padding: "1px 6px",
+                            background: "rgba(240,180,97,0.12)",
+                            color: HQ.amber,
+                            fontSize: 9.5,
+                            fontWeight: 600,
+                            letterSpacing: 0.3,
+                            textTransform: "uppercase",
+                            borderRadius: 999,
+                            fontFamily: F,
+                          }}
+                        >
+                          unconfirmed
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: "12px 12px" }}>
                       {roleChip(u.appRole)}
@@ -175,6 +226,34 @@ export default async function PlatformUsersPage() {
                       style={{ padding: "12px 12px", color: HQ.inkDim, fontSize: 12 }}
                     >
                       {u.createdAt}
+                    </td>
+                    <td style={{ padding: "12px 12px" }}>
+                      {!u.emailConfirmed && (
+                        <form
+                          action={async () => {
+                            "use server";
+                            await confirmPlatformUserEmail(u.id);
+                          }}
+                        >
+                          <button
+                            type="submit"
+                            style={{
+                              background: "transparent",
+                              border: `1px solid rgba(240,180,97,0.35)`,
+                              color: HQ.amber,
+                              padding: "5px 10px",
+                              borderRadius: 7,
+                              fontSize: 11.5,
+                              fontWeight: 600,
+                              fontFamily: F,
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Confirm email
+                          </button>
+                        </form>
+                      )}
                     </td>
                   </tr>
                 ))

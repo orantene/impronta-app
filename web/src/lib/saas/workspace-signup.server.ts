@@ -480,6 +480,23 @@ export async function provisionWorkspaceFromLead(params: {
     profilePatch.app_role = "agency_staff";
   }
 
+  // Propagate the lead's human name to the profile so the admin shell
+  // greeting shows the real name rather than the email local-part.
+  // Only set when there's a name to set and the profile doesn't already
+  // have one from a prior onboarding step.
+  const leadName = lead.name?.trim() ?? "";
+  if (leadName && !params.profile?.display_name?.trim()) {
+    profilePatch.display_name = leadName;
+    // Best-effort first/last split: "QA Test Two" → first="QA Test", last="Two"
+    const parts = leadName.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      profilePatch.first_name = parts.slice(0, -1).join(" ");
+      profilePatch.last_name  = parts[parts.length - 1];
+    } else if (parts.length === 1) {
+      profilePatch.first_name = parts[0];
+    }
+  }
+
   const { error: profileError } = await admin
     .from("profiles")
     .update(profilePatch)

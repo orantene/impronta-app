@@ -107,10 +107,15 @@ export default async function WorkspaceAdminLayout({
   const plan        = summary?.plan ?? "free";
   const chip        = PLAN_CHIP[plan] ?? PLAN_CHIP.agency;
 
-  const userName = userDisplayName(
-    session.user.email,
-    session.user.user_metadata as Record<string, unknown> | undefined,
-  );
+  // Prefer the profiles.display_name the workspace-signup flow just wrote.
+  // Fall back to auth user_metadata, then the email local-part.
+  const profileDisplayName = (session.profile as { display_name?: string | null } | null)
+    ?.display_name?.trim() || "";
+  const userName = profileDisplayName ||
+    userDisplayName(
+      session.user.email,
+      session.user.user_metadata as Record<string, unknown> | undefined,
+    );
   const userInitials = initials(userName);
 
   return (
