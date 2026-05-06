@@ -34,6 +34,14 @@ import type {
   WorkspaceMessage,
   ThreadType,
 } from "../../_data-bridge";
+import type {
+  InquiryLineupParticipant,
+  InquiryOffer,
+  InquiryOfferHistoryEntry,
+  InquiryAttachment,
+  InquiryBookingTransaction,
+  AddTalentPickerRow,
+} from "./messages-data";
 import { sendMessage, markThreadRead, fetchMessages } from "./actions";
 import {
   togglePinInquiry,
@@ -41,6 +49,18 @@ import {
   archiveInquiriesBulk,
   nudgeInquiriesBulk,
 } from "./flag-actions";
+import LineupDrawer from "./LineupDrawer";
+import { OfferTab, FilesTab, PaymentTab } from "./DetailTabs";
+
+export type MessagesDetailBundle = {
+  inquiryId: string;
+  lineup:        InquiryLineupParticipant[];
+  currentOffer:  InquiryOffer | null;
+  offerHistory:  InquiryOfferHistoryEntry[];
+  attachments:   InquiryAttachment[];
+  transactions:  InquiryBookingTransaction[];
+  rosterPicker:  AddTalentPickerRow[];
+};
 
 // ─── Design tokens — match the workspace shell ────────────────────────────────
 
@@ -1388,18 +1408,22 @@ function MessageStream({
 
 // ─── RIGHT PANE: Inquiry detail ───────────────────────────────────────────────
 
-type TabId = "client" | "talent" | "booking";
+type TabId = "client" | "talent" | "offer" | "files" | "payment" | "booking";
 
 function InquiryDetail({
   inquiry,
   tenantSlug,
   onBack,
+  detailBundle,
 }: {
   inquiry: WorkspaceInquiryForMessages;
   tenantSlug: string;
   onBack: () => void;
+  detailBundle: MessagesDetailBundle | null;
 }) {
+  const isBooked = inquiry.status === "booked" || inquiry.status === "converted";
   const [activeTab, setActiveTab] = useState<TabId>("client");
+  const [lineupOpen, setLineupOpen] = useState(false);
   const [clientMsgs, setClientMsgs] = useState<WorkspaceMessage[] | null>(null);
   const [talentMsgs, setTalentMsgs] = useState<WorkspaceMessage[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1414,6 +1438,12 @@ function InquiryDetail({
 
   const trust = trustChip(inquiry.trustLevel);
   const hint = nextActionHint(inquiry);
+
+  // Reset to Client thread when switching inquiries — and clear stale data.
+  useEffect(() => {
+    setActiveTab("client");
+    setLineupOpen(false);
+  }, [inquiry.id]);
 
   useEffect(() => {
     setClientMsgs(null);
@@ -1444,9 +1474,20 @@ function InquiryDetail({
     }
   }, [activeTab, inquiry.id, tenantSlug]);
 
-  const tabDefs: { id: TabId; label: string; badge?: number }[] = [
+  const offerBadge =
+    detailBundle?.currentOffer?.status === "draft"   ? "Draft" :
+    detailBundle?.currentOffer?.status === "sent"    ? "Sent"  :
+    detailBundle?.currentOffer?.status === "rejected"? "Rejected" :
+    undefined;
+
+  const filesBadge = detailBundle?.attachments?.length ?? 0;
+
+  const tabDefs: Array<{ id: TabId; label: string; badge?: number; chip?: string }> = [
     { id: "client",  label: "Client thread", badge: inquiry.unreadPrivate },
     { id: "talent",  label: "Talent group",  badge: inquiry.unreadGroup },
+    { id: "offer",   label: "Offer", chip: offerBadge },
+    { id: "files",   label: "Files", badge: filesBadge },
+    ...(isBooked ? [{ id: "payment" as TabId, label: "Payment" }] : []),
     { id: "booking", label: "Booking" },
   ];
 
@@ -1548,23 +1589,36 @@ function InquiryDetail({
             display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
             marginBottom: 10, fontSize: 11.5, color: C.inkMuted,
           }}>
-            {inquiry.lineupTotal > 0 && (
-              <span style={{
+            <button
+              type="button"
+              onClick={() => setLineupOpen(true)}
+              style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
-                padding: "3px 8px", borderRadius: 999,
-                background: C.surface, border: `1px solid ${C.borderSoft}`,
-              }}>
-                <span style={{ fontWeight: 700, color: C.ink }}>
-                  {inquiry.lineupConfirmed}/{inquiry.lineupTotal}
-                </span>
-                <span>on lineup</span>
-                {inquiry.lineupPending > 0 && (
-                  <span style={{ color: C.amber, fontWeight: 600 }}>
-                    · {inquiry.lineupPending} pending
+                padding: "3px 10px", borderRadius: 999,
+                background: inquiry.lineupTotal > 0 ? C.surface : C.accentSoft,
+                border: `1px solid ${inquiry.lineupTotal > 0 ? C.borderSoft : C.accent}`,
+                color: inquiry.lineupTotal > 0 ? C.inkMuted : C.accent,
+                cursor: "pointer", fontFamily: FONT,
+                fontSize: 11.5, fontWeight: 600,
+              }}
+              title="Manage lineup"
+            >
+              {inquiry.lineupTotal > 0 ? (
+                <>
+                  <span style={{ fontWeight: 700, color: C.ink }}>
+                    {inquiry.lineupConfirmed}/{inquiry.lineupTotal}
                   </span>
-                )}
-              </span>
-            )}
+                  <span>on lineup</span>
+                  {inquiry.lineupPending > 0 && (
+                    <span style={{ color: C.amber, fontWeight: 600 }}>
+                      · {inquiry.lineupPending} pending
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>+ Build lineup</>
+              )}
+            </button>
             {inquiry.coordinatorName && (
               <span style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
@@ -1593,7 +1647,7 @@ function InquiryDetail({
         )}
 
         {/* Tab bar */}
-        <div style={{ display: "flex", gap: 0 }}>
+        <div style={{ display: "flex", gap: 0, overflowX: "auto" } as React.CSSProperties}>
           {tabDefs.map(t => (
             <button
               key={t.id}
@@ -1606,7 +1660,7 @@ function InquiryDetail({
                 color: activeTab === t.id ? C.accent : C.inkMuted,
                 fontSize: 12, fontWeight: activeTab === t.id ? 700 : 500,
                 cursor: "pointer", fontFamily: FONT,
-                transition: "color 120ms",
+                transition: "color 120ms", flexShrink: 0,
                 display: "inline-flex", alignItems: "center", gap: 6,
               }}
             >
@@ -1619,6 +1673,22 @@ function InquiryDetail({
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
                 }}>
                   {t.badge}
+                </span>
+              )}
+              {t.chip && (
+                <span style={{
+                  padding: "0 5px", height: 14, borderRadius: 999,
+                  background: t.chip === "Draft" ? "rgba(11,11,13,0.06)"
+                            : t.chip === "Rejected" ? C.coralSoft
+                            : C.amberSoft,
+                  color:      t.chip === "Draft" ? C.inkMuted
+                            : t.chip === "Rejected" ? C.coralDeep
+                            : C.amber,
+                  fontSize: 9, fontWeight: 800, letterSpacing: 0.3,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  textTransform: "uppercase",
+                }}>
+                  {t.chip}
                 </span>
               )}
             </button>
@@ -1646,7 +1716,7 @@ function InquiryDetail({
 
       {/* Tab content */}
       <div style={{ flex: 1, minHeight: 0, background: C.surfaceAlt, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        {loading ? (
+        {loading && (activeTab === "client" || activeTab === "talent") ? (
           <div style={{
             height: "100%", display: "flex",
             alignItems: "center", justifyContent: "center",
@@ -1676,10 +1746,38 @@ function InquiryDetail({
             closedReason={closedReason}
             smartReplyContext={bucket === "hold" ? "hold" : bucket === "inquiry" ? "inquiry" : "default"}
           />
+        ) : activeTab === "offer" ? (
+          <OfferTab
+            tenantSlug={tenantSlug}
+            inquiryId={inquiry.id}
+            offer={detailBundle?.currentOffer ?? null}
+            history={detailBundle?.offerHistory ?? []}
+          />
+        ) : activeTab === "files" ? (
+          <FilesTab
+            tenantSlug={tenantSlug}
+            inquiryId={inquiry.id}
+            attachments={detailBundle?.attachments ?? []}
+          />
+        ) : activeTab === "payment" ? (
+          <PaymentTab
+            transactions={detailBundle?.transactions ?? []}
+            currency={inquiry.currentOfferCurrency}
+          />
         ) : (
           <BookingDetail inquiry={inquiry} tenantSlug={tenantSlug} />
         )}
       </div>
+
+      {/* Lineup drawer (overlay) */}
+      <LineupDrawer
+        open={lineupOpen}
+        onClose={() => setLineupOpen(false)}
+        tenantSlug={tenantSlug}
+        inquiryId={inquiry.id}
+        participants={detailBundle?.lineup ?? []}
+        pickerRows={detailBundle?.rosterPicker ?? []}
+      />
     </div>
   );
 }
@@ -1810,11 +1908,14 @@ export default function MessagesShell({
   inquiries,
   tenantSlug,
   initialInquiryId,
+  detailBundle,
 }: {
   inquiries: WorkspaceInquiryForMessages[];
   tenantSlug: string;
   initialInquiryId?: string | null;
+  detailBundle: MessagesDetailBundle | null;
 }) {
+  const router = useRouter();
   const visible = inquiries.filter(i => !i.archived);
   const [activeId, setActiveId] = useState<string | null>(
     (initialInquiryId && visible.some(i => i.id === initialInquiryId))
@@ -1824,11 +1925,19 @@ export default function MessagesShell({
   const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
 
   const activeInquiry = inquiries.find(i => i.id === activeId) ?? null;
+  const activeBundle =
+    detailBundle && activeId === detailBundle.inquiryId ? detailBundle : null;
 
+  // When the user clicks a different inquiry, push ?inquiry=<id> so the
+  // server reloads the detail bundle for that inquiry. Falls back to local
+  // selection so the inbox responds instantly.
   const handleSelect = useCallback((id: string) => {
     setActiveId(id);
     setMobilePane("thread");
-  }, []);
+    const url = new URL(window.location.href);
+    url.searchParams.set("inquiry", id);
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [router]);
 
   return (
     <>
@@ -1886,6 +1995,7 @@ export default function MessagesShell({
               inquiry={activeInquiry}
               tenantSlug={tenantSlug}
               onBack={() => setMobilePane("list")}
+              detailBundle={activeBundle}
             />
           ) : (
             <EmptyDetail />
