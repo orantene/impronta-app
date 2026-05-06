@@ -43,6 +43,7 @@ import { SelectionLayer } from "./selection-layer";
 
 interface IframeChildProps {
   tenantId: string;
+  workspacePlan?: string | null;
   locale?: string;
   pageSlug?: string | null;
   availableLocales?: ReadonlyArray<string>;
@@ -51,6 +52,7 @@ interface IframeChildProps {
 
 export function IframeChild({
   tenantId,
+  workspacePlan,
   locale,
   pageSlug,
   availableLocales,
@@ -71,6 +73,7 @@ export function IframeChild({
       `}</style>
       <EditProvider
         tenantId={tenantId}
+        workspacePlan={workspacePlan}
         locale={locale}
         pageSlug={pageSlug}
         initialAvailableLocales={availableLocales}

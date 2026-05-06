@@ -3,9 +3,9 @@
 /**
  * Phase 10 — preflight panel mounted in the Publish drawer.
  *
- * Loads heading + alt-text + image-size warnings via
- * `runPublishPreflight` and surfaces them as a checklist. Doesn't
- * block publish — the operator decides.
+ * Loads heading + alt-text + featured-roster + CTA checks via
+ * `runPublishPreflight` and surfaces them as a checklist. Error-severity
+ * issues are surfaced back to the Publish drawer so it can block publish.
  */
 
 import { useEffect, useState } from "react";
@@ -18,9 +18,18 @@ import {
 interface Props {
   /** Bumps when the publish drawer opens — re-fetches issues each time. */
   refreshKey: number;
+  locale?: string;
+  onStatusChange?: (status: {
+    loading: boolean;
+    blockingErrors: number;
+  }) => void;
 }
 
-export function PublishPreflight({ refreshKey }: Props) {
+export function PublishPreflight({
+  refreshKey,
+  locale,
+  onStatusChange,
+}: Props) {
   const [issues, setIssues] = useState<ReadonlyArray<PreflightIssue> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,20 +38,26 @@ export function PublishPreflight({ refreshKey }: Props) {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    onStatusChange?.({ loading: true, blockingErrors: 0 });
     void (async () => {
-      const result = await runPublishPreflight();
+      const result = await runPublishPreflight({ locale });
       if (cancelled) return;
       setLoading(false);
       if (result.ok) {
         setIssues(result.issues);
+        const blockingErrors = result.issues.filter(
+          (issue) => issue.severity === "error",
+        ).length;
+        onStatusChange?.({ loading: false, blockingErrors });
       } else {
         setError(result.error);
+        onStatusChange?.({ loading: false, blockingErrors: 0 });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [refreshKey, locale, onStatusChange]);
 
   if (loading) {
     return (

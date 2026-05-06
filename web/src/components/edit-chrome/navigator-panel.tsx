@@ -87,6 +87,7 @@ export function NavigatorPanel() {
     moveSectionTo,
     openPageSettings,
     openTheme,
+    canEditSiteShell,
     navigatorOpen,
     toggleNavigator,
     setSectionVisibility,
@@ -125,6 +126,10 @@ export function NavigatorPanel() {
   }
   const [shellRows, setShellRows] = useState<ShellNavRow[]>([]);
   useEffect(() => {
+    if (!canEditSiteShell) {
+      setShellRows([]);
+      return;
+    }
     if (!navigatorOpen) return;
     const recompute = () => {
       const out: ShellNavRow[] = [];
@@ -148,7 +153,7 @@ export function NavigatorPanel() {
     const mo = new MutationObserver(() => recompute());
     mo.observe(document.body, { childList: true, subtree: true });
     return () => mo.disconnect();
-  }, [navigatorOpen]);
+  }, [navigatorOpen, canEditSiteShell]);
   /** Flat-index of the current drop-line target (insert *before* this row). null → no drop visible. */
   const [dropAt, setDropAt] = useState<number | null>(null);
   const dropEdgeRef = useRef<"top" | "bottom">("top");
@@ -678,7 +683,7 @@ export function NavigatorPanel() {
          *  rendered header/footer on the canvas — same setSelectedSectionId,
          *  same downstream inspector + save flow. No special shell mental
          *  model. */}
-        {viewMode === "sections" && shellRows.length > 0 ? (
+        {viewMode === "sections" && canEditSiteShell && shellRows.length > 0 ? (
           <div style={{ marginBottom: 6 }}>
             <div
               style={{
@@ -1156,9 +1161,11 @@ export function NavigatorPanel() {
           >
             Settings
           </FooterShortcut>
-          <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
-            Theme
-          </FooterShortcut>
+          {canEditSiteShell ? (
+            <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
+              Theme
+            </FooterShortcut>
+          ) : null}
         </div>
       </div>
     </aside>
@@ -1585,4 +1592,3 @@ function RenameInput({
     />
   );
 }
-

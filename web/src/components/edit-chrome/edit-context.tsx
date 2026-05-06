@@ -57,6 +57,10 @@ import type {
   EditorMutation,
   InsertTarget,
 } from "@/lib/site-admin/edit-mode/editor-mutations";
+import {
+  builderPlanAllows,
+  normalizeBuilderWorkspacePlan,
+} from "@/lib/site-admin/builder-capabilities";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
 
@@ -98,6 +102,8 @@ export interface LibraryTarget {
 
 export interface EditContextValue {
   tenantId: string;
+  workspacePlan: string;
+  canEditSiteShell: boolean;
   locale: string;
   /** The slug of the page currently being edited, or null for the homepage. */
   pageSlug: string | null;
@@ -485,6 +491,7 @@ function stripSnapshotForSave(s: CompositionSnapshot) {
 
 interface EditProviderProps {
   tenantId: string;
+  workspacePlan?: string | null;
   /** Falls back to `en` if omitted; edit chrome today operates on the platform default. */
   locale?: string;
   /** When non-null the editor is on a non-homepage page with this slug.
@@ -510,6 +517,7 @@ interface EditProviderProps {
 
 export function EditProvider({
   tenantId,
+  workspacePlan = null,
   locale = "en",
   pageSlug = null,
   initialAvailableLocales,
@@ -517,6 +525,11 @@ export function EditProvider({
   children,
 }: EditProviderProps) {
   const router = useRouter();
+  const normalizedWorkspacePlan = normalizeBuilderWorkspacePlan(workspacePlan);
+  const canEditSiteShell = builderPlanAllows(
+    normalizedWorkspacePlan,
+    "builder.shell.edit",
+  );
 
   // ── inspector state ─────────────────────────────────────────────────
   const [selectedSectionId, setSelectedSectionIdRaw] = useState<string | null>(
@@ -1756,6 +1769,7 @@ export function EditProvider({
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
 
   const openTheme = useCallback(() => {
+    if (!canEditSiteShell) return;
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -1763,7 +1777,7 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setThemeOpen(true);
-  }, []);
+  }, [canEditSiteShell]);
   const closeTheme = useCallback(() => setThemeOpen(false), []);
 
   const openAssets = useCallback(() => {
@@ -1929,6 +1943,8 @@ export function EditProvider({
   const value = useMemo<EditContextValue>(
     () => ({
       tenantId,
+      workspacePlan: normalizedWorkspacePlan,
+      canEditSiteShell,
       locale,
       pageSlug,
       pageId,
@@ -2042,6 +2058,8 @@ export function EditProvider({
     }),
     [
       tenantId,
+      normalizedWorkspacePlan,
+      canEditSiteShell,
       locale,
       pageSlug,
       pageId,

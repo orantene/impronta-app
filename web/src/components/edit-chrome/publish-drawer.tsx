@@ -179,6 +179,8 @@ export function PublishDrawer() {
   const [state, setState] = useState<PublishState>({ kind: "idle" });
   const [showLegacy, setShowLegacy] = useState(false);
   const [host, setHost] = useState("");
+  const [preflightLoading, setPreflightLoading] = useState(false);
+  const [preflightBlockingErrors, setPreflightBlockingErrors] = useState(0);
 
   // Local mini-edit working copy for the page-settings card. Resyncs from
   // upstream metadata on open; commits via savePageMetadata on blur.
@@ -193,6 +195,8 @@ export function PublishDrawer() {
     if (publishOpen) {
       setState({ kind: "idle" });
       setShowLegacy(false);
+      setPreflightLoading(true);
+      setPreflightBlockingErrors(0);
       setMiniTitle(pageMetadata?.title ?? "");
       setMiniDesc(pageMetadata?.metaDescription ?? "");
     }
@@ -298,6 +302,8 @@ export function PublishDrawer() {
     state.kind === "publishing" ||
     dirty ||
     saving ||
+    preflightLoading ||
+    preflightBlockingErrors > 0 ||
     summary.missing.length > 0 ||
     pageVersion === null;
 
@@ -351,7 +357,14 @@ export function PublishDrawer() {
           <>
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}
             <div style={{ marginBottom: 12 }}>
-              <PublishPreflight refreshKey={publishOpen ? 1 : 0} />
+              <PublishPreflight
+                refreshKey={publishOpen ? 1 : 0}
+                locale={locale}
+                onStatusChange={(status) => {
+                  setPreflightLoading(status.loading);
+                  setPreflightBlockingErrors(status.blockingErrors);
+                }}
+              />
             </div>
             {/* ── Preview thumbnail + stats ───────────────────────── */}
             <Card>
@@ -1126,4 +1139,3 @@ function formatRelative(d: Date): string {
     minute: "2-digit",
   });
 }
-

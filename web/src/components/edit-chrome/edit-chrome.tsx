@@ -64,6 +64,7 @@ import { PreviewPill } from "./preview-pill";
 interface EditChromeProps {
   tenantId: string;
   editActive: boolean;
+  workspacePlan?: string | null;
   /** Effective storefront locale for the current request. Threaded into
    *  EditShell → EditProvider so the editor loads the matching homepage row.
    *  Optional: the EditPill / PreviewPill branches don't need it. */
@@ -89,6 +90,7 @@ interface EditChromeProps {
 export function EditChrome({
   tenantId,
   editActive,
+  workspacePlan,
   locale,
   pageSlug,
   availableLocales,
@@ -120,6 +122,7 @@ export function EditChrome({
     return (
       <IframeChild
         tenantId={tenantId}
+        workspacePlan={workspacePlan}
         locale={locale}
         pageSlug={pageSlug}
         availableLocales={availableLocales}
@@ -145,6 +148,7 @@ export function EditChrome({
       `}</style>
       <EditShell
         tenantId={tenantId}
+        workspacePlan={workspacePlan}
         locale={locale}
         pageSlug={pageSlug}
         availableLocales={availableLocales}

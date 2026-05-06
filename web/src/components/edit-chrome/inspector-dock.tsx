@@ -144,6 +144,7 @@ export function InspectorDock() {
     setSaving,
     recordFieldEdit,
     slots,
+    canEditSiteShell,
   } = useEditContext();
 
   // T2-1 — Look up the selected section's name + type from the composition
@@ -535,6 +536,11 @@ export function InspectorDock() {
   const registryEntry = loadedSection
     ? (SECTION_EDITOR_REGISTRY[loadedSection.sectionTypeKey] ?? null)
     : null;
+  const shellSectionLocked =
+    !canEditSiteShell &&
+    (isSiteHeaderSelected ||
+      loadedSection?.sectionTypeKey === "site_header" ||
+      loadedSection?.sectionTypeKey === "site_footer");
 
   const dockOpen = !!selectedSectionId;
 
@@ -629,6 +635,8 @@ export function InspectorDock() {
 
       {!selectedSectionId ? (
         <EmptyState />
+      ) : shellSectionLocked ? (
+        <ShellLockedState />
       ) : isSiteHeaderSelected ? (
         <SiteHeaderInspector tenantId={tenantId} />
       ) : loadError ? (
@@ -779,6 +787,24 @@ function EmptyState() {
       <p className="mt-1.5 max-w-[200px] text-[11.5px] leading-relaxed" style={{ color: CHROME.muted2 }}>
         Click any section on the canvas to open its editor here.
       </p>
+    </div>
+  );
+}
+
+function ShellLockedState() {
+  return (
+    <div
+      className="flex h-full flex-1 items-center justify-center px-6 text-center"
+      style={{ color: CHROME.muted }}
+    >
+      <div className="max-w-[260px]">
+        <p className="text-[13px] font-semibold" style={{ color: CHROME.ink }}>
+          Site shell editing is locked on Free
+        </p>
+        <p className="mt-2 text-[12px] leading-5">
+          Body sections stay editable. Upgrade to Studio to edit header and footer shell controls.
+        </p>
+      </div>
     </div>
   );
 }

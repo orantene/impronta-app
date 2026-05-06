@@ -52,6 +52,7 @@ const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
 
 interface EditShellProps {
   tenantId: string;
+  workspacePlan?: string | null;
   /** Storefront-resolved locale for this request. EditProvider falls back
    *  to "en" when omitted; we forward the resolved value so non-default
    *  locale storefronts edit the correct homepage row. */
@@ -79,6 +80,7 @@ interface EditShellProps {
 
 export function EditShell({
   tenantId,
+  workspacePlan,
   locale,
   pageSlug,
   availableLocales,
@@ -89,6 +91,7 @@ export function EditShell({
     <EditErrorBoundary>
       <EditProvider
         tenantId={tenantId}
+        workspacePlan={workspacePlan}
         locale={locale}
         pageSlug={pageSlug}
         initialAvailableLocales={availableLocales}
@@ -152,6 +155,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openPageSettings,
     openRevisions,
     openTheme,
+    canEditSiteShell,
     openAssets,
     openSchedule,
     openComments,
@@ -499,7 +503,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onPublish={openPublish}
           onPageSettings={openPageSettings}
           onRevisions={openRevisions}
-          onTheme={openTheme}
+          onTheme={canEditSiteShell ? openTheme : undefined}
           onAssets={openAssets}
           onSchedule={openSchedule}
           onComments={openComments}

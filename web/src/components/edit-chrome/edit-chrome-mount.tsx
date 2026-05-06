@@ -33,7 +33,10 @@ import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active"
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-locale";
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
+import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
 import { EditChrome } from "./edit-chrome";
+import { resolvePublicSurfaceOwnershipFromPath } from "./edit-path";
 
 /**
  * Path prefixes that are never storefronts — the builder must not mount here.
@@ -110,6 +113,9 @@ export async function EditChromeMount() {
   }
 
   const editActive = await isEditModeActiveForTenant(ctx.tenantId);
+  const workspacePlan = await loadBuilderWorkspacePlan(staff.supabase, ctx.tenantId, {
+    logTag: "edit-mode",
+  });
   // Resolve the request's effective locale so the editor loads the matching
   // homepage row (composer used to expose this via the ?locale= query; the
   // in-place editor inherits the storefront's locale resolution instead).
@@ -119,7 +125,8 @@ export async function EditChromeMount() {
   ]);
 
   // Extract the page slug from the original request pathname so the editor
-  // loads the correct page's composition. The middleware sets
+  // loads the correct page's composition, but only for builder-owned
+  // surfaces. The middleware sets
   // ORIGINAL_PATHNAME_HEADER before any rewrites, giving us the raw URL path.
   //
   // Path shapes we handle:
@@ -128,19 +135,18 @@ export async function EditChromeMount() {
   //   /en/p/about         → locale "en", slug "about"
   //   /es                 → locale "es", homepage (null)
   //   /about              → slug "about" (hypothetical direct route)
+  //   /directory          → non-builder public surface (no mount)
+  //   /t/TAL-...          → profile public surface (no mount)
   // rawPathname is already resolved above.
   const supportedLocales = localeContext.settings.supportedLocales as ReadonlyArray<string>;
-  let segs = (rawPathname.split("?")[0] ?? "/").split("/").filter(Boolean);
-  // 1. Strip optional locale prefix.
-  if (segs.length > 0 && supportedLocales.includes(segs[0]!)) {
-    segs = segs.slice(1);
-  }
-  // 2. Strip optional /p/ page-route prefix so `/p/about` → slug `about`.
-  if (segs.length > 0 && segs[0] === "p") {
-    segs = segs.slice(1);
-  }
-  // 3. First remaining segment is the slug; nothing left → homepage.
-  const pageSlug = segs.length > 0 ? segs[0]! : null;
+  const publicPathPrefix = reqHeaders.get(PUBLIC_PATH_PREFIX_HEADER);
+  const ownership = resolvePublicSurfaceOwnershipFromPath({
+    rawPathname,
+    supportedLocales,
+    publicPathPrefix,
+  });
+  if (ownership.kind !== "builder_page") return null;
+  const pageSlug = ownership.pageSlug;
 
   // T1-2 — Server-prefetch the composition when the editor is engaged.
   //
@@ -191,6 +197,7 @@ export async function EditChromeMount() {
       pageSlug={pageSlug}
       availableLocales={localeSettings.supportedLocales}
       initialComposition={initialComposition}
+      workspacePlan={workspacePlan}
     />
   );
 }
