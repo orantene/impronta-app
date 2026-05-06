@@ -30,6 +30,7 @@ import {
   DeleteTalentButton,
 } from "./EditorSections";
 import { CompletenessCard, computeCompleteness } from "./CompletenessDial";
+import { WorkflowPipe } from "./WorkflowPipe";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     admin
       .from("talent_profiles")
       .select(
-        "id, display_name, first_name, last_name, short_bio, phone, workflow_status, visibility, profile_code, created_at, height_cm, gender, date_of_birth, invitation_email, home_city_text, social_links",
+        "id, display_name, first_name, last_name, short_bio, phone, workflow_status, visibility, profile_code, created_at, height_cm, gender, date_of_birth, invitation_email, home_city_text, social_links, user_id",
       )
       .eq("id", talentId)
       .is("deleted_at", null)
@@ -106,6 +107,7 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     invitation_email: string | null;
     home_city_text: string | null;
     social_links: { label: string; href: string }[] | null;
+    user_id: string | null;
   };
   type RosterRow = { status: string; agency_visibility: string };
 
@@ -144,6 +146,8 @@ async function loadTalentForEdit(tenantId: string, talentId: string) {
     invitation_email: p.invitation_email ?? null,
     home_city_text: p.home_city_text ?? null,
     instagram: (p.social_links ?? []).find((l) => l.label?.toLowerCase() === "instagram")?.href?.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "@").replace(/\/$/, "") ?? null,
+    is_claimed: Boolean(p.user_id),
+    is_archived: r.status === "removed" || p.workflow_status === "archived",
   };
 }
 
@@ -285,8 +289,17 @@ export default async function WorkspaceRosterTalentPage({
         )}
       </div>
 
-      {/* Profile completeness — visible above the form so admins know what to fill */}
-      <div style={{ marginBottom: 16 }}>
+      {/* Workflow status pipeline + Profile completeness — visible above the form */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+        gap: 16, marginBottom: 16,
+      }}>
+        <WorkflowPipe
+          workflowStatus={talent.workflow_status}
+          isClaimed={talent.is_claimed}
+          isArchived={talent.is_archived}
+        />
         <CompletenessCard
           snap={computeCompleteness({
             initial: {
