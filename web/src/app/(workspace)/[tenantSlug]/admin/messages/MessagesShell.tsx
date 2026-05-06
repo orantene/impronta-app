@@ -850,57 +850,68 @@ function MessageStream({
       ) : (
         <div style={{
           borderTop: `1px solid ${C.borderSoft}`,
-          padding: "10px 12px",
-          display: "flex", gap: 10, alignItems: "flex-end",
+          padding: "10px 12px 8px",
           background: C.cardBg,
         }}>
-          <textarea
-            ref={textareaRef}
-            value={body}
-            onChange={e => {
-              setBody(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-            }}
-            onKeyDown={e => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder={placeholder}
-            rows={1}
-            style={{
-              flex: 1, resize: "none", outline: "none",
-              border: `1px solid ${C.border}`,
-              borderRadius: RADIUS.sm,
-              padding: "8px 12px",
-              fontFamily: FONT, fontSize: 13, color: C.ink,
-              background: "rgba(11,11,13,0.025)",
-              lineHeight: 1.5, minHeight: 36,
-              overflow: "hidden",
-            }}
-          />
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!body.trim() || sending}
-            aria-label="Send message"
-            style={{
-              flexShrink: 0,
-              width: 36, height: 36, borderRadius: 10,
-              background: !body.trim() || sending ? "rgba(11,11,13,0.10)" : C.accent,
-              color: !body.trim() || sending ? C.inkMuted : "#fff",
-              border: "none", cursor: !body.trim() || sending ? "default" : "pointer",
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              transition: "background 120ms",
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden>
-              <path d="M18 2L9 11M18 2l-5.5 16-3.5-7-7-3.5L18 2z"
-                stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
-            </svg>
-          </button>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+            <textarea
+              ref={textareaRef}
+              value={body}
+              onChange={e => {
+                setBody(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+              }}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder={placeholder}
+              rows={1}
+              style={{
+                flex: 1, resize: "none", outline: "none",
+                border: `1px solid ${body.trim() ? C.accent : C.border}`,
+                borderRadius: RADIUS.sm,
+                padding: "8px 12px",
+                fontFamily: FONT, fontSize: 13, color: C.ink,
+                background: "rgba(11,11,13,0.025)",
+                lineHeight: 1.5, minHeight: 36,
+                overflow: "hidden",
+                transition: "border-color 120ms",
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!body.trim() || sending}
+              aria-label="Send message"
+              style={{
+                flexShrink: 0,
+                width: 36, height: 36, borderRadius: 10,
+                background: !body.trim() || sending ? "rgba(11,11,13,0.10)" : C.accent,
+                color: !body.trim() || sending ? C.inkMuted : "#fff",
+                border: "none", cursor: !body.trim() || sending ? "default" : "pointer",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                transition: "background 120ms",
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden>
+                <path d="M18 2L9 11M18 2l-5.5 16-3.5-7-7-3.5L18 2z"
+                  stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          {/* Thread context hint */}
+          <div style={{
+            fontSize: 10.5, color: C.inkDim, fontFamily: FONT,
+            marginTop: 5, paddingLeft: 2,
+          }}>
+            {threadType === "private"
+              ? "Client thread · visible to client + coordinator"
+              : "Group thread · visible to talent participants + coordinator"}
+          </div>
         </div>
       )}
     </div>

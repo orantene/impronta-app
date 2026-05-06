@@ -211,6 +211,8 @@ export type WorkspaceRosterItem = {
   city?: string;
   height?: string;
   thumb?: string;
+  /** ISO timestamp when this talent was added to the roster. Used for "Newest" sort. */
+  addedAt?: string;
 };
 
 function deriveProfileState(row: RosterRow): TalentProfile["state"] {
@@ -347,6 +349,7 @@ export async function loadWorkspaceRosterEnriched(
         status,
         agency_visibility,
         talent_profile_id,
+        created_at,
         talent_profiles!talent_profile_id (
           id,
           display_name,
@@ -374,7 +377,7 @@ export async function loadWorkspaceRosterEnriched(
       return [];
     }
 
-    const rows = (data ?? []) as unknown as RosterRow[];
+    const rows = (data ?? []) as unknown as (RosterRow & { created_at?: string })[];
 
     // Batch-load card avatars from media_assets for all talent IDs.
     const talentIds = rows
@@ -419,6 +422,7 @@ export async function loadWorkspaceRosterEnriched(
         primaryType: derivePrimaryType(profile),
         primaryTypeLabel: derivePrimaryTypeLabel(profile),
         thumb: thumbByTalentId.get(profile.id),
+        addedAt: row.created_at,
       });
     }
     return out;

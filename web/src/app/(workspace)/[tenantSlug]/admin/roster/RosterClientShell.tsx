@@ -14,7 +14,7 @@ export type { WorkspaceRosterItem };
 // Alias for local use
 type RosterTalent = WorkspaceRosterItem;
 
-type StateFilter = "all" | "published" | "draft" | "invited" | "awaiting-approval";
+type StateFilter = "all" | "published" | "draft" | "invited" | "awaiting-approval" | "claimed";
 type SortKey = "name" | "newest";
 type ViewMode = "grid" | "list";
 
@@ -94,7 +94,7 @@ function downloadCsv(filename: string, rows: Record<string, string>[]) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-// Status strip — 4 clickable segments (Published / Pending / Invited / Draft)
+// Status strip — 5 clickable segments (Published / Pending / Claimed / Invited / Draft)
 function StatusStrip({
   roster,
   active,
@@ -102,18 +102,20 @@ function StatusStrip({
 }: {
   roster: RosterTalent[];
   active: StateFilter;
-  onFilter: (f: "published" | "draft" | "invited" | "awaiting-approval") => void;
+  onFilter: (f: "published" | "draft" | "invited" | "awaiting-approval" | "claimed") => void;
 }) {
   const counts = {
     published: roster.filter((r) => r.state === "published").length,
     "awaiting-approval": roster.filter((r) => r.state === "awaiting-approval").length,
+    claimed: roster.filter((r) => r.state === "claimed").length,
     invited: roster.filter((r) => r.state === "invited").length,
     draft: roster.filter((r) => r.state === "draft").length,
   };
 
-  const items: { id: "published" | "awaiting-approval" | "invited" | "draft"; label: string; tone: string }[] = [
+  const items: { id: "published" | "awaiting-approval" | "claimed" | "invited" | "draft"; label: string; tone: string }[] = [
     { id: "published",          label: "Published", tone: C.green },
     { id: "awaiting-approval",  label: "Pending",   tone: C.amber },
+    { id: "claimed",            label: "Claimed",   tone: C.ink },
     { id: "invited",            label: "Invited",   tone: C.indigo },
     { id: "draft",              label: "Draft",     tone: C.inkMuted },
   ];
@@ -212,7 +214,7 @@ function FilterBar({
 }) {
   const [sortOpen, setSortOpen] = useState(false);
   const sortLabel = sort === "name" ? "Name" : "Newest";
-  const arrow = sort === "newest" ? "" : sortDir === "asc" ? " ↑" : " ↓";
+  const arrow = sortDir === "asc" ? " ↑" : " ↓";
 
   return (
     <div
@@ -1071,7 +1073,13 @@ export function RosterClientShell({
         const r = a.name.localeCompare(b.name);
         return sortDir === "asc" ? r : -r;
       }
-      return 0; // newest = source order
+      if (sort === "newest") {
+        const tA = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+        const tB = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+        // Default: newest first (desc); toggle with sortDir
+        return sortDir === "desc" ? tA - tB : tB - tA;
+      }
+      return 0;
     });
 
   const exportCsv = () => {
