@@ -510,7 +510,7 @@ export default async function WorkspaceAdminOverviewPage({
               View pipeline →
             </Link>
             <Link
-              href={`/${tenantSlug}/admin/work`}
+              href={`/${tenantSlug}/admin/messages`}
               style={{
                 fontFamily: FONT,
                 fontSize: 12,
@@ -519,7 +519,7 @@ export default async function WorkspaceAdminOverviewPage({
                 textDecoration: "none",
               }}
             >
-              All activity →
+              All messages →
             </Link>
           </div>
         </div>

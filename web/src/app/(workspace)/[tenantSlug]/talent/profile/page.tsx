@@ -103,7 +103,8 @@ export default async function TalentProfilePage({ params }: { params: PageParams
   const identityComplete = !!(talentProfile.displayName && talentProfile.primaryTypeLabel && talentProfile.homeCity);
   const mediaComplete = !!talentProfile.headshotUrl;
   const measurementsComplete = talentProfile.hasHeight;
-  const experienceComplete = false; // requires credits data — always prompt to fill
+  // Experience/credits table not yet in schema — exclude from completeness dial
+  // until credits data is wired. Show the section card as a prompt only.
 
   // Profile editor is the legacy route — still fully functional
   const editBase = `/talent/my-profile`;
@@ -241,7 +242,7 @@ export default async function TalentProfilePage({ params }: { params: PageParams
 
       {/* Completeness banner */}
       {(() => {
-        const sections = [identityComplete, mediaComplete, measurementsComplete, experienceComplete];
+        const sections = [identityComplete, mediaComplete, measurementsComplete];
         const doneCount = sections.filter(Boolean).length;
         const total = sections.length;
         const pct = Math.round((doneCount / total) * 100);
@@ -337,7 +338,6 @@ export default async function TalentProfilePage({ params }: { params: PageParams
             href={`${editBase}#experience`}
             title="Experience & credits"
             description="Previous campaigns, shows, and editorial work"
-            status={experienceComplete ? "complete" : "incomplete"}
           />
           <div style={{ padding: "14px 16px" }}>
             <Link

@@ -93,6 +93,23 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
     (session.user.user_metadata?.name as string | undefined) ??
     userEmail.split("@")[0];
 
+  const rawProvider =
+    (session.user.app_metadata?.provider as string | undefined) ??
+    (Array.isArray(session.user.app_metadata?.providers)
+      ? (session.user.app_metadata.providers as string[])[0]
+      : undefined) ??
+    "email";
+  const signInMethodLabel =
+    rawProvider === "google"
+      ? "Google"
+      : rawProvider === "github"
+      ? "GitHub"
+      : rawProvider === "apple"
+      ? "Apple"
+      : rawProvider === "azure"
+      ? "Microsoft"
+      : "Email / password";
+
   return (
     <div style={{ fontFamily: FONT }}>
       {/* Header */}
@@ -152,7 +169,7 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
           />
           <SettingRow
             label="Sign-in method"
-            value="Email / password"
+            value={signInMethodLabel}
           />
           <div
             style={{
