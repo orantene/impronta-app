@@ -52,3 +52,12 @@
   color: var(--token-color-muted);
 }
 .site-featured-talent__empty-note { font-size: 14px; line-height: 1.6; }
+.site-featured-talent__empty-action {
+  display: inline-flex;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: var(--token-color-primary);
+}

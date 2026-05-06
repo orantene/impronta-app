@@ -39,6 +39,11 @@ import {
   loadHomepageForStaff,
   saveHomepageDraftComposition,
 } from "@/lib/site-admin/server/homepage";
+import {
+  type BuilderWorkspacePlan,
+  loadBuilderWorkspacePlan,
+  workspaceTemplateLibraryDeniedReason,
+} from "@/lib/site-admin/builder-capabilities";
 
 export interface WorkspaceTemplateSnapshotEntry {
   slotKey: string;
@@ -84,41 +89,13 @@ function shortToken(): string {
   return randomBytes(3).toString("hex");
 }
 
-const WORKSPACE_TEMPLATE_PLANS = [
-  "free",
-  "studio",
-  "agency",
-  "network",
-  "legacy",
-] as const;
-type WorkspaceTemplatePlan = (typeof WORKSPACE_TEMPLATE_PLANS)[number];
-
-function normalizeWorkspaceTemplatePlan(
-  planTier: string | null | undefined,
-): WorkspaceTemplatePlan {
-  if (!planTier) return "free";
-  return (WORKSPACE_TEMPLATE_PLANS as readonly string[]).includes(planTier)
-    ? (planTier as WorkspaceTemplatePlan)
-    : "free";
-}
-
 async function loadWorkspaceTemplatePlan(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   tenantId: string,
-): Promise<WorkspaceTemplatePlan> {
-  const { data, error } = await admin
-    .from("agencies")
-    .select("plan_tier")
-    .eq("id", tenantId)
-    .maybeSingle<{ plan_tier: string | null }>();
-  if (error) {
-    console.warn("[workspace-templates] failed to load workspace plan_tier", {
-      tenantId,
-      error: error.message,
-    });
-    return "free";
-  }
-  return normalizeWorkspaceTemplatePlan(data?.plan_tier);
+): Promise<BuilderWorkspacePlan> {
+  return loadBuilderWorkspacePlan(admin, tenantId, {
+    logTag: "workspace-templates",
+  });
 }
 
 async function ensureTemplateAccess(
@@ -126,11 +103,11 @@ async function ensureTemplateAccess(
   tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const plan = await loadWorkspaceTemplatePlan(admin, tenantId);
-  if (plan === "free") {
+  const deniedReason = workspaceTemplateLibraryDeniedReason(plan);
+  if (deniedReason) {
     return {
       ok: false,
-      error:
-        "Free workspaces include one landing template. Upgrade to Studio to unlock template library tools.",
+      error: deniedReason,
     };
   }
   return { ok: true };

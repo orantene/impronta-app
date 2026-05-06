@@ -40,6 +40,9 @@ export async function FeaturedTalentComponent({
   const cards = await fetchFeaturedTalentForSection(tenantId, props, locale);
   const hasCards = cards.length > 0;
   const columns = Math.max(2, Math.min(4, columnsDesktop ?? 3));
+  const rosterAddHref = publicPathPrefix
+    ? `${publicPathPrefix}/admin/roster/new`
+    : "/admin/roster/new";
 
   return (
     <section
@@ -101,6 +104,9 @@ export async function FeaturedTalentComponent({
             <p className="site-featured-talent__empty-note">
               {emptyCopy(sourceMode, props)}
             </p>
+            <a href={rosterAddHref} className="site-featured-talent__empty-action">
+              Add or publish roster profiles
+            </a>
           </div>
         )}
       </div>
@@ -129,9 +135,9 @@ function emptyCopy(
       }
       return `No published professionals available in "${props.filterDestinationSlug}" right now.`;
     case "auto_featured_flag":
-      return "No featured professionals yet — mark talents as featured from the admin roster to populate this section.";
+      return "No featured profiles are currently public on this site.";
     case "auto_recent":
-      return "No recent professionals available for this site.";
+      return "No published roster profiles are available for this section yet.";
     default:
       return "No professionals available for this section.";
   }

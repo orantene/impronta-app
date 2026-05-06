@@ -160,7 +160,14 @@ async function fetchViaDirectoryCache(
     sort,
     tenantId,
   });
-  return page.items.map(projectDirectoryCard);
+  const cards = page.items.map(projectDirectoryCard);
+  if (cards.length > 0) return cards;
+
+  // The directory cache intentionally has a short TTL, but page-builder QA
+  // often links/imports roster rows and immediately previews a Free starter.
+  // A stale empty directory page would make the "5 live profiles" starter
+  // look broken even though tenant-visible profiles now exist.
+  return fetchRecentOrFeaturedDirect(tenantId, sort, limit, locale);
 }
 
 // ---------------------------------------------------------------------------
@@ -240,6 +247,44 @@ async function fetchByServiceCategory(
 
   if (error) {
     logServerError("featured_talent/fetchByServiceCategory", error);
+    return [];
+  }
+  return hydrateRows(supabase, (data ?? []) as FeaturedTalentRow[], locale);
+}
+
+async function fetchRecentOrFeaturedDirect(
+  tenantId: string,
+  sort: "featured" | "recent",
+  limit: number,
+  locale: string,
+): Promise<FeaturedTalentCardDTO[]> {
+  const supabase = createPublicSupabaseClient();
+  if (!supabase) return [];
+  const roster = await listTalentIdsOnTenantRoster(supabase, tenantId);
+  if (roster.length === 0) return [];
+
+  let query = supabase
+    .from("talent_profiles")
+    .select(FEATURED_TALENT_SELECT)
+    .in("id", roster)
+    .eq("workflow_status", "approved")
+    .eq("visibility", "public")
+    .is("deleted_at", null);
+
+  if (sort === "featured") {
+    query = query
+      .order("is_featured", { ascending: false })
+      .order("featured_level", { ascending: false })
+      .order("featured_position", { ascending: true })
+      .order("updated_at", { ascending: false });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
+
+  const { data, error } = await query.order("id", { ascending: false }).limit(limit);
+
+  if (error) {
+    logServerError("featured_talent/fetchRecentOrFeaturedDirect", error);
     return [];
   }
   return hydrateRows(supabase, (data ?? []) as FeaturedTalentRow[], locale);

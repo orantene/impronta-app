@@ -90,6 +90,10 @@ export interface PublicHomepage {
    * be `null` if the homepage row has never been published (row exists but
    * no snapshot yet). Storefront callers should render nothing in that case
    * (or a platform-managed default, which is not part of M5 scope).
+   *
+   * Phase-3 note: null snapshots are transitional for pre-builder tenants.
+   * Backfill/removal sequencing is tracked in
+   * `docs/saas/page-builder-package-audit-2026-05-06.md`.
    */
   snapshot: HomepageSnapshot | null;
 }

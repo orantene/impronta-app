@@ -101,7 +101,8 @@ export default async function CmsPublicPage({
   // Phase 7 — first try the section-composed snapshot. If the page has
   // one, render it via the same HomepageCmsSections renderer used for
   // the homepage. Falls through to legacy body-rendering if the snapshot
-  // is null (existing pages stay unaffected).
+  // is null (legacy compatibility path; backfill/removal sequencing tracked
+  // in docs/saas/page-builder-package-audit-2026-05-06.md).
   const sectionPage = await loadPublicPage(publicScope.tenantId, locale as Locale, slugPath);
   if (sectionPage?.snapshot && sectionPage.snapshot.slots?.length > 0) {
     return (

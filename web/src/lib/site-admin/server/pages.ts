@@ -45,6 +45,10 @@ import {
   versionConflict,
   type Phase5Result,
 } from "@/lib/site-admin";
+import {
+  cmsAdditionalPageDeniedReason,
+  loadBuilderWorkspacePlan,
+} from "@/lib/site-admin/builder-capabilities";
 import { getTemplate } from "@/lib/site-admin/templates/registry";
 import type { Locale } from "@/lib/site-admin/locales";
 import type {
@@ -256,19 +260,6 @@ function bustPageTags(tenantId: string, pageId: string): void {
   updateTag(tagFor(tenantId, "pages-all"));
 }
 
-async function loadTenantPlanTier(
-  supabase: SupabaseClient,
-  tenantId: string,
-): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("agencies")
-    .select("plan_tier")
-    .eq("id", tenantId)
-    .maybeSingle<{ plan_tier: string | null }>();
-  if (error) return null;
-  return data?.plan_tier ?? null;
-}
-
 // ---- upsert ---------------------------------------------------------------
 
 /**
@@ -321,11 +312,12 @@ export async function upsertPage(
       return fail("VALIDATION_FAILED", "expectedVersion must be 0 on create");
     }
 
-    const planTier = await loadTenantPlanTier(supabase, tenantId);
-    if (planTier === "free") {
+    const plan = await loadBuilderWorkspacePlan(supabase, tenantId);
+    const deniedReason = cmsAdditionalPageDeniedReason(plan);
+    if (deniedReason) {
       return fail(
         "VALIDATION_FAILED",
-        "Free workspaces include one landing page. Upgrade to Studio to add more pages.",
+        deniedReason,
       );
     }
 

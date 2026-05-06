@@ -19,6 +19,10 @@
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { sectionUpsertSchema } from "@/lib/site-admin";
+import {
+  clampFeaturedRosterLimitForPlan,
+  loadBuilderWorkspacePlan,
+} from "@/lib/site-admin/builder-capabilities";
 import { upsertSection } from "@/lib/site-admin/server/sections";
 import {
   loadSectionByIdForStaff,
@@ -123,19 +127,10 @@ export async function saveSectionDraftAction(
   // This keeps the one-page Free storefront contract enforced even if an
   // operator edits the slider above 5 in the inspector.
   if (input.sectionTypeKey === "featured_talent") {
-    const { data: agency, error } = await auth.supabase
-      .from("agencies")
-      .select("plan_tier")
-      .eq("id", scope.tenantId)
-      .maybeSingle<{ plan_tier: string | null }>();
-    if (!error && agency?.plan_tier === "free") {
-      const raw = (nextProps as { limit?: unknown }).limit;
-      const normalized =
-        typeof raw === "number" && Number.isFinite(raw)
-          ? Math.max(1, Math.min(5, Math.trunc(raw)))
-          : 5;
-      nextProps = { ...nextProps, limit: normalized };
-    }
+    const plan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId);
+    const raw = (nextProps as { limit?: unknown }).limit;
+    const normalized = clampFeaturedRosterLimitForPlan(plan, raw);
+    if (normalized !== null) nextProps = { ...nextProps, limit: normalized };
   }
 
   const parsed = sectionUpsertSchema.safeParse({

@@ -14,6 +14,10 @@ import { normalizeHeroJson, type CmsPageSnapshot } from "@/lib/cms/revision-snap
 import type { Locale } from "@/i18n/config";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  cmsAdditionalPageDeniedReason,
+  loadBuilderWorkspacePlan,
+} from "@/lib/site-admin/builder-capabilities";
 
 const localeSchema = z.enum(["en", "es"]);
 const statusSchema = z.enum(["draft", "published", "archived"]);
@@ -79,22 +83,6 @@ export type CmsPageRow = {
 function emptyToNull(s: string | null | undefined): string | null {
   const t = s?.trim();
   return t ? t : null;
-}
-
-async function loadWorkspacePlanTier(
-  supabase: SupabaseClient,
-  tenantId: string,
-): Promise<string | null> {
-  const { data, error } = await supabase
-    .from("agencies")
-    .select("plan_tier")
-    .eq("id", tenantId)
-    .maybeSingle<{ plan_tier: string | null }>();
-  if (error) {
-    logServerError("cms/savePage/planTier", error);
-    return null;
-  }
-  return data?.plan_tier ?? null;
 }
 
 function buildPageSnapshotFromSave(args: {
@@ -301,12 +289,20 @@ export async function saveCmsPage(
   const heroForInsert =
     parsed.data.hero !== undefined ? normalizeHeroJson(parsed.data.hero) : {};
 
-  const workspacePlanTier = await loadWorkspacePlanTier(session.supabase, tenantId);
-  if (workspacePlanTier === "free") {
+  const workspacePlanTier = await loadBuilderWorkspacePlan(
+    session.supabase,
+    tenantId,
+    {
+      onError: (message) => {
+        logServerError("cms/savePage/planTier", new Error(message));
+      },
+    },
+  );
+  const deniedReason = cmsAdditionalPageDeniedReason(workspacePlanTier);
+  if (deniedReason) {
     return {
       ok: false,
-      error:
-        "Free workspaces include one landing page. Upgrade to Studio to add more pages.",
+      error: deniedReason,
     };
   }
 

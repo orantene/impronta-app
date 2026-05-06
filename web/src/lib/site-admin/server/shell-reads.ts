@@ -16,6 +16,10 @@
  * not as an error. Phase B.1 does not change any rendering — the wrapper
  * component that consumes this reader is feature-flag-gated and OFF by
  * default.
+ *
+ * Phase-3 note: this fallback is intentionally explicit while builder page
+ * ownership expands; see `docs/saas/page-builder-package-audit-2026-05-06.md`
+ * for backfill and removal sequencing.
  */
 
 import { unstable_cache } from "next/cache";

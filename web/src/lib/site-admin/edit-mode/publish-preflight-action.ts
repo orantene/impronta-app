@@ -21,12 +21,25 @@ import { requireTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import {
+  findInvalidInquiryCtas,
+  isSectionHidden,
+} from "./publish-preflight-rules";
+import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talent/schema";
+import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 
 export type PreflightSeverity = "error" | "warn";
 
 export interface PreflightIssue {
   severity: PreflightSeverity;
-  category: "headings" | "alt_text" | "image_size" | "aria";
+  category:
+    | "headings"
+    | "alt_text"
+    | "image_size"
+    | "aria"
+    | "cta"
+    | "featured_talent";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
   message: string;
@@ -71,14 +84,18 @@ const ARRAY_IMAGE_FIELDS: Record<
   magazine_layout: { arrayKey: "secondary", urlKey: "imageUrl", altKey: "imageAlt" },
 };
 
-export async function runPublishPreflight(): Promise<PreflightResult> {
+export async function runPublishPreflight(input?: {
+  locale?: string;
+}): Promise<PreflightResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+  const locale = input?.locale?.trim() || DEFAULT_PLATFORM_LOCALE;
 
   const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);
   const issues: PreflightIssue[] = [];
+  const featuredChecks: Array<Promise<void>> = [];
 
   // Heading hierarchy
   let h1Count = 0;
@@ -105,7 +122,9 @@ export async function runPublishPreflight(): Promise<PreflightResult> {
 
   // Alt-text audits per section
   for (const r of rows) {
+    if (r.status === "archived") continue;
     const props = (r.props_jsonb as Record<string, unknown> | null) ?? {};
+    const sectionName = cleanSectionName(r.name) || r.name;
 
     // Single-field image pairs
     const pairs = IMAGE_FIELD_PAIRS[r.section_type_key];
@@ -146,12 +165,56 @@ export async function runPublishPreflight(): Promise<PreflightResult> {
             severity: "warn",
             category: "alt_text",
             sectionId: r.id,
-            message: `${cleanSectionName(r.name) || r.name}: ${missing} image${missing > 1 ? "s are" : " is"} missing alt text.`,
+            message: `${sectionName}: ${missing} image${missing > 1 ? "s are" : " is"} missing alt text.`,
           });
         }
       }
     }
+
+    // CTA audit — inquiry-intent labels must point to contact/inquiry destinations.
+    for (const message of findInvalidInquiryCtas(sectionName, props)) {
+      issues.push({
+        severity: "error",
+        category: "cta",
+        sectionId: r.id,
+        message,
+      });
+    }
+
+    // Featured-talent publish guardrail — if a visible block resolves zero
+    // cards, surface an actionable warning before publish.
+    if (r.section_type_key === "featured_talent" && !isSectionHidden(props)) {
+      const parsed = featuredTalentSchemaV1.safeParse(props);
+      if (!parsed.success) {
+        issues.push({
+          severity: "warn",
+          category: "featured_talent",
+          sectionId: r.id,
+          message: `${sectionName}: featured talent settings are invalid. Open the section and review source filters.`,
+        });
+      } else {
+        featuredChecks.push(
+          (async () => {
+            const cards = await fetchFeaturedTalentForSection(
+              scope.tenantId,
+              parsed.data,
+              locale,
+            );
+            if (cards.length === 0) {
+              issues.push({
+                severity: "warn",
+                category: "featured_talent",
+                sectionId: r.id,
+                message: `${sectionName}: this visible featured roster block resolves zero public profiles. Add/publish roster people or adjust the source filter.`,
+              });
+            }
+          })(),
+        );
+      }
+    }
   }
+
+  await Promise.all(featuredChecks);
 
   // ARIA landmark check — folded in Phase 0 sweep. Maps high/med/low →
   // error/warn/warn so operators see structurally-significant naming gaps

@@ -10,8 +10,12 @@
  *   - tenant has no page at that slug
  *   - page exists but isn't published
  *   - page exists + published but `published_page_snapshot` is null
- *     (i.e. legacy body-only page; caller should fall through to the
- *     existing rich-text rendering path)
+ *     (legacy body-only page). Public callers currently fall through to the
+ *     rich-text renderer as a transitional path.
+ *
+ * Phase-3 note: snapshot-null fallback is intentional legacy compatibility,
+ * not target-state. Backfill/removal sequencing is tracked in
+ * `docs/saas/page-builder-package-audit-2026-05-06.md`.
  */
 
 import { unstable_cache } from "next/cache";

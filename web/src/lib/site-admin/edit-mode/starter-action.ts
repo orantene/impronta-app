@@ -38,6 +38,13 @@ import {
 } from "@/lib/site-admin/server/homepage";
 import { applyThemePreset } from "@/lib/site-admin/server/design";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import {
+  DEFAULT_FREE_STARTER_SLUG,
+  loadBuilderWorkspacePlan,
+  resolveStarterTemplateSlugs,
+  starterTemplateDeniedReason,
+  type BuilderWorkspacePlan,
+} from "@/lib/site-admin/builder-capabilities";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -48,20 +55,10 @@ export type StarterActionState =
   | { ok: false; error: string; code?: string }
   | undefined;
 
-const FREE_STARTER_SLUG = "free-quickstart-5" as const;
-const WORKSPACE_STARTER_PLANS = [
-  "free",
-  "studio",
-  "agency",
-  "network",
-  "legacy",
-] as const;
-type WorkspaceStarterPlan = (typeof WORKSPACE_STARTER_PLANS)[number];
-
 export type StarterAvailabilityResult =
   | {
       ok: true;
-      plan: WorkspaceStarterPlan;
+      plan: BuilderWorkspacePlan;
       allowedSlugs: ReadonlyArray<string>;
       freeStarterSlug: string;
     }
@@ -84,8 +81,8 @@ interface Recipe {
 }
 
 const RECIPES: Record<string, Recipe> = {
-  "free-quickstart-5": {
-    slug: "free-quickstart-5",
+  [DEFAULT_FREE_STARTER_SLUG]: {
+    slug: DEFAULT_FREE_STARTER_SLUG,
     label: "Free Quickstart (5 profiles)",
     presetSlug: "classic",
     entries: [
@@ -736,39 +733,11 @@ function shortToken(): string {
   return randomBytes(3).toString("hex");
 }
 
-function normalizeWorkspaceStarterPlan(
-  planTier: string | null | undefined,
-): WorkspaceStarterPlan {
-  if (!planTier) return "free";
-  return (WORKSPACE_STARTER_PLANS as readonly string[]).includes(planTier)
-    ? (planTier as WorkspaceStarterPlan)
-    : "free";
-}
-
 async function loadWorkspaceStarterPlan(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   tenantId: string,
-): Promise<WorkspaceStarterPlan> {
-  const { data, error } = await admin
-    .from("agencies")
-    .select("plan_tier")
-    .eq("id", tenantId)
-    .maybeSingle<{ plan_tier: string | null }>();
-  if (error) {
-    console.warn("[starter-action] failed to load workspace plan_tier", {
-      tenantId,
-      error: error.message,
-    });
-    return "free";
-  }
-  return normalizeWorkspaceStarterPlan(data?.plan_tier);
-}
-
-function allowedStarterSlugsForPlan(
-  plan: WorkspaceStarterPlan,
-): ReadonlyArray<string> {
-  if (plan === "free") return [FREE_STARTER_SLUG];
-  return Object.keys(RECIPES).filter((slug) => slug !== FREE_STARTER_SLUG);
+): Promise<BuilderWorkspacePlan> {
+  return loadBuilderWorkspacePlan(admin, tenantId, { logTag: "starter-action" });
 }
 
 export async function loadStarterAvailability(): Promise<StarterAvailabilityResult> {
@@ -784,8 +753,8 @@ export async function loadStarterAvailability(): Promise<StarterAvailabilityResu
   return {
     ok: true,
     plan,
-    allowedSlugs: allowedStarterSlugsForPlan(plan),
-    freeStarterSlug: FREE_STARTER_SLUG,
+    allowedSlugs: resolveStarterTemplateSlugs(plan, Object.keys(RECIPES)),
+    freeStarterSlug: DEFAULT_FREE_STARTER_SLUG,
   };
 }
 
@@ -816,14 +785,12 @@ export async function applyStarterComposition(
     return { ok: false, error: "Server is missing service-role credentials." };
   }
   const plan = await loadWorkspaceStarterPlan(admin, scope.tenantId);
-  const allowedSlugs = allowedStarterSlugsForPlan(plan);
+  const allowedSlugs = resolveStarterTemplateSlugs(plan, Object.keys(RECIPES));
   if (!allowedSlugs.includes(slug)) {
+    const deniedReason = starterTemplateDeniedReason(plan);
     return {
       ok: false,
-      error:
-        plan === "free"
-          ? "Free workspaces include one starter template. Upgrade to Studio to unlock additional starters."
-          : `Starter "${slug}" is not available on this workspace plan.`,
+      error: deniedReason ?? `Starter "${slug}" is not available on this workspace plan.`,
     };
   }
 
