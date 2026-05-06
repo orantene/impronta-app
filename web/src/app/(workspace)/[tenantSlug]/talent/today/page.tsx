@@ -174,7 +174,7 @@ function InquiryRow({
 
   return (
     <Link
-      href={`/${tenantSlug}/talent/inbox`}
+      href={`/${tenantSlug}/talent/inbox/${inquiry.id}`}
       style={{
         display: "grid",
         gridTemplateColumns: "1fr auto",
@@ -409,7 +409,7 @@ export default async function TalentTodayPage({ params }: { params: PageParams }
               return (
                 <Link
                   key={bk.id}
-                  href={`/${tenantSlug}/talent/inbox`}
+                  href={`/${tenantSlug}/talent/inbox/${bk.id}`}
                   style={{
                     display: "flex",
                     alignItems: "center",

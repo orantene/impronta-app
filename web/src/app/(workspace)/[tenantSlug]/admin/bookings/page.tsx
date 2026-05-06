@@ -84,6 +84,7 @@ function BookingListItem({
   const displayCurrency = booking.transactionCurrency ?? booking.currencyCode ?? "USD";
   const displayGross = booking.transactionGrossCents ?? preview?.grossCents ?? null;
   const displayFee = booking.transactionFeeCents ?? preview?.feeCents ?? null;
+  const displayNet = booking.transactionNetCents ?? (displayGross != null && displayFee != null ? displayGross - displayFee : null);
 
   return (
     <Link
@@ -189,8 +190,12 @@ function BookingListItem({
           <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
             {formatCents(displayGross, displayCurrency)}
           </div>
-          {displayFee != null ? (
-            <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 1 }}>
+          {displayNet != null && displayFee != null && displayFee > 0 ? (
+            <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 1, fontVariantNumeric: "tabular-nums" }}>
+              {formatCents(displayNet, displayCurrency)} net
+            </div>
+          ) : displayFee != null && displayFee > 0 ? (
+            <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 1, fontVariantNumeric: "tabular-nums" }}>
               {formatCents(displayFee, displayCurrency)} fee
             </div>
           ) : null}
@@ -473,6 +478,25 @@ export default async function WorkspaceBookingsPage({
           <p style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
             Bookings appear here once an inquiry is confirmed.
           </p>
+          <Link
+            href={`/${tenantSlug}/admin/work`}
+            style={{
+              display: "inline-flex",
+              marginTop: 16,
+              height: 34,
+              padding: "0 16px",
+              borderRadius: 8,
+              background: C.accent,
+              color: "#fff",
+              fontSize: 12.5,
+              fontWeight: 600,
+              textDecoration: "none",
+              alignItems: "center",
+              fontFamily: FONT,
+            }}
+          >
+            View pipeline →
+          </Link>
         </div>
       ) : (
         <>
