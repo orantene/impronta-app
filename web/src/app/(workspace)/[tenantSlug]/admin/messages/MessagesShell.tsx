@@ -1,14 +1,22 @@
 "use client";
 
 /**
- * MessagesShell — workspace admin Messages tab.
+ * MessagesShell — workspace admin Messages tab. Phase 3.12 — Slice A.
  *
- * Matches the prototype AdminOperationsShell design:
- *   • Left pane (340px): inbox list with filter chips + search
- *   • Right pane (flex): inquiry detail with thread tabs + composer
+ * Pixel-fidelity rebuild of the prototype's AdminOperationsShell
+ * (see web/src/app/prototypes/admin-shell/_messages.tsx, ~1316–2670).
  *
- * Data: real inquiries + real messages from Supabase.
- * Realtime: subscribes to inquiry_messages for live updates.
+ * Two-pane layout:
+ *   • Left  (340px) — Inbox list with bulk mode, hover actions, pin,
+ *                     mark-unread, search, filter chips, sticky action bar
+ *   • Right (flex)  — Inquiry detail with header (stage + trust + lineup +
+ *                     coordinator pills), tab bar, message stream + composer
+ *
+ * Real data via _data-bridge.ts; per-user UX flags via inquiry_user_flags
+ * (see migration 20260907100000); realtime via Supabase Realtime channel.
+ *
+ * Detail tabs (offer/logistics/files/payment) are scaffolded as stubs in
+ * this slice; full implementations land in 3.12 Slice B-D commits.
  */
 
 import React, {
@@ -19,6 +27,7 @@ import React, {
   useState,
   useTransition,
 } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type {
   WorkspaceInquiryForMessages,
@@ -26,8 +35,14 @@ import type {
   ThreadType,
 } from "../../_data-bridge";
 import { sendMessage, markThreadRead, fetchMessages } from "./actions";
+import {
+  togglePinInquiry,
+  toggleManualUnreadInquiry,
+  archiveInquiriesBulk,
+  nudgeInquiriesBulk,
+} from "./flag-actions";
 
-// ─── Design tokens (match all workspace pages) ────────────────────────────────
+// ─── Design tokens — match the workspace shell ────────────────────────────────
 
 const C = {
   ink:          "#0B0B0D",
@@ -50,6 +65,12 @@ const C = {
   amber:        "#8A6F1A",
   amberSoft:    "rgba(138,111,26,0.10)",
   fill:         "#0B0B0D",
+  goldBg:       "rgba(166,124,42,0.12)",
+  goldFg:       "#A67C2A",
+  silverBg:     "rgba(138,138,138,0.14)",
+  silverFg:     "#6E6E6E",
+  bronzeBg:     "rgba(176,113,67,0.14)",
+  bronzeFg:     "#9A5A2C",
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -85,7 +106,7 @@ function stageWord(status: string): string {
   const map: Record<string, string> = {
     submitted: "Inquiry", coordination: "Coordinating", offer_pending: "Offer",
     approved: "Approved", booked: "Booked", rejected: "Rejected",
-    expired: "Expired", draft: "Draft",
+    expired: "Expired", draft: "Draft", converted: "Booked",
   };
   return map[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
 }
@@ -98,10 +119,25 @@ function statusLine(inquiry: WorkspaceInquiryForMessages): string {
     case "offer_pending": return "Offer sent · awaiting client";
     case "approved":      return "Client approved · prep production";
     case "booked":        return "Booked · confirmed";
+    case "converted":     return "Booked · confirmed";
     case "rejected":      return "Client declined";
     case "expired":       return "Expired";
     default:              return inquiry.status;
   }
+}
+
+function nextActionHint(inquiry: WorkspaceInquiryForMessages): string | null {
+  if (inquiry.nextActionBy === "coordinator") {
+    if (inquiry.status === "submitted")     return "Reply to client to keep this moving.";
+    if (inquiry.status === "coordination")  return "Pick talent and send an offer.";
+    if (inquiry.status === "offer_pending") return "Hold open — send the revised offer.";
+    if (inquiry.status === "approved")      return "Approved. Build the call sheet.";
+    if (inquiry.status === "booked")        return "Booked. Build the call sheet.";
+    return "Your move.";
+  }
+  if (inquiry.nextActionBy === "client") return "Awaiting client response.";
+  if (inquiry.nextActionBy === "talent") return "Awaiting talent confirmation.";
+  return null;
 }
 
 function formatTime(iso: string): string {
@@ -120,7 +156,7 @@ function formatDateGroup(iso: string): string {
 }
 
 function initialsOf(name: string): string {
-  return name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+  return name.split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
 }
 
 /** Deterministic color from a string. */
@@ -134,11 +170,33 @@ function hashColor(seed: string): string {
   return palette[Math.abs(h) % palette.length];
 }
 
+function trustChip(level: string | null): { bg: string; fg: string; label: string } | null {
+  if (!level) return null;
+  const l = level.toLowerCase();
+  let bg: string = C.bronzeBg;
+  let fg: string = C.bronzeFg;
+  let label = "Verified";
+  if (l === "gold")          { bg = C.goldBg;   fg = C.goldFg;   label = "Gold"; }
+  else if (l === "silver")   { bg = C.silverBg; fg = C.silverFg; label = "Silver"; }
+  else if (l === "verified") { bg = C.bronzeBg; fg = C.bronzeFg; label = "Verified"; }
+  else                       { label = level.charAt(0).toUpperCase() + level.slice(1); }
+  return { bg, fg, label };
+}
+
+function sourceChipText(kind: WorkspaceInquiryForMessages["sourceKind"]): string {
+  switch (kind) {
+    case "hub":         return "Tulala hub";
+    case "direct":      return "Direct";
+    case "manual":      return "Manual entry";
+    case "marketplace": return "Marketplace";
+    case "talent-page": return "Talent page";
+    default:            return "Other";
+  }
+}
+
 // ─── Micro-components ─────────────────────────────────────────────────────────
 
-function Avatar({
-  name, size = 28,
-}: { name: string; size?: number }) {
+function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   const bg = hashColor(name);
   return (
     <div
@@ -229,72 +287,226 @@ function FunnelDots({ status }: { status: string }) {
   );
 }
 
+function PinIcon({ filled, size = 11 }: { filled: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M9.5 1.5l-2 4-3.5 1 2.5 2.5-1 4 3.5-2 3.5 2-1-4 2.5-2.5-3.5-1-2-4z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+        fill={filled ? "currentColor" : "none"}
+      />
+    </svg>
+  );
+}
+
+function MailIcon({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M2 4h12v8H2zM2 4l6 5 6-5" stroke="currentColor" strokeWidth="1.4"
+        strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ArchiveIcon({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M2 3h12v3H2zM3 6v8h10V6M6 9h4" stroke="currentColor" strokeWidth="1.4"
+        strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function HoverActionBtn({
+  label, active, onClick, children,
+}: { label: string; active?: boolean; onClick: (e: React.MouseEvent) => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={(e) => { e.stopPropagation(); onClick(e); }}
+      style={{
+        width: 24, height: 24, borderRadius: 7,
+        border: `1px solid ${active ? C.accent : "transparent"}`,
+        background: active ? C.accentSoft : "rgba(255,255,255,0.96)",
+        color: active ? C.accent : C.inkMuted,
+        cursor: "pointer", padding: 0,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function LineupPill({ inquiry }: { inquiry: WorkspaceInquiryForMessages }) {
+  if (inquiry.lineupTotal === 0) return null;
+  const allConfirmed = inquiry.lineupConfirmed === inquiry.lineupTotal;
+  const fg = allConfirmed ? C.success : inquiry.lineupPending > 0 ? C.amber : C.inkMuted;
+  const bg = allConfirmed ? C.successSoft : inquiry.lineupPending > 0 ? C.amberSoft : "rgba(11,11,13,0.04)";
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      padding: "1px 7px", borderRadius: 999,
+      background: bg, color: fg,
+      fontSize: 10, fontWeight: 700, letterSpacing: 0.2,
+      flexShrink: 0,
+    }}>
+      {inquiry.lineupConfirmed}/{inquiry.lineupTotal}
+      {inquiry.lineupPending > 0 && (
+        <span style={{ fontWeight: 500, opacity: 0.85 }}>
+          ·{inquiry.lineupPending} pending
+        </span>
+      )}
+    </span>
+  );
+}
+
 // ─── TYPE filter ──────────────────────────────────────────────────────────────
 
-type AdminFilter = "all" | "needs-me" | "unread" | "inquiry" | "hold" | "past";
+type AdminFilter = "all" | "needs-me" | "unread" | "pinned" | "inquiry" | "hold" | "booked" | "past";
 
 // ─── LEFT PANE: Inbox row ──────────────────────────────────────────────────────
 
 function InquiryRow({
-  inquiry, active, onClick,
-}: { inquiry: WorkspaceInquiryForMessages; active: boolean; onClick: () => void }) {
+  inquiry,
+  active,
+  bulkMode,
+  selected,
+  onClick,
+  onToggleSelect,
+  onTogglePin,
+  onToggleUnread,
+  pendingFlag,
+}: {
+  inquiry: WorkspaceInquiryForMessages;
+  active: boolean;
+  bulkMode: boolean;
+  selected: boolean;
+  onClick: () => void;
+  onToggleSelect: () => void;
+  onTogglePin: () => void;
+  onToggleUnread: () => void;
+  pendingFlag: boolean;
+}) {
   const bucket = stageBucketOf(inquiry.status);
   const sc = stageStyle(bucket);
-  const needsMe = inquiry.next_action_by === "coordinator";
-  const hasUnread = inquiry.unread_count > 0;
+  const needsMe = inquiry.nextActionBy === "coordinator";
+  const hasUnread = inquiry.unreadCount > 0 || inquiry.manuallyUnread;
+  const isUnseen = !inquiry.seen;
+  const trust = trustChip(inquiry.trustLevel);
 
   const rowBg = active ? "rgba(11,11,13,0.045)"
+    : isUnseen ? "rgba(176,74,34,0.05)"
     : hasUnread ? "rgba(176,74,34,0.04)"
     : needsMe  ? "rgba(176,74,34,0.03)"
     : bucket === "booked" ? "rgba(46,125,91,0.035)"
     : "transparent";
 
   const borderLeft = active ? `3px solid ${C.accent}`
+    : isUnseen ? `3px solid ${C.coral}`
     : hasUnread ? `3px solid ${C.coral}`
     : needsMe   ? `3px solid ${C.coral}88`
     : "3px solid transparent";
 
-  const displayName = inquiry.company
-    ? inquiry.company
-    : inquiry.contact_name;
+  // Title precedence: company → contact → "Untitled".
+  const displayName = inquiry.briefTitle;
   const subtitleParts = [
-    inquiry.contact_name !== displayName ? inquiry.contact_name : null,
-    inquiry.event_date ? new Date(inquiry.event_date).toLocaleDateString([], { month: "short", day: "numeric" }) : null,
-    inquiry.event_location?.split(",")[0] ?? null,
-  ].filter(Boolean);
+    inquiry.clientCompany && inquiry.clientName !== inquiry.clientCompany ? `via ${inquiry.clientName}` : null,
+    inquiry.eventDate ? new Date(inquiry.eventDate).toLocaleDateString([], { month: "short", day: "numeric" }) : null,
+    inquiry.eventLocation?.split(",")[0] ?? null,
+  ].filter(Boolean) as string[];
+
+  // Last-message preview prefix by role.
+  const previewPrefix = (() => {
+    if (!inquiry.lastMessageRole) return "";
+    if (inquiry.lastMessageRole === "you") return "You: ";
+    if (inquiry.lastMessageRole === "system") return "Update: ";
+    return "";
+  })();
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
+      className="msgshell-row"
+      onClick={bulkMode ? onToggleSelect : onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          (bulkMode ? onToggleSelect : onClick)();
+        }
+      }}
       style={{
         display: "flex", alignItems: "flex-start", gap: 10,
-        width: "100%", padding: "12px 14px",
+        width: "100%", padding: "11px 14px",
         background: rowBg,
         borderLeft,
         borderTop: "none", borderRight: "none",
         borderBottom: `1px solid ${C.borderSoft}`,
-        cursor: "pointer", textAlign: "left",
+        cursor: "pointer",
         fontFamily: FONT, position: "relative",
+        opacity: pendingFlag ? 0.6 : 1,
+        transition: "background 100ms, opacity 120ms",
       }}
     >
-      {/* Avatar */}
-      <div style={{ position: "relative", flexShrink: 0, marginTop: 2 }}>
-        <Avatar name={displayName} size={36} />
-      </div>
+      {/* Bulk-mode checkbox (replaces avatar) */}
+      {bulkMode ? (
+        <div style={{
+          width: 36, display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0, marginTop: 6,
+        }}>
+          <span
+            aria-checked={selected}
+            role="checkbox"
+            style={{
+              width: 18, height: 18, borderRadius: 5,
+              border: `1.5px solid ${selected ? C.accent : C.inkDim}`,
+              background: selected ? C.accent : "transparent",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              transition: "all 100ms",
+            }}
+          >
+            {selected && (
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6l3 3 5-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </span>
+        </div>
+      ) : (
+        <div style={{ position: "relative", flexShrink: 0, marginTop: 2 }}>
+          <Avatar name={inquiry.clientName || displayName} size={36} />
+          {inquiry.pinned && (
+            <span style={{
+              position: "absolute", top: -3, right: -3,
+              width: 16, height: 16, borderRadius: "50%",
+              background: C.accent, color: "#fff",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              border: "2px solid #fff",
+            }}>
+              <PinIcon filled size={8} />
+            </span>
+          )}
+        </div>
+      )}
 
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-        {/* Row 1 — name + age */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+        {/* Row 1 — title + NEW pill + age */}
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <span style={{
-            fontSize: 13.5, fontWeight: hasUnread ? 700 : 600, color: C.ink,
+            fontSize: 13.5, fontWeight: hasUnread || isUnseen ? 700 : 600, color: C.ink,
             flex: 1, minWidth: 0,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             letterSpacing: -0.1,
           }}>
             {displayName}
           </span>
-          {hasUnread && (
+          {isUnseen && (
             <span style={{
               flexShrink: 0, fontSize: 9, fontWeight: 800, letterSpacing: 0.6,
               padding: "2px 6px", borderRadius: 999,
@@ -302,28 +514,60 @@ function InquiryRow({
               textTransform: "uppercase",
             }}>NEW</span>
           )}
-          <span style={{ flexShrink: 0, fontSize: 10.5, color: C.inkMuted }}>
-            {ageLabel(inquiry.created_at)}
+          <span style={{ flexShrink: 0, fontSize: 10.5, color: C.inkMuted, fontVariantNumeric: "tabular-nums" }}>
+            {ageLabel(inquiry.lastActivityAt)}
           </span>
         </div>
 
-        {/* Row 2 — subtitle (event details) */}
-        {subtitleParts.length > 0 && (
+        {/* Row 2 — subtitle (event details + source chip) */}
+        {(subtitleParts.length > 0 || inquiry.sourceKind) && (
           <div style={{
+            display: "flex", alignItems: "center", gap: 6,
             fontSize: 11.5, color: C.inkMuted, lineHeight: 1.4,
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            minWidth: 0,
           }}>
-            {subtitleParts.join(" · ")}
+            <span style={{ minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {subtitleParts.join(" · ")}
+            </span>
+            {inquiry.sourceKind && inquiry.sourceKind !== "other" && (
+              <span style={{
+                flexShrink: 0, padding: "0 6px",
+                fontSize: 9.5, color: C.inkDim, fontWeight: 600,
+                background: "rgba(11,11,13,0.04)", borderRadius: 999, letterSpacing: 0.3,
+                textTransform: "uppercase",
+              }}>
+                {sourceChipText(inquiry.sourceKind)}
+              </span>
+            )}
           </div>
         )}
 
-        {/* Row 3 — status line + unread badge */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 1 }}>
+        {/* Row 3 — last message preview */}
+        {inquiry.lastMessagePreview && (
+          <div style={{
+            fontSize: 11.5, color: hasUnread ? C.ink : C.inkMuted,
+            lineHeight: 1.45, fontWeight: hasUnread ? 500 : 400,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            marginTop: 2,
+          }}>
+            <span style={{ color: C.inkDim, fontWeight: 500 }}>{previewPrefix}</span>
+            {inquiry.lastMessagePreview}
+          </div>
+        )}
+
+        {/* Row 4 — needs-me chip + status line + unread badge */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
           {needsMe && (
-            <span aria-hidden style={{
-              flexShrink: 0, width: 6, height: 6, borderRadius: "50%",
-              background: C.coral,
-            }} />
+            <span style={{
+              flexShrink: 0,
+              display: "inline-flex", alignItems: "center", gap: 3,
+              padding: "1px 6px", borderRadius: 999,
+              background: C.coralSoft, color: C.coralDeep,
+              fontSize: 9.5, fontWeight: 800, letterSpacing: 0.4,
+            }}>
+              <span aria-hidden style={{ width: 4, height: 4, borderRadius: "50%", background: C.coral }} />
+              NEEDS YOU
+            </span>
           )}
           <span style={{
             flex: 1, minWidth: 0, fontSize: 11.5,
@@ -333,7 +577,7 @@ function InquiryRow({
           }}>
             {statusLine(inquiry)}
           </span>
-          {inquiry.unread_count > 0 && (
+          {inquiry.unreadCount > 0 && (
             <span style={{
               flexShrink: 0,
               minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
@@ -341,12 +585,12 @@ function InquiryRow({
               fontSize: 9.5, fontWeight: 700,
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               boxSizing: "border-box",
-            }}>{inquiry.unread_count}</span>
+            }}>{inquiry.unreadCount}</span>
           )}
         </div>
 
-        {/* Row 4 — funnel dots + stage word */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+        {/* Row 5 — funnel + stage word + lineup pill + coordinator */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
           <FunnelDots status={inquiry.status} />
           <span style={{
             fontSize: 10, fontWeight: 700, color: sc.fg,
@@ -354,72 +598,178 @@ function InquiryRow({
           }}>
             {stageWord(inquiry.status)}
           </span>
-          {inquiry.quantity != null && inquiry.quantity > 0 && (
+          <LineupPill inquiry={inquiry} />
+          <span style={{ flex: 1 }} />
+          {trust && (
             <span style={{
-              marginLeft: "auto", flexShrink: 0,
-              fontSize: 10.5, color: C.inkMuted,
+              flexShrink: 0,
+              padding: "1px 6px", borderRadius: 999,
+              background: trust.bg, color: trust.fg,
+              fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
+              textTransform: "uppercase",
             }}>
-              {inquiry.quantity} talent
+              {trust.label}
+            </span>
+          )}
+          {inquiry.coordinatorName && (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              flexShrink: 0, fontSize: 10.5, color: C.inkMuted,
+              maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              <Avatar name={inquiry.coordinatorName} size={14} />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {inquiry.coordinatorName.split(" ")[0]}
+              </span>
             </span>
           )}
         </div>
       </div>
-    </button>
+
+      {/* Hover actions strip */}
+      {!bulkMode && (
+        <div className="msgshell-row-actions" style={{
+          position: "absolute", top: 8, right: 8,
+          display: "flex", gap: 4,
+          opacity: inquiry.pinned ? 1 : 0,
+          pointerEvents: inquiry.pinned ? "auto" : "none",
+          transition: "opacity 120ms",
+        }}>
+          <HoverActionBtn label={inquiry.pinned ? "Unpin" : "Pin"} active={inquiry.pinned} onClick={onTogglePin}>
+            <PinIcon filled={inquiry.pinned} />
+          </HoverActionBtn>
+          <HoverActionBtn label={inquiry.manuallyUnread ? "Mark read" : "Mark unread"} active={inquiry.manuallyUnread} onClick={onToggleUnread}>
+            <MailIcon />
+          </HoverActionBtn>
+        </div>
+      )}
+    </div>
   );
 }
 
 // ─── LEFT PANE: Inbox list ────────────────────────────────────────────────────
 
 function InboxList({
-  inquiries, activeId, onSelect,
+  inquiries, activeId, onSelect, tenantSlug,
 }: {
   inquiries: WorkspaceInquiryForMessages[];
   activeId: string | null;
   onSelect: (id: string) => void;
+  tenantSlug: string;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
-  // Default to "needs-me" so users land on their action items; fall back to "all" if none exist.
-  const [filter, setFilter] = useState<AdminFilter>(
-    inquiries.some(i => i.next_action_by === "coordinator") ? "needs-me" : "all"
-  );
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [pendingFlag, setPendingFlag] = useState<Set<string>>(new Set());
+  const [pendingBulk, startBulkTransition] = useTransition();
 
-  const needsMe = inquiries.filter(i => i.next_action_by === "coordinator").length;
-  const unreadCount = inquiries.filter(i => i.unread_count > 0).length;
+  // Default filter: prioritise pending action items.
+  const initialFilter: AdminFilter =
+    inquiries.some(i => i.nextActionBy === "coordinator") ? "needs-me"
+    : inquiries.some(i => !i.seen || i.unreadCount > 0) ? "unread"
+    : "all";
+  const [filter, setFilter] = useState<AdminFilter>(initialFilter);
+
+  const counts = useMemo(() => ({
+    needsMe:   inquiries.filter(i => i.nextActionBy === "coordinator").length,
+    unread:    inquiries.filter(i => !i.seen || i.unreadCount > 0 || i.manuallyUnread).length,
+    pinned:    inquiries.filter(i => i.pinned).length,
+    inquiry:   inquiries.filter(i => stageBucketOf(i.status) === "inquiry").length,
+    hold:      inquiries.filter(i => stageBucketOf(i.status) === "hold").length,
+    booked:    inquiries.filter(i => stageBucketOf(i.status) === "booked").length,
+    past:      inquiries.filter(i => stageBucketOf(i.status) === "past").length,
+  }), [inquiries]);
 
   const filtered = useMemo(() => {
-    let list = inquiries;
-    if (filter === "needs-me") list = list.filter(i => i.next_action_by === "coordinator");
-    else if (filter === "unread") list = list.filter(i => i.unread_count > 0);
-    else if (filter !== "all") list = list.filter(i => stageBucketOf(i.status) === filter);
+    let list = inquiries.filter(i => !i.archived); // hide archived from default view
+    if (filter === "needs-me") list = list.filter(i => i.nextActionBy === "coordinator");
+    else if (filter === "unread") list = list.filter(i => !i.seen || i.unreadCount > 0 || i.manuallyUnread);
+    else if (filter === "pinned") list = list.filter(i => i.pinned);
+    else if (filter === "inquiry" || filter === "hold" || filter === "booked" || filter === "past") {
+      list = list.filter(i => stageBucketOf(i.status) === filter);
+    }
 
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(i =>
-        (i.contact_name + " " + (i.company ?? "") + " " + (i.event_location ?? ""))
+        (i.briefTitle + " " + i.clientName + " " + (i.clientCompany ?? "") + " " + (i.eventLocation ?? "") + " " + (i.coordinatorName ?? ""))
           .toLowerCase().includes(q)
       );
     }
 
-    // 3-tier sort: unread first → needs-me → recency
+    // 4-tier sort: pinned → unseen/unread → needs-me → recency
     return [...list].sort((a, b) => {
-      const unreadA = a.unread_count > 0 ? 0 : 1;
-      const unreadB = b.unread_count > 0 ? 0 : 1;
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      const unreadA = (!a.seen || a.unreadCount > 0 || a.manuallyUnread) ? 0 : 1;
+      const unreadB = (!b.seen || b.unreadCount > 0 || b.manuallyUnread) ? 0 : 1;
       if (unreadA !== unreadB) return unreadA - unreadB;
-      const needsA = a.next_action_by === "coordinator" ? 0 : 1;
-      const needsB = b.next_action_by === "coordinator" ? 0 : 1;
+      const needsA = a.nextActionBy === "coordinator" ? 0 : 1;
+      const needsB = b.nextActionBy === "coordinator" ? 0 : 1;
       if (needsA !== needsB) return needsA - needsB;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime();
     });
   }, [inquiries, filter, search]);
 
   const chips: { id: AdminFilter; label: string; count?: number }[] = [
-    { id: "all",      label: "All",       count: inquiries.length },
-    { id: "needs-me", label: "Needs me",  count: needsMe },
-    { id: "unread",   label: "Unread",    count: unreadCount },
-    { id: "inquiry",  label: "Inquiry" },
-    { id: "hold",     label: "Offer pending" },
-    { id: "past",     label: "Past" },
+    { id: "all",      label: "All",          count: inquiries.length },
+    { id: "needs-me", label: "Needs me",     count: counts.needsMe },
+    { id: "unread",   label: "Unread",       count: counts.unread },
+    ...(counts.pinned > 0 ? [{ id: "pinned" as AdminFilter, label: "Pinned", count: counts.pinned }] : []),
+    { id: "inquiry",  label: "Inquiry",      count: counts.inquiry },
+    { id: "hold",     label: "Offer pending", count: counts.hold },
+    { id: "booked",   label: "Booked",       count: counts.booked },
+    { id: "past",     label: "Past",         count: counts.past },
   ];
+
+  const togglePin = useCallback(async (inquiryId: string) => {
+    setPendingFlag(prev => new Set(prev).add(inquiryId));
+    try { await togglePinInquiry(tenantSlug, inquiryId); router.refresh(); }
+    finally {
+      setPendingFlag(prev => { const n = new Set(prev); n.delete(inquiryId); return n; });
+    }
+  }, [tenantSlug, router]);
+
+  const toggleUnread = useCallback(async (inquiryId: string) => {
+    setPendingFlag(prev => new Set(prev).add(inquiryId));
+    try { await toggleManualUnreadInquiry(tenantSlug, inquiryId); router.refresh(); }
+    finally {
+      setPendingFlag(prev => { const n = new Set(prev); n.delete(inquiryId); return n; });
+    }
+  }, [tenantSlug, router]);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitBulk = useCallback(() => {
+    setBulkMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleArchiveBulk = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    startBulkTransition(async () => {
+      await archiveInquiriesBulk(tenantSlug, ids);
+      router.refresh();
+      exitBulk();
+    });
+  }, [selectedIds, tenantSlug, router, exitBulk]);
+
+  const handleNudgeBulk = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    startBulkTransition(async () => {
+      await nudgeInquiriesBulk(tenantSlug, ids);
+      router.refresh();
+      exitBulk();
+    });
+  }, [selectedIds, tenantSlug, router, exitBulk]);
 
   return (
     <aside style={{
@@ -428,20 +778,38 @@ function InboxList({
       background: C.cardBg,
       minHeight: 0, minWidth: 0,
       overflow: "hidden", flex: 1,
+      position: "relative",
     }}>
       {/* Header */}
       <div style={{
         padding: "14px 14px 10px",
         borderBottom: `1px solid ${C.borderSoft}`,
+        flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
           <h3 style={{
             fontFamily: FONT, fontSize: 17, fontWeight: 700,
             color: C.ink, margin: 0, letterSpacing: -0.3,
           }}>Inbox</h3>
-          <span style={{ fontSize: 11, color: C.inkMuted }}>
-            {inquiries.length} thread{inquiries.length === 1 ? "" : "s"}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 11, color: C.inkMuted }}>
+              {inquiries.filter(i => !i.archived).length} thread{inquiries.length === 1 ? "" : "s"}
+            </span>
+            <button
+              type="button"
+              onClick={() => bulkMode ? exitBulk() : setBulkMode(true)}
+              style={{
+                padding: "3px 8px", borderRadius: 7,
+                border: `1px solid ${bulkMode ? C.accent : C.border}`,
+                background: bulkMode ? C.accentSoft : "transparent",
+                color: bulkMode ? C.accent : C.inkMuted,
+                fontSize: 11, fontWeight: 600,
+                cursor: "pointer", fontFamily: FONT,
+              }}
+            >
+              {bulkMode ? "Done" : "Select"}
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -451,7 +819,7 @@ function InboxList({
             value={search}
             onChange={e => setSearch(e.target.value)}
             onKeyDown={e => { if (e.key === "Escape") setSearch(""); }}
-            placeholder="Search clients, locations…"
+            placeholder="Search clients, briefs…"
             style={{
               width: "100%", boxSizing: "border-box",
               padding: "8px 32px 8px 30px", borderRadius: 999,
@@ -524,7 +892,7 @@ function InboxList({
             <div style={{ fontSize: 11.5, color: C.inkMuted, lineHeight: 1.4, maxWidth: 220 }}>
               {search.trim()
                 ? "Try a different keyword or clear the search."
-                : "Try the All filter or clear your search."}
+                : "Switch the All filter to see every thread."}
             </div>
             {search.trim() && (
               <button type="button" onClick={() => setSearch("")} style={{
@@ -536,11 +904,10 @@ function InboxList({
             )}
           </div>
         ) : (() => {
-          // Render inbox rows with date-group separators (Today / Yesterday / date)
           const items: React.ReactNode[] = [];
           let lastDateKey = "";
           for (const i of filtered) {
-            const dk = new Date(i.created_at).toDateString();
+            const dk = new Date(i.lastActivityAt).toDateString();
             if (dk !== lastDateKey) {
               lastDateKey = dk;
               items.push(
@@ -551,7 +918,7 @@ function InboxList({
                   background: C.surface,
                   borderBottom: `1px solid ${C.borderSoft}`,
                 }}>
-                  {formatDateGroup(i.created_at)}
+                  {formatDateGroup(i.lastActivityAt)}
                 </div>
               );
             }
@@ -560,18 +927,85 @@ function InboxList({
                 key={i.id}
                 inquiry={i}
                 active={i.id === activeId}
+                bulkMode={bulkMode}
+                selected={selectedIds.has(i.id)}
+                pendingFlag={pendingFlag.has(i.id)}
                 onClick={() => onSelect(i.id)}
+                onToggleSelect={() => toggleSelect(i.id)}
+                onTogglePin={() => togglePin(i.id)}
+                onToggleUnread={() => toggleUnread(i.id)}
               />
             );
           }
           return items;
         })()}
       </div>
+
+      {/* Bulk action bar */}
+      {bulkMode && selectedIds.size > 0 && (
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          padding: "10px 14px",
+          background: C.cardBg,
+          borderTop: `1px solid ${C.border}`,
+          boxShadow: "0 -4px 14px rgba(11,11,13,0.06)",
+          display: "flex", alignItems: "center", gap: 8,
+          fontFamily: FONT,
+        }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>
+            {selectedIds.size} selected
+          </span>
+          <span style={{ flex: 1 }} />
+          <button
+            type="button"
+            onClick={handleNudgeBulk}
+            disabled={pendingBulk}
+            style={{
+              padding: "6px 12px", borderRadius: 7,
+              border: `1px solid ${C.border}`, background: "transparent",
+              color: C.ink, fontSize: 12, fontWeight: 600,
+              cursor: pendingBulk ? "default" : "pointer",
+              opacity: pendingBulk ? 0.5 : 1,
+              fontFamily: FONT,
+            }}
+          >
+            Nudge
+          </button>
+          <button
+            type="button"
+            onClick={handleArchiveBulk}
+            disabled={pendingBulk}
+            style={{
+              padding: "6px 12px", borderRadius: 7,
+              border: `1px solid ${C.coralDeep}`,
+              background: C.coralSoft,
+              color: C.coralDeep, fontSize: 12, fontWeight: 600,
+              cursor: pendingBulk ? "default" : "pointer",
+              opacity: pendingBulk ? 0.5 : 1,
+              fontFamily: FONT,
+              display: "inline-flex", alignItems: "center", gap: 5,
+            }}
+          >
+            <ArchiveIcon /> Archive
+          </button>
+        </div>
+      )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .msgshell-row:hover .msgshell-row-actions {
+          opacity: 1 !important;
+          pointer-events: auto !important;
+        }
+        .msgshell-row:focus-within .msgshell-row-actions {
+          opacity: 1 !important;
+          pointer-events: auto !important;
+        }
+      `}} />
     </aside>
   );
 }
 
-// ─── RIGHT PANE: Message stream ───────────────────────────────────────────────
+// ─── RIGHT PANE: Message stream + composer ────────────────────────────────────
 
 function MessageBubble({ msg, showSender, isFirst }: {
   msg: WorkspaceMessage;
@@ -588,13 +1022,9 @@ function MessageBubble({ msg, showSender, isFirst }: {
       marginBottom: 4,
       marginTop: isFirst ? 0 : 2,
     }}>
-      {/* Avatar — only on incoming messages when sender changes */}
       {!mine ? (
         <div style={{ flexShrink: 0, marginBottom: 2 }}>
-          {showSender
-            ? <Avatar name={msg.sender_name} size={26} />
-            : <span style={{ width: 26, display: "inline-block" }} />
-          }
+          {showSender ? <Avatar name={msg.sender_name} size={26} /> : <span style={{ width: 26, display: "inline-block" }} />}
         </div>
       ) : null}
 
@@ -625,11 +1055,34 @@ function MessageBubble({ msg, showSender, isFirst }: {
         </div>
         <span style={{ fontSize: 10, color: C.inkDim, paddingLeft: 2, paddingRight: 2 }}>
           {formatTime(msg.created_at)}
+          {mine && (
+            <span aria-hidden style={{ marginLeft: 4, color: C.success, fontWeight: 700 }}>
+              ✓✓
+            </span>
+          )}
         </span>
       </div>
     </div>
   );
 }
+
+const SMART_REPLIES: Record<string, string[]> = {
+  inquiry: [
+    "Got it — let me line up some options.",
+    "Could you share the budget range?",
+    "What's the deadline on this?",
+  ],
+  hold: [
+    "Quick check-in — any thoughts on the offer?",
+    "Happy to revise if needed.",
+    "Locking this in by EOD?",
+  ],
+  default: [
+    "Sounds good.",
+    "I'll get back to you shortly.",
+    "On it — give me a couple of hours.",
+  ],
+};
 
 function MessageStream({
   inquiryId,
@@ -639,6 +1092,7 @@ function MessageStream({
   placeholder,
   closed,
   closedReason,
+  smartReplyContext,
 }: {
   inquiryId: string;
   threadType: ThreadType;
@@ -647,6 +1101,7 @@ function MessageStream({
   placeholder: string;
   closed?: boolean;
   closedReason?: string;
+  smartReplyContext: keyof typeof SMART_REPLIES;
 }) {
   const [messages, setMessages] = useState<WorkspaceMessage[]>(initialMessages);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
@@ -655,7 +1110,6 @@ function MessageStream({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Resolve current viewer id once so realtime rows can be marked as mine.
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) return;
@@ -664,22 +1118,17 @@ function MessageStream({
       if (cancelled) return;
       setViewerUserId(data.user?.id ?? null);
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
-  // Sync initial messages when inquiry changes
   useEffect(() => {
     setMessages(initialMessages);
   }, [initialMessages, inquiryId, threadType]);
 
-  // Realtime subscription
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) return;
@@ -710,7 +1159,6 @@ function MessageStream({
             is_mine: isMine,
           }];
         });
-        // Thread is open on screen; mark new non-self messages as read.
         if (!viewerUserId || row.sender_user_id === viewerUserId) return;
         void markThreadRead(tenantSlug, inquiryId, threadType);
       })
@@ -719,11 +1167,10 @@ function MessageStream({
     return () => { void supabase.removeChannel(channel); };
   }, [inquiryId, threadType, tenantSlug, viewerUserId]);
 
-  const handleSend = useCallback(() => {
-    const trimmed = body.trim();
+  const handleSend = useCallback((textOverride?: string) => {
+    const trimmed = (textOverride ?? body).trim();
     if (!trimmed || sending) return;
 
-    // Optimistic
     const optimisticId = `opt-${Date.now()}`;
     const optimistic: WorkspaceMessage = {
       id: optimisticId,
@@ -734,23 +1181,18 @@ function MessageStream({
       is_mine: true,
     };
     setMessages(prev => [...prev, optimistic]);
-    setBody("");
-    // Auto-resize textarea
+    if (!textOverride) setBody("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
     startSending(async () => {
       const result = await sendMessage(tenantSlug, inquiryId, threadType, trimmed);
       if ("error" in result) {
-        // Rollback optimistic message
         setMessages(prev => prev.filter(m => m.id !== optimisticId));
-        setBody(trimmed);
+        if (!textOverride) setBody(trimmed);
       } else {
-        // Replace optimistic with real id.
-        // Also remove any realtime-sourced duplicate (which could arrive before
-        // this response if the Realtime event beat the server action reply).
         setMessages(prev => {
           const opt = prev.find(m => m.id === optimisticId);
-          if (!opt) return prev; // already removed (edge case)
+          if (!opt) return prev;
           return [
             ...prev.filter(m => m.id !== optimisticId && m.id !== result.id),
             { ...opt, id: result.id, created_at: result.created_at },
@@ -760,7 +1202,6 @@ function MessageStream({
     });
   }, [body, sending, tenantSlug, inquiryId, threadType, viewerUserId]);
 
-  // Group messages by date for headers
   const grouped = useMemo(() => {
     const out: Array<{ type: "header"; date: string } | { type: "msg"; msg: WorkspaceMessage; showSender: boolean; isFirst: boolean }> = [];
     let lastDate = "";
@@ -780,9 +1221,10 @@ function MessageStream({
     return out;
   }, [messages]);
 
+  const smartReplies = SMART_REPLIES[smartReplyContext] ?? SMART_REPLIES.default;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      {/* Messages scroll area */}
       <div style={{
         flex: 1, overflowY: "auto", minHeight: 0,
         padding: "16px 16px 8px",
@@ -849,9 +1291,37 @@ function MessageStream({
       ) : (
         <div style={{
           borderTop: `1px solid ${C.borderSoft}`,
-          padding: "10px 12px 8px",
+          padding: "8px 12px 8px",
           background: C.cardBg,
         }}>
+          {/* Smart-reply chips */}
+          {smartReplies.length > 0 && messages.length > 0 && !body.trim() && (
+            <div style={{
+              display: "flex", gap: 5, flexWrap: "wrap",
+              marginBottom: 8,
+            }}>
+              {smartReplies.map((reply, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleSend(reply)}
+                  disabled={sending}
+                  style={{
+                    padding: "4px 10px", borderRadius: 999,
+                    border: `1px solid ${C.border}`,
+                    background: C.cardBg, color: C.inkMuted,
+                    fontSize: 11.5, fontWeight: 500,
+                    cursor: sending ? "default" : "pointer",
+                    fontFamily: FONT, opacity: sending ? 0.5 : 1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <textarea
               ref={textareaRef}
@@ -883,7 +1353,7 @@ function MessageStream({
             />
             <button
               type="button"
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!body.trim() || sending}
               aria-label="Send message"
               style={{
@@ -902,7 +1372,6 @@ function MessageStream({
               </svg>
             </button>
           </div>
-          {/* Thread context hint */}
           <div style={{
             fontSize: 10.5, color: C.inkDim, fontFamily: FONT,
             marginTop: 5, paddingLeft: 2,
@@ -917,7 +1386,7 @@ function MessageStream({
   );
 }
 
-// ─── RIGHT PANE: Inquiry detail with tabs ─────────────────────────────────────
+// ─── RIGHT PANE: Inquiry detail ───────────────────────────────────────────────
 
 type TabId = "client" | "talent" | "booking";
 
@@ -943,7 +1412,9 @@ function InquiryDetail({
     : inquiry.status === "expired" ? "Closed · this inquiry auto-expired"
     : "This thread is closed.";
 
-  // Load messages when inquiry changes
+  const trust = trustChip(inquiry.trustLevel);
+  const hint = nextActionHint(inquiry);
+
   useEffect(() => {
     setClientMsgs(null);
     setTalentMsgs(null);
@@ -963,7 +1434,6 @@ function InquiryDetail({
     });
   }, [inquiry.id, tenantSlug]);
 
-  // When the user is actively looking at a thread, keep its watermark current.
   useEffect(() => {
     if (activeTab === "client") {
       void markThreadRead(tenantSlug, inquiry.id, "private");
@@ -974,10 +1444,9 @@ function InquiryDetail({
     }
   }, [activeTab, inquiry.id, tenantSlug]);
 
-  const displayName = inquiry.company || inquiry.contact_name;
-  const tabDefs: { id: TabId; label: string }[] = [
-    { id: "client",  label: "Client thread" },
-    { id: "talent",  label: "Talent group" },
+  const tabDefs: { id: TabId; label: string; badge?: number }[] = [
+    { id: "client",  label: "Client thread", badge: inquiry.unreadPrivate },
+    { id: "talent",  label: "Talent group",  badge: inquiry.unreadGroup },
     { id: "booking", label: "Booking" },
   ];
 
@@ -994,8 +1463,7 @@ function InquiryDetail({
         background: C.cardBg,
         flexShrink: 0,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-          {/* Back button (mobile) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <button
             type="button"
             onClick={onBack}
@@ -1014,7 +1482,7 @@ function InquiryDetail({
             </svg>
           </button>
 
-          <Avatar name={displayName} size={32} />
+          <Avatar name={inquiry.clientName || inquiry.briefTitle} size={32} />
 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
@@ -1022,52 +1490,107 @@ function InquiryDetail({
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
               letterSpacing: -0.1,
             }}>
-              {displayName}
+              {inquiry.briefTitle}
             </div>
-            {inquiry.event_location && (
-              <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>
-                {[inquiry.event_date
-                    ? new Date(inquiry.event_date).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })
-                    : null,
-                  inquiry.event_location,
-                ].filter(Boolean).join(" · ")}
-              </div>
-            )}
+            <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>
+              {inquiry.clientCompany && inquiry.clientName !== inquiry.clientCompany && (
+                <span>via {inquiry.clientName}</span>
+              )}
+              {inquiry.eventDate && (
+                <>
+                  {(inquiry.clientCompany && inquiry.clientName !== inquiry.clientCompany) && <span>·</span>}
+                  <span>{new Date(inquiry.eventDate).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</span>
+                </>
+              )}
+              {inquiry.eventLocation && <><span>·</span><span>{inquiry.eventLocation}</span></>}
+            </div>
           </div>
 
-          {/* Stage pill */}
-          <span style={{
-            flexShrink: 0,
-            padding: "3px 8px", borderRadius: 999,
-            background: sc.bg, color: sc.fg,
-            fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3,
-            textTransform: "uppercase",
-          }}>
-            {stageWord(inquiry.status)}
-          </span>
-
-          {/* Pipeline link */}
-          <a
-            href={`/${tenantSlug}/admin/work/${inquiry.id}`}
-            style={{
-              flexShrink: 0,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "4px 8px",
-              borderRadius: 7,
-              border: `1px solid rgba(24,24,27,0.10)`,
-              color: C.inkMuted,
-              fontSize: 11,
-              fontWeight: 500,
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
-            title="Open in pipeline"
-          >
-            Pipeline ↗
-          </a>
+          {/* Pill stack */}
+          <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+            {trust && (
+              <span style={{
+                padding: "3px 8px", borderRadius: 999,
+                background: trust.bg, color: trust.fg,
+                fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3,
+                textTransform: "uppercase",
+              }}>
+                {trust.label}
+              </span>
+            )}
+            <span style={{
+              padding: "3px 8px", borderRadius: 999,
+              background: sc.bg, color: sc.fg,
+              fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3,
+              textTransform: "uppercase",
+            }}>
+              {stageWord(inquiry.status)}
+            </span>
+            <a
+              href={`/${tenantSlug}/admin/work/${inquiry.id}`}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "4px 8px", borderRadius: 7,
+                border: `1px solid rgba(24,24,27,0.10)`,
+                color: C.inkMuted, fontSize: 11, fontWeight: 500,
+                textDecoration: "none", whiteSpace: "nowrap",
+              }}
+              title="Open in pipeline"
+            >
+              Pipeline ↗
+            </a>
+          </div>
         </div>
+
+        {/* Meta strip — lineup + coordinator + offer */}
+        {(inquiry.lineupTotal > 0 || inquiry.coordinatorName || inquiry.currentOfferTotal) && (
+          <div style={{
+            display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
+            marginBottom: 10, fontSize: 11.5, color: C.inkMuted,
+          }}>
+            {inquiry.lineupTotal > 0 && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 8px", borderRadius: 999,
+                background: C.surface, border: `1px solid ${C.borderSoft}`,
+              }}>
+                <span style={{ fontWeight: 700, color: C.ink }}>
+                  {inquiry.lineupConfirmed}/{inquiry.lineupTotal}
+                </span>
+                <span>on lineup</span>
+                {inquiry.lineupPending > 0 && (
+                  <span style={{ color: C.amber, fontWeight: 600 }}>
+                    · {inquiry.lineupPending} pending
+                  </span>
+                )}
+              </span>
+            )}
+            {inquiry.coordinatorName && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 8px", borderRadius: 999,
+                background: C.surface, border: `1px solid ${C.borderSoft}`,
+              }}>
+                <Avatar name={inquiry.coordinatorName} size={14} />
+                <span style={{ color: C.ink, fontWeight: 600 }}>
+                  {inquiry.coordinatorName}
+                </span>
+              </span>
+            )}
+            {inquiry.currentOfferTotal && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 8px", borderRadius: 999,
+                background: C.surface, border: `1px solid ${C.borderSoft}`,
+              }}>
+                <span style={{ fontWeight: 700, color: C.ink }}>
+                  {inquiry.currentOfferTotal}
+                </span>
+                <span>offer · {inquiry.currentOfferStatus}</span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Tab bar */}
         <div style={{ display: "flex", gap: 0 }}>
@@ -1084,13 +1607,42 @@ function InquiryDetail({
                 fontSize: 12, fontWeight: activeTab === t.id ? 700 : 500,
                 cursor: "pointer", fontFamily: FONT,
                 transition: "color 120ms",
+                display: "inline-flex", alignItems: "center", gap: 6,
               }}
             >
               {t.label}
+              {t.badge != null && t.badge > 0 && (
+                <span style={{
+                  padding: "0 5px", height: 14, borderRadius: 999,
+                  background: C.accent, color: "#fff",
+                  fontSize: 9, fontWeight: 800, letterSpacing: 0.3,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {t.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
       </div>
+
+      {/* Next-action hint bar */}
+      {hint && !closed && (
+        <div style={{
+          padding: "6px 16px",
+          background: inquiry.nextActionBy === "coordinator" ? C.coralSoft : C.surface,
+          borderBottom: `1px solid ${C.borderSoft}`,
+          fontSize: 11.5, color: inquiry.nextActionBy === "coordinator" ? C.coralDeep : C.inkMuted,
+          fontFamily: FONT, fontWeight: 500,
+          display: "flex", alignItems: "center", gap: 6,
+          flexShrink: 0,
+        }}>
+          {inquiry.nextActionBy === "coordinator" && (
+            <span aria-hidden style={{ fontSize: 12 }}>⚡</span>
+          )}
+          {hint}
+        </div>
+      )}
 
       {/* Tab content */}
       <div style={{ flex: 1, minHeight: 0, background: C.surfaceAlt, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -1108,9 +1660,10 @@ function InquiryDetail({
             threadType="private"
             tenantSlug={tenantSlug}
             initialMessages={clientMsgs ?? []}
-            placeholder={`Reply to ${inquiry.contact_name}…`}
+            placeholder={`Reply to ${inquiry.clientName}…`}
             closed={closed}
             closedReason={closedReason}
+            smartReplyContext={bucket === "hold" ? "hold" : bucket === "inquiry" ? "inquiry" : "default"}
           />
         ) : activeTab === "talent" ? (
           <MessageStream
@@ -1121,35 +1674,47 @@ function InquiryDetail({
             placeholder="Message talent group…"
             closed={closed}
             closedReason={closedReason}
+            smartReplyContext={bucket === "hold" ? "hold" : bucket === "inquiry" ? "inquiry" : "default"}
           />
         ) : (
-          <BookingDetail inquiry={inquiry} />
+          <BookingDetail inquiry={inquiry} tenantSlug={tenantSlug} />
         )}
       </div>
     </div>
   );
 }
 
-// ─── BOOKING TAB: Inquiry details ─────────────────────────────────────────────
+// ─── BOOKING TAB ──────────────────────────────────────────────────────────────
 
-function BookingDetail({ inquiry }: { inquiry: WorkspaceInquiryForMessages }) {
-  const bucket = stageBucketOf(inquiry.status);
-  const sc = stageStyle(bucket);
+function BookingDetail({ inquiry, tenantSlug }: { inquiry: WorkspaceInquiryForMessages; tenantSlug: string }) {
+  const sc = stageStyle(stageBucketOf(inquiry.status));
 
   const rows: { label: string; value: React.ReactNode }[] = [
     { label: "Status",    value: <span style={{ color: sc.fg, fontWeight: 700 }}>{stageWord(inquiry.status)}</span> },
-    { label: "Client",    value: inquiry.contact_name },
-    ...(inquiry.company ? [{ label: "Company", value: inquiry.company }] : []),
-    ...(inquiry.event_date ? [{
+    { label: "Brief",     value: inquiry.briefTitle },
+    { label: "Client",    value: inquiry.clientName },
+    ...(inquiry.clientCompany && inquiry.clientCompany !== inquiry.briefTitle ? [{ label: "Company", value: inquiry.clientCompany }] : []),
+    ...(inquiry.eventDate ? [{
       label: "Date",
-      value: new Date(inquiry.event_date).toLocaleDateString([], { weekday: "short", month: "long", day: "numeric", year: "numeric" }),
+      value: new Date(inquiry.eventDate).toLocaleDateString([], { weekday: "short", month: "long", day: "numeric", year: "numeric" }),
     }] : []),
-    ...(inquiry.event_location ? [{ label: "Location", value: inquiry.event_location }] : []),
+    ...(inquiry.eventLocation ? [{ label: "Location", value: inquiry.eventLocation }] : []),
     ...(inquiry.quantity ? [{ label: "Talent",   value: `${inquiry.quantity} talent` }] : []),
+    ...(inquiry.lineupTotal > 0 ? [{
+      label: "Lineup",
+      value: `${inquiry.lineupConfirmed}/${inquiry.lineupTotal} confirmed${
+        inquiry.lineupPending > 0 ? ` · ${inquiry.lineupPending} pending` : ""}`,
+    }] : []),
+    ...(inquiry.coordinatorName ? [{ label: "Coordinator", value: inquiry.coordinatorName }] : []),
+    ...(inquiry.currentOfferTotal ? [{
+      label: "Current offer",
+      value: `${inquiry.currentOfferTotal} · ${inquiry.currentOfferStatus}`,
+    }] : []),
+    { label: "Source", value: sourceChipText(inquiry.sourceKind) },
     { label: "Next action", value: (() => {
-      const raw = inquiry.next_action_by;
+      const raw = inquiry.nextActionBy;
       if (!raw) return "—";
-      const MAP: Record<string, string> = { client: "⏳ Client", coordinator: "⏳ You", talent: "⏳ Talent", agency: "⏳ Agency" };
+      const MAP: Record<string, string> = { client: "⏳ Client", coordinator: "⏳ You", talent: "⏳ Talent", system: "⏳ System" };
       return MAP[raw] ?? raw;
     })() },
   ];
@@ -1179,11 +1744,38 @@ function BookingDetail({ inquiry }: { inquiry: WorkspaceInquiryForMessages }) {
           </div>
         ))}
       </div>
+
+      <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+        <a
+          href={`/${tenantSlug}/admin/work/${inquiry.id}`}
+          style={{
+            padding: "8px 14px", borderRadius: 8,
+            background: C.accent, color: "#fff",
+            fontSize: 12.5, fontWeight: 600, textDecoration: "none",
+            fontFamily: FONT,
+          }}
+        >
+          Open inquiry workspace ↗
+        </a>
+        {(inquiry.status === "booked" || inquiry.status === "converted") && (
+          <a
+            href={`/${tenantSlug}/admin/bookings`}
+            style={{
+              padding: "8px 14px", borderRadius: 8,
+              border: `1px solid ${C.border}`, background: "transparent",
+              color: C.ink, fontSize: 12.5, fontWeight: 600,
+              fontFamily: FONT, textDecoration: "none",
+            }}
+          >
+            View booking
+          </a>
+        )}
+      </div>
     </div>
   );
 }
 
-// ─── Empty right pane ─────────────────────────────────────────────────────────
+// ─── EmptyDetail ──────────────────────────────────────────────────────────────
 
 function EmptyDetail() {
   return (
@@ -1221,13 +1813,13 @@ export default function MessagesShell({
 }: {
   inquiries: WorkspaceInquiryForMessages[];
   tenantSlug: string;
-  /** Deep-link: pre-select a specific inquiry (e.g. from ?inquiry= URL param). */
   initialInquiryId?: string | null;
 }) {
+  const visible = inquiries.filter(i => !i.archived);
   const [activeId, setActiveId] = useState<string | null>(
-    (initialInquiryId && inquiries.some(i => i.id === initialInquiryId))
+    (initialInquiryId && visible.some(i => i.id === initialInquiryId))
       ? initialInquiryId
-      : (inquiries[0]?.id ?? null)
+      : (visible[0]?.id ?? null)
   );
   const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
 
@@ -1243,7 +1835,7 @@ export default function MessagesShell({
       <style dangerouslySetInnerHTML={{ __html: `
         [data-messages-shell] {
           display: grid;
-          grid-template-columns: 340px 1fr;
+          grid-template-columns: 360px 1fr;
           grid-template-rows: minmax(0, 1fr);
           background: #fff;
           border: 1px solid rgba(24,24,27,0.06);
@@ -1281,6 +1873,7 @@ export default function MessagesShell({
             inquiries={inquiries}
             activeId={activeId}
             onSelect={handleSelect}
+            tenantSlug={tenantSlug}
           />
         </div>
         <div data-messages-detail style={{
