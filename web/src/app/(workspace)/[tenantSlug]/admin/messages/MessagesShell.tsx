@@ -68,7 +68,7 @@ function ageLabel(iso: string): string {
 function stageBucketOf(status: string): "inquiry" | "hold" | "booked" | "past" {
   if (status === "draft" || status === "submitted" || status === "coordination") return "inquiry";
   if (status === "offer_pending") return "hold";
-  if (status === "approved" || status === "booked") return "booked";
+  if (status === "approved" || status === "booked" || status === "converted") return "booked";
   return "past";
 }
 

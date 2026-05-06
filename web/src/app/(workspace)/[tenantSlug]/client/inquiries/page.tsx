@@ -107,8 +107,9 @@ function InquiryTable({
           const needsAction = inq.next_action_by === "client";
           const hasUnread = inq.unreadCount > 0;
           return (
-            <div
+            <Link
               key={inq.id}
+              href={`/${tenantSlug}/client/inquiries/${inq.id}`}
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr auto",
@@ -118,6 +119,9 @@ function InquiryTable({
                 borderBottom: idx < rows.length - 1 ? `1px solid ${C.borderSoft}` : "none",
                 fontFamily: FONT,
                 background: needsAction || hasUnread ? "rgba(29,78,216,0.03)" : "transparent",
+                textDecoration: "none",
+                color: "inherit",
+                transition: "background 0.1s",
               }}
             >
               <div style={{ minWidth: 0 }}>
@@ -230,25 +234,11 @@ function InquiryTable({
                 }}
               >
                 <span>{relativeDate(inq.created_at)}</span>
-                <Link
-                  href={`/${tenantSlug}/client/inquiries/${inq.id}`}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    height: 28,
-                    padding: "0 10px",
-                    borderRadius: 8,
-                    border: `1px solid ${C.borderSoft}`,
-                    color: C.blueDeep,
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    textDecoration: "none",
-                  }}
-                >
-                  Open thread
-                </Link>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.inkDim} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M9 5l7 7-7 7" />
+                </svg>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>

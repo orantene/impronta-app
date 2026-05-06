@@ -633,7 +633,7 @@ export function WorkClientShell({
                 return (
                   <Link
                     key={iq.id}
-                    href={`/${tenantSlug}/admin/messages?inquiry=${iq.id}`}
+                    href={`/${tenantSlug}/admin/work/${iq.id}`}
                     style={{
                       display: "grid",
                       gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1fr) 120px 40px 100px",

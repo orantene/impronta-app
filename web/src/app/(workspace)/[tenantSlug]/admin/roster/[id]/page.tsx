@@ -222,12 +222,23 @@ export default async function WorkspaceRosterTalentPage({
               fontSize: 12,
               color: C.inkMuted,
               margin: "5px 0 0",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
             }}
           >
-            Profile code: {talent.profile_code}
+            <a
+              href={`https://tulala.digital/t/${talent.profile_code}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#2B3FA3", textDecoration: "none", fontFamily: '"ui-monospace", monospace', fontSize: 12 }}
+            >
+              /t/{talent.profile_code} ↗
+            </a>
             {talent.created_at && (
-              <span style={{ marginLeft: 12, color: "rgba(11,11,13,0.35)" }}>
-                · Added{" "}
+              <span style={{ color: "rgba(11,11,13,0.35)" }}>
+                Added{" "}
                 {new Date(talent.created_at).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
