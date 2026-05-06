@@ -432,7 +432,7 @@ export function ClientsClientShell({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0,2fr) 100px 110px 80px 32px",
+                gridTemplateColumns: "minmax(0,2fr) 120px 110px 80px 32px 16px",
                 gap: 14,
                 padding: "9px 18px",
                 background: "rgba(11,11,13,0.02)",
@@ -449,6 +449,7 @@ export function ClientsClientShell({
               <span>Bookings YTD</span>
               <span>Status</span>
               <span>Trust</span>
+              <span></span>
               <span></span>
             </div>
 
@@ -486,7 +487,7 @@ export function ClientsClientShell({
                     href={rowHref}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "minmax(0,2fr) 100px 110px 80px 32px",
+                      gridTemplateColumns: "minmax(0,2fr) 120px 110px 80px 32px 16px",
                       alignItems: "center",
                       gap: 14,
                       padding: "13px 18px",
@@ -530,7 +531,7 @@ export function ClientsClientShell({
                     {/* Bookings YTD */}
                     <div style={{ fontSize: 12, color: client.bookingsYTD > 0 ? C.green : C.inkDim, fontWeight: client.bookingsYTD > 0 ? 600 : 400 }}>
                       {client.bookingsYTD > 0
-                        ? `${client.bookingsYTD} booking${client.bookingsYTD === 1 ? "" : "s"}`
+                        ? `${client.bookingsYTD} bookings YTD`
                         : "—"}
                     </div>
 
@@ -549,7 +550,6 @@ export function ClientsClientShell({
                           color: isActive ? "#1A5E3C" : C.inkMuted,
                           fontSize: 10.5,
                           fontWeight: 600,
-                          textTransform: "capitalize",
                           fontFamily: FONT,
                         }}
                       >
@@ -559,9 +559,10 @@ export function ClientsClientShell({
                             height: 5,
                             borderRadius: "50%",
                             background: isActive ? C.green : C.inkMuted,
+                            flexShrink: 0,
                           }}
                         />
-                        {client.accountStatus ?? "registered"}
+                        {isActive ? "Active" : "Dormant"}
                       </span>
                     </div>
 
@@ -595,6 +596,21 @@ export function ClientsClientShell({
                       >
                         ···
                       </button>
+                    </div>
+
+                    {/* Row navigation chevron */}
+                    <div
+                      aria-hidden
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: C.inkDim,
+                        fontSize: 15,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ›
                     </div>
                   </Link>
                 );
