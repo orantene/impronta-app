@@ -1260,14 +1260,6 @@ export function RosterClientShell({
                             exportCsv();
                           },
                         },
-                        {
-                          id: "import",
-                          label: "Import CSV",
-                          onClick: () => {
-                            setMoreOpen(false);
-                            showToast("Bulk import coming soon");
-                          },
-                        },
                       ].map((item) => (
                         <button
                           key={item.id}

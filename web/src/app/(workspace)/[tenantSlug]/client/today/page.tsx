@@ -233,7 +233,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>No inquiries yet</div>
           <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 360, lineHeight: 1.5 }}>
-            Browse the talent roster to discover talent and submit your first booking enquiry.
+            Discover talent and submit your first booking enquiry from the Discover tab.
           </p>
           <Link
             href={`/${tenantSlug}/client/discover`}
