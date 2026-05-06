@@ -1,6 +1,7 @@
 // Phase 3.11 — Platform HQ · Tenants
 // All agencies and hubs with health, plan, roster count, and status.
 
+import Link from "next/link";
 import { loadPlatformTenants } from "../../platform-data";
 
 const HQ = {
@@ -67,6 +68,7 @@ export default async function PlatformTenantsPage() {
 
   return (
     <>
+      <style>{`.hq-tenant-row:hover { background: rgba(255,255,255,0.02); }`}</style>
       {/* Page header */}
       <div style={{ marginBottom: 24 }}>
         <h1
@@ -154,21 +156,32 @@ export default async function PlatformTenantsPage() {
                 tenants.map((t) => (
                   <tr
                     key={t.id}
+                    className="hq-tenant-row"
                     style={{ borderBottom: `1px solid ${HQ.borderSoft}` }}
                   >
-                    <td style={{ padding: "12px 12px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontWeight: 500, color: HQ.ink }}>{t.name}</span>
-                        <span
-                          style={{
-                            color: HQ.inkDim,
-                            fontFamily: FM,
-                            fontSize: 11,
-                          }}
-                        >
-                          {t.slug}
-                        </span>
-                      </div>
+                    <td style={{ padding: 0 }}>
+                      <Link
+                        href={`/platform/admin/tenants/${t.id}`}
+                        style={{
+                          display: "block",
+                          padding: "12px 12px",
+                          textDecoration: "none",
+                          color: "inherit",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontWeight: 500, color: HQ.ink }}>{t.name}</span>
+                          <span
+                            style={{
+                              color: HQ.inkDim,
+                              fontFamily: FM,
+                              fontSize: 11,
+                            }}
+                          >
+                            {t.slug}
+                          </span>
+                        </div>
+                      </Link>
                     </td>
                     <td style={{ padding: "12px 12px" }}>
                       <span
@@ -204,7 +217,12 @@ export default async function PlatformTenantsPage() {
                     </td>
                     <td style={{ padding: "12px 12px" }}>{statusDot(t.status)}</td>
                     <td style={{ padding: "12px 12px", color: HQ.inkDim, fontSize: 12 }}>
-                      {t.createdAt}
+                      <Link
+                        href={`/platform/admin/tenants/${t.id}`}
+                        style={{ color: "inherit", textDecoration: "none" }}
+                      >
+                        {t.createdAt} ›
+                      </Link>
                     </td>
                   </tr>
                 ))

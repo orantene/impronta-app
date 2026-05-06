@@ -1,6 +1,10 @@
 // Phase 3.11 — Platform HQ · Network
 // Tulala discovery hub: featured talent, moderation queue, hub rules.
 
+import { loadPlatformNetworkStats } from "../../platform-data";
+
+export const dynamic = "force-dynamic";
+
 const HQ = {
   card: "#16161A",
   cardSoft: "rgba(255,255,255,0.04)",
@@ -75,9 +79,72 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
-export default function PlatformNetworkPage() {
-  // Hub submissions and moderation queue are Phase 4+ data work.
-  // Page structure matches prototype exactly; content shows real-data state.
+function StatBox({
+  label,
+  value,
+  caption,
+  tone = "ink",
+}: {
+  label: string;
+  value: number | string;
+  caption?: string;
+  tone?: "ink" | "green" | "amber" | "red" | "purple" | "dim";
+}) {
+  const accent =
+    tone === "green"
+      ? HQ.green
+      : tone === "amber"
+      ? HQ.amber
+      : tone === "red"
+      ? HQ.red
+      : tone === "purple"
+      ? "#A07AE0"
+      : tone === "dim"
+      ? HQ.inkDim
+      : HQ.ink;
+  return (
+    <div
+      style={{
+        background: HQ.card,
+        border: `1px solid ${HQ.borderSoft}`,
+        borderRadius: 12,
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+      }}
+    >
+      <span style={{ fontFamily: F, fontSize: 10.5, color: HQ.inkMuted, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" as const }}>
+        {label}
+      </span>
+      <span
+        style={{
+          fontFamily: FD,
+          fontSize: 26,
+          fontWeight: 500,
+          letterSpacing: -0.5,
+          color: accent,
+          lineHeight: 1.05,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </span>
+      {caption && (
+        <span style={{ fontFamily: F, fontSize: 11, color: HQ.inkMuted }}>
+          {caption}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export default async function PlatformNetworkPage() {
+  const stats = await loadPlatformNetworkStats();
+  const publishedRatio =
+    stats.totalTalent > 0
+      ? Math.round((stats.publishedTalent / stats.totalTalent) * 100)
+      : 0;
 
   return (
     <>
@@ -107,6 +174,33 @@ export default function PlatformNetworkPage() {
           The discovery surface that sits across every tenant. Curate featured talent,
           run moderation, and tune ranking.
         </p>
+      </div>
+
+      {/* Stats grid — real network state */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        <StatBox label="Total talent" value={stats.totalTalent} caption="across the network" tone="ink" />
+        <StatBox
+          label="Published"
+          value={stats.publishedTalent}
+          caption={`${publishedRatio}% live`}
+          tone="green"
+        />
+        <StatBox label="Drafts" value={stats.draftTalent} caption="awaiting publish" tone="amber" />
+        <StatBox label="Invited" value={stats.invitedTalent} caption="pending claim" tone="purple" />
+        <StatBox label="Claimed" value={stats.claimedTalent} caption="user_id linked" tone="ink" />
+        <StatBox
+          label="Hosting"
+          value={stats.agenciesActive + stats.hubsActive}
+          caption={`${stats.agenciesActive} agencies · ${stats.hubsActive} hubs`}
+          tone="ink"
+        />
       </div>
 
       {/* Two-col grid */}

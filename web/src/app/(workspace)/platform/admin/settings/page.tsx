@@ -2,6 +2,9 @@
 // HQ team, audit trail, region config.
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { loadPlatformSuperAdmins } from "../../platform-data";
+
+export const dynamic = "force-dynamic";
 
 const HQ = {
   card: "#16161A",
@@ -88,24 +91,19 @@ function SettingRow({
   );
 }
 
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 export default async function PlatformSettingsPage() {
   const session = await getCachedActorSession();
-
-  const userEmail =
-    session.user?.email ?? "—";
-  const userName =
-    (session.user?.user_metadata?.full_name as string | undefined) ??
-    (session.user?.user_metadata?.name as string | undefined) ??
-    userEmail.split("@")[0];
-
-  function initials(name: string) {
-    return name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? "")
-      .join("");
-  }
+  const hqTeam = await loadPlatformSuperAdmins();
+  const currentUserId = session.user?.id;
 
   return (
     <>
@@ -142,59 +140,105 @@ export default async function PlatformSettingsPage() {
           gap: 12,
         }}
       >
-        {/* HQ team — shows the current logged-in super admin */}
-        <HqCard title="HQ team" subtitle="Users with platform super_admin access">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "12px 0",
-              borderTop: `1px solid ${HQ.borderSoft}`,
-              fontFamily: F,
-              color: HQ.ink,
-            }}
-          >
-            {/* Avatar */}
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: "50%",
-                background: "rgba(93,211,160,0.12)",
-                color: HQ.green,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 11,
-                fontWeight: 700,
-                flexShrink: 0,
-                letterSpacing: 0.5,
-              }}
-            >
-              {initials(userName)}
+        {/* HQ team — all users with platform staff role */}
+        <HqCard
+          title={`HQ team (${hqTeam.length})`}
+          subtitle="Users with platform super_admin or agency_staff access"
+        >
+          {hqTeam.length === 0 ? (
+            <div style={{ padding: "16px 0", color: HQ.inkMuted, fontSize: 13, fontFamily: F }}>
+              No platform staff configured yet.
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{userName}</div>
-              <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 1 }}>
-                {userEmail}
-              </div>
-            </div>
-            <span
-              style={{
-                padding: "2px 8px",
-                background: HQ.cardSoft,
-                color: HQ.green,
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-                borderRadius: 999,
-              }}
-            >
-              super_admin
-            </span>
-          </div>
+          ) : (
+            hqTeam.map((member) => {
+              const isSuperAdmin = member.appRole === "super_admin";
+              const isMe = member.id === currentUserId;
+              const accent = isSuperAdmin ? HQ.green : HQ.amber;
+              const accentBg = isSuperAdmin
+                ? "rgba(93,211,160,0.12)"
+                : "rgba(155,168,183,0.15)";
+              return (
+                <div
+                  key={member.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "11px 0",
+                    borderTop: `1px solid ${HQ.borderSoft}`,
+                    fontFamily: F,
+                    color: HQ.ink,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: "50%",
+                      background: accentBg,
+                      color: accent,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      letterSpacing: 0.5,
+                    }}
+                  >
+                    {initials(member.displayName)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                      {member.displayName}
+                      {isMe && (
+                        <span
+                          style={{
+                            fontSize: 9.5,
+                            color: HQ.inkMuted,
+                            background: HQ.cardSoft,
+                            padding: "1px 6px",
+                            borderRadius: 999,
+                            letterSpacing: 0.4,
+                            textTransform: "uppercase" as const,
+                            fontWeight: 600,
+                          }}
+                        >
+                          you
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: HQ.inkMuted,
+                        marginTop: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {member.email}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      padding: "2px 8px",
+                      background: HQ.cardSoft,
+                      color: accent,
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      letterSpacing: 0.4,
+                      textTransform: "uppercase",
+                      borderRadius: 999,
+                    }}
+                  >
+                    {member.appRole}
+                  </span>
+                </div>
+              );
+            })
+          )}
         </HqCard>
 
         {/* Platform config */}

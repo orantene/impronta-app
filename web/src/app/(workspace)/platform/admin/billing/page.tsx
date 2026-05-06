@@ -1,8 +1,14 @@
 // Phase 3.11 — Platform HQ · Billing
 // MRR by plan, invoice ledger, dunning queue.
-// Real billing data is Phase 8 work. Page structure matches prototype now.
+// Real billing data is Phase 8 work. Plan distribution wired from agencies table.
 
 import Link from "next/link";
+import {
+  loadPlatformPlanDistribution,
+  loadPlatformStats,
+} from "../../platform-data";
+
+export const dynamic = "force-dynamic";
 
 const HQ = {
   card: "#16161A",
@@ -122,9 +128,40 @@ function HqCard({
   );
 }
 
-export default function PlatformBillingPage() {
-  // Phase 8 will wire real Stripe data here.
-  // Structure matches prototype; empty states shown until billing is live.
+// Plan price (cents) for MRR estimate. Source: lib/access/plan-catalog.ts.
+const PLAN_PRICE_CENTS: Record<string, number> = {
+  free:    0,
+  studio:  4900,
+  agency:  14900,
+  network: 29900,
+};
+
+const PLAN_PALETTE: Record<string, string> = {
+  free:    "rgba(245,242,235,0.38)",
+  studio:  HQ.amber,
+  agency:  HQ.green,
+  network: "#A07AE0",
+};
+
+export default async function PlatformBillingPage() {
+  const [planDist, stats] = await Promise.all([
+    loadPlatformPlanDistribution(),
+    loadPlatformStats(),
+  ]);
+
+  const totalActiveTenants = planDist.reduce((sum, r) => sum + r.activeCount, 0);
+  const paidTenants = planDist
+    .filter((r) => r.plan !== "free")
+    .reduce((sum, r) => sum + r.activeCount, 0);
+  const estimatedMrrCents = planDist.reduce(
+    (sum, r) => sum + (PLAN_PRICE_CENTS[r.plan] ?? 0) * r.activeCount,
+    0,
+  );
+  const estimatedMrr = (estimatedMrrCents / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
 
   return (
     <>
@@ -180,16 +217,22 @@ export default function PlatformBillingPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateColumns: "repeat(4, 1fr)",
           gap: 12,
           marginBottom: 24,
         }}
       >
         <StatCard
-          label="MRR"
-          value="—"
-          caption="Stripe integration pending"
-          tone="dim"
+          label="Estimated MRR"
+          value={estimatedMrr}
+          caption="from active paid plans"
+          tone={estimatedMrrCents > 0 ? "green" : "dim"}
+        />
+        <StatCard
+          label="Paid tenants"
+          value={paidTenants}
+          caption={`of ${totalActiveTenants} active`}
+          tone={paidTenants > 0 ? "ink" : "dim"}
         />
         <StatCard
           label="Churn (30d)"
@@ -205,8 +248,107 @@ export default function PlatformBillingPage() {
         />
       </div>
 
+      {/* Plan breakdown — real data */}
+      <HqCard
+        title="Plan distribution"
+        subtitle={`${stats.totalTenants} total tenants · ${totalActiveTenants} active`}
+      >
+        {planDist.map((row) => {
+          const color = PLAN_PALETTE[row.plan] ?? "rgba(245,242,235,0.38)";
+          const monthlyCents = (PLAN_PRICE_CENTS[row.plan] ?? 0) * row.activeCount;
+          const monthly = (monthlyCents / 100).toLocaleString("en-US", {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: 0,
+          });
+          const ratio =
+            totalActiveTenants > 0
+              ? Math.round((row.activeCount / totalActiveTenants) * 100)
+              : 0;
+          return (
+            <div
+              key={row.plan}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 0",
+                borderTop: `1px solid ${HQ.borderSoft}`,
+                fontFamily: F,
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: color,
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  flex: 1,
+                  fontSize: 13,
+                  color: HQ.ink,
+                  textTransform: "capitalize" as const,
+                }}
+              >
+                {row.plan}
+              </span>
+              {/* Bar */}
+              <span
+                style={{
+                  width: 80,
+                  height: 4,
+                  borderRadius: 2,
+                  background: "rgba(255,255,255,0.04)",
+                  overflow: "hidden",
+                }}
+              >
+                <span
+                  style={{
+                    display: "block",
+                    width: `${ratio}%`,
+                    height: "100%",
+                    background: color,
+                  }}
+                />
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: HQ.inkMuted,
+                  fontVariantNumeric: "tabular-nums",
+                  minWidth: 56,
+                  textAlign: "right",
+                }}
+              >
+                {row.activeCount}
+                {row.tenantCount !== row.activeCount && (
+                  <span style={{ color: HQ.inkDim }}> / {row.tenantCount}</span>
+                )}
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: row.plan === "free" ? HQ.inkDim : HQ.inkMuted,
+                  fontVariantNumeric: "tabular-nums",
+                  minWidth: 80,
+                  textAlign: "right",
+                }}
+              >
+                {row.plan === "free" ? "—" : `${monthly}/mo`}
+              </span>
+            </div>
+          );
+        })}
+      </HqCard>
+
+      <div style={{ height: 12 }} />
+
       {/* Invoice table — placeholder until Phase 8 */}
-      <HqCard title="Invoice ledger" subtitle="No invoices yet — billing ships in Phase 8">
+      <HqCard title="Invoice ledger" subtitle="Stripe integration ships in Phase 8">
         <div
           style={{
             padding: "32px 0",
@@ -217,46 +359,10 @@ export default function PlatformBillingPage() {
           }}
         >
           <div style={{ fontSize: 24, marginBottom: 8, opacity: 0.3 }}>₿</div>
-          Billing integration (Stripe) is scheduled for Phase 8.
+          When billing is live, invoices, dunning, and plan overrides will appear here.
           <br />
-          When live, invoices, dunning, and plan overrides will appear here.
+          MRR above is estimated from plan_tier × catalog price.
         </div>
-      </HqCard>
-
-      <div style={{ height: 12 }} />
-
-      {/* Plan breakdown */}
-      <HqCard title="Plan distribution">
-        {[
-          { plan: "Free",    color: "rgba(245,242,235,0.38)" },
-          { plan: "Studio",  color: HQ.amber },
-          { plan: "Agency",  color: HQ.green },
-          { plan: "Network", color: "#A07AE0" },
-        ].map((p) => (
-          <div
-            key={p.plan}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "10px 0",
-              borderTop: `1px solid ${HQ.borderSoft}`,
-              fontFamily: F,
-            }}
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: p.color,
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ flex: 1, fontSize: 13, color: HQ.ink }}>{p.plan}</span>
-            <span style={{ fontSize: 12, color: HQ.inkDim }}>—</span>
-          </div>
-        ))}
       </HqCard>
     </>
   );
