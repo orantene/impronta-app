@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { addTalentToRoster } from "./_actions";
+import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -3652,6 +3653,93 @@ function TalentProfileShellDrawer() {
   const patch = React.useCallback((p: Partial<ProfileState>) => {
     dispatch({ type: "PATCH", patch: p });
   }, []);
+
+  // ── Phase 3 (deep QA fix) — debounced autosave for the IDENTITY tab ───────
+  //
+  // Until this hook the rich profile editor's "Saved just now" indicator was
+  // a UI lie — every field edit lived in the reducer with no DB persistence.
+  // On close the work was discarded.
+  //
+  // We watch the IdentityEditor's slice of state, debounce 800ms after the
+  // last change, and PATCH talent_profiles via updateTalentIdentity. Skipped
+  // when:
+  //   - drawer is closed (no point firing)
+  //   - mode === "create" (no talent_profile_id yet)
+  //   - payload.talentId is missing
+  //   - identity slice is unchanged from the previous save (cheap deep-eq)
+  //
+  // Other tabs (Services / Location / Media / Albums / Polaroids / About) get
+  // their own autosave effects in subsequent migrations once their schema
+  // gaps are closed.
+  const lastSavedIdentityRef = useRef<string>(JSON.stringify(state.identity));
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const autosaveErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    if (mode === "create") return;
+    const tid = payload.talentId;
+    if (!tid) return;
+    const serialized = JSON.stringify(state.identity);
+    if (serialized === lastSavedIdentityRef.current) return;
+
+    // Prototype uses "she/her" style; the DB schema (and our action) uses
+    // the underscore form "she_her" so the column-CHECK constraint
+    // matches. Map at the bridge layer.
+    const PRONOUNS_TO_DB: Record<string, "she_her" | "he_him" | "they_them" | "ze_zir" | "custom"> = {
+      "she/her": "she_her",
+      "he/him": "he_him",
+      "they/them": "they_them",
+      "ze/zir": "ze_zir",
+      custom: "custom",
+    };
+
+    const handle = setTimeout(async () => {
+      setAutosaveStatus("saving");
+      const id = state.identity;
+      const visibilityPatch: Partial<Record<"legalName" | "pronouns" | "gender" | "dob", ("public" | "agency" | "private")[]>> = {};
+      if (id.visibility) {
+        for (const [k, v] of Object.entries(id.visibility)) {
+          if (k === "legalName" || k === "pronouns" || k === "gender" || k === "dob") {
+            visibilityPatch[k as "legalName" | "pronouns" | "gender" | "dob"] = [...v];
+          }
+        }
+      }
+      const result = await updateTalentIdentity({
+        talent_profile_id: tid,
+        stage_name: id.stageName,
+        legal_name: id.legalName,
+        pronunciation: id.pronunciation,
+        pronouns: id.pronouns ? PRONOUNS_TO_DB[id.pronouns] ?? null : null,
+        pronouns_custom: id.pronounsCustom ?? "",
+        gender: id.gender ?? "",
+        date_of_birth: id.dob ?? "",
+        age_display_mode:
+          id.ageDisplay === "exact" || id.ageDisplay === "range" || id.ageDisplay === "hidden"
+            ? id.ageDisplay
+            : undefined,
+        nationality: id.nationality ?? "",
+        response_time:
+          id.responseTime === "1h" ||
+          id.responseTime === "4h" ||
+          id.responseTime === "24h" ||
+          id.responseTime === "48h"
+            ? id.responseTime
+            : null,
+        field_visibility: Object.keys(visibilityPatch).length > 0 ? visibilityPatch : undefined,
+      });
+      if (result.ok) {
+        lastSavedIdentityRef.current = serialized;
+        autosaveErrorRef.current = null;
+        setAutosaveStatus("saved");
+      } else {
+        autosaveErrorRef.current = result.error;
+        setAutosaveStatus("error");
+        // eslint-disable-next-line no-console
+        console.error("[talent-identity autosave]", result.error);
+      }
+    }, 800);
+    return () => clearTimeout(handle);
+  }, [state.identity, drawerOpen, mode, payload.talentId]);
   const toggleSet = (field: "secondaryTypes" | "specialties" | "contexts" | "aspirations") =>
     (value: string) => dispatch({ type: "TOGGLE_SET", field, value });
   const setSkill = (skillId: string, proficiency: SkillProficiency | null) =>
