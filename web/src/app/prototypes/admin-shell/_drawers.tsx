@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { addTalentToRoster } from "./_actions";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
+import { updateAgencyBranding } from "@/lib/server-actions/admin-workspace-settings";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -10324,8 +10325,47 @@ function FieldLockToggle({ path, locks, onChange }: {
 // ════════════════════════════════════════════════════════════════════
 
 function BrandingDrawer() {
-  const { closeDrawer, toast } = useProto();
-  const onSave = useSaveAndClose("Branding saved");
+  const { closeDrawer, toast, tenantSlug } = useProto();
+  // Phase 3 (deep QA fix) — controlled state replacing the prior
+  // defaultValue uncontrolled inputs. Wired to updateAgencyBranding
+  // server action which writes to agencies.settings.branding JSONB.
+  const [tagline, setTagline] = useState("");
+  const [description, setDescription] = useState("");
+  const [primaryColor, setPrimaryColor] = useState("#0B0B0D");
+  const [accentColor, setAccentColor] = useState(COLORS.accent);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const onSave = async () => {
+    if (isSaving) return;
+    if (!tenantSlug) {
+      // Standalone /prototypes/admin-shell mode — no real tenant; mock save.
+      toast("Branding saved (demo)");
+      closeDrawer();
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const result = await updateAgencyBranding({
+        tagline: tagline.trim() || undefined,
+        description: description.trim() || undefined,
+        primary_color: /^#[0-9a-fA-F]{6}$/u.test(primaryColor) ? primaryColor : undefined,
+        accent_color: /^#[0-9a-fA-F]{6}$/u.test(accentColor) ? accentColor : undefined,
+      });
+      if (!result.ok) {
+        toast(result.error || "Couldn't save branding. Try again.");
+        return;
+      }
+      toast("Branding saved");
+      closeDrawer();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[updateAgencyBranding] failed", err);
+      toast("Couldn't save branding. Try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <DrawerShell
       open
@@ -10333,7 +10373,7 @@ function BrandingDrawer() {
       title="Branding"
       description="Logo, voice, brand colors. What clients see across emails and storefront."
       width={560}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? "Saving…" : "Save"} />}
     >
       <Section title="Logo & icon">
         <FieldRow label="Wordmark" hint="SVG preferred. Used in storefront header and emails.">
@@ -10375,7 +10415,7 @@ function BrandingDrawer() {
             </div>
             <SecondaryButton
               size="sm"
-              onClick={() => toast("Drag a file or click to upload.")}
+              onClick={() => toast("Logo upload coming next iteration.")}
             >
               Replace
             </SecondaryButton>
@@ -10385,12 +10425,18 @@ function BrandingDrawer() {
 
       <Section title="Brand voice" framed>
         <FieldRow label="Tagline" optional>
-          <TextInput defaultValue="An agency built around our talent." />
+          <TextInput
+            value={tagline}
+            onChange={(e) => setTagline(e.target.value)}
+            placeholder="An agency built around our talent."
+          />
         </FieldRow>
         <FieldRow label="Brand description" hint="Used in social previews and footer.">
           <TextArea
             rows={3}
-            defaultValue="A boutique agency representing editorial, runway, and commercial talent across Europe."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="A boutique agency representing editorial, runway, and commercial talent across Europe."
           />
         </FieldRow>
       </Section>
@@ -10398,14 +10444,30 @@ function BrandingDrawer() {
       <Section title="Color tokens" framed>
         <FieldRow label="Primary">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <input type="color" defaultValue="#0B0B0D" style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
-            <TextInput defaultValue="#0B0B0D" />
+            <input
+              type="color"
+              value={primaryColor}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }}
+            />
+            <TextInput
+              value={primaryColor}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+            />
           </div>
         </FieldRow>
         <FieldRow label="Accent">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <input type="color" defaultValue={COLORS.accent} style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
-            <TextInput defaultValue={COLORS.accent} />
+            <input
+              type="color"
+              value={accentColor}
+              onChange={(e) => setAccentColor(e.target.value)}
+              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }}
+            />
+            <TextInput
+              value={accentColor}
+              onChange={(e) => setAccentColor(e.target.value)}
+            />
           </div>
         </FieldRow>
       </Section>

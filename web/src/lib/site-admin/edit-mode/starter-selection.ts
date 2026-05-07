@@ -1,10 +1,16 @@
 import type { SectionTypeKey } from "@/lib/site-admin/sections/registry";
 import { SECTION_TEMPLATE_STARTERS } from "@/lib/site-admin/sections/shared/section-template-starters";
 
+// Build-time fix (2026-05-07): the `as const` literal-array inference on
+// SECTION_TEMPLATE_STARTERS narrows each element to its specific shape,
+// which sometimes drops the shared `homeCore` boolean from the union TS
+// surfaces here. The runtime data unanimously has `homeCore` (see
+// section-template-starters.ts), so a structural guard is sufficient.
 const HOME_CORE_SECTION_TYPES: ReadonlySet<SectionTypeKey> = new Set(
-  SECTION_TEMPLATE_STARTERS.filter((starter) => starter.homeCore).map(
-    (starter) => starter.sectionTypeKey,
-  ),
+  SECTION_TEMPLATE_STARTERS.filter(
+    (starter): starter is typeof starter & { homeCore: boolean } =>
+      "homeCore" in starter && (starter as { homeCore: boolean }).homeCore === true,
+  ).map((starter) => starter.sectionTypeKey),
 );
 
 /**
@@ -202,6 +208,25 @@ export function parseSelectedStarterEntryIndexes(
     selected.add(asNumber);
   }
   return selected;
+}
+
+export function resolveSelectedStarterEntryIndexes(params: {
+  sectionTypeKeys: ReadonlyArray<SectionTypeKey>;
+  selectedIndexes: ReadonlySet<number> | null;
+  lockHomeCore: boolean;
+}): Set<number> {
+  const { sectionTypeKeys, selectedIndexes, lockHomeCore } = params;
+  const normalized =
+    selectedIndexes === null
+      ? new Set(sectionTypeKeys.map((_, index) => index))
+      : new Set(selectedIndexes);
+
+  if (!lockHomeCore) return normalized;
+
+  const homeCoreIndexes = resolveEssentialHomeIndexes(sectionTypeKeys);
+  if (homeCoreIndexes.length < 3) return normalized;
+  for (const index of homeCoreIndexes) normalized.add(index);
+  return normalized;
 }
 
 export function parseSelectedStarterEntryStyles(
