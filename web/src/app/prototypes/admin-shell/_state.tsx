@@ -7133,7 +7133,7 @@ export function ProtoProvider({
   useEffect(() => { tenantSlugRef.current = tenantSlug; }, [tenantSlug]);
 
   const [surface, setSurface] = useState<Surface>(initialSurface ?? "workspace");
-  // workspace
+
   // Phase 1 (master plan) — when the workspace admin layout supplies
   // bridge identity, prime the prototype's plan + role from real data so
   // capability gates (Settings > Team, Plan & billing, plan-locked
@@ -7151,6 +7151,31 @@ export function ProtoProvider({
       ? (r as Role)
       : "owner";
   })();
+
+  // Phase 1 (master plan) — mutate the singleton TENANT mock with real
+  // tenant identity at init. The constant has ~30 references across
+  // _pages.tsx, _drawers.tsx, _messages.tsx (all tenant name/slug/domain
+  // displays). Patching every call site is tedious and merge-conflict
+  // prone with the parallel page-builder agent. Mutating the singleton
+  // once at init cascades through every consumer in a single shot.
+  // In standalone /prototypes/admin-shell mode there's no bridge identity,
+  // so TENANT keeps its hardcoded "Atelier Roma" demo values.
+  if (initialBridgeData?.tenantIdentity) {
+    const ti = initialBridgeData.tenantIdentity;
+    TENANT.name = ti.displayName;
+    TENANT.slug = ti.slug;
+    // Initials: prefer first letter of each word (max 2 chars).
+    const words = ti.displayName.split(/\s+/u).filter(Boolean);
+    TENANT.initials =
+      ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? "")).toUpperCase() ||
+      ti.displayName.slice(0, 2).toUpperCase();
+    // Domain shapes — derive from slug. Subdomain on platform host;
+    // custom domain only when one's been provisioned (out of scope for
+    // Phase 1; leave as derived placeholder).
+    TENANT.domain = `${ti.slug}.tulala.digital`;
+    TENANT.customDomain = `${ti.slug}.com`;
+  }
+
   const [plan, setPlan] = useState<Plan>(initialPlan);
   const [role, setRole] = useState<Role>(initialRole);
   const [entityType, setEntityType] = useState<EntityType>(TENANT.entityType);
