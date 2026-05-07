@@ -32,6 +32,108 @@ const updateInquirySchema = z.object({
   closed_reason: z.string(),
 });
 
+// Phase 3 (master plan / deep QA fix) — agency-side inquiry creation.
+// The "+ New inquiry" admin drawer was previously a client-side mock store
+// push; nothing ever reached the inquiries table. This is the canonical
+// server action behind the drawer's submit handler.
+const createAgencyInquirySchema = z.object({
+  contact_name: z.string().min(1, "Client name is required."),
+  contact_email: z.string().email("Enter a valid client email."),
+  contact_phone: z.string().optional().default(""),
+  company: z.string().optional().default(""),
+  event_date: z.string().optional().default(""),
+  event_location: z.string().optional().default(""),
+  message: z.string().optional().default(""),
+  source_channel: inquirySourceChannelSchema.optional(),
+  // Optional: comma-separated talent_profile_ids to attach via inquiry_talent.
+  talent_profile_ids: z.string().optional().default(""),
+});
+
+export type CreateAgencyInquiryResult =
+  | { ok: true; inquiry_id: string }
+  | { ok: false; error: string };
+
+export async function createAgencyInquiry(
+  input: Record<string, string | undefined>,
+): Promise<CreateAgencyInquiryResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId, user } = auth;
+
+  const parsed = createAgencyInquirySchema.safeParse(input);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first?.message ?? "Invalid inquiry data." };
+  }
+  const v = parsed.data;
+
+  // event_date: empty → null. ISO YYYY-MM-DD or human dates handled
+  // upstream; for now require a parseable string or pass null.
+  const eventDate = v.event_date.trim() ? v.event_date.trim() : null;
+
+  const insertPayload = {
+    tenant_id: tenantId,
+    status: "new" as const,
+    contact_name: v.contact_name.trim(),
+    contact_email: v.contact_email.trim().toLowerCase(),
+    contact_phone: v.contact_phone.trim() || null,
+    company: v.company.trim() || null,
+    event_date: eventDate,
+    event_location: v.event_location.trim() || null,
+    message: v.message.trim() || null,
+    source_page: "admin-workspace-new-inquiry",
+    assigned_staff_id: user.id,
+  };
+
+  const { data, error } = await supabase
+    .from("inquiries")
+    .insert(insertPayload)
+    .select("id")
+    .single();
+
+  if (error) {
+    logServerError("admin-inquiries.createAgencyInquiry.insert", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  // Optional talent attachments via inquiry_talent join table.
+  const talentIds = v.talent_profile_ids
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (talentIds.length > 0) {
+    const { error: tErr } = await supabase
+      .from("inquiry_talent")
+      .insert(
+        talentIds.map((tid) => ({
+          inquiry_id: data.id,
+          talent_profile_id: tid,
+        })),
+      );
+    if (tErr) {
+      logServerError("admin-inquiries.createAgencyInquiry.talent_link", tErr);
+      // Non-fatal — the inquiry exists. Caller can retry talent linking.
+    }
+  }
+
+  // Best-effort audit log entry. Wrapped to never throw into render path.
+  try {
+    await logInquiryActivity(supabase, {
+      inquiryId: data.id,
+      actorUserId: user.id,
+      eventType: INQUIRY_AUDIT.CREATED_MANUAL,
+      payload: { source: "admin_workspace", contact_email: v.contact_email },
+    });
+  } catch (err) {
+    logServerError("admin-inquiries.createAgencyInquiry.audit", err);
+  }
+
+  // Refresh the workspace so Messages + Calendar pick up the new inquiry.
+  revalidatePath("/", "layout");
+
+  return { ok: true, inquiry_id: data.id };
+}
+
 const updateInquiryClientInfoSchema = z.object({
   inquiry_id: z.string().min(1, "Missing inquiry."),
   contact_name: z.string().min(1, "Client name is required."),

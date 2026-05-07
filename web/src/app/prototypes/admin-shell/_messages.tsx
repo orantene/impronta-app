@@ -40,6 +40,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { createAgencyInquiry } from "@/lib/server-actions/admin-inquiries";
 import {
   COLORS, FONTS, RADIUS, TRANSITION,
   MY_TALENT_PROFILE,
@@ -8549,14 +8551,76 @@ export function InquiryComposer({
   const update = <K extends keyof ComposerDraft>(k: K, v: ComposerDraft[K]) =>
     setDraft(d => ({ ...d, [k]: v }));
 
-  const send = () => {
+  const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const send = async () => {
     if (!draft.briefSummary.trim()) {
       toast("Add a brief so the agency can triage");
       return;
     }
-    // Lift draft → canonical InquiryRecord and persist to the prototype
-    // store. Both entry points (client form + admin manual) write here,
-    // so any list view consuming `getProtoInquiries()` sees the new row.
+    if (isSaving) return;
+
+    // Phase 3 (deep QA fix) — admin "manual" mode now writes to the real
+    // inquiries table via createAgencyInquiry. The prior implementation
+    // pushed to a client-only __inquiryStore so the inquiry never reached
+    // the database — agency operators couldn't actually create inquiries.
+    if (mode === "admin") {
+      // Validate minimum: contact info. We accept the typed name from the
+      // composer's contactName + contactEmail fields (which the form
+      // exposes per ComposerDraft), falling back to clientName if a
+      // dedicated contact wasn't provided yet.
+      const contactName = (draft.contactName || draft.clientName || "").trim();
+      const contactEmail = (draft.contactEmail || "").trim();
+      if (!contactName) {
+        toast("Add a client name");
+        return;
+      }
+      if (!contactEmail) {
+        toast("Add a client email");
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        const result = await createAgencyInquiry({
+          contact_name: contactName,
+          contact_email: contactEmail,
+          contact_phone: draft.contactPhone ?? "",
+          company: draft.clientName ?? "",
+          event_date: draft.scheduleStart ?? "",
+          event_location: [draft.locationCity, draft.locationVenue]
+            .filter(Boolean)
+            .join(" · "),
+          message: [draft.briefSummary, draft.briefNotes]
+            .filter(Boolean)
+            .join("\n\n"),
+          source_channel: draft.sourceChannel,
+          talent_profile_ids: (draft.talent ?? []).join(","),
+        });
+        if (!result.ok) {
+          toast(result.error || "Couldn't create inquiry — try again.");
+          return;
+        }
+        toast("Inquiry created");
+        // Refresh server data so Messages + Calendar surface the new row.
+        router.refresh();
+        onSubmit(draft);
+      } catch (err) {
+        // Network / unexpected error — keep the drawer open so the user
+        // can retry without losing their draft.
+        // eslint-disable-next-line no-console
+        console.error("[createAgencyInquiry] failed", err);
+        toast("Couldn't create inquiry — try again.");
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Client / hub modes still use the prototype mock store for now.
+    // (Their canonical write paths are the public inquiry submit + hub
+    // intake flow respectively, both already wired elsewhere.)
     const record = draftToInquiry(draft, mode);
     __inquiryStore.push(record);
     onSubmit(draft);
