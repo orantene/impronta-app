@@ -1647,8 +1647,9 @@ function StateChipMini({ label, tone }: { label: string; tone: "green" | "amber"
 // ════════════════════════════════════════════════════════════════════
 
 function TeamDrawer() {
-  const { state, closeDrawer, toast } = useProto();
-  const team = getTeam(state.plan);
+  const { state, closeDrawer, toast, effectiveTeamMembers } = useProto();
+  // Phase 3.12 — use live team members when available, fall back to mock.
+  const team = effectiveTeamMembers.length > 0 ? effectiveTeamMembers : getTeam(state.plan);
   const canManage = meetsRole(state.role, "admin");
 
   return (
@@ -13114,26 +13115,27 @@ function ClientProfileDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function TodayPulseDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
-  const inquiries = getInquiries(state.plan);
+  const { state, closeDrawer, openDrawer, effectiveMessagesInquiries } = useProto();
+  // Phase 3.12 — use bridge inquiries when available, fall back to mock.
+  const richInqs = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
   const items = [
-    ...inquiries
-      .filter((i) => i.stage === "awaiting-client")
+    ...richInqs
+      .filter((i) => i.nextActionBy === "client" || i.stage === "offer_pending" || i.stage === "approved")
       .map((i) => ({
         id: i.id,
-        title: `${i.client} · waiting on confirmation`,
-        sub: `${i.brief} · sent ${i.ageDays}d ago`,
+        title: `${i.clientName} · waiting on confirmation`,
+        sub: `${i.brief} · ${i.ageDays}d ago`,
         tone: "amber" as const,
-        action: () => openDrawer("inquiry-peek", { id: i.id }),
+        action: () => openDrawer("inquiry-workspace", { id: i.id }),
       })),
-    ...inquiries
-      .filter((i) => i.stage === "draft" || i.stage === "hold")
+    ...richInqs
+      .filter((i) => i.stage === "draft")
       .map((i) => ({
         id: i.id,
-        title: `${i.client} · ${i.stage === "draft" ? "draft never sent" : "on hold"}`,
+        title: `${i.clientName} · draft never sent`,
         sub: i.brief,
         tone: "dim" as const,
-        action: () => openDrawer("inquiry-peek", { id: i.id }),
+        action: () => openDrawer("inquiry-workspace", { id: i.id }),
       })),
   ];
 
@@ -13184,8 +13186,21 @@ function TodayPulseDrawer() {
 }
 
 function PipelineDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
-  const inquiries = getInquiries(state.plan);
+  const { state, closeDrawer, openDrawer, effectiveMessagesInquiries } = useProto();
+  // Phase 3.12 — use bridge RichInquiry data, mapped to the shape this drawer expects.
+  const richSource = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+  const inquiries = richSource.map((i) => ({
+    id: i.id,
+    client: i.clientName,
+    brief: i.brief,
+    stage:
+      i.stage === "draft" ? "draft" :
+      i.stage === "offer_pending" || i.stage === "approved" ? "awaiting-client" :
+      i.stage === "booked" ? "confirmed" :
+      i.stage,
+    amount: i.offer?.total,
+    ageDays: i.ageDays,
+  }));
   const cols: { id: string; label: string; stages: string[]; tone: "dim" | "amber" | "green" }[] = [
     { id: "drafts", label: "Drafts & holds", stages: ["draft", "hold"], tone: "dim" },
     { id: "awaiting", label: "Awaiting client", stages: ["awaiting-client"], tone: "amber" },
