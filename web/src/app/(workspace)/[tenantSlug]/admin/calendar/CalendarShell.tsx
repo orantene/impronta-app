@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import type { CalendarEvent } from "../../_data-bridge";
+import { WorkspaceDrawer } from "../_components/WorkspaceDrawer";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ const C = {
   accent:     "#0F4F3E",
   green:      "#2E7D5B",
   greenSoft:  "rgba(46,125,91,0.09)",
+  greenDeep:  "#0F4F3E",
   amber:      "#B8860B",
   amberSoft:  "rgba(184,134,11,0.10)",
   red:        "#c0392b",
@@ -192,6 +194,160 @@ function StatusStrip({
 
 // ─── Main shell ───────────────────────────────────────────────────────────────
 
+// ─── New booking drawer ───────────────────────────────────────────────────────
+
+function NewBookingDrawer({
+  tenantSlug,
+  preselectedDate,
+  onClose,
+}: {
+  tenantSlug: string;
+  preselectedDate: string | null;
+  onClose: () => void;
+}) {
+  const displayDate = preselectedDate
+    ? (() => {
+        const parts = preselectedDate.split("-");
+        return new Date(
+          parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])
+        ).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+      })()
+    : null;
+
+  return (
+    <div style={{ fontFamily: FONT, color: C.ink }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 20px 12px", borderBottom: `1px solid ${C.border}`,
+        position: "sticky", top: 0, background: "#FAFAF7", zIndex: 1,
+      }}>
+        <div>
+          <p style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.6, textTransform: "uppercase", margin: 0 }}>
+            Calendar
+          </p>
+          <h2 style={{ fontFamily: FONT, fontSize: 18, fontWeight: 600, color: C.ink, letterSpacing: -0.2, margin: "2px 0 0" }}>
+            New booking
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            width: 30, height: 30, borderRadius: "50%",
+            border: `1px solid ${C.borderSoft}`, background: C.cardBg,
+            cursor: "pointer", fontSize: 18, color: C.inkMuted,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontFamily: FONT,
+          }}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: "24px 20px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Date chip */}
+        {displayDate ? (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            padding: "8px 14px", borderRadius: 10,
+            background: C.greenSoft, border: `1px solid rgba(46,125,91,0.18)`,
+          }}>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth={2} strokeLinecap="round">
+              <rect x={3} y={4} width={18} height={18} rx={2} />
+              <path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.green }}>{displayDate}</span>
+          </div>
+        ) : (
+          <div style={{
+            padding: "12px 16px", borderRadius: 10,
+            background: C.surface, border: `1px solid ${C.borderSoft}`,
+            fontSize: 13, color: C.inkMuted,
+          }}>
+            Tip: click a day on the calendar first to pre-select the date.
+          </div>
+        )}
+
+        {/* Explainer */}
+        <div>
+          <p style={{ fontFamily: FONT, fontSize: 13.5, fontWeight: 600, color: C.ink, margin: "0 0 6px" }}>
+            How bookings work
+          </p>
+          <p style={{ fontFamily: FONT, fontSize: 12.5, color: C.inkMuted, lineHeight: 1.6, margin: 0 }}>
+            Every booking starts as an inquiry — you propose talent + terms, the client approves, and the booking is confirmed. Once confirmed it shows up on the calendar.
+          </p>
+        </div>
+
+        {/* Divider */}
+        <div style={{ borderTop: `1px solid ${C.border}` }} />
+
+        {/* CTAs */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.5, textTransform: "uppercase", margin: 0 }}>
+            Start here
+          </p>
+          <Link
+            href={`/${tenantSlug}/admin/messages`}
+            onClick={onClose}
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "14px 16px", borderRadius: 10,
+              background: C.cardBg, border: `1px solid ${C.borderSoft}`,
+              textDecoration: "none", transition: "border-color 120ms",
+            }}
+          >
+            <div style={{
+              width: 36, height: 36, borderRadius: 9,
+              background: "rgba(43,63,163,0.08)",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              fontSize: 17,
+            }}>
+              💬
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: C.ink }}>Messages</div>
+              <div style={{ fontFamily: FONT, fontSize: 12, color: C.inkMuted, marginTop: 2 }}>Start a conversation with a client — a booking thread is created automatically.</div>
+            </div>
+            <span style={{ color: C.inkMuted, fontSize: 14, flexShrink: 0 }}>→</span>
+          </Link>
+          <Link
+            href={`/${tenantSlug}/admin/messages`}
+            onClick={onClose}
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "14px 16px", borderRadius: 10,
+              background: C.cardBg, border: `1px solid ${C.borderSoft}`,
+              textDecoration: "none", transition: "border-color 120ms",
+            }}
+          >
+            <div style={{
+              width: 36, height: 36, borderRadius: 9,
+              background: "rgba(15,79,62,0.08)",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              fontSize: 17,
+            }}>
+              📋
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: C.ink }}>Open pipeline</div>
+              <div style={{ fontFamily: FONT, fontSize: 12, color: C.inkMuted, marginTop: 2 }}>Pick an existing inquiry and confirm the event date to lock it onto the calendar.</div>
+            </div>
+            <span style={{ color: C.inkMuted, fontSize: 14, flexShrink: 0 }}>→</span>
+          </Link>
+          {preselectedDate && (
+            <p style={{ fontFamily: FONT, fontSize: 11.5, color: C.inkMuted, margin: "4px 0 0", lineHeight: 1.5 }}>
+              Once you set the event date in the inquiry to <strong style={{ color: C.ink }}>{displayDate}</strong>, it will appear on the calendar automatically.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CalendarShell({
   events,
   tenantSlug,
@@ -204,6 +360,7 @@ export function CalendarShell({
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
   const [activeTone, setActiveTone]     = useState<Tone | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
 
   const goToPrev = useCallback(() => {
     setDisplayMonth((m) => {
@@ -275,6 +432,41 @@ export function CalendarShell({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONT }}>
+
+      {/* ── Page header ── */}
+      <div style={{
+        display: "flex", alignItems: "flex-start",
+        justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+        marginBottom: 4,
+      }}>
+        <div>
+          <p style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>
+            Schedule
+          </p>
+          <h1 style={{
+            fontFamily: FONT, fontSize: 26, fontWeight: 600, color: C.ink,
+            letterSpacing: -0.4, lineHeight: 1.15, margin: 0,
+          }}>
+            Calendar
+          </h1>
+          <p style={{ fontFamily: FONT, fontSize: 12.5, color: C.inkMuted, marginTop: 4 }}>
+            All bookings and inquiry dates in one view.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setNewBookingOpen(true)}
+          style={{
+            display: "inline-flex", alignItems: "center", height: 36,
+            padding: "0 16px", borderRadius: 8, border: "none",
+            background: C.accent, color: "#fff",
+            fontFamily: FONT, fontSize: 13, fontWeight: 600, cursor: "pointer",
+            letterSpacing: -0.1, flexShrink: 0,
+          }}
+        >
+          + New booking
+        </button>
+      </div>
 
       {/* Status strip — click to filter calendar view */}
       <StatusStrip
@@ -445,6 +637,19 @@ export function CalendarShell({
           and set an event date to see it here.
         </div>
       )}
+
+      {/* ── New booking drawer ── */}
+      <WorkspaceDrawer
+        open={newBookingOpen}
+        onClose={() => setNewBookingOpen(false)}
+        width={440}
+      >
+        <NewBookingDrawer
+          tenantSlug={tenantSlug}
+          preselectedDate={selectedDate}
+          onClose={() => setNewBookingOpen(false)}
+        />
+      </WorkspaceDrawer>
     </div>
   );
 }

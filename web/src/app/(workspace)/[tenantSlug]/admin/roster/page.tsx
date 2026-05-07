@@ -15,7 +15,21 @@ import {
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { logServerError } from "@/lib/server/safe-error";
 import { RosterClientShell } from "./RosterClientShell";
+
+async function loadTalentTypes() {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+  const { data, error } = await admin
+    .from("taxonomy_terms")
+    .select("id, name_en")
+    .eq("kind", "talent_type")
+    .is("archived_at", null)
+    .order("sort_order", { ascending: true });
+  if (error) { logServerError("roster.loadTalentTypes", error); return []; }
+  return (data ?? []).map((t) => ({ id: t.id as string, name_en: t.name_en as string }));
+}
 
 export const dynamic = "force-dynamic";
 
@@ -41,10 +55,11 @@ export default async function WorkspaceRosterPage({
   const session = await getCachedActorSession();
   const currentUserId = session.user?.id ?? null;
 
-  const [canView, canEdit, roster] = await Promise.all([
+  const [canView, canEdit, roster, talentTypes] = await Promise.all([
     userHasCapability("agency.roster.view", scope.tenantId),
     userHasCapability("agency.roster.edit", scope.tenantId),
     loadWorkspaceRosterEnriched(scope.tenantId),
+    loadTalentTypes(),
   ]);
 
   if (!canView) notFound();
@@ -88,6 +103,7 @@ export default async function WorkspaceRosterPage({
       roster={roster}
       tenantSlug={tenantSlug}
       canEdit={canEdit}
+      talentTypes={talentTypes}
       initialStateFilter={initialStateFilter}
       isOnRoster={isOnRoster}
       seatUsage={{

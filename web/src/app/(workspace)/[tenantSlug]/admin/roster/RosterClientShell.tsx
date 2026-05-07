@@ -8,6 +8,7 @@
 import { useState, useTransition } from "react";
 import { bulkSetWorkflowStatus } from "./bulk-actions";
 import { WorkspaceDrawer } from "../_components/WorkspaceDrawer";
+import { NewRosterTalentForm } from "./new/NewRosterTalentForm";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1097,6 +1098,63 @@ function TypeChips({
   );
 }
 
+// ─── Add talent drawer ────────────────────────────────────────────────────────
+
+function AddTalentDrawer({
+  tenantSlug,
+  talentTypes,
+  seatUsage,
+  onClose,
+}: {
+  tenantSlug: string;
+  talentTypes: { id: string; name_en: string }[];
+  seatUsage?: { used: number; limit: number | null; atLimit: boolean; message: string | null };
+  onClose: () => void;
+}) {
+  return (
+    <div style={{ fontFamily: FONT, color: C.ink, display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 20px 12px",
+        borderBottom: `1px solid ${C.border}`,
+        position: "sticky", top: 0, background: "#FAFAF7", zIndex: 1,
+      }}>
+        <div>
+          <p style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.6, textTransform: "uppercase", margin: 0 }}>
+            Roster
+          </p>
+          <h2 style={{ fontFamily: FONT, fontSize: 18, fontWeight: 600, color: C.ink, letterSpacing: -0.2, margin: "2px 0 0" }}>
+            Add talent
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            width: 30, height: 30, borderRadius: "50%",
+            border: `1px solid ${C.borderSoft}`, background: C.white,
+            cursor: "pointer", fontSize: 18, color: C.inkMuted,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontFamily: FONT,
+          }}
+        >
+          ×
+        </button>
+      </div>
+      {/* Scrollable form body */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 32px" }}>
+        <NewRosterTalentForm
+          tenantSlug={tenantSlug}
+          talentTypes={talentTypes}
+          seatUsage={seatUsage}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Talent quick-view drawer ─────────────────────────────────────────────────
 
 function TalentQuickViewDrawer({
@@ -1298,6 +1356,7 @@ export function RosterClientShell({
   roster,
   tenantSlug,
   canEdit,
+  talentTypes = [],
   seatUsage,
   initialStateFilter,
   isOnRoster = false,
@@ -1305,6 +1364,7 @@ export function RosterClientShell({
   roster: RosterTalent[];
   tenantSlug: string;
   canEdit: boolean;
+  talentTypes?: { id: string; name_en: string }[];
   seatUsage?: {
     planTier: string | null;
     used: number;
@@ -1325,6 +1385,7 @@ export function RosterClientShell({
   const [toast, setToast] = useState<string | null>(null);
   const [bulkPending, startBulkTransition] = useTransition();
   const [openTalentId, setOpenTalentId] = useState<string | null>(null);
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
 
   const openDrawerTalent = openTalentId ? roster.find((r) => r.id === openTalentId) ?? null : null;
 
@@ -1679,46 +1740,60 @@ export function RosterClientShell({
               </div>
 
               {/* Invite ghost button */}
-              <a
-                href={seatLimitReached ? `/${tenantSlug}/admin/account` : `/${tenantSlug}/admin/roster/new`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  height: 32,
-                  padding: "0 14px",
-                  borderRadius: 8,
-                  border: `1px solid ${C.borderSoft}`,
-                  background: "transparent",
-                  color: seatLimitReached ? C.inkMuted : C.ink,
-                  fontFamily: FONT,
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  textDecoration: "none",
-                  opacity: seatLimitReached ? 0.7 : 1,
-                }}
-              >
-                {seatLimitReached ? "Upgrade to invite" : "Invite"}
-              </a>
+              {seatLimitReached ? (
+                <a
+                  href={`/${tenantSlug}/admin/account`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", height: 32,
+                    padding: "0 14px", borderRadius: 8, border: `1px solid ${C.borderSoft}`,
+                    background: "transparent", color: C.inkMuted, fontFamily: FONT,
+                    fontSize: 12.5, fontWeight: 500, textDecoration: "none", opacity: 0.7,
+                  }}
+                >
+                  Upgrade to invite
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddDrawerOpen(true)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", height: 32,
+                    padding: "0 14px", borderRadius: 8, border: `1px solid ${C.borderSoft}`,
+                    background: "transparent", color: C.ink, fontFamily: FONT,
+                    fontSize: 12.5, fontWeight: 500, cursor: "pointer",
+                  }}
+                >
+                  Invite
+                </button>
+              )}
 
               {/* Add talent primary */}
-              <a
-                href={seatLimitReached ? `/${tenantSlug}/admin/account` : `/${tenantSlug}/admin/roster/new`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  height: 32,
-                  padding: "0 14px",
-                  borderRadius: 8,
-                  background: seatLimitReached ? "rgba(11,11,13,0.16)" : C.accent,
-                  color: seatLimitReached ? C.ink : "#fff",
-                  fontFamily: FONT,
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  textDecoration: "none",
-                }}
-              >
-                {seatLimitReached ? "Limit reached" : "Add talent"}
-              </a>
+              {seatLimitReached ? (
+                <a
+                  href={`/${tenantSlug}/admin/account`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", height: 32,
+                    padding: "0 14px", borderRadius: 8,
+                    background: "rgba(11,11,13,0.16)", color: C.ink,
+                    fontFamily: FONT, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
+                  }}
+                >
+                  Limit reached
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddDrawerOpen(true)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", height: 32,
+                    padding: "0 14px", borderRadius: 8, border: "none",
+                    background: C.accent, color: "#fff",
+                    fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  Add talent
+                </button>
+              )}
             </>
           )}
         </div>
@@ -1893,6 +1968,25 @@ export function RosterClientShell({
           {toast}
         </div>
       )}
+
+      {/* ── Add talent drawer ── */}
+      <WorkspaceDrawer
+        open={addDrawerOpen}
+        onClose={() => setAddDrawerOpen(false)}
+        width={560}
+      >
+        <AddTalentDrawer
+          tenantSlug={tenantSlug}
+          talentTypes={talentTypes}
+          seatUsage={seatUsage ? {
+            used: seatUsage.used,
+            limit: seatUsage.limit,
+            atLimit: seatLimitReached,
+            message: seatLimitReached ? "Roster limit reached. Upgrade to add more talent." : null,
+          } : undefined}
+          onClose={() => setAddDrawerOpen(false)}
+        />
+      </WorkspaceDrawer>
 
       {/* ── Talent quick-view drawer ── */}
       <WorkspaceDrawer

@@ -717,6 +717,36 @@ export default async function WorkspaceAdminOverviewPage({
         )}
       </div>
 
+      {/* ── Quick-action tiles ── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+          gap: 10,
+        }}
+      >
+        <QuickTile
+          label="Add talent"
+          description="Draft, invite, or add to your roster."
+          href={`/${tenantSlug}/admin/roster`}
+        />
+        <QuickTile
+          label="New inquiry"
+          description="Start a client booking request."
+          href={`/${tenantSlug}/admin/messages`}
+        />
+        <QuickTile
+          label="Calendar"
+          description="See upcoming booking dates."
+          href={`/${tenantSlug}/admin/calendar`}
+        />
+        <QuickTile
+          label="Website"
+          description="Edit your public storefront."
+          href={`/${tenantSlug}/admin/website`}
+        />
+      </div>
+
       {/* ── Primary 2-col card row ── */}
       <div
         style={{
