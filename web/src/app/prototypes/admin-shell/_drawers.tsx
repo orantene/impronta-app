@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { addTalentToRoster } from "./_actions";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
-import { updateAgencyBranding } from "@/lib/server-actions/admin-workspace-settings";
+import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields } from "@/lib/server-actions/admin-workspace-settings";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -10672,28 +10672,81 @@ function DomainDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function IdentityDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Identity saved");
+  const { closeDrawer, toast, tenantSlug } = useProto();
+  // Phase 3 (deep QA fix) — controlled state, real updateWorkspaceAccount
+  // server action. Slug change is destructive and out of scope here
+  // (separate flow with redirect mapping); the slug input is read-only
+  // until that lands.
+  const [displayName, setDisplayName] = useState(TENANT.name);
+  const [contactEmail, setContactEmail] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const onSave = async () => {
+    if (isSaving) return;
+    if (!tenantSlug) {
+      toast("Identity saved (demo)");
+      closeDrawer();
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const result = await updateWorkspaceAccount({
+        display_name: displayName.trim() || undefined,
+        contact_email: contactEmail.trim() || undefined,
+      });
+      if (!result.ok) {
+        toast(result.error || "Couldn't save. Try again.");
+        return;
+      }
+      toast("Identity saved");
+      closeDrawer();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[updateWorkspaceAccount] failed", err);
+      toast("Couldn't save. Try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Identity"
       description="The basics — who you are inside Tulala."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? "Saving…" : "Save"} />}
     >
       <Section title="Workspace" framed>
         <FieldRow label="Workspace name" hint="Shown in browser tab, emails, and the public storefront.">
-          <TextInput defaultValue={TENANT.name} />
+          <TextInput
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
         </FieldRow>
-        <FieldRow label="Workspace slug" hint="Used in URLs.">
-          <TextInput defaultValue={TENANT.slug} prefix="tulala.app/" />
+        <FieldRow label="Workspace slug" hint="Used in URLs. Slug change is a separate flow (URL redirect mapping required) — coming next iteration.">
+          <div style={{
+            padding: "10px 12px", borderRadius: 10,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+            fontSize: 13, fontFamily: FONTS.body,
+          }}>tulala.app/{TENANT.slug}</div>
         </FieldRow>
         <FieldRow label="Contact email">
-          <TextInput type="email" defaultValue="hello@acme-models.com" />
+          <TextInput
+            type="email"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            placeholder="hello@your-agency.com"
+          />
         </FieldRow>
-        <FieldRow label="Support email" optional>
-          <TextInput type="email" defaultValue="support@acme-models.com" />
+        <FieldRow label="Support email" optional hint="Coming next iteration — stored under settings.support_email.">
+          <div style={{
+            padding: "10px 12px", borderRadius: 10,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: COLORS.surfaceAlt, color: COLORS.inkDim,
+            fontSize: 13, fontFamily: FONTS.body, fontStyle: "italic",
+          }}>not yet wired</div>
         </FieldRow>
       </Section>
     </DrawerShell>
@@ -10705,38 +10758,142 @@ function IdentityDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function WorkspaceSettingsDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Settings saved");
+  const { closeDrawer, toast, tenantSlug } = useProto();
+  // Phase 3 (deep QA fix) — controlled state for the three persisted
+  // fields, calling updateWorkspaceFields server action. Locale/currency/
+  // timezone all map to typed columns or settings JSONB on agencies.
+  // First-day-of-week stays UI-only for now (cosmetic, can ship later).
+  const [locale, setLocale] = useState<"en" | "es" | "pt" | "fr" | "it">("en");
+  const [timezone, setTimezone] = useState("America/Cancun");
+  const [currency, setCurrency] = useState("USD");
+  const [firstDay, setFirstDay] = useState("Monday");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Map prototype-friendly labels to canonical values + back.
+  const localeOptions = [
+    { label: "English", value: "en" as const },
+    { label: "Español", value: "es" as const },
+    { label: "Português", value: "pt" as const },
+    { label: "Français", value: "fr" as const },
+    { label: "Italiano", value: "it" as const },
+  ];
+  const localeLabel = localeOptions.find((o) => o.value === locale)?.label ?? "English";
+  const handleLocaleChange = (label: string) => {
+    const match = localeOptions.find((o) => o.label === label);
+    if (match) setLocale(match.value);
+  };
+
+  const currencyOptions = [
+    { label: "USD $", value: "USD" },
+    { label: "EUR €", value: "EUR" },
+    { label: "GBP £", value: "GBP" },
+    { label: "MXN $", value: "MXN" },
+    { label: "BRL R$", value: "BRL" },
+  ];
+  const currencyLabel = currencyOptions.find((o) => o.value === currency)?.label ?? "USD $";
+  const handleCurrencyChange = (label: string) => {
+    const match = currencyOptions.find((o) => o.label === label);
+    if (match) setCurrency(match.value);
+  };
+
+  const onSave = async () => {
+    if (isSaving) return;
+    if (!tenantSlug) {
+      toast("Settings saved (demo)");
+      closeDrawer();
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const result = await updateWorkspaceFields({
+        preferred_currency: currency,
+        timezone,
+        primary_locale: locale,
+      });
+      if (!result.ok) {
+        toast(result.error || "Couldn't save. Try again.");
+        return;
+      }
+      toast("Settings saved");
+      closeDrawer();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[updateWorkspaceFields] failed", err);
+      toast("Couldn't save. Try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Workspace settings"
       description="Operational defaults — locale, currency, timezone."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? "Saving…" : "Save"} />}
     >
       <Section title="Locale & timezone" framed>
         <FieldRow label="Default locale">
-          <SelectInput options={["English (UK)", "English (US)", "Español", "Italiano", "Français"]} defaultValue="English (UK)" />
+          <SelectInput
+            options={localeOptions.map((o) => o.label)}
+            value={localeLabel}
+            onChange={handleLocaleChange}
+          />
         </FieldRow>
         <FieldRow label="Timezone">
-          <SelectInput options={["Europe/Madrid", "Europe/Lisbon", "Europe/Paris", "America/New_York"]} defaultValue="Europe/Madrid" />
+          <SelectInput
+            options={[
+              "America/Cancun",
+              "America/Mexico_City",
+              "America/New_York",
+              "America/Los_Angeles",
+              "Europe/Madrid",
+              "Europe/Lisbon",
+              "Europe/Paris",
+              "Europe/Rome",
+              "Asia/Tokyo",
+            ]}
+            value={timezone}
+            onChange={setTimezone}
+          />
         </FieldRow>
         <FieldRow label="Default currency">
-          <SelectInput options={["EUR €", "USD $", "GBP £"]} defaultValue="EUR €" />
+          <SelectInput
+            options={currencyOptions.map((o) => o.label)}
+            value={currencyLabel}
+            onChange={handleCurrencyChange}
+          />
         </FieldRow>
-        <FieldRow label="First day of week">
-          <SelectInput options={["Monday", "Sunday"]} defaultValue="Monday" />
+        <FieldRow label="First day of week" hint="Cosmetic — calendar grid only. Not yet persisted.">
+          <SelectInput
+            options={["Monday", "Sunday"]}
+            value={firstDay}
+            onChange={setFirstDay}
+          />
         </FieldRow>
       </Section>
     </DrawerShell>
   );
 }
 
-function SelectInput({ options, defaultValue }: { options: string[]; defaultValue?: string }) {
+function SelectInput({
+  options,
+  defaultValue,
+  value,
+  onChange,
+}: {
+  options: string[];
+  defaultValue?: string;
+  /** Controlled value. When provided, must be paired with onChange. */
+  value?: string;
+  onChange?: (value: string) => void;
+}) {
   return (
     <select
-      defaultValue={defaultValue}
+      defaultValue={value === undefined ? defaultValue : undefined}
+      value={value}
+      onChange={onChange ? (e) => onChange(e.target.value) : undefined}
       style={{
         padding: "9px 12px",
         fontFamily: FONTS.body,
