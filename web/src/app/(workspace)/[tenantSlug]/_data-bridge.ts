@@ -463,7 +463,7 @@ export async function loadWorkspaceRosterEnriched(
           .from("media_assets")
           .select("owner_talent_profile_id, storage_path, variant_kind")
           .in("owner_talent_profile_id", talentIds)
-          .in("variant_kind", ["card", "portfolio", "gallery"])
+          .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
           .is("deleted_at", null),
         // Languages count per talent.
         supabase
@@ -478,18 +478,36 @@ export async function loadWorkspaceRosterEnriched(
       void portfolioRes;
 
       const BUCKET = "media-public";
+
+      // Two-pass walk: prefer "card" thumb when present, else fall back to
+      // the same chain the public talent page uses (public_watermarked →
+      // gallery → portfolio → original). Reason: uploads land in different
+      // variant_kinds depending on which surface saved them; the roster card
+      // shouldn't go blank just because the talent only has a gallery shot.
+      const THUMB_RANK: Record<string, number> = {
+        card: 0,
+        public_watermarked: 1,
+        gallery: 2,
+        portfolio: 3,
+        original: 4,
+      };
+      const bestRankByTalent = new Map<string, number>();
+
       for (const m of ((mediaRes.data ?? []) as Array<{
         owner_talent_profile_id: string;
         storage_path: string;
         variant_kind: string;
       }>)) {
-        if (m.variant_kind === "card") {
-          if (!thumbByTalentId.has(m.owner_talent_profile_id)) {
-            const { data: urlData } = mediaClient.storage.from(BUCKET).getPublicUrl(m.storage_path);
-            thumbByTalentId.set(m.owner_talent_profile_id, urlData.publicUrl);
-          }
-        } else {
-          // portfolio / gallery
+        // Update thumb if this row beats whatever we have so far.
+        const rank = THUMB_RANK[m.variant_kind] ?? 99;
+        const cur = bestRankByTalent.get(m.owner_talent_profile_id) ?? 99;
+        if (rank < cur) {
+          const { data: urlData } = mediaClient.storage.from(BUCKET).getPublicUrl(m.storage_path);
+          thumbByTalentId.set(m.owner_talent_profile_id, urlData.publicUrl);
+          bestRankByTalent.set(m.owner_talent_profile_id, rank);
+        }
+        // Portfolio count — anything in gallery / portfolio kinds.
+        if (m.variant_kind === "portfolio" || m.variant_kind === "gallery") {
           portfolioCountByTalentId.set(
             m.owner_talent_profile_id,
             (portfolioCountByTalentId.get(m.owner_talent_profile_id) ?? 0) + 1,
@@ -2491,19 +2509,28 @@ export async function loadTalentSelfProfile(
 
     if (rosterErr || !rosterRow) return null;
 
-    // Step 3: Fetch the talent's card-variant headshot
+    // Step 3: Fetch the talent's headshot. Prefer "card" variant; fall back
+    // through public_watermarked → gallery → portfolio → original so the
+    // talent's own dashboard never goes blank if their photo only landed in
+    // a different variant kind.
     const admin = createServiceRoleClient();
     const mediaClient = admin ?? supabase;
-    const { data: mediaRow } = await mediaClient
+    const { data: mediaRows } = await mediaClient
       .from("media_assets")
-      .select("storage_path")
+      .select("storage_path, variant_kind")
       .eq("owner_talent_profile_id", p.id)
-      .eq("variant_kind", "card")
+      .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
       .is("deleted_at", null)
       .order("sort_order", { ascending: true })
-      .order("id", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .order("id", { ascending: true });
+    const variantOrder = ["card", "public_watermarked", "gallery", "portfolio", "original"];
+    const mediaRow = (mediaRows ?? [])
+      .slice()
+      .sort(
+        (a, b) =>
+          variantOrder.indexOf((a as { variant_kind: string }).variant_kind) -
+          variantOrder.indexOf((b as { variant_kind: string }).variant_kind),
+      )[0] as { storage_path: string; variant_kind: string } | undefined ?? null;
     const BUCKET = "media-public";
     const headshotUrl = mediaRow?.storage_path
       ? mediaClient.storage.from(BUCKET).getPublicUrl(mediaRow.storage_path).data.publicUrl

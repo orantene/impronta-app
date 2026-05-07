@@ -136,15 +136,23 @@ async function resolveTalentPhotos(
   const mediaClient = admin ?? supabase;
   const { data: mediaRows } = await mediaClient
     .from("media_assets")
-    .select("owner_talent_profile_id, storage_path")
+    .select("owner_talent_profile_id, storage_path, variant_kind")
     .in("owner_talent_profile_id", talentIds)
-    .eq("variant_kind", "card")
+    .in("variant_kind", ["card", "public_watermarked", "gallery", "portfolio", "original"])
     .is("deleted_at", null);
   const BUCKET = "media-public";
-  for (const m of (mediaRows ?? []) as { owner_talent_profile_id: string; storage_path: string }[]) {
-    if (!out.has(m.owner_talent_profile_id)) {
+  // Prefer card; fall back through the same chain the public profile uses.
+  const RANK: Record<string, number> = {
+    card: 0, public_watermarked: 1, gallery: 2, portfolio: 3, original: 4,
+  };
+  const bestRank = new Map<string, number>();
+  for (const m of (mediaRows ?? []) as { owner_talent_profile_id: string; storage_path: string; variant_kind: string }[]) {
+    const r = RANK[m.variant_kind] ?? 99;
+    const cur = bestRank.get(m.owner_talent_profile_id) ?? 99;
+    if (r < cur) {
       const { data: urlData } = mediaClient.storage.from(BUCKET).getPublicUrl(m.storage_path);
       out.set(m.owner_talent_profile_id, urlData.publicUrl);
+      bestRank.set(m.owner_talent_profile_id, r);
     }
   }
   return out;
