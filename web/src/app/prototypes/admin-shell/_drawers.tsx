@@ -3582,7 +3582,7 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
 // ════════════════════════════════════════════════════════════════════
 
 function TalentProfileShellDrawer() {
-  const { state: protoState, closeDrawer, openDrawer, toast, customFields } = useProto();
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug } = useProto();
   const drawerId = protoState.drawer.drawerId;
   const drawerOpen = drawerId === "talent-profile-shell" || drawerId === "talent-profile-edit";
   const payload = (protoState.drawer.payload ?? {}) as ProfileShellPayload;
@@ -4423,6 +4423,30 @@ function TalentProfileShellDrawer() {
                   : autosaveStatus === "saved" ? "Saved"
                   : "Couldn't save"}
               </span>
+            )}
+
+            {/* Phase 3 (deep QA fix) — escape hatch to the canonical full
+                editor at /admin/roster/[id], which has the complete talent
+                CRUD wired (taxonomy, languages, service areas, gallery,
+                photo upload, all real DB writes). The prototype drawer is
+                in the middle of a tab-by-tab autosave migration; until it
+                catches up, this link gives operators the path to all
+                edit functionality without UI-only stubs. */}
+            {adminVisible && payload.talentId && (
+              <a
+                href={`/${tenantSlug}/admin/roster/${payload.talentId}`}
+                title="Open the full talent editor (canonical CRUD page)"
+                style={{
+                  padding: "5px 12px", borderRadius: 999,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  background: "#fff", color: COLORS.ink,
+                  fontSize: 11, fontWeight: 600, textDecoration: "none",
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  fontFamily: FONTS.body,
+                }}
+              >
+                ↗ Full editor
+              </a>
             )}
 
             {/* Phase 3 (deep QA fix) — Remove from roster.

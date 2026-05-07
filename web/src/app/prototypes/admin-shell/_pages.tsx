@@ -5012,10 +5012,15 @@ function TalentPage() {
   const clearSelected = () => setSelected(new Set());
   const selectAll = () => setSelected(new Set(filteredRoster.map((p) => p.id)));
 
-  // Card click → open the new profile shell with seed data
+  // Card click → open the rich profile shell with the canonical talent id
+  // so the drawer's Remove button + Identity autosave both work against
+  // the real DB row. Previously the payload only carried seed strings,
+  // which left payload.talentId undefined and silently disabled the
+  // tenant-scoped server actions in the drawer.
   const openProfile = (p: TalentProfile) => {
     openDrawer("talent-profile-shell", {
       mode: "edit-admin",
+      talentId: p.id,
       seed: {
         stageName: p.name,
         primaryType: p.primaryType,
