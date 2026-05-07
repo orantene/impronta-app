@@ -43,6 +43,23 @@ import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSPro
 import { useRouter } from "next/navigation";
 import { createAgencyInquiry, quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { sendMessage as sendMessageAction } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
+import {
+  convertInquiryToBookingAction,
+  loadInquiryPaymentState,
+  markInquiryPaymentReceived,
+  markInquiryPaymentPending,
+  markInquiryPaymentDisputed,
+  markInquiryPaymentFailed,
+  cancelInquiryTransaction,
+  approveOfferAction,
+  rejectOfferAction,
+  sendOfferAction,
+  createOfferAction,
+  loadInquiryAttachments,
+  deleteInquiryAttachment,
+  type InquiryPaymentState,
+  type InquiryAttachment,
+} from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import type { ThreadType } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import {
   COLORS, FONTS, RADIUS, TRANSITION,
@@ -2047,6 +2064,20 @@ function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: I
   const move = (nextStatus: string) => {
     setOpen(false);
     startTransition(async () => {
+      // approved → booked goes through the atomic engine_convert_to_booking RPC
+      // (creates the agency_bookings row + booking_talent in a single transaction)
+      // rather than just patching status. Other transitions are status-only.
+      if (nextStatus === "booked") {
+        const result = await convertInquiryToBookingAction(TENANT.slug, inquiryId);
+        if (!result.ok) {
+          toast(`Convert failed: ${result.error}`);
+        } else {
+          toast("Inquiry booked");
+          router.refresh();
+        }
+        return;
+      }
+
       const fd = new FormData();
       fd.set("inquiry_id", inquiryId);
       fd.set("status", nextStatus);
@@ -7523,30 +7554,130 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
   );
 }
 
+// Friendly labels for booking_transactions.status enum
+const TRANSACTION_STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  payment_requested: "Payment requested",
+  pending: "Pending",
+  paid: "Paid",
+  payout_pending: "Payout pending",
+  payout_sent: "Payout sent",
+  cancelled: "Cancelled",
+  failed: "Failed",
+  disputed: "Disputed",
+  refunded: "Refunded",
+};
+
+function formatCents(cents: number | null, currency: string): string {
+  if (cents == null) return "—";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 })
+      .format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency}`;
+  }
+}
+
 export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
   const { toast } = useProto();
   const isClient = pov === "client";
-  const total = inquiry.budget?.amount ?? 0;
-  const currency = inquiry.budget?.currency ?? "EUR";
+  const isAdmin = pov === "admin";
+  const fallbackTotal = inquiry.budget?.amount ?? 0;
+  const fallbackCurrency = inquiry.budget?.currency ?? "EUR";
+
+  const [state, setState] = useState<InquiryPaymentState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pending, startTransition] = useTransition();
+
+  const reload = React.useCallback(() => {
+    setLoading(true);
+    loadInquiryPaymentState(TENANT.slug, inquiry.id)
+      .then((r) => { if (r.ok) setState(r.data ?? null); })
+      .finally(() => setLoading(false));
+  }, [inquiry.id]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const txn = state?.transaction;
+  const txStatus = txn?.status ?? null;
+  const totalCents = state?.totalRevenueCents ?? (fallbackTotal ? fallbackTotal * 100 : null);
+  const currency = state?.currency ?? fallbackCurrency;
+
+  const run = (label: string, fn: () => Promise<{ ok: boolean; error?: string } | undefined | void>) => {
+    startTransition(async () => {
+      const r = await fn();
+      if (r && "ok" in r && !r.ok) {
+        toast(`${label} failed: ${(r as { error?: string }).error ?? "Unknown error"}`);
+      } else {
+        toast(`${label} ✓`);
+        reload();
+      }
+    });
+  };
+
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       <DetailSection title={isClient ? "Invoice" : "Billing"}>
-        <DetailField label="Total" value={total ? new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(total) : "—"} />
-        <DetailField label="Status" value={isClient ? "Awaiting payment" : "Issued · awaiting client"} />
-        <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-          {isClient ? (
-            <button type="button" onClick={() => toast("Pay invoice flow")} style={primaryBtn(COLORS.success)}>
-              Pay invoice
-            </button>
-          ) : (
-            <button type="button" onClick={() => toast("Send reminder")} style={ghostBtn()}>Send reminder</button>
-          )}
-        </div>
+        <DetailField label="Total" value={formatCents(totalCents, currency)} />
+        <DetailField
+          label="Status"
+          value={
+            loading ? "Loading…"
+              : txStatus ? TRANSACTION_STATUS_LABEL[txStatus] ?? txStatus
+              : state?.bookingId ? "No transaction yet"
+              : "No booking yet"
+          }
+        />
+        {txn && (
+          <>
+            <DetailField label="Net amount" value={formatCents(txn.netAmountCents, txn.currency)} />
+            {txn.paidAt && <DetailField label="Paid at" value={new Date(txn.paidAt).toLocaleString()} />}
+            {txn.failureReason && <DetailField label="Failure reason" value={txn.failureReason} />}
+          </>
+        )}
+        {isAdmin && txn && (
+          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(txStatus === "payment_requested") && (
+              <button type="button" disabled={pending} onClick={() => run("Mark pending", () => markInquiryPaymentPending(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+                Mark pending
+              </button>
+            )}
+            {(txStatus === "payment_requested" || txStatus === "pending" || txStatus === "disputed") && (
+              <button type="button" disabled={pending} onClick={() => run("Mark received", () => markInquiryPaymentReceived(TENANT.slug, inquiry.id))} style={primaryBtn(COLORS.success)}>
+                Mark received
+              </button>
+            )}
+            {(txStatus === "paid") && (
+              <button type="button" disabled={pending} onClick={() => run("Mark disputed", () => markInquiryPaymentDisputed(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+                Mark disputed
+              </button>
+            )}
+            {(txStatus === "payment_requested" || txStatus === "pending" || txStatus === "payout_pending") && (
+              <button type="button" disabled={pending} onClick={() => run("Mark failed", () => markInquiryPaymentFailed(TENANT.slug, inquiry.id, "manual_marked_failed"))} style={ghostBtn()}>
+                Mark failed
+              </button>
+            )}
+            {(txStatus === "draft" || txStatus === "payment_requested" || txStatus === "failed") && (
+              <button type="button" disabled={pending} onClick={() => run("Cancel transaction", () => cancelInquiryTransaction(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
+        {isAdmin && !txn && state?.bookingId && (
+          <div style={{ marginTop: 10, fontSize: 12, color: COLORS.inkMuted }}>
+            No transaction yet — request payment from the canonical work detail page.
+          </div>
+        )}
       </DetailSection>
       {!isClient && (
         <DetailSection title="Payouts">
           <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "6px 0" }}>
-            Released to talent once invoice clears.
+            {txStatus === "payout_sent"
+              ? `Payout sent ${txn?.payoutCompletedAt ? `at ${new Date(txn.payoutCompletedAt).toLocaleString()}` : ""}`
+              : txStatus === "payout_pending"
+              ? "Payout pending — initiate from the canonical work detail page."
+              : "Released to talent once invoice clears."}
           </div>
         </DetailSection>
       )}
@@ -10070,6 +10201,97 @@ function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta?: stri
   return { label: "—", subtle: true };
 }
 
+/**
+ * "Start drafting offer" button shown in the OfferTab empty state. Calls
+ * the real createOffer engine action and refreshes router state.
+ */
+function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
+  const { toast } = useProto();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  return (
+    <div style={{ marginTop: 12 }}>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => startTransition(async () => {
+          const r = await createOfferAction(TENANT.slug, inquiryId);
+          if (!r.ok) toast(`Couldn't start offer: ${r.error}`);
+          else { toast("Offer draft created"); router.refresh(); }
+        })}
+        style={primaryBtn(COLORS.accent)}
+      >
+        {pending ? "Starting…" : "Start drafting offer"}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Live status banner shown above the (mock) OfferTab body when a real
+ * inquiry_offers row exists for this inquiry. Hosts the truly-wired CTAs
+ * (Send · Approve · Reject) that mutate the DB via engine actions.
+ *
+ * Shows nothing when there's no real offer (e.g. demo / pure-mock convs).
+ */
+function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }) {
+  const { toast, effectiveMessagesInquiries } = useProto();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const real = effectiveMessagesInquiries.find((r) => r.id === inquiryId);
+  const offer = real?.offer ?? null;
+  const offerId = offer?.id;
+  const isAdmin = pov.kind === "admin";
+
+  // Render nothing for synthetic mock-only inquiries — keeps demo data clean.
+  if (!offer || !offerId || offerId.endsWith("-offer")) return null;
+
+  const status = offer.status;
+
+  const run = (label: string, fn: () => Promise<{ ok: boolean; error?: string }>) =>
+    startTransition(async () => {
+      const r = await fn();
+      if (!r.ok) {
+        toast(`${label} failed: ${r.error ?? "Unknown error"}`);
+      } else {
+        toast(`${label} ✓`);
+        router.refresh();
+      }
+    });
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: "10px 12px",
+      display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <span style={{ fontWeight: 700, color: COLORS.ink }}>Live · DB-backed</span>
+      <span style={{ color: COLORS.inkMuted }}>Offer status: <strong>{status}</strong></span>
+      <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>{offerId.slice(0, 8)}…</span>
+      <span style={{ flex: 1 }} />
+      {isAdmin && status === "draft" && (
+        <button type="button" disabled={pending}
+          onClick={() => run("Send offer", () => sendOfferAction(TENANT.slug, inquiryId, offerId))}
+          style={primaryBtn(COLORS.accent)}
+        >Send to client</button>
+      )}
+      {isAdmin && status === "sent" && (
+        <>
+          <button type="button" disabled={pending}
+            onClick={() => run("Approve offer", () => approveOfferAction(TENANT.slug, inquiryId, offerId))}
+            style={primaryBtn(COLORS.success)}
+          >Approve (as client)</button>
+          <button type="button" disabled={pending}
+            onClick={() => run("Reject offer", () => rejectOfferAction(TENANT.slug, inquiryId, offerId, null))}
+            style={ghostBtn()}
+          >Reject</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const { toast } = useProto();
   const baseOffer = getOffer(conv.id);
@@ -10120,13 +10342,7 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
     return (
       <div style={{ padding: 24, textAlign: "center", color: COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13 }}>
         No offer yet for this inquiry.
-        {isAdmin && (
-          <div style={{ marginTop: 12 }}>
-            <button type="button" onClick={() => toast("Offer drafting…")} style={primaryBtn(COLORS.accent)}>
-              Start drafting offer
-            </button>
-          </div>
-        )}
+        {isAdmin && <CreateOfferButton inquiryId={conv.id} />}
       </div>
     );
   }
@@ -10144,8 +10360,10 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const next = nextActionFor(offer, pov);
   const currency = offer.clientBudget?.currency ?? "EUR";
 
+
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+      <LiveOfferPanel inquiryId={conv.id} pov={pov} />
       {/* ── Sticky action bar — "what do I do now" ──────────────── */}
       <div style={{
         position: "sticky", top: 0, zIndex: 4,
@@ -11665,6 +11883,87 @@ function resolveFileKey(id: string): string {
   return RI_TO_CONV_ALIAS[id] ?? id;
 }
 
+/**
+ * Live files panel — lists real `inquiry_attachments` rows from DB at the
+ * top of FilesTab when an inquiry has any. Soft-delete via the bin button.
+ * Renders nothing when there are no real attachments (mock list still shows).
+ */
+function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
+  const { toast } = useProto();
+  const [files, setFiles] = useState<InquiryAttachment[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pending, startTransition] = useTransition();
+
+  const reload = React.useCallback(() => {
+    setLoading(true);
+    loadInquiryAttachments(TENANT.slug, inquiryId)
+      .then((r) => { if (r.ok) setFiles(r.data ?? []); })
+      .finally(() => setLoading(false));
+  }, [inquiryId]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  if (loading || !files) return null;
+  if (files.length === 0) return null;
+
+  const remove = (id: string, name: string) => {
+    if (!confirm(`Delete ${name}? This can't be undone from the prototype shell.`)) return;
+    startTransition(async () => {
+      const r = await deleteInquiryAttachment(TENANT.slug, id);
+      if (!r.ok) toast(`Delete failed: ${r.error}`);
+      else { toast("File deleted"); reload(); }
+    });
+  };
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: 12, marginBottom: 12,
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontWeight: 700, color: COLORS.ink }}>
+          Live · DB-backed ({files.length})
+        </span>
+        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
+          inquiry_attachments
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {files.map((f) => (
+          <div key={f.id} style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "8px 10px", background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {f.filename}
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
+                {f.byteSize != null ? `${Math.round(f.byteSize / 1024)} KB · ` : ""}
+                {f.visibility}
+                {f.description ? ` · ${f.description}` : ""}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => remove(f.id, f.filename)}
+              style={{
+                padding: "5px 10px", borderRadius: 6,
+                background: "transparent", border: `1px solid ${COLORS.border}`,
+                color: COLORS.coralDeep, cursor: pending ? "wait" : "pointer",
+                fontSize: 11, fontWeight: 600,
+              }}
+            >Delete</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FilesTab({ conv, povCanSeeTalentFiles }: { conv: Conversation; povCanSeeTalentFiles: boolean }) {
   const { toast } = useProto();
   const all = MOCK_FILES_FOR_CONV[resolveFileKey(conv.id)] ?? [];
@@ -11797,6 +12096,7 @@ function FilesTab({ conv, povCanSeeTalentFiles }: { conv: Conversation; povCanSe
 
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+      <LiveFilesPanel inquiryId={conv.id} />
       {/* Add-file affordance — at top so the talent can upload polaroids,
           signed contracts, references without leaving this tab. */}
       <button

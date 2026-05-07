@@ -1551,6 +1551,7 @@ export type WorkspaceInquiryForMessages = {
   lineupTotal: number;
 
   // ── Offer ────────────────────────────────────────────────────────────────────
+  currentOfferId: string | null;
   currentOfferStatus: "draft" | "sent" | "accepted" | "rejected" | null;
   currentOfferTotal: string | null; // "$15,000" formatted
   currentOfferCurrency: string | null;
@@ -1938,6 +1939,7 @@ export async function loadInquiriesForMessages(
         lineupDeclined:  lineupCounts.declined,
         lineupTotal:     lineupCounts.total,
 
+        currentOfferId:     row.current_offer_id ?? null,
         currentOfferStatus: (offer?.status as WorkspaceInquiryForMessages["currentOfferStatus"]) ?? null,
         currentOfferTotal:  formatMoneyMinor(offer?.totalMinor ?? null, offer?.currency ?? null),
         currentOfferCurrency: offer?.currency ?? null,

@@ -7,6 +7,7 @@ import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields } from "@/lib/server-actions/admin-workspace-settings";
 import { createManualBooking } from "@/lib/server-actions/admin-bookings";
+import { createClientAccount } from "@/lib/server-actions/admin-inquiries";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -11002,11 +11003,29 @@ function SelectInput({
 // ════════════════════════════════════════════════════════════════════
 
 function TalentProfileDrawer() {
-  const { state, closeDrawer, openDrawer, effectiveRoster } = useProto();
+  const router = useRouter();
+  const { state, closeDrawer, openDrawer, toast, effectiveRoster } = useProto();
   const id = state.drawer.payload?.id as string | undefined;
   const profile = effectiveRoster.find((p) => p.id === id) ?? effectiveRoster[0];
   const canEdit = meetsRole(state.role, "editor");
-  const onSave = useSaveAndClose("Profile saved");
+  const fallbackToast = useSaveAndClose("Profile saved");
+  const [pending, startTransition] = useTransition();
+  const [stageName, setStageName] = useState(profile.name);
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profile.id);
+
+  const onSave = () => {
+    // Synthetic mock ids → fall through to the toast stub. Real profile
+    // UUIDs from the bridge get the canonical updateTalentIdentity write.
+    if (!isUuid) { fallbackToast(); return; }
+    startTransition(async () => {
+      const result = await updateTalentIdentity({
+        talent_profile_id: profile.id,
+        stage_name: stageName.trim() || profile.name,
+      });
+      if (!result.ok) toast(`Save failed: ${result.error}`);
+      else { toast("Profile published"); router.refresh(); closeDrawer(); }
+    });
+  };
 
   return (
     <DrawerShell
@@ -11043,7 +11062,9 @@ function TalentProfileDrawer() {
               Archive
             </button>
             <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-            <PrimaryButton onClick={onSave}>Publish</PrimaryButton>
+            <PrimaryButton onClick={onSave} disabled={pending}>
+              {pending ? "Publishing…" : "Publish"}
+            </PrimaryButton>
           </>
         ) : (
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
@@ -11116,7 +11137,10 @@ function TalentProfileDrawer() {
 
       <Section title="Basics" framed>
         <FieldRow label="Stage name">
-          <TextInput defaultValue={profile.name} />
+          <TextInput
+            value={stageName}
+            onChange={(e) => setStageName((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
         <FieldRow label="Height">
           <TextInput defaultValue={profile.height ?? ""} />
@@ -13512,13 +13536,15 @@ function NewBookingDrawer() {
 }
 
 function ClientProfileDrawer() {
+  const router = useRouter();
   const { state, closeDrawer, toast, effectiveClients } = useProto();
   const id = state.drawer.payload?.id as string | undefined;
   const isNew = id === "new" || !id;
   const clientPool = effectiveClients.length > 0 ? effectiveClients : getClients(state.plan);
   const client = isNew ? null : clientPool.find((c) => c.id === id) ?? null;
-  const onSave = useSaveAndClose(isNew ? "Client created" : "Client saved");
+  const fallbackToast = useSaveAndClose(isNew ? "Client created" : "Client saved");
   const trust = client?.trust ?? "basic";
+  const [pending, startTransition] = useTransition();
 
   // 2026 redesign — Add Client mirrors Add Talent's hierarchy:
   // Display name → Industry (the "what kind of client") → Home base
@@ -13529,6 +13555,57 @@ function ClientProfileDrawer() {
   const [homeBase, setHomeBase] = useState("");
   const [method, setMethod] = useState<"direct" | "referral" | "import">("direct");
   const [notes, setNotes] = useState("");
+
+  // Map prototype industry chip ids onto the canonical client_account_type
+  // enum values. Anything we don't know about lands in "other" (with the
+  // detail field set to the chip label).
+  const INDUSTRY_TO_ACCOUNT_TYPE: Record<string, string> = {
+    hotel: "hotel",
+    beach_club: "beach_club",
+    restaurant: "restaurant",
+    brand: "brand",
+    agency: "agency",
+    publication: "brand",
+    venue: "event_venue",
+    personal: "private_client",
+  };
+
+  const onSave = () => {
+    if (!isNew) {
+      // Edit path — no canonical update action wired in this pass; keep
+      // the toast-and-close stub so the existing demo flow doesn't break.
+      fallbackToast();
+      return;
+    }
+    if (!name.trim()) {
+      toast("Add a name");
+      return;
+    }
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("name", name.trim());
+      fd.set("account_type", industry ? (INDUSTRY_TO_ACCOUNT_TYPE[industry] ?? "other") : "other");
+      fd.set("account_type_detail", industry && !INDUSTRY_TO_ACCOUNT_TYPE[industry] ? industry : "");
+      fd.set("primary_email", contact.includes("@") ? contact.trim() : "");
+      fd.set("primary_phone", contact.includes("@") ? "" : contact.trim());
+      fd.set("website_url", "");
+      fd.set("location_text", homeBase.trim());
+      fd.set("city", homeBase.trim());
+      fd.set("country", "");
+      fd.set("address_notes", notes.trim());
+      fd.set("google_place_id", "");
+      fd.set("latitude", "");
+      fd.set("longitude", "");
+      const result = await createClientAccount({}, fd);
+      if (result && "error" in result && result.error) {
+        toast(`Save failed: ${result.error}`);
+      } else {
+        toast("Client created");
+        router.refresh();
+        closeDrawer();
+      }
+    });
+  };
 
   // Industry options — the client equivalent of Talent Type. Drives
   // Discover matching ("hotels need …", "beach clubs need…").
