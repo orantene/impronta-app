@@ -6,6 +6,7 @@ import { addTalentToRoster } from "./_actions";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields } from "@/lib/server-actions/admin-workspace-settings";
+import { createManualBooking } from "@/lib/server-actions/admin-bookings";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -13438,41 +13439,95 @@ function DayDetailDrawer() {
 }
 
 function NewBookingDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Booking created");
+  const { closeDrawer, toast } = useProto();
+  const [title, setTitle] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [location, setLocation] = useState("");
+  const [notes, setNotes] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  const canSave = title.trim().length > 0;
+
+  const handleSubmit = () => {
+    if (!canSave) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("title", title.trim() || clientName.trim() || "Booking");
+      fd.set("booking_status", "confirmed");
+      fd.set("currency_code", "EUR");
+      fd.set("client_account_id", "");
+      fd.set("client_contact_id", "");
+      fd.set("owner_staff_id", "");
+      fd.set("starts_at", eventDate ? `${eventDate}T09:00:00` : "");
+      fd.set("ends_at", eventDate ? `${eventDate}T18:00:00` : "");
+      fd.set("event_date", eventDate);
+      fd.set("venue_name", location.trim());
+      fd.set("venue_location_text", location.trim());
+      fd.set("internal_notes", notes.trim());
+      fd.set("redirect_after_create", "list");
+      // createManualBooking calls redirect() on success — catch is normal here
+      try {
+        await createManualBooking(fd);
+      } catch {
+        // redirect() throws in Next.js — treat as success
+        toast("Booking created");
+        closeDrawer();
+      }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="New booking"
       description="Skip the inquiry — log a confirmed job."
-      footer={<StandardFooter onSave={onSave} saveLabel="Create booking" />}
+      footer={
+        <StandardFooter
+          onSave={handleSubmit}
+          saveLabel={pending ? "Creating…" : "Create booking"}
+          disabled={!canSave || pending}
+        />
+      }
     >
-      <Section title="Client & talent" framed>
-        <FieldRow label="Client">
-          <TextInput placeholder="Vogue Italia" />
+      <Section title="Details" framed>
+        <FieldRow label="Job title">
+          <TextInput
+            placeholder="Vogue Italia — editorial"
+            value={title}
+            onChange={(e) => setTitle((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
-        <FieldRow label="Talent">
-          <TextInput placeholder="Marta Reyes" />
+        <FieldRow label="Client" optional>
+          <TextInput
+            placeholder="Vogue Italia"
+            value={clientName}
+            onChange={(e) => setClientName((e.target as HTMLInputElement).value)}
+          />
+        </FieldRow>
+        <FieldRow label="Notes" optional>
+          <TextInput
+            placeholder="Any internal notes…"
+            value={notes}
+            onChange={(e) => setNotes((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
       </Section>
       <Section title="When & where" framed>
-        <FieldRow label="Date">
-          <TextInput placeholder="May 14, 2026" />
+        <FieldRow label="Date" optional>
+          <TextInput
+            type="date"
+            value={eventDate}
+            onChange={(e) => setEventDate((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
-        <FieldRow label="Call time" optional>
-          <TextInput placeholder="08:00" />
-        </FieldRow>
-        <FieldRow label="Location">
-          <TextInput placeholder="Madrid · Studio 5" />
-        </FieldRow>
-      </Section>
-      <Section title="Money" framed>
-        <FieldRow label="Total fee">
-          <TextInput placeholder="€4,200" />
-        </FieldRow>
-        <FieldRow label="Agency commission">
-          <TextInput defaultValue="20%" />
+        <FieldRow label="Location" optional>
+          <TextInput
+            placeholder="Madrid · Studio 5"
+            value={location}
+            onChange={(e) => setLocation((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
       </Section>
     </DrawerShell>

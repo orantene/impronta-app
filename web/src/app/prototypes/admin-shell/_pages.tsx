@@ -4300,27 +4300,36 @@ function CalendarNavBtn({ label, onClick, disabled }: { label: string; onClick?:
 // ════════════════════════════════════════════════════════════════════
 
 function WorkPage() {
-  const { state, openDrawer, setPage, openUpgrade, toast } = useProto();
-  const inquiries = getInquiries(state.plan);
+  const { state, openDrawer, setPage, openUpgrade, toast, effectiveMessagesInquiries, effectiveBookings } = useProto();
   const canEdit = meetsRole(state.role, "coordinator");
   const isFree = state.plan === "free";
 
-  /**
-   * Pipeline list source filter. Mirrors RichInquiry.source.kind — "all"
-   * passes through, anything else narrows to that origin kind.
-   */
+  // Normalise real RichInquiry rows to the flat shape the list rows need.
+  // Falls back to mock getInquiries only when the bridge hasn't loaded any data.
+  const bridgeInquiries = effectiveMessagesInquiries.length > 0
+    ? effectiveMessagesInquiries.map((r) => ({
+        id: r.id,
+        client: r.clientName,
+        brief: r.brief,
+        talent: r.requirementGroups.flatMap((g) => g.talents.map((t) => t.name)),
+        stage: r.stage,
+        amount: r.offer?.total ?? null,
+        source: r.source,
+        richRef: r,
+      }))
+    : getInquiries(state.plan).map((iq) => ({
+        ...iq,
+        source: RICH_INQUIRIES.find((r) => r.clientName === iq.client)?.source ?? null,
+        richRef: RICH_INQUIRIES.find((r) => r.clientName === iq.client) ?? null,
+      }));
+
   type SourceKind = "all" | "direct" | "hub" | "manual" | "marketplace";
   const [sourceFilter, setSourceFilter] = useState<SourceKind>("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "client" | "amount">("newest");
 
-  const matchRich = (iq: { client: string; brief: string }) =>
-    RICH_INQUIRIES.find(
-      (r) => r.clientName === iq.client && r.brief === iq.brief,
-    ) ?? RICH_INQUIRIES.find((r) => r.clientName === iq.client);
-
-  const filteredInquiries = inquiries
-    .filter((iq) => sourceFilter === "all" || matchRich(iq)?.source.kind === sourceFilter)
+  const filteredInquiries = bridgeInquiries
+    .filter((iq) => sourceFilter === "all" || iq.source?.kind === sourceFilter)
     .filter((iq) => {
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
@@ -4329,11 +4338,10 @@ function WorkPage() {
     .sort((a, b) => {
       if (sort === "client") return a.client.localeCompare(b.client);
       if (sort === "amount") {
-        const an = parseInt((a.amount ?? "0").replace(/[^\d]/g, "")) || 0;
-        const bn = parseInt((b.amount ?? "0").replace(/[^\d]/g, "")) || 0;
+        const an = parseInt(((a.amount as string | null) ?? "0").replace(/[^\d]/g, "")) || 0;
+        const bn = parseInt(((b.amount as string | null) ?? "0").replace(/[^\d]/g, "")) || 0;
         return bn - an;
       }
-      // mock: stable order; "oldest" reverses insertion order
       return sort === "oldest" ? 1 : -1;
     });
 
@@ -4343,18 +4351,18 @@ function WorkPage() {
       filteredInquiries.map((iq) => ({
         client: iq.client,
         brief: iq.brief,
-        talent: iq.talent ?? "",
+        talent: Array.isArray(iq.talent) ? (iq.talent as string[]).join(", ") : "",
         stage: iq.stage,
-        amount: iq.amount ?? "",
-        source: matchRich(iq)?.source.kind ?? "",
+        amount: (iq.amount as string | null) ?? "",
+        source: iq.source?.kind ?? "",
       })),
     );
     toast(`Exported ${filteredInquiries.length} rows to CSV`);
   };
 
-  const drafts = inquiries.filter((i) => i.stage === "draft" || i.stage === "hold");
-  const awaiting = inquiries.filter((i) => i.stage === "awaiting-client");
-  const confirmed = inquiries.filter((i) => i.stage === "confirmed");
+  const drafts = bridgeInquiries.filter((i) => i.stage === "draft" || i.stage === "hold" || i.stage === "submitted" || i.stage === "reviewing");
+  const awaiting = bridgeInquiries.filter((i) => i.stage === "offer_pending" || i.stage === "awaiting-client");
+  const confirmed = effectiveBookings.length > 0 ? effectiveBookings : bridgeInquiries.filter((i) => i.stage === "confirmed" || i.stage === "booked" || i.stage === "approved");
 
   return (
     <>
@@ -4379,7 +4387,7 @@ function WorkPage() {
         items={[
           { id: "drafts",    label: "Drafts & holds", value: drafts.length,    tone: "amber",  onClick: () => openDrawer("drafts-holds") },
           { id: "awaiting",  label: "Awaiting client", value: awaiting.length, tone: "amber",  onClick: () => openDrawer("awaiting-client") },
-          { id: "confirmed", label: "Confirmed",      value: confirmed.length, tone: "green",  onClick: () => openDrawer("confirmed-bookings") },
+          { id: "confirmed", label: "Confirmed",       value: Array.isArray(confirmed) ? confirmed.length : 0, tone: "green",  onClick: () => openDrawer("confirmed-bookings") },
         ]}
       />
 
@@ -4525,7 +4533,8 @@ function WorkPage() {
             </div>
           )}
           {filteredInquiries.map((iq, idx) => {
-            const rich = matchRich(iq);
+            const rich = iq.richRef as RichInquiry | null;
+            const talentList = (iq.talent as string[]).join(", ");
             return (
             <button
               key={iq.id}
@@ -4556,39 +4565,25 @@ function WorkPage() {
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      color: COLORS.ink,
-                      letterSpacing: -0.05,
-                    }}
-                  >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.05 }}>
                     {iq.client}
                   </span>
                   {rich && <ClientTrustChip level={rich.clientTrust} compact />}
-                  {rich && <SourceChip source={rich.source} />}
+                  {iq.source && <SourceChip source={iq.source as RichInquiry["source"]} />}
                 </div>
                 <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
                   {iq.brief}
                 </div>
               </div>
               <div style={{ fontSize: 12, color: COLORS.inkMuted, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {iq.talent.join(", ")}
+                {talentList || "—"}
               </div>
               <div>
                 <StageBadge stage={iq.stage} />
               </div>
               <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-                {iq.amount ?? "—"}
+                {(iq.amount as string | null) ?? "—"}
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
