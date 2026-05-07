@@ -210,8 +210,45 @@ type RosterRow = {
           } | null;
         }[]
       | null;
+    media_assets:
+      | {
+          storage_path: string;
+          variant_kind: string | null;
+          sort_order: number | null;
+          deleted_at: string | null;
+          approval_state: string | null;
+        }[]
+      | null;
   } | null;
 };
+
+/**
+ * Pick the talent's representative thumb from a list of media_assets.
+ * Preference: card variant > original > anything else, ordered by sort_order.
+ * Filters out deleted + non-approved rows. Returns undefined if no usable
+ * asset exists — roster card primitive handles that gracefully.
+ */
+function pickPrimaryThumb(
+  assets: NonNullable<RosterRow["talent_profiles"]>["media_assets"],
+): string | undefined {
+  if (!assets || assets.length === 0) return undefined;
+  const usable = assets.filter(
+    (a) => !a.deleted_at && a.approval_state === "approved",
+  );
+  if (usable.length === 0) return undefined;
+  // Prefer card → original → anything; within that, prefer lower sort_order.
+  const rank = (kind: string | null) => {
+    if (kind === "card") return 0;
+    if (kind === "original") return 1;
+    return 2;
+  };
+  usable.sort((a, b) => {
+    const r = rank(a.variant_kind) - rank(b.variant_kind);
+    if (r !== 0) return r;
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  });
+  return usable[0]?.storage_path;
+}
 
 /**
  * Map Supabase roster + profile state into the prototype's
@@ -335,6 +372,13 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
           talent_service_areas (
             service_kind,
             locations ( display_name_en, country_code )
+          ),
+          media_assets (
+            storage_path,
+            variant_kind,
+            sort_order,
+            deleted_at,
+            approval_state
           )
         )
         `,
@@ -353,17 +397,21 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
     for (const row of rows) {
       const profile = row.talent_profiles;
       if (!profile) continue;
+      // Phase 2 — wire the talent's primary headshot to the roster card.
+      // Falls back to the deterministic tint+initial primitive when no
+      // approved+non-deleted media exists.
+      const thumbPath = pickPrimaryThumb(profile.media_assets);
+      const thumbUrl = thumbPath
+        ? supabase.storage.from("media-public").getPublicUrl(thumbPath).data
+            .publicUrl
+        : undefined;
       out.push({
         id: profile.id,
         name: deriveDisplayName(profile),
         state: deriveProfileState(row),
         height: deriveHeightLabel(profile),
         city: deriveCity(profile),
-        // `thumb` maps to the talent's cover/profile image. The schema stores
-        // photos in the `media_assets` table (not a column on talent_profiles).
-        // Wiring a joined photo fetch is Phase 3 work. For Phase 1 the field
-        // is omitted — roster cards render a deterministic tint+initial fallback
-        // when `thumb` is undefined, per the existing primitive behavior.
+        thumb: thumbUrl,
         primaryType: derivePrimaryType(profile),
         // `completeness`, `availability`, `lastActive` are derived UI
         // hints not yet wired in the live schema. Leaving them undefined
