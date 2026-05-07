@@ -44,29 +44,38 @@ export async function loadTalentPrimaryTenantSlug(
     }
     if (!profile) return null;
 
-    // Step 2: Find first active roster entry with agency slug.
-    const { data: roster, error: rosterErr } = await admin
-      .from("agency_talent_roster")
-      .select("agencies!tenant_id ( slug )")
-      .eq("talent_profile_id", profile.id)
-      .neq("status", "removed")
-      .limit(1)
-      .maybeSingle();
-
-    if (rosterErr) {
-      logServerError("role-tenant-resolver.talent.roster", rosterErr);
-      return null;
-    }
-
+    // Step 2: Prefer 'active' rosters, fall back to 'pending' so a talent
+    // who's mid-application still lands somewhere (the workspace itself
+    // surfaces the pending state). Never route through 'inactive' or
+    // 'removed' — those should funnel back to onboarding.
     type RosterRow = {
       agencies: { slug: string } | { slug: string }[] | null;
     };
-    const row = roster as unknown as RosterRow | null;
-    if (!row) return null;
 
-    const agencies = row.agencies;
-    const agency = Array.isArray(agencies) ? agencies[0] : agencies;
-    return agency?.slug ?? null;
+    const fetchRoster = async (
+      status: "active" | "pending",
+    ): Promise<string | null> => {
+      const { data, error } = await admin
+        .from("agency_talent_roster")
+        .select("agencies!tenant_id ( slug )")
+        .eq("talent_profile_id", profile.id)
+        .eq("status", status)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        logServerError(`role-tenant-resolver.talent.roster.${status}`, error);
+        return null;
+      }
+      const row = data as unknown as RosterRow | null;
+      if (!row) return null;
+      const agencies = row.agencies;
+      const agency = Array.isArray(agencies) ? agencies[0] : agencies;
+      return agency?.slug ?? null;
+    };
+
+    return (await fetchRoster("active")) ?? (await fetchRoster("pending"));
   } catch (err) {
     logServerError("role-tenant-resolver.talent", err);
     return null;

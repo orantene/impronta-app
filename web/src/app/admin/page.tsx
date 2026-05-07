@@ -1,7 +1,7 @@
 // Thin tenant-resolver redirect.
 //
 // Resolves the active tenant for a staff user and bounces to the canonical
-// workspace admin shell at /{slug}/admin.
+// workspace admin shell at /{slug}/admin (preserving incoming query string).
 //
 // Resolution order:
 //   1. Cookie/header-pinned active tenant (via getTenantScope) → use its slug
@@ -13,20 +13,28 @@
 
 import { redirect } from "next/navigation";
 import { getTenantScope, getCurrentUserTenants } from "@/lib/saas";
+import { buildQuerySuffix } from "@/lib/saas/redirect-query";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminRootPage() {
+export default async function AdminRootPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const querySuffix = buildQuerySuffix(sp);
+
   const scope = await getTenantScope().catch(() => null);
   if (scope?.membership?.slug) {
-    redirect(`/${scope.membership.slug}/admin`);
+    redirect(`/${scope.membership.slug}/admin${querySuffix}`);
   }
 
   const memberships = await getCurrentUserTenants().catch(() => []);
   const firstActive = memberships.find((m) => m.status === "active") ?? memberships[0];
   if (firstActive?.slug) {
-    redirect(`/${firstActive.slug}/admin`);
+    redirect(`/${firstActive.slug}/admin${querySuffix}`);
   }
 
-  redirect("/onboarding/role");
+  redirect(`/onboarding/role${querySuffix}`);
 }
