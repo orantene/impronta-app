@@ -3,7 +3,7 @@
 // ClientsClientShell — full prototype-fidelity Clients page.
 // Receives pre-fetched client rows from the server.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { WorkspaceClientRow } from "../../_data-bridge";
 import { TrustBadge } from "@/components/trust-badge";
@@ -47,7 +47,6 @@ function getInitials(name: string): string {
   return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
-// Hash a string to a number 0–5 for avatar tint variation
 function hashName(name: string): number {
   let h = 0;
   for (const c of name) h = ((h << 5) - h + c.charCodeAt(0)) | 0;
@@ -168,6 +167,266 @@ function ClientsStatusStrip({
   );
 }
 
+// ─── Client detail panel ───────────────────────────────────────────────────────
+
+function ClientDetailPanel({
+  client,
+  tenantSlug,
+  onClose,
+}: {
+  client: WorkspaceClientRow;
+  tenantSlug: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const isActive = client.accountStatus === "active";
+  const inquiriesHref = client.latestInquiryId
+    ? `/${tenantSlug}/admin/work/${client.latestInquiryId}`
+    : `/${tenantSlug}/admin/work`;
+
+  return (
+    <>
+      <style>{`
+        @keyframes ccd-backdrop { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes ccd-slide-in { from { transform: translateX(100%) } to { transform: translateX(0) } }
+      `}</style>
+
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        aria-hidden
+        style={{
+          position: "fixed", inset: 0, zIndex: 200,
+          background: "rgba(11,11,13,0.22)",
+          backdropFilter: "blur(1px)",
+          animation: "ccd-backdrop 180ms ease",
+        }}
+      />
+
+      {/* Panel */}
+      <div
+        role="dialog"
+        aria-modal
+        aria-label={`${client.name} profile`}
+        style={{
+          position: "fixed", top: 0, right: 0, bottom: 0,
+          width: "min(400px, 92vw)",
+          background: C.white,
+          boxShadow: "-8px 0 48px rgba(11,11,13,0.14)",
+          zIndex: 201,
+          display: "flex", flexDirection: "column",
+          animation: "ccd-slide-in 200ms cubic-bezier(.2,.8,.2,1)",
+          fontFamily: FONT,
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "20px 20px 16px",
+          borderBottom: `1px solid ${C.borderSoft}`,
+          display: "flex", alignItems: "flex-start", gap: 12,
+        }}>
+          <Avatar name={client.name} size={44} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 16, fontWeight: 700, color: C.ink, letterSpacing: -0.3,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {client.name}
+            </div>
+            {client.company && (
+              <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 1 }}>
+                {client.company}
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7, flexWrap: "wrap" }}>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "2px 8px", borderRadius: 999,
+                background: isActive ? "rgba(46,125,91,0.10)" : "rgba(11,11,13,0.05)",
+                color: isActive ? "#1A5E3C" : C.inkMuted,
+                fontSize: 10, fontWeight: 700,
+              }}>
+                <span style={{
+                  width: 4, height: 4, borderRadius: "50%",
+                  background: isActive ? C.green : C.inkMuted,
+                }} />
+                {isActive ? "Active" : "Dormant"}
+              </span>
+              <TrustBadge level={client.trustLevel ?? "basic"} size="sm" />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close panel"
+            style={{
+              width: 28, height: 28, borderRadius: 7,
+              border: `1px solid ${C.borderSoft}`,
+              background: "transparent", cursor: "pointer",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              color: C.inkMuted, fontSize: 18, flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Stats row */}
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr",
+          borderBottom: `1px solid ${C.borderSoft}`,
+        }}>
+          {[
+            { label: "Inquiries", value: client.inquiryCount },
+            { label: "Bookings YTD", value: client.bookingsYTD },
+          ].map((stat, i) => (
+            <div key={stat.label} style={{
+              padding: "16px 20px",
+              borderRight: i === 0 ? `1px solid ${C.borderSoft}` : "none",
+            }}>
+              <div style={{
+                fontSize: 10, fontWeight: 700, color: C.inkDim,
+                letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4,
+              }}>
+                {stat.label}
+              </div>
+              <div style={{
+                fontSize: 26, fontWeight: 600,
+                color: stat.value > 0 ? C.green : C.ink,
+                letterSpacing: -0.5,
+              }}>
+                {stat.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
+          <div style={{
+            padding: 16, borderRadius: 10,
+            background: "rgba(11,11,13,0.02)",
+            border: `1px dashed ${C.borderSoft}`,
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.6 }}>
+              Full client profile, message history, and notes coming soon.
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: "14px 20px",
+          borderTop: `1px solid ${C.borderSoft}`,
+          display: "flex", gap: 8,
+        }}>
+          <Link
+            href={inquiriesHref}
+            style={{
+              flex: 1, height: 36, borderRadius: 8,
+              background: C.ink, color: C.white,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              textDecoration: "none", fontSize: 12.5, fontWeight: 600, fontFamily: FONT,
+            }}
+          >
+            View inquiries →
+          </Link>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              height: 36, padding: "0 14px", borderRadius: 8,
+              border: `1px solid ${C.borderSoft}`,
+              background: "transparent", cursor: "pointer",
+              color: C.ink, fontSize: 12.5, fontFamily: FONT,
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Row action menu ──────────────────────────────────────────────────────────
+
+function RowMenu({
+  client,
+  tenantSlug,
+  onArchive,
+  onClose,
+}: {
+  client: WorkspaceClientRow;
+  tenantSlug: string;
+  onArchive: () => void;
+  onClose: () => void;
+}) {
+  const inquiriesHref = client.latestInquiryId
+    ? `/${tenantSlug}/admin/work/${client.latestInquiryId}`
+    : `/${tenantSlug}/admin/work`;
+
+  return (
+    <>
+      {/* invisible overlay to catch outside-clicks */}
+      <div
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, zIndex: 49 }}
+        aria-hidden
+      />
+      <div
+        style={{
+          position: "absolute", top: "calc(100% + 4px)", right: 0,
+          zIndex: 50, minWidth: 160,
+          background: C.white,
+          border: `1px solid ${C.borderSoft}`,
+          borderRadius: 9,
+          boxShadow: "0 4px 20px rgba(11,11,13,0.12)",
+          overflow: "hidden",
+          fontFamily: FONT,
+        }}
+      >
+        <Link
+          href={inquiriesHref}
+          onClick={onClose}
+          style={{
+            display: "block", padding: "9px 14px",
+            fontSize: 12.5, color: C.ink, textDecoration: "none",
+            borderBottom: `1px solid ${C.borderSoft}`,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.03)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        >
+          View inquiries
+        </Link>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onArchive(); onClose(); }}
+          style={{
+            display: "block", width: "100%", textAlign: "left",
+            padding: "9px 14px",
+            fontSize: 12.5, color: "#8C3318", background: "transparent",
+            border: "none", cursor: "pointer", fontFamily: FONT,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(176,74,34,0.06)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        >
+          Archive client
+        </button>
+      </div>
+    </>
+  );
+}
+
 // ─── Main shell ───────────────────────────────────────────────────────────────
 
 export function ClientsClientShell({
@@ -183,6 +442,8 @@ export function ClientsClientShell({
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [sort, setSort] = useState<"name" | "inquiries" | "bookings">("name");
   const [toast, setToast] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -224,6 +485,8 @@ export function ClientsClientShell({
     );
     showToast(`Exported ${filtered.length} rows to CSV`);
   };
+
+  const selectedClient = clients.find((c) => c.id === selectedClientId) ?? null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -291,7 +554,7 @@ export function ClientsClientShell({
           {canEdit && (
             <button
               type="button"
-              onClick={() => { /* TODO: open add-client drawer */ }}
+              onClick={() => showToast("Clients are added automatically when they submit an inquiry.")}
               style={{
                 height: 32,
                 padding: "0 14px",
@@ -308,7 +571,7 @@ export function ClientsClientShell({
                 gap: 6,
               }}
             >
-              Add client
+              + Add client
             </button>
           )}
         </div>
@@ -432,7 +695,7 @@ export function ClientsClientShell({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0,2fr) 120px 110px 80px 32px 16px",
+                gridTemplateColumns: "minmax(0,2fr) 120px 110px 80px 36px 16px",
                 gap: 14,
                 padding: "9px 18px",
                 background: "rgba(11,11,13,0.02)",
@@ -478,31 +741,28 @@ export function ClientsClientShell({
             ) : (
               filtered.map((client, idx) => {
                 const isActive = client.accountStatus === "active";
-                const rowHref = client.latestInquiryId
-                  ? `/${tenantSlug}/admin/work/${client.latestInquiryId}`
-                  : `/${tenantSlug}/admin/work`;
+                const isSelected = selectedClientId === client.id;
                 return (
-                  <Link
+                  <div
                     key={client.id}
-                    href={rowHref}
+                    onClick={() => { setOpenMenuId(null); setSelectedClientId(client.id); }}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "minmax(0,2fr) 120px 110px 80px 32px 16px",
+                      gridTemplateColumns: "minmax(0,2fr) 120px 110px 80px 36px 16px",
                       alignItems: "center",
                       gap: 14,
                       padding: "13px 18px",
                       borderTop: idx > 0 ? `1px solid ${C.borderSoft}` : "none",
                       cursor: "pointer",
+                      background: isSelected ? "rgba(15,79,62,0.04)" : "transparent",
                       transition: "background 0.12s",
-                      textDecoration: "none",
-                      color: "inherit",
                     }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "rgba(11,11,13,0.025)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "transparent")
-                    }
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.background = "rgba(11,11,13,0.025)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = isSelected ? "rgba(15,79,62,0.04)" : "transparent";
+                    }}
                   >
                     {/* Client */}
                     <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -571,18 +831,24 @@ export function ClientsClientShell({
                       <TrustBadge level={client.trustLevel ?? "basic"} size="sm" />
                     </div>
 
-                    {/* Row action menu stub */}
-                    <div style={{ display: "flex", justifyContent: "center" }}>
+                    {/* Row action menu */}
+                    <div
+                      style={{ position: "relative", display: "flex", justifyContent: "center" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
                         type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId((cur) => cur === client.id ? null : client.id);
+                        }}
                         aria-label={`Actions for ${client.name}`}
                         style={{
                           width: 28,
                           height: 28,
                           borderRadius: 6,
                           border: `1px solid ${C.borderSoft}`,
-                          background: "transparent",
+                          background: openMenuId === client.id ? "rgba(11,11,13,0.04)" : "transparent",
                           color: C.inkMuted,
                           fontFamily: FONT,
                           fontSize: 14,
@@ -596,9 +862,17 @@ export function ClientsClientShell({
                       >
                         ···
                       </button>
+                      {openMenuId === client.id && (
+                        <RowMenu
+                          client={client}
+                          tenantSlug={tenantSlug}
+                          onArchive={() => showToast(`Archive feature coming soon — contact support for ${client.name}.`)}
+                          onClose={() => setOpenMenuId(null)}
+                        />
+                      )}
                     </div>
 
-                    {/* Row navigation chevron */}
+                    {/* Row chevron */}
                     <div
                       aria-hidden
                       style={{
@@ -612,12 +886,21 @@ export function ClientsClientShell({
                     >
                       ›
                     </div>
-                  </Link>
+                  </div>
                 );
               })
             )}
           </div>
         </>
+      )}
+
+      {/* ── Client detail panel ── */}
+      {selectedClient && (
+        <ClientDetailPanel
+          client={selectedClient}
+          tenantSlug={tenantSlug}
+          onClose={() => setSelectedClientId(null)}
+        />
       )}
 
       {/* ── Toast ── */}
@@ -628,7 +911,7 @@ export function ClientsClientShell({
             bottom: 24,
             left: "50%",
             transform: "translateX(-50%)",
-            zIndex: 70,
+            zIndex: 210,
             display: "inline-flex",
             alignItems: "center",
             padding: "10px 18px",
