@@ -44,6 +44,12 @@ import { useRouter } from "next/navigation";
 import { createAgencyInquiry, quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { sendMessage as sendMessageAction, markThreadRead } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
 import {
+  acceptInquiryInvitation,
+  declineInquiryInvitation,
+  submitMyRateForInquiry,
+  sendInquiryMessageAsTalent,
+} from "@/lib/server-actions/talent-pipeline";
+import {
   convertInquiryToBookingAction,
   loadInquiryPaymentState,
   markInquiryPaymentReceived,
@@ -10790,16 +10796,27 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           onSubmit={(data) => {
             // Write to the module-level override store so the rate
             // shows up everywhere — header pill, inbox row, Today
-            // tile, and the offer tab itself. Survives tab switches.
+            // tile, and the offer tab itself. Survives tab switches
+            // and acts as optimistic UI while the DB write resolves.
             const myRow = offer.rows.find(r => r.talentId === pov.talentId);
-            if (!myRow) return;
-            setRowOverride(conv.id, myRow.id, {
-              costRate: data.amount,
-              units: data.units,
-              unitType: data.unitType,
-              notes: data.notes || myRow.notes,
-              status: "submitted",
-            });
+            if (myRow) {
+              setRowOverride(conv.id, myRow.id, {
+                costRate: data.amount,
+                units: data.units,
+                unitType: data.unitType,
+                notes: data.notes || myRow.notes,
+                status: "submitted",
+              });
+            }
+            // F-pass — when the conv id is a real inquiry UUID, also
+            // hit the DB. submitMyRateForInquiry resolves the offer +
+            // line item internally, so the local-only mock UI doesn't
+            // need to know either id.
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id)) {
+              void submitMyRateForInquiry(conv.id, data.amount).then((r) => {
+                if (!r.ok) toast(`Rate not saved: ${r.error}`);
+              });
+            }
           }}
         />
       )}
@@ -13078,6 +13095,8 @@ function AddTalentPicker({ onCancel, onAdd, pov = "talent_coord", planTier }: {
 
 function ConversationActionPin({ conv }: { conv: Conversation }) {
   const { toast } = useProto();
+  const router = useRouter();
+  const [, startTransition] = useTransition();
   // Look at the most recent action message in the thread to figure out
   // what's actually being asked. Beats stage-based heuristics — the
   // pin reflects the conversation, not just the funnel position.
@@ -13086,6 +13105,36 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
     (m.kind === "action-rate" || m.kind === "action-confirm" || m.kind === "action-transport" || m.kind === "polaroid-request" || m.kind === "contract-sign") &&
     !("resolved" in m && m.resolved)
   );
+
+  // F-pass — when the conv id is a real inquiry UUID, route the talent
+  // CTAs through the engine. Synthetic mock conv ids (c1..c12) keep the
+  // toast-only stub behavior so the demo flow continues to work.
+  const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+  const realAccept = isRealInquiry ? () => {
+    startTransition(async () => {
+      const r = await acceptInquiryInvitation(conv.id);
+      if (!r.ok) toast(`Accept failed: ${r.error}`);
+      else { toast("Inquiry accepted"); router.refresh(); }
+    });
+  } : null;
+  const realDecline = isRealInquiry ? () => {
+    startTransition(async () => {
+      const r = await declineInquiryInvitation(conv.id);
+      if (!r.ok) toast(`Decline failed: ${r.error}`);
+      else { toast("Inquiry declined"); router.refresh(); }
+    });
+  } : null;
+  const realSubmitRate = isRealInquiry ? () => {
+    const raw = window.prompt("Your rate (cost the agency pays you, in offer currency):");
+    if (raw == null) return;
+    const num = parseFloat(raw.replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(num) || num < 0) { toast("Invalid rate"); return; }
+    startTransition(async () => {
+      const r = await submitMyRateForInquiry(conv.id, num);
+      if (!r.ok) toast(`Submit rate failed: ${r.error}`);
+      else { toast("Rate submitted"); router.refresh(); }
+    });
+  } : null;
 
   // COORD-SIDE — Marta is the coordinator and there's an outstanding
   // ask from the client that needs to be dispatched to the team. Used
@@ -13137,7 +13186,7 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
         <ActionPinShell tone="indigo" icon="💸"
           title="Submit your rate"
           body={`${conv.leader?.name?.split(" ")[0] ?? "The coordinator"} is waiting on your number to send the offer to the client.`}
-          primary={{ label: "Submit rate", onClick: () => toast("Rate submitted") }}
+          primary={{ label: "Submit rate", onClick: realSubmitRate ?? (() => toast("Rate submitted")) }}
           secondary={{ label: "Ask coordinator to set", onClick: () => toast("Quote requested") }}
         />
       );
@@ -13155,8 +13204,8 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
       <ActionPinShell tone="indigo" icon="✋"
         title="Coordinator invited you"
         body={`Reply to ${conv.leader?.name ?? "the coordinator"} or accept the inquiry to lock your spot.`}
-        primary={{ label: "Accept", onClick: () => toast("Inquiry accepted") }}
-        secondary={{ label: "Decline", onClick: () => toast("Inquiry declined") }}
+        primary={{ label: "Accept", onClick: realAccept ?? (() => toast("Inquiry accepted")) }}
+        secondary={{ label: "Decline", onClick: realDecline ?? (() => toast("Inquiry declined")) }}
       />
     );
   }
@@ -13575,7 +13624,16 @@ function ConversationTab({
             placeholder={placeholder}
             onSend={(text) => {
               appendLocalMessage(stashKey, text);
-              toast("Message sent");
+              // F-pass — when conv.id is a real inquiry UUID, persist
+              // the talent's message to inquiry_messages (group thread).
+              // Mock conv ids stay local-only for the demo.
+              if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id)) {
+                void sendInquiryMessageAsTalent(conv.id, text).then((r) => {
+                  if (!r.ok) toast(`Send failed: ${r.error}`);
+                });
+              } else {
+                toast("Message sent");
+              }
             }}
             workspaceName={conv.agency}
             canSendAsWorkspace={povCanSeeOffers}

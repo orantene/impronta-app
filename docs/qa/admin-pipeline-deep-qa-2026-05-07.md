@@ -416,7 +416,25 @@ No Vercel push until the marathon completes its full run and the user gives go.
   TalentProfileDrawer → updateTalentIdentity. New `_pipeline-actions.ts`
   module hosts the engine wrappers. D3 root cause identified
   (architectural fix deferred). B8 lineup wiring deferred (UI rewrite scope).
-- **rev 5 (this commit)** — gap-closing pass:
+- **rev 6 (this commit)** — F-pass (talent surface):
+  - **Talent shell now hits real DB** — bridge already loaded
+    `effectiveTalentInquiries` via `loadTalentInquiries`; this pass wires
+    the action side. Synthetic mock conv ids (`c1`..`c12`) keep the
+    toast-only stubs for the demo flow.
+  - **Accept / Decline** — `ConversationActionPin` calls
+    `acceptInquiryInvitation` / `declineInquiryInvitation` via the new
+    `lib/server-actions/talent-pipeline.ts` (engine roster actions).
+  - **Submit rate** — `SubmitRateSheet.onSubmit` ALSO calls
+    `submitMyRateForInquiry` which resolves offer + line item internally,
+    so the prototype doesn't need to know either id. Engine permission
+    enforcement (`submitTalentRate` checks talent_profile_id ownership).
+  - **Talent message send** — `DraftComposer` in `ConversationDetail`
+    calls `sendInquiryMessageAsTalent` (group thread) for real inquiry
+    UUIDs; participant gating is enforced inside the action.
+  - QA via preview deferred to manual — the SPA's command palette
+    overlay wasn't easily dismissible from `preview_eval`. Typecheck +
+    untracked-imports both clean.
+- **rev 5 (add17e2b)** — gap-closing pass:
   - **D3 fixed** — shell is now route-aware. `ConditionalPrototypeRoot`
     detects canonical paths (currently `/admin/work/[id]`) and skips the
     SPA overlay so the canonical page renders.
@@ -468,9 +486,13 @@ No Vercel push until the marathon completes its full run and the user gives go.
 | (this)   | B8  | `LiveLineupPanel` — list + remove + add via real `inquiry_participants` |
 | (this)   | A5  | markThreadRead fires on Client/Talent tab open |
 | (this)   | A6  | pin/archive/manuallyUnread persist to `inquiry_user_flags` for real inquiries |
-| (this)   | D4  | `LiveBookingActions` — Duplicate booking wrapper |
+| add17e2b | D4  | `LiveBookingActions` — Duplicate booking wrapper |
+| (this)   | F1  | `talent-pipeline.ts` — accept / decline / submit-rate / send-message wrappers |
+| (this)   | F2  | `ConversationActionPin` calls real engine for Accept / Decline / Submit rate |
+| (this)   | F3  | `SubmitRateSheet.onSubmit` persists to DB via `submitMyRateForInquiry` |
+| (this)   | F4  | `DraftComposer` (talent pov) writes to inquiry_messages.group |
 
-## What's still open after rev 5
+## What's still open after rev 6
 
 ### Backend gaps that remain
 
@@ -497,8 +519,11 @@ No Vercel push until the marathon completes its full run and the user gives go.
 - **C5** — Calendar StatusStrip mock+real double-counting risk.
 - **E2** — Verify other top-bar metrics (talent count, open inquiries) use
   bridge not RICH_INQUIRIES.
-- **F-pass** — full TalentJobShell audit (largest deferred surface).
-- **G-pass** — full ClientProjectShell audit.
+- **F-pass remainder** — Accept/Decline/Submit-rate/message-send all
+  hit DB now. Still local-only: hold/confirm CTAs, polaroid uploads,
+  call-sheet acks. The conv-shape needs to expose offerId + lineItemId
+  for the OfferTab's inline rate edit (currently uses a window.prompt).
+- **G-pass** — full ClientProjectShell audit (next big surface).
 - **H** — Remaining toast-only drawers in `_drawers.tsx` (theme, domain,
   navigation, languages, SEO, visibility, filters, email branding) —
   settings polish, not pipeline-critical.
