@@ -6653,6 +6653,29 @@ type Ctx = {
    * null = mock mode; `_talent.tsx` falls back to MY_TALENT_PROFILE.
    */
   bridgeTalentSelfProfile: BridgeTalentSelfProfile | null;
+
+  // ── Phase 1 (master plan) — chrome identity bridge ────────────────────────
+  /**
+   * Real tenant identity from the workspace admin layout. null = standalone
+   * demo mode; chrome falls back to TENANT constant.
+   */
+  bridgeTenantIdentity: {
+    tenantId: string;
+    slug: string;
+    displayName: string;
+    planTier: string;
+    kind: string;
+  } | null;
+  /**
+   * Real signed-in user identity. null = standalone demo mode; chrome falls
+   * back to MY_TALENT_PROFILE / state.userName.
+   */
+  bridgeSessionIdentity: {
+    userId: string;
+    email: string;
+    role: string;
+    displayName: string | null;
+  } | null;
 };
 
 /** Agency-defined custom field. Renders in Profile Shell's "Profile details"
@@ -7876,6 +7899,14 @@ export function ProtoProvider({
 
   const totalUnread = initialBridgeData?.totalUnread ?? 0;
 
+  // Phase 1 (master plan) — chrome identity bridge.
+  // When provided by the workspace admin layout, the prototype's chrome
+  // (top-bar, plan badge, acting subline) reads from these instead of
+  // the hardcoded TENANT/MY_TALENT_PROFILE constants. When null, the
+  // prototype runs in standalone demo mode and falls back to mocks.
+  const bridgeTenantIdentity = initialBridgeData?.tenantIdentity ?? null;
+  const bridgeSessionIdentity = initialBridgeData?.sessionIdentity ?? null;
+
   // Phase 3.12.2 — talent self-surface bridge
   const effectiveTalentInquiries = useMemo<TalentInquiryRow[]>(
     () => initialBridgeData?.talentInquiries ?? [],
@@ -7987,6 +8018,8 @@ export function ProtoProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTenantIdentity,
+      bridgeSessionIdentity,
     }),
     [
       surface,
@@ -8069,6 +8102,8 @@ export function ProtoProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTenantIdentity,
+      bridgeSessionIdentity,
     ],
   );
 

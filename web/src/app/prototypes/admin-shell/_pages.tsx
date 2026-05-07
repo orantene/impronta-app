@@ -1137,7 +1137,17 @@ const TALENT_UNREAD = TALENT_NOTIFICATION_COUNT;
 const WORKSPACE_UNREAD = WORKSPACE_NOTIFICATION_COUNT;
 
 export function TulalaIdentityBar() {
-  const { state, openDrawer, flipMode, toast, setClientPage, totalUnread: bridgeTotalUnread } = useProto();
+  const {
+    state,
+    openDrawer,
+    flipMode,
+    toast,
+    setClientPage,
+    totalUnread: bridgeTotalUnread,
+    bridgeTenantIdentity,
+    bridgeSessionIdentity,
+    overviewMetrics,
+  } = useProto();
   const { surface, alsoTalent, role, plan, entityType } = state;
 
   // Identity bar renders for the three end-user surfaces (workspace +
@@ -1154,24 +1164,60 @@ export function TulalaIdentityBar() {
     gringo:  { name: "The Gringo",         initials: "TG", industry: "Personal client",          contactName: "The Gringo",        photoUrl: "https://i.pravatar.cc/300?img=33", isBusiness: false },
   } as const;
   const activeClientProfile = CP[state.clientProfile] ?? CP.martina;
-  const userName = inClient ? activeClientProfile.contactName : MY_TALENT_PROFILE.name;
-  const userInitials = inClient ? activeClientProfile.initials : MY_TALENT_PROFILE.initials;
+
+  // Phase 1 — when the workspace admin layout provides bridgeSessionIdentity,
+  // use the real signed-in user instead of MY_TALENT_PROFILE (which is the
+  // prototype's hardcoded talent persona "Marta Reyes"). Standalone demo mode
+  // (no bridge identity) still falls back to the constant.
+  const realUserName =
+    bridgeSessionIdentity?.displayName?.trim() ||
+    bridgeSessionIdentity?.email ||
+    null;
+  const realUserInitials = (() => {
+    if (!bridgeSessionIdentity) return null;
+    const src = (bridgeSessionIdentity.displayName ?? bridgeSessionIdentity.email ?? "").trim();
+    if (!src) return null;
+    const parts = src.split(/[\s@.]+/u).filter(Boolean);
+    const letters = (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "");
+    return letters.toUpperCase() || src.slice(0, 2).toUpperCase();
+  })();
+
+  const userName = inClient
+    ? activeClientProfile.contactName
+    : (inWorkspace && realUserName ? realUserName : MY_TALENT_PROFILE.name);
+  const userInitials = inClient
+    ? activeClientProfile.initials
+    : (inWorkspace && realUserInitials ? realUserInitials : MY_TALENT_PROFILE.initials);
   const userPhotoUrl = inClient ? activeClientProfile.photoUrl : undefined;
 
-  // Acting-as context flips with surface:
-  const actingLabel = inWorkspace ? TENANT.name
+  // Acting-as context flips with surface. For the workspace surface, prefer
+  // the real tenant identity from the bridge over the hardcoded TENANT.
+  const realTenantName = bridgeTenantIdentity?.displayName?.trim() || null;
+  const actingLabel = inWorkspace
+    ? (realTenantName ?? TENANT.name)
     : inClient ? activeClientProfile.name
     : MY_TALENT_PROFILE.primaryAgency;
   // Subtext stays terse — the plan tier now has its own badge inline,
   // so this just clarifies the role + entity context.
+  const actingRoleLabel = bridgeSessionIdentity?.role ?? role;
   const actingSubLabel = inWorkspace
-    ? `${role.charAt(0).toUpperCase() + role.slice(1)} · ${entityType}`
+    ? `${actingRoleLabel.charAt(0).toUpperCase() + actingRoleLabel.slice(1)} · ${entityType}`
     : inClient ? (activeClientProfile.isBusiness ? "Business client" : "Personal client")
     : "Primary agency";
-  const actingDetail = inWorkspace
-    ? `${fmtMoney(4200)} pending · 3 confirmed`
-    : inClient ? activeClientProfile.industry
-    : `3 confirmed · ${fmtMoney(4200)} YTD`;
+  // Real KPI subline: when overviewMetrics is available, compose live
+  // counters; otherwise fall back to the prototype's hardcoded copy.
+  const actingDetail = (() => {
+    if (inWorkspace) {
+      if (overviewMetrics) {
+        const open = overviewMetrics.openInquiries ?? 0;
+        const roster = overviewMetrics.rosterTotal ?? 0;
+        return `${roster} talent · ${open} open ${open === 1 ? "inquiry" : "inquiries"}`;
+      }
+      return `${fmtMoney(4200)} pending · 3 confirmed`;
+    }
+    if (inClient) return activeClientProfile.industry;
+    return `3 confirmed · ${fmtMoney(4200)} YTD`;
+  })();
   const onActingClick = () =>
     inWorkspace ? openDrawer("tenant-switcher")
     : inClient ? openDrawer("client-brand-switcher")
@@ -1331,7 +1377,12 @@ export function TulalaIdentityBar() {
                   data-plan={plan}
                   style={{ flexShrink: 0, display: "inline-flex" }}
                 >
-                  <PlanChip plan={plan} variant="outline" />
+                  <PlanChip
+                    plan={
+                      (bridgeTenantIdentity?.planTier as typeof plan) ?? plan
+                    }
+                    variant="outline"
+                  />
                 </span>
               )}
             </span>

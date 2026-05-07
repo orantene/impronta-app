@@ -26,6 +26,54 @@ import { AdminShellPrototypePageClient } from "@/app/prototypes/admin-shell/_she
 import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 import { RealIdentityBanner } from "./_real-identity-banner";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
+
+// Phase 1 — load tenant + session identity for the prototype chrome.
+// Failures degrade to null so the layout never crashes; the prototype
+// falls back to its hardcoded TENANT/MY_TALENT_PROFILE constants when
+// these are absent (standalone demo mode).
+async function loadTenantIdentity(tenantId: string): Promise<{
+  tenantId: string;
+  slug: string;
+  displayName: string;
+  planTier: string;
+  kind: string;
+} | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("agencies")
+    .select("id, slug, display_name, plan_tier, kind")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (error || !data) {
+    if (error) logServerError("admin-layout.loadTenantIdentity", error);
+    return null;
+  }
+  return {
+    tenantId: data.id,
+    slug: data.slug ?? "",
+    displayName: data.display_name ?? "Workspace",
+    planTier: data.plan_tier ?? "free",
+    kind: data.kind ?? "agency",
+  };
+}
+
+async function loadProfileDisplayName(userId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("profiles")
+    .select("display_name")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    logServerError("admin-layout.loadProfileDisplayName", error);
+    return null;
+  }
+  return data?.display_name ?? null;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +128,8 @@ export default async function WorkspaceAdminLayout({
     bookings,
     teamMembers,
     totalUnread,
+    tenantIdentity,
+    profileDisplayName,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(),
     loadInquiriesForMessages(tenantId),
@@ -89,7 +139,16 @@ export default async function WorkspaceAdminLayout({
     loadWorkspaceBookings(tenantId),
     loadWorkspaceTeamMembers(tenantId),
     loadTotalUnreadMessages(tenantId),
+    loadTenantIdentity(tenantId),
+    loadProfileDisplayName(session.user.id),
   ]);
+
+  const sessionIdentity = {
+    userId: session.user.id,
+    email: session.user.email ?? "",
+    role: scope.membership.role,
+    displayName: profileDisplayName,
+  };
 
   return (
     <>
@@ -113,6 +172,8 @@ export default async function WorkspaceAdminLayout({
           bookings,
           teamMembers,
           totalUnread,
+          tenantIdentity,
+          sessionIdentity,
         }}
       >
         {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}

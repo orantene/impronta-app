@@ -136,6 +136,32 @@ export type BridgeData = {
    * `null` means talent surface is in mock mode (use MOCK_CONVERSATIONS).
    */
   talentInquiries?: TalentInquiryRow[] | null;
+
+  // ── Phase 1 (master plan) — chrome identity bridge ────────────────────────
+  /**
+   * Real tenant identity for the workspace surface. When provided, the
+   * prototype's chrome (top-bar workspace name, plan badge, domain
+   * subline) reads from this instead of the hardcoded TENANT constant
+   * in _state.tsx. `null` means the prototype runs in standalone demo
+   * mode (e.g. /prototypes/admin-shell directly) and falls back to mocks.
+   */
+  tenantIdentity?: {
+    tenantId: string;
+    slug: string;
+    displayName: string;
+    planTier: string; // 'free' | 'studio' | 'agency' | 'network' (forwards-compat string)
+    kind: string; // 'agency' | 'hub' | 'app' | 'marketing'
+  } | null;
+  /**
+   * Real signed-in user identity. When provided, the prototype's chrome
+   * (top-bar acting label) reads from this instead of MY_TALENT_PROFILE.
+   */
+  sessionIdentity?: {
+    userId: string;
+    email: string;
+    role: string; // membership role: 'owner' | 'admin' | 'coordinator' | etc.
+    displayName: string | null;
+  } | null;
 };
 
 export function createBridgeDataFromRoster(
