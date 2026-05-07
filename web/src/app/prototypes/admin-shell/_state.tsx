@@ -15,7 +15,15 @@ import type { ToastTone } from "./_primitives";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded
 // by `import "server-only"`. The `import type` form is erased at compile
 // time and emits no runtime JS, so the client bundle stays clean.
-import type { BridgeData } from "./_data-bridge";
+import type {
+  BridgeData,
+  WorkspaceInquiryForMessages,
+  WorkspaceClientRow,
+  CalendarEvent as BridgeCalendarEvent,
+  WorkspaceOverviewMetrics,
+  WorkspaceBookingRow,
+  WorkspaceTeamMember as BridgeTeamMember,
+} from "./_data-bridge";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
@@ -6601,6 +6609,34 @@ type Ctx = {
   effectiveRoster: TalentProfile[];
   /** Set when running in production (cutover) mode — the real tenant slug from the URL. */
   tenantSlug: string | undefined;
+
+  // ── Phase 3.12 real-data bridge — additional surfaces ────────────────
+  /**
+   * Live inquiry rows pre-fetched by the server layout. When the bridge is
+   * active (tenantSlug is set) this replaces RICH_INQUIRIES. Adapter:
+   * WorkspaceInquiryForMessages → RichInquiry so _messages.tsx is unchanged.
+   */
+  effectiveMessagesInquiries: RichInquiry[];
+  /** Live client rows → adapted to Client[]. Falls back to getClients(plan). */
+  effectiveClients: Client[];
+  /**
+   * Calendar events from inquiries with non-null event_date.
+   * The CalendarEvent type from the bridge is a simpler shape than the proto
+   * calendar mocks — both are consumed by _pages.tsx calendar surface.
+   */
+  effectiveCalendarEvents: BridgeCalendarEvent[] | null;
+  /**
+   * Pre-aggregated overview page metrics from the server. null = no bridge
+   * active (mock mode) or loader failed. The Overview surface falls back
+   * to computing from effectiveRoster / effectiveMessagesInquiries when null.
+   */
+  overviewMetrics: WorkspaceOverviewMetrics | null;
+  /** Live booking rows. Falls back to empty array in mock mode. */
+  effectiveBookings: WorkspaceBookingRow[];
+  /** Live team member rows → adapted to TeamMember[]. Falls back to getTeam(plan). */
+  effectiveTeamMembers: TeamMember[];
+  /** Live total unread count for the nav badge. Falls back to 0 in mock mode. */
+  totalUnread: number;
 };
 
 /** Agency-defined custom field. Renders in Profile Shell's "Profile details"
@@ -6827,6 +6863,145 @@ export function allowedVisibilities(
     public:   !alwaysInternal && (rules.canFlipPublicInternal || DEFAULT_FIELD_VISIBILITY[fieldId] === "public"),
     internal: !alwaysVisible  && (rules.canFlipPublicInternal || DEFAULT_FIELD_VISIBILITY[fieldId] === "internal"),
     hidden:   !alwaysVisible  && !alwaysInternal && (rules.canHide || DEFAULT_FIELD_VISIBILITY[fieldId] === "hidden"),
+  };
+}
+
+// ── Phase 3.12 bridge adapters ─────────────────────────────────────────────
+// Convert workspace-level bridge types to the proto shell's internal types.
+// These run inside useMemo so they only recompute when bridge data changes.
+
+/**
+ * Adapt a single WorkspaceInquiryForMessages row to a RichInquiry.
+ * Lossy on fields not present in the bridge (requirementGroups, full message
+ * history, offer line-items) — they get minimal stubs so the UI renders
+ * without crashing. Full fidelity is Phase 4 once the inquiry thread API lands.
+ */
+function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
+  const stage: InquiryStage =
+    w.status === "submitted"      ? "submitted" :
+    w.status === "coordination"   ? "coordination" :
+    w.status === "offer_pending"  ? "offer_pending" :
+    w.status === "approved"       ? "approved" :
+    w.status === "booked" || w.status === "converted" ? "booked" :
+    w.status === "rejected"       ? "rejected" :
+    w.status === "expired"        ? "expired" :
+    "draft";
+
+  const source: InquirySource =
+    w.sourceKind === "hub"        ? { kind: "hub",         hubName: "Tulala Hub", domain: w.sourcePage ?? "tulala.digital" } :
+    w.sourceKind === "marketplace"? { kind: "marketplace", platform: "Tulala" } :
+    w.sourceKind === "talent-page"? { kind: "talent-page", talentSlug: w.sourcePage?.replace(/^\/t\//, "") ?? "talent" } :
+    w.sourceKind === "direct"     ? { kind: "direct",      domain: w.sourcePage ?? "direct" } :
+    { kind: "manual", channel: "email" };
+
+  const clientTrust: ClientTrustLevel =
+    w.trustLevel === "gold"     ? "gold" :
+    w.trustLevel === "silver"   ? "silver" :
+    w.trustLevel === "verified" ? "verified" :
+    "basic";
+
+  const coordinator: CoordinatorAssignment | null = w.coordinatorName
+    ? {
+        id: w.id + "-coord",
+        name: w.coordinatorName,
+        initials:
+          w.coordinatorInitials ??
+          w.coordinatorName.split(" ").map((s: string) => s[0]).join("").slice(0, 2).toUpperCase(),
+        email: "",
+        acceptedAt: w.coordinatorAcceptedAt,
+        isPrimary: true,
+      }
+    : null;
+
+  const nextActionBy: RichInquiry["nextActionBy"] =
+    w.nextActionBy === "system" ? "ops" : w.nextActionBy ?? null;
+
+  const requirementGroups: RequirementGroup[] =
+    w.lineupTotal > 0
+      ? [{ id: w.id + "-rg", role: "talent", needed: w.lineupTotal, approved: w.lineupConfirmed, talents: [] }]
+      : [];
+
+  const offer: Offer | null = w.currentOfferStatus
+    ? {
+        id: w.id + "-offer",
+        version: 1,
+        status: w.currentOfferStatus,
+        total: w.currentOfferTotal ?? "—",
+        sentAt: null,
+        lineItems: [],
+        clientApproval: w.currentOfferStatus === "accepted" ? "accepted" : "pending",
+      }
+    : null;
+
+  const messages: ThreadMessage[] = w.lastMessagePreview
+    ? [{
+        id: w.id + "-m0",
+        threadType: (w.lastMessageThreadType ?? "private") as ThreadType,
+        senderName: w.lastMessageRole === "you" ? "You" : w.clientName,
+        senderRole: (
+          w.lastMessageRole === "you"    ? "coordinator" :
+          w.lastMessageRole === "system" ? "system" :
+          w.lastMessageRole ?? "client"
+        ) as MessageSenderRole,
+        senderInitials: w.clientInitials,
+        body: w.lastMessagePreview,
+        ts: w.lastMessageAt
+          ? new Date(w.lastMessageAt).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" })
+          : "",
+        isYou: w.lastMessageRole === "you",
+      }]
+    : [];
+
+  return {
+    id: w.id,
+    agencyName: "",
+    clientName: w.clientCompany ?? w.clientName,
+    clientTrust,
+    brief: w.briefTitle,
+    date: w.eventDate,
+    location: w.eventLocation,
+    source,
+    stage,
+    ageDays: Math.max(1, Math.ceil(w.ageHrs / 24)),
+    unreadPrivate: w.unreadPrivate,
+    unreadGroup: w.unreadGroup,
+    nextActionBy,
+    lastActivityHrs: w.ageHrs,
+    repeatBookings: 0,
+    requirementGroups,
+    coordinator,
+    offer,
+    bookingId: null,
+    messages,
+    seen: w.seen,
+  };
+}
+
+/** Adapt WorkspaceClientRow → Client (proto shell's client type). */
+function adaptBridgeClient(w: WorkspaceClientRow): Client {
+  return {
+    id: w.id,
+    name: w.company ?? w.name,
+    contact: w.name,
+    bookingsYTD: w.bookingsYTD,
+    status: w.accountStatus === "suspended" ? "dormant" : "active",
+    trust: (w.trustLevel ?? "basic") as ClientTrustLevel,
+  };
+}
+
+/** Adapt BridgeTeamMember → TeamMember (proto shell's team type). */
+function adaptBridgeTeamMember(m: BridgeTeamMember): TeamMember {
+  const words = m.name.trim().split(/\s+/);
+  const initials = words.length >= 2
+    ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
+    : m.name.slice(0, 2).toUpperCase();
+  return {
+    id: m.id,
+    name: m.name,
+    email: "",
+    role: (["viewer","editor","coordinator","admin","owner"].includes(m.role) ? m.role : "viewer") as Role,
+    status: m.status === "pending_acceptance" ? "invited" : "active",
+    initials,
   };
 }
 
@@ -7607,6 +7782,45 @@ export function ProtoProvider({
     [bridgeRoster, plan],
   );
 
+  // Phase 3.12 — additional bridge surface fields
+  const bridgeInquiries = initialBridgeData?.inquiries ?? null;
+  const effectiveMessagesInquiries = useMemo<RichInquiry[]>(
+    () =>
+      bridgeInquiries != null
+        ? bridgeInquiries.map(adaptBridgeInquiry)
+        : RICH_INQUIRIES,
+    [bridgeInquiries],
+  );
+
+  const bridgeClients = initialBridgeData?.clients ?? null;
+  const effectiveClients = useMemo<Client[]>(
+    () =>
+      bridgeClients != null
+        ? bridgeClients.map(adaptBridgeClient)
+        : getClients(plan),
+    [bridgeClients, plan],
+  );
+
+  const effectiveCalendarEvents = initialBridgeData?.calendarEvents ?? null;
+  const overviewMetrics = initialBridgeData?.overviewMetrics ?? null;
+
+  const bridgeBookings = initialBridgeData?.bookings ?? null;
+  const effectiveBookings = useMemo<WorkspaceBookingRow[]>(
+    () => bridgeBookings ?? [],
+    [bridgeBookings],
+  );
+
+  const bridgeTeamMembers = initialBridgeData?.teamMembers ?? null;
+  const effectiveTeamMembers = useMemo<TeamMember[]>(
+    () =>
+      bridgeTeamMembers != null
+        ? bridgeTeamMembers.map(adaptBridgeTeamMember)
+        : getTeam(plan),
+    [bridgeTeamMembers, plan],
+  );
+
+  const totalUnread = initialBridgeData?.totalUnread ?? 0;
+
   const value: Ctx = useMemo(
     () => ({
       state: {
@@ -7700,6 +7914,14 @@ export function ProtoProvider({
       bridgeRoster,
       effectiveRoster,
       tenantSlug,
+      // Phase 3.12 — additional surface bridge fields
+      effectiveMessagesInquiries,
+      effectiveClients,
+      effectiveCalendarEvents,
+      overviewMetrics,
+      effectiveBookings,
+      effectiveTeamMembers,
+      totalUnread,
     }),
     [
       surface,
@@ -7773,6 +7995,13 @@ export function ProtoProvider({
       bridgeRoster,
       effectiveRoster,
       tenantSlug,
+      effectiveMessagesInquiries,
+      effectiveClients,
+      effectiveCalendarEvents,
+      overviewMetrics,
+      effectiveBookings,
+      effectiveTeamMembers,
+      totalUnread,
     ],
   );
 

@@ -1137,7 +1137,7 @@ const TALENT_UNREAD = TALENT_NOTIFICATION_COUNT;
 const WORKSPACE_UNREAD = WORKSPACE_NOTIFICATION_COUNT;
 
 export function TulalaIdentityBar() {
-  const { state, openDrawer, flipMode, toast, setClientPage } = useProto();
+  const { state, openDrawer, flipMode, toast, setClientPage, totalUnread: bridgeTotalUnread } = useProto();
   const { surface, alsoTalent, role, plan, entityType } = state;
 
   // Identity bar renders for the three end-user surfaces (workspace +
@@ -1181,7 +1181,8 @@ export function TulalaIdentityBar() {
   const notificationsDrawerId = inWorkspace ? "notifications"
     : inClient ? "client-today-pulse"
     : "talent-notifications";
-  const notificationsUnread = inWorkspace ? WORKSPACE_UNREAD
+  // Phase 3.12 — use live bridge totalUnread for workspace when available.
+  const notificationsUnread = inWorkspace ? (bridgeTotalUnread > 0 ? bridgeTotalUnread : WORKSPACE_UNREAD)
     : inClient ? 0
     : TALENT_UNREAD;
 
@@ -1364,7 +1365,7 @@ export function TulalaIdentityBar() {
         {/* Mode toggle — only for hybrid users (talent who also have a
             workspace). Hidden on the client surface — clients are
             single-mode and don't have a talent/workspace dual identity. */}
-        {alsoTalent && !inClient && <ModeTogglePill surface={surface} flipMode={flipMode} />}
+        {alsoTalent && !inClient && <ModeTogglePill surface={surface} flipMode={flipMode} workspaceUnread={bridgeTotalUnread > 0 ? bridgeTotalUnread : WORKSPACE_UNREAD} />}
 
         {/* Global utilities — single source for both modes.
             Workspace + talent surfaces use the new NotificationsBell
@@ -1685,9 +1686,11 @@ function LocaleToggle() {
 function ModeTogglePill({
   surface,
   flipMode,
+  workspaceUnread = WORKSPACE_UNREAD,
 }: {
   surface: Surface;
   flipMode: () => void;
+  workspaceUnread?: number;
 }) {
   const inTalent = surface === "talent";
   // Direct-background active state. The earlier absolute-thumb
@@ -1718,7 +1721,7 @@ function ModeTogglePill({
       <ModeTogglePillButton
         active={!inTalent}
         label="Workspace"
-        unread={!inTalent ? 0 : WORKSPACE_UNREAD}
+        unread={!inTalent ? 0 : workspaceUnread}
         onClick={!inTalent ? undefined : flipMode}
       />
     </div>
@@ -2514,7 +2517,7 @@ function TodaysFocusCard({
 }
 
 function OverviewPage() {
-  const { state, openDrawer, openUpgrade, completeTask, toast, setPage } = useProto();
+  const { state, openDrawer, openUpgrade, completeTask, toast, setPage, overviewMetrics, effectiveMessagesInquiries, effectiveRoster } = useProto();
   const isFree = state.plan === "free";
   const canEdit = meetsRole(state.role, "editor");
 
@@ -2522,11 +2525,14 @@ function OverviewPage() {
     return <OverviewFree />;
   }
 
-  const inquiries = getInquiries(state.plan);
-  // Use RICH_INQUIRIES for accurate stage-based metrics — legacy getInquiries()
-  // uses an older 5-stage model that no longer maps to production stages.
-  const richInqs = RICH_INQUIRIES;
-  const draftCount = richInqs.filter((i) => i.stage === "draft").length;
+  // Phase 3.12 — use live bridge metrics when available; fall back to
+  // computing from effectiveMessagesInquiries (bridge-adapted RichInquiry[]).
+  const richInqs = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+  // Open inquiry count: prefer the pre-aggregated bridge metric over re-deriving.
+  const openInquiryCount = overviewMetrics?.openInquiries ?? richInqs.filter((i) =>
+    i.stage === "submitted" || i.stage === "coordination" || i.stage === "offer_pending" || i.stage === "approved"
+  ).length;
+  const draftCount = overviewMetrics?.draftInquiryCount ?? richInqs.filter((i) => i.stage === "draft").length;
   const awaiting = richInqs.filter((i) => i.nextActionBy === "client");
   const confirmedThisWeek = richInqs.filter(
     (i) => i.stage === "booked" || i.stage === "approved",
@@ -2594,7 +2600,7 @@ function OverviewPage() {
           affordance="Open workflow"
           meta={
             <>
-              {pluralize(inquiries.length, "active", "active", true)}
+              {pluralize(openInquiryCount, "active", "active", true)}
               <Bullet />
               {confirmedThisWeek.length} confirmed
             </>
@@ -2921,7 +2927,7 @@ function OverviewPage() {
 }
 
 function OverviewFree() {
-  const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers } = useProto();
 
   // Live signals that prove a step is "really done" — overrides the
   // user-confirmed Set. Order: real state first, manual confirmation
@@ -2936,7 +2942,7 @@ function OverviewFree() {
   const liveRoster = effectiveRoster;
   const livePublished = liveRoster.filter((t) => t.state === "published").length;
   const liveInquiries = getInquiries(state.plan);
-  const liveTeam = getTeam(state.plan);
+  const liveTeam = effectiveTeamMembers.length > 0 ? effectiveTeamMembers : getTeam(state.plan);
   const autoComplete: Record<string, boolean> = {
     "add-talent": liveRoster.length > 0,
     publish: livePublished > 0,
@@ -6550,8 +6556,10 @@ const bulkBtnStyle: React.CSSProperties = {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientsPage() {
-  const { state, openDrawer, openUpgrade, toast } = useProto();
-  const clients = getClients(state.plan);
+  const { state, openDrawer, openUpgrade, toast, effectiveClients, importedClients } = useProto();
+  // Phase 3.12 — use bridge clients when available, fall back to mock.
+  // importedClients (CSV imports from proto state) are always merged in.
+  const clients = [...effectiveClients, ...importedClients];
   const canEdit = meetsRole(state.role, "coordinator");
   const isFree = state.plan === "free";
   const [search, setSearch] = useState("");
@@ -8595,7 +8603,7 @@ function LockedPill({ plan }: { plan: Plan }) {
 }
 
 function WorkspacePageView() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims } = useProto();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers } = useProto();
   const pendingTrustCount = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
   ).length;
@@ -8960,7 +8968,7 @@ function WorkspacePageView() {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Team members</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {getTeam(state.plan).length} members · viewer / editor / coordinator / admin / owner
+                    {effectiveTeamMembers.length} members · viewer / editor / coordinator / admin / owner
                   </div>
                 </div>
                 <Affordance label="Manage" />
@@ -9542,6 +9550,7 @@ export function MobileBottomNav() {
     setClientPage,
     setPlatformPage,
     pendingTalent,
+    totalUnread: bridgeTotalUnread,
   } = useProto();
   const [moreOpen, setMoreOpen] = useState(false);
   // WS-12.6 — left/right arrows move between bottom nav tabs
@@ -9553,9 +9562,10 @@ export function MobileBottomNav() {
       // Mobile nav badges — surface pending-approval count on the Roster tab
       // + unread message count on Messages, matching the desktop topbar nav.
       // Single source of truth.
+      const effectiveUnread = bridgeTotalUnread > 0 ? bridgeTotalUnread : WORKSPACE_NOTIFICATION_COUNT;
       const WORKSPACE_TAB_BADGE: Partial<Record<WorkspacePage, number>> = {
         roster: pendingTalent.length || undefined,
-        messages: WORKSPACE_NOTIFICATION_COUNT || undefined,
+        messages: effectiveUnread || undefined,
       };
       return WORKSPACE_PAGES.map((p) => ({
         id: p,

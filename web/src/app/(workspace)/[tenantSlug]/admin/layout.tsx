@@ -1,11 +1,8 @@
-// Workspace admin layout — cutover version.
+// Workspace admin layout — cutover version (Phase 3.12 — full surface bridge).
 //
-// Replaces the old two-bar shell (TulalaIdentityBar + WorkspaceTopbar +
-// content area) with the full prototype shell, which has all of that chrome
-// built in. Each admin surface page (admin/page.tsx, admin/messages/page.tsx,
-// etc.) renders only a <PageRouteSyncer page="…" /> as its content — a
-// client component that calls useProto().setPage() on mount to sync the
-// shell's internal page with the current Next.js route.
+// Mounts the prototype shell at every /{tenantSlug}/admin/* route. Pre-fetches
+// all surface data in a single parallel Promise.all so the shell opens with
+// real data immediately — no loading spinners on first paint.
 //
 // initialPage is derived from the request pathname so hard refreshes on
 // /admin/messages start on the correct surface without a flash.
@@ -15,7 +12,16 @@ import { headers } from "next/headers";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadWorkspaceRosterForCurrentTenant } from "@/app/prototypes/admin-shell/_data-bridge";
+import {
+  loadWorkspaceRosterForCurrentTenant,
+  loadInquiriesForMessages,
+  loadWorkspaceClients,
+  loadCalendarEvents,
+  loadWorkspaceOverviewMetrics,
+  loadWorkspaceBookings,
+  loadWorkspaceTeamMembers,
+  loadTotalUnreadMessages,
+} from "@/app/prototypes/admin-shell/_data-bridge";
 import { AdminShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
 import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
@@ -61,14 +67,43 @@ export default async function WorkspaceAdminLayout({
   const pathname = hdrs.get("x-impronta-original-pathname") ?? `/${tenantSlug}/admin`;
   const initialPage = deriveInitialPage(pathname, tenantSlug);
 
-  // ── Prefetch bridge data ───────────────────────────────────────────────────
-  const roster = await loadWorkspaceRosterForCurrentTenant();
+  // ── Prefetch all surface data in parallel ──────────────────────────────────
+  // Errors in any loader return an empty/null value — never crash the layout.
+  const tenantId = scope.tenantId;
+  const [
+    roster,
+    inquiries,
+    clients,
+    calendarEvents,
+    overviewMetrics,
+    bookings,
+    teamMembers,
+    totalUnread,
+  ] = await Promise.all([
+    loadWorkspaceRosterForCurrentTenant(),
+    loadInquiriesForMessages(tenantId),
+    loadWorkspaceClients(tenantId),
+    loadCalendarEvents(tenantId),
+    loadWorkspaceOverviewMetrics(tenantId),
+    loadWorkspaceBookings(tenantId),
+    loadWorkspaceTeamMembers(tenantId),
+    loadTotalUnreadMessages(tenantId),
+  ]);
 
   return (
     <AdminShellPrototypePageClient
       tenantSlug={tenantSlug}
       initialPage={initialPage}
-      initialBridgeData={{ roster }}
+      initialBridgeData={{
+        roster,
+        inquiries,
+        clients,
+        calendarEvents,
+        overviewMetrics,
+        bookings,
+        teamMembers,
+        totalUnread,
+      }}
     >
       {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}
       {children}

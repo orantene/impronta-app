@@ -1313,7 +1313,8 @@ export function MessagesShell({ pov }: { pov: MessagesPov }) {
 type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past";
 
 function AdminOperationsShell() {
-  const inquiries = RICH_INQUIRIES;
+  const { effectiveMessagesInquiries } = useProto();
+  const inquiries = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
   // Re-render on seen-state changes so the inbox re-sorts the moment
   // a row gets clicked (NEW pill drops, unseen tier loses that row).
   useSeenSubscription();

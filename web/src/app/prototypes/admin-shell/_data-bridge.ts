@@ -4,11 +4,46 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getTenantScope } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 
+// Re-export the workspace-level loaders so layout.tsx has a single import
+// surface for all bridge data. The workspace bridge is tenant-id-explicit;
+// the roster loader below is scope-implicit (calls getTenantScope() itself).
+export {
+  loadInquiriesForMessages,
+  loadWorkspaceClients,
+  loadCalendarEvents,
+  loadWorkspaceOverviewMetrics,
+  loadWorkspaceBookings,
+  loadWorkspaceTeamMembers,
+  loadWorkspaceDomainSummary,
+  loadWorkspaceBillingState,
+  loadWebsiteData,
+  loadTotalUnreadMessages,
+} from "@/app/(workspace)/[tenantSlug]/_data-bridge";
+
+export type {
+  WorkspaceInquiryForMessages,
+  WorkspaceClientRow,
+  CalendarEvent,
+  WorkspaceOverviewMetrics,
+  WorkspaceBookingRow,
+  WorkspaceTeamMember,
+  WebsiteData,
+} from "@/app/(workspace)/[tenantSlug]/_data-bridge";
+
 // Type-only import. `_state.tsx` is a client module ("use client") and
 // runtime-importing it from server code would defeat the whole point of
 // the bridge. `import type` is erased at compile time and emits no JS,
 // so we get the shape without pulling the client tree into server land.
 import type { TalentProfile } from "./_state";
+import type {
+  WorkspaceInquiryForMessages,
+  WorkspaceClientRow,
+  CalendarEvent,
+  WorkspaceOverviewMetrics,
+  WorkspaceBookingRow,
+  WorkspaceTeamMember,
+  WebsiteData,
+} from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 /**
  * _data-bridge.ts — Phase 1 server-side bridge for the admin-shell prototype.
@@ -64,7 +99,38 @@ export type BridgeData = {
    * standard empty state, NOT silently swap in mock data.
    */
   roster: TalentProfile[] | null;
+
+  // ── Phase 3.12 real-data bridge fields ────────────────────────────────────
+  /** Enriched inquiry rows for the Messages / Work surfaces. */
+  inquiries: WorkspaceInquiryForMessages[] | null;
+  /** Client rows for the Clients surface. */
+  clients: WorkspaceClientRow[] | null;
+  /** Calendar event rows (inquiries with non-null event_date). */
+  calendarEvents: CalendarEvent[] | null;
+  /** Overview page aggregate metrics. */
+  overviewMetrics: WorkspaceOverviewMetrics | null;
+  /** Recent bookings for the Bookings surface. */
+  bookings: WorkspaceBookingRow[] | null;
+  /** Team members for the Settings > Team surface. */
+  teamMembers: WorkspaceTeamMember[] | null;
+  /** Unread message count for the nav badge. */
+  totalUnread: number;
 };
+
+export function createBridgeDataFromRoster(
+  roster: TalentProfile[] | null,
+): BridgeData {
+  return {
+    roster,
+    inquiries: null,
+    clients: null,
+    calendarEvents: null,
+    overviewMetrics: null,
+    bookings: null,
+    teamMembers: null,
+    totalUnread: 0,
+  };
+}
 
 type RosterRow = {
   status: string;
