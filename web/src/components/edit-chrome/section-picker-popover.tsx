@@ -37,6 +37,7 @@ import { createPortal } from "react-dom";
 import { useEditContext } from "./edit-context";
 import { CHROME, SectionTypeIcon } from "./kit";
 import { getSuggestedSections } from "@/lib/site-admin/smart-section-recommendations";
+import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 
 const POPOVER_WIDTH = 340;
 const POPOVER_MAX_HEIGHT = 460;
@@ -99,15 +100,21 @@ export function SectionPickerPopover() {
 
   const items = useMemo(() => {
     if (!pickerPopover) return [];
-    const allowed = slotDef?.allowedSectionTypes
-      ? new Set(slotDef.allowedSectionTypes)
-      : null;
     return library.filter((entry) => {
       if (!entry.inDefault) return false;
-      if (allowed && !allowed.has(entry.typeKey)) return false;
+      if (!slotDef) return true;
+      if (
+        !checkSlotTypeCompatibility({
+          slotDefs,
+          targetSlotKey: pickerPopover.target.slotKey,
+          sectionTypeKey: entry.typeKey,
+        }).ok
+      ) {
+        return false;
+      }
       return true;
     });
-  }, [pickerPopover, slotDef, library]);
+  }, [pickerPopover, slotDef, library, slotDefs]);
 
   // Sprint 4 — smart recommendations. Given the section types already
   // on the page, surface up to 3 likely-next picks at the top of the
@@ -119,9 +126,6 @@ export function SectionPickerPopover() {
     for (const entries of Object.values(slots)) {
       for (const e of entries) currentTypes.push(e.sectionTypeKey);
     }
-    const allowed = slotDef?.allowedSectionTypes
-      ? new Set(slotDef.allowedSectionTypes)
-      : null;
     const suggestions = getSuggestedSections(currentTypes, 3);
     // Map suggested type keys → library entries (so we render the
     // same icon + label + description as the full list). Drop any
@@ -131,11 +135,9 @@ export function SectionPickerPopover() {
     return suggestions
       .map((typeKey) => itemsByKey.get(typeKey))
       .filter((entry): entry is NonNullable<typeof entry> => {
-        if (!entry) return false;
-        if (allowed && !allowed.has(entry.typeKey)) return false;
-        return true;
+        return Boolean(entry);
       });
-  }, [pickerPopover, slots, items, slotDef]);
+  }, [pickerPopover, slots, items]);
 
   // Suggested-type keys for de-duplicating the "All sections" group
   // below. We don't want a section to appear twice in the same picker.

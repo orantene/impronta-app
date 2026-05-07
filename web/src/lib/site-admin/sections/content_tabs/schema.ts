@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const tabSchema = z.object({
@@ -12,6 +13,12 @@ export const contentTabsSchemaV1 = z.object({
   tabs: z.array(tabSchema).min(2).max(8),
   variant: z.enum(["pills", "underline", "bordered"]).default("underline"),
   defaultTab: z.number().int().min(0).max(7).default(0),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

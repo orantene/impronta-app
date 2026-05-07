@@ -24,6 +24,8 @@ import { tagFor } from "@/lib/site-admin";
 import type { Locale } from "@/lib/site-admin/locales";
 import { previewCookieNameFor } from "@/lib/site-admin/preview/cookie";
 import { verifyPreviewJwt } from "@/lib/site-admin/preview/jwt";
+import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
+import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/legacy-section-tree";
 
 import type { HomepageSnapshot } from "./homepage";
 import type { PageRevisionRow } from "./pages";
@@ -234,6 +236,19 @@ export async function loadHomepageForRender(
 
 // ---- draft read (preview only) -------------------------------------------
 
+function toLegacySnapshotSlots(
+  slots: ReadonlyArray<HomepageSnapshot["slots"][number]>,
+): LegacySnapshotSlot[] {
+  return slots.map((slot) => ({
+    slotKey: slot.slotKey,
+    sortOrder: slot.sortOrder,
+    sectionId: slot.sectionId,
+    sectionTypeKey: slot.sectionTypeKey,
+    name: slot.name,
+    props: slot.props,
+  }));
+}
+
 /**
  * Uncached draft homepage read — used ONLY when the preview cookie is
  * active for this tenant. Assembles a HomepageSnapshot-shaped payload
@@ -397,6 +412,25 @@ export async function loadDraftHomepage(
       props: s.props_jsonb ?? {},
     });
   }
+  const { data: revisionRow } = await supabase
+    .from("cms_page_revisions")
+    .select("snapshot")
+    .eq("tenant_id", tenantId)
+    .eq("page_id", page.id)
+    .eq("version", page.version)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+  const preferredBuilderTree =
+    revisionRow?.snapshot &&
+    typeof revisionRow.snapshot === "object" &&
+    "builderTree" in revisionRow.snapshot
+      ? revisionRow.snapshot.builderTree
+      : undefined;
+  const resolvedBuilderTree = resolveSnapshotBuilderTree({
+    slots: toLegacySnapshotSlots(slots),
+    builderTree: preferredBuilderTree,
+  });
 
   // Produce a HomepageSnapshot that renders through the same dispatcher
   // as the published snapshot.
@@ -415,6 +449,7 @@ export async function loadDraftHomepage(
     },
     templateSchemaVersion: page.template_schema_version,
     slots,
+    builderTree: resolvedBuilderTree.tree,
   };
 
   return {

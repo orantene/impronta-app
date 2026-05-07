@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
+import { nodePresentationSchema } from "../shared/node-presentation";
 
 /**
  * Featured talent section — surfaces directory cards on the homepage via
@@ -42,6 +43,15 @@ export const featuredTalentSchemaV1 = z.object({
   columnsDesktop: z.number().int().min(2).max(4).default(3),
   variant: z.enum(["grid", "carousel"]).default("grid"),
   footerCta: ctaSchema.optional(),
+  /** Optional child-node-level layout/style overrides (Phase 4 bridge). */
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+      footerCta: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

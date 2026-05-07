@@ -17,6 +17,7 @@
  */
 
 import { randomBytes } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   homepageMetadataSchema,
@@ -38,6 +39,9 @@ import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shel
 import { revalidateTag } from "next/cache";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import {
+  loadBuilderWorkspacePlan,
+} from "@/lib/site-admin/builder-capabilities";
+import {
   listAgencyVisibleSections,
   getSectionType,
   type SectionTypeKey,
@@ -53,6 +57,13 @@ import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { publishPageSnapshot } from "@/lib/site-admin/edit-mode/page-composer-action";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import {
+  buildLegacySectionBuilderTree,
+  type LegacySnapshotSlot,
+} from "@/lib/site-admin/builder-node/legacy-section-tree";
+import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
+import { isShellMutationAllowedForPlan } from "@/lib/site-admin/edit-mode/shell-plan-guard";
 
 // ── types ─────────────────────────────────────────────────────────────────
 
@@ -115,6 +126,13 @@ export interface CompositionData {
     noindex: boolean;
   };
   slots: Record<string, CompositionSectionRef[]>;
+  /**
+   * Phase 4 current-builder bridge. This mirrors the existing slot
+   * composition as typed section nodes so the live EditShell can gain node
+   * semantics without replacing the section renderer or creating a second
+   * builder surface.
+   */
+  builderTree: BuilderNodeTree;
   slotDefs: CompositionSlotDef[];
   library: CompositionLibraryEntry[];
   /** Locales available for the active tenant (read-only here — used for the
@@ -138,6 +156,7 @@ export type CreateAndInsertResult =
         name: string;
         sectionTypeKey: string;
         version: number;
+        props: Record<string, unknown>;
       };
       pageVersion: number;
     }
@@ -147,6 +166,77 @@ export type CreateAndInsertResult =
 
 function asLocale(raw: string): Locale | null {
   return isLocale(raw) ? raw : null;
+}
+
+function buildBuilderTreeFromCompositionSlots(
+  slots: Record<string, CompositionSectionRef[]>,
+): BuilderNodeTree {
+  const refs = Object.entries(slots).flatMap(([slotKey, rows]) =>
+    rows.map((row) => ({
+      slotKey,
+      sortOrder: row.sortOrder,
+      sectionId: row.sectionId,
+      sectionTypeKey: row.sectionTypeKey,
+      name: row.name,
+    })),
+  );
+  return buildLegacySectionBuilderTree(refs);
+}
+
+function resolveBuilderTreeForSnapshot(input: {
+  slots: ReadonlyArray<LegacySnapshotSlot>;
+  preferredBuilderTree?: unknown;
+}): BuilderNodeTree {
+  const resolved = resolveSnapshotBuilderTree({
+    slots: input.slots,
+    builderTree: input.preferredBuilderTree,
+  });
+  return resolved.tree;
+}
+
+async function guardShellPlanMutation(input: {
+  staffSupabase: SupabaseClient;
+  tenantId: string;
+  pageId?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string; code: "PLAN_RESTRICTED" }> {
+  if (!input.pageId) return { ok: true };
+
+  const { data: page, error: pageError } = await input.staffSupabase
+    .from("cms_pages")
+    .select("system_template_key")
+    .eq("tenant_id", input.tenantId)
+    .eq("id", input.pageId)
+    .maybeSingle<{ system_template_key: string | null }>();
+
+  if (pageError) {
+    return {
+      ok: false,
+      code: "PLAN_RESTRICTED",
+      error:
+        "Unable to verify shell edit permissions right now. Try again in a moment.",
+    };
+  }
+
+  if (page?.system_template_key !== "site_shell") return { ok: true };
+
+  const plan = await loadBuilderWorkspacePlan(input.staffSupabase, input.tenantId, {
+    logTag: "composition-shell-plan-guard",
+  });
+  if (
+    isShellMutationAllowedForPlan({
+      systemTemplateKey: page.system_template_key,
+      planTier: plan,
+    })
+  ) {
+    return { ok: true };
+  }
+
+  return {
+    ok: false,
+    code: "PLAN_RESTRICTED",
+    error:
+      "Site header and footer editing is locked on Free. Upgrade to Studio to unlock shell controls.",
+  };
 }
 
 // ── load ───────────────────────────────────────────────────────────────────
@@ -243,7 +333,7 @@ export async function loadHomepageCompositionAction(input: {
 
     const selectCols = `slot_key, section_id, sort_order, cms_sections:section_id(section_type_key, name, props_jsonb)`;
 
-    let { data: draftRows } = await admin
+    const { data: draftRows } = await admin
       .from("cms_page_sections")
       .select(selectCols)
       .eq("tenant_id", scope.tenantId)
@@ -266,6 +356,7 @@ export async function loadHomepageCompositionAction(input: {
     }
 
     const slots: Record<string, CompositionSectionRef[]> = {};
+    const legacyBuilderSlots: LegacySnapshotSlot[] = [];
     for (const row of sectionRows) {
       const sec = row.cms_sections;
       if (!sec) continue;
@@ -288,6 +379,14 @@ export async function loadHomepageCompositionAction(input: {
         name: sec.name,
         visibility,
       });
+      legacyBuilderSlots.push({
+        slotKey: row.slot_key,
+        sortOrder: row.sort_order,
+        sectionId: row.section_id,
+        sectionTypeKey: sec.section_type_key,
+        name: sec.name,
+        props: sec.props_jsonb ?? {},
+      });
     }
     for (const k of Object.keys(slots)) {
       slots[k]!.sort((a, b) => a.sortOrder - b.sortOrder);
@@ -306,6 +405,22 @@ export async function loadHomepageCompositionAction(input: {
           }))
         : [{ key: "body", label: "Body", required: false, allowedSectionTypes: null }];
 
+    const { data: revisionRow } = await admin
+      .from("cms_page_revisions")
+      .select("snapshot")
+      .eq("tenant_id", scope.tenantId)
+      .eq("page_id", pageRow.id)
+      .eq("version", pageRow.version)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+    const preferredBuilderTree =
+      revisionRow?.snapshot &&
+      typeof revisionRow.snapshot === "object" &&
+      "builderTree" in revisionRow.snapshot
+        ? revisionRow.snapshot.builderTree
+        : undefined;
+
     return {
       ok: true,
       data: {
@@ -323,6 +438,10 @@ export async function loadHomepageCompositionAction(input: {
           noindex: pageRow.noindex,
         },
         slots,
+        builderTree: resolveBuilderTreeForSnapshot({
+          slots: legacyBuilderSlots,
+          preferredBuilderTree,
+        }),
         slotDefs,
         library,
         availableLocales: localeSettings.supportedLocales,
@@ -415,6 +534,7 @@ export async function loadHomepageCompositionAction(input: {
         noindex: page.noindex,
       },
       slots,
+      builderTree: comp?.builderTree ?? buildBuilderTreeFromCompositionSlots(slots),
       slotDefs,
       library,
       availableLocales: localeSettings.supportedLocales,
@@ -443,6 +563,12 @@ export interface CompositionSaveInput {
     noindex?: boolean;
   };
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
+  /**
+   * Optional Phase 4 BuilderNode payload. Homepage save persists this in
+   * draft revisions so nested/container node structure survives reload and
+   * publish.
+   */
+  builderTree?: BuilderNodeTree;
 }
 
 /**
@@ -477,16 +603,47 @@ export async function saveHomepageCompositionAction(
   // ── non-homepage page save ─────────────────────────────────────────────
   if (input.pageId) {
     try {
+      const shellGuard = await guardShellPlanMutation({
+        staffSupabase: auth.supabase,
+        tenantId: scope.tenantId,
+        pageId: input.pageId,
+      });
+      if (!shellGuard.ok) return shellGuard;
+
       const admin = createServiceRoleClient();
       if (!admin) return { ok: false, error: "Server configuration error." };
 
       // CAS: load the current version.
       const { data: pageRow, error: loadErr } = await admin
         .from("cms_pages")
-        .select("id, version")
+        .select(
+          "id, locale, slug, template_key, system_template_key, is_system_owned, template_schema_version, title, status, body, hero, meta_title, meta_description, og_title, og_description, og_image_url, og_image_media_asset_id, noindex, include_in_sitemap, canonical_url, version",
+        )
         .eq("id", input.pageId)
         .eq("tenant_id", scope.tenantId)
-        .maybeSingle<{ id: string; version: number }>();
+        .maybeSingle<{
+          id: string;
+          locale: string;
+          slug: string | null;
+          template_key: string;
+          system_template_key: string | null;
+          is_system_owned: boolean;
+          template_schema_version: number;
+          title: string;
+          status: string;
+          body: string | null;
+          hero: Record<string, unknown> | null;
+          meta_title: string | null;
+          meta_description: string | null;
+          og_title: string | null;
+          og_description: string | null;
+          og_image_url: string | null;
+          og_image_media_asset_id: string | null;
+          noindex: boolean;
+          include_in_sitemap: boolean;
+          canonical_url: string | null;
+          version: number;
+        }>();
       if (loadErr || !pageRow) {
         return { ok: false, error: "Page not found.", code: "NOT_FOUND" };
       }
@@ -559,6 +716,94 @@ export async function saveHomepageCompositionAction(
         }
       }
 
+      const allSectionIds = Array.from(
+        new Set(
+          Object.values(input.slots)
+            .flatMap((entries) => entries ?? [])
+            .map((entry) => entry.sectionId),
+        ),
+      );
+      const factsById = new Map<
+        string,
+        {
+          section_type_key: string;
+          name: string;
+          props_jsonb: Record<string, unknown> | null;
+        }
+      >();
+      if (allSectionIds.length > 0) {
+        const { data: sectionRows } = await admin
+          .from("cms_sections")
+          .select("id, section_type_key, name, props_jsonb")
+          .eq("tenant_id", scope.tenantId)
+          .in("id", allSectionIds);
+        for (const row of sectionRows ?? []) {
+          factsById.set(row.id as string, {
+            section_type_key: row.section_type_key as string,
+            name: row.name as string,
+            props_jsonb: (row.props_jsonb as Record<string, unknown> | null) ?? {},
+          });
+        }
+      }
+
+      const compositionSnapshot: LegacySnapshotSlot[] = [];
+      for (const [slotKey, entries] of Object.entries(input.slots)) {
+        for (const entry of entries ?? []) {
+          const facts = factsById.get(entry.sectionId);
+          if (!facts) continue;
+          compositionSnapshot.push({
+            slotKey,
+            sortOrder: entry.sortOrder,
+            sectionId: entry.sectionId,
+            sectionTypeKey: facts.section_type_key,
+            name: facts.name,
+            props: facts.props_jsonb ?? {},
+          });
+        }
+      }
+      compositionSnapshot.sort((a, b) => {
+        if (a.slotKey < b.slotKey) return -1;
+        if (a.slotKey > b.slotKey) return 1;
+        return a.sortOrder - b.sortOrder;
+      });
+      const draftBuilderTree = resolveBuilderTreeForSnapshot({
+        slots: compositionSnapshot,
+        preferredBuilderTree: input.builderTree,
+      });
+
+      await admin.from("cms_page_revisions").insert({
+        tenant_id: scope.tenantId,
+        page_id: input.pageId,
+        kind: "draft",
+        version: nextVersion,
+        template_schema_version: pageRow.template_schema_version,
+        snapshot: {
+          locale: pageRow.locale,
+          slug: pageRow.slug,
+          template_key: pageRow.template_key,
+          system_template_key: pageRow.system_template_key,
+          is_system_owned: pageRow.is_system_owned,
+          template_schema_version: pageRow.template_schema_version,
+          title: input.metadata.title,
+          status: pageRow.status,
+          body: pageRow.body ?? "",
+          hero: pageRow.hero ?? {},
+          meta_title: pageRow.meta_title,
+          meta_description: input.metadata.metaDescription ?? null,
+          og_title: input.metadata.ogTitle ?? null,
+          og_description: input.metadata.ogDescription ?? null,
+          og_image_url: input.metadata.ogImageUrl ?? null,
+          og_image_media_asset_id: pageRow.og_image_media_asset_id,
+          noindex: input.metadata.noindex ?? false,
+          include_in_sitemap: pageRow.include_in_sitemap,
+          canonical_url: input.metadata.canonicalUrl ?? null,
+          version: nextVersion,
+          composition: compositionSnapshot,
+          builderTree: draftBuilderTree,
+        },
+        created_by: auth.user.id,
+      });
+
       return { ok: true, pageVersion: nextVersion };
     } catch (err) {
       logServerError("edit-mode/composition/save-page", err);
@@ -605,6 +850,7 @@ export async function saveHomepageCompositionAction(
     expectedVersion: input.expectedVersion,
     metadata: metadataParsed.data satisfies HomepageMetadataValues,
     slots: slotsParsed.data satisfies HomepageSlotsValues,
+    builderTree: input.builderTree,
   });
   if (!envelope.success) {
     return { ok: false, error: "Composition envelope failed validation." };
@@ -667,6 +913,7 @@ export async function createAndInsertSectionAction(input: {
   expectedVersion: number;
   metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
+  builderTree?: BuilderNodeTree;
   targetSlotKey: string;
   insertAfterSortOrder: number | null; // null → prepend (sort 0)
   sectionTypeKey: string;
@@ -684,6 +931,13 @@ export async function createAndInsertSectionAction(input: {
   if (!locale) {
     return { ok: false, error: `Unsupported locale "${input.locale}".` };
   }
+
+  const shellGuard = await guardShellPlanMutation({
+    staffSupabase: auth.supabase,
+    tenantId: scope.tenantId,
+    pageId: input.pageId,
+  });
+  if (!shellGuard.ok) return shellGuard;
 
   if (!(input.sectionTypeKey in SECTION_REGISTRY)) {
     return {
@@ -816,6 +1070,7 @@ export async function createAndInsertSectionAction(input: {
     expectedVersion: input.expectedVersion,
     metadata: input.metadata,
     slots: slotsCopy,
+    builderTree: input.builderTree,
   });
   if (!saveRes.ok) {
     return {
@@ -833,6 +1088,7 @@ export async function createAndInsertSectionAction(input: {
       name: created.name,
       sectionTypeKey: typeKey,
       version: created.version,
+      props: defaults.props,
     },
     pageVersion: saveRes.pageVersion,
   };
@@ -857,6 +1113,7 @@ export async function duplicateSectionAction(input: {
   expectedVersion: number;
   metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
+  builderTree?: BuilderNodeTree;
   sourceSectionId: string;
 }): Promise<CreateAndInsertResult> {
   const auth = await requireStaff();
@@ -872,6 +1129,13 @@ export async function duplicateSectionAction(input: {
   if (!locale) {
     return { ok: false, error: `Unsupported locale "${input.locale}".` };
   }
+
+  const shellGuard = await guardShellPlanMutation({
+    staffSupabase: auth.supabase,
+    tenantId: scope.tenantId,
+    pageId: input.pageId,
+  });
+  if (!shellGuard.ok) return shellGuard;
 
   // Find where the source lives in the current snapshot so we know which
   // slot to splice the duplicate into and at what position.
@@ -999,6 +1263,7 @@ export async function duplicateSectionAction(input: {
     expectedVersion: input.expectedVersion,
     metadata: input.metadata,
     slots: slotsCopy,
+    builderTree: input.builderTree,
   });
   if (!saveRes.ok) {
     return {
@@ -1016,6 +1281,7 @@ export async function duplicateSectionAction(input: {
       name: created.name,
       sectionTypeKey: typeKey,
       version: created.version,
+      props: (source.props_jsonb ?? {}) as Record<string, unknown>,
     },
     pageVersion: saveRes.pageVersion,
   };
@@ -1050,6 +1316,7 @@ export async function saveDraftHomepageAction(input: {
   expectedVersion: number;
   metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
+  builderTree?: BuilderNodeTree;
 }): Promise<SaveDraftResult> {
   const save = await saveHomepageCompositionAction({
     locale: input.locale,
@@ -1057,6 +1324,7 @@ export async function saveDraftHomepageAction(input: {
     expectedVersion: input.expectedVersion,
     metadata: input.metadata,
     slots: input.slots,
+    builderTree: input.builderTree,
   });
   if (!save.ok) {
     return {

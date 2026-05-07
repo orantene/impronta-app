@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const cardSchema = z.object({
@@ -15,6 +16,12 @@ export const magazineLayoutSchemaV1 = z.object({
   headline: z.string().max(200).optional(),
   hero: cardSchema,
   secondary: z.array(cardSchema).min(2).max(4),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

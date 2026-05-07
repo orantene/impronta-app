@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -20,6 +21,12 @@ export const valuesTrioSchemaV1 = z.object({
   numberStyle: z
     .enum(["serif-italic", "sans-large", "roman", "none"])
     .default("serif-italic"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

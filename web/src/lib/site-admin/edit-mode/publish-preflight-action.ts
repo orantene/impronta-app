@@ -21,13 +21,22 @@ import { requireTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import { validateSectionProps } from "@/lib/site-admin/forms/sections";
 import {
   findInvalidInquiryCtas,
   isSectionHidden,
 } from "./publish-preflight-rules";
+import {
+  classifyCanonicalIssue,
+  classifyHrefIssue,
+  collectLinkCandidates,
+} from "./publish-preflight-link-rules";
+import { collectLayoutOverflowRisks } from "./publish-preflight-layout-rules";
 import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talent/schema";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
+import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 export type PreflightSeverity = "error" | "warn";
 
@@ -39,7 +48,11 @@ export interface PreflightIssue {
     | "image_size"
     | "aria"
     | "cta"
-    | "featured_talent";
+    | "builder_payload"
+    | "featured_talent"
+    | "link_integrity"
+    | "seo"
+    | "layout";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
   message: string;
@@ -92,6 +105,16 @@ export async function runPublishPreflight(input?: {
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
   const locale = input?.locale?.trim() || DEFAULT_PLATFORM_LOCALE;
+  const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
+    logTag: "publish-preflight",
+  });
+  const { data: homepageMeta } = await auth.supabase
+    .from("cms_pages")
+    .select("canonical_url, noindex")
+    .eq("tenant_id", scope.tenantId)
+    .eq("locale", locale)
+    .eq("system_template_key", "homepage")
+    .maybeSingle<{ canonical_url: string | null; noindex: boolean | null }>();
 
   const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);
   const issues: PreflightIssue[] = [];
@@ -125,6 +148,33 @@ export async function runPublishPreflight(input?: {
     if (r.status === "archived") continue;
     const props = (r.props_jsonb as Record<string, unknown> | null) ?? {};
     const sectionName = cleanSectionName(r.name) || r.name;
+
+    // Schema drift guard: preflight should surface invalid payloads before the
+    // operator gets to "Publish". This catches legacy rows where shape drifted
+    // (including malformed nodePresentation) and turns it into an actionable
+    // blocking issue.
+    const propsValidation = validateSectionProps(
+      r.section_type_key,
+      r.schema_version,
+      props,
+    );
+    if (!propsValidation.ok) {
+      const issueHint =
+        propsValidation.issues && propsValidation.issues.length > 0
+          ? propsValidation.issues
+              .slice(0, 2)
+              .map((i) => `${i.path.join(".") || "props"}: ${i.message}`)
+              .join("; ")
+          : propsValidation.message;
+      issues.push({
+        severity: "error",
+        category: "builder_payload",
+        sectionId: r.id,
+        message: `${sectionName}: invalid section payload (${propsValidation.code}). ${issueHint}`,
+      });
+      // Skip secondary checks for payloads that don't parse safely.
+      continue;
+    }
 
     // Single-field image pairs
     const pairs = IMAGE_FIELD_PAIRS[r.section_type_key];
@@ -181,6 +231,31 @@ export async function runPublishPreflight(input?: {
       });
     }
 
+    // Generic link integrity audit.
+    for (const candidate of collectLinkCandidates(props)) {
+      const hrefIssue = classifyHrefIssue(candidate.href);
+      if (!hrefIssue) continue;
+      issues.push({
+        severity: hrefIssue.severity,
+        category: "link_integrity",
+        sectionId: r.id,
+        message: `${sectionName}: ${hrefIssue.message} (${candidate.path})`,
+      });
+    }
+
+    // Mobile/layout safety audit: long unbroken text can overflow small
+    // viewports even when section schema is valid.
+    for (const risk of collectLayoutOverflowRisks(props).slice(0, 2)) {
+      const preview =
+        risk.token.length > 24 ? `${risk.token.slice(0, 24)}…` : risk.token;
+      issues.push({
+        severity: "warn",
+        category: "layout",
+        sectionId: r.id,
+        message: `${sectionName}: possible mobile overflow from long unbroken text in ${risk.path} (${risk.length} chars: "${preview}").`,
+      });
+    }
+
     // Featured-talent publish guardrail — if a visible block resolves zero
     // cards, surface an actionable warning before publish.
     if (r.section_type_key === "featured_talent" && !isSectionHidden(props)) {
@@ -201,11 +276,14 @@ export async function runPublishPreflight(input?: {
               locale,
             );
             if (cards.length === 0) {
+              const freePlan = workspacePlan === "free";
               issues.push({
-                severity: "warn",
+                severity: freePlan ? "error" : "warn",
                 category: "featured_talent",
                 sectionId: r.id,
-                message: `${sectionName}: this visible featured roster block resolves zero public profiles. Add/publish roster people or adjust the source filter.`,
+                message: freePlan
+                  ? `${sectionName}: this visible featured roster block resolves zero public profiles. Free workspaces should publish up to five profiles before going live.`
+                  : `${sectionName}: this visible featured roster block resolves zero public profiles. Add/publish roster people or adjust the source filter.`,
               });
             }
           })(),
@@ -215,6 +293,50 @@ export async function runPublishPreflight(input?: {
   }
 
   await Promise.all(featuredChecks);
+
+  // SEO baseline audit.
+  for (const issue of classifyCanonicalIssue({
+    canonicalUrl: homepageMeta?.canonical_url ?? null,
+    noindex: homepageMeta?.noindex ?? false,
+  })) {
+    issues.push({
+      severity: issue.severity,
+      category: "seo",
+      message: issue.message,
+    });
+  }
+
+  // Locale completeness guardrail for multi-locale workspaces.
+  try {
+    const localeSettings = await loadTenantLocaleSettings(scope.tenantId);
+    const supportedLocales = localeSettings.supportedLocales ?? [];
+    if (supportedLocales.length > 1) {
+      const { data: homepageLocales } = await auth.supabase
+        .from("cms_pages")
+        .select("locale, status, published_homepage_snapshot")
+        .eq("tenant_id", scope.tenantId)
+        .eq("system_template_key", "homepage")
+        .in("locale", supportedLocales);
+      const byLocale = new Map(
+        (homepageLocales ?? []).map((row) => [row.locale as string, row]),
+      );
+      const missingPublishedLocales = supportedLocales.filter((supported) => {
+        const row = byLocale.get(supported);
+        if (!row) return true;
+        if (row.status !== "published") return true;
+        return row.published_homepage_snapshot == null;
+      });
+      if (missingPublishedLocales.length > 0) {
+        issues.push({
+          severity: "warn",
+          category: "seo",
+          message: `Missing published homepage snapshot for locale${missingPublishedLocales.length > 1 ? "s" : ""}: ${missingPublishedLocales.join(", ")}.`,
+        });
+      }
+    }
+  } catch {
+    // Locale completeness is best-effort.
+  }
 
   // ARIA landmark check — folded in Phase 0 sweep. Maps high/med/low →
   // error/warn/warn so operators see structurally-significant naming gaps
@@ -236,5 +358,23 @@ export async function runPublishPreflight(input?: {
     // Preflight is best-effort; ARIA check failures don't block publish.
   }
 
-  return { ok: true, issues };
+  const normalizedIssues =
+    workspacePlan === "free"
+      ? issues.map((issue) => {
+          const escalatesOnFree =
+            issue.severity === "warn" &&
+            (issue.category === "alt_text" ||
+              issue.category === "link_integrity" ||
+              issue.category === "seo");
+          return escalatesOnFree
+            ? {
+                ...issue,
+                severity: "error" as const,
+                message: `${issue.message} (Free publish policy)`,
+              }
+            : issue;
+        })
+      : issues;
+
+  return { ok: true, issues: normalizedIssues };
 }

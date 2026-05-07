@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const ctaSchema = z.object({
@@ -16,6 +17,15 @@ export const heroSplitSchemaV1 = z.object({
   imageAlt: z.string().max(200).optional(),
   side: z.enum(["media-right", "media-left"]).default("media-right"),
   variant: z.enum(["card", "fullbleed", "asymmetric"]).default("asymmetric"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+      primaryCta: nodePresentationSchema,
+      secondaryCta: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

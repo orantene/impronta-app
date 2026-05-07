@@ -78,6 +78,9 @@ local → push to phase-1 → Vercel builds preview → (optional) alias to stag
 - Tenant-isolation tests (`test:tenant-isolation`) run on every CI invocation. **Do not disable.**
 - One Playwright smoke test exists at `web/e2e/smoke.spec.ts` — login → builder → publish → share-link. Run before prod promotion when you've changed surfaces this touches.
 - No automated post-deploy verification — `scripts/smoke-prod.sh` is the manual check.
+- Impronta-focused quick gates:
+  - `npm run verify:impronta:tenant` for tenant/builder/snapshot guardrails
+  - `npm run verify:impronta:live` for live Impronta domain + routing checks
 
 ## 8. Decision Log
 

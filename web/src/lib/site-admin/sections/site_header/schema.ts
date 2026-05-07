@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -78,6 +79,12 @@ export const siteHeaderSchemaV1 = z.object({
       showLanguageToggle: true,
       showDiscoveryTools: true,
     }),
+  nodePresentation: z
+    .object({
+      headline: nodePresentationSchema,
+      primaryCta: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

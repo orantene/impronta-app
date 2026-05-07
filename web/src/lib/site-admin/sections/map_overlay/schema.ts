@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 function isAllowedMapUrl(value: string): boolean {
@@ -35,6 +36,13 @@ export const mapOverlaySchemaV1 = z.object({
   }),
   side: z.enum(["card-left", "card-right", "card-bottom"]).default("card-left"),
   ratio: z.enum(["16/9", "4/3", "1/1", "21/9"]).default("16/9"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

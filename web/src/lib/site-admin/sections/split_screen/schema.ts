@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const ctaSchema = z.object({
@@ -24,6 +25,15 @@ export const splitScreenSchemaV1 = z.object({
     .default("50-50"),
   verticalAlign: z.enum(["top", "center", "bottom"]).default("center"),
   stickyMedia: z.boolean().default(false),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+      primaryCta: nodePresentationSchema,
+      secondaryCta: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

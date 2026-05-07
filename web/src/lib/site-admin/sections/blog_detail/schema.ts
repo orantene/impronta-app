@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 export const blogDetailSchemaV1 = z.object({
@@ -10,6 +11,13 @@ export const blogDetailSchemaV1 = z.object({
   heroImageAlt: z.string().max(200).optional(),
   body: z.string().max(20000),
   pullQuote: z.string().max(400).optional(),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

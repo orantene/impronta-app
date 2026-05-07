@@ -22,7 +22,9 @@ import {
   CtaDuoEditor,
   type CtaShape,
 } from "./kit";
+import { useEffect, useMemo, useRef } from "react";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
 type Variant = "centered-overlay" | "split-image" | "minimal-band";
 type BandTone = "ivory" | "champagne" | "espresso" | "blush";
@@ -31,6 +33,7 @@ type ImageSide = "left" | "right";
 interface Props {
   draftProps: Record<string, unknown>;
   tenantId: string;
+  selectedBuilderNodeId: string | null;
   onChange: (next: Record<string, unknown>) => void;
 }
 
@@ -71,6 +74,7 @@ function cleanObject<T extends Record<string, unknown>>(o: T): T {
 export function CtaBannerContentInspector({
   draftProps,
   tenantId,
+  selectedBuilderNodeId,
   onChange,
 }: Props) {
   const eyebrow = (draftProps.eyebrow as string | undefined) ?? "";
@@ -87,6 +91,46 @@ export function CtaBannerContentInspector({
   const overlayOpacity =
     (draftProps.overlayOpacity as number | undefined) ?? 40;
   const insetCard = (draftProps.insetCard as boolean | undefined) ?? true;
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const focusRole = useMemo(() => {
+    if (!selectedBuilderNodeId) return null;
+    const role = resolveBuilderNodeRole(selectedBuilderNodeId);
+    if (
+      role === "subheadline" ||
+      role === "headline" ||
+      role === "copy" ||
+      role === "primaryCta" ||
+      role === "secondaryCta"
+    ) {
+      return role;
+    }
+    return null;
+  }, [selectedBuilderNodeId]);
+
+  const focusLabel = useMemo(() => {
+    if (focusRole === "subheadline") return "Eyebrow";
+    if (focusRole === "headline") return "Headline";
+    if (focusRole === "copy") return "Supporting copy";
+    if (focusRole === "primaryCta") return "Primary CTA";
+    if (focusRole === "secondaryCta") return "Secondary CTA";
+    return null;
+  }, [focusRole]);
+
+  useEffect(() => {
+    if (!focusRole) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-cta-banner-node-role="${focusRole}"]`,
+    );
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const focusable = target.querySelector<HTMLElement>(
+      "[contenteditable='true'],input,textarea,select,button",
+    );
+    focusable?.focus({ preventScroll: true });
+  }, [focusRole]);
 
   function update(patch: Record<string, unknown>) {
     onChange(cleanObject({ ...draftProps, ...patch }));
@@ -95,9 +139,21 @@ export function CtaBannerContentInspector({
   const usesImage = variant === "centered-overlay" || variant === "split-image";
 
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={rootRef} className="flex flex-col gap-6">
+      {focusRole && focusLabel ? (
+        <div
+          className="rounded-lg border px-3 py-2 text-xs font-medium"
+          style={{
+            borderColor: "#bfdbfe",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+          }}
+        >
+          Editing selected canvas node: {focusLabel}
+        </div>
+      ) : null}
       <InspectorGroup title="Message">
-        <div className={KIT.field}>
+        <div className={KIT.field} data-cta-banner-node-role="subheadline">
           <label className={KIT.label}>Eyebrow</label>
           <input
             type="text"
@@ -108,7 +164,7 @@ export function CtaBannerContentInspector({
             onChange={(e) => update({ eyebrow: e.target.value || undefined })}
           />
         </div>
-        <div className={KIT.field}>
+        <div className={KIT.field} data-cta-banner-node-role="headline">
           <label className={KIT.label}>Headline</label>
           <RichEditor
             value={headline}
@@ -119,7 +175,7 @@ export function CtaBannerContentInspector({
             ariaLabel="Headline"
           />
         </div>
-        <div className={KIT.field}>
+        <div className={KIT.field} data-cta-banner-node-role="copy">
           <label className={KIT.label}>Supporting copy</label>
           <RichEditor
             value={copy}
@@ -151,6 +207,8 @@ export function CtaBannerContentInspector({
           onChangeSecondary={(next) =>
             update({ secondaryCta: next ?? undefined })
           }
+          primaryNodeRole="primaryCta"
+          secondaryNodeRole="secondaryCta"
         />
       </InspectorGroup>
 

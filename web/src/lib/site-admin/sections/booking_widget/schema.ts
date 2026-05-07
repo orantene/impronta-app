@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 function isAllowedBookingUrl(value: string): boolean {
@@ -32,6 +33,14 @@ export const bookingWidgetSchemaV1 = z.object({
   ratio: z.enum(["16/9", "4/3", "1/1", "5/4"]).default("4/3"),
   /** Inline-only: minimum height in px (overrides ratio when set). */
   minHeight: z.number().int().min(300).max(1600).optional(),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+      primaryCta: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

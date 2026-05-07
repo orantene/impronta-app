@@ -4,8 +4,10 @@ Date: 2026-05-06
 
 Primary product plan:
 
+- `docs/saas/page-builder-premium-2026-final-product-plan.md`
 - `docs/saas/builder-2-product-architecture-plan.md`
 - `docs/saas/page-builder-package-audit-2026-05-06.md`
+- `docs/saas/builder-ownership-snapshot-qa-checklist.md`
 
 This document is the execution runbook for a long Codex implementation pass.
 It is designed so an implementation agent can complete Phase 1 through Phase 3
@@ -414,12 +416,16 @@ Deliverables:
 - Component registry contract.
 - Tree validation.
 - Snapshot type extension.
-- One passive renderer that can render a simple node tree.
+- Current renderer bridge: validate/use `builderTree` when present, fall back
+  to section slots, and expose stable node identity on existing section
+  wrappers.
 
 Exit gate:
 
 - Existing section builder still works.
-- One experimental hidden route/test can render a small node tree.
+- No separate prototype route or duplicate builder surface is introduced.
+- Current EditShell/Navigator/Inspector can read node identity from the live
+  storefront DOM.
 
 ## Phase 5 - First Componentized Section
 
@@ -487,4 +493,3 @@ At the end of the marathon, report:
 - Next recommended phase.
 
 Keep the report factual. No marketing copy.
-

@@ -12,6 +12,11 @@ const activeAdmin = {
   account_status: "active",
 };
 
+const activeAgencyStaff = {
+  app_role: "agency_staff",
+  account_status: "active",
+};
+
 const activeTalent = {
   app_role: "talent",
   account_status: "active",
@@ -149,6 +154,9 @@ test("post-auth redirects cross-role dashboard targets to the user's home", () =
   assert.equal(resolvePostAuthDestination(activeClient, "/admin"), "/client");
   assert.equal(resolvePostAuthDestination(activeTalent, "/client"), "/talent");
   assert.equal(resolvePostAuthDestination(activeAdmin, "/talent/overview"), "/admin");
+  assert.equal(resolvePostAuthDestination(activeAgencyStaff, "/impronta/talent"), "/admin");
+  assert.equal(resolvePostAuthDestination(activeClient, "/impronta/admin/site"), "/client");
+  assert.equal(resolvePostAuthDestination(activeTalent, "/impronta/admin/site"), "/talent");
 });
 
 test("post-auth honors public and locale-prefixed directory paths", () => {
@@ -172,6 +180,27 @@ test("post-auth still sends password recovery to update-password", () => {
 
 test("post-auth maps bare / to role home for active users", () => {
   assert.equal(resolvePostAuthDestination(activeTalent, "/"), "/talent");
+});
+
+test("post-auth honors tenant-scoped dashboard next paths for the matching active role", () => {
+  assert.equal(
+    resolvePostAuthDestination(activeAgencyStaff, "/impronta/admin/site"),
+    "/impronta/admin/site",
+  );
+  assert.equal(
+    resolvePostAuthDestination(activeTalent, "/impronta/talent/inbox"),
+    "/impronta/talent/inbox",
+  );
+  assert.equal(
+    resolvePostAuthDestination(activeClient, "/impronta/client/inquiries/new"),
+    "/impronta/client/inquiries/new",
+  );
+});
+
+test("post-auth rejects external or protocol-relative next paths", () => {
+  assert.equal(resolvePostAuthDestination(activeAgencyStaff, "https://evil.example/admin"), "/admin");
+  assert.equal(resolvePostAuthDestination(activeAgencyStaff, "//evil.example/admin"), "/admin");
+  assert.equal(resolvePostAuthDestination(activeAgencyStaff, "/api/admin/search"), "/admin");
 });
 
 test("active users may continue into workspace signup onboarding", () => {

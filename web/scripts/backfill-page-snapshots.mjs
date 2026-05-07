@@ -18,6 +18,9 @@
  *
  *   node --env-file=.env.local scripts/backfill-page-snapshots.mjs \
  *     --tenant <tenant-uuid> --locale en --apply
+ *
+ *   node --env-file=.env.local scripts/backfill-page-snapshots.mjs \
+ *     --all-active --apply
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -27,6 +30,7 @@ function parseArgs(argv) {
     tenant: null,
     locale: null,
     apply: false,
+    allActive: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -42,6 +46,10 @@ function parseArgs(argv) {
     }
     if (a === "--apply") {
       out.apply = true;
+      continue;
+    }
+    if (a === "--all-active") {
+      out.allActive = true;
       continue;
     }
   }
@@ -60,10 +68,44 @@ function needsBackfill(row) {
   return row.published_page_snapshot == null;
 }
 
+function snapshotColumnForKind(kind) {
+  return kind === "homepage"
+    ? "published_homepage_snapshot"
+    : "published_page_snapshot";
+}
+
+function snapshotFromRow(row) {
+  return inferKind(row) === "homepage"
+    ? row.published_homepage_snapshot
+    : row.published_page_snapshot;
+}
+
+function needsBuilderTreeBackfill(row) {
+  const snapshot = snapshotFromRow(row);
+  if (!snapshot || typeof snapshot !== "object") return false;
+  const slots = Array.isArray(snapshot.slots) ? snapshot.slots : [];
+  if (slots.length === 0) return false;
+  return snapshot.builderTree == null;
+}
+
 function introTaglineFromHero(hero) {
   if (!hero || typeof hero !== "object") return null;
   const value = hero.introTagline;
   return typeof value === "string" ? value : null;
+}
+
+function buildLegacySectionBuilderTree(slots) {
+  return slots.map((slot) => ({
+    id: `legacy:${slot.slotKey}:${slot.sortOrder}:${slot.sectionId}`,
+    kind: "section",
+    props: {
+      sectionId: slot.sectionId,
+      sectionTypeKey: slot.sectionTypeKey,
+      label: slot.name,
+      slotKey: slot.slotKey,
+      sortOrder: slot.sortOrder,
+    },
+  }));
 }
 
 function buildSnapshot({ row, sourceRows, sectionFacts, nowIso }) {
@@ -103,6 +145,7 @@ function buildSnapshot({ row, sourceRows, sectionFacts, nowIso }) {
       },
       templateSchemaVersion: row.template_schema_version ?? 1,
       slots,
+      builderTree: buildLegacySectionBuilderTree(slots),
     },
   };
 }
@@ -182,30 +225,36 @@ async function writeAuditRow(supabase, payload) {
   }
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
-  if (!args.tenant) {
-    console.error("Usage: --tenant <tenant-uuid> [--locale <locale>] [--apply]");
+async function loadTargetTenants(supabase, args) {
+  if (args.tenant) return [args.tenant];
+
+  if (!args.allActive) {
+    console.error(
+      "Usage: --tenant <tenant-uuid> [--locale <locale>] [--apply] OR --all-active [--locale <locale>] [--apply]",
+    );
     process.exit(1);
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in env.");
+  const { data, error } = await supabase
+    .from("agencies")
+    .select("id, slug, status")
+    .not("status", "in", "(cancelled,archived)");
+  if (error) {
+    console.error(`Couldn't load active tenants: ${error.message}`);
     process.exit(1);
   }
+  return (data ?? []).map((row) => row.id);
+}
 
-  const supabase = createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+async function backfillTenant(supabase, tenantId, args) {
+  const nowIso = new Date().toISOString();
 
   const pagesQ = supabase
     .from("cms_pages")
     .select(
-      "id, tenant_id, locale, slug, title, status, system_template_key, template_schema_version, version, published_at, meta_description, hero, published_homepage_snapshot, published_page_snapshot",
+      "id, tenant_id, locale, slug, title, body, status, system_template_key, template_schema_version, version, published_at, meta_description, hero, published_homepage_snapshot, published_page_snapshot",
     )
-    .eq("tenant_id", args.tenant)
+    .eq("tenant_id", tenantId)
     .eq("status", "published")
     .order("locale", { ascending: true })
     .order("title", { ascending: true });
@@ -217,8 +266,9 @@ async function main() {
     process.exit(1);
   }
 
-  const candidates = (allRows ?? []).filter(needsBackfill);
-  const nowIso = new Date().toISOString();
+  const candidates = (allRows ?? []).filter(
+    (row) => needsBackfill(row) || needsBuilderTreeBackfill(row),
+  );
 
   const results = [];
   let applied = 0;
@@ -227,7 +277,93 @@ async function main() {
 
   for (const row of candidates) {
     const kind = inferKind(row);
-    const source = await loadSourceRows(supabase, args.tenant, row.id);
+    const snapshotMissing = needsBackfill(row);
+    const snapshotColumn = snapshotColumnForKind(kind);
+
+    if (!snapshotMissing && needsBuilderTreeBackfill(row)) {
+      const existingSnapshot = snapshotFromRow(row);
+      const slots = Array.isArray(existingSnapshot?.slots)
+        ? existingSnapshot.slots
+        : [];
+      const enrichedSnapshot = {
+        ...existingSnapshot,
+        builderTree: buildLegacySectionBuilderTree(slots),
+      };
+      if (!args.apply) {
+        results.push({
+          pageId: row.id,
+          locale: row.locale,
+          slug: row.slug,
+          kind,
+          status: "would_apply",
+          sourceMode: "enrich_builder_tree",
+          convertedLegacyBody: false,
+          sectionCount: slots.length,
+          writeColumn: snapshotColumn,
+          nextVersion: row.version + 1,
+        });
+        continue;
+      }
+
+      const { error: updateErr } = await supabase
+        .from("cms_pages")
+        .update({
+          [snapshotColumn]: enrichedSnapshot,
+          version: row.version + 1,
+          updated_at: nowIso,
+        })
+        .eq("id", row.id)
+        .eq("tenant_id", tenantId)
+        .eq("version", row.version);
+      if (updateErr) {
+        failed += 1;
+        results.push({
+          pageId: row.id,
+          locale: row.locale,
+          slug: row.slug,
+          kind,
+          status: "failed",
+          error: updateErr.message,
+        });
+        continue;
+      }
+
+      await writeAuditRow(supabase, {
+        tenant_id: tenantId,
+        actor_profile_id: null,
+        actor_role: "system",
+        action: `agency.site_admin.snapshot_backfill.${kind}`,
+        target_type: "cms_pages",
+        target_id: row.id,
+        severity: "info",
+        reason: "builder_tree_enrichment",
+        metadata: {
+          source_mode: "enrich_builder_tree",
+          section_count: slots.length,
+          previous_version: row.version,
+          next_version: row.version + 1,
+          write_column: snapshotColumn,
+        },
+        created_at: nowIso,
+      });
+
+      applied += 1;
+      results.push({
+        pageId: row.id,
+        locale: row.locale,
+        slug: row.slug,
+        kind,
+        status: "applied",
+        sourceMode: "enrich_builder_tree",
+        convertedLegacyBody: false,
+        sectionCount: slots.length,
+        writeColumn: snapshotColumn,
+        nextVersion: row.version + 1,
+      });
+      continue;
+    }
+
+    const source = await loadSourceRows(supabase, tenantId, row.id);
     if (!source.ok) {
       failed += 1;
       results.push({
@@ -241,7 +377,82 @@ async function main() {
       continue;
     }
 
-    const sourceRows = source.rows ?? [];
+    let sourceRows = source.rows ?? [];
+    let convertedLegacyBody = false;
+    let convertedSourceMode = null;
+    let convertedSectionId = null;
+    if (sourceRows.length === 0 && (kind === "standard_page" || kind === "homepage")) {
+      if (!args.apply) {
+        const canConvertStandard =
+          kind === "standard_page" &&
+          typeof row.body === "string" &&
+          row.body.trim().length > 0;
+        const canConvertStandardTitle =
+          kind === "standard_page" &&
+          !canConvertStandard &&
+          typeof row.title === "string" &&
+          row.title.trim().length > 0;
+        const canConvertHomepage =
+          kind === "homepage" &&
+          typeof row.title === "string" &&
+          row.title.trim().length > 0;
+        if (canConvertStandard || canConvertStandardTitle || canConvertHomepage) {
+          const sourceMode = canConvertHomepage
+            ? "convert_legacy_homepage"
+            : canConvertStandard
+              ? "convert_legacy_body"
+              : "convert_legacy_standard_title";
+          results.push({
+            pageId: row.id,
+            locale: row.locale,
+            slug: row.slug,
+            kind,
+            status: "would_apply",
+            sourceMode,
+            convertedLegacyBody: true,
+            sectionCount: 1,
+            writeColumn:
+              kind === "homepage"
+                ? "published_homepage_snapshot"
+                : "published_page_snapshot",
+            nextVersion: row.version + 1,
+          });
+          continue;
+        }
+      }
+      let conversion;
+      if (kind === "homepage") {
+        conversion = await tryConvertLegacyHomepageToSection(supabase, tenantId, row);
+      } else {
+        const fromBody = await tryConvertLegacyBodyToSection(supabase, tenantId, row);
+        if (fromBody.ok || fromBody.reason !== "no_body_to_convert") {
+          conversion = fromBody;
+        } else {
+          conversion = await tryConvertLegacyStandardTitleToSection(supabase, tenantId, row);
+        }
+      }
+      if (conversion.ok) {
+        sourceRows = conversion.rows;
+        convertedLegacyBody = true;
+        convertedSourceMode = conversion.sourceMode;
+        convertedSectionId = conversion.createdSectionId;
+      } else if (
+        conversion.reason !== "no_body_to_convert" &&
+        conversion.reason !== "no_homepage_title_to_convert" &&
+        conversion.reason !== "no_standard_title_to_convert"
+      ) {
+        failed += 1;
+        results.push({
+          pageId: row.id,
+          locale: row.locale,
+          slug: row.slug,
+          kind,
+          status: "failed",
+          error: conversion.reason,
+        });
+        continue;
+      }
+    }
     if (sourceRows.length === 0) {
       skipped += 1;
       results.push({
@@ -256,7 +467,7 @@ async function main() {
     }
 
     const sectionIds = [...new Set(sourceRows.map((r) => r.section_id))];
-    const factsRes = await loadSectionFacts(supabase, args.tenant, sectionIds);
+    const factsRes = await loadSectionFacts(supabase, tenantId, sectionIds);
     if (!factsRes.ok) {
       failed += 1;
       results.push({
@@ -290,8 +501,7 @@ async function main() {
     }
 
     const nextVersion = row.version + 1;
-    const writeColumn =
-      kind === "homepage" ? "published_homepage_snapshot" : "published_page_snapshot";
+    const writeColumn = snapshotColumn;
 
     if (!args.apply) {
       results.push({
@@ -300,7 +510,11 @@ async function main() {
         slug: row.slug,
         kind,
         status: "would_apply",
-        sourceMode: source.sourceMode,
+        sourceMode: convertedLegacyBody && convertedSourceMode
+          ? convertedSourceMode
+          : source.sourceMode,
+        convertedLegacyBody,
+        convertedSectionId,
         sectionCount: built.snapshot.slots.length,
         writeColumn,
         nextVersion,
@@ -319,7 +533,7 @@ async function main() {
       .from("cms_pages")
       .update(updatePatch)
       .eq("id", row.id)
-      .eq("tenant_id", args.tenant)
+      .eq("tenant_id", tenantId)
       .eq("version", row.version);
     if (updErr) {
       failed += 1;
@@ -334,7 +548,7 @@ async function main() {
       continue;
     }
 
-    const liveSync = await syncLiveRows(supabase, args.tenant, row.id, sourceRows);
+    const liveSync = await syncLiveRows(supabase, tenantId, row.id, sourceRows);
     if (!liveSync.ok) {
       failed += 1;
       results.push({
@@ -348,8 +562,13 @@ async function main() {
       continue;
     }
 
+    const effectiveSourceMode =
+      convertedLegacyBody && convertedSourceMode
+        ? convertedSourceMode
+        : source.sourceMode;
+
     await writeAuditRow(supabase, {
-      tenant_id: args.tenant,
+      tenant_id: tenantId,
       actor_profile_id: null,
       actor_role: "system",
       action: `agency.site_admin.snapshot_backfill.${kind}`,
@@ -358,7 +577,7 @@ async function main() {
       severity: "info",
       reason: "published_snapshot_backfill",
       metadata: {
-        source_mode: source.sourceMode,
+        source_mode: effectiveSourceMode,
         section_count: built.snapshot.slots.length,
         previous_version: row.version,
         next_version: nextVersion,
@@ -374,15 +593,17 @@ async function main() {
       slug: row.slug,
       kind,
       status: "applied",
-      sourceMode: source.sourceMode,
+      sourceMode: effectiveSourceMode,
+      convertedLegacyBody,
+      convertedSectionId,
       sectionCount: built.snapshot.slots.length,
       writeColumn,
       nextVersion,
     });
   }
 
-  const summary = {
-    tenantId: args.tenant,
+  return {
+    tenantId,
     locale: args.locale ?? null,
     dryRun: !args.apply,
     scannedPublishedRows: (allRows ?? []).length,
@@ -392,8 +613,226 @@ async function main() {
     failed,
     results,
   };
+}
 
-  console.log(JSON.stringify(summary, null, 2));
+async function tryConvertLegacyBodyToSection(supabase, tenantId, pageRow) {
+  const rawBody = typeof pageRow.body === "string" ? pageRow.body : "";
+  const body = rawBody.trim();
+  if (!body) return { ok: false, reason: "no_body_to_convert" };
+
+  const sectionName = `${pageRow.title} — migrated body`;
+  const blogProps = {
+    category: undefined,
+    date: undefined,
+    title: pageRow.title,
+    byline: undefined,
+    heroImageUrl: undefined,
+    heroImageAlt: undefined,
+    body,
+    pullQuote: undefined,
+    presentation: {},
+  };
+
+  const { data: section, error: secErr } = await supabase
+    .from("cms_sections")
+    .insert({
+      tenant_id: tenantId,
+      section_type_key: "blog_detail",
+      name: sectionName,
+      props_jsonb: blogProps,
+      status: "published",
+      schema_version: 1,
+      version: 1,
+      created_by: null,
+      updated_by: null,
+    })
+    .select("id")
+    .single();
+  if (secErr || !section) {
+    return { ok: false, reason: `section_create_failed:${secErr?.message ?? "unknown"}` };
+  }
+
+  const inserted = {
+    section_id: section.id,
+    slot_key: "body",
+    sort_order: 0,
+  };
+  return {
+    ok: true,
+    rows: [inserted],
+    createdSectionId: section.id,
+    sourceMode: "converted_legacy_body",
+  };
+}
+
+async function tryConvertLegacyStandardTitleToSection(supabase, tenantId, pageRow) {
+  const headline =
+    typeof pageRow.title === "string" ? pageRow.title.trim() : "";
+  if (!headline) return { ok: false, reason: "no_standard_title_to_convert" };
+
+  const subheadline =
+    typeof pageRow.meta_description === "string" &&
+    pageRow.meta_description.trim().length > 0
+      ? pageRow.meta_description.trim().slice(0, 240)
+      : undefined;
+
+  const heroProps = {
+    headline,
+    subheadline,
+    primaryCta: undefined,
+    secondaryCta: undefined,
+    backgroundMediaAssetId: undefined,
+    overlay: "gradient-scrim",
+    mood: "editorial",
+    slides: undefined,
+    autoplayMs: undefined,
+    presentation: {},
+  };
+
+  const sectionName = `${headline} — migrated page hero`;
+  const { data: section, error: secErr } = await supabase
+    .from("cms_sections")
+    .insert({
+      tenant_id: tenantId,
+      section_type_key: "hero",
+      name: sectionName,
+      props_jsonb: heroProps,
+      status: "published",
+      schema_version: 1,
+      version: 1,
+      created_by: null,
+      updated_by: null,
+    })
+    .select("id")
+    .single();
+  if (secErr || !section) {
+    return {
+      ok: false,
+      reason: `standard_title_section_create_failed:${secErr?.message ?? "unknown"}`,
+    };
+  }
+
+  return {
+    ok: true,
+    rows: [
+      {
+        section_id: section.id,
+        slot_key: "hero",
+        sort_order: 0,
+      },
+    ],
+    createdSectionId: section.id,
+    sourceMode: "converted_legacy_standard_title",
+  };
+}
+
+async function tryConvertLegacyHomepageToSection(supabase, tenantId, pageRow) {
+  const headline =
+    typeof pageRow.title === "string" ? pageRow.title.trim() : "";
+  if (!headline) return { ok: false, reason: "no_homepage_title_to_convert" };
+
+  const subheadline =
+    typeof pageRow.meta_description === "string" &&
+    pageRow.meta_description.trim().length > 0
+      ? pageRow.meta_description.trim().slice(0, 240)
+      : undefined;
+
+  const heroProps = {
+    headline,
+    subheadline,
+    primaryCta: undefined,
+    secondaryCta: undefined,
+    backgroundMediaAssetId: undefined,
+    overlay: "gradient-scrim",
+    mood: "editorial",
+    slides: undefined,
+    autoplayMs: undefined,
+    presentation: {},
+  };
+
+  const sectionName = `${headline} — migrated homepage hero`;
+  const { data: section, error: secErr } = await supabase
+    .from("cms_sections")
+    .insert({
+      tenant_id: tenantId,
+      section_type_key: "hero",
+      name: sectionName,
+      props_jsonb: heroProps,
+      status: "published",
+      schema_version: 1,
+      version: 1,
+      created_by: null,
+      updated_by: null,
+    })
+    .select("id")
+    .single();
+  if (secErr || !section) {
+    return {
+      ok: false,
+      reason: `homepage_section_create_failed:${secErr?.message ?? "unknown"}`,
+    };
+  }
+
+  return {
+    ok: true,
+    rows: [
+      {
+        section_id: section.id,
+        slot_key: "hero",
+        sort_order: 0,
+      },
+    ],
+    createdSectionId: section.id,
+    sourceMode: "converted_legacy_homepage",
+  };
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in env.");
+    process.exit(1);
+  }
+
+  const supabase = createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const targetTenants = await loadTargetTenants(supabase, args);
+  const summaries = [];
+  let totals = {
+    scannedPublishedRows: 0,
+    candidates: 0,
+    applied: 0,
+    skipped: 0,
+    failed: 0,
+  };
+
+  for (const tenantId of targetTenants) {
+    summaries.push(await backfillTenant(supabase, tenantId, args));
+  }
+
+  for (const summary of summaries) {
+    totals.scannedPublishedRows += summary.scannedPublishedRows;
+    totals.candidates += summary.candidates;
+    totals.applied += summary.applied;
+    totals.skipped += summary.skipped;
+    totals.failed += summary.failed;
+  }
+
+  const output = {
+    mode: args.allActive ? "all-active" : "single-tenant",
+    tenantCount: targetTenants.length,
+    locale: args.locale ?? null,
+    dryRun: !args.apply,
+    totals,
+    summaries,
+  };
+
+  console.log(JSON.stringify(output, null, 2));
 }
 
 main().catch((error) => {

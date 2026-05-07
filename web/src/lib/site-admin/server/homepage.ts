@@ -75,6 +75,13 @@ import type {
   HomepageRestoreRevisionValues,
   HomepageSaveDraftValues,
 } from "@/lib/site-admin/forms/homepage";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/legacy-section-tree";
+import {
+  resolveSnapshotBuilderTree,
+  resolveSnapshotBuilderTreeForPublish,
+  summarizeBuilderTreeIssues,
+} from "@/lib/site-admin/builder-node/snapshot-tree";
 
 import type { PageRow } from "./pages";
 
@@ -127,6 +134,11 @@ export interface HomepageSnapshot {
   };
   templateSchemaVersion: number;
   slots: HomepageSnapshotSection[];
+  /**
+   * Phase 4 foundation: optional typed node tree for componentized rendering.
+   * Legacy section-slot snapshots omit this field.
+   */
+  builderTree?: BuilderNodeTree | null;
 }
 
 const PAGE_COLUMNS = `
@@ -263,9 +275,10 @@ async function insertHomepageRevision(
 function buildRevisionSnapshot(args: {
   page: PageRow;
   composition: HomepageSnapshotSection[];
+  builderTree?: BuilderNodeTree | null;
   kind: "draft" | "published" | "rollback";
 }): Record<string, unknown> {
-  return {
+  const snapshot: Record<string, unknown> = {
     kind: args.kind,
     page: {
       locale: args.page.locale,
@@ -291,6 +304,10 @@ function buildRevisionSnapshot(args: {
     },
     composition: args.composition,
   };
+  if (args.builderTree && args.builderTree.length > 0) {
+    snapshot.builderTree = args.builderTree;
+  }
+  return snapshot;
 }
 
 async function loadSectionFactsBulk(
@@ -353,6 +370,30 @@ function buildSnapshotSlots(
     return a.sortOrder - b.sortOrder;
   });
   return out;
+}
+
+function toLegacySnapshotSlots(
+  composition: ReadonlyArray<HomepageSnapshotSection>,
+): LegacySnapshotSlot[] {
+  return composition.map((entry) => ({
+    slotKey: entry.slotKey,
+    sortOrder: entry.sortOrder,
+    sectionId: entry.sectionId,
+    sectionTypeKey: entry.sectionTypeKey,
+    name: entry.name,
+    props: entry.props,
+  }));
+}
+
+function resolveBuilderTreeForComposition(input: {
+  composition: ReadonlyArray<HomepageSnapshotSection>;
+  preferredBuilderTree?: unknown;
+}): BuilderNodeTree {
+  const resolved = resolveSnapshotBuilderTree({
+    slots: toLegacySnapshotSlots(input.composition),
+    builderTree: input.preferredBuilderTree,
+  });
+  return resolved.tree;
 }
 
 // ---- ensureHomepageRow ---------------------------------------------------
@@ -740,6 +781,10 @@ export async function saveHomepageDraftComposition(
 
   // --- revision snapshot (draft) ---
   const compositionSnapshot = buildSnapshotSlots(values.slots, factsById);
+  const draftBuilderTree = resolveBuilderTreeForComposition({
+    composition: compositionSnapshot,
+    preferredBuilderTree: values.builderTree,
+  });
   await insertHomepageRevision(supabase, {
     tenantId,
     pageId: updatedPage.id,
@@ -749,6 +794,7 @@ export async function saveHomepageDraftComposition(
     snapshot: buildRevisionSnapshot({
       page: updatedPage,
       composition: compositionSnapshot,
+      builderTree: draftBuilderTree,
       kind: "draft",
     }),
     actorProfileId,
@@ -952,6 +998,32 @@ export async function publishHomepage(
     slotsForSnapshot[r.slot_key] = arr;
   }
   const compositionSnapshot = buildSnapshotSlots(slotsForSnapshot, factsById);
+  const { data: revisionRow } = await supabase
+    .from("cms_page_revisions")
+    .select("snapshot")
+    .eq("tenant_id", tenantId)
+    .eq("page_id", beforeRow.id)
+    .eq("version", beforeRow.version)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+  const preferredBuilderTree =
+    revisionRow?.snapshot &&
+    typeof revisionRow.snapshot === "object" &&
+    "builderTree" in revisionRow.snapshot
+      ? revisionRow.snapshot.builderTree
+      : undefined;
+  const publishedBuilderTreeResolved = resolveSnapshotBuilderTreeForPublish({
+    slots: toLegacySnapshotSlots(compositionSnapshot),
+    builderTree: preferredBuilderTree,
+  });
+  if (!publishedBuilderTreeResolved.ok) {
+    return fail(
+      "PUBLISH_NOT_READY",
+      `Draft builder structure is invalid. Save homepage draft again before publishing. ${summarizeBuilderTreeIssues(publishedBuilderTreeResolved.issues)}`,
+    );
+  }
+  const publishedBuilderTree = publishedBuilderTreeResolved.tree;
 
   const nowIso = new Date().toISOString();
   const nextVersion = beforeRow.version + 1;
@@ -974,6 +1046,7 @@ export async function publishHomepage(
     },
     templateSchemaVersion: homepageTemplate.currentVersion,
     slots: compositionSnapshot,
+    builderTree: publishedBuilderTree,
   };
 
   // --- apply publish ---
@@ -1045,6 +1118,7 @@ export async function publishHomepage(
     snapshot: buildRevisionSnapshot({
       page: afterRow,
       composition: compositionSnapshot,
+      builderTree: publishedBuilderTree,
       kind: "published",
     }),
     actorProfileId,
@@ -1080,6 +1154,7 @@ interface StoredRevisionSnapshot {
     hero?: Record<string, unknown> | null;
   };
   composition?: HomepageSnapshotSection[];
+  builderTree?: unknown;
 }
 
 /**
@@ -1182,6 +1257,10 @@ export async function restoreHomepageRevision(
       keptComposition.push(entry);
     }
   }
+  const rollbackBuilderTree = resolveBuilderTreeForComposition({
+    composition: keptComposition,
+    preferredBuilderTree: snap.builderTree,
+  });
 
   // Apply page-field rollback + CAS-bump version.
   const nextVersion = beforeRow.version + 1;
@@ -1247,6 +1326,7 @@ export async function restoreHomepageRevision(
     snapshot: buildRevisionSnapshot({
       page: updatedPage,
       composition: keptComposition,
+      builderTree: rollbackBuilderTree,
       kind: "rollback",
     }),
     actorProfileId,

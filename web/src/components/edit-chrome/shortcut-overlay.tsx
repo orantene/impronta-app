@@ -30,12 +30,14 @@
 import { useEffect } from "react";
 
 import {
+  filterVisibleShortcuts,
   SHORTCUTS,
   SHORTCUT_CATEGORY_LABELS,
   type ShortcutCategory,
 } from "./kit/shortcuts";
 import { KbdSequence } from "./kit/kbd";
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit/tokens";
+import { useEditContext } from "./edit-context";
 
 interface ShortcutOverlayProps {
   open: boolean;
@@ -52,6 +54,7 @@ const CATEGORY_ORDER: ReadonlyArray<ShortcutCategory> = [
 ];
 
 export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
+  const { canEditSiteShell } = useEditContext();
   // Escape close lives both here (when focus is within the overlay) and
   // in edit-shell.tsx (so background focus still dismisses). Two layers
   // of safety net so a stray click anywhere can't strand the modal.
@@ -78,7 +81,10 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
     history: [],
     selection: [],
   };
-  for (const s of SHORTCUTS) {
+  const visibleShortcuts = filterVisibleShortcuts(SHORTCUTS, {
+    canEditSiteShell,
+  });
+  for (const s of visibleShortcuts) {
     buckets[s.category] = [...buckets[s.category], s];
   }
 

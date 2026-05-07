@@ -36,6 +36,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
+import {
+  resolveSnapshotBuilderTreeForPublish,
+  summarizeBuilderTreeIssues,
+} from "@/lib/site-admin/builder-node/snapshot-tree";
 
 export interface ComposablePageRow {
   id: string;
@@ -225,6 +229,31 @@ export async function publishPageSnapshot(input: {
       error: "Draft references only archived sections — un-archive or remove them first.",
     };
   }
+  const { data: revisionRow } = await admin
+    .from("cms_page_revisions")
+    .select("snapshot")
+    .eq("tenant_id", scope.tenantId)
+    .eq("page_id", input.pageId)
+    .eq("version", page.version)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+  const preferredBuilderTree =
+    revisionRow?.snapshot &&
+    typeof revisionRow.snapshot === "object" &&
+    "builderTree" in revisionRow.snapshot
+      ? revisionRow.snapshot.builderTree
+      : undefined;
+  const resolvedBuilderTree = resolveSnapshotBuilderTreeForPublish({
+    slots,
+    builderTree: preferredBuilderTree,
+  });
+  if (!resolvedBuilderTree.ok) {
+    return {
+      ok: false,
+      error: `Draft builder structure is invalid. Save the page draft again before publishing. ${summarizeBuilderTreeIssues(resolvedBuilderTree.issues)}`,
+    };
+  }
 
   const snapshot: HomepageSnapshot = {
     version: 1,
@@ -238,6 +267,7 @@ export async function publishPageSnapshot(input: {
     },
     templateSchemaVersion: (page.template_schema_version ?? 1) as number,
     slots,
+    builderTree: resolvedBuilderTree.tree,
   };
 
   // Atomic-ish: bump version + write snapshot + flip draft rows to live.

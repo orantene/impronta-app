@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const logoSchema = z.object({
@@ -13,6 +14,12 @@ export const logoCloudSchemaV1 = z.object({
   logos: z.array(logoSchema).min(2).max(40),
   columnsDesktop: z.number().int().min(3).max(8).default(6),
   variant: z.enum(["mono", "color", "muted"]).default("muted"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

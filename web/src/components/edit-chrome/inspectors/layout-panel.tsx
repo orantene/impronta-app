@@ -31,9 +31,21 @@ import {
   PRESENTATION_OPTIONS,
   type CustomLength,
 } from "@/lib/site-admin/sections/shared/presentation";
+import type {
+  BuilderAccordionNode,
+  BuilderCarouselNode,
+  BuilderContainerNode,
+  BuilderMasonryNode,
+  BuilderNode,
+  BuilderNodeTree,
+  BuilderSpacerNode,
+  BuilderSplitNode,
+  BuilderTabsNode,
+} from "@/lib/site-admin/builder-node";
 
-import { useState, type ReactElement } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 
+import { useEditContext } from "../edit-context";
 import { NumberUnit, type LengthUnit } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { CHROME } from "../kit/tokens";
@@ -42,6 +54,7 @@ const SECTION_TITLE =
   "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500";
 const FIELD_LABEL =
   "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
+const HINT = "text-[10.5px] leading-tight text-zinc-500";
 const INHERIT_HINT = "text-[10.5px] text-zinc-400";
 
 interface LayoutPanelProps {
@@ -363,8 +376,566 @@ function LengthRow({
 
 const SPACING_UNITS: readonly LengthUnit[] = ["px", "rem", "em"];
 const CONTAINER_UNITS: readonly LengthUnit[] = ["px", "rem", "%", "vw"];
+const NODE_LAYOUT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "stack", label: "Stack" },
+  { value: "row", label: "Row" },
+  { value: "grid", label: "Grid" },
+];
+const NODE_GAP_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "s", label: "S" },
+  { value: "m", label: "M" },
+  { value: "l", label: "L" },
+];
+const NODE_ALIGN_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "end", label: "End" },
+  { value: "stretch", label: "Stretch" },
+];
+const GRID_COLUMNS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "1", label: "1" },
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+  { value: "4", label: "4" },
+];
+const SPLIT_RATIO_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "50-50", label: "50 / 50" },
+  { value: "40-60", label: "40 / 60" },
+  { value: "60-40", label: "60 / 40" },
+  { value: "30-70", label: "30 / 70" },
+  { value: "70-30", label: "70 / 30" },
+];
+const CAROUSEL_AUTOPLAY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Off" },
+  { value: "3000", label: "3s" },
+  { value: "6000", label: "6s" },
+  { value: "9000", label: "9s" },
+  { value: "12000", label: "12s" },
+];
+const CAROUSEL_SLIDES_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "1", label: "1" },
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+  { value: "4", label: "4" },
+];
+const MASONRY_COLUMNS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+  { value: "4", label: "4" },
+  { value: "5", label: "5" },
+];
+const SPACER_SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "s", label: "S" },
+  { value: "m", label: "M" },
+  { value: "l", label: "L" },
+];
+
+type AdvancedEditableBuilderNode =
+  | BuilderContainerNode
+  | BuilderSplitNode
+  | BuilderAccordionNode
+  | BuilderTabsNode
+  | BuilderCarouselNode
+  | BuilderMasonryNode
+  | BuilderSpacerNode;
+
+type ContainerResponsiveViewport = "tablet" | "mobile";
+
+function findBuilderNodeById(
+  tree: BuilderNodeTree,
+  nodeId: string | null,
+): BuilderNode | null {
+  if (!nodeId) return null;
+  const walk = (nodes: BuilderNodeTree): BuilderNode | null => {
+    for (const node of nodes) {
+      if (node.id === nodeId) return node;
+      if ("children" in node && Array.isArray(node.children)) {
+        const nested = walk(node.children);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  };
+  return walk(tree);
+}
+
+function nodeKindLabel(kind: AdvancedEditableBuilderNode["kind"]): string {
+  switch (kind) {
+    case "container":
+      return "Container";
+    case "split":
+      return "Split";
+    case "accordion":
+      return "Accordion";
+    case "tabs":
+      return "Tabs";
+    case "carousel":
+      return "Carousel";
+    case "masonry":
+      return "Masonry";
+    case "spacer":
+      return "Spacer";
+  }
+}
+
+function cleanContainerResponsive(
+  responsive: BuilderContainerNode["props"]["responsive"] | undefined,
+) {
+  if (!responsive) return undefined;
+  const next: NonNullable<BuilderContainerNode["props"]["responsive"]> = {};
+  for (const viewport of ["tablet", "mobile"] as const) {
+    const value = responsive[viewport];
+    if (!value) continue;
+    const cleaned = Object.fromEntries(
+      Object.entries(value).filter(([, entry]) => entry !== undefined),
+    );
+    if (Object.keys(cleaned).length > 0) {
+      next[viewport] = cleaned;
+    }
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label
+      className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-2"
+      style={{
+        background: CHROME.paper,
+        border: `1px solid ${CHROME.line}`,
+      }}
+    >
+      <span className="flex flex-col">
+        <span className="text-[11.5px] font-semibold text-zinc-700">{label}</span>
+        <span className="text-[10.5px] text-zinc-500">{hint}</span>
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 cursor-pointer"
+      />
+    </label>
+  );
+}
+
+function ContainerResponsiveEditor({
+  viewport,
+  value,
+  onPatch,
+}: {
+  viewport: ContainerResponsiveViewport;
+  value: NonNullable<BuilderContainerNode["props"]["responsive"]>[ContainerResponsiveViewport];
+  onPatch: (
+    key: "layout" | "gap" | "columns" | "align",
+    next: string | number | undefined,
+  ) => void;
+}) {
+  const label = viewport === "tablet" ? "Tablet" : "Mobile";
+
+  return (
+    <div
+      className="flex flex-col gap-2 rounded-md p-3"
+      style={{ background: CHROME.paper, border: `1px solid ${CHROME.line}` }}
+    >
+      <div className="flex items-center justify-between">
+        <span className={FIELD_LABEL}>{label}</span>
+        <span className={INHERIT_HINT}>
+          {value ? "Override active" : "Inherit desktop"}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className={FIELD_LABEL}>Layout</span>
+        <Segmented
+          fullWidth
+          compact
+          value={value?.layout ?? ""}
+          onChange={(next) => onPatch("layout", next || undefined)}
+          options={[{ value: "", label: "Inherit" }, ...NODE_LAYOUT_OPTIONS]}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Gap</span>
+          <Segmented
+            fullWidth
+            compact
+            value={value?.gap ?? ""}
+            onChange={(next) => onPatch("gap", next || undefined)}
+            options={[{ value: "", label: "Auto" }, ...NODE_GAP_OPTIONS]}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Align</span>
+          <Segmented
+            fullWidth
+            compact
+            value={value?.align ?? ""}
+            onChange={(next) => onPatch("align", next || undefined)}
+            options={[{ value: "", label: "Auto" }, ...NODE_ALIGN_OPTIONS]}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className={FIELD_LABEL}>Columns</span>
+        <Segmented
+          fullWidth
+          compact
+          value={String(value?.columns ?? "")}
+          onChange={(next) =>
+            onPatch("columns", next ? Number.parseInt(next, 10) : undefined)
+          }
+          options={[{ value: "", label: "Auto" }, ...GRID_COLUMNS_OPTIONS]}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AdvancedNodeLayoutEditor({
+  node,
+  onPatch,
+}: {
+  node: AdvancedEditableBuilderNode;
+  onPatch: (patch: Record<string, unknown>) => void;
+}) {
+  if (node.kind === "container") {
+    const responsive = node.props.responsive;
+    const patchResponsive = (
+      viewport: ContainerResponsiveViewport,
+      key: "layout" | "gap" | "columns" | "align",
+      next: string | number | undefined,
+    ) => {
+      const nextResponsive: NonNullable<BuilderContainerNode["props"]["responsive"]> = {
+        ...(responsive ?? {}),
+        [viewport]: {
+          ...(responsive?.[viewport] ?? {}),
+          [key]: next,
+        },
+      };
+      onPatch({ responsive: cleanContainerResponsive(nextResponsive) });
+    };
+
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Layout</span>
+            <Segmented
+              fullWidth
+              compact
+              value={node.props.layout}
+              onChange={(next) => onPatch({ layout: next })}
+              options={NODE_LAYOUT_OPTIONS}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Gap</span>
+            <Segmented
+              fullWidth
+              compact
+              value={node.props.gap ?? "m"}
+              onChange={(next) => onPatch({ gap: next })}
+              options={NODE_GAP_OPTIONS}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Columns</span>
+            <Segmented
+              fullWidth
+              compact
+              value={String(node.props.columns ?? "")}
+              onChange={(next) =>
+                onPatch({
+                  columns:
+                    node.props.layout === "grid" && next
+                      ? Number.parseInt(next, 10)
+                      : undefined,
+                })
+              }
+              options={
+                node.props.layout === "grid"
+                  ? GRID_COLUMNS_OPTIONS
+                  : [{ value: "", label: "Only for grid" }]
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Align</span>
+            <Segmented
+              fullWidth
+              compact
+              value={node.props.align ?? "stretch"}
+              onChange={(next) => onPatch({ align: next })}
+              options={NODE_ALIGN_OPTIONS}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className={FIELD_LABEL}>Responsive overrides</span>
+            {!responsive ? (
+              <span className={INHERIT_HINT}>Desktop only</span>
+            ) : null}
+          </div>
+          <ContainerResponsiveEditor
+            viewport="tablet"
+            value={responsive?.tablet}
+            onPatch={(key, next) => patchResponsive("tablet", key, next)}
+          />
+          <ContainerResponsiveEditor
+            viewport="mobile"
+            value={responsive?.mobile}
+            onPatch={(key, next) => patchResponsive("mobile", key, next)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (node.kind === "split") {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Column ratio</span>
+          <Segmented
+            fullWidth
+            compact
+            value={node.props.ratio ?? "50-50"}
+            onChange={(next) => onPatch({ ratio: next })}
+            options={SPLIT_RATIO_OPTIONS}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Gap</span>
+          <Segmented
+            fullWidth
+            compact
+            value={node.props.gap ?? "m"}
+            onChange={(next) => onPatch({ gap: next })}
+            options={NODE_GAP_OPTIONS}
+          />
+        </div>
+        <ToggleRow
+          label="Collapse on mobile"
+          hint="Stack the two columns vertically on mobile."
+          checked={Boolean(node.props.collapseOnMobile)}
+          onChange={(next) => onPatch({ collapseOnMobile: next || undefined })}
+        />
+      </div>
+    );
+  }
+
+  if (node.kind === "accordion") {
+    const defaultOpenItemIds = new Set(node.props.defaultOpenItemIds ?? []);
+    const items = node.children.filter(
+      (child): child is BuilderAccordionNode["children"][number] & { kind: "accordion_item" } =>
+        child.kind === "accordion_item",
+    );
+    return (
+      <div className="flex flex-col gap-3">
+        <ToggleRow
+          label="Allow multiple open"
+          hint="Visitors can expand more than one item at the same time."
+          checked={Boolean(node.props.allowMultiple)}
+          onChange={(next) => onPatch({ allowMultiple: next || undefined })}
+        />
+        {items.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            <span className={FIELD_LABEL}>Default open items</span>
+            {items.map((item) => {
+              const checked = defaultOpenItemIds.has(item.id);
+              return (
+                <label
+                  key={item.id}
+                  className="flex items-center justify-between rounded-md px-2.5 py-2"
+                  style={{
+                    background: CHROME.paper,
+                    border: `1px solid ${CHROME.line}`,
+                  }}
+                >
+                  <span className="text-[11.5px] text-zinc-700">{item.props.title}</span>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const next = new Set(defaultOpenItemIds);
+                      if (e.target.checked) next.add(item.id);
+                      else next.delete(item.id);
+                      onPatch({
+                        defaultOpenItemIds:
+                          next.size > 0 ? Array.from(next) : undefined,
+                      });
+                    }}
+                    className="h-4 w-4 cursor-pointer"
+                  />
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <span className={HINT}>Add accordion items in Structure to define defaults.</span>
+        )}
+      </div>
+    );
+  }
+
+  if (node.kind === "tabs") {
+    const panels = node.children.filter(
+      (child): child is BuilderTabsNode["children"][number] & { kind: "tab_panel" } =>
+        child.kind === "tab_panel",
+    );
+    return (
+      <div className="flex flex-col gap-3">
+        {panels.length > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Default tab</span>
+            <select
+              value={node.props.defaultTabId ?? ""}
+              onChange={(e) =>
+                onPatch({ defaultTabId: e.target.value || undefined })
+              }
+              className="w-full px-2"
+              style={{
+                height: 30,
+                fontSize: 12.5,
+                background: CHROME.surface2,
+                border: `1px solid ${CHROME.lineMid}`,
+                borderRadius: 6,
+                color: CHROME.ink,
+                outline: "none",
+              }}
+            >
+              <option value="">First tab</option>
+              {panels.map((panel) => (
+                <option key={panel.id} value={panel.id}>
+                  {panel.props.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <span className={HINT}>Add tab panels in Structure to choose a default tab.</span>
+        )}
+      </div>
+    );
+  }
+
+  if (node.kind === "carousel") {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Slides per view</span>
+            <Segmented
+              fullWidth
+              compact
+              value={String(node.props.slidesPerView ?? "1")}
+              onChange={(next) =>
+                onPatch({ slidesPerView: Number.parseInt(next, 10) })
+              }
+              options={CAROUSEL_SLIDES_OPTIONS}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Autoplay</span>
+            <Segmented
+              fullWidth
+              compact
+              value={String(node.props.autoplayMs ?? "")}
+              onChange={(next) =>
+                onPatch({
+                  autoplayMs: next ? Number.parseInt(next, 10) : undefined,
+                })
+              }
+              options={CAROUSEL_AUTOPLAY_OPTIONS}
+            />
+          </div>
+        </div>
+        <ToggleRow
+          label="Loop slides"
+          hint="Wrap from the last slide back to the first."
+          checked={Boolean(node.props.loop)}
+          onChange={(next) => onPatch({ loop: next || undefined })}
+        />
+        <ToggleRow
+          label="Show arrows"
+          hint="Render previous and next arrow controls."
+          checked={Boolean(node.props.showArrows)}
+          onChange={(next) => onPatch({ showArrows: next || undefined })}
+        />
+        <ToggleRow
+          label="Show dots"
+          hint="Render pagination dots below the slider."
+          checked={Boolean(node.props.showDots)}
+          onChange={(next) => onPatch({ showDots: next || undefined })}
+        />
+      </div>
+    );
+  }
+
+  if (node.kind === "masonry") {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Columns</span>
+            <Segmented
+              fullWidth
+              compact
+              value={String(node.props.columns ?? "3")}
+              onChange={(next) => onPatch({ columns: Number.parseInt(next, 10) })}
+              options={MASONRY_COLUMNS_OPTIONS}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Gap</span>
+            <Segmented
+              fullWidth
+              compact
+              value={node.props.gap ?? "m"}
+              onChange={(next) => onPatch({ gap: next })}
+              options={NODE_GAP_OPTIONS}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (node.kind === "spacer") {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <span className={FIELD_LABEL}>Spacer size</span>
+        <Segmented
+          fullWidth
+          compact
+          value={node.props.size}
+          onChange={(next) => onPatch({ size: next })}
+          options={SPACER_SIZE_OPTIONS}
+        />
+      </div>
+    );
+  }
+
+  return null;
+}
 
 export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
+  const { builderTree, selectedBuilderNodeId, patchBuilderNodeProps } =
+    useEditContext();
   const val = (key: string): string =>
     (presentation[key] as string | undefined) ?? "";
 
@@ -426,9 +997,50 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
   const alignValue = val("align");
   const mobileStackValue = val("mobileStack");
   const visibilityValue = val("visibility");
+  const selectedBuilderNode = useMemo(() => {
+    const resolved = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+    if (!resolved) return null;
+    switch (resolved.kind) {
+      case "container":
+      case "split":
+      case "accordion":
+      case "tabs":
+      case "carousel":
+      case "masonry":
+      case "spacer":
+        return resolved;
+      default:
+        return null;
+    }
+  }, [builderTree, selectedBuilderNodeId]);
 
   return (
     <div className="flex flex-col gap-6">
+      {selectedBuilderNode ? (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className={SECTION_TITLE}>Selected node</div>
+            <span className={INHERIT_HINT}>
+              {nodeKindLabel(selectedBuilderNode.kind)}
+            </span>
+          </div>
+          <div
+            className="rounded-md p-3"
+            style={{
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.line}`,
+            }}
+          >
+            <AdvancedNodeLayoutEditor
+              node={selectedBuilderNode}
+              onPatch={(patch) => {
+                void patchBuilderNodeProps(selectedBuilderNode.id, patch);
+              }}
+            />
+          </div>
+        </section>
+      ) : null}
+
       {/* ── Container ────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

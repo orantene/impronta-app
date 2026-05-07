@@ -10,7 +10,7 @@
  *   footer with Save draft (left) + Cancel + Publish now (right).
  *
  * Body cards:
- *   1. Preview thumbnail + stats (sections live / changes since publish)
+ *   1. Preview thumbnail + stats (sections ready / changes since publish)
  *   2. Page settings mini (title + meta description, with "Open full"
  *      link to the dedicated PageSettingsDrawer)
  *   3. Search preview (Google SERP-style triplet, derived from page
@@ -19,20 +19,26 @@
  *      primary list; legacy slots collapse behind a disclosure.
  *
  * Things that aren't wired yet (intentional, called out in code):
- *   - Last-published timestamp + author (no schema field; renders "—")
- *   - Per-section diff against live snapshot (no diff engine yet; the
- *     "What's going live" list shows all draft sections instead of
- *     edited/added/removed badges)
+ *   - Last-published author (no schema field; renders "—")
  *   - Save draft checkpoint (no `saveNamedDraftAction` yet — Phase 4)
  *
  * Each placeholder is visible in the chrome but disabled / labelled so
  * the operator sees the design contract while the data model catches up.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { publishHomepageFromEditModeAction } from "@/lib/site-admin/edit-mode/composition-actions";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
+import {
+  loadPublishedSnapshotRowsAction,
+  type PublishedSnapshotRow,
+} from "@/lib/site-admin/edit-mode/publish-diff-action";
+import {
+  diffPublishedRows,
+  type PublishDiffRow,
+  type SectionChangeKind,
+} from "@/lib/site-admin/edit-mode/publish-diff";
 import {
   Card,
   CardAction,
@@ -54,6 +60,16 @@ import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 
 const TITLE_MAX = 60;
 const DESC_MAX = 160;
+
+function formatPublishedAt(value: string | null): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 
 type PublishState =
@@ -130,6 +146,43 @@ function ChevronDown({ flipped }: { flipped?: boolean }) {
   );
 }
 
+function ChangeBadge({ kind }: { kind: SectionChangeKind }) {
+  if (kind === "unchanged") return null;
+  const palette =
+    kind === "added"
+      ? {
+          bg: "rgba(34,197,94,0.10)",
+          border: "rgba(34,197,94,0.35)",
+          text: "#166534",
+          label: "Added",
+        }
+      : {
+          bg: "rgba(59,130,246,0.10)",
+          border: "rgba(59,130,246,0.35)",
+          text: "#1d4ed8",
+          label: "Moved",
+        };
+  return (
+    <span
+      style={{
+        marginLeft: 8,
+        borderRadius: 999,
+        border: `1px solid ${palette.border}`,
+        background: palette.bg,
+        color: palette.text,
+        fontSize: 10,
+        fontWeight: 700,
+        lineHeight: 1,
+        padding: "3px 7px",
+        textTransform: "uppercase",
+        letterSpacing: "0.03em",
+      }}
+    >
+      {palette.label}
+    </span>
+  );
+}
+
 // ── input styling helpers (mini page-settings card) ─────────────────────────
 
 function miniInputStyle(): React.CSSProperties {
@@ -181,11 +234,23 @@ export function PublishDrawer() {
   const [host, setHost] = useState("");
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflightBlockingErrors, setPreflightBlockingErrors] = useState(0);
+  const [publishedRows, setPublishedRows] = useState<
+    ReadonlyArray<PublishedSnapshotRow> | null
+  >(null);
+  const [lastPublishedAt, setLastPublishedAt] = useState<string | null>(null);
+  const [publishedRowsLoading, setPublishedRowsLoading] = useState(false);
 
   // Local mini-edit working copy for the page-settings card. Resyncs from
   // upstream metadata on open; commits via savePageMetadata on blur.
   const [miniTitle, setMiniTitle] = useState<string>("");
   const [miniDesc, setMiniDesc] = useState<string>("");
+  const handlePreflightStatusChange = useCallback(
+    (status: { loading: boolean; blockingErrors: number }) => {
+      setPreflightLoading(status.loading);
+      setPreflightBlockingErrors(status.blockingErrors);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined") setHost(window.location.host);
@@ -197,10 +262,34 @@ export function PublishDrawer() {
       setShowLegacy(false);
       setPreflightLoading(true);
       setPreflightBlockingErrors(0);
+      setPublishedRows(null);
+      setLastPublishedAt(null);
+      setPublishedRowsLoading(false);
       setMiniTitle(pageMetadata?.title ?? "");
       setMiniDesc(pageMetadata?.metaDescription ?? "");
     }
   }, [publishOpen, pageMetadata]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!publishOpen || !pageId) return;
+    setPublishedRowsLoading(true);
+    void (async () => {
+      const result = await loadPublishedSnapshotRowsAction({ pageId });
+      if (cancelled) return;
+      if (result.ok) {
+        setPublishedRows(result.rows);
+        setLastPublishedAt(result.publishedAt);
+      } else {
+        setPublishedRows(null);
+        setLastPublishedAt(null);
+      }
+      setPublishedRowsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publishOpen, pageId]);
 
   const summary = useMemo(() => {
     type Row = {
@@ -210,7 +299,7 @@ export function PublishDrawer() {
       required: boolean;
       count: number;
       missingRequired: boolean;
-      sections: Array<{ id: string; name: string }>;
+      sections: Array<{ id: string; name: string; sortOrder: number }>;
     };
     const rows: Row[] = slotDefs.map((def) => {
       const entries = slots[def.key] ?? [];
@@ -225,6 +314,7 @@ export function PublishDrawer() {
         sections: entries.map((e) => ({
           id: e.sectionId,
           name: cleanSectionName(e.name),
+          sortOrder: e.sortOrder,
         })),
       };
     });
@@ -244,6 +334,52 @@ export function PublishDrawer() {
       missing,
     };
   }, [slots, slotDefs]);
+
+  const publishDiff = useMemo(() => {
+    const draftRows: PublishDiffRow[] = summary.rows.flatMap((row) =>
+      row.sections.map((section) => ({
+        sectionId: section.id,
+        slotKey: row.key,
+        sortOrder: section.sortOrder,
+      })),
+    );
+    if (!publishedRows) {
+      return {
+        loading: publishedRowsLoading,
+        summary: {
+          added: 0,
+          removed: 0,
+          moved: 0,
+          total: 0,
+        },
+        draftSectionChanges: new Map<string, SectionChangeKind>(),
+        removedSectionIds: [] as string[],
+      };
+    }
+    const liveRows: PublishDiffRow[] = publishedRows.map((row) => ({
+      sectionId: row.sectionId,
+      slotKey: row.slotKey,
+      sortOrder: row.sortOrder,
+    }));
+    return {
+      loading: false,
+      ...diffPublishedRows(draftRows, liveRows),
+    };
+  }, [summary.rows, publishedRows, publishedRowsLoading]);
+
+  const removedLiveSections = useMemo(() => {
+    if (!publishedRows || publishDiff.removedSectionIds.length === 0) return [];
+    const byId = new Map(
+      publishedRows.map((row) => [row.sectionId, row] as const),
+    );
+    return publishDiff.removedSectionIds
+      .map((sectionId) => byId.get(sectionId))
+      .filter((row): row is PublishedSnapshotRow => Boolean(row))
+      .map((row) => ({
+        sectionId: row.sectionId,
+        name: cleanSectionName(row.name) || row.name,
+      }));
+  }, [publishDiff.removedSectionIds, publishedRows]);
 
   async function handlePublish() {
     if (pageVersion === null) return;
@@ -311,28 +447,15 @@ export function PublishDrawer() {
 
   // Header meta line — schema for `lastPublishedAt` lands later; for now
   // surface the just-published timestamp from the in-flight success state
-  // when available, else a quiet em-dash placeholder. We keep the field
-  // visible so the design contract reads correctly.
+  // when available, otherwise the current row's `published_at` value.
   const headerMeta: React.ReactNode = isSuccess ? (
     <span>
       Just published ·{" "}
-      <span style={{ color: CHROME.muted2 }}>
-        {(state as Extract<PublishState, { kind: "success" }>).publishedAt
-          ? new Date(
-              (state as Extract<PublishState, { kind: "success" }>)
-                .publishedAt,
-            ).toLocaleString(undefined, {
-              hour: "numeric",
-              minute: "2-digit",
-              month: "short",
-              day: "numeric",
-            })
-          : "—"}
-      </span>
+      <span style={{ color: CHROME.muted2 }}>{formatPublishedAt((state as Extract<PublishState, { kind: "success" }>).publishedAt)}</span>
     </span>
   ) : (
     <span>
-      Last published <span style={{ color: CHROME.muted2 }}>—</span>
+      Last published <span style={{ color: CHROME.muted2 }}>{formatPublishedAt(lastPublishedAt)}</span>
     </span>
   );
 
@@ -358,12 +481,10 @@ export function PublishDrawer() {
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}
             <div style={{ marginBottom: 12 }}>
               <PublishPreflight
+                enabled={publishOpen}
                 refreshKey={publishOpen ? 1 : 0}
                 locale={locale}
-                onStatusChange={(status) => {
-                  setPreflightLoading(status.loading);
-                  setPreflightBlockingErrors(status.blockingErrors);
-                }}
+                onStatusChange={handlePreflightStatusChange}
               />
             </div>
             {/* ── Preview thumbnail + stats ───────────────────────── */}
@@ -374,15 +495,32 @@ export function PublishDrawer() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <StatLine
                       count={summary.totalSections}
-                      label={`section${summary.totalSections === 1 ? "" : "s"} live`}
+                      label={`section${summary.totalSections === 1 ? "" : "s"} ready`}
                       tone="ink"
                     />
                     <StatLine
-                      count={dirty ? "•" : 0}
+                      count={publishDiff.loading ? "…" : publishDiff.summary.total}
                       label="changes since last publish"
                       tone="blue"
-                      muted={!dirty}
+                      muted={
+                        publishDiff.loading
+                          ? false
+                          : publishDiff.summary.total === 0
+                      }
                     />
+                    {!publishDiff.loading && publishDiff.summary.total > 0 ? (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          fontSize: 10.5,
+                          color: CHROME.muted2,
+                        }}
+                      >
+                        +{publishDiff.summary.added} added ·{" "}
+                        {publishDiff.summary.moved} moved · -
+                        {publishDiff.summary.removed} removed
+                      </div>
+                    ) : null}
                     <div
                       style={{
                         fontSize: 11,
@@ -574,12 +712,28 @@ export function PublishDrawer() {
                                   fontSize: 12.5,
                                   fontWeight: 500,
                                   color: CHROME.ink,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
                                 }}
                               >
-                                {s.name || row.label}
+                                <span
+                                  style={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {s.name || row.label}
+                                </span>
+                                {!publishDiff.loading ? (
+                                  <ChangeBadge
+                                    kind={
+                                      publishDiff.draftSectionChanges.get(s.id) ??
+                                      "unchanged"
+                                    }
+                                  />
+                                ) : null}
                               </div>
                               <div
                                 style={{
@@ -661,12 +815,28 @@ export function PublishDrawer() {
                                   style={{
                                     fontSize: 12,
                                     color: CHROME.text2,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
                                   }}
                                 >
-                                  {s.name || row.label}
+                                  <span
+                                    style={{
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {s.name || row.label}
+                                  </span>
+                                  {!publishDiff.loading ? (
+                                    <ChangeBadge
+                                      kind={
+                                        publishDiff.draftSectionChanges.get(s.id) ??
+                                        "unchanged"
+                                      }
+                                    />
+                                  ) : null}
                                 </div>
                                 <div
                                   style={{
@@ -683,6 +853,74 @@ export function PublishDrawer() {
                           )),
                         )}
                       </ul>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {!publishDiff.loading && removedLiveSections.length > 0 ? (
+                  <div
+                    style={{
+                      borderTop: `1px solid ${CHROME.line}`,
+                      padding: "8px 13px 10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: CHROME.muted2,
+                        marginBottom: 5,
+                      }}
+                    >
+                      Removed From Live ({removedLiveSections.length})
+                    </div>
+                    <ul
+                      style={{
+                        listStyle: "none",
+                        margin: 0,
+                        padding: 0,
+                        display: "grid",
+                        gap: 4,
+                      }}
+                    >
+                      {removedLiveSections.slice(0, 4).map((row) => (
+                        <li
+                          key={row.sectionId}
+                          style={{
+                            fontSize: 11.5,
+                            color: CHROME.text2,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <span aria-hidden style={{ color: CHROME.muted3 }}>
+                            −
+                          </span>
+                          <span
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {row.name}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {removedLiveSections.length > 4 ? (
+                      <div
+                        style={{
+                          marginTop: 5,
+                          fontSize: 10.5,
+                          color: CHROME.muted2,
+                        }}
+                      >
+                        +{removedLiveSections.length - 4} more
+                      </div>
                     ) : null}
                   </div>
                 ) : null}

@@ -27,7 +27,8 @@
  * calls from external updates.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
 import { InspectorGroup, KIT, VisualChipGroup, type ChipOption } from "./kit";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
@@ -48,6 +49,7 @@ interface SlotDraft {
 interface Props {
   draftProps: Record<string, unknown>;
   tenantId: string; // required by CuratedInspectorProps; testimonials don't use media
+  selectedBuilderNodeId: string | null;
   onChange: (next: Record<string, unknown>) => void;
 }
 
@@ -357,6 +359,7 @@ function VoiceSlot({
 export function TestimonialsTrioContentInspector({
   draftProps,
   tenantId,
+  selectedBuilderNodeId,
   onChange,
 }: Props) {
   // Local slot state — gives stable slot positions (A/B/C) regardless of how
@@ -406,6 +409,29 @@ export function TestimonialsTrioContentInspector({
   const variant = (draftProps.variant as VariantKey | undefined) ?? "trio-card";
   const defaultAccent =
     (draftProps.defaultAccent as AccentKey | undefined) ?? "auto";
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const focusRole = useMemo(() => {
+    if (!selectedBuilderNodeId) return null;
+    const role = resolveBuilderNodeRole(selectedBuilderNodeId);
+    if (role === "subheadline") return "subheadline";
+    if (role === "headline") return "headline";
+    return null;
+  }, [selectedBuilderNodeId]);
+
+  useEffect(() => {
+    if (!focusRole) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-testimonials-node-role="${focusRole}"]`,
+    );
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const focusable = target.querySelector<HTMLElement>(
+      "[contenteditable='true'],input,textarea,select,button",
+    );
+    focusable?.focus({ preventScroll: true });
+  }, [focusRole]);
 
   function patchMeta(patch: Record<string, unknown>) {
     onChange({ ...draftProps, ...patch });
@@ -414,7 +440,19 @@ export function TestimonialsTrioContentInspector({
   const filledCount = slots.filter((s) => s.quote.trim().length > 0).length;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div ref={rootRef} className="flex flex-col gap-5">
+      {focusRole ? (
+        <div
+          className="rounded-lg border px-3 py-2 text-xs font-medium"
+          style={{
+            borderColor: "#bfdbfe",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+          }}
+        >
+          Editing selected canvas node: {focusRole === "subheadline" ? "Eyebrow" : "Headline"}
+        </div>
+      ) : null}
       {/* ── Headline ── */}
       <InspectorGroup
         title="Headline"
@@ -422,7 +460,7 @@ export function TestimonialsTrioContentInspector({
         storageKey="tt-header"
         defaultOpen={Boolean(eyebrow || headline)}
       >
-        <div className={KIT.field}>
+        <div className={KIT.field} data-testimonials-node-role="subheadline">
           <label className={KIT.label}>Eyebrow</label>
           <input
             type="text"
@@ -435,7 +473,7 @@ export function TestimonialsTrioContentInspector({
             }
           />
         </div>
-        <div className={KIT.field}>
+        <div className={KIT.field} data-testimonials-node-role="headline">
           <label className={KIT.label}>Headline</label>
           <RichEditor
             value={headline}

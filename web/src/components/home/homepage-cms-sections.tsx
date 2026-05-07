@@ -20,6 +20,13 @@
  *     goes through a registry entry with a Zod-parsed payload.
  */
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
+import {
+  buildBuilderNodeRoleBindings,
+  builderSectionNodeAddressKey,
+  indexBuilderSectionChildNodeIds,
+  indexBuilderSectionNodeIds,
+  resolveSnapshotBuilderTree,
+} from "@/lib/site-admin/builder-node";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import {
   SECTION_REGISTRY,
@@ -51,6 +58,20 @@ export async function HomepageCmsSections({
     ? snapshot.slots.filter((s) => s.slotKey === onlySlot)
     : snapshot.slots;
   if (entries.length === 0) return null;
+  const builderTreeResolution = resolveSnapshotBuilderTree(snapshot);
+  const builderSectionNodeIds = indexBuilderSectionNodeIds(builderTreeResolution.tree);
+  const builderSectionChildNodeIds = indexBuilderSectionChildNodeIds(
+    builderTreeResolution.tree,
+  );
+
+  if (
+    process.env.NODE_ENV !== "production" &&
+    builderTreeResolution.issues.length > 0
+  ) {
+    console.warn("[homepage-cms-sections] invalid builderTree; rendering legacy slots", {
+      issues: builderTreeResolution.issues,
+    });
+  }
 
   // Edit-mode wrapper: when active, each rendered section is wrapped in a
   // div carrying section identity so the client chrome can target it for
@@ -139,6 +160,41 @@ export async function HomepageCmsSections({
           migrated.payload,
           publicPathPrefix,
         );
+        // Pixel-first companion: emit per-section scoped CSS when the
+        // operator wrote any custom CSS. Scoped to the wrapper's
+        // `data-section-id` attribute so it can't leak across sections.
+        const payload = payloadForRender as { presentation?: unknown };
+        const presentation = (payload?.presentation ?? undefined) as Parameters<typeof presentationScopedCss>[1];
+        const scopedCss = presentationScopedCss(entry.sectionId, presentation);
+        const videoBg = presentationVideoBackground(presentation);
+        const builderNodeId = builderSectionNodeIds.get(
+          builderSectionNodeAddressKey({
+            sectionId: entry.sectionId,
+            slotKey: entry.slotKey,
+            sortOrder: entry.sortOrder,
+          }) ?? "",
+        );
+        const roleBindingResult = buildBuilderNodeRoleBindings(
+          builderNodeId ? (builderSectionChildNodeIds.get(builderNodeId) ?? []) : [],
+        );
+        const roleBindings = roleBindingResult.nodeIdsByRole;
+        if (
+          process.env.NODE_ENV !== "production" &&
+          roleBindingResult.unknownNodeIds.length > 0
+        ) {
+          console.warn("[homepage-cms-sections] unknown builder child node roles", {
+            sectionId: entry.sectionId,
+            sectionTypeKey: entry.sectionTypeKey,
+            unknownNodeIds: roleBindingResult.unknownNodeIds,
+          });
+        }
+        const builderNodeBindings =
+          builderNodeId || Object.keys(roleBindings).length > 0
+            ? {
+                sectionNodeId: builderNodeId ?? null,
+                nodeIdsByRole: roleBindings,
+              }
+            : undefined;
         const rendered = (
           <Component
             key={key}
@@ -148,15 +204,9 @@ export async function HomepageCmsSections({
             preview={false}
             sectionId={entry.sectionId}
             publicPathPrefix={publicPathPrefix}
+            builderNodeBindings={builderNodeBindings}
           />
         );
-        // Pixel-first companion: emit per-section scoped CSS when the
-        // operator wrote any custom CSS. Scoped to the wrapper's
-        // `data-section-id` attribute so it can't leak across sections.
-        const payload = payloadForRender as { presentation?: unknown };
-        const presentation = (payload?.presentation ?? undefined) as Parameters<typeof presentationScopedCss>[1];
-        const scopedCss = presentationScopedCss(entry.sectionId, presentation);
-        const videoBg = presentationVideoBackground(presentation);
         // Wrap unconditionally (visitor + edit mode). Visitor mode needs the
         // wrapper for scoped CSS targeting; edit mode adds chrome attrs the
         // selection layer reads.
@@ -173,6 +223,7 @@ export async function HomepageCmsSections({
             data-section-type-key={entry.sectionTypeKey}
             data-slot-key={entry.slotKey}
             data-sort-order={entry.sortOrder}
+            data-builder-node-id={builderNodeId}
             style={
               videoBg
                 ? { position: "relative", overflow: "hidden", isolation: "isolate" }

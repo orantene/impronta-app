@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 export const codeSnippetSchemaV1 = z.object({
@@ -11,6 +12,12 @@ export const codeSnippetSchemaV1 = z.object({
   showLineNumbers: z.boolean().default(false),
   showCopyButton: z.boolean().default(true),
   variant: z.enum(["dark", "light", "minimal"]).default("dark"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

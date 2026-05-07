@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const tagSchema = z.object({
@@ -17,6 +18,12 @@ export const imageOrbitSchemaV1 = z.object({
   imageAlt: z.string().max(200).optional(),
   tags: z.array(tagSchema).min(1).max(20),
   ratio: z.enum(["16/9", "4/3", "1/1", "5/4"]).default("4/3"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const itemSchema = z.object({
@@ -14,6 +15,12 @@ export const statsSchemaV1 = z.object({
   items: z.array(itemSchema).min(2).max(6),
   variant: z.enum(["row", "grid", "split"]).default("row"),
   align: z.enum(["start", "center"]).default("center"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

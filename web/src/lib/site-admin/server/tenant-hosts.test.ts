@@ -138,6 +138,62 @@ test("resolveWorkspacePreviewUrl uses the branded local preview host for studio 
   assert.equal(url, "http://impronta.local:3000");
 });
 
+test("resolveWorkspacePreviewUrl keeps localhost admin handoffs on the path tenant URL", () => {
+  const url = resolveWorkspacePreviewUrl({
+    slug: "impronta",
+    plan: "agency",
+    primaryHost: "improntamodels.com",
+    primaryHostKind: "custom",
+    subdomainHost: "impronta.tulala.digital",
+    domainRows: [
+      {
+        hostname: "impronta.local",
+        kind: "subdomain",
+        status: "active",
+        isPrimary: false,
+      },
+      {
+        hostname: "improntamodels.com",
+        kind: "custom",
+        status: "active",
+        isPrimary: true,
+      },
+    ],
+    isDev: true,
+    requestHost: "localhost:3000",
+  });
+
+  assert.equal(url, "http://localhost:3000/impronta");
+});
+
+test("resolveWorkspacePreviewUrl keeps branded local handoffs branded when already on that host", () => {
+  const url = resolveWorkspacePreviewUrl({
+    slug: "impronta",
+    plan: "agency",
+    primaryHost: "improntamodels.com",
+    primaryHostKind: "custom",
+    subdomainHost: "impronta.tulala.digital",
+    domainRows: [
+      {
+        hostname: "impronta.local",
+        kind: "subdomain",
+        status: "active",
+        isPrimary: false,
+      },
+      {
+        hostname: "improntamodels.com",
+        kind: "custom",
+        status: "active",
+        isPrimary: true,
+      },
+    ],
+    isDev: true,
+    requestHost: "impronta.local:3000",
+  });
+
+  assert.equal(url, "http://impronta.local:3000");
+});
+
 test("resolveWorkspacePreviewUrl falls back to the localhost path when no local branded preview host exists", () => {
   const url = resolveWorkspacePreviewUrl({
     slug: "impronta",

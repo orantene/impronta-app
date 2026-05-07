@@ -133,6 +133,7 @@ export function InspectorDock() {
   const {
     tenantId,
     selectedSectionId,
+    selectedBuilderNodeId,
     setSelectedSectionId,
     loadedSection,
     setLoadedSection,
@@ -143,6 +144,7 @@ export function InspectorDock() {
     saving,
     setSaving,
     recordFieldEdit,
+    syncBuilderNodeChildrenForSection,
     slots,
     canEditSiteShell,
   } = useEditContext();
@@ -232,7 +234,6 @@ export function InspectorDock() {
       setDirty(false);
       setTab("content");
       const tBodyPaint = now();
-      // eslint-disable-next-line no-console
       console.info("[t2-inspector-load]", {
         sectionId: sid,
         sectionTypeKey: result.section.sectionTypeKey,
@@ -323,6 +324,11 @@ export function InspectorDock() {
           name: loaded.name,
           pre: preProps,
           post: snapshot,
+        });
+        syncBuilderNodeChildrenForSection({
+          sectionId: loaded.id,
+          sectionTypeKey: loaded.sectionTypeKey,
+          props: snapshot,
         });
         // Server-rendered canvas re-renders ONLY after a router.refresh.
         // Without this, clicking a layout chip ("Split", "Overlay") flips
@@ -693,6 +699,7 @@ export function InspectorDock() {
                   schemaVersion={loadedSection.schemaVersion}
                   tenantId={tenantId}
                   draftProps={draftProps ?? {}}
+                  selectedBuilderNodeId={selectedBuilderNodeId}
                   onChange={handleContentChange}
                 />
                 {/* AI translate — secondary tool at the foot of Content */}
@@ -731,6 +738,7 @@ export function InspectorDock() {
               <StylePanel
                 sectionTypeKey={loadedSection.sectionTypeKey}
                 draftProps={draftProps ?? {}}
+                selectedBuilderNodeId={selectedBuilderNodeId}
                 onPatch={handleStylePatch}
               />
             ) : null}

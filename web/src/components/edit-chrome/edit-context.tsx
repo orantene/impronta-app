@@ -58,9 +58,29 @@ import type {
   InsertTarget,
 } from "@/lib/site-admin/edit-mode/editor-mutations";
 import {
+  builderSectionNodeAddressKey,
+  buildLegacySectionBuilderTree,
+  BUILDER_NODE_REGISTRY,
+  builderNodeKindAllowedAtRoot,
+  createBuilderNode,
+  deriveLegacySectionChildNodes,
+  duplicateBuilderNode as duplicateBuilderNodeOp,
+  insertBuilderNode as insertBuilderNodeOp,
+  moveBuilderNode,
+  pasteBuilderNode as pasteBuilderNodeOp,
+  patchBuilderNodeProps as patchBuilderNodePropsOp,
+  reconcileBuilderTreeWithLegacySlots,
+  removeBuilderNode as removeBuilderNodeOp,
+  validateBuilderNodeTree,
+  type BuilderNode,
+  type BuilderNodeTree,
+  type LegacySnapshotSlot,
+} from "@/lib/site-admin/builder-node";
+import {
   builderPlanAllows,
   normalizeBuilderWorkspacePlan,
 } from "@/lib/site-admin/builder-capabilities";
+import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
 
@@ -98,6 +118,20 @@ export interface LibraryTarget {
   slotKey: string;
   /** null → prepend to slot. Otherwise insert after this sort order. */
   insertAfterSortOrder: number | null;
+}
+
+export interface BuilderNodePastePreview {
+  copiedKind: BuilderNode["kind"];
+  copiedLabel: string;
+  mode: "inside" | "after" | "append" | "blocked";
+  message: string;
+}
+
+export interface BuilderBlockPreset {
+  id: string;
+  name: string;
+  node: Exclude<BuilderNode, { kind: "section" }>;
+  createdAt: string;
 }
 
 export interface EditContextValue {
@@ -144,6 +178,35 @@ export interface EditContextValue {
   toggleSelection: (id: string) => void;
   /** All currently-selected section ids (primary first, then additional). */
   getAllSelectedIds: () => string[];
+  /**
+   * BuilderNode identity for the primary selection. Today this resolves to
+   * the section-node mirror of the selected cms section; future nested nodes
+   * can keep the same selection contract without inventing a second editor.
+   */
+  selectedBuilderNodeId: string | null;
+  /**
+   * BuilderNode-first selection entrypoint.
+   * Phase 4 bridge: today section nodes map to existing section selection;
+   * future nested nodes can route through the same API without forking state.
+   */
+  selectBuilderNode: (nodeId: string) => void;
+  copiedBuilderNodeKind: BuilderNode["kind"] | null;
+  builderBlockPresets: ReadonlyArray<BuilderBlockPreset>;
+  getCopiedBuilderNodePastePreview: (
+    targetNodeId?: string | null,
+  ) => BuilderNodePastePreview | null;
+  copyBuilderNode: (nodeId: string) => { ok: boolean; error?: string };
+  saveCopiedBuilderNodeAsPreset: (
+    name?: string,
+  ) => { ok: boolean; error?: string; presetId?: string };
+  pasteBuilderBlockPreset: (
+    presetId: string,
+    targetNodeId?: string | null,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  removeBuilderBlockPreset: (presetId: string) => void;
+  pasteCopiedBuilderNode: (
+    targetNodeId?: string | null,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
 
   /** Section under the cursor, for hover outline. */
   hoveredSectionId: string | null;
@@ -178,6 +241,7 @@ export interface EditContextValue {
   pageVersion: number | null;
   pageMetadata: PageMetadata | null;
   slots: Record<string, CompositionSectionRef[]>;
+  builderTree: BuilderNodeTree;
   slotDefs: CompositionSlotDef[];
   library: CompositionLibraryEntry[];
   /** Locales the active tenant has enabled — drives the topbar locale
@@ -204,6 +268,51 @@ export interface EditContextValue {
     targetSlotKey: string,
     targetSortOrder: number,
   ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Reorder a BuilderNode within its current parent list.
+   * Used by the current Navigator child-node controls to evolve toward
+   * true in-canvas structure editing without introducing a second builder.
+   */
+  moveBuilderNodeWithinParent: (
+    nodeId: string,
+    direction: "up" | "down",
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Move a BuilderNode within its current parent list to an explicit target
+   * index (0-based). Used by navigator drag/drop for child-node structure.
+   */
+  moveBuilderNodeToIndex: (
+    nodeId: string,
+    targetIndex: number,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Move a BuilderNode to an explicit parent/index destination. Used by
+   * navigator drag/drop when crossing sibling groups.
+   */
+  moveBuilderNodeToParentIndex: (
+    nodeId: string,
+    targetParentId: string | null,
+    targetIndex: number,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  insertBuilderNode: (
+    parentId: string | null,
+    kind: BuilderNode["kind"],
+    index?: number,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  duplicateBuilderNode: (
+    nodeId: string,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  removeBuilderNode: (
+    nodeId: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Patch a BuilderNode's typed props through the same draft-save path used
+   * by structure edits. Used by the Layout inspector for advanced nodes.
+   */
+  patchBuilderNodeProps: (
+    nodeId: string,
+    patch: Record<string, unknown>,
+  ) => Promise<{ ok: boolean; error?: string }>;
   duplicateSection: (
     sectionId: string,
   ) => Promise<{ ok: boolean; error?: string; newSectionId?: string }>;
@@ -218,6 +327,16 @@ export interface EditContextValue {
     sectionId: string,
     newName: string,
   ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Sync section child BuilderNode projections from authoritative section
+   * props after a content save. Keeps child-node rows (headline/subheadline/
+   * CTA) aligned with the current draft without requiring a full reload.
+   */
+  syncBuilderNodeChildrenForSection: (input: {
+    sectionId: string;
+    sectionTypeKey: string;
+    props: Record<string, unknown>;
+  }) => void;
 
   // ── history ──
   canUndo: boolean;
@@ -353,6 +472,15 @@ export interface EditContextValue {
   closePalette: () => void;
   togglePalette: () => void;
   /**
+   * Modal template gallery for starter compositions. This is separate from
+   * the saved workspace-template accordion: it opens the wireframe starter
+   * marketplace on any draft, not just the blank canvas.
+   */
+  starterTemplateGalleryOpen: boolean;
+  starterTemplateGalleryHighlightedSlug: string | null;
+  openStarterTemplateGallery: (highlightedSlug?: string | null) => void;
+  closeStarterTemplateGallery: () => void;
+  /**
    * Visibility flag for the keyboard-shortcuts reference overlay
    * (Phase 10). The `?` global keybind toggles it; the overlay reads
    * from the centralised `SHORTCUTS` registry so chips never drift
@@ -446,6 +574,10 @@ const DEFAULT_METADATA: PageMetadata = {
   noindex: false,
 };
 
+const BUILDER_NODE_CLIPBOARD_STORAGE_KEY = "impronta.builderNodeClipboard.v1";
+const BUILDER_BLOCK_PRESETS_STORAGE_KEY = "impronta.builderBlockPresets.v1";
+const BUILDER_BLOCK_PRESET_LIMIT = 24;
+
 /**
  * Unified undo/redo stack entry. Composition entries capture slots +
  * metadata and revert by re-saving the composition. Field entries
@@ -457,6 +589,11 @@ type HistoryEntry =
   | {
       kind: "composition";
       snapshot: CompositionSnapshot;
+    }
+  | {
+      kind: "builderTree";
+      pre: BuilderNodeTree;
+      post: BuilderNodeTree;
     }
   | {
       kind: "field";
@@ -477,6 +614,154 @@ function cloneSnapshot(s: CompositionSnapshot): CompositionSnapshot {
   };
 }
 
+function cloneBuilderNodeTree(tree: BuilderNodeTree): BuilderNodeTree {
+  return tree.map((node) => {
+    if ("children" in node && Array.isArray(node.children)) {
+      return {
+        ...node,
+        children: cloneBuilderNodeTree(node.children),
+      };
+    }
+    return { ...node };
+  });
+}
+
+function cloneBuilderNode(node: BuilderNode): BuilderNode {
+  return cloneBuilderNodeTree([node])[0]!;
+}
+
+function validateStoredBuilderNodeClipboard(input: unknown): BuilderNode | null {
+  if (typeof input !== "object" || input == null) return null;
+  const rawKind = (input as { kind?: unknown }).kind;
+  if (typeof rawKind !== "string" || !(rawKind in BUILDER_NODE_REGISTRY)) {
+    return null;
+  }
+  const kind = rawKind as BuilderNode["kind"];
+  if (kind === "section") return null;
+
+  if (builderNodeKindAllowedAtRoot(kind)) {
+    const validation = validateBuilderNodeTree([input]);
+    return validation.ok ? (validation.tree[0] ?? null) : null;
+  }
+
+  const wrapper =
+    kind === "accordion_item"
+      ? {
+          id: "__clipboard_accordion__",
+          kind: "accordion" as const,
+          props: {},
+          children: [input],
+        }
+      : kind === "tab_panel"
+        ? {
+            id: "__clipboard_tabs__",
+            kind: "tabs" as const,
+            props: {},
+            children: [input],
+          }
+        : {
+            id: "__clipboard_container__",
+            kind: "container" as const,
+            props: { layout: "stack" as const },
+            children: [input],
+          };
+
+  const validation = validateBuilderNodeTree([wrapper]);
+  if (!validation.ok) return null;
+  const parsedWrapper = validation.tree[0];
+  if (
+    !parsedWrapper ||
+    !("children" in parsedWrapper) ||
+    !Array.isArray(parsedWrapper.children)
+  ) {
+    return null;
+  }
+  return parsedWrapper.children[0] ?? null;
+}
+
+function readStoredBuilderNodeClipboard(): BuilderNode | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(BUILDER_NODE_CLIPBOARD_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    return validateStoredBuilderNodeClipboard(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredBuilderNodeClipboard(node: BuilderNode | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!node || node.kind === "section") {
+      window.sessionStorage.removeItem(BUILDER_NODE_CLIPBOARD_STORAGE_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(
+      BUILDER_NODE_CLIPBOARD_STORAGE_KEY,
+      JSON.stringify(node),
+    );
+  } catch {
+    // Storage can fail in private browsing or under quota. The in-memory
+    // clipboard still works for the current edit session.
+  }
+}
+
+function readStoredBuilderBlockPresets(): BuilderBlockPreset[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(BUILDER_BLOCK_PRESETS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    const presets: BuilderBlockPreset[] = [];
+    for (const item of parsed) {
+      if (typeof item !== "object" || item == null) continue;
+      const rawPreset = item as {
+        id?: unknown;
+        name?: unknown;
+        node?: unknown;
+        createdAt?: unknown;
+      };
+      if (
+        typeof rawPreset.id !== "string" ||
+        typeof rawPreset.name !== "string" ||
+        typeof rawPreset.createdAt !== "string"
+      ) {
+        continue;
+      }
+      const node = validateStoredBuilderNodeClipboard(rawPreset.node);
+      if (!node || node.kind === "section") continue;
+      presets.push({
+        id: rawPreset.id,
+        name: rawPreset.name.trim() || `${builderNodeLabel(node.kind)} pattern`,
+        node,
+        createdAt: rawPreset.createdAt,
+      });
+      if (presets.length >= BUILDER_BLOCK_PRESET_LIMIT) break;
+    }
+    return presets;
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredBuilderBlockPresets(
+  presets: ReadonlyArray<BuilderBlockPreset>,
+) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      BUILDER_BLOCK_PRESETS_STORAGE_KEY,
+      JSON.stringify(presets.slice(0, BUILDER_BLOCK_PRESET_LIMIT)),
+    );
+  } catch {
+    // Local preset persistence is a convenience layer; editing continues
+    // even when browser storage is unavailable.
+  }
+}
+
 function stripSnapshotForSave(s: CompositionSnapshot) {
   const slots: Record<string, Array<{ sectionId: string; sortOrder: number }>> =
     {};
@@ -486,6 +771,268 @@ function stripSnapshotForSave(s: CompositionSnapshot) {
   return {
     metadata: s.metadata,
     slots,
+  };
+}
+
+function toLegacySnapshotSlots(
+  slots: Record<string, CompositionSectionRef[]>,
+): LegacySnapshotSlot[] {
+  return Object.entries(slots).flatMap(([slotKey, entries]) =>
+    entries.map((entry) => ({
+      slotKey,
+      sortOrder: entry.sortOrder,
+      sectionId: entry.sectionId,
+      sectionTypeKey: entry.sectionTypeKey,
+      name: entry.name,
+    })),
+  );
+}
+
+function buildBuilderTreeFromSlots(
+  slots: Record<string, CompositionSectionRef[]>,
+): BuilderNodeTree {
+  return buildLegacySectionBuilderTree(toLegacySnapshotSlots(slots));
+}
+
+function reconcileBuilderTreeFromSlots(
+  previousTree: BuilderNodeTree,
+  slots: Record<string, CompositionSectionRef[]>,
+): BuilderNodeTree {
+  return reconcileBuilderTreeWithLegacySlots(
+    previousTree,
+    toLegacySnapshotSlots(slots),
+  );
+}
+
+function syncBuilderTreeSectionChildren(
+  tree: BuilderNodeTree,
+  input: {
+    sectionId: string;
+    sectionTypeKey: string;
+    props: Record<string, unknown>;
+  },
+): BuilderNodeTree {
+  let changed = false;
+
+  const visit = (node: BuilderNode): BuilderNode => {
+    if (node.kind === "section" && node.props.sectionId === input.sectionId) {
+      const nextChildren = deriveLegacySectionChildNodes(node.id, {
+        slotKey: node.props.slotKey ?? "body",
+        sortOrder: node.props.sortOrder ?? 0,
+        sectionId: input.sectionId,
+        sectionTypeKey: input.sectionTypeKey,
+        name: node.props.label ?? input.sectionTypeKey,
+        props: input.props,
+      });
+      const currentChildren = Array.isArray(node.children) ? node.children : [];
+      const equalLength = currentChildren.length === nextChildren.length;
+      const equalNodes =
+        equalLength &&
+        currentChildren.every((current, index) => {
+          const next = nextChildren[index];
+          if (!next) return false;
+          return (
+            current.id === next.id &&
+            current.kind === next.kind &&
+            JSON.stringify(current.props) === JSON.stringify(next.props)
+          );
+        });
+      if (equalNodes) return node;
+      changed = true;
+      if (nextChildren.length === 0) {
+        const sectionWithoutChildren = { ...node };
+        delete sectionWithoutChildren.children;
+        return sectionWithoutChildren;
+      }
+      return {
+        ...node,
+        children: nextChildren,
+      };
+    }
+
+    if ("children" in node && Array.isArray(node.children) && node.children.length > 0) {
+      const currentChildren = node.children;
+      const nextChildren = currentChildren.map(visit);
+      const childrenChanged = nextChildren.some(
+        (child, index) => child !== currentChildren[index],
+      );
+      if (!childrenChanged) return node;
+      changed = true;
+      return {
+        ...node,
+        children: nextChildren,
+      };
+    }
+
+    return node;
+  };
+
+  const nextTree = tree.map(visit);
+  return changed ? nextTree : tree;
+}
+
+function findBuilderNodeLocation(
+  tree: ReadonlyArray<BuilderNode>,
+  nodeId: string,
+): {
+  node: BuilderNode;
+  parentId: string | null;
+  index: number;
+  siblingCount: number;
+} | null {
+  function walk(
+    nodes: ReadonlyArray<BuilderNode>,
+    parentId: string | null,
+  ): {
+    node: BuilderNode;
+    parentId: string | null;
+    index: number;
+    siblingCount: number;
+  } | null {
+    for (let index = 0; index < nodes.length; index += 1) {
+      const node = nodes[index]!;
+      if (node.id === nodeId) {
+        return { node, parentId, index, siblingCount: nodes.length };
+      }
+      if ("children" in node && Array.isArray(node.children)) {
+        const nested = walk(node.children, node.id);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  }
+  return walk(tree, null);
+}
+
+function builderNodeAllowsChild(
+  parentKind: BuilderNode["kind"],
+  childKind: BuilderNode["kind"],
+): boolean {
+  const policy = BUILDER_NODE_REGISTRY[parentKind].children;
+  if (policy.type === "any") return true;
+  if (policy.type === "none") return false;
+  return policy.kinds.includes(childKind);
+}
+
+function builderNodeLabel(kind: BuilderNode["kind"]): string {
+  return BUILDER_NODE_REGISTRY[kind]?.label ?? kind;
+}
+
+function resolveCopiedBuilderNodePasteTarget(input: {
+  tree: BuilderNodeTree;
+  copiedNode: BuilderNode;
+  targetNodeId?: string | null;
+}):
+  | {
+      ok: true;
+      parentId: string | null;
+      index?: number;
+      preview: BuilderNodePastePreview;
+    }
+  | { ok: false; preview: BuilderNodePastePreview } {
+  const copiedLabel = builderNodeLabel(input.copiedNode.kind);
+
+  if (!input.targetNodeId) {
+    if (builderNodeKindAllowedAtRoot(input.copiedNode.kind)) {
+      return {
+        ok: true,
+        parentId: null,
+        index: undefined,
+        preview: {
+          copiedKind: input.copiedNode.kind,
+          copiedLabel,
+          mode: "append",
+          message: `Paste ${copiedLabel} at the page root.`,
+        },
+      };
+    }
+    return {
+      ok: false,
+      preview: {
+        copiedKind: input.copiedNode.kind,
+        copiedLabel,
+        mode: "blocked",
+        message: `${copiedLabel} needs a compatible parent. Select a section or layout group before pasting.`,
+      },
+    };
+  }
+
+  const location = findBuilderNodeLocation(input.tree, input.targetNodeId);
+  if (!location) {
+    return {
+      ok: false,
+      preview: {
+        copiedKind: input.copiedNode.kind,
+        copiedLabel,
+        mode: "blocked",
+        message: "The selected paste target is no longer on the page.",
+      },
+    };
+  }
+
+  const targetLabel = builderNodeLabel(location.node.kind);
+  if (builderNodeAllowsChild(location.node.kind, input.copiedNode.kind)) {
+    return {
+      ok: true,
+      parentId: location.node.id,
+      index: undefined,
+      preview: {
+        copiedKind: input.copiedNode.kind,
+        copiedLabel,
+        mode: "inside",
+        message: `Paste ${copiedLabel} inside ${targetLabel}.`,
+      },
+    };
+  }
+
+  if (location.parentId === null) {
+    if (builderNodeKindAllowedAtRoot(input.copiedNode.kind)) {
+      return {
+        ok: true,
+        parentId: null,
+        index: location.index + 1,
+        preview: {
+          copiedKind: input.copiedNode.kind,
+          copiedLabel,
+          mode: "after",
+          message: `Paste ${copiedLabel} after ${targetLabel}.`,
+        },
+      };
+    }
+    return {
+      ok: false,
+      preview: {
+        copiedKind: input.copiedNode.kind,
+        copiedLabel,
+        mode: "blocked",
+        message: `${copiedLabel} cannot sit at the page root. Select a section or container.`,
+      },
+    };
+  }
+
+  const parent = findBuilderNodeLocation(input.tree, location.parentId);
+  if (!parent || !builderNodeAllowsChild(parent.node.kind, input.copiedNode.kind)) {
+    return {
+      ok: false,
+      preview: {
+        copiedKind: input.copiedNode.kind,
+        copiedLabel,
+        mode: "blocked",
+        message: `${copiedLabel} cannot be pasted beside ${targetLabel}. Choose a compatible group.`,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    parentId: location.parentId,
+    index: location.index + 1,
+    preview: {
+      copiedKind: input.copiedNode.kind,
+      copiedLabel,
+      mode: "after",
+      message: `Paste ${copiedLabel} after ${targetLabel}.`,
+    },
   };
 }
 
@@ -565,12 +1112,30 @@ export function EditProvider({
   const [additionalSelectedIds, setAdditionalSelectedIds] = useState<
     ReadonlySet<string>
   >(() => new Set());
+  const [selectedBuilderNodeIdOverride, setSelectedBuilderNodeIdOverride] =
+    useState<string | null>(null);
+  const [copiedBuilderNode, setCopiedBuilderNode] = useState<BuilderNode | null>(
+    null,
+  );
+  const [builderBlockPresets, setBuilderBlockPresets] = useState<
+    BuilderBlockPreset[]
+  >(() => readStoredBuilderBlockPresets());
+  useEffect(() => {
+    setCopiedBuilderNode(readStoredBuilderNodeClipboard());
+  }, []);
+  useEffect(() => {
+    writeStoredBuilderNodeClipboard(copiedBuilderNode);
+  }, [copiedBuilderNode]);
+  useEffect(() => {
+    writeStoredBuilderBlockPresets(builderBlockPresets);
+  }, [builderBlockPresets]);
 
   // Plain setter used by canvas click, navigator click without modifiers,
   // and the chip's selection forwarding. Always clears the multi-set.
   const setSelectedSectionId = useCallback(
     (id: string | null) => {
       setSelectedSectionIdRaw(id);
+      setSelectedBuilderNodeIdOverride(null);
       setAdditionalSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
     },
     [],
@@ -679,6 +1244,10 @@ export function EditProvider({
   const [slots, setSlots] = useState<Record<string, CompositionSectionRef[]>>(
     initialComposition?.slots ?? {},
   );
+  const [builderTree, setBuilderTree] = useState<BuilderNodeTree>(
+    initialComposition?.builderTree ??
+      buildBuilderTreeFromSlots(initialComposition?.slots ?? {}),
+  );
   const [slotDefs, setSlotDefs] = useState<CompositionSlotDef[]>(
     initialComposition?.slotDefs ?? [],
   );
@@ -752,6 +1321,23 @@ export function EditProvider({
     () => setPaletteOpen((prev) => !prev),
     [],
   );
+  const [starterTemplateGalleryOpen, setStarterTemplateGalleryOpen] =
+    useState(false);
+  const [
+    starterTemplateGalleryHighlightedSlug,
+    setStarterTemplateGalleryHighlightedSlug,
+  ] = useState<string | null>(null);
+  const openStarterTemplateGallery = useCallback(
+    (highlightedSlug?: string | null) => {
+      setStarterTemplateGalleryHighlightedSlug(highlightedSlug ?? null);
+      setStarterTemplateGalleryOpen(true);
+    },
+    [],
+  );
+  const closeStarterTemplateGallery = useCallback(() => {
+    setStarterTemplateGalleryOpen(false);
+    setStarterTemplateGalleryHighlightedSlug(null);
+  }, []);
 
   // keyboard-shortcuts overlay state (Phase 10)
   const [shortcutOverlayOpen, setShortcutOverlayOpen] = useState(false);
@@ -813,11 +1399,94 @@ export function EditProvider({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty, saving]);
 
+  const setSlotsAndBuilderTree = useCallback(
+    (
+      updater:
+        | Record<string, CompositionSectionRef[]>
+        | ((
+            prev: Record<string, CompositionSectionRef[]>,
+          ) => Record<string, CompositionSectionRef[]>),
+    ) => {
+      setSlots((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        setBuilderTree((prevTree) => reconcileBuilderTreeFromSlots(prevTree, next));
+        return next;
+      });
+    },
+    [],
+  );
+
+  const syncBuilderNodeChildrenForSection = useCallback<
+    EditContextValue["syncBuilderNodeChildrenForSection"]
+  >((input) => {
+    setBuilderTree((prev) => syncBuilderTreeSectionChildren(prev, input));
+  }, []);
+
+  const builderNodeIdBySectionId = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const node of builderTree) {
+      if (node.kind !== "section" || !node.props.sectionId) continue;
+      const key = builderSectionNodeAddressKey({
+        sectionId: node.props.sectionId,
+        slotKey: node.props.slotKey,
+        sortOrder: node.props.sortOrder,
+      });
+      if (key && !out.has(node.props.sectionId)) {
+        out.set(node.props.sectionId, node.id);
+      }
+    }
+    return out;
+  }, [builderTree]);
+  const sectionIdByBuilderNodeId = useMemo(() => {
+    const out = new Map<string, string>();
+    const walk = (node: BuilderNodeTree[number], currentSectionId: string | null) => {
+      const nextSectionId =
+        node.kind === "section"
+          ? node.props.sectionId ?? currentSectionId
+          : currentSectionId;
+      if (nextSectionId) {
+        out.set(node.id, nextSectionId);
+      }
+      if ("children" in node && Array.isArray(node.children)) {
+        node.children.forEach((child) => walk(child, nextSectionId));
+      }
+    };
+    builderTree.forEach((node) => walk(node, null));
+    return out;
+  }, [builderTree]);
+  useEffect(() => {
+    if (!selectedBuilderNodeIdOverride) return;
+    const ownerSectionId =
+      sectionIdByBuilderNodeId.get(selectedBuilderNodeIdOverride) ?? null;
+    if (!ownerSectionId || ownerSectionId !== selectedSectionId) {
+      setSelectedBuilderNodeIdOverride(null);
+    }
+  }, [
+    selectedBuilderNodeIdOverride,
+    sectionIdByBuilderNodeId,
+    selectedSectionId,
+  ]);
+  const selectedBuilderNodeId = selectedSectionId
+    ? selectedBuilderNodeIdOverride ??
+      builderNodeIdBySectionId.get(selectedSectionId) ??
+      null
+    : null;
+  const selectBuilderNode = useCallback(
+    (nodeId: string) => {
+      const sectionId = sectionIdByBuilderNodeId.get(nodeId);
+      if (!sectionId) return;
+      setSelectedSectionId(sectionId);
+      setSelectedBuilderNodeIdOverride(nodeId);
+    },
+    [sectionIdByBuilderNodeId, setSelectedSectionId],
+  );
+
   const applyComposition = useCallback((data: CompositionData) => {
     setPageId(data.pageId);
     setPageVersion(data.pageVersion);
     setPageMetadata(data.metadata);
     setSlots(data.slots);
+    setBuilderTree(data.builderTree ?? buildBuilderTreeFromSlots(data.slots));
     setSlotDefs(data.slotDefs);
     setLibrary(data.library);
     setAvailableLocales(data.availableLocales);
@@ -879,6 +1548,25 @@ export function EditProvider({
     lastLoadedLocaleRef.current = locale;
     void refreshComposition();
   }, [locale, refreshComposition]);
+
+  // Empty-canvas starter bridge:
+  // the starter card is rendered in the storefront tree (not inside
+  // EditProvider), so after it applies a starter we listen for its window
+  // event and refresh both composition state and server-rendered canvas here.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onStarterApplied = () => {
+      void (async () => {
+        await refreshComposition();
+        router.refresh();
+        window.dispatchEvent(new CustomEvent("impronta:starter-sync-complete"));
+      })();
+    };
+    window.addEventListener("impronta:starter-applied", onStarterApplied);
+    return () => {
+      window.removeEventListener("impronta:starter-applied", onStarterApplied);
+    };
+  }, [refreshComposition, router]);
 
   // ── mutation helper ─────────────────────────────────────────────────
   const currentSnapshot = useCallback<() => CompositionSnapshot>(() => {
@@ -957,7 +1645,7 @@ export function EditProvider({
           // synchronous functional setSlots so React's state is the
           // source of truth (not a stale closure read).
           let previousVisibility: SectionVisibility | undefined;
-          setSlots((prev) => {
+          setSlotsAndBuilderTree((prev) => {
             const next: Record<string, CompositionSectionRef[]> = {};
             for (const [slotKey, entries] of Object.entries(prev)) {
               next[slotKey] = entries.map((e) => {
@@ -976,7 +1664,7 @@ export function EditProvider({
             // Revert.
             if (previousVisibility !== undefined) {
               const revertTo = previousVisibility;
-              setSlots((prev) => {
+              setSlotsAndBuilderTree((prev) => {
                 const next: Record<string, CompositionSectionRef[]> = {};
                 for (const [slotKey, entries] of Object.entries(prev)) {
                   next[slotKey] = entries.map((e) =>
@@ -1057,6 +1745,11 @@ export function EditProvider({
             setDraftPropsState({ ...mutation.props });
             setDirty(false);
           }
+          syncBuilderNodeChildrenForSection({
+            sectionId: mutation.sectionId,
+            sectionTypeKey: snapshot.sectionTypeKey,
+            props: mutation.props,
+          });
           router.refresh();
           return { ok: true };
         }
@@ -1114,7 +1807,7 @@ export function EditProvider({
               ? loadedSection
               : null;
           const previousName = snapshot.currentName;
-          setSlots((prev) => {
+          setSlotsAndBuilderTree((prev) => {
             const next: Record<string, CompositionSectionRef[]> = {};
             for (const [slotKey, entries] of Object.entries(prev)) {
               next[slotKey] = entries.map((e) =>
@@ -1142,7 +1835,7 @@ export function EditProvider({
           if (!save.ok) {
             // Revert both layers — restore previous name on the slot
             // ref + restore the loadedSection record entirely.
-            setSlots((prev) => {
+            setSlotsAndBuilderTree((prev) => {
               const reverted: Record<string, CompositionSectionRef[]> = {};
               for (const [slotKey, entries] of Object.entries(prev)) {
                 reverted[slotKey] = entries.map((e) =>
@@ -1266,7 +1959,13 @@ export function EditProvider({
           };
       }
     },
-    [router, loadedSection, selectedSectionId],
+    [
+      router,
+      loadedSection,
+      selectedSectionId,
+      setSlotsAndBuilderTree,
+      syncBuilderNodeChildrenForSection,
+    ],
   );
 
   /**
@@ -1292,20 +1991,25 @@ export function EditProvider({
         capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
       );
       setFuture([]);
-      setSlots(next.slots);
+      setSlotsAndBuilderTree(next.slots);
       setPageMetadata(next.metadata);
       setSaving(true);
+      const builderTreeForSave = reconcileBuilderTreeFromSlots(
+        builderTree,
+        next.slots,
+      );
 
       const save = await saveHomepageCompositionAction({
         locale,
         pageId,
         expectedVersion: pageVersion,
         ...stripSnapshotForSave(next),
+        builderTree: builderTreeForSave,
       });
       setSaving(false);
       if (!save.ok) {
         // roll back the optimistic apply
-        setSlots(snap.slots);
+        setSlotsAndBuilderTree(snap.slots);
         setPageMetadata(snap.metadata);
         setPast((p) => p.slice(0, -1));
         if (save.code === "VERSION_CONFLICT") {
@@ -1318,7 +2022,17 @@ export function EditProvider({
       router.refresh();
       return { ok: true };
     },
-    [pageVersion, currentSnapshot, locale, pageId, refreshComposition, router, capHistory],
+    [
+      pageVersion,
+      currentSnapshot,
+      locale,
+      pageId,
+      refreshComposition,
+      router,
+      builderTree,
+      capHistory,
+      setSlotsAndBuilderTree,
+    ],
   );
 
   // Populate the ref dispatch() reads via — synchronous on every render
@@ -1347,6 +2061,7 @@ export function EditProvider({
         expectedVersion: pageVersion,
         metadata: snap.metadata,
         slots: stripSnapshotForSave(snap).slots,
+        builderTree,
         targetSlotKey: target.slotKey,
         insertAfterSortOrder: target.insertAfterSortOrder,
         sectionTypeKey,
@@ -1370,7 +2085,7 @@ export function EditProvider({
         target.insertAfterSortOrder === null
           ? 0
           : target.insertAfterSortOrder + 1;
-      setSlots((prev) => {
+      setSlotsAndBuilderTree((prev) => {
         const next: Record<string, CompositionSectionRef[]> = {};
         for (const [k, list] of Object.entries(prev)) {
           next[k] = list.map((e) => ({ ...e }));
@@ -1386,11 +2101,27 @@ export function EditProvider({
         bucket.sort((a, b) => a.sortOrder - b.sortOrder);
         return next;
       });
+      syncBuilderNodeChildrenForSection({
+        sectionId: res.section.id,
+        sectionTypeKey: res.section.sectionTypeKey,
+        props: res.section.props,
+      });
       setPageVersion(res.pageVersion);
       router.refresh();
       return { ok: true };
     },
-    [pageVersion, currentSnapshot, locale, pageId, refreshComposition, router, capHistory],
+    [
+      pageVersion,
+      currentSnapshot,
+      locale,
+      pageId,
+      refreshComposition,
+      router,
+      capHistory,
+      builderTree,
+      setSlotsAndBuilderTree,
+      syncBuilderNodeChildrenForSection,
+    ],
   );
 
   insertSectionRef.current = insertSection;
@@ -1426,6 +2157,7 @@ export function EditProvider({
         expectedVersion: pageVersion,
         metadata: snap.metadata,
         slots: stripSnapshotForSave(snap).slots,
+        builderTree,
         sourceSectionId: sectionId,
       });
       setSaving(false);
@@ -1442,7 +2174,7 @@ export function EditProvider({
       // inspector + overlays can engage it immediately — then router.refresh
       // fills in the server-rendered section wrapper in the background.
       // Skip the blocking refreshComposition round-trip (~300 ms saved).
-      setSlots((prev) => {
+      setSlotsAndBuilderTree((prev) => {
         const next: Record<string, CompositionSectionRef[]> = {};
         for (const [k, list] of Object.entries(prev)) {
           next[k] = list.map((e) => ({ ...e }));
@@ -1470,11 +2202,27 @@ export function EditProvider({
         bucket.sort((a, b) => a.sortOrder - b.sortOrder);
         return next;
       });
+      syncBuilderNodeChildrenForSection({
+        sectionId: res.section.id,
+        sectionTypeKey: res.section.sectionTypeKey,
+        props: res.section.props,
+      });
       setPageVersion(res.pageVersion);
       router.refresh();
       return { ok: true, newSectionId: res.section.id };
     },
-    [pageVersion, currentSnapshot, locale, pageId, refreshComposition, router, capHistory],
+    [
+      pageVersion,
+      currentSnapshot,
+      locale,
+      pageId,
+      refreshComposition,
+      router,
+      capHistory,
+      builderTree,
+      setSlotsAndBuilderTree,
+      syncBuilderNodeChildrenForSection,
+    ],
   );
 
   duplicateSectionRef.current = duplicateSection;
@@ -1482,6 +2230,31 @@ export function EditProvider({
   // ── move to explicit slot + position ──────────────────────────────
   const moveSectionTo = useCallback<EditContextValue["moveSectionTo"]>(
     async (sectionId, targetSlotKey, targetSortOrder) => {
+      let sourceSlot: string | null = null;
+      let sourceRef: CompositionSectionRef | null = null;
+      for (const [slotKey, entries] of Object.entries(slots)) {
+        const hit = entries.find((entry) => entry.sectionId === sectionId);
+        if (hit) {
+          sourceSlot = slotKey;
+          sourceRef = hit;
+          break;
+        }
+      }
+      if (!sourceSlot || !sourceRef) {
+        return { ok: false, error: "Section not found." };
+      }
+      if (sourceSlot !== targetSlotKey) {
+        const compatibility = checkSlotTypeCompatibility({
+          slotDefs,
+          targetSlotKey,
+          sectionTypeKey: sourceRef.sectionTypeKey,
+        });
+        if (!compatibility.ok) {
+          setMutationError(compatibility.message);
+          return { ok: false, error: compatibility.message };
+        }
+      }
+
       return dispatchMutation((prev) => {
         // Locate the source section.
         let sourceSlot: string | null = null;
@@ -1547,7 +2320,7 @@ export function EditProvider({
         return { slots: nextSlots, metadata: prev.metadata };
       });
     },
-    [dispatchMutation],
+    [dispatchMutation, slotDefs, slots],
   );
 
   moveSectionToRef.current = moveSectionTo;
@@ -1584,18 +2357,419 @@ export function EditProvider({
     [slots, moveSectionTo],
   );
 
+  const persistBuilderTree = useCallback(
+    async (nextTree: BuilderNodeTree) => {
+      if (pageVersion === null) {
+        return { ok: false as const, error: "Composition not loaded yet." };
+      }
+      const prevTree = builderTree;
+      setBuilderTree(nextTree);
+      setSaving(true);
+      const snapshot = currentSnapshot();
+      const save = await saveDraftHomepageAction({
+        locale,
+        pageId,
+        expectedVersion: pageVersion,
+        metadata: snapshot.metadata,
+        slots: stripSnapshotForSave(snapshot).slots,
+        builderTree: nextTree,
+      });
+      setSaving(false);
+      if (!save.ok) {
+        setBuilderTree(prevTree);
+        if (save.code === "VERSION_CONFLICT") {
+          await refreshComposition();
+        }
+        setMutationError(save.error);
+        return { ok: false as const, error: save.error };
+      }
+      setPageVersion(save.pageVersion);
+      router.refresh();
+      return { ok: true as const };
+    },
+    [
+      pageVersion,
+      builderTree,
+      currentSnapshot,
+      locale,
+      pageId,
+      refreshComposition,
+      router,
+    ],
+  );
+
+  const commitBuilderTreeMutation = useCallback(
+    async (nextTree: BuilderNodeTree) => {
+      const prevTree = builderTree;
+      if (JSON.stringify(prevTree) === JSON.stringify(nextTree)) {
+        return { ok: true as const };
+      }
+      setPast((p) =>
+        capHistory([
+          ...p,
+          {
+            kind: "builderTree",
+            pre: cloneBuilderNodeTree(prevTree),
+            post: cloneBuilderNodeTree(nextTree),
+          },
+        ]),
+      );
+      setFuture([]);
+      const result = await persistBuilderTree(nextTree);
+      if (!result.ok) {
+        setPast((p) => p.slice(0, -1));
+      }
+      return result;
+    },
+    [builderTree, capHistory, persistBuilderTree],
+  );
+
+  // ── builder-node reorder within current parent ────────────────────
+  const moveBuilderNodeToIndex = useCallback<
+    EditContextValue["moveBuilderNodeToIndex"]
+  >(
+    async (nodeId, targetIndex) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      const location = findBuilderNodeLocation(builderTree, nodeId);
+      if (!location) {
+        return { ok: false, error: "Builder node not found." };
+      }
+      if (targetIndex < 0 || targetIndex >= location.siblingCount) {
+        return { ok: false, error: "Already at the edge of this group." };
+      }
+      if (targetIndex === location.index) {
+        return { ok: true };
+      }
+      const moved = moveBuilderNode({
+        tree: builderTree,
+        nodeId,
+        parentId: location.parentId,
+        index: targetIndex,
+      });
+      if (!moved.ok) {
+        return { ok: false, error: moved.message };
+      }
+
+      return commitBuilderTreeMutation(moved.tree);
+    },
+    [
+      pageVersion,
+      builderTree,
+      commitBuilderTreeMutation,
+    ],
+  );
+  const moveBuilderNodeToParentIndex = useCallback<
+    EditContextValue["moveBuilderNodeToParentIndex"]
+  >(
+    async (nodeId, targetParentId, targetIndex) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      const location = findBuilderNodeLocation(builderTree, nodeId);
+      if (!location) {
+        return { ok: false, error: "Builder node not found." };
+      }
+      const siblingCount =
+        location.parentId === targetParentId
+          ? location.siblingCount
+          : Math.max(0, location.siblingCount);
+      if (targetIndex < 0) {
+        return { ok: false, error: "Invalid builder-node target index." };
+      }
+      if (location.parentId === targetParentId && targetIndex >= siblingCount) {
+        return { ok: false, error: "Invalid builder-node target index." };
+      }
+
+      const moved = moveBuilderNode({
+        tree: builderTree,
+        nodeId,
+        parentId: targetParentId,
+        index: targetIndex,
+      });
+      if (!moved.ok) {
+        return { ok: false, error: moved.message };
+      }
+
+      return commitBuilderTreeMutation(moved.tree);
+    },
+    [
+      pageVersion,
+      builderTree,
+      commitBuilderTreeMutation,
+    ],
+  );
+  const insertBuilderNode = useCallback<
+    EditContextValue["insertBuilderNode"]
+  >(
+    async (parentId, kind, index) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      const node = createBuilderNode(kind);
+      const inserted = insertBuilderNodeOp({
+        tree: builderTree,
+        node,
+        parentId,
+        index,
+      });
+      if (!inserted.ok) {
+        return { ok: false, error: inserted.message };
+      }
+      const result = await commitBuilderTreeMutation(inserted.tree);
+      if (!result.ok) {
+        return result;
+      }
+      selectBuilderNode(node.id);
+      return { ok: true, nodeId: node.id };
+    },
+    [pageVersion, builderTree, commitBuilderTreeMutation, selectBuilderNode],
+  );
+  const removeBuilderNode = useCallback<
+    EditContextValue["removeBuilderNode"]
+  >(
+    async (nodeId) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      const removed = removeBuilderNodeOp({
+        tree: builderTree,
+        nodeId,
+      });
+      if (!removed.ok) {
+        return { ok: false, error: removed.message };
+      }
+      return commitBuilderTreeMutation(removed.tree);
+    },
+    [pageVersion, builderTree, commitBuilderTreeMutation],
+  );
+  const duplicateBuilderNode = useCallback<
+    EditContextValue["duplicateBuilderNode"]
+  >(
+    async (nodeId) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      const duplicated = duplicateBuilderNodeOp({
+        tree: builderTree,
+        nodeId,
+      });
+      if (!duplicated.ok) {
+        return { ok: false, error: duplicated.message };
+      }
+      const result = await commitBuilderTreeMutation(duplicated.tree);
+      if (!result.ok) {
+        return result;
+      }
+      selectBuilderNode(duplicated.nodeId);
+      return { ok: true, nodeId: duplicated.nodeId };
+    },
+    [pageVersion, builderTree, commitBuilderTreeMutation, selectBuilderNode],
+  );
+  const copyBuilderNode = useCallback<EditContextValue["copyBuilderNode"]>(
+    (nodeId) => {
+      const location = findBuilderNodeLocation(builderTree, nodeId);
+      if (!location) {
+        return { ok: false, error: "Builder node not found." };
+      }
+      if (location.node.kind === "section") {
+        return {
+          ok: false,
+          error: "Sections use the section duplicate action.",
+        };
+      }
+      setCopiedBuilderNode(cloneBuilderNode(location.node));
+      return { ok: true };
+    },
+    [builderTree],
+  );
+  const getCopiedBuilderNodePastePreview = useCallback<
+    EditContextValue["getCopiedBuilderNodePastePreview"]
+  >(
+    (targetNodeId) => {
+      if (!copiedBuilderNode) return null;
+      return resolveCopiedBuilderNodePasteTarget({
+        tree: builderTree,
+        copiedNode: copiedBuilderNode,
+        targetNodeId,
+      }).preview;
+    },
+    [builderTree, copiedBuilderNode],
+  );
+  const saveCopiedBuilderNodeAsPreset = useCallback<
+    EditContextValue["saveCopiedBuilderNodeAsPreset"]
+  >(
+    (name) => {
+      if (!copiedBuilderNode || copiedBuilderNode.kind === "section") {
+        return { ok: false, error: "Copy a block before saving a preset." };
+      }
+      const presetId = crypto.randomUUID();
+      const label = builderNodeLabel(copiedBuilderNode.kind);
+      const preset: BuilderBlockPreset = {
+        id: presetId,
+        name: name?.trim() || `${label} pattern`,
+        node: cloneBuilderNode(copiedBuilderNode) as Exclude<
+          BuilderNode,
+          { kind: "section" }
+        >,
+        createdAt: new Date().toISOString(),
+      };
+      setBuilderBlockPresets((current) => {
+        const deduped = current.filter((item) => item.name !== preset.name);
+        return [preset, ...deduped].slice(0, BUILDER_BLOCK_PRESET_LIMIT);
+      });
+      return { ok: true, presetId };
+    },
+    [copiedBuilderNode],
+  );
+  const removeBuilderBlockPreset = useCallback<
+    EditContextValue["removeBuilderBlockPreset"]
+  >((presetId) => {
+    setBuilderBlockPresets((current) =>
+      current.filter((preset) => preset.id !== presetId),
+    );
+  }, []);
+  const pasteBuilderBlockPreset = useCallback<
+    EditContextValue["pasteBuilderBlockPreset"]
+  >(
+    async (presetId, targetNodeId) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      const preset = builderBlockPresets.find((item) => item.id === presetId);
+      if (!preset) {
+        return { ok: false, error: "Block preset not found." };
+      }
+      const pasteTarget = resolveCopiedBuilderNodePasteTarget({
+        tree: builderTree,
+        copiedNode: preset.node,
+        targetNodeId,
+      });
+      if (!pasteTarget.ok) {
+        return { ok: false, error: pasteTarget.preview.message };
+      }
+      const pasted = pasteBuilderNodeOp({
+        tree: builderTree,
+        node: preset.node,
+        parentId: pasteTarget.parentId,
+        index: pasteTarget.index,
+      });
+      if (!pasted.ok) {
+        return { ok: false, error: pasted.message };
+      }
+      const result = await commitBuilderTreeMutation(pasted.tree);
+      if (!result.ok) return result;
+      selectBuilderNode(pasted.nodeId);
+      return { ok: true, nodeId: pasted.nodeId };
+    },
+    [
+      pageVersion,
+      builderBlockPresets,
+      builderTree,
+      commitBuilderTreeMutation,
+      selectBuilderNode,
+    ],
+  );
+  const pasteCopiedBuilderNode = useCallback<
+    EditContextValue["pasteCopiedBuilderNode"]
+  >(
+    async (targetNodeId) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      if (!copiedBuilderNode) {
+        return { ok: false, error: "Copy a block before pasting." };
+      }
+
+      const pasteTarget = resolveCopiedBuilderNodePasteTarget({
+        tree: builderTree,
+        copiedNode: copiedBuilderNode,
+        targetNodeId,
+      });
+      if (!pasteTarget.ok) {
+        return { ok: false, error: pasteTarget.preview.message };
+      }
+
+      const pasted = pasteBuilderNodeOp({
+        tree: builderTree,
+        node: copiedBuilderNode,
+        parentId: pasteTarget.parentId,
+        index: pasteTarget.index,
+      });
+      if (!pasted.ok) {
+        return { ok: false, error: pasted.message };
+      }
+      const result = await commitBuilderTreeMutation(pasted.tree);
+      if (!result.ok) {
+        return result;
+      }
+      selectBuilderNode(pasted.nodeId);
+      return { ok: true, nodeId: pasted.nodeId };
+    },
+    [
+      pageVersion,
+      copiedBuilderNode,
+      builderTree,
+      commitBuilderTreeMutation,
+      selectBuilderNode,
+    ],
+  );
+  const patchBuilderNodeProps = useCallback<
+    EditContextValue["patchBuilderNodeProps"]
+  >(
+    async (nodeId, patch) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      const patched = patchBuilderNodePropsOp({
+        tree: builderTree,
+        nodeId,
+        patch,
+      });
+      if (!patched.ok) {
+        return { ok: false, error: patched.message };
+      }
+      return commitBuilderTreeMutation(patched.tree);
+    },
+    [pageVersion, builderTree, commitBuilderTreeMutation],
+  );
+  const moveBuilderNodeWithinParent = useCallback<
+    EditContextValue["moveBuilderNodeWithinParent"]
+  >(
+    async (nodeId, direction) => {
+      const location = findBuilderNodeLocation(builderTree, nodeId);
+      if (!location) {
+        return { ok: false, error: "Builder node not found." };
+      }
+      const targetIndex =
+        direction === "up" ? location.index - 1 : location.index + 1;
+      return moveBuilderNodeToParentIndex(
+        nodeId,
+        location.parentId,
+        targetIndex,
+      );
+    },
+    [builderTree, moveBuilderNodeToParentIndex],
+  );
+
   // ── undo / redo ────────────────────────────────────────────────────
   const restoreSnapshot = useCallback(
     async (target: CompositionSnapshot) => {
       if (pageVersion === null) return;
       setSaving(true);
-      setSlots(target.slots);
+      setSlotsAndBuilderTree(target.slots);
       setPageMetadata(target.metadata);
+      const builderTreeForSave = reconcileBuilderTreeFromSlots(
+        builderTree,
+        target.slots,
+      );
       const save = await saveHomepageCompositionAction({
         locale,
         pageId,
         expectedVersion: pageVersion,
         ...stripSnapshotForSave(target),
+        builderTree: builderTreeForSave,
       });
       setSaving(false);
       if (!save.ok) {
@@ -1607,7 +2781,15 @@ export function EditProvider({
       setPageVersion(save.pageVersion);
       router.refresh();
     },
-    [pageVersion, locale, pageId, refreshComposition, router],
+    [
+      pageVersion,
+      locale,
+      pageId,
+      refreshComposition,
+      router,
+      builderTree,
+      setSlotsAndBuilderTree,
+    ],
   );
 
   /**
@@ -1660,11 +2842,21 @@ export function EditProvider({
         ]),
       );
       await restoreSnapshot(entry.snapshot);
+    } else if (entry.kind === "builderTree") {
+      setFuture((f) => capHistory([...f, entry]));
+      await persistBuilderTree(entry.pre);
     } else {
       setFuture((f) => capHistory([...f, entry]));
       await applyFieldEdit(entry.sectionId, entry.pre);
     }
-  }, [past, currentSnapshot, restoreSnapshot, applyFieldEdit, capHistory]);
+  }, [
+    past,
+    currentSnapshot,
+    restoreSnapshot,
+    persistBuilderTree,
+    applyFieldEdit,
+    capHistory,
+  ]);
 
   const redo = useCallback(async () => {
     if (future.length === 0) return;
@@ -1679,11 +2871,21 @@ export function EditProvider({
         ]),
       );
       await restoreSnapshot(entry.snapshot);
+    } else if (entry.kind === "builderTree") {
+      setPast((p) => capHistory([...p, entry]));
+      await persistBuilderTree(entry.post);
     } else {
       setPast((p) => capHistory([...p, entry]));
       await applyFieldEdit(entry.sectionId, entry.post);
     }
-  }, [future, currentSnapshot, restoreSnapshot, applyFieldEdit, capHistory]);
+  }, [
+    future,
+    currentSnapshot,
+    restoreSnapshot,
+    persistBuilderTree,
+    applyFieldEdit,
+    capHistory,
+  ]);
 
   /**
    * Called by inspector-dock when an autosave field edit completes. Pushes
@@ -1926,6 +3128,7 @@ export function EditProvider({
       pageId,
       expectedVersion: pageVersion,
       ...stripSnapshotForSave(snap),
+      builderTree: reconcileBuilderTreeFromSlots(builderTree, snap.slots),
     });
     setSaving(false);
     if (!res.ok) {
@@ -1938,7 +3141,14 @@ export function EditProvider({
     setPageVersion(res.pageVersion);
     setLastDraftSavedAt(res.savedAt);
     return { ok: true, savedAt: res.savedAt };
-  }, [pageVersion, currentSnapshot, locale, pageId, refreshComposition]);
+  }, [
+    pageVersion,
+    currentSnapshot,
+    locale,
+    pageId,
+    refreshComposition,
+    builderTree,
+  ]);
 
   const value = useMemo<EditContextValue>(
     () => ({
@@ -1956,6 +3166,16 @@ export function EditProvider({
       extendSelection,
       toggleSelection,
       getAllSelectedIds,
+      selectedBuilderNodeId,
+      selectBuilderNode,
+      copiedBuilderNodeKind: copiedBuilderNode?.kind ?? null,
+      builderBlockPresets,
+      getCopiedBuilderNodePastePreview,
+      copyBuilderNode,
+      saveCopiedBuilderNodeAsPreset,
+      pasteBuilderBlockPreset,
+      removeBuilderBlockPreset,
+      pasteCopiedBuilderNode,
       hoveredSectionId,
       setHoveredSectionId,
       device,
@@ -1975,6 +3195,7 @@ export function EditProvider({
       pageVersion,
       pageMetadata,
       slots,
+      builderTree,
       slotDefs,
       library,
       availableLocales,
@@ -1984,8 +3205,16 @@ export function EditProvider({
       removeSection,
       moveSection,
       moveSectionTo,
+      moveBuilderNodeWithinParent,
+      moveBuilderNodeToIndex,
+      moveBuilderNodeToParentIndex,
+      insertBuilderNode,
+      duplicateBuilderNode,
+      removeBuilderNode,
+      patchBuilderNodeProps,
       duplicateSection,
       renameSection,
+      syncBuilderNodeChildrenForSection,
 
       canUndo: past.length > 0,
       canRedo: future.length > 0,
@@ -2037,6 +3266,10 @@ export function EditProvider({
       openPalette,
       closePalette,
       togglePalette,
+      starterTemplateGalleryOpen,
+      starterTemplateGalleryHighlightedSlug,
+      openStarterTemplateGallery,
+      closeStarterTemplateGallery,
 
       shortcutOverlayOpen,
       openShortcutOverlay,
@@ -2070,6 +3303,9 @@ export function EditProvider({
       extendSelection,
       toggleSelection,
       getAllSelectedIds,
+      selectedBuilderNodeId,
+      selectBuilderNode,
+      copiedBuilderNode,
       setSelectedSectionId,
       hoveredSectionId,
       device,
@@ -2084,6 +3320,7 @@ export function EditProvider({
       pageVersion,
       pageMetadata,
       slots,
+      builderTree,
       slotDefs,
       library,
       availableLocales,
@@ -2092,8 +3329,23 @@ export function EditProvider({
       removeSection,
       moveSection,
       moveSectionTo,
+      moveBuilderNodeWithinParent,
+      moveBuilderNodeToIndex,
+      moveBuilderNodeToParentIndex,
+      insertBuilderNode,
+      duplicateBuilderNode,
+      copyBuilderNode,
+      saveCopiedBuilderNodeAsPreset,
+      pasteBuilderBlockPreset,
+      removeBuilderBlockPreset,
+      getCopiedBuilderNodePastePreview,
+      pasteCopiedBuilderNode,
+      builderBlockPresets,
+      removeBuilderNode,
+      patchBuilderNodeProps,
       duplicateSection,
       renameSection,
+      syncBuilderNodeChildrenForSection,
       past.length,
       future.length,
       undo,
@@ -2134,6 +3386,10 @@ export function EditProvider({
       openPalette,
       closePalette,
       togglePalette,
+      starterTemplateGalleryOpen,
+      starterTemplateGalleryHighlightedSlug,
+      openStarterTemplateGallery,
+      closeStarterTemplateGallery,
       shortcutOverlayOpen,
       openShortcutOverlay,
       closeShortcutOverlay,

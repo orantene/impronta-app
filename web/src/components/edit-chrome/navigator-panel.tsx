@@ -35,7 +35,16 @@
  *   right-click menu will surface the full enum.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEventHandler,
+  type ReactNode,
+} from "react";
 
 import {
   CHROME,
@@ -53,6 +62,15 @@ import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
+import {
+  builderSectionNodeAddressKey,
+  BUILDER_NODE_REGISTRY,
+  indexBuilderSectionChildNodes,
+  indexBuilderSectionNodeIds,
+  type BuilderSectionChildNode,
+  type BuilderNodeKind,
+} from "@/lib/site-admin/builder-node";
+import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 import { HeadingLintBadge } from "./inspectors/HeadingLintBadge";
 import { loadHeadingProbeForLint } from "@/lib/site-admin/edit-mode/heading-lint-action";
 import {
@@ -67,16 +85,35 @@ const PANEL_WIDTH = 280;
 interface FlatRow {
   ref: CompositionSectionRef;
   slotKey: string;
+  builderNodeId: string | null;
+  childNodes: ReadonlyArray<{
+    id: string;
+    kind: BuilderNodeKind;
+    label: string;
+    depth: number;
+    parentId: string;
+    role: BuilderSectionChildNode["role"];
+  }>;
   /** Index of this row inside its slot's array (used by `moveSectionTo`). */
   slotIndex: number;
   /** Position across the whole flattened list (drop targets use this). */
   flatIndex: number;
 }
 
+interface NodeInsertTarget {
+  key: string;
+  parentId: string;
+  index: number;
+  allowedKinds: ReadonlyArray<BuilderNodeKind>;
+  label: string;
+}
+
 export function NavigatorPanel() {
   const {
     selectedSectionId,
+    selectedBuilderNodeId,
     setSelectedSectionId,
+    selectBuilderNode,
     additionalSelectedIds,
     extendSelection,
     toggleSelection,
@@ -85,6 +122,10 @@ export function NavigatorPanel() {
     slotDefs,
     pageMetadata,
     moveSectionTo,
+    moveBuilderNodeWithinParent,
+    moveBuilderNodeToParentIndex,
+    insertBuilderNode,
+    removeBuilderNode,
     openPageSettings,
     openTheme,
     canEditSiteShell,
@@ -92,6 +133,8 @@ export function NavigatorPanel() {
     toggleNavigator,
     setSectionVisibility,
     openLibrary,
+    reportMutationError,
+    builderTree,
   } = useEditContext();
 
   const [search, setSearch] = useState("");
@@ -106,6 +149,19 @@ export function NavigatorPanel() {
   // already loads for the lint badge. Toggling is local to the navigator —
   // it doesn't change selection or any persisted state.
   const [viewMode, setViewMode] = useState<"sections" | "outline">("sections");
+  const [draggingChildNode, setDraggingChildNode] = useState<{
+    nodeId: string;
+    parentId: string;
+    sourceIndex: number;
+  } | null>(null);
+  const [nodeInsertTarget, setNodeInsertTarget] = useState<NodeInsertTarget | null>(
+    null,
+  );
+  const [childDropTarget, setChildDropTarget] = useState<{
+    parentId: string;
+    index: number;
+    siblingCount: number;
+  } | null>(null);
 
   // Phase B.2.C — shell sections (header / footer) live on a different
   // page row than the homepage, so they're not in the EditProvider's
@@ -123,6 +179,7 @@ export function NavigatorPanel() {
     sectionTypeKey: "site_header" | "site_footer";
     slotKey: "header" | "footer";
     label: string;
+    builderNodeId: string | null;
   }
   const [shellRows, setShellRows] = useState<ShellNavRow[]>([]);
   useEffect(() => {
@@ -138,14 +195,30 @@ export function NavigatorPanel() {
       );
       headers.forEach((el) => {
         const id = el.getAttribute("data-section-id");
-        if (id) out.push({ sectionId: id, sectionTypeKey: "site_header", slotKey: "header", label: "Site header" });
+        if (id) {
+          out.push({
+            sectionId: id,
+            sectionTypeKey: "site_header",
+            slotKey: "header",
+            label: "Site header",
+            builderNodeId: el.getAttribute("data-builder-node-id"),
+          });
+        }
       });
       const footers = document.querySelectorAll<HTMLElement>(
         '[data-cms-section][data-section-type-key="site_footer"]',
       );
       footers.forEach((el) => {
         const id = el.getAttribute("data-section-id");
-        if (id) out.push({ sectionId: id, sectionTypeKey: "site_footer", slotKey: "footer", label: "Site footer" });
+        if (id) {
+          out.push({
+            sectionId: id,
+            sectionTypeKey: "site_footer",
+            slotKey: "footer",
+            label: "Site footer",
+            builderNodeId: el.getAttribute("data-builder-node-id"),
+          });
+        }
       });
       setShellRows(out);
     };
@@ -162,15 +235,40 @@ export function NavigatorPanel() {
     const out: FlatRow[] = [];
     let flatIndex = 0;
     const order = slotDefsOrder(slotDefs, slots);
+    const builderNodeIds = indexBuilderSectionNodeIds(builderTree);
+    const builderSectionChildNodes = indexBuilderSectionChildNodes(builderTree);
     for (const slotKey of order) {
       const entries = slots[slotKey] ?? [];
       const sorted = [...entries].sort((a, b) => a.sortOrder - b.sortOrder);
       sorted.forEach((ref, slotIndex) => {
-        out.push({ ref, slotKey, slotIndex, flatIndex: flatIndex++ });
+        const key = builderSectionNodeAddressKey({
+          sectionId: ref.sectionId,
+          slotKey,
+          sortOrder: ref.sortOrder,
+        });
+        const builderNodeId = key ? builderNodeIds.get(key) ?? null : null;
+        const childNodes = builderNodeId
+          ? (builderSectionChildNodes.get(builderNodeId) ?? []).map((node) => ({
+              id: node.id,
+              kind: node.kind,
+              label: node.label,
+              depth: node.depth,
+              parentId: node.parentId,
+              role: node.role,
+            }))
+          : [];
+        out.push({
+          ref,
+          slotKey,
+          builderNodeId,
+          childNodes,
+          slotIndex,
+          flatIndex: flatIndex++,
+        });
       });
     }
     return out;
-  }, [slotDefs, slots]);
+  }, [builderTree, slotDefs, slots]);
 
   // Phase 10 — heading hierarchy lint. Two modes:
   //   - Structural (default, instant): infers from section types alone.
@@ -269,11 +367,21 @@ export function NavigatorPanel() {
       ).toLowerCase();
       const typeKey = r.ref.sectionTypeKey.toLowerCase();
       const typeKeyHumanized = typeKey.replace(/_/g, " ");
+      const childMatch = r.childNodes.some((child) => {
+        const kindLabel = BUILDER_NODE_REGISTRY[child.kind].label.toLowerCase();
+        return (
+          child.label.toLowerCase().includes(q) ||
+          child.kind.toLowerCase().includes(q) ||
+          kindLabel.includes(q) ||
+          (child.role ?? "").toLowerCase().includes(q)
+        );
+      });
       return (
         cleanedName.includes(q) ||
         probedHeadline.includes(q) ||
         typeKey.includes(q) ||
-        typeKeyHumanized.includes(q)
+        typeKeyHumanized.includes(q) ||
+        childMatch
       );
     });
   }, [flat, search, displayNameById]);
@@ -321,7 +429,11 @@ export function NavigatorPanel() {
   // Cmd/Ctrl → toggle in/out of selection. Same rules apply on canvas
   // section clicks (selection-layer.tsx).
   const handleRowSelect = useCallback(
-    (sectionId: string, e: React.MouseEvent | React.KeyboardEvent) => {
+    (
+      sectionId: string,
+      builderNodeId: string | null,
+      e: React.MouseEvent | React.KeyboardEvent,
+    ) => {
       if (e.shiftKey) {
         extendSelection(sectionId);
         return;
@@ -330,9 +442,13 @@ export function NavigatorPanel() {
         toggleSelection(sectionId);
         return;
       }
-      setSelectedSectionId(sectionId);
+      if (builderNodeId) {
+        selectBuilderNode(builderNodeId);
+      } else {
+        setSelectedSectionId(sectionId);
+      }
     },
-    [extendSelection, toggleSelection, setSelectedSectionId],
+    [extendSelection, selectBuilderNode, toggleSelection, setSelectedSectionId],
   );
 
   const onDragStart = useCallback(
@@ -358,6 +474,98 @@ export function NavigatorPanel() {
     setDraggingId(null);
     setDropAt(null);
   }, []);
+  const allowedChildKindsForParent = useCallback(
+    (parentKind: BuilderNodeKind): ReadonlyArray<BuilderNodeKind> => {
+      const policy = BUILDER_NODE_REGISTRY[parentKind].children;
+      return policy.type === "allow_list" ? policy.kinds : [];
+    },
+    [],
+  );
+  const toggleNodeInsertTarget = useCallback((target: NodeInsertTarget) => {
+    setNodeInsertTarget((prev) => (prev?.key === target.key ? null : target));
+  }, []);
+  const commitNodeInsert = useCallback(
+    async (kind: BuilderNodeKind) => {
+      if (!nodeInsertTarget) return;
+      const target = nodeInsertTarget;
+      setNodeInsertTarget(null);
+      const inserted = await insertBuilderNode(target.parentId, kind, target.index);
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderNode, nodeInsertTarget, reportMutationError],
+  );
+  const commitNodeRemoval = useCallback(
+    async (nodeId: string) => {
+      setNodeInsertTarget((prev) => (prev?.parentId === nodeId ? null : prev));
+      const removed = await removeBuilderNode(nodeId);
+      if (!removed.ok && removed.error) {
+        reportMutationError(removed.error);
+      }
+    },
+    [removeBuilderNode, reportMutationError],
+  );
+  const onChildDragEnd = useCallback(() => {
+    setDraggingChildNode(null);
+    setChildDropTarget(null);
+  }, []);
+  const onChildDragStart = useCallback(
+    (
+      e: DragEvent<HTMLDivElement>,
+      input: { nodeId: string; parentId: string; sourceIndex: number },
+    ) => {
+      e.stopPropagation();
+      setDraggingChildNode(input);
+      setChildDropTarget(null);
+      selectBuilderNode(input.nodeId);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", input.nodeId);
+    },
+    [selectBuilderNode],
+  );
+  const onChildDrop = useCallback(
+    async (e: DragEvent<HTMLDivElement>) => {
+      if (!draggingChildNode || !childDropTarget) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const sourceIndex = draggingChildNode.sourceIndex;
+      const sourceParentId = draggingChildNode.parentId;
+      const targetParentId = childDropTarget.parentId;
+      const dropIndex = childDropTarget.index;
+      const sameParent = sourceParentId === targetParentId;
+      if (sameParent && (dropIndex === sourceIndex || dropIndex === sourceIndex + 1)) {
+        onChildDragEnd();
+        return;
+      }
+
+      const nextIndex =
+        sameParent && dropIndex > sourceIndex ? dropIndex - 1 : dropIndex;
+      if (nextIndex < 0) {
+        onChildDragEnd();
+        return;
+      }
+
+      const nodeId = draggingChildNode.nodeId;
+      onChildDragEnd();
+      const moved = await moveBuilderNodeToParentIndex(
+        nodeId,
+        targetParentId,
+        nextIndex,
+      );
+      if (!moved.ok && moved.error) {
+        reportMutationError(moved.error);
+      }
+    },
+    [
+      childDropTarget,
+      draggingChildNode,
+      moveBuilderNodeToParentIndex,
+      onChildDragEnd,
+      reportMutationError,
+    ],
+  );
 
   const onRowDragOver = useCallback(
     (e: DragEvent<HTMLDivElement>, targetFlatIndex: number) => {
@@ -409,10 +617,31 @@ export function NavigatorPanel() {
         onDragEnd();
         return;
       }
+
+      const compatibility = checkSlotTypeCompatibility({
+        slotDefs,
+        targetSlotKey,
+        sectionTypeKey: moved.ref.sectionTypeKey,
+      });
+      if (!compatibility.ok) {
+        onDragEnd();
+        reportMutationError(compatibility.message);
+        return;
+      }
+
       onDragEnd();
       await moveSectionTo(moved.ref.sectionId, targetSlotKey, targetSlotIndex);
     },
-    [draggingId, dropAt, flat, slots, slotDefs, moveSectionTo, onDragEnd],
+    [
+      draggingId,
+      dropAt,
+      flat,
+      slots,
+      slotDefs,
+      moveSectionTo,
+      onDragEnd,
+      reportMutationError,
+    ],
   );
 
   if (!navigatorOpen) {
@@ -739,16 +968,31 @@ export function NavigatorPanel() {
                 return (
                   <div
                     key={row.sectionId}
-                    onClick={() => setSelectedSectionId(row.sectionId)}
+                    data-builder-node-id={row.builderNodeId ?? undefined}
+                    onClick={() => {
+                      if (row.builderNodeId) {
+                        selectBuilderNode(row.builderNodeId);
+                      } else {
+                        setSelectedSectionId(row.sectionId);
+                      }
+                    }}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setSelectedSectionId(row.sectionId);
+                        if (row.builderNodeId) {
+                          selectBuilderNode(row.builderNodeId);
+                        } else {
+                          setSelectedSectionId(row.sectionId);
+                        }
                       }
                     }}
-                    title={row.label}
+                    title={
+                      row.builderNodeId
+                        ? `${row.label} · ${row.builderNodeId}`
+                        : row.label
+                    }
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -852,7 +1096,7 @@ export function NavigatorPanel() {
             title="Add a section"
             aria-label="Add a section"
             onClick={() => {
-              const firstSlot = slotDefs[0]?.key ?? "body";
+              const firstSlot = defaultSectionAddSlot(slotDefs, slots);
               openLibrary({
                 slotKey: firstSlot,
                 insertAfterSortOrder: null,
@@ -956,9 +1200,7 @@ export function NavigatorPanel() {
               <button
                 type="button"
                 onClick={() => {
-                  // Find the first slot (usually "body") and open the
-                  // section picker for it.
-                  const firstSlot = slotDefs[0]?.key ?? "body";
+                  const firstSlot = defaultSectionAddSlot(slotDefs, slots);
                   openLibrary({
                     slotKey: firstSlot,
                     insertAfterSortOrder: null,
@@ -1021,16 +1263,31 @@ export function NavigatorPanel() {
                   onDragStart={(e) => onDragStart(e, row.ref.sectionId)}
                   onDragEnd={onDragEnd}
                   onDragOver={(e) => onRowDragOver(e, row.flatIndex)}
-                  onClick={(e) => handleRowSelect(row.ref.sectionId, e)}
+                  onClick={(e) =>
+                    handleRowSelect(
+                      row.ref.sectionId,
+                      row.builderNodeId,
+                      e,
+                    )
+                  }
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      handleRowSelect(row.ref.sectionId, e);
+                      handleRowSelect(
+                        row.ref.sectionId,
+                        row.builderNodeId,
+                        e,
+                      );
                     }
                   }}
-                  title={labelFor(row)}
+                  data-builder-node-id={row.builderNodeId ?? undefined}
+                  title={
+                    row.builderNodeId
+                      ? `${labelFor(row)} · ${row.builderNodeId}`
+                      : labelFor(row)
+                  }
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1115,6 +1372,55 @@ export function NavigatorPanel() {
                       {labelFor(row)}
                     </span>
                   )}
+                  {row.builderNodeId ? (
+                    <NodeInlineActionButton
+                      label={`Add block to ${labelFor(row)}`}
+                      onClick={(e) => {
+                        const parentId = row.builderNodeId;
+                        if (!parentId) return;
+                        e.stopPropagation();
+                        toggleNodeInsertTarget({
+                          key: `section:${parentId}`,
+                          parentId,
+                          index: row.childNodes.filter(
+                            (node) => node.parentId === parentId,
+                          ).length,
+                          allowedKinds: allowedChildKindsForParent("section"),
+                          label: labelFor(row),
+                        });
+                      }}
+                      inverted={selected}
+                      dataAttr="data-builder-node-add-trigger"
+                    >
+                      +
+                    </NodeInlineActionButton>
+                  ) : null}
+                  {row.childNodes.length > 0 ? (
+                    <span
+                      data-navigator-block-count=""
+                      aria-label={`${row.childNodes.length} nested blocks`}
+                      title={`${row.childNodes.length} nested blocks`}
+                      style={{
+                        height: 18,
+                        minWidth: 18,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0 6px",
+                        borderRadius: 999,
+                        background: selected
+                          ? "rgba(255,255,255,0.14)"
+                          : "rgba(42,49,71,0.08)",
+                        color: selected ? "rgba(255,255,255,0.82)" : CHROME.muted,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {row.childNodes.length}
+                    </span>
+                  ) : null}
                   <VisibilityEye
                     selected={selected}
                     visibility={visibility}
@@ -1125,6 +1431,286 @@ export function NavigatorPanel() {
                     }}
                   />
                 </div>
+                <NodeInsertMenu
+                  targetKey={row.builderNodeId ? `section:${row.builderNodeId}` : null}
+                  target={nodeInsertTarget}
+                  onInsert={commitNodeInsert}
+                  onDismiss={() => setNodeInsertTarget(null)}
+                />
+                {row.childNodes.length > 0 ? (
+                  <div
+                    style={{
+                      marginLeft: 30,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1,
+                      marginTop: 2,
+                    }}
+                  >
+                    {row.childNodes.map((child) => {
+                      const childSelected = selectedBuilderNodeId === child.id;
+                      const childAllowedKinds = allowedChildKindsForParent(child.kind);
+                      const siblingIds = row.childNodes
+                        .filter((node) => node.parentId === child.parentId)
+                        .map((node) => node.id);
+                      const siblingIndex = siblingIds.indexOf(child.id);
+                      const siblingCount = siblingIds.length;
+                      const canMoveUp = siblingIndex > 0;
+                      const canMoveDown =
+                        siblingIndex >= 0 && siblingIndex < siblingCount - 1;
+                      const showChildDropTop =
+                        draggingChildNode?.parentId === child.parentId &&
+                        childDropTarget?.parentId === child.parentId &&
+                        childDropTarget.index === siblingIndex;
+                      const showChildDropTail =
+                        siblingIndex === siblingCount - 1 &&
+                        draggingChildNode?.parentId === child.parentId &&
+                        childDropTarget?.parentId === child.parentId &&
+                        childDropTarget.index === siblingCount;
+                      return (
+                        <div key={child.id}>
+                          {showChildDropTop ? <DropLine /> : null}
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            draggable={siblingCount > 1}
+                            onDragStart={(e) => {
+                              if (siblingIndex < 0 || siblingCount < 2) {
+                                e.preventDefault();
+                                return;
+                              }
+                              onChildDragStart(e, {
+                                nodeId: child.id,
+                                parentId: child.parentId,
+                                sourceIndex: siblingIndex,
+                              });
+                            }}
+                            onDragEnd={onChildDragEnd}
+                            onDragOver={(e) => {
+                              if (
+                                !draggingChildNode ||
+                                siblingIndex < 0
+                              ) {
+                                return;
+                              }
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const onUpperHalf = e.clientY - rect.top < rect.height / 2;
+                              const nextIndex = onUpperHalf
+                                ? siblingIndex
+                                : siblingIndex + 1;
+                              setChildDropTarget({
+                                parentId: child.parentId,
+                                index: nextIndex,
+                                siblingCount,
+                              });
+                            }}
+                            onDrop={(e) => void onChildDrop(e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectBuilderNode(child.id);
+                            }}
+                            onKeyDown={(e) => {
+                              if (!e.altKey) return;
+                              if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (!canMoveUp) return;
+                                void moveBuilderNodeWithinParent(child.id, "up");
+                                return;
+                              }
+                              if (e.key === "ArrowDown") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (!canMoveDown) return;
+                                void moveBuilderNodeWithinParent(child.id, "down");
+                              }
+                            }}
+                            title={`${child.label} · ${child.id} · Alt+↑/↓ reorder`}
+                            data-navigator-child-node=""
+                            data-builder-node-id={child.id}
+                            data-builder-node-kind={child.kind}
+                            data-builder-node-role={child.role ?? undefined}
+                            style={{
+                              position: "relative",
+                              display: "flex",
+                              alignItems: "stretch",
+                              gap: 7,
+                              minHeight: 34,
+                              padding: "5px 7px",
+                              paddingLeft: 8 + Math.max(0, (child.depth - 1) * 13),
+                              borderRadius: 7,
+                              border: childSelected
+                                ? "1px solid rgba(255,255,255,0.16)"
+                                : `1px solid transparent`,
+                              background: childSelected
+                                ? "rgba(42, 49, 71, 0.92)"
+                                : "transparent",
+                              color: childSelected ? "#fff" : CHROME.muted,
+                              textAlign: "left",
+                              fontSize: 11,
+                              fontWeight: childSelected ? 600 : 500,
+                              cursor: siblingCount > 1 ? "grab" : "pointer",
+                              boxShadow: childSelected
+                                ? "0 6px 16px -12px rgba(0,0,0,0.55)"
+                                : "none",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!childSelected) {
+                                e.currentTarget.style.background = "rgba(24,24,27,0.04)";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!childSelected) {
+                                e.currentTarget.style.background = "transparent";
+                              }
+                            }}
+                          >
+                            <span
+                              aria-hidden
+                              style={{
+                                width: 12,
+                                alignSelf: "stretch",
+                                display: "inline-flex",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: 2,
+                                  minHeight: 22,
+                                  borderRadius: 999,
+                                  background: childSelected
+                                    ? "rgba(255,255,255,0.72)"
+                                    : child.depth > 1
+                                      ? "rgba(42,49,71,0.26)"
+                                      : "rgba(42,49,71,0.14)",
+                                }}
+                              />
+                            </span>
+                            <BuilderNodeKindPill
+                              kind={child.kind}
+                              role={child.role}
+                              selected={childSelected}
+                            />
+                            <span
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  lineHeight: 1.15,
+                                }}
+                              >
+                                {child.label}
+                              </span>
+                              <span
+                                style={{
+                                  marginTop: 2,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  color: childSelected
+                                    ? "rgba(255,255,255,0.58)"
+                                    : CHROME.muted2,
+                                  fontSize: 9.5,
+                                  fontWeight: 650,
+                                  letterSpacing: "0.03em",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {nodeKindLabel(child.kind)}
+                                {child.role ? ` / ${formatBuilderNodeRole(child.role)}` : ""}
+                              </span>
+                            </span>
+                            {childAllowedKinds.length > 0 ? (
+                              <NodeInlineActionButton
+                                label={`Add block inside ${child.label}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleNodeInsertTarget({
+                                    key: `child:${child.id}`,
+                                    parentId: child.id,
+                                    index: row.childNodes.filter(
+                                      (node) => node.parentId === child.id,
+                                    ).length,
+                                    allowedKinds: childAllowedKinds,
+                                    label: child.label,
+                                  });
+                                }}
+                                inverted={childSelected}
+                                dataAttr="data-builder-node-add-trigger"
+                              >
+                                +
+                              </NodeInlineActionButton>
+                            ) : null}
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <NodeInlineActionButton
+                                label={`Move ${child.label} up`}
+                                disabled={!canMoveUp}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!canMoveUp) return;
+                                  void moveBuilderNodeWithinParent(child.id, "up");
+                                }}
+                                inverted={childSelected}
+                              >
+                                ↑
+                              </NodeInlineActionButton>
+                              <NodeInlineActionButton
+                                label={`Move ${child.label} down`}
+                                disabled={!canMoveDown}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!canMoveDown) return;
+                                  void moveBuilderNodeWithinParent(child.id, "down");
+                                }}
+                                inverted={childSelected}
+                              >
+                                ↓
+                              </NodeInlineActionButton>
+                              <NodeInlineActionButton
+                                label={`Remove ${child.label}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void commitNodeRemoval(child.id);
+                                }}
+                                inverted={childSelected}
+                                dataAttr="data-builder-node-remove-trigger"
+                              >
+                                ×
+                              </NodeInlineActionButton>
+                            </span>
+                          </div>
+                          <NodeInsertMenu
+                            targetKey={`child:${child.id}`}
+                            target={nodeInsertTarget}
+                            onInsert={commitNodeInsert}
+                            onDismiss={() => setNodeInsertTarget(null)}
+                          />
+                          {showChildDropTail ? <DropLine /> : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 {showDropLineBelow && <DropLine />}
               </div>
             );
@@ -1191,6 +1777,21 @@ function slotDefsOrder(
     if (!seen.has(key)) out.push(key);
   }
   return out;
+}
+
+function defaultSectionAddSlot(
+  slotDefs: CompositionSlotDef[],
+  slots: Record<string, CompositionSectionRef[]>,
+): string {
+  const emptyRequired = slotDefs.find(
+    (def) => def.required && (slots[def.key]?.length ?? 0) === 0,
+  );
+  if (emptyRequired) return emptyRequired.key;
+
+  const flexible = slotDefs.find((def) => def.allowedSectionTypes === null);
+  if (flexible) return flexible.key;
+
+  return slotDefs[0]?.key ?? "body";
 }
 
 function GripDots({ color }: { color: string }) {
@@ -1289,6 +1890,237 @@ function VisibilityEye({
         </svg>
       )}
     </button>
+  );
+}
+
+function nodeKindLabel(kind: BuilderNodeKind): string {
+  return BUILDER_NODE_REGISTRY[kind]?.label ?? kind.replace(/_/g, " ");
+}
+
+function formatBuilderNodeRole(
+  role: NonNullable<BuilderSectionChildNode["role"]>,
+): string {
+  switch (role) {
+    case "primaryCta":
+      return "Primary CTA";
+    case "secondaryCta":
+      return "Secondary CTA";
+    case "footerCta":
+      return "Footer CTA";
+    case "headline":
+      return "Headline";
+    case "subheadline":
+      return "Subheadline";
+    case "copy":
+      return "Copy";
+  }
+}
+
+function BuilderNodeKindPill({
+  kind,
+  role,
+  selected,
+}: {
+  kind: BuilderNodeKind;
+  role: BuilderSectionChildNode["role"];
+  selected: boolean;
+}) {
+  const label = nodeKindLabel(kind);
+  const short = role
+    ? formatBuilderNodeRole(role)
+        .split(" ")
+        .map((part) => part.charAt(0))
+        .join("")
+        .slice(0, 3)
+    : label.charAt(0);
+  return (
+    <span
+      data-navigator-node-kind-pill=""
+      title={role ? `${label} / ${formatBuilderNodeRole(role)}` : label}
+      aria-hidden
+      style={{
+        width: 24,
+        height: 22,
+        alignSelf: "center",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 6,
+        border: selected
+          ? "1px solid rgba(255,255,255,0.16)"
+          : `1px solid ${CHROME.line}`,
+        background: selected ? "rgba(255,255,255,0.12)" : CHROME.paper,
+        color: selected ? "rgba(255,255,255,0.86)" : CHROME.muted,
+        fontSize: 9,
+        fontWeight: 800,
+        letterSpacing: "0.02em",
+        textTransform: "uppercase",
+        flexShrink: 0,
+      }}
+    >
+      {short}
+    </span>
+  );
+}
+
+function NodeInlineActionButton({
+  children,
+  label,
+  onClick,
+  disabled,
+  inverted = false,
+  dataAttr,
+}: {
+  children: ReactNode;
+  label: string;
+  onClick: MouseEventHandler<HTMLButtonElement>;
+  disabled?: boolean;
+  inverted?: boolean;
+  dataAttr?: string;
+}) {
+  const dataProps = dataAttr ? { [dataAttr]: "true" } : {};
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      {...dataProps}
+      style={{
+        width: 16,
+        height: 16,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 4,
+        border: "none",
+        background: inverted ? "rgba(255,255,255,0.14)" : "rgba(24,24,27,0.08)",
+        color: inverted ? "rgba(255,255,255,0.88)" : CHROME.muted2,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.45 : 1,
+        padding: 0,
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function NodeInsertMenu({
+  targetKey,
+  target,
+  onInsert,
+  onDismiss,
+}: {
+  targetKey: string | null;
+  target: NodeInsertTarget | null;
+  onInsert: (kind: BuilderNodeKind) => Promise<void>;
+  onDismiss: () => void;
+}) {
+  if (!targetKey || !target || target.key !== targetKey) {
+    return null;
+  }
+
+  return (
+    <div
+      data-builder-node-insert-menu={targetKey}
+      style={{
+        marginLeft: 30,
+        marginTop: 4,
+        marginBottom: 4,
+        padding: "8px 8px 9px",
+        borderRadius: 8,
+        border: `1px solid ${CHROME.line}`,
+        background: CHROME.surface,
+        display: "flex",
+        flexDirection: "column",
+        gap: 7,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: CHROME.muted2,
+            }}
+          >
+            Add block
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: CHROME.text,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {target.label}
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-label="Close add block menu"
+          onClick={onDismiss}
+          style={{
+            width: 18,
+            height: 18,
+            border: "none",
+            borderRadius: 5,
+            background: "transparent",
+            color: CHROME.muted,
+            cursor: "pointer",
+            padding: 0,
+            flexShrink: 0,
+          }}
+        >
+          ×
+        </button>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+        }}
+      >
+        {target.allowedKinds.map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            onClick={() => void onInsert(kind)}
+            style={{
+              minHeight: 24,
+              padding: "0 8px",
+              borderRadius: 999,
+              border: `1px solid ${CHROME.line}`,
+              background: CHROME.paper,
+              color: CHROME.text,
+              fontSize: 10.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {BUILDER_NODE_REGISTRY[kind].label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

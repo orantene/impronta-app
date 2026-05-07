@@ -23,7 +23,8 @@
  * items[]: { src: url, alt?: string, aspect?: wide|tall|square|auto }
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
 import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
@@ -52,6 +53,7 @@ interface GalleryItem {
 interface Props {
   draftProps: Record<string, unknown>;
   tenantId: string;
+  selectedBuilderNodeId: string | null;
   onChange: (next: Record<string, unknown>) => void;
 }
 
@@ -248,6 +250,7 @@ function EmptyTray() {
 export function GalleryStripContentInspector({
   draftProps,
   tenantId,
+  selectedBuilderNodeId,
   onChange,
 }: Props) {
   const rawItems = (draftProps.items as GalleryItem[] | undefined) ?? [];
@@ -276,11 +279,52 @@ export function GalleryStripContentInspector({
   const headline = (draftProps.headline as string | undefined) ?? "";
   const variant = (draftProps.variant as VariantKey | undefined) ?? "mosaic";
   const caption = (draftProps.caption as string | undefined) ?? "";
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const focusRole = useMemo(() => {
+    if (!selectedBuilderNodeId) return null;
+    const role = resolveBuilderNodeRole(selectedBuilderNodeId);
+    if (role === "subheadline") return "subheadline";
+    if (role === "headline") return "headline";
+    if (role === "copy") return "caption";
+    return null;
+  }, [selectedBuilderNodeId]);
+
+  useEffect(() => {
+    if (!focusRole) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-gallery-node-role="${focusRole}"]`,
+    );
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const focusable = target.querySelector<HTMLElement>(
+      "[contenteditable='true'],input,textarea,select,button",
+    );
+    focusable?.focus({ preventScroll: true });
+  }, [focusRole]);
 
   const tooFew = rawItems.length > 0 && rawItems.length < 3;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div ref={rootRef} className="flex flex-col gap-5">
+      {focusRole ? (
+        <div
+          className="rounded-lg border px-3 py-2 text-xs font-medium"
+          style={{
+            borderColor: "#bfdbfe",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+          }}
+        >
+          Editing selected canvas node:{" "}
+          {focusRole === "subheadline"
+            ? "Eyebrow"
+            : focusRole === "headline"
+              ? "Headline"
+              : "Caption"}
+        </div>
+      ) : null}
       {/* ── Headline ── */}
       <InspectorGroup
         title="Headline"
@@ -288,7 +332,7 @@ export function GalleryStripContentInspector({
         storageKey="gs-header"
         defaultOpen={Boolean(eyebrow || headline)}
       >
-        <div className={KIT.field}>
+        <div className={KIT.field} data-gallery-node-role="subheadline">
           <label className={KIT.label}>Eyebrow</label>
           <input
             type="text"
@@ -301,7 +345,7 @@ export function GalleryStripContentInspector({
             }
           />
         </div>
-        <div className={KIT.field}>
+        <div className={KIT.field} data-gallery-node-role="headline">
           <label className={KIT.label}>Headline</label>
           <RichEditor
             value={headline}
@@ -388,7 +432,7 @@ export function GalleryStripContentInspector({
         storageKey="gs-caption"
         defaultOpen={Boolean(caption)}
       >
-        <div className={KIT.field}>
+        <div className={KIT.field} data-gallery-node-role="caption">
           <textarea
             className={KIT.textarea}
             value={caption}

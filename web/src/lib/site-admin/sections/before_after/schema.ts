@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 export const beforeAfterSchemaV1 = z.object({
@@ -13,6 +14,12 @@ export const beforeAfterSchemaV1 = z.object({
   /** Initial divider position (0..100, percent from left). */
   initialPosition: z.number().int().min(0).max(100).default(50),
   ratio: z.enum(["16/9", "4/3", "1/1", "5/4"]).default("16/9"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

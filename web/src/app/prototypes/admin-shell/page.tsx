@@ -17,6 +17,7 @@
 
 import { AdminShellPrototypePageClient } from "./_shell-client";
 import {
+  createBridgeDataFromRoster,
   loadWorkspaceRosterForCurrentTenant,
   type BridgeData,
 } from "./_data-bridge";
@@ -44,7 +45,7 @@ export default async function AdminShellPrototypeRoute({
     // is null (anonymous / stale cookie / no membership) the bridge
     // returns [], which the UI renders as the standard empty state.
     const roster = await loadWorkspaceRosterForCurrentTenant();
-    initialBridgeData = { roster };
+    initialBridgeData = createBridgeDataFromRoster(roster);
   }
 
   return <AdminShellPrototypePageClient initialBridgeData={initialBridgeData} />;

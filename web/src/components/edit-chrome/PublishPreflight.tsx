@@ -16,6 +16,8 @@ import {
 } from "@/lib/site-admin/edit-mode/publish-preflight-action";
 
 interface Props {
+  /** Only run checks while the publish drawer is visible. */
+  enabled?: boolean;
   /** Bumps when the publish drawer opens — re-fetches issues each time. */
   refreshKey: number;
   locale?: string;
@@ -26,6 +28,7 @@ interface Props {
 }
 
 export function PublishPreflight({
+  enabled = true,
   refreshKey,
   locale,
   onStatusChange,
@@ -36,6 +39,14 @@ export function PublishPreflight({
 
   useEffect(() => {
     let cancelled = false;
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      onStatusChange?.({ loading: false, blockingErrors: 0 });
+      return () => {
+        cancelled = true;
+      };
+    }
     setLoading(true);
     setError(null);
     onStatusChange?.({ loading: true, blockingErrors: 0 });
@@ -57,7 +68,7 @@ export function PublishPreflight({
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, locale, onStatusChange]);
+  }, [enabled, refreshKey, locale, onStatusChange]);
 
   if (loading) {
     return (
@@ -76,7 +87,7 @@ export function PublishPreflight({
   if (!issues || issues.length === 0) {
     return (
       <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300">
-        ✓ Preflight clean — headings, alt text, and contrast all OK.
+        ✓ Preflight clean — publish checks passed.
       </div>
     );
   }

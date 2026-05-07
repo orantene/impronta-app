@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
+import { nodePresentationSchema } from "../shared/node-presentation";
 
 /**
  * Editorial gallery strip. Items cycle aspect ratios (wide/tall/square)
@@ -21,6 +22,14 @@ export const gallerySchemaV1 = z.object({
     .enum(["mosaic", "scroll-rail", "grid-uniform"])
     .default("mosaic"),
   caption: z.string().max(240).optional(),
+  /** Optional child-node-level overrides for eyebrow/heading/caption roles. */
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

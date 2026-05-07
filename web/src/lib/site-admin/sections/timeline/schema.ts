@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const itemSchema = z.object({
@@ -13,6 +14,12 @@ export const timelineSchemaV1 = z.object({
   items: z.array(itemSchema).min(1).max(40),
   variant: z.enum(["centered", "left-rail", "right-rail"]).default("left-rail"),
   numberStyle: z.enum(["dot", "ring", "year"]).default("dot"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

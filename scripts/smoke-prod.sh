@@ -6,7 +6,7 @@
 #   tulala.digital            200
 #   www.tulala.digital        308 -> https://tulala.digital/
 #   app.tulala.digital        200
-#   impronta.tulala.digital   200
+#   impronta.tulala.digital   308 -> https://improntamodels.com/
 #
 # Exits non-zero if any host fails or returns an unexpected status.
 
@@ -16,7 +16,7 @@ HOSTS=(
   "tulala.digital:200"
   "www.tulala.digital:308"
   "app.tulala.digital:200"
-  "impronta.tulala.digital:200"
+  "impronta.tulala.digital:308"
 )
 
 FAIL=0

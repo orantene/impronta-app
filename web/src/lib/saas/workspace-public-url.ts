@@ -36,6 +36,29 @@ export function customDomainEligible(plan: WorkspaceUrlPlan): boolean {
   return plan === "agency" || plan === "network" || plan === "legacy";
 }
 
+export function customDomainLockedCopy(plan: WorkspaceUrlPlan): string {
+  if (plan === "free") {
+    return "Branded subdomains unlock on Studio. Custom domains unlock on Agency and Network.";
+  }
+  return "Studio includes the branded Tulala subdomain. Custom domains unlock on Agency and Network.";
+}
+
+export function workspacePlanPublicModelCopy(plan: WorkspaceUrlPlan): string {
+  if (plan === "free") {
+    return "Free · tulala.digital/<slug> + up to 5 public profiles";
+  }
+  if (plan === "studio") {
+    return "Studio · branded subdomain (optional)";
+  }
+  if (plan === "network") {
+    return "Network · shared templates and multi-workspace controls";
+  }
+  if (plan === "agency" || plan === "legacy") {
+    return "Agency · branded subdomain + custom domain";
+  }
+  return plan;
+}
+
 export function reservedBrandedSubdomainHost(slug: string): string {
   return `${slug}.tulala.digital`;
 }

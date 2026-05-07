@@ -29,6 +29,10 @@ interface CtaDuoEditorProps {
   primaryRequired?: boolean;
   /** Label for the secondary add button. */
   secondaryAddLabel?: string;
+  /** Optional DOM role marker for focus delegation from node selection. */
+  primaryNodeRole?: string;
+  /** Optional DOM role marker for focus delegation from node selection. */
+  secondaryNodeRole?: string;
 }
 
 export function CtaDuoEditor({
@@ -38,6 +42,8 @@ export function CtaDuoEditor({
   onChangeSecondary,
   primaryRequired = false,
   secondaryAddLabel = "Add secondary button",
+  primaryNodeRole,
+  secondaryNodeRole,
 }: CtaDuoEditorProps) {
   const [showSecondary, setShowSecondary] = useState<boolean>(
     Boolean(secondary),
@@ -76,7 +82,10 @@ export function CtaDuoEditor({
   return (
     <div className="flex flex-col gap-3">
       {/* Primary CTA — filled look */}
-      <div className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-2.5">
+      <div
+        className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-2.5"
+        data-hero-node-role={primaryNodeRole}
+      >
         <div className="mb-1.5 flex items-center justify-between">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#3d4f7c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
             Primary
@@ -110,7 +119,10 @@ export function CtaDuoEditor({
       </div>
 
       {showSecondary || secondary ? (
-        <div className="rounded-lg border border-dashed border-[#e5e0d5] bg-[#faf9f6]/60 p-2.5">
+        <div
+          className="rounded-lg border border-dashed border-[#e5e0d5] bg-[#faf9f6]/60 p-2.5"
+          data-hero-node-role={secondaryNodeRole}
+        >
           <div className="mb-1.5 flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e0d5] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-stone-600">
               Secondary

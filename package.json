@@ -11,7 +11,12 @@
     "test:auth-routing": "npm --prefix web run test:auth-routing",
     "create:test-clients": "npm --prefix web run create:test-clients",
     "verify:mcp-prereqs": "bash scripts/verify-mcp-prereqs.sh",
+    "smoke:impronta:prod": "bash scripts/smoke-impronta-prod.sh",
+    "verify:impronta:tenant": "npm --prefix web run test:tenant-isolation && npm --prefix web run verify:builder-ownership && npm --prefix web run verify:published-page-snapshots:strict && npm --prefix web run test:builder-capabilities && npm --prefix web run test:node-presentation && npm --prefix web run verify:server-actions",
+    "verify:impronta:live": "npm run smoke:impronta:prod",
     "verify:google-maps-env": "npm --prefix web run verify:google-maps-env",
+    "verify:published-page-snapshots": "npm --prefix web run verify:published-page-snapshots",
+    "verify:published-page-snapshots:strict": "npm --prefix web run verify:published-page-snapshots:strict",
     "validate:inquiry-workspace-db": "npm --prefix web run validate:inquiry-workspace-db"
   }
 }

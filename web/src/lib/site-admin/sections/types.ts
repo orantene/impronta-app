@@ -89,6 +89,16 @@ export interface SectionComponentProps<TShape> {
    * `/<tenantSlug>/...` on the hub/marketing/local app host.
    */
   publicPathPrefix?: string;
+  /**
+   * Optional BuilderNode identity hints for componentized sections.
+   * `sectionNodeId` is the wrapper's section node; `nodeIdsByRole` maps
+   * semantic child roles (e.g. headline, subheadline, primaryCta) to
+   * BuilderNode ids so live DOM can be selected at child-node granularity.
+   */
+  builderNodeBindings?: {
+    sectionNodeId?: string | null;
+    nodeIdsByRole?: Readonly<Record<string, string>>;
+  };
 }
 
 export interface SectionEditorProps<TShape> {

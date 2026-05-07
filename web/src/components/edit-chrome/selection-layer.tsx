@@ -28,15 +28,33 @@
  *   - Source section while dragging: desaturate filter + dashed ring + 0.4 opacity
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import {
+  BUILDER_NODE_REGISTRY,
+  type BuilderNode,
+  type BuilderNodeKind,
+  type BuilderNodeTree,
+} from "@/lib/site-admin/builder-node";
+import {
   resolveSectionHeadlineFromProps,
   sectionDisplayName,
 } from "@/lib/site-admin/section-display-name";
-import { useEditContext } from "./edit-context";
+import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
+import {
+  useEditContext,
+  type BuilderNodePastePreview,
+} from "./edit-context";
 import { CHROME } from "./kit/tokens";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 
@@ -51,6 +69,11 @@ function findSectionEl(target: EventTarget | null): HTMLElement | null {
   if (!(target instanceof Element)) return null;
   const el = target.closest<HTMLElement>("[data-cms-section]");
   return el;
+}
+
+function findBuilderNodeEl(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof Element)) return null;
+  return target.closest<HTMLElement>("[data-builder-node-id]");
 }
 
 function rectOf(el: HTMLElement): Rect {
@@ -145,10 +168,76 @@ const DRAG_THRESHOLD = 4; // px before an armed drag actually begins
 const AUTOSCROLL_BAND = 80; // px edge band that triggers auto-scroll
 const AUTOSCROLL_MAX = 14; // px per frame at the edge
 
+interface NodeInsertTarget {
+  nodeId: string;
+  allowedKinds: ReadonlyArray<BuilderNodeKind>;
+  label: string;
+}
+
+interface SelectionBreadcrumbCrumb {
+  id: string | null;
+  sectionId?: string | null;
+  kind: BuilderNodeKind | "page";
+  label: string;
+}
+
+interface SelectionContextMenuState {
+  x: number;
+  y: number;
+  sectionId: string;
+  builderNodeId: string | null;
+}
+
+function findBuilderNodeById(
+  tree: BuilderNodeTree,
+  nodeId: string | null,
+): BuilderNode | null {
+  if (!nodeId) return null;
+  const stack = [...tree];
+  while (stack.length > 0) {
+    const current = stack.shift() ?? null;
+    if (!current) continue;
+    if (current.id === nodeId) return current;
+    if ("children" in current && Array.isArray(current.children)) {
+      stack.unshift(...current.children);
+    }
+  }
+  return null;
+}
+
+function findBuilderNodePath(
+  tree: BuilderNodeTree,
+  nodeId: string | null,
+): BuilderNode[] {
+  if (!nodeId) return [];
+  const visit = (
+    nodes: ReadonlyArray<BuilderNode>,
+    path: BuilderNode[],
+  ): BuilderNode[] | null => {
+    for (const node of nodes) {
+      const nextPath = [...path, node];
+      if (node.id === nodeId) return nextPath;
+      if ("children" in node && Array.isArray(node.children)) {
+        const found = visit(node.children, nextPath);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return visit(tree, []) ?? [];
+}
+
+function builderNodeCrumbLabel(node: BuilderNode, sectionLabel: string): string {
+  if (node.kind === "section") return sectionLabel;
+  return truncateNodeLabel(canvasChildPrimaryLabel(node), 42);
+}
+
 export function SelectionLayer() {
   const {
     selectedSectionId,
+    selectedBuilderNodeId,
     setSelectedSectionId,
+    selectBuilderNode,
     additionalSelectedIds,
     extendSelection,
     toggleSelection,
@@ -160,12 +249,23 @@ export function SelectionLayer() {
     moveSectionTo,
     removeSection,
     duplicateSection,
+    copiedBuilderNodeKind,
+    copyBuilderNode,
+    duplicateBuilderNode,
+    getCopiedBuilderNodePastePreview,
+    pasteCopiedBuilderNode,
     setSectionVisibility,
     openPickerPopover,
     saving,
     loadedSection,
     slots,
     slotDefs,
+    builderTree,
+    insertBuilderNode,
+    moveBuilderNodeWithinParent,
+    moveBuilderNodeToParentIndex,
+    removeBuilderNode,
+    reportMutationError,
   } = useEditContext();
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
@@ -173,6 +273,11 @@ export function SelectionLayer() {
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
   const [selectedTypeKey, setSelectedTypeKey] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [contextMenu, setContextMenu] =
+    useState<SelectionContextMenuState | null>(null);
+  const [nodeInsertTarget, setNodeInsertTarget] = useState<NodeInsertTarget | null>(
+    null,
+  );
   const [drag, setDrag] = useState<DragState>({ phase: "idle" });
   const autoscrollRafRef = useRef<number | null>(null);
 
@@ -187,6 +292,20 @@ export function SelectionLayer() {
   // transition re-arms naturally on the next pointer-move re-render.
   const isScrollingRef = useRef(false);
   const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getSelectedSectionEl = useCallback((): HTMLElement | null => {
+    if (!selectedSectionId) return null;
+    return document.querySelector<HTMLElement>(
+      `[data-cms-section][data-section-id="${CSS.escape(selectedSectionId)}"]`,
+    );
+  }, [selectedSectionId]);
+
+  const getSelectedBuilderNodeEl = useCallback((): HTMLElement | null => {
+    if (!selectedBuilderNodeId) return null;
+    return document.querySelector<HTMLElement>(
+      `[data-builder-node-id="${CSS.escape(selectedBuilderNodeId)}"]`,
+    );
+  }, [selectedBuilderNodeId]);
 
   useLayoutEffect(() => {
     const el = document.getElementById("edit-overlay-portal");
@@ -203,12 +322,13 @@ export function SelectionLayer() {
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
       if (selectedSectionId) {
-        const el = document.querySelector<HTMLElement>(
-          `[data-cms-section][data-section-id="${CSS.escape(selectedSectionId)}"]`,
-        );
-        if (el) {
-          setSelectedRect(rectOf(el));
-          const typeKey = el.getAttribute("data-section-type-key");
+        const sectionEl = getSelectedSectionEl();
+        if (sectionEl) {
+          const nodeEl = getSelectedBuilderNodeEl();
+          const selectedEl =
+            nodeEl && sectionEl.contains(nodeEl) ? nodeEl : sectionEl;
+          setSelectedRect(rectOf(selectedEl));
+          const typeKey = sectionEl.getAttribute("data-section-type-key");
           setSelectedTypeKey(typeKey);
         } else {
           setSelectedRect(null);
@@ -233,9 +353,29 @@ export function SelectionLayer() {
     scheduleRectRecompute();
     // Reset the remove confirmation any time selection switches.
     setConfirmRemove(false);
+    setNodeInsertTarget(null);
     // selection/hover changes → recompute immediately
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSectionId, hoveredSectionId]);
+  }, [
+    selectedSectionId,
+    selectedBuilderNodeId,
+    hoveredSectionId,
+    getSelectedSectionEl,
+    getSelectedBuilderNodeEl,
+  ]);
+
+  const commitNodeInsert = useCallback(
+    async (kind: BuilderNodeKind) => {
+      if (!nodeInsertTarget) return;
+      const target = nodeInsertTarget;
+      setNodeInsertTarget(null);
+      const inserted = await insertBuilderNode(target.nodeId, kind);
+      if (!inserted.ok && inserted.error) {
+        reportMutationError(inserted.error);
+      }
+    },
+    [insertBuilderNode, nodeInsertTarget, reportMutationError],
+  );
 
   // Sprint 4 — auto-scroll the canvas to the selected section when it's
   // off-screen. Triggered any time `selectedSectionId` changes (typically
@@ -245,11 +385,12 @@ export function SelectionLayer() {
   // jolt the page. `behavior: smooth` matches the chip's anim feel.
   useEffect(() => {
     if (!selectedSectionId || typeof window === "undefined") return;
-    const el = document.querySelector<HTMLElement>(
-      `[data-cms-section][data-section-id="${CSS.escape(selectedSectionId)}"]`,
-    );
-    if (!el) return;
-    const r = el.getBoundingClientRect();
+    const sectionEl = getSelectedSectionEl();
+    if (!sectionEl) return;
+    const nodeEl = getSelectedBuilderNodeEl();
+    const targetEl =
+      nodeEl && sectionEl.contains(nodeEl) ? nodeEl : sectionEl;
+    const r = targetEl.getBoundingClientRect();
     const vh = window.innerHeight;
     // Treat the section as "comfortably visible" when its top is below
     // the topbar (54px) AND the section's bottom is above the viewport
@@ -263,8 +404,8 @@ export function SelectionLayer() {
     const tallButHeaderVisible =
       r.height > vh - TOPBAR && r.top >= SAFE_TOP - 4 && r.top <= SAFE_TOP + 200;
     if (fullyVisible || tallButHeaderVisible) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [selectedSectionId]);
+    targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [selectedSectionId, selectedBuilderNodeId, getSelectedSectionEl, getSelectedBuilderNodeEl]);
 
   useEffect(() => {
     scheduleRectRecompute();
@@ -297,6 +438,9 @@ export function SelectionLayer() {
       if (!el) return;
       const id = el.getAttribute("data-section-id");
       if (!id) return;
+      const builderNodeId =
+        findBuilderNodeEl(e.target)?.getAttribute("data-builder-node-id") ??
+        el.getAttribute("data-builder-node-id");
 
       // Intercept link/button navigation so editors don't accidentally leave.
       e.preventDefault();
@@ -309,8 +453,44 @@ export function SelectionLayer() {
       } else if (e.metaKey || e.ctrlKey) {
         toggleSelection(id);
       } else {
+        if (builderNodeId) {
+          selectBuilderNode(builderNodeId);
+        } else {
+          setSelectedSectionId(id);
+        }
+      }
+      setContextMenu(null);
+    }
+    function onContextMenuCapture(e: MouseEvent) {
+      if (e.target instanceof Element) {
+        if (
+          e.target.closest("[data-edit-topbar]") ||
+          e.target.closest("[data-edit-drawer]") ||
+          e.target.closest("[data-selection-context-menu]")
+        ) {
+          return;
+        }
+      }
+      const el = findSectionEl(e.target);
+      if (!el) return;
+      const id = el.getAttribute("data-section-id");
+      if (!id) return;
+      const builderNodeId =
+        findBuilderNodeEl(e.target)?.getAttribute("data-builder-node-id") ??
+        el.getAttribute("data-builder-node-id");
+      e.preventDefault();
+      e.stopPropagation();
+      if (builderNodeId) {
+        selectBuilderNode(builderNodeId);
+      } else {
         setSelectedSectionId(id);
       }
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        sectionId: id,
+        builderNodeId,
+      });
     }
     function onScrollOrResize() {
       // Mark scrolling active — suppresses hover-ring position transition.
@@ -323,13 +503,19 @@ export function SelectionLayer() {
       scheduleRectRecompute();
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setSelectedSectionId(null);
+      if (e.key !== "Escape") return;
+      if (contextMenu) {
+        setContextMenu(null);
+        return;
+      }
+      setSelectedSectionId(null);
     }
 
     document.addEventListener("pointermove", onPointerMove);
     document.addEventListener("pointerleave", onPointerLeave);
     // capture phase so we run before React's synthetic delegation
     document.addEventListener("click", onClickCapture, true);
+    document.addEventListener("contextmenu", onContextMenuCapture, true);
     window.addEventListener("scroll", onScrollOrResize, {
       passive: true,
       capture: true,
@@ -341,6 +527,7 @@ export function SelectionLayer() {
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerleave", onPointerLeave);
       document.removeEventListener("click", onClickCapture, true);
+      document.removeEventListener("contextmenu", onContextMenuCapture, true);
       window.removeEventListener("scroll", onScrollOrResize, {
         capture: true,
       } as EventListenerOptions);
@@ -360,13 +547,14 @@ export function SelectionLayer() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hoveredSectionId]);
+  }, [contextMenu, hoveredSectionId]);
 
   // ── drag-to-reorder ──────────────────────────────────────────────
   // Drop target under the cursor given the current section layout.
   const computeDrop = (
     cursorX: number,
     cursorY: number,
+    sourceSlot: string | null,
     sourceTypeKey: string | null,
   ): DropTarget | null => {
     const nodes = Array.from(
@@ -407,12 +595,14 @@ export function SelectionLayer() {
     const bestSibIdx = siblings.findIndex((s) => s.id === best!.id);
     const sortOrder = insertBefore ? bestSibIdx : bestSibIdx + 1;
     // allowedSectionTypes gating. Same slot as source is always allowed.
-    const slotDef = slotDefs.find((s) => s.key === targetSlot);
     const allowed =
-      !slotDef ||
-      !slotDef.allowedSectionTypes ||
-      (sourceTypeKey != null &&
-        slotDef.allowedSectionTypes.includes(sourceTypeKey));
+      sourceSlot === targetSlot
+        ? true
+        : checkSlotTypeCompatibility({
+            slotDefs,
+            targetSlotKey: targetSlot,
+            sectionTypeKey: sourceTypeKey,
+          }).ok;
     const indicatorY = insertBefore ? best.top : best.bottom;
     return {
       slotKey: targetSlot,
@@ -433,7 +623,12 @@ export function SelectionLayer() {
         const dx = e.clientX - drag.startX;
         const dy = e.clientY - drag.startY;
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-        const drop = computeDrop(e.clientX, e.clientY, drag.typeKey);
+        const drop = computeDrop(
+          e.clientX,
+          e.clientY,
+          drag.slot,
+          drag.typeKey,
+        );
         setDrag({
           phase: "dragging",
           id: drag.id,
@@ -450,7 +645,12 @@ export function SelectionLayer() {
         return;
       }
       if (drag.phase === "dragging" && e.pointerId === drag.pointerId) {
-        const drop = computeDrop(e.clientX, e.clientY, drag.typeKey);
+        const drop = computeDrop(
+          e.clientX,
+          e.clientY,
+          drag.slot,
+          drag.typeKey,
+        );
         setDrag({
           ...drag,
           pointerX: e.clientX,
@@ -523,7 +723,12 @@ export function SelectionLayer() {
         // Recompute drop under the NEW scroll position even though the
         // cursor hasn't moved — otherwise the drop line freezes on the
         // section that was under the cursor before the page scrolled.
-        const fresh = computeDrop(drag.pointerX, drag.pointerY, drag.typeKey);
+        const fresh = computeDrop(
+          drag.pointerX,
+          drag.pointerY,
+          drag.slot,
+          drag.typeKey,
+        );
         if (
           fresh?.slotKey !== drag.drop?.slotKey ||
           fresh?.sortOrder !== drag.drop?.sortOrder ||
@@ -570,15 +775,18 @@ export function SelectionLayer() {
     const order = Number(el.getAttribute("data-sort-order") ?? "");
     if (!slot || !Number.isFinite(order)) return;
     const typeKey = el.getAttribute("data-section-type-key") ?? null;
-    const sourceRect = sectionId
-      ? rectOf(el)
-      : (selectedRect ?? rectOf(el));
+    const builderNodeId = el.getAttribute("data-builder-node-id");
+    const sourceRect = rectOf(el);
     const name =
       loadedSection?.id === id ? (loadedSection?.name ?? null) : null;
     // Promote the dragged section to selection so the inspector follows
     // the operator's intent (and so the drag-end re-renders the chip).
     if (sectionId && sectionId !== selectedSectionId) {
-      setSelectedSectionId(sectionId);
+      if (builderNodeId) {
+        selectBuilderNode(builderNodeId);
+      } else {
+        setSelectedSectionId(sectionId);
+      }
     }
     setDrag({
       phase: "armed",
@@ -593,8 +801,6 @@ export function SelectionLayer() {
       sourceRect,
     });
   };
-
-  if (!portalEl) return null;
 
   const showHover =
     hoverRect && hoveredSectionId && hoveredSectionId !== selectedSectionId;
@@ -624,6 +830,179 @@ export function SelectionLayer() {
         }) || humanizeTypeKey(selectedTypeKey)
       : humanizeTypeKey(selectedTypeKey);
   const chipType = humanizeTypeKey(selectedTypeKey);
+  const selectedSectionNodeId = useMemo(() => {
+    const sectionEl = getSelectedSectionEl();
+    return sectionEl?.getAttribute("data-builder-node-id") ?? null;
+  }, [getSelectedSectionEl]);
+  const selectedCanvasNodeId = selectedBuilderNodeId ?? selectedSectionNodeId;
+  const renderSelectedRect = useMemo(() => {
+    if (selectedRect) return selectedRect;
+    if (!selectedSectionId) return null;
+    const sectionEl = getSelectedSectionEl();
+    if (!sectionEl) return null;
+    const nodeEl = getSelectedBuilderNodeEl();
+    const selectedEl =
+      nodeEl && sectionEl.contains(nodeEl) ? nodeEl : sectionEl;
+    return rectOf(selectedEl);
+  }, [
+    getSelectedBuilderNodeEl,
+    getSelectedSectionEl,
+    selectedRect,
+    selectedSectionId,
+  ]);
+  const selectedBuilderNode = useMemo(
+    () => findBuilderNodeById(builderTree, selectedCanvasNodeId),
+    [builderTree, selectedCanvasNodeId],
+  );
+  const selectedNodeAllowedKinds = useMemo(() => {
+    if (!selectedBuilderNode) return [];
+    const policy = BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].children;
+    return policy.type === "allow_list" ? [...policy.kinds] : [];
+  }, [selectedBuilderNode]);
+  const selectedNodeChildren = useMemo(
+    () =>
+      selectedBuilderNode && "children" in selectedBuilderNode
+        ? selectedBuilderNode.children ?? []
+        : [],
+    [selectedBuilderNode],
+  );
+  const selectedNodeLabel = selectedBuilderNode
+    ? selectedBuilderNode.kind === "section"
+      ? chipLabel
+      : BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].label
+    : chipLabel;
+  const selectedNodePath = useMemo(
+    () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
+    [builderTree, selectedCanvasNodeId],
+  );
+  const selectionBreadcrumb = useMemo<SelectionBreadcrumbCrumb[]>(() => {
+    if (!selectedSectionId) return [];
+    const crumbs: SelectionBreadcrumbCrumb[] = [
+      { id: null, kind: "page", label: "Page" },
+    ];
+    if (selectedNodePath.length === 0) {
+      crumbs.push({
+        id: null,
+        sectionId: selectedSectionId,
+        kind: "section",
+        label: chipLabel,
+      });
+      return crumbs;
+    }
+    for (const node of selectedNodePath) {
+      crumbs.push({
+        id: node.id,
+        sectionId: node.kind === "section" ? selectedSectionId : null,
+        kind: node.kind,
+        label: builderNodeCrumbLabel(node, chipLabel),
+      });
+    }
+    return crumbs;
+  }, [chipLabel, selectedNodePath, selectedSectionId]);
+  const canInsertIntoSelectedNode =
+    !!selectedCanvasNodeId && selectedNodeAllowedKinds.length > 0;
+  const canRemoveSelectedNode =
+    !!selectedCanvasNodeId &&
+    !!selectedBuilderNode &&
+    selectedBuilderNode.kind !== "section" &&
+    selectedCanvasNodeId !== selectedSectionNodeId;
+  const canManageSelectedNodeChildren =
+    drag.phase === "idle" &&
+    !!selectedCanvasNodeId &&
+    selectedNodeChildren.length > 0;
+  const commitNodeRemoval = useCallback(async () => {
+    if (!selectedCanvasNodeId || !canRemoveSelectedNode) return;
+    const removed = await removeBuilderNode(selectedCanvasNodeId);
+    if (!removed.ok && removed.error) {
+      reportMutationError(removed.error);
+      return;
+    }
+    setSelectedSectionId(selectedSectionId);
+  }, [
+    canRemoveSelectedNode,
+    removeBuilderNode,
+    reportMutationError,
+    selectedCanvasNodeId,
+    selectedSectionId,
+    setSelectedSectionId,
+  ]);
+  const commitChildMove = useCallback(
+    async (nodeId: string, direction: "up" | "down") => {
+      const moved = await moveBuilderNodeWithinParent(nodeId, direction);
+      if (!moved.ok && moved.error) {
+        reportMutationError(moved.error);
+      }
+    },
+    [moveBuilderNodeWithinParent, reportMutationError],
+  );
+  const commitChildMoveToIndex = useCallback(
+    async (nodeId: string, parentNodeId: string, targetIndex: number) => {
+      const moved = await moveBuilderNodeToParentIndex(
+        nodeId,
+        parentNodeId,
+        targetIndex,
+      );
+      if (!moved.ok && moved.error) {
+        reportMutationError(moved.error);
+      }
+    },
+    [moveBuilderNodeToParentIndex, reportMutationError],
+  );
+  const commitChildRemoval = useCallback(
+    async (nodeId: string) => {
+      const removed = await removeBuilderNode(nodeId);
+      if (!removed.ok && removed.error) {
+        reportMutationError(removed.error);
+        return;
+      }
+      if (selectedBuilderNodeId === nodeId) {
+        setSelectedSectionId(selectedSectionId);
+      }
+    },
+    [
+      removeBuilderNode,
+      reportMutationError,
+      selectedBuilderNodeId,
+      selectedSectionId,
+      setSelectedSectionId,
+    ],
+  );
+  const commitChildDuplicate = useCallback(
+    async (nodeId: string) => {
+      const duplicated = await duplicateBuilderNode(nodeId);
+      if (!duplicated.ok && duplicated.error) {
+        reportMutationError(duplicated.error);
+      }
+    },
+    [duplicateBuilderNode, reportMutationError],
+  );
+  const commitChildCopy = useCallback(
+    async (nodeId: string) => {
+      const copied = copyBuilderNode(nodeId);
+      if (!copied.ok && copied.error) {
+        reportMutationError(copied.error);
+      }
+    },
+    [copyBuilderNode, reportMutationError],
+  );
+  const commitChildPaste = useCallback(
+    async (nodeId: string) => {
+      const pasted = await pasteCopiedBuilderNode(nodeId);
+      if (!pasted.ok && pasted.error) {
+        reportMutationError(pasted.error);
+      }
+    },
+    [pasteCopiedBuilderNode, reportMutationError],
+  );
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  const contextMenuIsChildNode =
+    !!contextMenu?.builderNodeId &&
+    contextMenu.builderNodeId !== selectedSectionNodeId;
+  const contextMenuPastePreview = getCopiedBuilderNodePastePreview(
+    contextMenu?.builderNodeId ?? null,
+  );
+
+  if (!portalEl) return null;
 
   // 2026-04-28 — Look up the selected section's visibility flag from the
   // composition slots so the chip's Hide button can show the right glyph
@@ -898,15 +1277,15 @@ export function SelectionLayer() {
       })}
 
       {/* ── Selection ring ────────────────────────────────────────── */}
-      {selectedRect ? (
+      {renderSelectedRect ? (
         <>
           <div
             style={{
               position: "fixed",
-              top: selectedRect.top,
-              left: selectedRect.left,
-              width: selectedRect.width,
-              height: selectedRect.height,
+              top: renderSelectedRect.top,
+              left: renderSelectedRect.left,
+              width: renderSelectedRect.width,
+              height: renderSelectedRect.height,
               borderRadius: 6,
               // Dual-tone: white inset 1px, ink outset 2px, soft outer halo 8px.
               // Uses box-shadow so inset + outset coexist without a second element.
@@ -926,13 +1305,264 @@ export function SelectionLayer() {
             }}
           />
 
+          <SelectionBreadcrumb
+            crumbs={selectionBreadcrumb}
+            selectedRect={renderSelectedRect}
+            isScrolling={isScrollingRef.current}
+            isDragging={isDragging}
+            onSelectNode={selectBuilderNode}
+            onSelectSection={setSelectedSectionId}
+          />
+
+          {drag.phase === "idle" && (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
+            <div
+              data-edit-overlay="builder-node-canvas-rail"
+              style={{
+                position: "fixed",
+                top: Math.max(renderSelectedRect.top + 8, 62),
+                left: Math.max(
+                  renderSelectedRect.left + renderSelectedRect.width - 88,
+                  8,
+                ),
+                minHeight: 28,
+                display: "inline-flex",
+                alignItems: "stretch",
+                background: RAIL_BG,
+                color: "white",
+                borderRadius: 8,
+                boxShadow: RAIL_SHADOW,
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                overflow: "hidden",
+                zIndex: 89,
+                pointerEvents: "auto",
+                fontFamily:
+                  'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+                userSelect: "none",
+              }}
+            >
+              {canInsertIntoSelectedNode ? (
+                <button
+                  type="button"
+                  aria-label={`Add block inside ${selectedNodeLabel}`}
+                  title={`Add block inside ${selectedNodeLabel}`}
+                  data-builder-node-canvas-add-trigger=""
+                  onClick={() => {
+                    if (!selectedCanvasNodeId || selectedNodeAllowedKinds.length === 0) {
+                      return;
+                    }
+                    setNodeInsertTarget((prev) =>
+                      prev?.nodeId === selectedCanvasNodeId
+                        ? null
+                        : {
+                            nodeId: selectedCanvasNodeId,
+                            allowedKinds: selectedNodeAllowedKinds,
+                            label: selectedNodeLabel,
+                          },
+                    );
+                  }}
+                  style={{
+                    height: 28,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 4,
+                    padding: "0 10px",
+                    background: "transparent",
+                    color: "rgba(255,255,255,0.92)",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>Add</span>
+                </button>
+              ) : null}
+              {canInsertIntoSelectedNode && canRemoveSelectedNode ? (
+                <span
+                  aria-hidden
+                  style={{
+                    width: 1,
+                    background: "rgba(255,255,255,0.16)",
+                    alignSelf: "stretch",
+                    margin: "5px 0",
+                  }}
+                />
+              ) : null}
+              {canRemoveSelectedNode ? (
+                <button
+                  type="button"
+                  aria-label={`Remove ${selectedNodeLabel}`}
+                  title={`Remove ${selectedNodeLabel}`}
+                  data-builder-node-canvas-remove-trigger=""
+                  onClick={() => void commitNodeRemoval()}
+                  style={{
+                    height: 28,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 4,
+                    padding: "0 10px",
+                    background: "transparent",
+                    color: "rgba(255,255,255,0.86)",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  <span>Remove</span>
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          <CanvasNodeInsertMenu
+            selectedRect={renderSelectedRect}
+            target={nodeInsertTarget}
+            onInsert={commitNodeInsert}
+            onDismiss={() => setNodeInsertTarget(null)}
+          />
+          {canManageSelectedNodeChildren ? (
+            <CanvasNodeChildrenPanel
+              selectedRect={renderSelectedRect}
+              parentNodeId={selectedCanvasNodeId}
+              parentLabel={selectedNodeLabel}
+              nodes={selectedNodeChildren}
+              selectedNodeId={selectedBuilderNodeId}
+              copiedKind={copiedBuilderNodeKind}
+              onSelect={selectBuilderNode}
+              onMove={commitChildMove}
+              onMoveToIndex={commitChildMoveToIndex}
+              onCopy={commitChildCopy}
+              onDuplicate={commitChildDuplicate}
+              onPaste={commitChildPaste}
+              getPastePreview={getCopiedBuilderNodePastePreview}
+              onRemove={commitChildRemoval}
+            />
+          ) : null}
+
+          <SelectionContextMenu
+            state={contextMenu}
+            targetLabel={selectedNodeLabel}
+            isChildNode={contextMenuIsChildNode}
+            canAddInside={canInsertIntoSelectedNode}
+            isSectionHidden={isHidden}
+            saving={saving}
+            onClose={closeContextMenu}
+            onEdit={() => {
+              closeContextMenu();
+            }}
+            onAddInside={() => {
+              if (!selectedCanvasNodeId || selectedNodeAllowedKinds.length === 0) {
+                return;
+              }
+              setNodeInsertTarget({
+                nodeId: selectedCanvasNodeId,
+                allowedKinds: selectedNodeAllowedKinds,
+                label: selectedNodeLabel,
+              });
+              closeContextMenu();
+            }}
+            onMoveUp={() => {
+              if (!contextMenu?.sectionId) return;
+              void moveSection(contextMenu.sectionId, "up");
+              closeContextMenu();
+            }}
+            onMoveDown={() => {
+              if (!contextMenu?.sectionId) return;
+              void moveSection(contextMenu.sectionId, "down");
+              closeContextMenu();
+            }}
+            onToggleHidden={() => {
+              if (!contextMenu?.sectionId) return;
+              void setSectionVisibility(
+                contextMenu.sectionId,
+                isHidden ? "always" : "hidden",
+              );
+              closeContextMenu();
+            }}
+            pastePreview={contextMenuPastePreview}
+            onCopyNode={() => {
+              if (!contextMenuIsChildNode || !contextMenu?.builderNodeId) return;
+              const copied = copyBuilderNode(contextMenu.builderNodeId);
+              if (!copied.ok && copied.error) {
+                reportMutationError(copied.error);
+              }
+              closeContextMenu();
+            }}
+            onPasteNode={() => {
+              const targetNodeId = contextMenu?.builderNodeId ?? null;
+              void pasteCopiedBuilderNode(targetNodeId).then((result) => {
+                if (!result.ok && result.error) {
+                  reportMutationError(result.error);
+                }
+              });
+              closeContextMenu();
+            }}
+            onDuplicate={() => {
+              if (contextMenuIsChildNode && contextMenu?.builderNodeId) {
+                void duplicateBuilderNode(contextMenu.builderNodeId).then((result) => {
+                  if (!result.ok && result.error) {
+                    reportMutationError(result.error);
+                  }
+                });
+                closeContextMenu();
+                return;
+              }
+              if (!contextMenu?.sectionId) return;
+              void duplicateSection(contextMenu.sectionId).then((result) => {
+                if (result.ok && result.newSectionId) {
+                  setSelectedSectionId(result.newSectionId);
+                } else if (!result.ok && result.error) {
+                  reportMutationError(result.error);
+                }
+              });
+              closeContextMenu();
+            }}
+            onDeleteSection={() => {
+              if (!contextMenu?.sectionId) return;
+              setSelectedSectionId(contextMenu.sectionId);
+              setConfirmRemove(true);
+              closeContextMenu();
+            }}
+            onRemoveNode={() => {
+              if (!contextMenu?.builderNodeId) return;
+              void removeBuilderNode(contextMenu.builderNodeId).then((removed) => {
+                if (!removed.ok && removed.error) {
+                  reportMutationError(removed.error);
+                  return;
+                }
+                setSelectedSectionId(contextMenu.sectionId);
+              });
+              closeContextMenu();
+            }}
+          />
+
           {/* ── Premium selection chip ────────────────────────────── */}
           <div
             style={{
               position: "fixed",
               // Pin just above the section (within top-bar boundary).
-              top: Math.max(selectedRect.top - 38, 56),
-              left: selectedRect.left,
+              top: Math.max(renderSelectedRect.top - 38, 56),
+              left: renderSelectedRect.left,
               height: 34,
               display: "inline-flex",
               alignItems: "stretch",
@@ -1274,6 +1904,949 @@ export function SelectionLayer() {
     </div>,
     portalEl,
   );
+}
+
+function SelectionContextMenu({
+  state,
+  targetLabel,
+  isChildNode,
+  canAddInside,
+  isSectionHidden,
+  saving,
+  onClose,
+  onEdit,
+  onAddInside,
+  onMoveUp,
+  onMoveDown,
+  onToggleHidden,
+  pastePreview,
+  onCopyNode,
+  onPasteNode,
+  onDuplicate,
+  onDeleteSection,
+  onRemoveNode,
+}: {
+  state: SelectionContextMenuState | null;
+  targetLabel: string;
+  isChildNode: boolean;
+  canAddInside: boolean;
+  isSectionHidden: boolean;
+  saving: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onAddInside: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onToggleHidden: () => void;
+  pastePreview: BuilderNodePastePreview | null;
+  onCopyNode: () => void;
+  onPasteNode: () => void;
+  onDuplicate: () => void;
+  onDeleteSection: () => void;
+  onRemoveNode: () => void;
+}) {
+  if (!state) return null;
+  const canPasteBlock = !!pastePreview;
+  const pasteDisabled = saving || pastePreview?.mode === "blocked";
+  const pasteLabel =
+    pastePreview?.mode === "blocked"
+      ? "Cannot paste here"
+      : pastePreview
+        ? `Paste ${pastePreview.copiedLabel}`
+        : "Paste copied block";
+  const viewportWidth = typeof window === "undefined" ? state.x + 230 : window.innerWidth;
+  const viewportHeight = typeof window === "undefined" ? state.y + 280 : window.innerHeight;
+  const left = Math.max(Math.min(state.x, viewportWidth - 236), 8);
+  const top = Math.max(Math.min(state.y, viewportHeight - 280), 58);
+  return (
+    <div
+      role="menu"
+      aria-label={`Selection actions for ${targetLabel}`}
+      data-selection-context-menu=""
+      data-edit-overlay="selection-context-menu"
+      style={{
+        position: "fixed",
+        top,
+        left,
+        width: 228,
+        padding: 6,
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,0.10)",
+        background: CHIP_BG,
+        color: "white",
+        boxShadow: CHIP_SHADOW,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        zIndex: 94,
+        pointerEvents: "auto",
+        fontFamily:
+          'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
+      <div
+        style={{
+          padding: "7px 8px 8px",
+          borderBottom: "1px solid rgba(255,255,255,0.10)",
+          marginBottom: 4,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.55)",
+          }}
+        >
+          {isChildNode ? "Block actions" : "Section actions"}
+        </div>
+        <div
+          style={{
+            marginTop: 2,
+            fontSize: 12,
+            fontWeight: 700,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {targetLabel}
+        </div>
+        {pastePreview ? (
+          <div
+            style={{
+              marginTop: 5,
+              fontSize: 10.5,
+              lineHeight: 1.35,
+              color:
+                pastePreview.mode === "blocked"
+                  ? "rgba(255,220,155,0.84)"
+                  : "rgba(198,255,221,0.84)",
+            }}
+          >
+            {pastePreview.message}
+          </div>
+        ) : null}
+      </div>
+      <ContextMenuButton disabled={saving} onClick={onEdit}>
+        Edit content
+      </ContextMenuButton>
+      {canAddInside ? (
+        <ContextMenuButton disabled={saving} onClick={onAddInside}>
+          Add block inside
+        </ContextMenuButton>
+      ) : null}
+      {isChildNode ? (
+        <>
+          <ContextMenuButton disabled={saving} onClick={onCopyNode}>
+            Copy block
+          </ContextMenuButton>
+          <ContextMenuButton disabled={saving} onClick={onDuplicate}>
+            Duplicate block
+          </ContextMenuButton>
+          {canPasteBlock ? (
+            <ContextMenuButton disabled={pasteDisabled} onClick={onPasteNode}>
+              {pasteLabel}
+            </ContextMenuButton>
+          ) : null}
+          <ContextMenuButton disabled={saving} danger onClick={onRemoveNode}>
+            Remove block
+          </ContextMenuButton>
+        </>
+      ) : (
+        <>
+          <ContextMenuSeparator />
+          {canPasteBlock ? (
+            <ContextMenuButton disabled={pasteDisabled} onClick={onPasteNode}>
+              {pasteLabel}
+            </ContextMenuButton>
+          ) : null}
+          <ContextMenuButton disabled={saving} onClick={onMoveUp}>
+            Move section up
+          </ContextMenuButton>
+          <ContextMenuButton disabled={saving} onClick={onMoveDown}>
+            Move section down
+          </ContextMenuButton>
+          <ContextMenuButton disabled={saving} onClick={onDuplicate}>
+            Duplicate section
+          </ContextMenuButton>
+          <ContextMenuButton disabled={saving} onClick={onToggleHidden}>
+            {isSectionHidden ? "Show section" : "Hide section"}
+          </ContextMenuButton>
+          <ContextMenuSeparator />
+          <ContextMenuButton disabled={saving} danger onClick={onDeleteSection}>
+            Delete section...
+          </ContextMenuButton>
+        </>
+      )}
+      <ContextMenuSeparator />
+      <ContextMenuButton onClick={onClose}>Close menu</ContextMenuButton>
+    </div>
+  );
+}
+
+function ContextMenuSeparator() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        height: 1,
+        margin: "4px 5px",
+        background: "rgba(255,255,255,0.10)",
+      }}
+    />
+  );
+}
+
+function ContextMenuButton({
+  children,
+  disabled = false,
+  danger = false,
+  onClick,
+}: {
+  children: string;
+  disabled?: boolean;
+  danger?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        width: "100%",
+        minHeight: 30,
+        display: "flex",
+        alignItems: "center",
+        padding: "0 9px",
+        borderRadius: 8,
+        border: "none",
+        background: "transparent",
+        color: danger ? "rgba(255,195,195,0.95)" : "rgba(255,255,255,0.86)",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.45 : 1,
+        fontSize: 12,
+        fontWeight: 650,
+        textAlign: "left",
+      }}
+      onMouseEnter={(event) => {
+        event.currentTarget.style.background = danger
+          ? "rgba(196,61,61,0.22)"
+          : "rgba(255,255,255,0.09)";
+      }}
+      onMouseLeave={(event) => {
+        event.currentTarget.style.background = "transparent";
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SelectionBreadcrumb({
+  crumbs,
+  selectedRect,
+  isScrolling,
+  isDragging,
+  onSelectNode,
+  onSelectSection,
+}: {
+  crumbs: SelectionBreadcrumbCrumb[];
+  selectedRect: Rect;
+  isScrolling: boolean;
+  isDragging: boolean;
+  onSelectNode: (nodeId: string) => void;
+  onSelectSection: (sectionId: string | null) => void;
+}) {
+  if (crumbs.length <= 1) return null;
+  const visibleCrumbs =
+    crumbs.length > 5
+      ? [
+          crumbs[0],
+          { id: null, kind: "page" as const, label: "..." },
+          ...crumbs.slice(-3),
+        ]
+      : crumbs;
+  return (
+    <nav
+      aria-label="Selection breadcrumb"
+      data-edit-overlay="selection-breadcrumb"
+      data-selection-breadcrumb=""
+      style={{
+        position: "fixed",
+        top: Math.max(selectedRect.top - 68, 56),
+        left: selectedRect.left,
+        maxWidth: Math.min(selectedRect.width, 520),
+        minHeight: 24,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "3px 5px",
+        borderRadius: 999,
+        border: "1px solid rgba(255,255,255,0.10)",
+        background: "rgba(36,41,66,0.92)",
+        color: "white",
+        boxShadow: RAIL_SHADOW,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        zIndex: 91,
+        pointerEvents: "auto",
+        opacity: isDragging ? 0 : 1,
+        transition: isScrolling
+          ? "opacity 120ms linear"
+          : "top 80ms linear, left 80ms linear, opacity 120ms linear",
+        overflow: "hidden",
+        fontFamily:
+          'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+        userSelect: "none",
+      }}
+    >
+      {visibleCrumbs.map((crumb, index) => {
+        const isPage = crumb.kind === "page" && crumb.label !== "...";
+        const isEllipsis = crumb.label === "...";
+        const isLast = index === visibleCrumbs.length - 1;
+        const title = isPage
+          ? "Page root"
+          : isEllipsis
+            ? "Collapsed parents"
+            : `Select ${crumb.label}`;
+        return (
+          <span
+            key={`${crumb.id ?? crumb.label}-${index}`}
+            style={{
+              minWidth: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            {index > 0 ? (
+              <span
+                aria-hidden
+                style={{
+                  color: "rgba(255,255,255,0.34)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
+                /
+              </span>
+            ) : null}
+            {isPage || isEllipsis ? (
+              <span
+                title={title}
+                data-selection-breadcrumb-item={crumb.kind}
+                style={{
+                  maxWidth: 150,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  padding: "2px 6px",
+                  borderRadius: 999,
+                  color: isEllipsis
+                    ? "rgba(255,255,255,0.50)"
+                    : "rgba(255,255,255,0.62)",
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {crumb.label}
+              </span>
+            ) : (
+              <button
+                type="button"
+                title={title}
+                aria-current={isLast ? "page" : undefined}
+                data-selection-breadcrumb-item={crumb.kind}
+                onClick={() => {
+                  if (crumb.id) {
+                    onSelectNode(crumb.id);
+                    return;
+                  }
+                  if (crumb.sectionId) onSelectSection(crumb.sectionId);
+                }}
+                style={{
+                  maxWidth: isLast ? 220 : 150,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  padding: "2px 7px",
+                  borderRadius: 999,
+                  border: "none",
+                  background: isLast
+                    ? "rgba(255,255,255,0.14)"
+                    : "transparent",
+                  color: isLast ? "white" : "rgba(255,255,255,0.76)",
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {crumb.label}
+              </button>
+            )}
+          </span>
+        );
+      })}
+    </nav>
+  );
+}
+
+function CanvasNodeInsertMenu({
+  selectedRect,
+  target,
+  onInsert,
+  onDismiss,
+}: {
+  selectedRect: Rect;
+  target: NodeInsertTarget | null;
+  onInsert: (kind: BuilderNodeKind) => Promise<void>;
+  onDismiss: () => void;
+}) {
+  if (!target) return null;
+
+  return (
+    <div
+      data-builder-node-canvas-insert-menu=""
+      style={{
+        position: "fixed",
+        top: Math.max(selectedRect.top + 42, 92),
+        left: Math.max(selectedRect.left + selectedRect.width - 240, 8),
+        width: 232,
+        padding: "10px 10px 11px",
+        borderRadius: 10,
+        border: `1px solid rgba(255,255,255,0.09)`,
+        background: CHIP_BG,
+        color: "white",
+        boxShadow: CHIP_SHADOW,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        zIndex: 91,
+        pointerEvents: "auto",
+        fontFamily:
+          'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          marginBottom: 8,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.55)",
+            }}
+          >
+            Add block
+          </div>
+          <div
+            style={{
+              fontSize: 11.5,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {target.label}
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-label="Close add block menu"
+          onClick={onDismiss}
+          style={{
+            width: 18,
+            height: 18,
+            border: "none",
+            borderRadius: 5,
+            background: "transparent",
+            color: "rgba(255,255,255,0.72)",
+            cursor: "pointer",
+            padding: 0,
+            flexShrink: 0,
+          }}
+        >
+          ×
+        </button>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+        }}
+      >
+        {target.allowedKinds.map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            onClick={() => void onInsert(kind)}
+            style={{
+              minHeight: 25,
+              padding: "0 8px",
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.07)",
+              color: "white",
+              fontSize: 10.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {BUILDER_NODE_REGISTRY[kind].label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CanvasNodeChildrenPanel({
+  selectedRect,
+  parentNodeId,
+  parentLabel,
+  nodes,
+  selectedNodeId,
+  copiedKind,
+  onSelect,
+  onMove,
+  onMoveToIndex,
+  onCopy,
+  onDuplicate,
+  onPaste,
+  getPastePreview,
+  onRemove,
+}: {
+  selectedRect: Rect;
+  parentNodeId: string | null;
+  parentLabel: string;
+  nodes: BuilderNode[];
+  selectedNodeId: string | null;
+  copiedKind: BuilderNode["kind"] | null;
+  onSelect: (nodeId: string) => void;
+  onMove: (nodeId: string, direction: "up" | "down") => Promise<void>;
+  onMoveToIndex: (
+    nodeId: string,
+    parentNodeId: string,
+    targetIndex: number,
+  ) => Promise<void>;
+  onCopy: (nodeId: string) => Promise<void>;
+  onDuplicate: (nodeId: string) => Promise<void>;
+  onPaste: (nodeId: string) => Promise<void>;
+  getPastePreview: (nodeId?: string | null) => BuilderNodePastePreview | null;
+  onRemove: (nodeId: string) => Promise<void>;
+}) {
+  const [draggingNode, setDraggingNode] = useState<{
+    nodeId: string;
+    sourceIndex: number;
+  } | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const viewportHeight =
+    typeof window === "undefined" ? selectedRect.top + selectedRect.height + 220 : window.innerHeight;
+  const viewportWidth =
+    typeof window === "undefined" ? selectedRect.left + 308 : window.innerWidth;
+  const clearDragState = () => {
+    setDraggingNode(null);
+    setDropIndex(null);
+  };
+  const handleDragStart =
+    (nodeId: string, sourceIndex: number) =>
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!parentNodeId || nodes.length <= 1) return;
+      event.stopPropagation();
+      setDraggingNode({ nodeId, sourceIndex });
+      setDropIndex(null);
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", nodeId);
+    };
+  const handleDragOver =
+    (index: number) => (event: DragEvent<HTMLDivElement>) => {
+      if (!draggingNode || !parentNodeId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = event.currentTarget.getBoundingClientRect();
+      setDropIndex(event.clientY > rect.top + rect.height / 2 ? index + 1 : index);
+    };
+  const handleDrop = async (event: DragEvent<HTMLElement>) => {
+    if (!draggingNode || dropIndex === null || !parentNodeId) {
+      clearDragState();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const finalIndex =
+      dropIndex > draggingNode.sourceIndex ? dropIndex - 1 : dropIndex;
+    if (finalIndex === draggingNode.sourceIndex) {
+      clearDragState();
+      return;
+    }
+    const nodeId = draggingNode.nodeId;
+    clearDragState();
+    await onMoveToIndex(nodeId, parentNodeId, finalIndex);
+  };
+  return (
+    <div
+      data-builder-node-canvas-children=""
+      style={{
+        position: "fixed",
+        top: Math.min(selectedRect.top + selectedRect.height + 12, viewportHeight - 220),
+        left: Math.max(Math.min(selectedRect.left, viewportWidth - 308), 8),
+        width: 300,
+        maxHeight: 208,
+        padding: "10px 10px 11px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,0.09)",
+        background: CHIP_BG,
+        color: "white",
+        boxShadow: CHIP_SHADOW,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        zIndex: 91,
+        pointerEvents: "auto",
+        overflow: "hidden",
+        fontFamily:
+          'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 8,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.55)",
+            }}
+          >
+            Nested blocks
+          </div>
+          <div
+            style={{
+              fontSize: 11.5,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {parentLabel}
+          </div>
+        </div>
+        <div
+          style={{
+            fontSize: 10.5,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.62)",
+            flexShrink: 0,
+          }}
+        >
+          {nodes.length} block{nodes.length === 1 ? "" : "s"}
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          maxHeight: 168,
+          overflowY: "auto",
+          paddingRight: 2,
+        }}
+      >
+        {nodes.map((node, index) => {
+          const isSelected = selectedNodeId === node.id;
+          const pastePreview = copiedKind ? getPastePreview(node.id) : null;
+          return (
+            <div key={node.id}>
+              {draggingNode && dropIndex === index ? (
+                <div
+                  aria-hidden
+                  style={{
+                    height: 2,
+                    margin: "0 2px 6px",
+                    borderRadius: 999,
+                    background: `rgba(${BLUE_RGB},0.95)`,
+                    boxShadow: `0 0 0 3px rgba(${BLUE_RGB},0.18)`,
+                  }}
+                />
+              ) : null}
+              <div
+                draggable={!!parentNodeId && nodes.length > 1}
+                onDragStart={handleDragStart(node.id, index)}
+                onDragOver={handleDragOver(index)}
+                onDrop={(event) => void handleDrop(event)}
+                onDragEnd={clearDragState}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "7px 8px",
+                  borderRadius: 9,
+                  opacity: draggingNode?.nodeId === node.id ? 0.62 : 1,
+                  background: isSelected
+                    ? "rgba(255,255,255,0.14)"
+                    : "rgba(255,255,255,0.06)",
+                  border: isSelected
+                    ? "1px solid rgba(255,255,255,0.14)"
+                    : "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+              <button
+                type="button"
+                onClick={() => onSelect(node.id)}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  border: "none",
+                  background: "transparent",
+                  color: "white",
+                  cursor: "pointer",
+                  padding: 0,
+                  textAlign: "left",
+                }}
+              >
+                <span
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 5,
+                    background: "rgba(255,255,255,0.08)",
+                    color: "rgba(255,255,255,0.85)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                >
+                  {nodes.length > 1 ? "⋮⋮" : index + 1}
+                </span>
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {canvasChildPrimaryLabel(node)}
+                  </span>
+                  <span
+                    style={{
+                      display: "block",
+                      marginTop: 1,
+                      fontSize: 10.5,
+                      color: "rgba(255,255,255,0.58)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {canvasChildSecondaryLabel(node)}
+                  </span>
+                </span>
+              </button>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  flexShrink: 0,
+                }}
+              >
+                <CanvasMiniButton
+                  label={`Move ${canvasChildPrimaryLabel(node)} up`}
+                  disabled={index === 0}
+                  onClick={() => void onMove(node.id, "up")}
+                >
+                  ↑
+                </CanvasMiniButton>
+                <CanvasMiniButton
+                  label={`Move ${canvasChildPrimaryLabel(node)} down`}
+                  disabled={index === nodes.length - 1}
+                  onClick={() => void onMove(node.id, "down")}
+                >
+                  ↓
+                </CanvasMiniButton>
+                <CanvasMiniButton
+                  label={`Duplicate ${canvasChildPrimaryLabel(node)}`}
+                  onClick={() => void onDuplicate(node.id)}
+                >
+                  D
+                </CanvasMiniButton>
+                <CanvasMiniButton
+                  label={`Copy ${canvasChildPrimaryLabel(node)}`}
+                  onClick={() => void onCopy(node.id)}
+                >
+                  C
+                </CanvasMiniButton>
+                {copiedKind ? (
+                  <CanvasMiniButton
+                    label={pastePreview?.message ?? `Paste copied ${BUILDER_NODE_REGISTRY[copiedKind].label}`}
+                    disabled={pastePreview?.mode === "blocked"}
+                    onClick={() => void onPaste(node.id)}
+                  >
+                    P
+                  </CanvasMiniButton>
+                ) : null}
+                <CanvasMiniButton
+                  label={`Remove ${canvasChildPrimaryLabel(node)}`}
+                  onClick={() => void onRemove(node.id)}
+                >
+                  ×
+                </CanvasMiniButton>
+              </div>
+            </div>
+            </div>
+          );
+        })}
+        {draggingNode ? (
+          <div
+            aria-hidden
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setDropIndex(nodes.length);
+            }}
+            onDrop={(event) => void handleDrop(event)}
+            style={{
+              height: dropIndex === nodes.length ? 8 : 2,
+              borderRadius: 999,
+              background:
+                dropIndex === nodes.length
+                  ? `rgba(${BLUE_RGB},0.85)`
+                  : "transparent",
+            }}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function CanvasMiniButton({
+  children,
+  label,
+  onClick,
+  disabled = false,
+}: {
+  children: string;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        width: 20,
+        height: 20,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 6,
+        border: "none",
+        background: "rgba(255,255,255,0.08)",
+        color: "rgba(255,255,255,0.84)",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.35 : 1,
+        padding: 0,
+        fontSize: 10.5,
+        fontWeight: 700,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function canvasChildPrimaryLabel(node: BuilderNode): string {
+  switch (node.kind) {
+    case "heading":
+      return node.props.text;
+    case "paragraph":
+      return truncateNodeLabel(node.props.text, 56);
+    case "button":
+      return node.props.label;
+    case "image":
+      return node.props.alt?.trim() || "Image block";
+    case "accordion_item":
+    case "tab_panel":
+      return node.props.title;
+    default:
+      return BUILDER_NODE_REGISTRY[node.kind].label;
+  }
+}
+
+function canvasChildSecondaryLabel(node: BuilderNode): string {
+  switch (node.kind) {
+    case "heading":
+      return `Heading · H${node.props.level}`;
+    case "paragraph":
+      return "Paragraph block";
+    case "button":
+      return node.props.href || "Button link";
+    case "image":
+      return "Image block";
+    case "accordion_item":
+    case "tab_panel":
+      return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
+    case "container":
+    case "split":
+    case "accordion":
+    case "tabs":
+    case "carousel":
+    case "masonry":
+      return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
+    case "spacer":
+      return `Spacer · ${node.props.size.toUpperCase()}`;
+    case "section":
+      return BUILDER_NODE_REGISTRY[node.kind].description;
+  }
+}
+
+function truncateNodeLabel(value: string, max: number): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max - 1).trimEnd()}…`;
 }
 
 /**

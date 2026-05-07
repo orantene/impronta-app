@@ -33,6 +33,25 @@ export function normalizeOptionalNextPath(
   return n === "/" ? undefined : n;
 }
 
+const TENANT_SCOPED_NEXT_RESERVED_SEGMENTS = new Set([
+  "_next",
+  "account",
+  "admin",
+  "api",
+  "auth",
+  "client",
+  "forgot-password",
+  "invite",
+  "login",
+  "onboarding",
+  "platform",
+  "prototypes",
+  "register",
+  "t",
+  "talent",
+  "update-password",
+]);
+
 function postAuthPathnameOnly(normalizedNext: string): string {
   const noQuery = normalizedNext.split("?")[0] ?? normalizedNext;
   const noHash = noQuery.split("#")[0] ?? noQuery;
@@ -86,6 +105,25 @@ export function isPostAuthNextAllowedForActiveUser(
 
   if (!dashboardBase) {
     return false;
+  }
+
+  const segments = path.split("/").filter(Boolean);
+  const tenantScopedSurface =
+    segments.length >= 2 &&
+    !TENANT_SCOPED_NEXT_RESERVED_SEGMENTS.has(segments[0] ?? "")
+      ? segments[1]
+      : null;
+  if (
+    (appRole === "super_admin" || appRole === "agency_staff") &&
+    tenantScopedSurface === "admin"
+  ) {
+    return true;
+  }
+  if (appRole === "talent" && tenantScopedSurface === "talent") {
+    return true;
+  }
+  if (appRole === "client" && tenantScopedSurface === "client") {
+    return true;
   }
 
   return path === dashboardBase || path.startsWith(`${dashboardBase}/`);

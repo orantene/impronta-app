@@ -18,7 +18,7 @@
  * positions via MutationObserver + scroll/resize listeners.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { EditErrorBoundary } from "./edit-error-boundary";
 import { EditProvider, useEditContext, type EditDevice } from "./edit-context";
@@ -38,10 +38,12 @@ import { CommentsDrawer } from "./comments-drawer";
 import { CommandPalette } from "./command-palette";
 import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
+import { StarterTemplateGalleryOverlay } from "./starter-template-gallery-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { IframeBridgeParent } from "./iframe-bridge";
 import { SectionPickerPopover } from "./section-picker-popover";
+import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
@@ -159,6 +161,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openAssets,
     openSchedule,
     openComments,
+    openStarterTemplateGallery,
     previewing,
     setPreviewing,
     closePublish,
@@ -185,9 +188,16 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     pageMetadata,
     pageId,
     selectedSectionId,
+    selectedBuilderNodeId,
     setSelectedSectionId,
+    builderTree,
+    copiedBuilderNodeKind,
+    copyBuilderNode,
+    pasteCopiedBuilderNode,
+    duplicateBuilderNode,
     duplicateSection,
     moveSection,
+    removeBuilderNode,
     removeSection,
     navigatorOpen,
     toggleNavigator,
@@ -210,14 +220,12 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   // convergence plan, the canvas itself IS the section navigator, so
   // landing on `?edit=1` is sufficient. We still consume the param so the
   // URL clears on first paint.
-  const ranPanelDispatchRef = useRef(false);
   useEffect(() => {
-    if (ranPanelDispatchRef.current) return;
-    ranPanelDispatchRef.current = true;
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     const panel = url.searchParams.get("panel");
     if (!panel) return;
+    const templateSlug = url.searchParams.get("template");
     const dispatch: Record<string, (() => void) | "noop"> = {
       publish: openPublish,
       pageSettings: openPageSettings,
@@ -226,17 +234,17 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       assets: openAssets,
       schedule: openSchedule,
       comments: openComments,
+      templates: () => openStarterTemplateGallery(templateSlug),
+      templateGallery: () => openStarterTemplateGallery(templateSlug),
       // Canvas is the sections navigator; landing in edit mode is enough.
       sections: "noop",
     };
     const handler = dispatch[panel];
     if (typeof handler === "function") handler();
     url.searchParams.delete("panel");
+    url.searchParams.delete("template");
     window.history.replaceState(null, "", url.toString());
-    // We deliberately depend on the open* callbacks so they're stable
-    // references at first-paint. They come from useCallback in EditProvider.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   // T0-1 — Server-action network failure resilience.
   //
@@ -376,11 +384,51 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         return;
       }
 
-      if (mod && key === "d" && selectedSectionId) {
+      if (mod && key === "c") {
+        const selectedBuilderNode = findBuilderNodeById(
+          builderTree,
+          selectedBuilderNodeId,
+        );
+        if (!selectedBuilderNode || selectedBuilderNode.kind === "section") return;
+        e.preventDefault();
+        const copied = copyBuilderNode(selectedBuilderNode.id);
+        if (!copied.ok && copied.error) {
+          reportMutationError(copied.error);
+        }
+        return;
+      }
+
+      if (mod && key === "v" && copiedBuilderNodeKind) {
+        e.preventDefault();
+        void pasteCopiedBuilderNode(selectedBuilderNodeId).then((res) => {
+          if (!res.ok && res.error) {
+            reportMutationError(res.error);
+          }
+        });
+        return;
+      }
+
+      if (mod && key === "d") {
+        const selectedBuilderNode = findBuilderNodeById(
+          builderTree,
+          selectedBuilderNodeId,
+        );
+        if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
+          e.preventDefault();
+          void duplicateBuilderNode(selectedBuilderNode.id).then((res) => {
+            if (!res.ok && res.error) {
+              reportMutationError(res.error);
+            }
+          });
+          return;
+        }
+        if (!selectedSectionId) return;
         e.preventDefault();
         void duplicateSection(selectedSectionId).then((res) => {
           if (res.ok && res.newSectionId) {
             setSelectedSectionId(res.newSectionId);
+          } else if (!res.ok && res.error) {
+            reportMutationError(res.error);
           }
         });
         return;
@@ -397,13 +445,29 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
 
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
-        selectedSectionId &&
         !e.metaKey &&
         !e.ctrlKey
       ) {
+        const selectedBuilderNode = findBuilderNodeById(
+          builderTree,
+          selectedBuilderNodeId,
+        );
+        if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
+          e.preventDefault();
+          void removeBuilderNode(selectedBuilderNode.id).then((res) => {
+            if (res.ok) {
+              setSelectedSectionId(selectedSectionId);
+            } else if (res.error) {
+              reportMutationError(res.error);
+            }
+          });
+          return;
+        }
+        if (!selectedSectionId) return;
         e.preventDefault();
         void removeSection(selectedSectionId).then((res) => {
           if (res.ok) setSelectedSectionId(null);
+          else if (res.error) reportMutationError(res.error);
         });
       }
     }
@@ -413,10 +477,18 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     undo,
     redo,
     selectedSectionId,
+    selectedBuilderNodeId,
     setSelectedSectionId,
+    builderTree,
+    copiedBuilderNodeKind,
+    copyBuilderNode,
+    pasteCopiedBuilderNode,
+    duplicateBuilderNode,
     duplicateSection,
     moveSection,
+    removeBuilderNode,
     removeSection,
+    reportMutationError,
     toggleNavigator,
     publishOpen,
     pageSettingsOpen,
@@ -505,6 +577,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onRevisions={openRevisions}
           onTheme={canEditSiteShell ? openTheme : undefined}
           onAssets={openAssets}
+          onTemplates={openStarterTemplateGallery}
           onSchedule={openSchedule}
           onComments={openComments}
           onSaveDraft={() => void saveDraft()}
@@ -538,6 +611,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <AssetsDrawer />
         <ScheduleDrawer />
         <CommentsDrawer />
+        <StarterTemplateGalleryOverlay />
         <CommandPalette open={paletteOpen} onClose={closePalette} />
         <ShortcutOverlay
           open={shortcutOverlayOpen}
@@ -596,7 +670,7 @@ function FirstPaintTip() {
   return (
     <div
       data-edit-overlay="first-paint-tip"
-      className="pointer-events-auto fixed left-1/2 z-[88] flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2"
+      className="pointer-events-none fixed left-1/2 z-[88] flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2"
       style={{
         // QA-8 partial — first-paint tip used to render as a near-black pill
         // (rgba(11,11,13,0.92)) which on a dark-brand tenant added another
@@ -636,7 +710,7 @@ function FirstPaintTip() {
         type="button"
         onClick={() => setDismissed(true)}
         aria-label="Dismiss tip"
-        className="ml-1 inline-flex size-[18px] items-center justify-center rounded-full transition hover:bg-white/15"
+        className="pointer-events-auto ml-1 inline-flex size-[18px] items-center justify-center rounded-full transition hover:bg-white/15"
         style={{
           color: "rgba(255, 255, 255, 0.6)",
           background: "transparent",

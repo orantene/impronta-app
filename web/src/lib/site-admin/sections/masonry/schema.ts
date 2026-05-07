@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const itemSchema = z.object({
@@ -14,6 +15,12 @@ export const masonrySchemaV1 = z.object({
   items: z.array(itemSchema).min(2).max(48),
   columnsDesktop: z.number().int().min(2).max(5).default(3),
   gap: z.enum(["tight", "standard", "airy"]).default("standard"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

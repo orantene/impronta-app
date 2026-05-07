@@ -27,6 +27,7 @@ test("agency host: storefront + workspace + auth + root + static allowed", () =>
     "/account",
     "/platform/admin",
     "/impronta/admin",
+    "/impronta/admin-preview",
     "/impronta/client",
     "/impronta/talent",
     "/login",

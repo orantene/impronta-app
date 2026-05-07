@@ -1,0 +1,542 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import type { BuilderNodeTree } from "./types";
+import {
+  duplicateBuilderNode,
+  insertBuilderNode,
+  moveBuilderNode,
+  pasteBuilderNode,
+  patchBuilderNodeProps,
+  removeBuilderNode,
+} from "./operations";
+
+function fixtureTree(): BuilderNodeTree {
+  return [
+    {
+      id: "section-1",
+      kind: "section",
+      props: {
+        sectionId: "11111111-1111-4111-8111-111111111111",
+        sectionTypeKey: "hero",
+        slotKey: "body",
+        sortOrder: 0,
+      },
+      children: [
+        {
+          id: "section-1:heading:headline",
+          kind: "heading",
+          props: { text: "Hero headline", level: 1 },
+        },
+        {
+          id: "section-1:paragraph:subheadline",
+          kind: "paragraph",
+          props: { text: "Hero subheadline" },
+        },
+      ],
+    },
+    {
+      id: "container-1",
+      kind: "container",
+      props: { layout: "stack", gap: "m" },
+      children: [
+        {
+          id: "container-1:heading",
+          kind: "heading",
+          props: { text: "Nested heading", level: 2 },
+        },
+      ],
+    },
+  ];
+}
+
+test("insertBuilderNode inserts supported root node at requested index", () => {
+  const inserted = insertBuilderNode({
+    tree: fixtureTree(),
+    parentId: null,
+    index: 1,
+    node: {
+      id: "container-root",
+      kind: "container",
+      props: { layout: "stack" },
+      children: [],
+    },
+  });
+  assert.equal(inserted.ok, true);
+  if (!inserted.ok) return;
+  assert.equal(inserted.tree[1]?.id, "container-root");
+  assert.equal(inserted.tree.length, 3);
+});
+
+test("insertBuilderNode rejects leaf nodes at root", () => {
+  const inserted = insertBuilderNode({
+    tree: fixtureTree(),
+    parentId: null,
+    node: {
+      id: "spacer-root",
+      kind: "spacer",
+      props: { size: "m" },
+    },
+  });
+  assert.equal(inserted.ok, false);
+  if (inserted.ok) return;
+  assert.equal(inserted.code, "ROOT_KIND_NOT_ALLOWED");
+});
+
+test("insertBuilderNode rejects children under leaf parent", () => {
+  const inserted = insertBuilderNode({
+    tree: fixtureTree(),
+    parentId: "section-1:heading:headline",
+    node: {
+      id: "illegal-child",
+      kind: "paragraph",
+      props: { text: "Nope" },
+    },
+  });
+  assert.equal(inserted.ok, false);
+  if (inserted.ok) return;
+  assert.equal(inserted.code, "PARENT_DOES_NOT_ALLOW_CHILDREN");
+});
+
+test("insertBuilderNode rejects child kind not allowed by parent policy", () => {
+  const inserted = insertBuilderNode({
+    tree: fixtureTree(),
+    parentId: "container-1",
+    node: {
+      id: "illegal-section-child",
+      kind: "section",
+      props: {
+        sectionId: "22222222-2222-4222-8222-222222222222",
+        sectionTypeKey: "hero",
+      },
+    },
+  });
+  assert.equal(inserted.ok, false);
+  if (inserted.ok) return;
+  assert.equal(inserted.code, "CHILD_KIND_NOT_ALLOWED");
+});
+
+test("moveBuilderNode reorders within the same parent", () => {
+  const moved = moveBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "section-1:paragraph:subheadline",
+    parentId: "section-1",
+    index: 0,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+  const section = moved.tree.find((node) => node.id === "section-1");
+  assert.equal(section?.kind, "section");
+  if (!section || section.kind !== "section") return;
+  assert.equal(section.children?.[0]?.id, "section-1:paragraph:subheadline");
+  assert.equal(section.children?.[1]?.id, "section-1:heading:headline");
+});
+
+test("moveBuilderNode moves down within the same parent", () => {
+  const moved = moveBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "section-1:heading:headline",
+    parentId: "section-1",
+    index: 1,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+  const section = moved.tree.find((node) => node.id === "section-1");
+  assert.equal(section?.kind, "section");
+  if (!section || section.kind !== "section") return;
+  assert.equal(section.children?.[0]?.id, "section-1:paragraph:subheadline");
+  assert.equal(section.children?.[1]?.id, "section-1:heading:headline");
+});
+
+test("moveBuilderNode moves to the end within the same parent", () => {
+  const tree = fixtureTree();
+  const section = tree.find((node) => node.id === "section-1");
+  assert.equal(section?.kind, "section");
+  if (!section || section.kind !== "section") return;
+  section.children?.push({
+    id: "section-1:button:cta",
+    kind: "button",
+    props: {
+      label: "Book now",
+      href: "/book",
+    },
+  });
+
+  const moved = moveBuilderNode({
+    tree,
+    nodeId: "section-1:heading:headline",
+    parentId: "section-1",
+    index: 2,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+  const movedSection = moved.tree.find((node) => node.id === "section-1");
+  assert.equal(movedSection?.kind, "section");
+  if (!movedSection || movedSection.kind !== "section") return;
+  assert.deepEqual(
+    movedSection.children?.map((node) => node.id),
+    [
+      "section-1:paragraph:subheadline",
+      "section-1:button:cta",
+      "section-1:heading:headline",
+    ],
+  );
+});
+
+test("moveBuilderNode rejects moving a node into its descendant", () => {
+  const moved = moveBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "container-1",
+    parentId: "container-1:heading",
+    index: 0,
+  });
+  assert.equal(moved.ok, false);
+  if (moved.ok) return;
+  assert.equal(moved.code, "INVALID_MOVE_TARGET");
+});
+
+test("moveBuilderNode moves a node across parent groups when allowed", () => {
+  const moved = moveBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "section-1:paragraph:subheadline",
+    parentId: "container-1",
+    index: 1,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+
+  const section = moved.tree.find((node) => node.id === "section-1");
+  assert.equal(section?.kind, "section");
+  if (!section || section.kind !== "section") return;
+  assert.equal(section.children?.length, 1);
+  assert.equal(section.children?.[0]?.id, "section-1:heading:headline");
+
+  const container = moved.tree.find((node) => node.id === "container-1");
+  assert.equal(container?.kind, "container");
+  if (!container || container.kind !== "container") return;
+  assert.equal(container.children.length, 2);
+  assert.equal(container.children[1]?.id, "section-1:paragraph:subheadline");
+});
+
+test("moveBuilderNode rejects disallowed cross-parent child kinds", () => {
+  const moved = moveBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "section-1",
+    parentId: "container-1",
+    index: 0,
+  });
+  assert.equal(moved.ok, false);
+  if (moved.ok) return;
+  assert.equal(moved.code, "CHILD_KIND_NOT_ALLOWED");
+});
+
+test("moveBuilderNode rejects leaf nodes moved to root", () => {
+  const moved = moveBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "section-1:paragraph:subheadline",
+    parentId: null,
+    index: 0,
+  });
+  assert.equal(moved.ok, false);
+  if (moved.ok) return;
+  assert.equal(moved.code, "ROOT_KIND_NOT_ALLOWED");
+});
+
+test("moveBuilderNode rejects moving the last tab panel out of its group", () => {
+  const moved = moveBuilderNode({
+    tree: [
+      {
+        id: "tabs-1",
+        kind: "tabs",
+        props: {},
+        children: [
+          {
+            id: "tab-1",
+            kind: "tab_panel",
+            props: { title: "Only tab" },
+            children: [],
+          },
+        ],
+      },
+      {
+        id: "tabs-2",
+        kind: "tabs",
+        props: {},
+        children: [
+          {
+            id: "tab-2",
+            kind: "tab_panel",
+            props: { title: "Other tab" },
+            children: [],
+          },
+        ],
+      },
+    ],
+    nodeId: "tab-1",
+    parentId: "tabs-2",
+    index: 1,
+  });
+  assert.equal(moved.ok, false);
+  if (moved.ok) return;
+  assert.equal(moved.code, "INVALID_MOVE_TARGET");
+});
+
+test("patchBuilderNodeProps updates props when valid", () => {
+  const patched = patchBuilderNodeProps({
+    tree: fixtureTree(),
+    nodeId: "container-1:heading",
+    patch: { text: "Updated heading" },
+  });
+  assert.equal(patched.ok, true);
+  if (!patched.ok) return;
+  const container = patched.tree.find((node) => node.id === "container-1");
+  assert.equal(container?.kind, "container");
+  if (!container || container.kind !== "container") return;
+  assert.equal(container.children[0]?.kind, "heading");
+  if (container.children[0]?.kind !== "heading") return;
+  assert.equal(container.children[0].props.text, "Updated heading");
+});
+
+test("patchBuilderNodeProps returns validation failure for invalid patch", () => {
+  const patched = patchBuilderNodeProps({
+    tree: fixtureTree(),
+    nodeId: "container-1:heading",
+    patch: { text: "" },
+  });
+  assert.equal(patched.ok, false);
+  if (patched.ok) return;
+  assert.equal(patched.code, "VALIDATION_FAILED");
+});
+
+test("patchBuilderNodeProps updates advanced layout node props when valid", () => {
+  const patched = patchBuilderNodeProps({
+    tree: [
+      {
+        id: "container-root",
+        kind: "container",
+        props: {
+          layout: "grid",
+          columns: 4,
+          responsive: {
+            tablet: { columns: 2, layout: "grid" },
+          },
+        },
+        children: [],
+      },
+    ],
+    nodeId: "container-root",
+    patch: {
+      responsive: {
+        tablet: { columns: 2, layout: "grid" },
+        mobile: { columns: 1, layout: "stack", gap: "s" },
+      },
+    },
+  });
+  assert.equal(patched.ok, true);
+  if (!patched.ok) return;
+  assert.equal(patched.tree[0]?.kind, "container");
+  if (patched.tree[0]?.kind !== "container") return;
+  assert.equal(patched.tree[0].props.responsive?.mobile?.columns, 1);
+  assert.equal(patched.tree[0].props.responsive?.mobile?.layout, "stack");
+});
+
+test("patchBuilderNodeProps rejects invalid advanced layout props", () => {
+  const patched = patchBuilderNodeProps({
+    tree: [
+      {
+        id: "carousel-root",
+        kind: "carousel",
+        props: {
+          slidesPerView: 2,
+          autoplayMs: 6000,
+        },
+        children: [],
+      },
+    ],
+    nodeId: "carousel-root",
+    patch: { autoplayMs: 500 },
+  });
+  assert.equal(patched.ok, false);
+  if (patched.ok) return;
+  assert.equal(patched.code, "VALIDATION_FAILED");
+});
+
+test("removeBuilderNode removes target from parent list", () => {
+  const removed = removeBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "section-1:paragraph:subheadline",
+  });
+  assert.equal(removed.ok, true);
+  if (!removed.ok) return;
+  const section = removed.tree.find((node) => node.id === "section-1");
+  assert.equal(section?.kind, "section");
+  if (!section || section.kind !== "section") return;
+  assert.equal(section.children?.length, 1);
+  assert.equal(section.children?.[0]?.id, "section-1:heading:headline");
+});
+
+test("removeBuilderNode rejects removing the last accordion item", () => {
+  const removed = removeBuilderNode({
+    tree: [
+      {
+        id: "accordion-1",
+        kind: "accordion",
+        props: {},
+        children: [
+          {
+            id: "accordion-item-1",
+            kind: "accordion_item",
+            props: { title: "Only question" },
+            children: [
+              {
+                id: "answer-1",
+                kind: "paragraph",
+                props: { text: "Only answer" },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    nodeId: "accordion-item-1",
+  });
+  assert.equal(removed.ok, false);
+  if (removed.ok) return;
+  assert.equal(removed.code, "INVALID_MOVE_TARGET");
+});
+
+test("duplicateBuilderNode duplicates a nested leaf after the source", () => {
+  const duplicated = duplicateBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "container-1:heading",
+  });
+  assert.equal(duplicated.ok, true);
+  if (!duplicated.ok) return;
+  const container = duplicated.tree.find((node) => node.id === "container-1");
+  assert.equal(container?.kind, "container");
+  if (!container || container.kind !== "container") return;
+  assert.equal(container.children.length, 2);
+  assert.equal(container.children[0]?.id, "container-1:heading");
+  assert.equal(container.children[1]?.id, duplicated.nodeId);
+  assert.notEqual(container.children[1]?.id, "container-1:heading");
+  assert.equal(container.children[1]?.kind, "heading");
+  if (container.children[1]?.kind !== "heading") return;
+  assert.equal(container.children[1].props.text, "Nested heading");
+});
+
+test("duplicateBuilderNode gives nested descendants fresh ids and remaps defaults", () => {
+  const tree: BuilderNodeTree = [
+    {
+      id: "tabs-1",
+      kind: "tabs",
+      props: { defaultTabId: "tab-1" },
+      children: [
+        {
+          id: "tab-1",
+          kind: "tab_panel",
+          props: { title: "First" },
+          children: [
+            {
+              id: "tab-1:heading",
+              kind: "heading",
+              props: { text: "Inside tab", level: 2 },
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  const duplicated = duplicateBuilderNode({
+    tree,
+    nodeId: "tabs-1",
+  });
+  assert.equal(duplicated.ok, true);
+  if (!duplicated.ok) return;
+  assert.equal(duplicated.tree.length, 2);
+  const copy = duplicated.tree[1];
+  assert.equal(copy?.kind, "tabs");
+  if (!copy || copy.kind !== "tabs") return;
+  assert.equal(copy.id, duplicated.nodeId);
+  assert.notEqual(copy.id, "tabs-1");
+  assert.equal(copy.children.length, 1);
+  assert.notEqual(copy.children[0]?.id, "tab-1");
+  assert.equal(copy.props.defaultTabId, copy.children[0]?.id);
+  const copiedPanel = copy.children[0];
+  assert.equal(copiedPanel?.kind, "tab_panel");
+  if (!copiedPanel || copiedPanel.kind !== "tab_panel") return;
+  assert.notEqual(copiedPanel.children[0]?.id, "tab-1:heading");
+});
+
+test("duplicateBuilderNode rejects section nodes", () => {
+  const duplicated = duplicateBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "section-1",
+  });
+  assert.equal(duplicated.ok, false);
+  if (duplicated.ok) return;
+  assert.equal(duplicated.code, "NODE_KIND_NOT_DUPLICABLE");
+});
+
+test("pasteBuilderNode inserts a copied node with fresh ids", () => {
+  const pasted = pasteBuilderNode({
+    tree: fixtureTree(),
+    parentId: "container-1",
+    index: 1,
+    node: {
+      id: "copied-split",
+      kind: "split",
+      props: { ratio: "50-50" },
+      children: [
+        {
+          id: "copied-split:heading",
+          kind: "heading",
+          props: { text: "Copied headline", level: 2 },
+        },
+      ],
+    },
+  });
+  assert.equal(pasted.ok, true);
+  if (!pasted.ok) return;
+  const container = pasted.tree.find((node) => node.id === "container-1");
+  assert.equal(container?.kind, "container");
+  if (!container || container.kind !== "container") return;
+  const copy = container.children[1];
+  assert.equal(copy?.kind, "split");
+  if (!copy || copy.kind !== "split") return;
+  assert.equal(copy.id, pasted.nodeId);
+  assert.notEqual(copy.id, "copied-split");
+  assert.notEqual(copy.children[0]?.id, "copied-split:heading");
+});
+
+test("pasteBuilderNode rejects disallowed parents", () => {
+  const pasted = pasteBuilderNode({
+    tree: fixtureTree(),
+    parentId: "section-1:heading:headline",
+    node: {
+      id: "copied-paragraph",
+      kind: "paragraph",
+      props: { text: "Copied paragraph" },
+    },
+  });
+  assert.equal(pasted.ok, false);
+  if (pasted.ok) return;
+  assert.equal(pasted.code, "PARENT_DOES_NOT_ALLOW_CHILDREN");
+});
+
+test("pasteBuilderNode rejects copied section nodes", () => {
+  const pasted = pasteBuilderNode({
+    tree: fixtureTree(),
+    parentId: null,
+    node: {
+      id: "copied-section",
+      kind: "section",
+      props: {
+        sectionId: "33333333-3333-4333-8333-333333333333",
+        sectionTypeKey: "hero",
+      },
+    },
+  });
+  assert.equal(pasted.ok, false);
+  if (pasted.ok) return;
+  assert.equal(pasted.code, "NODE_KIND_NOT_DUPLICABLE");
+});

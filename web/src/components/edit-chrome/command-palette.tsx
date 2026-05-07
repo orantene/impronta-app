@@ -55,7 +55,9 @@ import {
   SHORTCUTS,
   type Shortcut,
 } from "./kit";
+import { isShortcutVisible } from "./kit/shortcuts";
 import { useEditContext, type EditDevice } from "./edit-context";
+import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 
@@ -220,11 +222,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             />
           ),
           perform: () => {
-            ctx.setSelectedSectionId(ref.sectionId);
-            // Scroll into view if it's mounted on the page.
-            const el = document.querySelector(
+            const el = document.querySelector<HTMLElement>(
               `[data-section-id="${ref.sectionId}"]`,
             );
+            const builderNodeId = el?.getAttribute("data-builder-node-id");
+            if (builderNodeId) {
+              ctx.selectBuilderNode(builderNodeId);
+            } else {
+              ctx.setSelectedSectionId(ref.sectionId);
+            }
+            // Scroll into view if it's mounted on the page.
             if (el && "scrollIntoView" in el) {
               (el as HTMLElement).scrollIntoView({
                 block: "center",
@@ -254,7 +261,15 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             />
           ),
           perform: () => {
-            ctx.setSelectedSectionId(ref.sectionId);
+            const el = document.querySelector<HTMLElement>(
+              `[data-section-id="${ref.sectionId}"]`,
+            );
+            const builderNodeId = el?.getAttribute("data-builder-node-id");
+            if (builderNodeId) {
+              ctx.selectBuilderNode(builderNodeId);
+            } else {
+              ctx.setSelectedSectionId(ref.sectionId);
+            }
             onClose();
           },
         });
@@ -293,16 +308,22 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           onClose();
         },
       ),
-      drawerRow(
-        "open-theme",
-        "Open Theme drawer",
-        "Colors, typography, layout, effects",
-        ["design", "tokens", "brand", "fonts", "color"],
-        () => {
-          ctx.openTheme();
-          onClose();
-        },
-      ),
+      ...(isShortcutVisible("open-theme", {
+        canEditSiteShell: ctx.canEditSiteShell,
+      })
+        ? [
+            drawerRow(
+              "open-theme",
+              "Open Theme drawer",
+              "Colors, typography, layout, effects",
+              ["design", "tokens", "brand", "fonts", "color"],
+              () => {
+                ctx.openTheme();
+                onClose();
+              },
+            ),
+          ]
+        : []),
       drawerRow(
         "open-assets",
         "Open Assets library",
@@ -310,6 +331,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         ["media", "images", "uploads", "files"],
         () => {
           ctx.openAssets();
+          onClose();
+        },
+      ),
+      drawerRow(
+        "open-template-gallery",
+        "Open Template gallery",
+        "Starter layouts for flexible page compositions",
+        ["templates", "starter", "marketplace", "layout", "start with this"],
+        () => {
+          ctx.openStarterTemplateGallery();
           onClose();
         },
       ),
@@ -414,7 +445,55 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         },
       ),
     );
-    if (ctx.selectedSectionId) {
+    const selectedBuilderNode = findBuilderNodeById(
+      ctx.builderTree,
+      ctx.selectedBuilderNodeId,
+    );
+    if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
+      const id = selectedBuilderNode.id;
+      rows.push(
+        actionRow(
+          "copy-block",
+          "Copy selected block",
+          ["copy", "clipboard", "block"],
+          () => {
+            const copied = ctx.copyBuilderNode(id);
+            if (!copied.ok && copied.error) {
+              ctx.reportMutationError(copied.error);
+            }
+            onClose();
+          },
+        ),
+        actionRow(
+          "duplicate-section",
+          "Duplicate selected block",
+          ["copy", "clone", "block"],
+          () => {
+            void ctx.duplicateBuilderNode(id).then((res) => {
+              if (!res.ok && res.error) {
+                ctx.reportMutationError(res.error);
+              }
+            });
+            onClose();
+          },
+        ),
+        actionRow(
+          "delete-section",
+          "Delete selected block",
+          ["remove", "trash", "block"],
+          () => {
+            void ctx.removeBuilderNode(id).then((res) => {
+              if (res.ok) {
+                ctx.setSelectedSectionId(ctx.selectedSectionId);
+              } else if (res.error) {
+                ctx.reportMutationError(res.error);
+              }
+            });
+            onClose();
+          },
+        ),
+      );
+    } else if (ctx.selectedSectionId) {
       const id = ctx.selectedSectionId;
       rows.push(
         actionRow(
@@ -425,6 +504,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             void ctx.duplicateSection(id).then((res) => {
               if (res.ok && res.newSectionId) {
                 ctx.setSelectedSectionId(res.newSectionId);
+              } else if (!res.ok && res.error) {
+                ctx.reportMutationError(res.error);
               }
             });
             onClose();
@@ -455,7 +536,62 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           () => {
             void ctx.removeSection(id).then((res) => {
               if (res.ok) ctx.setSelectedSectionId(null);
+              else if (res.error) ctx.reportMutationError(res.error);
             });
+            onClose();
+          },
+        ),
+      );
+    }
+    if (ctx.copiedBuilderNodeKind) {
+      const pastePreview = ctx.getCopiedBuilderNodePastePreview(
+        ctx.selectedBuilderNodeId,
+      );
+      rows.push(
+        actionRow(
+          "paste-block",
+          pastePreview?.mode === "blocked"
+            ? "Paste copied block unavailable"
+            : pastePreview
+              ? `Paste ${pastePreview.copiedLabel}`
+              : "Paste copied block",
+          [
+            "paste",
+            "clipboard",
+            "block",
+            pastePreview?.message ?? "",
+          ],
+          () => {
+            void ctx.pasteCopiedBuilderNode(ctx.selectedBuilderNodeId).then((res) => {
+              if (!res.ok && res.error) {
+                ctx.reportMutationError(res.error);
+              }
+            });
+            onClose();
+          },
+        ),
+      );
+    }
+    for (const preset of ctx.builderBlockPresets.slice(0, 8)) {
+      rows.push(
+        actionRow(
+          `insert-block-preset:${preset.id}`,
+          `Insert preset: ${preset.name}`,
+          [
+            "pattern",
+            "preset",
+            "block",
+            "insert",
+            preset.node.kind,
+          ],
+          () => {
+            void ctx
+              .pasteBuilderBlockPreset(preset.id, ctx.selectedBuilderNodeId)
+              .then((res) => {
+                if (!res.ok && res.error) {
+                  ctx.reportMutationError(res.error);
+                }
+              });
             onClose();
           },
         ),

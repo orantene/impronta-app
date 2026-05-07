@@ -133,7 +133,7 @@ export function Reveal({
  * typographic-rhythm wrapper; per-section head CSS goes away.
  */
 
-import type { ReactNode as ReactNodeType } from "react";
+type ReactNodeType = ReactNode;
 
 export interface SectionHeadProps {
   eyebrow?: ReactNodeType;
@@ -141,17 +141,44 @@ export interface SectionHeadProps {
   intro?: ReactNodeType;
   align?: "start" | "center";
   className?: string;
+  eyebrowBuilderNodeId?: string;
+  headlineBuilderNodeId?: string;
+  introBuilderNodeId?: string;
 }
 
-export function SectionHead({ eyebrow, headline, intro, align = "center", className }: SectionHeadProps) {
+export function SectionHead({
+  eyebrow,
+  headline,
+  intro,
+  align = "center",
+  className,
+  eyebrowBuilderNodeId,
+  headlineBuilderNodeId,
+  introBuilderNodeId,
+}: SectionHeadProps) {
   if (!eyebrow && !headline && !intro) return null;
   return (
     <header
       className={`site-prim-head${align === "center" ? " site-prim-head--center" : ""}${className ? ` ${className}` : ""}`}
     >
-      {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-      {headline ? <h2 className="site-prim-head__headline">{headline}</h2> : null}
-      {intro ? <p className="site-prim-head__intro">{intro}</p> : null}
+      {eyebrow ? (
+        <span className="site-eyebrow" data-builder-node-id={eyebrowBuilderNodeId}>
+          {eyebrow}
+        </span>
+      ) : null}
+      {headline ? (
+        <h2
+          className="site-prim-head__headline"
+          data-builder-node-id={headlineBuilderNodeId}
+        >
+          {headline}
+        </h2>
+      ) : null}
+      {intro ? (
+        <p className="site-prim-head__intro" data-builder-node-id={introBuilderNodeId}>
+          {intro}
+        </p>
+      ) : null}
     </header>
   );
 }
@@ -189,15 +216,29 @@ export interface CtaProps {
   newTab?: boolean;
   /** Optional class additions for section-level layout (e.g. width-full on mobile). */
   className?: string;
+  /** Optional BuilderNode id marker for canvas child-node selection. */
+  builderNodeId?: string;
+  /** Optional inline style overrides for node-level builder controls. */
+  style?: CSSProperties;
 }
 
-export function Cta({ href, children, variant = "primary", newTab, className }: CtaProps) {
+export function Cta({
+  href,
+  children,
+  variant = "primary",
+  newTab,
+  className,
+  builderNodeId,
+  style,
+}: CtaProps) {
   const isExternal = /^https?:\/\//i.test(href) || newTab === true;
   return (
     <a
       href={href}
       data-cta-variant={variant}
+      data-builder-node-id={builderNodeId}
       className={`site-prim-cta site-prim-cta--${variant}${className ? ` ${className}` : ""}`}
+      style={style}
       target={isExternal ? "_blank" : undefined}
       rel={isExternal ? "noopener noreferrer" : undefined}
     >

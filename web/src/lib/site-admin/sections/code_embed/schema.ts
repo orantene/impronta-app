@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -50,6 +51,13 @@ export const codeEmbedSchemaV1 = z.object({
     .refine(isAllowedEmbedUrl, "URL must be HTTPS and on an allow-listed host"),
   ratio: z.enum(["16/9", "4/3", "1/1", "9/16", "3/4"]).default("16/9"),
   title: z.string().min(1).max(140).default("Embedded content"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

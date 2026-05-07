@@ -23,6 +23,13 @@
  */
 
 import { loadPublishedShell } from "@/lib/site-admin/server/shell-reads";
+import {
+  buildBuilderNodeRoleBindings,
+  builderSectionNodeAddressKey,
+  indexBuilderSectionChildNodeIds,
+  indexBuilderSectionNodeIds,
+  resolveSnapshotBuilderTree,
+} from "@/lib/site-admin/builder-node";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { isSiteShellEnabledForTenant } from "@/lib/site-admin/site-shell-flag";
 import type { Locale } from "@/i18n/config";
@@ -75,7 +82,21 @@ export async function PublishedShellHeader({
   const shell = await loadPublishedShell(tenantId, locale);
   if (!shell) return null;
   const slot = shell.snapshot.slots.find((s) => s.slotKey === "header");
-  return slot ? await renderShellSlot(slot, tenantId, locale) : null;
+  if (!slot) return null;
+  const builderTree = resolveSnapshotBuilderTree(shell.snapshot).tree;
+  const builderSectionNodeIds = indexBuilderSectionNodeIds(
+    builderTree,
+  );
+  const builderSectionChildNodeIds = indexBuilderSectionChildNodeIds(
+    builderTree,
+  );
+  return renderShellSlot(
+    slot,
+    tenantId,
+    locale,
+    builderSectionNodeIds,
+    builderSectionChildNodeIds,
+  );
 }
 
 /**
@@ -93,7 +114,21 @@ export async function PublishedShellFooter({
   const shell = await loadPublishedShell(tenantId, locale);
   if (!shell) return null;
   const slot = shell.snapshot.slots.find((s) => s.slotKey === "footer");
-  return slot ? await renderShellSlot(slot, tenantId, locale) : null;
+  if (!slot) return null;
+  const builderTree = resolveSnapshotBuilderTree(shell.snapshot).tree;
+  const builderSectionNodeIds = indexBuilderSectionNodeIds(
+    builderTree,
+  );
+  const builderSectionChildNodeIds = indexBuilderSectionChildNodeIds(
+    builderTree,
+  );
+  return renderShellSlot(
+    slot,
+    tenantId,
+    locale,
+    builderSectionNodeIds,
+    builderSectionChildNodeIds,
+  );
 }
 
 /**
@@ -123,6 +158,8 @@ async function renderShellSlot(
   },
   tenantId: string,
   locale: string,
+  builderSectionNodeIds: ReadonlyMap<string, string>,
+  builderSectionChildNodeIds: ReadonlyMap<string, ReadonlyArray<string>>,
 ): Promise<React.ReactNode> {
   const reg = getSectionType(slot.sectionTypeKey);
   if (!reg) {
@@ -136,6 +173,34 @@ async function renderShellSlot(
   const Comp = reg.Component;
   const publicPathPrefix = await getPublicPathPrefix();
   const props = prefixPublicHrefsDeep(slot.props, publicPathPrefix);
+  const builderNodeId = builderSectionNodeIds.get(
+    builderSectionNodeAddressKey({
+      sectionId: slot.sectionId,
+      slotKey: slot.slotKey,
+      sortOrder: slot.sortOrder,
+    }) ?? "",
+  );
+  const roleBindingResult = buildBuilderNodeRoleBindings(
+    builderNodeId ? (builderSectionChildNodeIds.get(builderNodeId) ?? []) : [],
+  );
+  const roleBindings = roleBindingResult.nodeIdsByRole;
+  if (
+    process.env.NODE_ENV !== "production" &&
+    roleBindingResult.unknownNodeIds.length > 0
+  ) {
+    console.warn("[published-shell] unknown builder child node roles", {
+      sectionId: slot.sectionId,
+      sectionTypeKey: slot.sectionTypeKey,
+      unknownNodeIds: roleBindingResult.unknownNodeIds,
+    });
+  }
+  const builderNodeBindings =
+    builderNodeId || Object.keys(roleBindings).length > 0
+      ? {
+          sectionNodeId: builderNodeId ?? null,
+          nodeIdsByRole: roleBindings,
+        }
+      : undefined;
   // Phase B.2.B — wrap each shell section in the same `data-cms-section`
   // outer the homepage composer uses (see homepage-cms-sections.tsx). The
   // EditShell selection layer queries `[data-cms-section]` to detect
@@ -151,6 +216,7 @@ async function renderShellSlot(
       data-section-type-key={slot.sectionTypeKey}
       data-slot-key={slot.slotKey}
       data-sort-order={slot.sortOrder}
+      data-builder-node-id={builderNodeId}
     >
       <Comp
         sectionId={slot.sectionId}
@@ -159,6 +225,7 @@ async function renderShellSlot(
         preview={false}
         props={props}
         publicPathPrefix={publicPathPrefix}
+        builderNodeBindings={builderNodeBindings}
       />
     </div>
   );

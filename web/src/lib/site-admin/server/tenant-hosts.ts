@@ -45,6 +45,26 @@ const KNOWN_WORKSPACE_URL_PLANS = new Set<WorkspaceUrlPlan>([
   "legacy",
 ]);
 
+function requestHostnameFromHostHeader(host: string | null | undefined): string | null {
+  const raw = host?.trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.startsWith("[")) {
+    const bracketEnd = raw.indexOf("]");
+    return bracketEnd === -1 ? raw : raw.slice(1, bracketEnd);
+  }
+  return raw.split(":")[0] ?? raw;
+}
+
+export function shouldUsePathPreviewForRequestHost(
+  host: string | null | undefined,
+  options?: { isDev?: boolean },
+): boolean {
+  const isDev = options?.isDev ?? process.env.NODE_ENV !== "production";
+  if (!isDev) return false;
+  const hostname = requestHostnameFromHostHeader(host);
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
 function isDevPreviewHost(host: string): boolean {
   return /\.lvh\.me$/i.test(host) || /\.local$/i.test(host);
 }
@@ -146,6 +166,7 @@ export function resolveWorkspacePreviewUrl(input: {
   subdomainHost: string | null;
   domainRows: PreviewDomainRow[];
   isDev?: boolean;
+  requestHost?: string | null;
 }): string {
   const isDev = input.isDev ?? process.env.NODE_ENV !== "production";
   const publicAddress = resolveWorkspacePublicAddress({
@@ -160,6 +181,10 @@ export function resolveWorkspacePreviewUrl(input: {
 
   if (!isDev) {
     return publicAddress.primaryUrl;
+  }
+
+  if (shouldUsePathPreviewForRequestHost(input.requestHost, { isDev })) {
+    return workspacePathPreviewUrl(input.slug, { isDev });
   }
 
   if (publicAddress.primaryKind === "path") {
@@ -178,6 +203,7 @@ export function resolveWorkspacePreviewUrl(input: {
 export async function getTenantPreviewUrl(
   supabase: SupabaseClient,
   tenantId: string,
+  options?: { requestHost?: string | null; isDev?: boolean },
 ): Promise<string | null> {
   const [{ data: agency, error: agencyError }, { data: domains, error: domainsError }] = await Promise.all([
     supabase
@@ -239,5 +265,7 @@ export async function getTenantPreviewUrl(
         isPrimary: row.is_primary,
       })),
     ],
+    isDev: options?.isDev,
+    requestHost: options?.requestHost,
   });
 }

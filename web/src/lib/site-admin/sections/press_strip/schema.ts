@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -17,6 +18,11 @@ export const pressStripSchemaV1 = z.object({
   variant: z
     .enum(["text-italic-serif", "logo-row", "mixed"])
     .default("text-italic-serif"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

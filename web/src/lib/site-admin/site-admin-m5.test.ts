@@ -214,6 +214,25 @@ test("homepageSaveDraftSchema rejects non-integer expectedVersion", () => {
   );
 });
 
+test("homepageSaveDraftSchema accepts optional builderTree payload", () => {
+  const result = homepageSaveDraftSchema.safeParse({
+    ...MIN_SAVE,
+    builderTree: [
+      {
+        id: "legacy:hero:0:11111111-1111-4111-8111-111111111111",
+        kind: "section",
+        props: {
+          sectionId: SECTION_A,
+          sectionTypeKey: "hero",
+          slotKey: "hero",
+          sortOrder: 0,
+        },
+      },
+    ],
+  });
+  assert.equal(result.success, true);
+});
+
 // ---- publish --------------------------------------------------------------
 
 test("homepagePublishSchema accepts valid envelope", () => {

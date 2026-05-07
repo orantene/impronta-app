@@ -170,28 +170,48 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   },
   {
     id: "duplicate-section",
-    label: "Duplicate selected section",
+    label: "Duplicate selected section/block",
     keys: ["⌘", "D"],
     category: "editing",
     paletteAction: false,
   },
   {
+    id: "copy-block",
+    label: "Copy selected block",
+    keys: ["⌘", "C"],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "paste-block",
+    label: "Paste copied block",
+    description:
+      "Pastes inside compatible containers, otherwise after the selected block.",
+    keys: ["⌘", "V"],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
     id: "delete-section",
-    label: "Delete selected section",
+    label: "Delete selected section/block",
     keys: ["⌫"],
     category: "editing",
     paletteAction: false,
   },
   {
     id: "move-section-up",
-    label: "Move selected section up",
+    label: "Move selected section/node up",
+    description:
+      "In navigator child rows, Alt+↑ reorders the selected node within its sibling group.",
     keys: ["⌥", "↑"],
     category: "editing",
     paletteAction: false,
   },
   {
     id: "move-section-down",
-    label: "Move selected section down",
+    label: "Move selected section/node down",
+    description:
+      "In navigator child rows, Alt+↓ reorders the selected node within its sibling group.",
     keys: ["⌥", "↓"],
     category: "editing",
     paletteAction: false,
@@ -222,6 +242,31 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: false,
   },
 ];
+
+/**
+ * Capability-aware shortcut visibility gate.
+ *
+ * Keeps plan-based hiding logic in one place so command palette rows and
+ * the keyboard reference overlay don't drift.
+ */
+export function isShortcutVisible(
+  shortcutId: string,
+  options: { canEditSiteShell: boolean },
+): boolean {
+  if (shortcutId === "open-theme") {
+    return options.canEditSiteShell;
+  }
+  return true;
+}
+
+export function filterVisibleShortcuts(
+  shortcuts: ReadonlyArray<Shortcut>,
+  options: { canEditSiteShell: boolean },
+): ReadonlyArray<Shortcut> {
+  return shortcuts.filter((entry) =>
+    isShortcutVisible(entry.id, options),
+  );
+}
 
 /**
  * Lookup a shortcut by id. Returns undefined for unknown ids — callers

@@ -13,7 +13,7 @@
  * **Protocol — child → parent** (all messages namespaced
  * `editor:*`; ignored by anything not in this contract):
  *
- *   { type: "editor:sectionClicked", sectionId: string }
+ *   { type: "editor:sectionClicked", sectionId: string, builderNodeId?: string | null }
  *     Operator clicked a section inside the iframe. Parent should set
  *     `selectedSectionId` so InspectorDock opens with that section's
  *     fields.
@@ -32,7 +32,7 @@
  * **Protocol — parent → child** (Sprint 3 keeps this minimal —
  * select-and-inspect only, per the locked scope):
  *
- *   { type: "editor:setSelection", sectionId: string | null }
+ *   { type: "editor:setSelection", sectionId: string | null, builderNodeId?: string | null }
  *     Parent wants to select a specific section inside the iframe
  *     (e.g., Sections panel click). Iframe updates its local
  *     `selectedSectionId` so the ring + chip render inside the
@@ -63,11 +63,11 @@ import { useEditContext } from "./edit-context";
 // senders/receivers.
 type BridgeMessage =
   // child → parent
-  | { type: "editor:sectionClicked"; sectionId: string }
+  | { type: "editor:sectionClicked"; sectionId: string; builderNodeId?: string | null }
   | { type: "editor:sectionHovered"; sectionId: string | null }
   | { type: "editor:ready" }
   // parent → child
-  | { type: "editor:setSelection"; sectionId: string | null }
+  | { type: "editor:setSelection"; sectionId: string | null; builderNodeId?: string | null }
   | { type: "editor:scrollToSection"; sectionId: string }
   // parent → child — Preview toggle on the topbar. When previewing is
   // true the iframe should unmount its own SelectionLayer +
@@ -77,6 +77,13 @@ type BridgeMessage =
   | { type: "editor:setPreviewing"; previewing: boolean };
 
 const BRIDGE_NAMESPACE = "editor:";
+
+function selectionKey(
+  sectionId: string | null | undefined,
+  builderNodeId: string | null | undefined,
+): string {
+  return `${sectionId ?? "__null__"}::${builderNodeId ?? "__null__"}`;
+}
 
 function isBridgeMessage(data: unknown): data is BridgeMessage {
   if (!data || typeof data !== "object") return false;
@@ -95,13 +102,15 @@ function isBridgeMessage(data: unknown): data is BridgeMessage {
 export function IframeBridgeChild() {
   const {
     selectedSectionId,
+    selectedBuilderNodeId,
+    selectBuilderNode,
     setSelectedSectionId,
     hoveredSectionId,
     setPreviewing,
   } = useEditContext();
   // Track the last value we posted so we don't echo back a parent-
   // originated update as a "child clicked" event (which would loop).
-  const lastPostedSelectionRef = useRef<string | null | undefined>(undefined);
+  const lastPostedSelectionKeyRef = useRef<string | undefined>(undefined);
   const lastPostedHoverRef = useRef<string | null | undefined>(undefined);
   const readySentRef = useRef(false);
 
@@ -110,16 +119,18 @@ export function IframeBridgeChild() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.parent === window) return; // Not actually in an iframe.
-    if (lastPostedSelectionRef.current === selectedSectionId) return;
-    lastPostedSelectionRef.current = selectedSectionId;
+    const key = selectionKey(selectedSectionId, selectedBuilderNodeId);
+    if (lastPostedSelectionKeyRef.current === key) return;
+    lastPostedSelectionKeyRef.current = key;
     if (selectedSectionId) {
       const msg: BridgeMessage = {
         type: "editor:sectionClicked",
         sectionId: selectedSectionId,
+        builderNodeId: selectedBuilderNodeId ?? null,
       };
       window.parent.postMessage(msg, window.location.origin);
     }
-  }, [selectedSectionId]);
+  }, [selectedBuilderNodeId, selectedSectionId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -147,8 +158,15 @@ export function IframeBridgeChild() {
       if (msg.type === "editor:setSelection") {
         // Update local selection. Track the parent-originated value so
         // our outbound selection effect doesn't echo it back.
-        lastPostedSelectionRef.current = msg.sectionId;
-        setSelectedSectionId(msg.sectionId);
+        lastPostedSelectionKeyRef.current = selectionKey(
+          msg.sectionId,
+          msg.builderNodeId ?? null,
+        );
+        if (msg.sectionId && msg.builderNodeId) {
+          selectBuilderNode(msg.builderNodeId);
+        } else {
+          setSelectedSectionId(msg.sectionId);
+        }
         return;
       }
 
@@ -170,7 +188,7 @@ export function IframeBridgeChild() {
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [setSelectedSectionId, setPreviewing]);
+  }, [setSelectedSectionId, selectBuilderNode, setPreviewing]);
 
   // Announce readiness exactly once on mount.
   useEffect(() => {
@@ -198,6 +216,8 @@ export function IframeBridgeChild() {
 export function IframeBridgeParent() {
   const {
     selectedSectionId,
+    selectedBuilderNodeId,
+    selectBuilderNode,
     setSelectedSectionId,
     setHoveredSectionId,
     device,
@@ -207,7 +227,7 @@ export function IframeBridgeParent() {
   // Track the last selection we POSTED to the iframe so we don't echo
   // a child-originated selection back as a parent-driven setSelection
   // (which would loop). Also track iframe-ready handshake.
-  const lastPostedSelectionRef = useRef<string | null | undefined>(undefined);
+  const lastPostedSelectionKeyRef = useRef<string | undefined>(undefined);
   const iframeReadyRef = useRef(false);
 
   // Helper: post to the iframe's contentWindow if it's mounted.
@@ -231,8 +251,15 @@ export function IframeBridgeParent() {
       if (msg.type === "editor:sectionClicked") {
         // Mark this as the last "known" selection so our outbound
         // selection effect doesn't echo it back to the iframe.
-        lastPostedSelectionRef.current = msg.sectionId;
-        setSelectedSectionId(msg.sectionId);
+        lastPostedSelectionKeyRef.current = selectionKey(
+          msg.sectionId,
+          msg.builderNodeId ?? null,
+        );
+        if (msg.builderNodeId) {
+          selectBuilderNode(msg.builderNodeId);
+        } else {
+          setSelectedSectionId(msg.sectionId);
+        }
         return;
       }
 
@@ -251,10 +278,14 @@ export function IframeBridgeParent() {
         // show editing chrome before suppressing it.
         postToIframe({ type: "editor:setPreviewing", previewing });
         if (selectedSectionId) {
-          lastPostedSelectionRef.current = selectedSectionId;
+          lastPostedSelectionKeyRef.current = selectionKey(
+            selectedSectionId,
+            selectedBuilderNodeId,
+          );
           postToIframe({
             type: "editor:setSelection",
             sectionId: selectedSectionId,
+            builderNodeId: selectedBuilderNodeId ?? null,
           });
           postToIframe({
             type: "editor:scrollToSection",
@@ -268,7 +299,12 @@ export function IframeBridgeParent() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setSelectedSectionId, setHoveredSectionId]);
+  }, [
+    selectBuilderNode,
+    selectedBuilderNodeId,
+    setSelectedSectionId,
+    setHoveredSectionId,
+  ]);
 
   // Sprint 3.x — when the parent's selection changes (e.g. operator
   // picked a section in the navigator while iframe is up), push it
@@ -277,13 +313,15 @@ export function IframeBridgeParent() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!iframeReadyRef.current) return;
+    const key = selectionKey(selectedSectionId, selectedBuilderNodeId);
     // Skip when our local state was just updated FROM an iframe message
-    // (lastPostedSelectionRef was synced in onMessage).
-    if (lastPostedSelectionRef.current === selectedSectionId) return;
-    lastPostedSelectionRef.current = selectedSectionId;
+    // (lastPostedSelectionKeyRef was synced in onMessage).
+    if (lastPostedSelectionKeyRef.current === key) return;
+    lastPostedSelectionKeyRef.current = key;
     postToIframe({
       type: "editor:setSelection",
       sectionId: selectedSectionId,
+      builderNodeId: selectedBuilderNodeId ?? null,
     });
     if (selectedSectionId) {
       postToIframe({
@@ -291,7 +329,7 @@ export function IframeBridgeParent() {
         sectionId: selectedSectionId,
       });
     }
-  }, [selectedSectionId]);
+  }, [selectedBuilderNodeId, selectedSectionId]);
 
   // Push Preview toggle changes into the iframe so its local
   // SelectionLayer + CanvasLinkInterceptor can unmount in lockstep
@@ -308,7 +346,7 @@ export function IframeBridgeParent() {
   useEffect(() => {
     if (device === "desktop") {
       iframeReadyRef.current = false;
-      lastPostedSelectionRef.current = undefined;
+      lastPostedSelectionKeyRef.current = undefined;
     }
   }, [device]);
 

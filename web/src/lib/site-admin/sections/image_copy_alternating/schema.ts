@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -43,6 +44,12 @@ export const imageCopyAlternatingSchemaV1 = z.object({
     .default("editorial-alternating"),
   gap: z.enum(["tight", "standard", "airy"]).default("airy"),
   imageRatio: z.enum(["4/5", "1/1", "5/6", "3/4"]).default("5/6"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

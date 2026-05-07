@@ -248,7 +248,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
            * `applyStarterComposition` the admin composer uses, so the two
            * paths converge on the same seeded-draft state. */}
           {editActive && !cmsHeroSlot && !hasCmsComposition ? (
-            <EmptyCanvasStarter />
+            <EmptyCanvasStarter locale={locale} />
           ) : (
             <>
           {cmsHeroSlot && cmsHomepage?.snapshot ? (

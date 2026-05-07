@@ -36,6 +36,7 @@ import {
 } from "@/lib/site-admin/sections/registry";
 import { upsertSection } from "@/lib/site-admin/server/sections";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
+import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/legacy-section-tree";
 import { revalidateTag } from "next/cache";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 
@@ -314,6 +315,7 @@ export async function backfillSiteShellForCurrentTenant(): Promise<ShellBackfill
     },
     templateSchemaVersion: 1,
     slots: snapshotSlots,
+    builderTree: buildLegacySectionBuilderTree(snapshotSlots),
   };
 
   const { error: pubErr } = await admin

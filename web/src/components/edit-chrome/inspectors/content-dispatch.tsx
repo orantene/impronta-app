@@ -20,14 +20,18 @@
  * never clobbered by a later keystroke in Content.
  */
 
-import type { ComponentType } from "react";
+import { useMemo, type ComponentType } from "react";
 
+import { useEditContext } from "../edit-context";
+import { BuilderNodeContentInspector } from "./builder-node-content";
+import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-utils";
 import { HeroContentInspector } from "./hero-content";
 import { CategoryGridContentInspector } from "./category-grid-content";
 import { CtaBannerContentInspector } from "./cta-banner-content";
 import { FeaturedTalentContentInspector } from "./featured-talent-content";
 import { TestimonialsTrioContentInspector } from "./testimonials-trio-content";
 import { GalleryStripContentInspector } from "./gallery-strip-content";
+import { TrustStripContentInspector } from "./trust-strip-content";
 import { GenericContent } from "./generic-content";
 
 interface ContentTabProps {
@@ -35,12 +39,14 @@ interface ContentTabProps {
   schemaVersion: number;
   tenantId: string;
   draftProps: Record<string, unknown>;
+  selectedBuilderNodeId: string | null;
   onChange: (next: Record<string, unknown>) => void;
 }
 
 interface CuratedInspectorProps {
   draftProps: Record<string, unknown>;
   tenantId: string;
+  selectedBuilderNodeId: string | null;
   onChange: (next: Record<string, unknown>) => void;
 }
 
@@ -51,6 +57,7 @@ const CURATED: Record<string, ComponentType<CuratedInspectorProps>> = {
   featured_talent: FeaturedTalentContentInspector,
   testimonials_trio: TestimonialsTrioContentInspector,
   gallery_strip: GalleryStripContentInspector,
+  trust_strip: TrustStripContentInspector,
 };
 
 export function ContentTab({
@@ -58,14 +65,34 @@ export function ContentTab({
   schemaVersion,
   tenantId,
   draftProps,
+  selectedBuilderNodeId,
   onChange,
 }: ContentTabProps) {
+  const { builderTree } = useEditContext();
+  const selectedStandaloneBuilderNode = useMemo(
+    () =>
+      resolveStandaloneBuilderNodeForContent(
+        builderTree,
+        selectedBuilderNodeId,
+      ),
+    [builderTree, selectedBuilderNodeId],
+  );
+  if (selectedStandaloneBuilderNode) {
+    return (
+      <BuilderNodeContentInspector
+        node={selectedStandaloneBuilderNode}
+        tenantId={tenantId}
+      />
+    );
+  }
+
   const Curated = CURATED[sectionTypeKey];
   if (Curated) {
     return (
       <Curated
         draftProps={draftProps}
         tenantId={tenantId}
+        selectedBuilderNodeId={selectedBuilderNodeId}
         onChange={onChange}
       />
     );

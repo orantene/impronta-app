@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const sideSchema = z.object({
@@ -13,6 +14,12 @@ export const lookbookSchemaV1 = z.object({
   pages: z.array(sideSchema).min(2).max(20),
   variant: z.enum(["spread", "stack"]).default("spread"),
   ratio: z.enum(["3/4", "4/5", "1/1"]).default("3/4"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

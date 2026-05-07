@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const columnSchema = z.object({
@@ -19,6 +20,13 @@ export const comparisonTableSchemaV1 = z.object({
   columns: z.array(columnSchema).min(2).max(6),
   rows: z.array(rowSchema).min(1).max(40),
   variant: z.enum(["bordered", "striped", "minimal"]).default("striped"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

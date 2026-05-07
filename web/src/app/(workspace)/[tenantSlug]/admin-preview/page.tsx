@@ -29,7 +29,10 @@ import { notFound } from "next/navigation";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { AdminShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
-import { loadWorkspaceRosterForCurrentTenant } from "@/app/prototypes/admin-shell/_data-bridge";
+import {
+  createBridgeDataFromRoster,
+  loadWorkspaceRosterForCurrentTenant,
+} from "@/app/prototypes/admin-shell/_data-bridge";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +57,8 @@ export default async function WorkspaceAdminPreviewPage({
   const roster = await loadWorkspaceRosterForCurrentTenant();
 
   return (
-    <AdminShellPrototypePageClient initialBridgeData={{ roster }} />
+    <AdminShellPrototypePageClient
+      initialBridgeData={createBridgeDataFromRoster(roster)}
+    />
   );
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const planSchema = z.object({
@@ -19,6 +20,13 @@ export const pricingGridSchemaV1 = z.object({
   intro: z.string().max(400).optional(),
   plans: z.array(planSchema).min(1).max(4),
   variant: z.enum(["cards", "minimal", "bordered"]).default("cards"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

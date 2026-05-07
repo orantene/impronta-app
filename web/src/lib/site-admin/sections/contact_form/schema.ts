@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const fieldSchema = z.object({
@@ -37,6 +38,15 @@ export const contactFormSchemaV1 = z.object({
    *   - turnstile: NEXT_PUBLIC_TURNSTILE_SITE_KEY + TURNSTILE_SECRET
    */
   captcha: z.enum(["none", "hcaptcha", "turnstile"]).default("none"),
+  /** Phase 4 — BuilderNode child-style overrides for heading + submit button. */
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+      primaryCta: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const eventSchema = z.object({
@@ -17,6 +18,12 @@ export const eventListingSchemaV1 = z.object({
   headline: z.string().max(200).optional(),
   events: z.array(eventSchema).min(1).max(40),
   variant: z.enum(["list", "agenda", "cards"]).default("list"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

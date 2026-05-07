@@ -25,10 +25,19 @@ import {
   PRESENTATION_FIELD_LABELS,
   PRESENTATION_OPTIONS,
 } from "@/lib/site-admin/sections/shared/presentation";
+import {
+  resolveBuilderNodeRole,
+  type BuilderNodeRole,
+} from "@/lib/site-admin/builder-node";
+import type {
+  NodePresentation,
+  NodePresentationValue,
+} from "@/lib/site-admin/sections/shared/node-presentation";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ColorPickerPopover } from "../kit/color-picker";
+import { useEditContext } from "../edit-context";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
@@ -134,14 +143,435 @@ function DividerPreview({ kind }: { kind: string }) {
 interface StylePanelProps {
   sectionTypeKey: string;
   draftProps: Record<string, unknown>;
+  selectedBuilderNodeId: string | null;
   onPatch: (patch: Record<string, unknown>) => void;
+}
+
+type EditableNodeRole = BuilderNodeRole;
+type NodeViewport = "desktop" | "tablet" | "mobile";
+type HorizontalSpacingMode = "linked" | "custom";
+
+const ALIGN_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "left", label: "Left" },
+  { value: "center", label: "Center" },
+  { value: "right", label: "Right" },
+];
+
+const SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "sm", label: "S" },
+  { value: "md", label: "M" },
+  { value: "lg", label: "L" },
+  { value: "xl", label: "XL" },
+];
+
+const TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "muted", label: "Muted" },
+  { value: "strong", label: "Strong" },
+];
+
+const VISIBILITY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "visible", label: "Show" },
+  { value: "hidden", label: "Hide" },
+];
+
+const VIEWPORT_OPTIONS: ReadonlyArray<SegmentedOption<NodeViewport>> = [
+  { value: "desktop", label: "Desktop" },
+  { value: "tablet", label: "Tablet" },
+  { value: "mobile", label: "Mobile" },
+];
+
+const HORIZONTAL_MODE_OPTIONS: ReadonlyArray<SegmentedOption<HorizontalSpacingMode>> = [
+  { value: "linked", label: "Linked" },
+  { value: "custom", label: "Custom" },
+];
+
+type SpacingPreset = "" | "tight" | "balanced" | "airy";
+const SPACING_PRESET_OPTIONS: ReadonlyArray<SegmentedOption<SpacingPreset>> = [
+  { value: "", label: "Default" },
+  { value: "tight", label: "Tight" },
+  { value: "balanced", label: "Balanced" },
+  { value: "airy", label: "Airy" },
+];
+
+type WidthPreset = "" | "narrow" | "reading" | "wide" | "full";
+const WIDTH_PRESET_OPTIONS: ReadonlyArray<SegmentedOption<WidthPreset>> = [
+  { value: "", label: "Default" },
+  { value: "narrow", label: "Narrow" },
+  { value: "reading", label: "Reading" },
+  { value: "wide", label: "Wide" },
+  { value: "full", label: "Full" },
+];
+
+type ConcreteNodePresentation = Exclude<NodePresentation, undefined>;
+type ViewportSubsetKind = "typography" | "spacing";
+
+type NodeStyleClipboard = {
+  role: EditableNodeRole;
+  full: ConcreteNodePresentation;
+  viewport: NodePresentationValue | null;
+  viewportSource: NodeViewport;
+};
+type NodeStyleActionEntry = {
+  id: number;
+  label: string;
+};
+type ResetConfirmTarget = "node" | "group" | null;
+type PresetDeleteConfirmTarget = string | null;
+type StoredNodeStylePreset = {
+  id: string;
+  name: string;
+  value: ConcreteNodePresentation;
+};
+const NODE_STYLE_PRESET_STORAGE_KEY = "impronta:builder:node-style-presets:v1";
+const VIEWPORT_TRACKED_KEYS: ReadonlyArray<keyof NodePresentationValue> = [
+  "align",
+  "maxWidthPx",
+  "marginTopPx",
+  "marginBottomPx",
+  "marginInlinePx",
+  "marginLeftPx",
+  "marginRightPx",
+  "paddingTopPx",
+  "paddingBottomPx",
+  "paddingInlinePx",
+  "paddingLeftPx",
+  "paddingRightPx",
+  "size",
+  "tone",
+  "visibility",
+];
+const TEXT_ROLES: ReadonlySet<EditableNodeRole> = new Set([
+  "headline",
+  "subheadline",
+  "copy",
+]);
+const CTA_ROLES: ReadonlySet<EditableNodeRole> = new Set([
+  "primaryCta",
+  "secondaryCta",
+  "footerCta",
+]);
+
+const EDITABLE_ROLES_BY_SECTION: Record<string, ReadonlyArray<EditableNodeRole>> = {
+  hero: ["headline", "subheadline", "primaryCta", "secondaryCta"],
+  category_grid: ["subheadline", "headline", "copy", "footerCta"],
+  cta_banner: ["subheadline", "headline", "copy", "primaryCta", "secondaryCta"],
+  featured_talent: ["subheadline", "headline", "copy", "footerCta"],
+  contact_form: ["subheadline", "headline", "copy", "primaryCta"],
+  faq_accordion: ["subheadline", "headline", "copy"],
+  pricing_grid: ["subheadline", "headline", "copy"],
+  logo_cloud: ["subheadline", "headline"],
+  team_grid: ["subheadline", "headline", "copy"],
+  event_listing: ["subheadline", "headline"],
+  content_tabs: ["subheadline", "headline"],
+  process_steps: ["subheadline", "headline", "copy"],
+  destinations_mosaic: ["subheadline", "headline", "copy"],
+  stats: ["subheadline", "headline"],
+  timeline: ["subheadline", "headline"],
+  values_trio: ["subheadline", "headline"],
+  comparison_table: ["subheadline", "headline", "copy"],
+  hero_split: ["subheadline", "headline", "copy", "primaryCta", "secondaryCta"],
+  image_copy_alternating: ["subheadline", "headline"],
+  split_screen: ["subheadline", "headline", "copy", "primaryCta", "secondaryCta"],
+  before_after: ["subheadline", "headline"],
+  booking_widget: ["subheadline", "headline", "copy", "primaryCta"],
+  lookbook: ["subheadline", "headline"],
+  magazine_layout: ["subheadline", "headline"],
+  map_overlay: ["subheadline", "headline", "copy"],
+  press_strip: ["subheadline"],
+  masonry: ["subheadline", "headline"],
+  sticky_scroll: ["subheadline", "headline"],
+  scroll_carousel: ["subheadline", "headline"],
+  lottie: ["subheadline", "headline", "copy"],
+  video_reel: ["subheadline", "headline"],
+  image_orbit: ["subheadline", "headline"],
+  testimonials_trio: ["subheadline", "headline"],
+  gallery_strip: ["subheadline", "headline", "copy"],
+  trust_strip: ["subheadline", "headline"],
+  code_embed: ["subheadline", "headline", "copy"],
+  blog_index: ["subheadline", "headline"],
+  donation_form: ["subheadline", "headline", "copy", "primaryCta"],
+  code_snippet: ["subheadline", "headline"],
+  blog_detail: ["subheadline", "headline", "copy"],
+  site_header: ["headline", "primaryCta"],
+  site_footer: ["headline", "copy"],
+  anchor_nav: [],
+  marquee: [],
+};
+
+function resolveNodeRole(
+  sectionTypeKey: string,
+  selectedBuilderNodeId: string | null,
+): EditableNodeRole | null {
+  if (!selectedBuilderNodeId) return null;
+  const role = resolveBuilderNodeRole(selectedBuilderNodeId);
+  if (!role) return null;
+  return EDITABLE_ROLES_BY_SECTION[sectionTypeKey]?.includes(role) ? role : null;
+}
+
+function nodeRoleLabel(role: EditableNodeRole | null): string | null {
+  if (role === "headline") return "Headline";
+  if (role === "subheadline") return "Sub-headline";
+  if (role === "copy") return "Supporting copy";
+  if (role === "primaryCta") return "Primary CTA";
+  if (role === "secondaryCta") return "Secondary CTA";
+  if (role === "footerCta") return "Footer CTA";
+  return null;
+}
+
+function resolveHorizontalMode(
+  value: NodePresentationValue | null | undefined,
+  kind: "margin" | "padding",
+): HorizontalSpacingMode {
+  if (!value) return "linked";
+  if (kind === "margin") {
+    return typeof value.marginLeftPx === "number" ||
+      typeof value.marginRightPx === "number"
+      ? "custom"
+      : "linked";
+  }
+  return typeof value.paddingLeftPx === "number" ||
+    typeof value.paddingRightPx === "number"
+    ? "custom"
+    : "linked";
+}
+
+function buildDesktopNodePresentationBase(
+  value: NodePresentation | null | undefined,
+): NodePresentationValue | null {
+  if (!value) return null;
+  const out: NodePresentationValue = {};
+  if (value.align) out.align = value.align;
+  if (
+    typeof value.maxWidthPx === "number" &&
+    Number.isFinite(value.maxWidthPx)
+  ) {
+    out.maxWidthPx = value.maxWidthPx;
+  }
+  if (
+    typeof value.marginTopPx === "number" &&
+    Number.isFinite(value.marginTopPx)
+  ) {
+    out.marginTopPx = value.marginTopPx;
+  }
+  if (
+    typeof value.marginBottomPx === "number" &&
+    Number.isFinite(value.marginBottomPx)
+  ) {
+    out.marginBottomPx = value.marginBottomPx;
+  }
+  if (
+    typeof value.marginInlinePx === "number" &&
+    Number.isFinite(value.marginInlinePx)
+  ) {
+    out.marginInlinePx = value.marginInlinePx;
+  }
+  if (
+    typeof value.marginLeftPx === "number" &&
+    Number.isFinite(value.marginLeftPx)
+  ) {
+    out.marginLeftPx = value.marginLeftPx;
+  }
+  if (
+    typeof value.marginRightPx === "number" &&
+    Number.isFinite(value.marginRightPx)
+  ) {
+    out.marginRightPx = value.marginRightPx;
+  }
+  if (
+    typeof value.paddingTopPx === "number" &&
+    Number.isFinite(value.paddingTopPx)
+  ) {
+    out.paddingTopPx = value.paddingTopPx;
+  }
+  if (
+    typeof value.paddingBottomPx === "number" &&
+    Number.isFinite(value.paddingBottomPx)
+  ) {
+    out.paddingBottomPx = value.paddingBottomPx;
+  }
+  if (
+    typeof value.paddingInlinePx === "number" &&
+    Number.isFinite(value.paddingInlinePx)
+  ) {
+    out.paddingInlinePx = value.paddingInlinePx;
+  }
+  if (
+    typeof value.paddingLeftPx === "number" &&
+    Number.isFinite(value.paddingLeftPx)
+  ) {
+    out.paddingLeftPx = value.paddingLeftPx;
+  }
+  if (
+    typeof value.paddingRightPx === "number" &&
+    Number.isFinite(value.paddingRightPx)
+  ) {
+    out.paddingRightPx = value.paddingRightPx;
+  }
+  if (value.size) out.size = value.size;
+  if (value.tone) out.tone = value.tone;
+  if (value.visibility) out.visibility = value.visibility;
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+function detectSpacingPreset(
+  value: NodePresentationValue | null,
+): SpacingPreset | null {
+  if (!value) return null;
+  const top = value.marginTopPx;
+  const bottom = value.marginBottomPx;
+  const paddingY =
+    typeof value.paddingTopPx === "number" &&
+    typeof value.paddingBottomPx === "number" &&
+    value.paddingTopPx === value.paddingBottomPx
+      ? value.paddingTopPx
+      : null;
+
+  if (top === 8 && bottom === 8 && paddingY === 8) return "tight";
+  if (top === 16 && bottom === 16 && paddingY === 12) return "balanced";
+  if (top === 28 && bottom === 28 && paddingY === 18) return "airy";
+  return null;
+}
+
+function detectWidthPreset(
+  value: NodePresentationValue | null,
+): WidthPreset | null {
+  const width = value?.maxWidthPx;
+  if (typeof width !== "number") return null;
+  if (width === 360) return "narrow";
+  if (width === 540) return "reading";
+  if (width === 760) return "wide";
+  if (width === 960) return "full";
+  return null;
+}
+
+function cloneNodePresentation(
+  value: ConcreteNodePresentation,
+): ConcreteNodePresentation {
+  return {
+    ...value,
+    breakpoints: value.breakpoints
+      ? {
+          ...value.breakpoints,
+          tablet: value.breakpoints.tablet
+            ? { ...value.breakpoints.tablet }
+            : undefined,
+          mobile: value.breakpoints.mobile
+            ? { ...value.breakpoints.mobile }
+            : undefined,
+        }
+      : undefined,
+  };
+}
+
+function resolveRoleGroup(
+  role: EditableNodeRole | null,
+): "text" | "cta" | null {
+  if (!role) return null;
+  if (TEXT_ROLES.has(role)) return "text";
+  if (CTA_ROLES.has(role)) return "cta";
+  return null;
+}
+
+function pickViewportSubset(
+  value: NodePresentationValue,
+  kind: ViewportSubsetKind,
+): Partial<NodePresentationValue> {
+  if (kind === "typography") {
+    return {
+      align: value.align,
+      maxWidthPx: value.maxWidthPx,
+      size: value.size,
+      tone: value.tone,
+      visibility: value.visibility,
+    };
+  }
+  return {
+    marginTopPx: value.marginTopPx,
+    marginBottomPx: value.marginBottomPx,
+    marginInlinePx: value.marginInlinePx,
+    marginLeftPx: value.marginLeftPx,
+    marginRightPx: value.marginRightPx,
+    paddingTopPx: value.paddingTopPx,
+    paddingBottomPx: value.paddingBottomPx,
+    paddingInlinePx: value.paddingInlinePx,
+    paddingLeftPx: value.paddingLeftPx,
+    paddingRightPx: value.paddingRightPx,
+  };
+}
+
+function hasSubsetValue(value: Partial<NodePresentationValue>): boolean {
+  return Object.values(value).some((entry) => entry !== undefined);
+}
+
+function countDefinedViewportKeys(
+  value: NodePresentationValue | null | undefined,
+): number {
+  if (!value) return 0;
+  let count = 0;
+  for (const key of VIEWPORT_TRACKED_KEYS) {
+    if (value[key] !== undefined) count += 1;
+  }
+  return count;
+}
+
+function normalizePresetNameToId(name: string): string {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized.length > 0 ? normalized.slice(0, 48) : "preset";
+}
+
+function resolveUniquePresetId(
+  requestedId: string,
+  taken: ReadonlySet<string>,
+): string {
+  const base = requestedId.trim() || "preset";
+  if (!taken.has(base)) return base;
+  let suffix = 2;
+  let candidate = `${base}-${suffix}`;
+  while (taken.has(candidate)) {
+    suffix += 1;
+    candidate = `${base}-${suffix}`;
+  }
+  return candidate;
+}
+
+function resolveViewportPresentationForValue(
+  value: ConcreteNodePresentation,
+  viewport: NodeViewport,
+): NodePresentationValue | null {
+  if (viewport === "desktop") return value;
+  return value.breakpoints?.[viewport] ?? buildDesktopNodePresentationBase(value);
 }
 
 export function StylePanel({
   sectionTypeKey,
   draftProps,
+  selectedBuilderNodeId,
   onPatch,
 }: StylePanelProps) {
+  const { canUndo, canRedo, undo, redo } = useEditContext();
+  const [nodeStyleClipboard, setNodeStyleClipboard] =
+    useState<NodeStyleClipboard | null>(null);
+  const [recentNodeActions, setRecentNodeActions] = useState<
+    ReadonlyArray<NodeStyleActionEntry>
+  >([]);
+  const [resetConfirmTarget, setResetConfirmTarget] =
+    useState<ResetConfirmTarget>(null);
+  const [presetDeleteConfirmTarget, setPresetDeleteConfirmTarget] =
+    useState<PresetDeleteConfirmTarget>(null);
+  const [nodeStylePresetName, setNodeStylePresetName] = useState("");
+  const [storedNodeStylePresets, setStoredNodeStylePresets] = useState<
+    ReadonlyArray<StoredNodeStylePreset>
+  >([]);
+  const nodeActionIdRef = useRef(1);
+  const presetFallbackIdRef = useRef(1);
   const presentation =
     (draftProps.presentation as Record<string, unknown> | undefined) ?? {};
   const present = (key: string): string =>
@@ -165,6 +595,1256 @@ export function StylePanel({
     onPatch({ [key]: current === next ? undefined : next });
   }
 
+  const nodePresentationRaw =
+    draftProps.nodePresentation && typeof draftProps.nodePresentation === "object"
+      ? (draftProps.nodePresentation as Record<string, NodePresentation>)
+      : null;
+  const selectedNodeRole = useMemo(
+    () => resolveNodeRole(sectionTypeKey, selectedBuilderNodeId),
+    [sectionTypeKey, selectedBuilderNodeId],
+  );
+  const [selectedViewport, setSelectedViewport] = useState<NodeViewport>("desktop");
+  const selectedNodeLabel = nodeRoleLabel(selectedNodeRole);
+  const selectedNodeIsButton =
+    selectedNodeRole === "primaryCta" ||
+    selectedNodeRole === "secondaryCta" ||
+    selectedNodeRole === "footerCta";
+  const selectedNodePresentation =
+    selectedNodeRole && nodePresentationRaw
+      ? (nodePresentationRaw[selectedNodeRole] ?? null)
+      : null;
+  const selectedNodeViewportPresentation: NodePresentationValue | null =
+    selectedNodePresentation
+      ? selectedViewport === "desktop"
+        ? selectedNodePresentation
+        : selectedNodePresentation.breakpoints?.[selectedViewport] ?? null
+      : null;
+  const marginHorizontalMode = resolveHorizontalMode(
+    selectedNodeViewportPresentation,
+    "margin",
+  );
+  const paddingHorizontalMode = resolveHorizontalMode(
+    selectedNodeViewportPresentation,
+    "padding",
+  );
+  const hasSelectedViewportOverrides =
+    selectedViewport !== "desktop" &&
+    Boolean(selectedNodePresentation?.breakpoints?.[selectedViewport]);
+  const selectedViewportOverrideCount = countDefinedViewportKeys(
+    selectedViewport === "desktop"
+      ? selectedNodePresentation
+      : selectedNodePresentation?.breakpoints?.[selectedViewport],
+  );
+  const desktopDefinedCount = countDefinedViewportKeys(selectedNodePresentation);
+  const inheritedDesktopCount =
+    selectedViewport === "desktop"
+      ? 0
+      : Math.max(0, desktopDefinedCount - selectedViewportOverrideCount);
+  const hasSelectedNodeOverrides = Boolean(selectedNodePresentation);
+  const desktopNodeBase = buildDesktopNodePresentationBase(selectedNodePresentation);
+  const canCopyDesktopToViewport =
+    selectedViewport !== "desktop" && Boolean(desktopNodeBase);
+  const canCopyDesktopToAllViewports =
+    selectedViewport === "desktop" && Boolean(desktopNodeBase);
+  const selectedSpacingPreset = detectSpacingPreset(selectedNodeViewportPresentation);
+  const selectedWidthPreset = detectWidthPreset(selectedNodeViewportPresentation);
+  const siblingViewport: NodeViewport | null =
+    selectedViewport === "tablet"
+      ? "mobile"
+      : selectedViewport === "mobile"
+        ? "tablet"
+        : null;
+  const canCopyToSiblingViewport =
+    Boolean(selectedNodeRole) &&
+    Boolean(siblingViewport) &&
+    Boolean(selectedNodeViewportPresentation);
+  const ctaMirrorTargetRole: EditableNodeRole | null =
+    selectedNodeRole === "primaryCta"
+      ? "secondaryCta"
+      : selectedNodeRole === "secondaryCta"
+        ? "primaryCta"
+        : null;
+  const canMirrorCtaRole =
+    Boolean(selectedNodeRole) &&
+    Boolean(ctaMirrorTargetRole) &&
+    Boolean(
+      ctaMirrorTargetRole &&
+      EDITABLE_ROLES_BY_SECTION[sectionTypeKey]?.includes(ctaMirrorTargetRole),
+    );
+  const canCopyNodeStyle = Boolean(selectedNodeRole && selectedNodePresentation);
+  const canPasteNodeStyle = Boolean(selectedNodeRole && nodeStyleClipboard?.full);
+  const canPasteViewportStyle = Boolean(
+    selectedNodeRole && nodeStyleClipboard?.viewport,
+  );
+  const canClearClipboard = Boolean(nodeStyleClipboard);
+  const selectedRoleGroup = resolveRoleGroup(selectedNodeRole);
+  const selectedSectionRoles = EDITABLE_ROLES_BY_SECTION[sectionTypeKey] ?? [];
+  const broadcastRoleTargets =
+    selectedRoleGroup && selectedNodeRole
+      ? selectedSectionRoles.filter((role) => {
+          if (role === selectedNodeRole) return false;
+          return selectedRoleGroup === "text"
+            ? TEXT_ROLES.has(role)
+            : CTA_ROLES.has(role);
+        })
+      : [];
+  const canBroadcastRoleStyle = Boolean(
+    selectedNodeRole &&
+      selectedNodePresentation &&
+      broadcastRoleTargets.length > 0,
+  );
+  const canBroadcastRoleViewportStyle = Boolean(
+    selectedNodeRole &&
+      selectedNodeViewportPresentation &&
+      broadcastRoleTargets.length > 0,
+  );
+  const roleGroupMembers =
+    selectedRoleGroup === "text"
+      ? selectedSectionRoles.filter((role) => TEXT_ROLES.has(role))
+      : selectedRoleGroup === "cta"
+        ? selectedSectionRoles.filter((role) => CTA_ROLES.has(role))
+        : [];
+  const canResetRoleGroup = Boolean(
+    selectedRoleGroup &&
+      roleGroupMembers.some((role) =>
+        Boolean((nodePresentationRaw ?? {})[role]),
+      ),
+  );
+  const canBroadcastRoleType = Boolean(
+    selectedNodeRole &&
+      selectedNodeViewportPresentation &&
+      broadcastRoleTargets.length > 0 &&
+      hasSubsetValue(
+        pickViewportSubset(selectedNodeViewportPresentation, "typography"),
+      ),
+  );
+  const canBroadcastRoleSpacing = Boolean(
+    selectedNodeRole &&
+      selectedNodeViewportPresentation &&
+      broadcastRoleTargets.length > 0 &&
+      hasSubsetValue(pickViewportSubset(selectedNodeViewportPresentation, "spacing")),
+  );
+  const canPasteViewportType = Boolean(
+    selectedNodeRole &&
+      nodeStyleClipboard?.viewport &&
+      hasSubsetValue(pickViewportSubset(nodeStyleClipboard.viewport, "typography")),
+  );
+  const canPasteViewportSpacing = Boolean(
+    selectedNodeRole &&
+      nodeStyleClipboard?.viewport &&
+      hasSubsetValue(pickViewportSubset(nodeStyleClipboard.viewport, "spacing")),
+  );
+
+  function cleanNodePresentation(
+    value: NodePresentation | undefined,
+  ): NodePresentation | undefined {
+    if (!value) return undefined;
+    const cleaned: NodePresentation = {};
+    if (value.align) cleaned.align = value.align;
+    if (
+      typeof value.maxWidthPx === "number" &&
+      Number.isFinite(value.maxWidthPx)
+    ) {
+      cleaned.maxWidthPx = value.maxWidthPx;
+    }
+    if (
+      typeof value.marginTopPx === "number" &&
+      Number.isFinite(value.marginTopPx)
+    ) {
+      cleaned.marginTopPx = value.marginTopPx;
+    }
+    if (
+      typeof value.marginBottomPx === "number" &&
+      Number.isFinite(value.marginBottomPx)
+    ) {
+      cleaned.marginBottomPx = value.marginBottomPx;
+    }
+    if (
+      typeof value.marginInlinePx === "number" &&
+      Number.isFinite(value.marginInlinePx)
+    ) {
+      cleaned.marginInlinePx = value.marginInlinePx;
+    }
+    if (
+      typeof value.marginLeftPx === "number" &&
+      Number.isFinite(value.marginLeftPx)
+    ) {
+      cleaned.marginLeftPx = value.marginLeftPx;
+    }
+    if (
+      typeof value.marginRightPx === "number" &&
+      Number.isFinite(value.marginRightPx)
+    ) {
+      cleaned.marginRightPx = value.marginRightPx;
+    }
+    if (
+      typeof value.paddingTopPx === "number" &&
+      Number.isFinite(value.paddingTopPx)
+    ) {
+      cleaned.paddingTopPx = value.paddingTopPx;
+    }
+    if (
+      typeof value.paddingBottomPx === "number" &&
+      Number.isFinite(value.paddingBottomPx)
+    ) {
+      cleaned.paddingBottomPx = value.paddingBottomPx;
+    }
+    if (
+      typeof value.paddingInlinePx === "number" &&
+      Number.isFinite(value.paddingInlinePx)
+    ) {
+      cleaned.paddingInlinePx = value.paddingInlinePx;
+    }
+    if (
+      typeof value.paddingLeftPx === "number" &&
+      Number.isFinite(value.paddingLeftPx)
+    ) {
+      cleaned.paddingLeftPx = value.paddingLeftPx;
+    }
+    if (
+      typeof value.paddingRightPx === "number" &&
+      Number.isFinite(value.paddingRightPx)
+    ) {
+      cleaned.paddingRightPx = value.paddingRightPx;
+    }
+    if (value.size) cleaned.size = value.size;
+    if (value.tone) cleaned.tone = value.tone;
+    if (value.visibility) cleaned.visibility = value.visibility;
+    const cleanBreakpoint = (
+      breakpoint: NodePresentationValue | undefined,
+    ): NodePresentationValue | undefined => {
+      if (!breakpoint) return undefined;
+      const out: NodePresentationValue = {};
+      if (breakpoint.align) out.align = breakpoint.align;
+      if (
+        typeof breakpoint.maxWidthPx === "number" &&
+        Number.isFinite(breakpoint.maxWidthPx)
+      ) {
+        out.maxWidthPx = breakpoint.maxWidthPx;
+      }
+      if (
+        typeof breakpoint.marginTopPx === "number" &&
+        Number.isFinite(breakpoint.marginTopPx)
+      ) {
+        out.marginTopPx = breakpoint.marginTopPx;
+      }
+      if (
+        typeof breakpoint.marginBottomPx === "number" &&
+        Number.isFinite(breakpoint.marginBottomPx)
+      ) {
+        out.marginBottomPx = breakpoint.marginBottomPx;
+      }
+      if (
+        typeof breakpoint.marginInlinePx === "number" &&
+        Number.isFinite(breakpoint.marginInlinePx)
+      ) {
+        out.marginInlinePx = breakpoint.marginInlinePx;
+      }
+      if (
+        typeof breakpoint.marginLeftPx === "number" &&
+        Number.isFinite(breakpoint.marginLeftPx)
+      ) {
+        out.marginLeftPx = breakpoint.marginLeftPx;
+      }
+      if (
+        typeof breakpoint.marginRightPx === "number" &&
+        Number.isFinite(breakpoint.marginRightPx)
+      ) {
+        out.marginRightPx = breakpoint.marginRightPx;
+      }
+      if (
+        typeof breakpoint.paddingTopPx === "number" &&
+        Number.isFinite(breakpoint.paddingTopPx)
+      ) {
+        out.paddingTopPx = breakpoint.paddingTopPx;
+      }
+      if (
+        typeof breakpoint.paddingBottomPx === "number" &&
+        Number.isFinite(breakpoint.paddingBottomPx)
+      ) {
+        out.paddingBottomPx = breakpoint.paddingBottomPx;
+      }
+      if (
+        typeof breakpoint.paddingInlinePx === "number" &&
+        Number.isFinite(breakpoint.paddingInlinePx)
+      ) {
+        out.paddingInlinePx = breakpoint.paddingInlinePx;
+      }
+      if (
+        typeof breakpoint.paddingLeftPx === "number" &&
+        Number.isFinite(breakpoint.paddingLeftPx)
+      ) {
+        out.paddingLeftPx = breakpoint.paddingLeftPx;
+      }
+      if (
+        typeof breakpoint.paddingRightPx === "number" &&
+        Number.isFinite(breakpoint.paddingRightPx)
+      ) {
+        out.paddingRightPx = breakpoint.paddingRightPx;
+      }
+      if (breakpoint.size) out.size = breakpoint.size;
+      if (breakpoint.tone) out.tone = breakpoint.tone;
+      if (breakpoint.visibility) out.visibility = breakpoint.visibility;
+      return Object.keys(out).length > 0 ? out : undefined;
+    };
+    const tablet = cleanBreakpoint(value.breakpoints?.tablet);
+    const mobile = cleanBreakpoint(value.breakpoints?.mobile);
+    if (tablet || mobile) {
+      cleaned.breakpoints = {};
+      if (tablet) cleaned.breakpoints.tablet = tablet;
+      if (mobile) cleaned.breakpoints.mobile = mobile;
+    }
+    return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+  }
+
+  function patchSelectedNodePresentation(patch: Partial<NodePresentationValue>) {
+    if (!selectedNodeRole) return;
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const currentForRole =
+      (baseNodePresentation[selectedNodeRole] as NodePresentation | undefined) ?? {};
+    const nextForRole: NodePresentation = {
+      ...currentForRole,
+    };
+    if (selectedViewport === "desktop") {
+      if ("align" in patch) nextForRole.align = patch.align;
+      if ("maxWidthPx" in patch) nextForRole.maxWidthPx = patch.maxWidthPx;
+      if ("marginTopPx" in patch) nextForRole.marginTopPx = patch.marginTopPx;
+      if ("marginBottomPx" in patch) {
+        nextForRole.marginBottomPx = patch.marginBottomPx;
+      }
+      if ("marginInlinePx" in patch) {
+        nextForRole.marginInlinePx = patch.marginInlinePx;
+      }
+      if ("marginLeftPx" in patch) nextForRole.marginLeftPx = patch.marginLeftPx;
+      if ("marginRightPx" in patch) {
+        nextForRole.marginRightPx = patch.marginRightPx;
+      }
+      if ("paddingTopPx" in patch) nextForRole.paddingTopPx = patch.paddingTopPx;
+      if ("paddingBottomPx" in patch) {
+        nextForRole.paddingBottomPx = patch.paddingBottomPx;
+      }
+      if ("paddingInlinePx" in patch) {
+        nextForRole.paddingInlinePx = patch.paddingInlinePx;
+      }
+      if ("paddingLeftPx" in patch) {
+        nextForRole.paddingLeftPx = patch.paddingLeftPx;
+      }
+      if ("paddingRightPx" in patch) {
+        nextForRole.paddingRightPx = patch.paddingRightPx;
+      }
+      if ("size" in patch) nextForRole.size = patch.size;
+      if ("tone" in patch) nextForRole.tone = patch.tone;
+      if ("visibility" in patch) nextForRole.visibility = patch.visibility;
+    } else {
+      const currentViewport = nextForRole.breakpoints?.[selectedViewport] ?? {};
+      const nextViewport: NodePresentationValue = {
+        ...currentViewport,
+        ...patch,
+      };
+      nextForRole.breakpoints = {
+        ...nextForRole.breakpoints,
+        [selectedViewport]: nextViewport,
+      };
+    }
+    const cleanedForRole = cleanNodePresentation(nextForRole);
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+    if (!cleanedForRole) {
+      delete nextNodePresentation[selectedNodeRole];
+    } else {
+      nextNodePresentation[selectedNodeRole] = cleanedForRole;
+    }
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+  }
+
+  function setNodeRolePresentation(
+    role: EditableNodeRole,
+    value: NodePresentation | undefined,
+  ) {
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+    const cleanedForRole = cleanNodePresentation(value);
+    if (!cleanedForRole) {
+      delete nextNodePresentation[role];
+    } else {
+      nextNodePresentation[role] = cleanedForRole;
+    }
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+  }
+
+  function resetSelectedViewportOverrides() {
+    if (!selectedNodeRole || selectedViewport === "desktop") return;
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const currentForRole =
+      (baseNodePresentation[selectedNodeRole] as NodePresentation | undefined) ?? {};
+    if (!currentForRole.breakpoints?.[selectedViewport]) return;
+
+    const nextForRole: NodePresentation = {
+      ...currentForRole,
+    };
+    const nextBreakpoints = {
+      ...(nextForRole.breakpoints ?? {}),
+    };
+    delete nextBreakpoints[selectedViewport];
+    if (Object.keys(nextBreakpoints).length === 0) {
+      delete nextForRole.breakpoints;
+    } else {
+      nextForRole.breakpoints = nextBreakpoints;
+    }
+
+    const cleanedForRole = cleanNodePresentation(nextForRole);
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+    if (!cleanedForRole) {
+      delete nextNodePresentation[selectedNodeRole];
+    } else {
+      nextNodePresentation[selectedNodeRole] = cleanedForRole;
+    }
+
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+    recordNodeAction(`Reset ${selectedViewport} overrides`);
+  }
+
+  function resetSelectedNodeOverrides() {
+    if (!selectedNodeRole) return;
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    if (!baseNodePresentation[selectedNodeRole]) return;
+    setNodeRolePresentation(selectedNodeRole, undefined);
+    recordNodeAction("Reset node style");
+  }
+
+  function copyDesktopToSelectedViewport() {
+    if (
+      !selectedNodeRole ||
+      selectedViewport === "desktop" ||
+      !desktopNodeBase
+    ) {
+      return;
+    }
+
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const currentForRole =
+      (baseNodePresentation[selectedNodeRole] as NodePresentation | undefined) ?? {};
+    const nextForRole: NodePresentation = {
+      ...currentForRole,
+      breakpoints: {
+        ...currentForRole.breakpoints,
+        [selectedViewport]: {
+          ...desktopNodeBase,
+        },
+      },
+    };
+
+    const cleanedForRole = cleanNodePresentation(nextForRole);
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+    if (!cleanedForRole) {
+      delete nextNodePresentation[selectedNodeRole];
+    } else {
+      nextNodePresentation[selectedNodeRole] = cleanedForRole;
+    }
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+  }
+
+  function copyDesktopToAllBreakpoints() {
+    if (!selectedNodeRole || !desktopNodeBase) {
+      return;
+    }
+
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const currentForRole =
+      (baseNodePresentation[selectedNodeRole] as NodePresentation | undefined) ?? {};
+    const nextForRole: NodePresentation = {
+      ...currentForRole,
+      breakpoints: {
+        ...currentForRole.breakpoints,
+        tablet: {
+          ...desktopNodeBase,
+        },
+        mobile: {
+          ...desktopNodeBase,
+        },
+      },
+    };
+
+    const cleanedForRole = cleanNodePresentation(nextForRole);
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+    if (!cleanedForRole) {
+      delete nextNodePresentation[selectedNodeRole];
+    } else {
+      nextNodePresentation[selectedNodeRole] = cleanedForRole;
+    }
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+  }
+
+  function applySpacingPreset(preset: SpacingPreset) {
+    if (preset === "") {
+      patchSelectedNodePresentation({
+        marginTopPx: undefined,
+        marginBottomPx: undefined,
+        paddingTopPx: undefined,
+        paddingBottomPx: undefined,
+      });
+      return;
+    }
+    if (preset === "tight") {
+      patchSelectedNodePresentation({
+        marginTopPx: 8,
+        marginBottomPx: 8,
+        paddingTopPx: 8,
+        paddingBottomPx: 8,
+      });
+      return;
+    }
+    if (preset === "balanced") {
+      patchSelectedNodePresentation({
+        marginTopPx: 16,
+        marginBottomPx: 16,
+        paddingTopPx: 12,
+        paddingBottomPx: 12,
+      });
+      return;
+    }
+    patchSelectedNodePresentation({
+      marginTopPx: 28,
+      marginBottomPx: 28,
+      paddingTopPx: 18,
+      paddingBottomPx: 18,
+    });
+  }
+
+  function applyWidthPreset(preset: WidthPreset) {
+    if (preset === "") {
+      patchSelectedNodePresentation({ maxWidthPx: undefined });
+      return;
+    }
+    if (preset === "narrow") {
+      patchSelectedNodePresentation({ maxWidthPx: 360 });
+      return;
+    }
+    if (preset === "reading") {
+      patchSelectedNodePresentation({ maxWidthPx: 540 });
+      return;
+    }
+    if (preset === "wide") {
+      patchSelectedNodePresentation({ maxWidthPx: 760 });
+      return;
+    }
+    patchSelectedNodePresentation({ maxWidthPx: 960 });
+  }
+
+  function copySelectedViewportToSibling() {
+    if (!selectedNodeRole || !siblingViewport || !selectedNodeViewportPresentation) {
+      return;
+    }
+
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const currentForRole =
+      (baseNodePresentation[selectedNodeRole] as NodePresentation | undefined) ?? {};
+    const nextForRole: NodePresentation = {
+      ...currentForRole,
+      breakpoints: {
+        ...currentForRole.breakpoints,
+        [siblingViewport]: {
+          ...selectedNodeViewportPresentation,
+        },
+      },
+    };
+
+    const cleanedForRole = cleanNodePresentation(nextForRole);
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+    if (!cleanedForRole) {
+      delete nextNodePresentation[selectedNodeRole];
+    } else {
+      nextNodePresentation[selectedNodeRole] = cleanedForRole;
+    }
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+  }
+
+  function mirrorCtaRoleStyle() {
+    if (!selectedNodeRole || !ctaMirrorTargetRole) return;
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const sourceForRole =
+      (baseNodePresentation[selectedNodeRole] as NodePresentation | undefined) ?? undefined;
+    if (!sourceForRole) {
+      setNodeRolePresentation(ctaMirrorTargetRole, undefined);
+      recordNodeAction("Mirrored CTA style (clear target)");
+      return;
+    }
+    const mirrored: NodePresentation = {
+      ...sourceForRole,
+      breakpoints: sourceForRole.breakpoints
+        ? {
+            ...sourceForRole.breakpoints,
+            tablet: sourceForRole.breakpoints.tablet
+              ? { ...sourceForRole.breakpoints.tablet }
+              : undefined,
+            mobile: sourceForRole.breakpoints.mobile
+              ? { ...sourceForRole.breakpoints.mobile }
+              : undefined,
+          }
+        : undefined,
+    };
+    setNodeRolePresentation(ctaMirrorTargetRole, mirrored);
+    recordNodeAction("Mirrored CTA style");
+  }
+
+  function copyNodeStyleToClipboard() {
+    if (!selectedNodeRole || !selectedNodePresentation) return;
+    const full = cleanNodePresentation(cloneNodePresentation(selectedNodePresentation));
+    if (!full) return;
+    setNodeStyleClipboard({
+      role: selectedNodeRole,
+      full,
+      viewport: selectedNodeViewportPresentation
+        ? { ...selectedNodeViewportPresentation }
+        : null,
+      viewportSource: selectedViewport,
+    });
+    recordNodeAction("Copied node style");
+  }
+
+  function pasteClipboardNodeStyle() {
+    if (!selectedNodeRole || !nodeStyleClipboard?.full) return;
+    const cloned = cloneNodePresentation(nodeStyleClipboard.full);
+    setNodeRolePresentation(selectedNodeRole, cloned);
+    recordNodeAction("Pasted full node style");
+  }
+
+  function pasteClipboardViewportStyle() {
+    if (!selectedNodeRole || !nodeStyleClipboard?.viewport) return;
+    const viewportPatch = {
+      ...nodeStyleClipboard.viewport,
+    };
+    if (selectedViewport === "desktop") {
+      setNodeRolePresentation(selectedNodeRole, {
+        ...(selectedNodePresentation ?? {}),
+        ...viewportPatch,
+      });
+      recordNodeAction("Pasted viewport style (desktop)");
+      return;
+    }
+    const nextForRole: NodePresentation = {
+      ...(selectedNodePresentation ?? {}),
+      breakpoints: {
+        ...(selectedNodePresentation?.breakpoints ?? {}),
+        [selectedViewport]: viewportPatch,
+      },
+    };
+    setNodeRolePresentation(selectedNodeRole, nextForRole);
+    recordNodeAction(`Pasted viewport style (${selectedViewport})`);
+  }
+
+  function clearNodeStyleClipboard() {
+    setNodeStyleClipboard(null);
+    recordNodeAction("Cleared style clipboard");
+  }
+
+  function saveCurrentNodeStylePreset() {
+    if (!selectedNodePresentation) return;
+    const name = nodeStylePresetName.trim();
+    if (!name) return;
+    const cleaned = cleanNodePresentation(
+      cloneNodePresentation(selectedNodePresentation),
+    );
+    if (!cleaned) return;
+    setStoredNodeStylePresets((prev) => {
+      const index = prev.findIndex(
+        (entry) => entry.name.toLowerCase() === name.toLowerCase(),
+      );
+      const existingId = index === -1 ? null : prev[index]?.id ?? null;
+      const baseId = normalizePresetNameToId(name);
+      let candidateId = existingId ?? baseId;
+      if (!existingId) {
+        let suffix = 2;
+        while (prev.some((entry) => entry.id === candidateId)) {
+          candidateId = `${baseId}-${suffix}`;
+          suffix += 1;
+        }
+        if (!candidateId) {
+          candidateId = `preset-${presetFallbackIdRef.current}`;
+          presetFallbackIdRef.current += 1;
+        }
+      }
+      const preset: StoredNodeStylePreset = {
+        id: candidateId,
+        name,
+        value: cleaned as ConcreteNodePresentation,
+      };
+      if (index === -1) {
+        return [preset, ...prev].slice(0, 12);
+      }
+      const next = [...prev];
+      next[index] = preset;
+      return next;
+    });
+    setNodeStylePresetName("");
+    recordNodeAction(`Saved preset "${name}"`);
+  }
+
+  function applyNodeStylePreset(preset: StoredNodeStylePreset) {
+    if (!selectedNodeRole) return;
+    setNodeRolePresentation(selectedNodeRole, cloneNodePresentation(preset.value));
+    recordNodeAction(`Applied preset "${preset.name}"`);
+  }
+
+  function applyNodeStylePresetToGroup(preset: StoredNodeStylePreset) {
+    if (broadcastRoleTargets.length === 0) return;
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+    for (const target of broadcastRoleTargets) {
+      const cleaned = cleanNodePresentation(cloneNodePresentation(preset.value));
+      if (!cleaned) {
+        delete nextNodePresentation[target];
+      } else {
+        nextNodePresentation[target] = cleaned;
+      }
+    }
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+    recordNodeAction(
+      `Applied preset "${preset.name}" to ${
+        selectedRoleGroup === "text" ? "text" : "CTA"
+      } nodes`,
+    );
+  }
+
+  function applyNodeStylePresetSubset(
+    preset: StoredNodeStylePreset,
+    kind: ViewportSubsetKind,
+  ) {
+    if (!selectedNodeRole) return;
+    const presetViewport = resolveViewportPresentationForValue(
+      preset.value,
+      selectedViewport,
+    );
+    if (!presetViewport) return;
+    const subset = pickViewportSubset(presetViewport, kind);
+    if (!hasSubsetValue(subset)) return;
+    if (selectedViewport === "desktop") {
+      setNodeRolePresentation(selectedNodeRole, {
+        ...(selectedNodePresentation ?? {}),
+        ...subset,
+      });
+      recordNodeAction(`Applied preset ${kind} "${preset.name}" (desktop)`);
+      return;
+    }
+    const nextForRole: NodePresentation = {
+      ...(selectedNodePresentation ?? {}),
+      breakpoints: {
+        ...(selectedNodePresentation?.breakpoints ?? {}),
+        [selectedViewport]: {
+          ...(selectedNodePresentation?.breakpoints?.[selectedViewport] ?? {}),
+          ...subset,
+        },
+      },
+    };
+    setNodeRolePresentation(selectedNodeRole, nextForRole);
+    recordNodeAction(
+      `Applied preset ${kind} "${preset.name}" (${selectedViewport})`,
+    );
+  }
+
+  function applyNodeStylePresetSubsetToGroup(
+    preset: StoredNodeStylePreset,
+    kind: ViewportSubsetKind,
+  ) {
+    if (broadcastRoleTargets.length === 0) return;
+    const presetViewport = resolveViewportPresentationForValue(
+      preset.value,
+      selectedViewport,
+    );
+    if (!presetViewport) return;
+    const subset = pickViewportSubset(presetViewport, kind);
+    if (!hasSubsetValue(subset)) return;
+
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+
+    for (const target of broadcastRoleTargets) {
+      const currentTarget =
+        (baseNodePresentation[target] as NodePresentation | undefined) ?? {};
+      const nextForRole: NodePresentation =
+        selectedViewport === "desktop"
+          ? {
+              ...currentTarget,
+              ...subset,
+            }
+          : {
+              ...currentTarget,
+              breakpoints: {
+                ...(currentTarget.breakpoints ?? {}),
+                [selectedViewport]: {
+                  ...(currentTarget.breakpoints?.[selectedViewport] ?? {}),
+                  ...subset,
+                },
+              },
+            };
+      const cleaned = cleanNodePresentation(nextForRole);
+      if (!cleaned) {
+        delete nextNodePresentation[target];
+      } else {
+        nextNodePresentation[target] = cleaned;
+      }
+    }
+
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+    recordNodeAction(
+      `Applied preset ${kind} "${preset.name}" to ${
+        selectedRoleGroup === "text" ? "text" : "CTA"
+      } nodes`,
+    );
+  }
+
+  function presetHasSubset(
+    preset: StoredNodeStylePreset,
+    kind: ViewportSubsetKind,
+  ): boolean {
+    const presetViewport = resolveViewportPresentationForValue(
+      preset.value,
+      selectedViewport,
+    );
+    if (!presetViewport) return false;
+    return hasSubsetValue(pickViewportSubset(presetViewport, kind));
+  }
+
+  function removeNodeStylePreset(presetId: string) {
+    setPresetDeleteConfirmTarget(null);
+    setStoredNodeStylePresets((prev) => prev.filter((entry) => entry.id !== presetId));
+    recordNodeAction("Deleted preset");
+  }
+
+  function confirmThenDeletePreset(presetId: string) {
+    if (presetDeleteConfirmTarget === presetId) {
+      removeNodeStylePreset(presetId);
+      return;
+    }
+    setPresetDeleteConfirmTarget(presetId);
+  }
+
+  function duplicateNodeStylePreset(preset: StoredNodeStylePreset) {
+    const cloneNameBase = `${preset.name} copy`;
+    setStoredNodeStylePresets((prev) => {
+      const takenIds = new Set(prev.map((entry) => entry.id));
+      const cloneName = prev.some(
+        (entry) => entry.name.toLowerCase() === cloneNameBase.toLowerCase(),
+      )
+        ? `${preset.name} copy ${prev.length + 1}`
+        : cloneNameBase;
+      const id = resolveUniquePresetId(normalizePresetNameToId(cloneName), takenIds);
+      const nextPreset: StoredNodeStylePreset = {
+        id,
+        name: cloneName,
+        value: cloneNodePresentation(preset.value),
+      };
+      return [nextPreset, ...prev].slice(0, 12);
+    });
+    recordNodeAction(`Cloned preset "${preset.name}"`);
+  }
+
+  function renameNodeStylePreset(preset: StoredNodeStylePreset) {
+    if (typeof window === "undefined") return;
+    const raw = window.prompt("Rename preset", preset.name);
+    if (raw === null) return;
+    const nextName = raw.trim();
+    if (!nextName || nextName === preset.name) return;
+    setStoredNodeStylePresets((prev) => {
+      const next = [...prev];
+      const index = next.findIndex((entry) => entry.id === preset.id);
+      if (index < 0) return prev;
+      next[index] = {
+        ...next[index],
+        name: nextName,
+      };
+      return next;
+    });
+    recordNodeAction(`Renamed preset to "${nextName}"`);
+  }
+
+  async function exportNodeStylePresetsJson() {
+    if (storedNodeStylePresets.length === 0) return;
+    const payload = JSON.stringify(storedNodeStylePresets, null, 2);
+    if (typeof window === "undefined") return;
+    try {
+      if ("clipboard" in navigator && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload);
+        recordNodeAction("Copied presets JSON");
+        return;
+      }
+    } catch {
+      // Fall back to prompt copy flow.
+    }
+    window.prompt("Copy style presets JSON", payload);
+    recordNodeAction("Opened presets JSON");
+  }
+
+  async function importNodeStylePresetsJson() {
+    if (typeof window === "undefined") return;
+    let seed = "";
+    try {
+      if ("clipboard" in navigator && navigator.clipboard?.readText) {
+        seed = await navigator.clipboard.readText();
+      }
+    } catch {
+      seed = "";
+    }
+    const raw = window.prompt("Paste style presets JSON", seed);
+    if (raw === null) return;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      window.alert("Invalid JSON. Paste a valid presets payload.");
+      return;
+    }
+    if (!Array.isArray(parsed)) {
+      window.alert("Invalid payload. Expected an array of presets.");
+      return;
+    }
+
+    let importedCount = 0;
+    setStoredNodeStylePresets((prev) => {
+      const next = [...prev];
+      const taken = new Set(next.map((entry) => entry.id));
+      for (const entry of parsed) {
+        if (!entry || typeof entry !== "object") continue;
+        const maybeName = (entry as { name?: unknown }).name;
+        const maybeValue = (entry as { value?: unknown }).value;
+        if (typeof maybeName !== "string" || !maybeName.trim()) continue;
+        if (!maybeValue || typeof maybeValue !== "object") continue;
+
+        const cleaned = cleanNodePresentation(
+          cloneNodePresentation(maybeValue as ConcreteNodePresentation),
+        );
+        if (!cleaned) continue;
+
+        const existingIndex = next.findIndex(
+          (preset) => preset.name.toLowerCase() === maybeName.trim().toLowerCase(),
+        );
+        if (existingIndex >= 0) {
+          const existingId = next[existingIndex]?.id ?? "";
+          next[existingIndex] = {
+            id: existingId || resolveUniquePresetId(normalizePresetNameToId(maybeName), taken),
+            name: maybeName.trim(),
+            value: cleaned as ConcreteNodePresentation,
+          };
+          importedCount += 1;
+          continue;
+        }
+
+        const requestedIdRaw = (entry as { id?: unknown }).id;
+        const requestedId =
+          typeof requestedIdRaw === "string" && requestedIdRaw.trim()
+            ? requestedIdRaw.trim()
+            : normalizePresetNameToId(maybeName);
+        const uniqueId = resolveUniquePresetId(requestedId, taken);
+        taken.add(uniqueId);
+        next.unshift({
+          id: uniqueId,
+          name: maybeName.trim(),
+          value: cleaned as ConcreteNodePresentation,
+        });
+        importedCount += 1;
+      }
+      return next.slice(0, 12);
+    });
+
+    if (importedCount > 0) {
+      recordNodeAction(`Imported ${importedCount} preset${importedCount === 1 ? "" : "s"}`);
+      return;
+    }
+    window.alert("No valid presets found in payload.");
+  }
+
+  function broadcastSelectedRoleStyle() {
+    if (!selectedNodeRole || !selectedNodePresentation) return;
+    if (broadcastRoleTargets.length === 0) return;
+
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+
+    for (const target of broadcastRoleTargets) {
+      const clonedSource = cloneNodePresentation(selectedNodePresentation);
+      const cleaned = cleanNodePresentation(clonedSource);
+      if (!cleaned) {
+        delete nextNodePresentation[target];
+      } else {
+        nextNodePresentation[target] = cleaned;
+      }
+    }
+
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+    recordNodeAction(
+      `Applied full style to ${selectedRoleGroup === "text" ? "text" : "CTA"} nodes`,
+    );
+  }
+
+  function broadcastSelectedRoleViewportStyle() {
+    if (!selectedNodeRole || !selectedNodeViewportPresentation) return;
+    if (broadcastRoleTargets.length === 0) return;
+
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+    const viewportPatch = {
+      ...selectedNodeViewportPresentation,
+    };
+
+    for (const target of broadcastRoleTargets) {
+      const currentTarget =
+        (baseNodePresentation[target] as NodePresentation | undefined) ?? {};
+      const nextForRole: NodePresentation =
+        selectedViewport === "desktop"
+          ? {
+              ...currentTarget,
+              ...viewportPatch,
+            }
+          : {
+              ...currentTarget,
+              breakpoints: {
+                ...(currentTarget.breakpoints ?? {}),
+                [selectedViewport]: {
+                  ...(currentTarget.breakpoints?.[selectedViewport] ?? {}),
+                  ...viewportPatch,
+                },
+              },
+            };
+      const cleaned = cleanNodePresentation(nextForRole);
+      if (!cleaned) {
+        delete nextNodePresentation[target];
+      } else {
+        nextNodePresentation[target] = cleaned;
+      }
+    }
+
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+    recordNodeAction(
+      `Applied ${selectedViewport} style to ${
+        selectedRoleGroup === "text" ? "text" : "CTA"
+      } nodes`,
+    );
+  }
+
+  function resetRoleGroupStyles() {
+    if (!selectedRoleGroup || roleGroupMembers.length === 0) return;
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+    for (const role of roleGroupMembers) {
+      delete nextNodePresentation[role];
+    }
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+    recordNodeAction(
+      `Reset ${selectedRoleGroup === "text" ? "text" : "CTA"} group styles`,
+    );
+  }
+
+  function pasteClipboardViewportSubset(kind: ViewportSubsetKind) {
+    if (!selectedNodeRole || !nodeStyleClipboard?.viewport) return;
+    const subset = pickViewportSubset(nodeStyleClipboard.viewport, kind);
+    if (!hasSubsetValue(subset)) return;
+    if (selectedViewport === "desktop") {
+      setNodeRolePresentation(selectedNodeRole, {
+        ...(selectedNodePresentation ?? {}),
+        ...subset,
+      });
+      recordNodeAction(`Pasted ${kind} (desktop)`);
+      return;
+    }
+    const nextForRole: NodePresentation = {
+      ...(selectedNodePresentation ?? {}),
+      breakpoints: {
+        ...(selectedNodePresentation?.breakpoints ?? {}),
+        [selectedViewport]: {
+          ...(selectedNodePresentation?.breakpoints?.[selectedViewport] ?? {}),
+          ...subset,
+        },
+      },
+    };
+    setNodeRolePresentation(selectedNodeRole, nextForRole);
+    recordNodeAction(`Pasted ${kind} (${selectedViewport})`);
+  }
+
+  function broadcastSelectedRoleViewportSubset(kind: ViewportSubsetKind) {
+    if (!selectedNodeRole || !selectedNodeViewportPresentation) return;
+    if (broadcastRoleTargets.length === 0) return;
+    const subset = pickViewportSubset(selectedNodeViewportPresentation, kind);
+    if (!hasSubsetValue(subset)) return;
+
+    const baseNodePresentation = nodePresentationRaw ?? {};
+    const nextNodePresentation: Record<string, unknown> = {
+      ...baseNodePresentation,
+    };
+
+    for (const target of broadcastRoleTargets) {
+      const currentTarget =
+        (baseNodePresentation[target] as NodePresentation | undefined) ?? {};
+      const nextForRole: NodePresentation =
+        selectedViewport === "desktop"
+          ? {
+              ...currentTarget,
+              ...subset,
+            }
+          : {
+              ...currentTarget,
+              breakpoints: {
+                ...(currentTarget.breakpoints ?? {}),
+                [selectedViewport]: {
+                  ...(currentTarget.breakpoints?.[selectedViewport] ?? {}),
+                  ...subset,
+                },
+              },
+            };
+      const cleaned = cleanNodePresentation(nextForRole);
+      if (!cleaned) {
+        delete nextNodePresentation[target];
+      } else {
+        nextNodePresentation[target] = cleaned;
+      }
+    }
+
+    onPatch({
+      nodePresentation:
+        Object.keys(nextNodePresentation).length > 0
+          ? nextNodePresentation
+          : undefined,
+    });
+    recordNodeAction(
+      `Applied ${kind} to ${selectedRoleGroup === "text" ? "text" : "CTA"} nodes`,
+    );
+  }
+
+  function setOrToggleNode(
+    key: keyof NodePresentationValue,
+    next: string,
+  ) {
+    const current = (selectedNodeViewportPresentation?.[key] as string | undefined) ?? "";
+    const value = current === next ? undefined : next;
+    if (key === "align") {
+      patchSelectedNodePresentation({
+        align: value as NodePresentationValue["align"],
+      });
+      return;
+    }
+    if (key === "size") {
+      patchSelectedNodePresentation({
+        size: value as NodePresentationValue["size"],
+      });
+      return;
+    }
+    if (key === "tone") {
+      patchSelectedNodePresentation({
+        tone: value as NodePresentationValue["tone"],
+      });
+      return;
+    }
+    if (key === "visibility") {
+      patchSelectedNodePresentation({
+        visibility: value as NodePresentationValue["visibility"],
+      });
+    }
+  }
+
+  function setHorizontalMode(
+    kind: "margin" | "padding",
+    mode: HorizontalSpacingMode,
+  ) {
+    if (kind === "margin") {
+      patchSelectedNodePresentation({
+        marginInlinePx:
+          mode === "custom"
+            ? undefined
+            : selectedNodeViewportPresentation?.marginInlinePx,
+        marginLeftPx: mode === "linked" ? undefined : selectedNodeViewportPresentation?.marginLeftPx,
+        marginRightPx:
+          mode === "linked" ? undefined : selectedNodeViewportPresentation?.marginRightPx,
+      });
+      return;
+    }
+    patchSelectedNodePresentation({
+      paddingInlinePx:
+        mode === "custom"
+          ? undefined
+          : selectedNodeViewportPresentation?.paddingInlinePx,
+      paddingLeftPx:
+        mode === "linked" ? undefined : selectedNodeViewportPresentation?.paddingLeftPx,
+      paddingRightPx:
+        mode === "linked" ? undefined : selectedNodeViewportPresentation?.paddingRightPx,
+    });
+  }
+
   const backgroundValue = present("background");
   const backgroundColorCustom = present("backgroundColorCustom");
   const customCss = present("customCss");
@@ -178,9 +1858,1181 @@ export function StylePanel({
 
   const [colorAnchor, setColorAnchor] = useState<HTMLButtonElement | null>(null);
   const [colorOpen, setColorOpen] = useState(false);
+  function recordNodeAction(label: string) {
+    const nextId = nodeActionIdRef.current;
+    nodeActionIdRef.current += 1;
+    setRecentNodeActions((prev) =>
+      [
+        {
+          id: nextId,
+          label,
+        },
+        ...prev,
+      ].slice(0, 6),
+    );
+  }
+  useEffect(() => {
+    if (!resetConfirmTarget) return;
+    const timer = window.setTimeout(() => {
+      setResetConfirmTarget(null);
+    }, 2600);
+    return () => window.clearTimeout(timer);
+  }, [resetConfirmTarget]);
+  useEffect(() => {
+    if (!presetDeleteConfirmTarget) return;
+    const timer = window.setTimeout(() => {
+      setPresetDeleteConfirmTarget(null);
+    }, 2600);
+    return () => window.clearTimeout(timer);
+  }, [presetDeleteConfirmTarget]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(NODE_STYLE_PRESET_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as ReadonlyArray<StoredNodeStylePreset>;
+      if (!Array.isArray(parsed)) return;
+      const clean = parsed
+        .filter((entry) => entry && typeof entry.name === "string" && entry.value)
+        .slice(0, 12);
+      setStoredNodeStylePresets(clean);
+    } catch {
+      setStoredNodeStylePresets([]);
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        NODE_STYLE_PRESET_STORAGE_KEY,
+        JSON.stringify(storedNodeStylePresets),
+      );
+    } catch {
+      // Ignore storage write failures (private mode/quota); presets stay in-memory.
+    }
+  }, [storedNodeStylePresets]);
+
+  function confirmThenRunReset(target: Exclude<ResetConfirmTarget, null>, run: () => void) {
+    if (resetConfirmTarget === target) {
+      setResetConfirmTarget(null);
+      run();
+      return;
+    }
+    setResetConfirmTarget(target);
+  }
 
   return (
     <div className="flex flex-col gap-6">
+      {selectedNodeRole && selectedNodeLabel ? (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className={SECTION_TITLE}>Selected node</div>
+            <span className={INHERIT_HINT}>{selectedNodeLabel}</span>
+          </div>
+          <div
+            className="rounded-md p-3"
+            style={{
+              background: CHROME.paper,
+              border: `1px solid ${CHROME.line}`,
+            }}
+          >
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={FIELD_LABEL}>Viewport</span>
+                  <div className="flex items-center gap-3">
+                    {canCopyDesktopToAllViewports ? (
+                      <button
+                        type="button"
+                        onClick={copyDesktopToAllBreakpoints}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Copy to all
+                      </button>
+                    ) : null}
+                    {canCopyDesktopToViewport ? (
+                      <button
+                        type="button"
+                        onClick={copyDesktopToSelectedViewport}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Copy desktop
+                      </button>
+                    ) : null}
+                    {canCopyToSiblingViewport ? (
+                      <button
+                        type="button"
+                        onClick={copySelectedViewportToSibling}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Copy to {siblingViewport}
+                      </button>
+                    ) : null}
+                    {canMirrorCtaRole ? (
+                      <button
+                        type="button"
+                        onClick={mirrorCtaRoleStyle}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Mirror CTA
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void undo();
+                        recordNodeAction("Undo");
+                      }}
+                      disabled={!canUndo}
+                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] disabled:cursor-not-allowed disabled:opacity-40"
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: CHROME.muted,
+                        padding: 0,
+                      }}
+                    >
+                      Undo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void redo();
+                        recordNodeAction("Redo");
+                      }}
+                      disabled={!canRedo}
+                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em] disabled:cursor-not-allowed disabled:opacity-40"
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: CHROME.muted,
+                        padding: 0,
+                      }}
+                    >
+                      Redo
+                    </button>
+                    {canCopyNodeStyle ? (
+                      <button
+                        type="button"
+                        onClick={copyNodeStyleToClipboard}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Copy node
+                      </button>
+                    ) : null}
+                    {canPasteNodeStyle ? (
+                      <button
+                        type="button"
+                        onClick={pasteClipboardNodeStyle}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                        title={
+                          nodeStyleClipboard
+                            ? `Paste from ${nodeRoleLabel(nodeStyleClipboard.role) ?? "node"}`
+                            : undefined
+                        }
+                      >
+                        Paste node
+                      </button>
+                    ) : null}
+                    {canPasteViewportStyle ? (
+                      <button
+                        type="button"
+                        onClick={pasteClipboardViewportStyle}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                        title={
+                          nodeStyleClipboard
+                            ? `Paste ${nodeStyleClipboard.viewportSource} viewport only`
+                            : undefined
+                        }
+                      >
+                        Paste viewport
+                      </button>
+                    ) : null}
+                    {canPasteViewportType ? (
+                      <button
+                        type="button"
+                        onClick={() => pasteClipboardViewportSubset("typography")}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                        title="Paste viewport typography only"
+                      >
+                        Paste type
+                      </button>
+                    ) : null}
+                    {canPasteViewportSpacing ? (
+                      <button
+                        type="button"
+                        onClick={() => pasteClipboardViewportSubset("spacing")}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                        title="Paste viewport spacing only"
+                      >
+                        Paste spacing
+                      </button>
+                    ) : null}
+                    {canBroadcastRoleStyle ? (
+                      <button
+                        type="button"
+                        onClick={broadcastSelectedRoleStyle}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                        title={
+                          selectedRoleGroup === "text"
+                            ? "Apply style to all text nodes in this section"
+                            : "Apply style to all CTA nodes in this section"
+                        }
+                      >
+                        Apply to {selectedRoleGroup === "text" ? "text" : "CTAs"}
+                      </button>
+                    ) : null}
+                    {canBroadcastRoleType ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          broadcastSelectedRoleViewportSubset("typography")
+                        }
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                        title={
+                          selectedRoleGroup === "text"
+                            ? `Apply ${selectedViewport} typography to all text nodes`
+                            : `Apply ${selectedViewport} typography to all CTA nodes`
+                        }
+                      >
+                        Apply type
+                      </button>
+                    ) : null}
+                    {canBroadcastRoleSpacing ? (
+                      <button
+                        type="button"
+                        onClick={() => broadcastSelectedRoleViewportSubset("spacing")}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                        title={
+                          selectedRoleGroup === "text"
+                            ? `Apply ${selectedViewport} spacing to all text nodes`
+                            : `Apply ${selectedViewport} spacing to all CTA nodes`
+                        }
+                      >
+                        Apply spacing
+                      </button>
+                    ) : null}
+                    {canBroadcastRoleViewportStyle ? (
+                      <button
+                        type="button"
+                        onClick={broadcastSelectedRoleViewportStyle}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                        title={
+                          selectedRoleGroup === "text"
+                            ? `Apply ${selectedViewport} style to all text nodes`
+                            : `Apply ${selectedViewport} style to all CTA nodes`
+                        }
+                      >
+                        Apply {selectedViewport}
+                      </button>
+                    ) : null}
+                    {canResetRoleGroup ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          confirmThenRunReset("group", resetRoleGroupStyles)
+                        }
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                        title={
+                          selectedRoleGroup === "text"
+                            ? "Reset all text-node styles in this section"
+                            : "Reset all CTA-node styles in this section"
+                        }
+                      >
+                        {resetConfirmTarget === "group"
+                          ? "Confirm reset"
+                          : `Reset ${selectedRoleGroup === "text" ? "text" : "CTAs"}`}
+                      </button>
+                    ) : null}
+                    {canClearClipboard ? (
+                      <button
+                        type="button"
+                        onClick={clearNodeStyleClipboard}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Clear copy
+                      </button>
+                    ) : null}
+                    {hasSelectedViewportOverrides ? (
+                      <button
+                        type="button"
+                        onClick={resetSelectedViewportOverrides}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Reset {selectedViewport}
+                      </button>
+                    ) : null}
+                    {hasSelectedNodeOverrides ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          confirmThenRunReset("node", resetSelectedNodeOverrides)
+                        }
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        {resetConfirmTarget === "node" ? "Confirm reset" : "Reset node"}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedViewport}
+                  onChange={(next) => setSelectedViewport(next as NodeViewport)}
+                  options={VIEWPORT_OPTIONS}
+                />
+                {selectedViewport !== "desktop" ? (
+                  <span className={INHERIT_HINT}>
+                    {selectedViewportOverrideCount > 0
+                      ? `${selectedViewportOverrideCount} field${
+                          selectedViewportOverrideCount === 1 ? "" : "s"
+                        } overridden on ${selectedViewport}; ${inheritedDesktopCount} inheriting desktop.`
+                      : `No ${selectedViewport} overrides yet — all fields inherit desktop.`}
+                  </span>
+                ) : null}
+                {nodeStyleClipboard ? (
+                  <span className={INHERIT_HINT}>
+                    Copied: {nodeRoleLabel(nodeStyleClipboard.role) ?? "Node"} (
+                    {nodeStyleClipboard.viewportSource})
+                  </span>
+                ) : null}
+                {recentNodeActions.length > 0 ? (
+                  <div className="flex flex-col gap-1 pt-1">
+                    <span className={FIELD_LABEL}>Recent actions</span>
+                    {recentNodeActions.slice(0, 4).map((entry) => (
+                      <span key={entry.id} className={INHERIT_HINT}>
+                        {entry.label}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="flex flex-col gap-1 pt-1">
+                  <span className={FIELD_LABEL}>Style presets</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={nodeStylePresetName}
+                      onChange={(e) => setNodeStylePresetName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          saveCurrentNodeStylePreset();
+                        }
+                      }}
+                      placeholder="Preset name"
+                      className="w-full px-2"
+                      style={{
+                        height: 28,
+                        fontSize: 12,
+                        background: CHROME.surface2,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        borderRadius: 6,
+                        color: CHROME.ink,
+                        outline: "none",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={saveCurrentNodeStylePreset}
+                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: CHROME.muted,
+                        padding: 0,
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void importNodeStylePresetsJson();
+                      }}
+                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: CHROME.muted,
+                        padding: 0,
+                      }}
+                    >
+                      Import
+                    </button>
+                    {storedNodeStylePresets.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void exportNodeStylePresetsJson();
+                        }}
+                        className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: CHROME.muted,
+                          padding: 0,
+                        }}
+                      >
+                        Export
+                      </button>
+                    ) : null}
+                  </div>
+                  {storedNodeStylePresets.length > 0 ? (
+                    <div className="flex flex-col gap-1">
+                      {storedNodeStylePresets.slice(0, 4).map((preset) => (
+                        <div
+                          key={preset.id}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <span className={INHERIT_HINT}>{preset.name}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => applyNodeStylePreset(preset)}
+                              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: CHROME.muted,
+                                padding: 0,
+                              }}
+                            >
+                              Apply
+                            </button>
+                            {presetHasSubset(preset, "typography") ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyNodeStylePresetSubset(preset, "typography")
+                                }
+                                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  color: CHROME.muted,
+                                  padding: 0,
+                                }}
+                              >
+                                Type
+                              </button>
+                            ) : null}
+                            {presetHasSubset(preset, "spacing") ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyNodeStylePresetSubset(preset, "spacing")
+                                }
+                                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  color: CHROME.muted,
+                                  padding: 0,
+                                }}
+                              >
+                                Space
+                              </button>
+                            ) : null}
+                            {broadcastRoleTargets.length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => applyNodeStylePresetToGroup(preset)}
+                                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  color: CHROME.muted,
+                                  padding: 0,
+                                }}
+                              >
+                                Group
+                              </button>
+                            ) : null}
+                            {broadcastRoleTargets.length > 0 &&
+                            presetHasSubset(preset, "typography") ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyNodeStylePresetSubsetToGroup(
+                                    preset,
+                                    "typography",
+                                  )
+                                }
+                                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  color: CHROME.muted,
+                                  padding: 0,
+                                }}
+                              >
+                                T+G
+                              </button>
+                            ) : null}
+                            {broadcastRoleTargets.length > 0 &&
+                            presetHasSubset(preset, "spacing") ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyNodeStylePresetSubsetToGroup(
+                                    preset,
+                                    "spacing",
+                                  )
+                                }
+                                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  color: CHROME.muted,
+                                  padding: 0,
+                                }}
+                              >
+                                S+G
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => renameNodeStylePreset(preset)}
+                              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: CHROME.muted,
+                                padding: 0,
+                              }}
+                            >
+                              Rename
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => duplicateNodeStylePreset(preset)}
+                              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: CHROME.muted,
+                                padding: 0,
+                              }}
+                            >
+                              Clone
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => confirmThenDeletePreset(preset.id)}
+                              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: CHROME.muted,
+                                padding: 0,
+                              }}
+                            >
+                              {presetDeleteConfirmTarget === preset.id
+                                ? "Confirm"
+                                : "Delete"}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className={INHERIT_HINT}>
+                      Save frequently used styles for reuse.
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className={FIELD_LABEL}>Visibility</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={(selectedNodeViewportPresentation?.visibility as string | undefined) ?? ""}
+                  onChange={(next) => setOrToggleNode("visibility", next)}
+                  options={VISIBILITY_OPTIONS}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className={FIELD_LABEL}>Align</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={(selectedNodeViewportPresentation?.align as string | undefined) ?? ""}
+                  onChange={(next) => setOrToggleNode("align", next)}
+                  options={ALIGN_OPTIONS}
+                />
+              </div>
+              {!selectedNodeIsButton ? (
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Max width (px)</span>
+                  <input
+                    type="number"
+                    min={120}
+                    max={1200}
+                    value={selectedNodeViewportPresentation?.maxWidthPx ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (!raw) {
+                        patchSelectedNodePresentation({ maxWidthPx: undefined });
+                        return;
+                      }
+                      const n = Number(raw);
+                      if (Number.isFinite(n) && n >= 120 && n <= 1200) {
+                        patchSelectedNodePresentation({ maxWidthPx: Math.round(n) });
+                      }
+                    }}
+                    placeholder="Default"
+                    className="w-full px-2"
+                    style={{
+                      height: 30,
+                      fontSize: 12.5,
+                      fontVariantNumeric: "tabular-nums",
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.lineMid}`,
+                      borderRadius: 6,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                  />
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedWidthPreset ?? ""}
+                    onChange={(next) => applyWidthPreset(next as WidthPreset)}
+                    options={WIDTH_PRESET_OPTIONS}
+                  />
+                </div>
+              ) : null}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Margin top (px)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={240}
+                    value={selectedNodeViewportPresentation?.marginTopPx ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (!raw) {
+                        patchSelectedNodePresentation({ marginTopPx: undefined });
+                        return;
+                      }
+                      const n = Number(raw);
+                      if (Number.isFinite(n) && n >= 0 && n <= 240) {
+                        patchSelectedNodePresentation({ marginTopPx: Math.round(n) });
+                      }
+                    }}
+                    placeholder="Default"
+                    className="w-full px-2"
+                    style={{
+                      height: 30,
+                      fontSize: 12.5,
+                      fontVariantNumeric: "tabular-nums",
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.lineMid}`,
+                      borderRadius: 6,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Margin bottom (px)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={240}
+                    value={selectedNodeViewportPresentation?.marginBottomPx ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (!raw) {
+                        patchSelectedNodePresentation({ marginBottomPx: undefined });
+                        return;
+                      }
+                      const n = Number(raw);
+                      if (Number.isFinite(n) && n >= 0 && n <= 240) {
+                        patchSelectedNodePresentation({ marginBottomPx: Math.round(n) });
+                      }
+                    }}
+                    placeholder="Default"
+                    className="w-full px-2"
+                    style={{
+                      height: 30,
+                      fontSize: 12.5,
+                      fontVariantNumeric: "tabular-nums",
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.lineMid}`,
+                      borderRadius: 6,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className={FIELD_LABEL}>Quick spacing</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedSpacingPreset ?? ""}
+                  onChange={(next) => applySpacingPreset(next as SpacingPreset)}
+                  options={SPACING_PRESET_OPTIONS}
+                />
+                <span className={INHERIT_HINT}>
+                  Fast-start spacing preset for this viewport.
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className={FIELD_LABEL}>Margin horizontal</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={marginHorizontalMode}
+                  onChange={(next) =>
+                    setHorizontalMode(
+                      "margin",
+                      next as HorizontalSpacingMode,
+                    )}
+                  options={HORIZONTAL_MODE_OPTIONS}
+                />
+                {marginHorizontalMode === "linked" ? (
+                  <input
+                    type="number"
+                    min={0}
+                    max={200}
+                    value={selectedNodeViewportPresentation?.marginInlinePx ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (!raw) {
+                        patchSelectedNodePresentation({
+                          marginInlinePx: undefined,
+                        });
+                        return;
+                      }
+                      const n = Number(raw);
+                      if (Number.isFinite(n) && n >= 0 && n <= 200) {
+                        patchSelectedNodePresentation({
+                          marginInlinePx: Math.round(n),
+                          marginLeftPx: undefined,
+                          marginRightPx: undefined,
+                        });
+                      }
+                    }}
+                    placeholder="Default"
+                    className="w-full px-2"
+                    style={{
+                      height: 30,
+                      fontSize: 12.5,
+                      fontVariantNumeric: "tabular-nums",
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.lineMid}`,
+                      borderRadius: 6,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                  />
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={200}
+                      value={selectedNodeViewportPresentation?.marginLeftPx ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (!raw) {
+                          patchSelectedNodePresentation({
+                            marginLeftPx: undefined,
+                            marginInlinePx: undefined,
+                          });
+                          return;
+                        }
+                        const n = Number(raw);
+                        if (Number.isFinite(n) && n >= 0 && n <= 200) {
+                          patchSelectedNodePresentation({
+                            marginLeftPx: Math.round(n),
+                            marginInlinePx: undefined,
+                          });
+                        }
+                      }}
+                      placeholder="Left"
+                      className="w-full px-2"
+                      style={{
+                        height: 30,
+                        fontSize: 12.5,
+                        fontVariantNumeric: "tabular-nums",
+                        background: CHROME.surface2,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        borderRadius: 6,
+                        color: CHROME.ink,
+                        outline: "none",
+                      }}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={200}
+                      value={selectedNodeViewportPresentation?.marginRightPx ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (!raw) {
+                          patchSelectedNodePresentation({
+                            marginRightPx: undefined,
+                            marginInlinePx: undefined,
+                          });
+                          return;
+                        }
+                        const n = Number(raw);
+                        if (Number.isFinite(n) && n >= 0 && n <= 200) {
+                          patchSelectedNodePresentation({
+                            marginRightPx: Math.round(n),
+                            marginInlinePx: undefined,
+                          });
+                        }
+                      }}
+                      placeholder="Right"
+                      className="w-full px-2"
+                      style={{
+                        height: 30,
+                        fontSize: 12.5,
+                        fontVariantNumeric: "tabular-nums",
+                        background: CHROME.surface2,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        borderRadius: 6,
+                        color: CHROME.ink,
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <span className={FIELD_LABEL}>Pad top (px)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={160}
+                      value={selectedNodeViewportPresentation?.paddingTopPx ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (!raw) {
+                          patchSelectedNodePresentation({ paddingTopPx: undefined });
+                          return;
+                        }
+                        const n = Number(raw);
+                        if (Number.isFinite(n) && n >= 0 && n <= 160) {
+                          patchSelectedNodePresentation({
+                            paddingTopPx: Math.round(n),
+                          });
+                        }
+                      }}
+                      placeholder="Default"
+                      className="w-full px-2"
+                      style={{
+                        height: 30,
+                        fontSize: 12.5,
+                        fontVariantNumeric: "tabular-nums",
+                        background: CHROME.surface2,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        borderRadius: 6,
+                        color: CHROME.ink,
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <span className={FIELD_LABEL}>Pad bottom (px)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={160}
+                      value={selectedNodeViewportPresentation?.paddingBottomPx ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (!raw) {
+                          patchSelectedNodePresentation({
+                            paddingBottomPx: undefined,
+                          });
+                          return;
+                        }
+                        const n = Number(raw);
+                        if (Number.isFinite(n) && n >= 0 && n <= 160) {
+                          patchSelectedNodePresentation({
+                            paddingBottomPx: Math.round(n),
+                          });
+                        }
+                      }}
+                      placeholder="Default"
+                      className="w-full px-2"
+                      style={{
+                        height: 30,
+                        fontSize: 12.5,
+                        fontVariantNumeric: "tabular-nums",
+                        background: CHROME.surface2,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        borderRadius: 6,
+                        color: CHROME.ink,
+                        outline: "none",
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Padding horizontal</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={paddingHorizontalMode}
+                    onChange={(next) =>
+                      setHorizontalMode(
+                        "padding",
+                        next as HorizontalSpacingMode,
+                      )}
+                    options={HORIZONTAL_MODE_OPTIONS}
+                  />
+                  {paddingHorizontalMode === "linked" ? (
+                    <input
+                      type="number"
+                      min={0}
+                      max={120}
+                      value={selectedNodeViewportPresentation?.paddingInlinePx ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (!raw) {
+                          patchSelectedNodePresentation({
+                            paddingInlinePx: undefined,
+                          });
+                          return;
+                        }
+                        const n = Number(raw);
+                        if (Number.isFinite(n) && n >= 0 && n <= 120) {
+                          patchSelectedNodePresentation({
+                            paddingInlinePx: Math.round(n),
+                            paddingLeftPx: undefined,
+                            paddingRightPx: undefined,
+                          });
+                        }
+                      }}
+                      placeholder="Default"
+                      className="w-full px-2"
+                      style={{
+                        height: 30,
+                        fontSize: 12.5,
+                        fontVariantNumeric: "tabular-nums",
+                        background: CHROME.surface2,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        borderRadius: 6,
+                        color: CHROME.ink,
+                        outline: "none",
+                      }}
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={120}
+                        value={selectedNodeViewportPresentation?.paddingLeftPx ?? ""}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (!raw) {
+                            patchSelectedNodePresentation({
+                              paddingLeftPx: undefined,
+                              paddingInlinePx: undefined,
+                            });
+                            return;
+                          }
+                          const n = Number(raw);
+                          if (Number.isFinite(n) && n >= 0 && n <= 120) {
+                            patchSelectedNodePresentation({
+                              paddingLeftPx: Math.round(n),
+                              paddingInlinePx: undefined,
+                            });
+                          }
+                        }}
+                        placeholder="Left"
+                        className="w-full px-2"
+                        style={{
+                          height: 30,
+                          fontSize: 12.5,
+                          fontVariantNumeric: "tabular-nums",
+                          background: CHROME.surface2,
+                          border: `1px solid ${CHROME.lineMid}`,
+                          borderRadius: 6,
+                          color: CHROME.ink,
+                          outline: "none",
+                        }}
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        max={120}
+                        value={selectedNodeViewportPresentation?.paddingRightPx ?? ""}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (!raw) {
+                            patchSelectedNodePresentation({
+                              paddingRightPx: undefined,
+                              paddingInlinePx: undefined,
+                            });
+                            return;
+                          }
+                          const n = Number(raw);
+                          if (Number.isFinite(n) && n >= 0 && n <= 120) {
+                            patchSelectedNodePresentation({
+                              paddingRightPx: Math.round(n),
+                              paddingInlinePx: undefined,
+                            });
+                          }
+                        }}
+                        placeholder="Right"
+                        className="w-full px-2"
+                        style={{
+                          height: 30,
+                          fontSize: 12.5,
+                          fontVariantNumeric: "tabular-nums",
+                          background: CHROME.surface2,
+                          border: `1px solid ${CHROME.lineMid}`,
+                          borderRadius: 6,
+                          color: CHROME.ink,
+                          outline: "none",
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className={FIELD_LABEL}>Size</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={(selectedNodeViewportPresentation?.size as string | undefined) ?? ""}
+                  onChange={(next) => setOrToggleNode("size", next)}
+                  options={SIZE_OPTIONS}
+                />
+              </div>
+              {!selectedNodeIsButton ? (
+                <div className="flex flex-col gap-1.5">
+                  <span className={FIELD_LABEL}>Tone</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={(selectedNodeViewportPresentation?.tone as string | undefined) ?? ""}
+                    onChange={(next) => setOrToggleNode("tone", next)}
+                    options={TONE_OPTIONS}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
       {/* ── Surface ──────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

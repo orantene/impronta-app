@@ -1,7 +1,15 @@
 // QA test: flip nav-alignment to "split-around-logo" then back, verify
-// the rendered HTML changes accordingly. Validates the live preview path.
+// the rendered HTML changes accordingly.
+//
+// Defaults to the path-based tenant storefront URL on localhost because local
+// host-header routing may not map custom domains in every dev setup.
 import { readFileSync } from "node:fs";
-import { createClient } from "@supabase/supabase-js";
+import { createRequire } from "node:module";
+
+const requireFromWeb = createRequire(
+  new URL("../web/package.json", import.meta.url),
+);
+const { createClient } = requireFromWeb("@supabase/supabase-js");
 
 const env = Object.fromEntries(
   readFileSync("/Users/oranpersonal/Desktop/impronta-app/web/.env.local", "utf8")
@@ -10,6 +18,18 @@ const env = Object.fromEntries(
 );
 const supa = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 const tenantId = "00000000-0000-0000-0000-000000000001";
+const baseUrl = process.env.QA_TOKEN_FLIP_BASE_URL?.trim() || "http://localhost:3000";
+const explicitStorefrontUrl = process.env.QA_TOKEN_FLIP_URL?.trim() || "";
+const hostHeader = process.env.QA_TOKEN_FLIP_HOST?.trim() || "";
+
+const { data: agencyRow } = await supa
+  .from("agencies")
+  .select("slug")
+  .eq("id", tenantId)
+  .maybeSingle();
+const tenantSlug = agencyRow?.slug || "impronta";
+const storefrontUrl =
+  explicitStorefrontUrl || `${baseUrl.replace(/\/+$/, "")}/${tenantSlug}`;
 
 // Snapshot current theme_json so we restore exactly after.
 const before = await supa
@@ -41,9 +61,11 @@ console.log("[set] split-around-logo applied");
 await new Promise((r) => setTimeout(r, 1500));
 
 // Step 3: Fetch the storefront and look for the new attr.
-const r = await fetch("http://localhost:3000/", { headers: { Host: "impronta.local" }, cache: "no-store" });
+const fetchHeaders = hostHeader ? { Host: hostHeader } : undefined;
+const r = await fetch(storefrontUrl, { headers: fetchHeaders, cache: "no-store" });
 const html = await r.text();
 const m = html.match(/data-token-shell-header-nav-alignment="([^"]+)"/);
+console.log("[target]", storefrontUrl, hostHeader ? `(Host: ${hostHeader})` : "");
 console.log("[render after flip]", m?.[1] ?? "(not found)");
 
 // Step 4: Restore to whatever was original.

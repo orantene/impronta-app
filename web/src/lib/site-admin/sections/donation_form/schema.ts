@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 export const donationFormSchemaV1 = z.object({
@@ -16,6 +17,14 @@ export const donationFormSchemaV1 = z.object({
   checkoutUrl: z.string().url().max(500),
   ctaLabel: z.string().min(1).max(60).default("Donate"),
   trustNote: z.string().max(280).optional(),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+      primaryCta: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

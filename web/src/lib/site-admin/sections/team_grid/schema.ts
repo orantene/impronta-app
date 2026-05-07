@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const memberSchema = z.object({
@@ -17,6 +18,13 @@ export const teamGridSchemaV1 = z.object({
   members: z.array(memberSchema).min(1).max(40),
   variant: z.enum(["portrait", "circle", "row"]).default("portrait"),
   columnsDesktop: z.number().int().min(2).max(6).default(3),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

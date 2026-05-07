@@ -13,7 +13,8 @@
  * curated inspectors.
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
 import { Card, CardHead, CardBody } from "../kit";
 import {
@@ -33,6 +34,7 @@ import { RichEditor } from "@/components/edit-chrome/rich-editor";
 interface HeroContentProps {
   draftProps: Record<string, unknown>;
   tenantId: string;
+  selectedBuilderNodeId: string | null;
   onChange: (next: Record<string, unknown>) => void;
 }
 
@@ -54,9 +56,20 @@ function cleanObject<T extends Record<string, unknown>>(o: T): T {
   return out;
 }
 
+type HeroNodeRole = "headline" | "subheadline" | "primaryCta" | "secondaryCta";
+
+function heroNodeRoleLabel(role: HeroNodeRole | null): string | null {
+  if (role === "headline") return "Headline";
+  if (role === "subheadline") return "Sub-headline";
+  if (role === "primaryCta") return "Primary CTA";
+  if (role === "secondaryCta") return "Secondary CTA";
+  return null;
+}
+
 export function HeroContentInspector({
   draftProps,
   tenantId,
+  selectedBuilderNodeId,
   onChange,
 }: HeroContentProps) {
   const headline = (draftProps.headline as string | undefined) ?? "";
@@ -70,6 +83,34 @@ export function HeroContentInspector({
     slides.length > 0 ? (slides[0]?.backgroundImageUrl ?? null) : null;
 
   const [showSlides, setShowSlides] = useState(slides.length > 1);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const focusRole = useMemo(
+    () => {
+      if (!selectedBuilderNodeId) return null;
+      const role = resolveBuilderNodeRole(selectedBuilderNodeId);
+      if (role === "headline" || role === "subheadline" || role === "primaryCta" || role === "secondaryCta") {
+        return role;
+      }
+      return null;
+    },
+    [selectedBuilderNodeId],
+  );
+  const focusLabel = useMemo(() => heroNodeRoleLabel(focusRole), [focusRole]);
+
+  useEffect(() => {
+    if (!focusRole) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-hero-node-role="${focusRole}"]`,
+    );
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const focusable = target.querySelector<HTMLElement>(
+      "[contenteditable='true'],input,textarea,select,button",
+    );
+    focusable?.focus({ preventScroll: true });
+  }, [focusRole]);
 
   function update(patch: Record<string, unknown>) {
     onChange(cleanObject({ ...draftProps, ...patch } as Record<string, unknown>));
@@ -117,38 +158,60 @@ export function HeroContentInspector({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={rootRef} className="flex flex-col gap-3">
+      {focusRole && focusLabel ? (
+        <div
+          className="rounded-lg border px-3 py-2 text-xs font-medium"
+          style={{
+            borderColor: "#bfdbfe",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+          }}
+        >
+          Editing selected canvas node: {focusLabel}
+        </div>
+      ) : null}
       {/* ── Copy ─────────────────────────────────────────────────────── */}
       <Card>
         <CardHead title="Copy" />
         <CardBody>
           <div className="flex flex-col gap-3">
-            <Field>
-              <FieldLabel>Headline</FieldLabel>
-              <RichEditor
-                value={headline}
-                onChange={(next) => update({ headline: next })}
-                variant="single"
-                tenantId={tenantId}
-                ariaLabel="Headline"
-              />
-              <Helper><span /><HelperCounter current={headline.length} max={140} /></Helper>
-            </Field>
+            <div data-hero-node-role="headline">
+              <Field>
+                <FieldLabel>Headline</FieldLabel>
+                <RichEditor
+                  value={headline}
+                  onChange={(next) => update({ headline: next })}
+                  variant="single"
+                  tenantId={tenantId}
+                  ariaLabel="Headline"
+                />
+                <Helper>
+                  <span />
+                  <HelperCounter current={headline.length} max={140} />
+                </Helper>
+              </Field>
+            </div>
 
-            <Field>
-              <FieldLabel>Sub-headline</FieldLabel>
-              <RichEditor
-                value={subheadline}
-                onChange={(next) => update({ subheadline: next || undefined })}
-                variant="single"
-                tenantId={tenantId}
-                placeholder="Optional"
-                ariaLabel="Sub-headline"
-              />
-              {subheadline ? (
-                <Helper><span /><HelperCounter current={subheadline.length} max={240} /></Helper>
-              ) : null}
-            </Field>
+            <div data-hero-node-role="subheadline">
+              <Field>
+                <FieldLabel>Sub-headline</FieldLabel>
+                <RichEditor
+                  value={subheadline}
+                  onChange={(next) => update({ subheadline: next || undefined })}
+                  variant="single"
+                  tenantId={tenantId}
+                  placeholder="Optional"
+                  ariaLabel="Sub-headline"
+                />
+                {subheadline ? (
+                  <Helper>
+                    <span />
+                    <HelperCounter current={subheadline.length} max={240} />
+                  </Helper>
+                ) : null}
+              </Field>
+            </div>
           </div>
         </CardBody>
       </Card>
@@ -167,6 +230,8 @@ export function HeroContentInspector({
               update({ secondaryCta: next ?? undefined })
             }
             secondaryAddLabel="Add secondary button"
+            primaryNodeRole="primaryCta"
+            secondaryNodeRole="secondaryCta"
           />
         </CardBody>
       </Card>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -38,6 +39,13 @@ export const lottieSchemaV1 = z.object({
   ratio: z.enum(["16/9", "4/3", "1/1", "9/16"]).default("1/1"),
   /** Width cap for the animation (px). Defaults to 480. */
   maxWidth: z.number().int().min(120).max(1600).default(480),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

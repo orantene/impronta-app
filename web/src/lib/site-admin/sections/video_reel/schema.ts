@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const chapterSchema = z.object({
@@ -19,6 +20,12 @@ export const videoReelSchemaV1 = z.object({
   loop: z.boolean().default(false),
   muted: z.boolean().default(false),
   autoplay: z.boolean().default(false),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

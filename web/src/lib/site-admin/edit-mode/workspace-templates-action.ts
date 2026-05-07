@@ -44,32 +44,18 @@ import {
   loadBuilderWorkspacePlan,
   workspaceTemplateLibraryDeniedReason,
 } from "@/lib/site-admin/builder-capabilities";
+import {
+  buildWorkspaceTemplateRow,
+  type WorkspaceTemplateRow,
+  type WorkspaceTemplateSnapshot,
+  type WorkspaceTemplateSnapshotEntry,
+} from "@/lib/site-admin/edit-mode/workspace-template-rows";
 
-export interface WorkspaceTemplateSnapshotEntry {
-  slotKey: string;
-  sortOrder: number;
-  sectionTypeKey: string;
-  schemaVersion: number;
-  name: string;
-  props: Record<string, unknown>;
-}
-
-export interface WorkspaceTemplateSnapshot {
-  version: 1;
-  /** Tenant-agnostic — slot composition for the homepage at save-time. */
-  slots: WorkspaceTemplateSnapshotEntry[];
-  capturedAt: string;
-}
-
-export interface WorkspaceTemplateRow {
-  id: string;
-  name: string;
-  description: string | null;
-  visibility: "private" | "platform" | "archived";
-  sectionCount: number;
-  createdAt: string;
-  ownTenant: boolean;
-}
+export type {
+  WorkspaceTemplateRow,
+  WorkspaceTemplateSnapshot,
+  WorkspaceTemplateSnapshotEntry,
+} from "@/lib/site-admin/edit-mode/workspace-template-rows";
 
 export type SaveTemplateResult =
   | { ok: true; templateId: string }
@@ -258,19 +244,9 @@ export async function listWorkspaceTemplates(input?: {
   const { data, error } = await query;
   if (error) return { ok: false, error: "Couldn't load templates." };
 
-  const rows: WorkspaceTemplateRow[] = (data ?? []).map((r) => {
-    const snap = (r.snapshot_jsonb ?? {}) as Partial<WorkspaceTemplateSnapshot>;
-    const slots = Array.isArray(snap.slots) ? snap.slots : [];
-    return {
-      id: r.id as string,
-      name: r.name as string,
-      description: (r.description ?? null) as string | null,
-      visibility: r.visibility as "private" | "platform" | "archived",
-      sectionCount: slots.length,
-      createdAt: r.created_at as string,
-      ownTenant: r.tenant_id === scope.tenantId,
-    };
-  });
+  const rows: WorkspaceTemplateRow[] = (data ?? []).map((r) =>
+    buildWorkspaceTemplateRow(r, scope.tenantId),
+  );
   return { ok: true, templates: rows };
 }
 

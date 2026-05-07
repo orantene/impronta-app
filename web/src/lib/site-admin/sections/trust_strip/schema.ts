@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -33,6 +34,13 @@ export const trustStripSchemaV1 = z.object({
   density: z.enum(["tight", "standard", "airy"]).optional(),
   /** M8 — shared presentation controls (background / padding / align / ...). */
   presentation: sectionPresentationSchema,
+  /** Phase 4 — BuilderNode child-style overrides for trust-strip heading. */
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
 });
 
 export type TrustStripV1 = z.infer<typeof trustStripSchemaV1>;

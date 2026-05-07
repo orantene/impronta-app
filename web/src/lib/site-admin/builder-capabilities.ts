@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { WorkspaceUrlPlan } from "@/lib/saas/workspace-public-url";
+import {
+  brandedSubdomainEligible,
+  customDomainEligible,
+  type WorkspaceUrlPlan,
+} from "@/lib/saas/workspace-public-url";
 
 export type BuilderWorkspacePlan = WorkspaceUrlPlan;
 
@@ -20,11 +24,15 @@ export interface BuilderPlanPolicy {
   workspaceTemplateLibrary: boolean;
   starterTemplateMode: "free-only" | "paid";
   shellEditMode: "locked" | "basic" | "full";
+  brandedSubdomainEligible: boolean;
+  customDomainEligible: boolean;
 }
 
 export type BuilderCapabilityKey =
   | "builder.section.body.edit"
-  | "builder.shell.edit";
+  | "builder.shell.edit"
+  | "builder.domain.subdomain"
+  | "builder.domain.custom";
 
 const BUILDER_PLAN_POLICY: Record<BuilderWorkspacePlan, BuilderPlanPolicy> = {
   free: {
@@ -34,6 +42,8 @@ const BUILDER_PLAN_POLICY: Record<BuilderWorkspacePlan, BuilderPlanPolicy> = {
     workspaceTemplateLibrary: false,
     starterTemplateMode: "free-only",
     shellEditMode: "locked",
+    brandedSubdomainEligible: brandedSubdomainEligible("free"),
+    customDomainEligible: customDomainEligible("free"),
   },
   studio: {
     plan: "studio",
@@ -42,6 +52,8 @@ const BUILDER_PLAN_POLICY: Record<BuilderWorkspacePlan, BuilderPlanPolicy> = {
     workspaceTemplateLibrary: true,
     starterTemplateMode: "paid",
     shellEditMode: "basic",
+    brandedSubdomainEligible: brandedSubdomainEligible("studio"),
+    customDomainEligible: customDomainEligible("studio"),
   },
   agency: {
     plan: "agency",
@@ -50,6 +62,8 @@ const BUILDER_PLAN_POLICY: Record<BuilderWorkspacePlan, BuilderPlanPolicy> = {
     workspaceTemplateLibrary: true,
     starterTemplateMode: "paid",
     shellEditMode: "full",
+    brandedSubdomainEligible: brandedSubdomainEligible("agency"),
+    customDomainEligible: customDomainEligible("agency"),
   },
   network: {
     plan: "network",
@@ -58,6 +72,8 @@ const BUILDER_PLAN_POLICY: Record<BuilderWorkspacePlan, BuilderPlanPolicy> = {
     workspaceTemplateLibrary: true,
     starterTemplateMode: "paid",
     shellEditMode: "full",
+    brandedSubdomainEligible: brandedSubdomainEligible("network"),
+    customDomainEligible: customDomainEligible("network"),
   },
   legacy: {
     plan: "legacy",
@@ -66,6 +82,8 @@ const BUILDER_PLAN_POLICY: Record<BuilderWorkspacePlan, BuilderPlanPolicy> = {
     workspaceTemplateLibrary: true,
     starterTemplateMode: "paid",
     shellEditMode: "full",
+    brandedSubdomainEligible: brandedSubdomainEligible("legacy"),
+    customDomainEligible: customDomainEligible("legacy"),
   },
 };
 
@@ -121,6 +139,12 @@ export function builderPlanAllows(
   if (capability === "builder.section.body.edit") return true;
   if (capability === "builder.shell.edit") {
     return policy.shellEditMode !== "locked";
+  }
+  if (capability === "builder.domain.subdomain") {
+    return policy.brandedSubdomainEligible;
+  }
+  if (capability === "builder.domain.custom") {
+    return policy.customDomainEligible;
   }
   return false;
 }

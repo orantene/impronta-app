@@ -36,6 +36,10 @@ import {
   saveHomepageDraftComposition,
   loadHomepageForStaff,
 } from "@/lib/site-admin/server/homepage";
+import {
+  createAndInsertSectionAction,
+  loadHomepageCompositionAction,
+} from "@/lib/site-admin/edit-mode/composition-actions";
 import { applyThemePreset } from "@/lib/site-admin/server/design";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import {
@@ -63,6 +67,11 @@ export type StarterAvailabilityResult =
       freeStarterSlug: string;
     }
   | { ok: false; error: string };
+
+export type EmptyCanvasQuickInsertState =
+  | { ok: true; sectionTypeKey: SectionTypeKey }
+  | { ok: false; error: string; code?: string }
+  | undefined;
 
 // ── Recipes ───────────────────────────────────────────────────────────────
 
@@ -92,7 +101,7 @@ const RECIPES: Record<string, Recipe> = {
         propsOverride: {
           headline: "Your studio, live in one page.",
           subheadline:
-            "A simple launch page with services, five example profiles, and one clear inquiry CTA.",
+            "A simple launch page with services, featured roster profiles, and one clear inquiry CTA.",
           primaryCta: { label: "Book a call", href: "/contact" },
           secondaryCta: { label: "See profiles", href: "/directory" },
         },
@@ -118,9 +127,9 @@ const RECIPES: Record<string, Recipe> = {
         sectionTypeKey: "featured_talent",
         propsOverride: {
           eyebrow: "Roster",
-          headline: "Five live profiles",
+          headline: "Featured professionals",
           intro:
-            "This section auto-loads real published profiles from your workspace roster, up to five.",
+            "This section auto-loads real published profiles from your workspace roster (up to five on Free).",
           sourceMode: "auto_recent",
           limit: 5,
           columnsDesktop: 3,
@@ -755,6 +764,46 @@ export async function loadStarterAvailability(): Promise<StarterAvailabilityResu
     plan,
     allowedSlugs: resolveStarterTemplateSlugs(plan, Object.keys(RECIPES)),
     freeStarterSlug: DEFAULT_FREE_STARTER_SLUG,
+  };
+}
+
+export async function addEmptyCanvasHeroAction(
+  _prevState: EmptyCanvasQuickInsertState,
+  formData: FormData,
+): Promise<EmptyCanvasQuickInsertState> {
+  const locale = String(formData.get("locale") ?? DEFAULT_PLATFORM_LOCALE);
+  const composition = await loadHomepageCompositionAction({ locale });
+  if (!composition.ok) {
+    return {
+      ok: false,
+      error: composition.error,
+      code: composition.code,
+    };
+  }
+
+  const result = await createAndInsertSectionAction({
+    locale,
+    pageId: composition.data.pageId,
+    expectedVersion: composition.data.pageVersion,
+    metadata: composition.data.metadata,
+    slots: composition.data.slots,
+    builderTree: composition.data.builderTree,
+    targetSlotKey: "hero",
+    insertAfterSortOrder: null,
+    sectionTypeKey: "hero",
+  });
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error,
+      code: result.code,
+    };
+  }
+
+  return {
+    ok: true,
+    sectionTypeKey: "hero",
   };
 }
 

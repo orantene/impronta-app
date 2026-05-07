@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { pgUuidSchema } from "../../validators";
 
 /**
@@ -55,6 +56,15 @@ export const heroSchemaV1 = z.object({
   slides: z.array(heroSlideSchema).max(8).optional(),
   /** Per-slide duration in ms (2s–20s). Applied as CSS animation-duration. */
   autoplayMs: z.number().int().min(2000).max(20000).optional(),
+  /** Optional child-node-level layout/style overrides (Phase 4 bridge). */
+  nodePresentation: z
+    .object({
+      headline: nodePresentationSchema,
+      subheadline: nodePresentationSchema,
+      primaryCta: nodePresentationSchema,
+      secondaryCta: nodePresentationSchema,
+    })
+    .optional(),
   /** M8 — shared presentation controls. */
   presentation: sectionPresentationSchema,
 });

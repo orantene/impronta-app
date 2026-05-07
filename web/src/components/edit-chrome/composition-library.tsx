@@ -51,6 +51,7 @@ import { createPortal } from "react-dom";
 import { useEditContext } from "./edit-context";
 import { SectionWire } from "./starter-wireframes";
 import { CHROME, Drawer, DrawerHead, DrawerBody } from "./kit";
+import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 
 // Category → tab label. Ordering follows the §8 mockup left-to-right
 // rhythm: hero opens, trust + proof, showcase + story (the bulk),
@@ -168,10 +169,16 @@ export function CompositionLibraryOverlay() {
   // set. If the slot specifies allowedSectionTypes, advanced toggle still
   // applies but is meaningless if all allowed types are default-tier.
   const slotFiltered = useMemo(() => {
-    if (!slotDef?.allowedSectionTypes) return library;
-    const allowed = new Set(slotDef.allowedSectionTypes);
-    return library.filter((l) => allowed.has(l.typeKey));
-  }, [library, slotDef]);
+    if (!libraryTarget) return library;
+    if (!slotDef) return library;
+    return library.filter((entry) =>
+      checkSlotTypeCompatibility({
+        slotDefs,
+        targetSlotKey: libraryTarget.slotKey,
+        sectionTypeKey: entry.typeKey,
+      }).ok,
+    );
+  }, [library, libraryTarget, slotDef, slotDefs]);
 
   const trimmedQuery = query.trim().toLowerCase();
   const isSearching = trimmedQuery.length > 0;

@@ -21,6 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Locale } from "@/i18n/config";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
+import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/legacy-section-tree";
 
 export type ShellRepublishResult =
   | { ok: true; applied: true; sectionCount: number; pageVersion: number }
@@ -153,6 +154,7 @@ export async function republishSiteShellSnapshot(
     },
     templateSchemaVersion: shell.template_schema_version ?? 1,
     slots,
+    builderTree: buildLegacySectionBuilderTree(slots),
   };
   const { error: updErr } = await supabase
     .from("cms_pages")

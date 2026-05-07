@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
+import { nodePresentationSchema } from "../shared/node-presentation";
 
 /**
  * Testimonials trio — three elegant quote cards with a palette accent
@@ -35,6 +36,13 @@ export const testimonialsTrioSchemaV1 = z.object({
     .default("trio-card"),
   /** Default accent when items don't set one. `auto` cycles. */
   defaultAccent: accentSchema.default("auto"),
+  /** Optional child-node-level overrides for eyebrow/headline roles. */
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   /** M8 — shared presentation controls. */
   presentation: sectionPresentationSchema,
 });

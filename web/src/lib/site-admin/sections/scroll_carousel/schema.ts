@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const slideSchema = z.object({
@@ -16,6 +17,12 @@ export const scrollCarouselSchemaV1 = z.object({
   /** Card width in vw (5..40). */
   cardWidthVw: z.number().min(5).max(40).default(28),
   showProgress: z.boolean().default(true),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

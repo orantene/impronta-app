@@ -17,7 +17,7 @@
  * lives in an "Advanced" disclosure at the bottom.
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   KIT,
@@ -35,6 +35,7 @@ import {
   type DragHandleProps,
 } from "./kit";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
 type IconKey = (typeof CATEGORY_ICON_KEYS)[number];
 type Variant = "portrait-masonry" | "horizontal-scroll" | "small-icon-list";
@@ -50,6 +51,7 @@ interface Item {
 interface Props {
   draftProps: Record<string, unknown>;
   tenantId: string;
+  selectedBuilderNodeId: string | null;
   onChange: (next: Record<string, unknown>) => void;
 }
 
@@ -83,6 +85,7 @@ function cleanObject<T extends Record<string, unknown>>(o: T): T {
 export function CategoryGridContentInspector({
   draftProps,
   tenantId,
+  selectedBuilderNodeId,
   onChange,
 }: Props) {
   const eyebrow = (draftProps.eyebrow as string | undefined) ?? "";
@@ -92,6 +95,31 @@ export function CategoryGridContentInspector({
   const variant = (draftProps.variant as Variant | undefined) ?? "portrait-masonry";
   const columnsDesktop = (draftProps.columnsDesktop as number | undefined) ?? 4;
   const footerCta = (draftProps.footerCta as CtaShape | undefined) ?? null;
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const focusRole = useMemo(() => {
+    if (!selectedBuilderNodeId) return null;
+    const role = resolveBuilderNodeRole(selectedBuilderNodeId);
+    if (role === "subheadline") return "subheadline";
+    if (role === "headline") return "headline";
+    if (role === "copy") return "copy";
+    if (role === "footerCta") return "footerCta";
+    return null;
+  }, [selectedBuilderNodeId]);
+
+  useEffect(() => {
+    if (!focusRole) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-category-grid-node-role="${focusRole}"]`,
+    );
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const focusable = target.querySelector<HTMLElement>(
+      "[contenteditable='true'],input,textarea,select,button",
+    );
+    focusable?.focus({ preventScroll: true });
+  }, [focusRole]);
 
   function update(patch: Record<string, unknown>) {
     onChange(cleanObject({ ...draftProps, ...patch }));
@@ -121,9 +149,28 @@ export function CategoryGridContentInspector({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={rootRef} className="flex flex-col gap-6">
+      {focusRole ? (
+        <div
+          className="rounded-lg border px-3 py-2 text-xs font-medium"
+          style={{
+            borderColor: "#bfdbfe",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+          }}
+        >
+          Editing selected canvas node:{" "}
+          {focusRole === "subheadline"
+            ? "Eyebrow"
+            : focusRole === "headline"
+              ? "Headline"
+              : focusRole === "copy"
+                ? "Intro copy"
+                : "Footer CTA"}
+        </div>
+      ) : null}
       <InspectorGroup title="Header" storageKey="category_grid:header">
-        <div className={KIT.field}>
+        <div className={KIT.field} data-category-grid-node-role="subheadline">
           <label className={KIT.label}>Eyebrow</label>
           <input
             type="text"
@@ -134,7 +181,7 @@ export function CategoryGridContentInspector({
             onChange={(e) => update({ eyebrow: e.target.value || undefined })}
           />
         </div>
-        <div className={KIT.field}>
+        <div className={KIT.field} data-category-grid-node-role="headline">
           <label className={KIT.label}>Headline</label>
           <RichEditor
             value={headline}
@@ -145,7 +192,7 @@ export function CategoryGridContentInspector({
             ariaLabel="Headline"
           />
         </div>
-        <div className={KIT.field}>
+        <div className={KIT.field} data-category-grid-node-role="copy">
           <label className={KIT.label}>Intro copy</label>
           <RichEditor
             value={copy}
@@ -195,13 +242,15 @@ export function CategoryGridContentInspector({
         storageKey="category_grid:footer"
         defaultOpen={Boolean(footerCta)}
       >
-        <CtaDuoEditor
-          primary={footerCta}
-          secondary={null}
-          onChangePrimary={(next) => update({ footerCta: next ?? undefined })}
-          onChangeSecondary={() => {}}
-          secondaryAddLabel="(not used on this section)"
-        />
+        <div data-category-grid-node-role="footerCta">
+          <CtaDuoEditor
+            primary={footerCta}
+            secondary={null}
+            onChangePrimary={(next) => update({ footerCta: next ?? undefined })}
+            onChangeSecondary={() => {}}
+            secondaryAddLabel="(not used on this section)"
+          />
+        </div>
       </InspectorGroup>
 
       <InspectorGroup

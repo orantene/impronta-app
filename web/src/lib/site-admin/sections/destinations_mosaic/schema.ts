@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -28,6 +29,13 @@ export const destinationsMosaicSchemaV1 = z.object({
   variant: z
     .enum(["portrait-mosaic", "tile-grid", "map-inspired"])
     .default("portrait-mosaic"),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   /** M8 — shared presentation controls. */
   presentation: sectionPresentationSchema,
 });

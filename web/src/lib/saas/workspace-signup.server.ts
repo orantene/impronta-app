@@ -109,6 +109,7 @@ async function findOwnedFreeWorkspace(
 async function ensureWorkspaceScaffold(params: {
   tenantId: string;
   displayName: string;
+  actorProfileId: string;
 }): Promise<void> {
   const admin = createServiceRoleClient();
   if (!admin) return;
@@ -149,7 +150,11 @@ async function ensureWorkspaceScaffold(params: {
     logServerError("workspace-signup.ensureWorkspaceScaffold.branding", brandingError);
   }
 
-  const starter = await onboardStarterContent(admin, { tenantId: params.tenantId });
+  const starter = await onboardStarterContent(admin, {
+    tenantId: params.tenantId,
+    actorProfileId: params.actorProfileId,
+    seedFreeStarter: true,
+  });
   if (!starter.ok) {
     logServerError(
       "workspace-signup.ensureWorkspaceScaffold.homepage",
@@ -380,6 +385,7 @@ export async function provisionWorkspaceFromLead(params: {
       await ensureWorkspaceScaffold({
         tenantId: data.id,
         displayName: data.display_name,
+        actorProfileId: params.userId,
       });
       return {
         ok: true,
@@ -399,6 +405,7 @@ export async function provisionWorkspaceFromLead(params: {
     await ensureWorkspaceScaffold({
       tenantId: existingFree.tenantId,
       displayName: existingFree.displayName,
+      actorProfileId: params.userId,
     });
     await attachLeadToTenant({
       leadId: lead.id,
@@ -509,6 +516,7 @@ export async function provisionWorkspaceFromLead(params: {
   await ensureWorkspaceScaffold({
     tenantId: agency.id,
     displayName: agency.display_name,
+    actorProfileId: params.userId,
   });
   await attachLeadToTenant({
     leadId: lead.id,

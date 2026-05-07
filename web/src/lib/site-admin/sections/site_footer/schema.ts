@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -67,6 +68,12 @@ export const siteFooterSchemaV1 = z.object({
   variant: z.enum(["standard", "compact", "rich"]).default("standard"),
   /** Tone — light surface, deep canvas, or follow page tone. */
   tone: z.enum(["follow", "light", "deep"]).default("follow"),
+  nodePresentation: z
+    .object({
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

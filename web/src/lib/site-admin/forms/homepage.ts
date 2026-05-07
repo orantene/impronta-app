@@ -209,6 +209,11 @@ export const homepageSaveDraftSchema = z.object({
   expectedVersion: z.number().int().min(0),
   metadata: homepageMetadataSchema,
   slots: homepageSlotsSchema,
+  /**
+   * Phase 4 builder foundation payload. Kept optional because legacy callers
+   * (composer + older edit shells) still save slot-only snapshots.
+   */
+  builderTree: z.unknown().optional(),
 });
 
 export type HomepageSaveDraftInput = z.input<typeof homepageSaveDraftSchema>;

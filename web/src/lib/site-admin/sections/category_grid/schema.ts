@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 /**
@@ -62,6 +63,15 @@ export const categoryGridSchemaV1 = z.object({
     .object({
       label: z.string().min(1).max(60),
       href: z.string().min(1).max(500),
+    })
+    .optional(),
+  /** Optional child-node-level overrides for header/footer CTA roles. */
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+      footerCta: nodePresentationSchema,
     })
     .optional(),
   /** M8 — shared presentation controls. */

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { pgUuidSchema } from "../../validators";
 
 /**
@@ -43,6 +44,16 @@ export const ctaBannerSchemaV1 = z.object({
   bandTone: z.enum(["ivory", "champagne", "espresso", "blush"]).default("ivory"),
   /** Wrap the banner in an inset card? (Muse Bridal uses this.) */
   insetCard: z.boolean().default(true),
+  /** Optional child-node-level layout/style overrides (Phase 4 bridge). */
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+      copy: nodePresentationSchema,
+      primaryCta: nodePresentationSchema,
+      secondaryCta: nodePresentationSchema,
+    })
+    .optional(),
   /** M8 — shared presentation controls. */
   presentation: sectionPresentationSchema,
 });

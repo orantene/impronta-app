@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
 const postSchema = z.object({
@@ -17,6 +18,12 @@ export const blogIndexSchemaV1 = z.object({
   posts: z.array(postSchema).min(1).max(24),
   variant: z.enum(["cards", "list", "magazine"]).default("cards"),
   columnsDesktop: z.number().int().min(2).max(4).default(3),
+  nodePresentation: z
+    .object({
+      subheadline: nodePresentationSchema,
+      headline: nodePresentationSchema,
+    })
+    .optional(),
   presentation: sectionPresentationSchema,
 });
 

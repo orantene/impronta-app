@@ -21,7 +21,8 @@
  *   6. Grid tuning (limit, columns, variant) in Advanced.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
 import {
   KIT,
@@ -38,7 +39,6 @@ import {
   resolveTalentByCodesAction,
   type TalentSearchHit,
 } from "@/lib/site-admin/edit-mode/talent-search";
-import { useEffect } from "react";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 type SourceMode =
@@ -52,6 +52,7 @@ type Variant = "grid" | "carousel";
 interface Props {
   draftProps: Record<string, unknown>;
   tenantId: string;
+  selectedBuilderNodeId: string | null;
   onChange: (next: Record<string, unknown>) => void;
 }
 
@@ -99,6 +100,7 @@ function cleanObject<T extends Record<string, unknown>>(o: T): T {
 export function FeaturedTalentContentInspector({
   draftProps,
   tenantId,
+  selectedBuilderNodeId,
   onChange,
 }: Props) {
   const eyebrow = (draftProps.eyebrow as string | undefined) ?? "";
@@ -116,6 +118,7 @@ export function FeaturedTalentContentInspector({
   const columnsDesktop = (draftProps.columnsDesktop as number | undefined) ?? 3;
   const variant = (draftProps.variant as Variant | undefined) ?? "grid";
   const footerCta = (draftProps.footerCta as CtaShape | undefined) ?? null;
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   // Per-mode stash. If the operator fills manual codes, switches to
   // by-service, the codes would otherwise be dropped on the next save.
@@ -130,6 +133,38 @@ export function FeaturedTalentContentInspector({
     auto_by_service: filterServiceSlug,
     auto_by_destination: filterDestinationSlug,
   });
+
+  const focusRole = useMemo(() => {
+    if (!selectedBuilderNodeId) return null;
+    const role = resolveBuilderNodeRole(selectedBuilderNodeId);
+    if (role === "subheadline" || role === "headline" || role === "copy" || role === "footerCta") {
+      return role;
+    }
+    return null;
+  }, [selectedBuilderNodeId]);
+
+  const focusLabel = useMemo(() => {
+    if (focusRole === "subheadline") return "Eyebrow";
+    if (focusRole === "headline") return "Headline";
+    if (focusRole === "copy") return "Intro copy";
+    if (focusRole === "footerCta") return "Footer link";
+    return null;
+  }, [focusRole]);
+
+  useEffect(() => {
+    if (!focusRole) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const target = root.querySelector<HTMLElement>(
+      `[data-featured-talent-node-role="${focusRole}"]`,
+    );
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const focusable = target.querySelector<HTMLElement>(
+      "[contenteditable='true'],input,textarea,select,button",
+    );
+    focusable?.focus({ preventScroll: true });
+  }, [focusRole]);
 
   function update(patch: Record<string, unknown>) {
     onChange(cleanObject({ ...draftProps, ...patch }));
@@ -165,9 +200,21 @@ export function FeaturedTalentContentInspector({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={rootRef} className="flex flex-col gap-6">
+      {focusRole && focusLabel ? (
+        <div
+          className="rounded-lg border px-3 py-2 text-xs font-medium"
+          style={{
+            borderColor: "#bfdbfe",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+          }}
+        >
+          Editing selected canvas node: {focusLabel}
+        </div>
+      ) : null}
       <InspectorGroup title="Header" storageKey="featured_talent:header">
-        <div className={KIT.field}>
+        <div className={KIT.field} data-featured-talent-node-role="subheadline">
           <label className={KIT.label}>Eyebrow</label>
           <input
             type="text"
@@ -178,7 +225,7 @@ export function FeaturedTalentContentInspector({
             onChange={(e) => update({ eyebrow: e.target.value || undefined })}
           />
         </div>
-        <div className={KIT.field}>
+        <div className={KIT.field} data-featured-talent-node-role="headline">
           <label className={KIT.label}>Headline</label>
           <RichEditor
             value={headline}
@@ -189,7 +236,7 @@ export function FeaturedTalentContentInspector({
             ariaLabel="Headline"
           />
         </div>
-        <div className={KIT.field}>
+        <div className={KIT.field} data-featured-talent-node-role="copy">
           <label className={KIT.label}>Intro copy</label>
           <RichEditor
             value={copy}
@@ -269,6 +316,7 @@ export function FeaturedTalentContentInspector({
           onChangePrimary={(next) => update({ footerCta: next ?? undefined })}
           onChangeSecondary={() => {}}
           secondaryAddLabel="(not used on this section)"
+          primaryNodeRole="footerCta"
         />
       </InspectorGroup>
 
