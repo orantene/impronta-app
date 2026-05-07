@@ -496,10 +496,15 @@ const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "team" | "user" |
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
-  const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests } = useProto();
+  const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests, overviewMetrics } = useProto();
   const pendingVerifications = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
   ).length;
+  // When bridge data is available use its authoritative pending count so the nav
+  // badge doesn't echo the mock PENDING_TALENT array (which has 3 fake items).
+  const effectivePendingTalentCount = overviewMetrics !== null
+    ? (overviewMetrics.pendingApprovals ?? 0)
+    : pendingTalent.length;
   // WS-3.2 — "workspace" is now "settings"; check both for backward compat
   const isSettingsActive = state.page === "settings" || state.page === "workspace";
   const canCreate = meetsRole(state.role, "editor");
@@ -555,8 +560,8 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
             // signal: pending self-registrations (amber) and pending IG/
             // Tulala verifications (indigo) render as separate sub-dots so
             // admins can tell at a glance which queue needs attention.
-            const showRosterBadges = p === "roster" && (pendingTalent.length + pendingVerifications) > 0;
-            const pageBadge = p === "roster" ? (pendingTalent.length + pendingVerifications) : 0;
+            const showRosterBadges = p === "roster" && (effectivePendingTalentCount + pendingVerifications) > 0;
+            const pageBadge = p === "roster" ? (effectivePendingTalentCount + pendingVerifications) : 0;
             return (
               <button
                 key={p}
@@ -590,25 +595,24 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
                 {/* WS-3.2 — "roster" inherits the entity-type label (Talent/Models/Artists) */}
                 {p === "roster" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
                 {showRosterBadges ? (
-                  <span aria-label={`${pendingTalent.length} pending approvals · ${pendingVerifications} pending verifications`}
-                    title={`${pendingTalent.length} pending approval${pendingTalent.length === 1 ? "" : "s"} · ${pendingVerifications} pending verification${pendingVerifications === 1 ? "" : "s"}`}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                    {pendingTalent.length > 0 && (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
-                        background: COLORS.amber, color: "#fff",
-                        fontSize: 10, fontWeight: 700, lineHeight: 1,
-                      }}>{pendingTalent.length}</span>
-                    )}
-                    {pendingVerifications > 0 && (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
-                        background: COLORS.indigo, color: "#fff",
-                        fontSize: 10, fontWeight: 700, lineHeight: 1,
-                      }}>{pendingVerifications}</span>
-                    )}
+                  // Single combined badge — total pending actions. Tooltip
+                  // breaks down approvals vs. verifications on hover.
+                  <span
+                    aria-label={`${effectivePendingTalentCount + pendingVerifications} items need attention`}
+                    title={(() => {
+                      const parts: string[] = [];
+                      if (effectivePendingTalentCount > 0) parts.push(`${effectivePendingTalentCount} self-registration${effectivePendingTalentCount === 1 ? "" : "s"} awaiting review`);
+                      if (pendingVerifications > 0) parts.push(`${pendingVerifications} verification${pendingVerifications === 1 ? "" : "s"} pending`);
+                      return parts.join(" · ");
+                    })()}
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
+                      background: COLORS.amber, color: "#fff",
+                      fontSize: 10, fontWeight: 700, lineHeight: 1,
+                    }}
+                  >
+                    {effectivePendingTalentCount + pendingVerifications}
                   </span>
                 ) : pageBadge > 0 && (
                   <span
@@ -1353,7 +1357,7 @@ export function TulalaIdentityBar() {
               alignItems: "flex-start",
               minWidth: 0,
               overflow: "hidden",
-              maxWidth: 180,
+              maxWidth: 220,
             }}
           >
             <span style={{
@@ -4909,7 +4913,7 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster } = useProto();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics } = useProto();
   // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
   // the server pre-fetches Impronta's roster and `effectiveRoster` is
   // those rows. When absent, this falls back to `getRoster(plan)` per
@@ -4973,7 +4977,9 @@ function TalentPage() {
       .filter((x): x is TaxonomyParentId => x !== null)
   ));
 
-  const pendingCount = pendingTalent.length;
+  const pendingCount = overviewMetrics !== null
+    ? (overviewMetrics.pendingApprovals ?? 0)
+    : pendingTalent.length;
 
   const exportCsv = () => {
     downloadCsv(
@@ -6096,7 +6102,7 @@ function RosterCard({
             </span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-            {typeMeta?.label ?? "No type set"}
+            {typeMeta?.label ?? profile.primaryType ?? "No type set"}
             {typeMeta?.specialty && (
               <span style={{ color: COLORS.inkMuted, fontWeight: 500 }}>
                 {" · "}{typeMeta.specialty}
@@ -6370,7 +6376,7 @@ function RosterRow({
             </span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-            {typeMeta?.label ?? "No type"}
+            {typeMeta?.label ?? profile.primaryType ?? "No type"}
             {typeMeta?.specialty && <span style={{ color: COLORS.inkDim }}>{" · "}{typeMeta.specialty}</span>}
             {profile.city && <span style={{ color: COLORS.inkDim }}>{" · "}{profile.city}</span>}
           </span>

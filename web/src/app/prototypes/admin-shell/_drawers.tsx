@@ -11506,7 +11506,17 @@ function NewTalentDrawer() {
           {method !== "invited" && method !== "agency" && (
             <SecondaryButton onClick={continueEditing}>Continue editing</SecondaryButton>
           )}
-          <PrimaryButton onClick={primaryAction.run}>{primaryAction.label}</PrimaryButton>
+          <span
+            title={!primaryAction.enabled && !isPending ? "Pick a primary type and home base to continue" : undefined}
+            style={{ display: "inline-flex" }}
+          >
+            <PrimaryButton
+              onClick={primaryAction.run}
+              disabled={!primaryAction.enabled}
+            >
+              {primaryAction.label}
+            </PrimaryButton>
+          </span>
         </>
       }
     >
@@ -11700,6 +11710,28 @@ function NewTalentDrawer() {
 
       {/* Talent Type */}
       <Section title="Primary Talent Type" framed>
+        {/* Sticky confirmation — shows immediately after picking so the
+            operator knows the selection registered without needing to scroll */}
+        {primaryType && (() => {
+          const match = allowedParents.flatMap(p => p.children.map(c => ({ parent: p, child: c }))).find(x => x.child.id === primaryType);
+          return match ? (
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "5px 10px 5px 7px", borderRadius: 999,
+              background: "rgba(11,11,13,0.06)", border: `1px solid ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: COLORS.ink,
+              marginBottom: 10,
+            }}>
+              <span style={{ color: COLORS.green, fontSize: 11 }}>✓</span>
+              <span>{match.child.label}</span>
+              <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>under {match.parent.label}</span>
+              <button type="button" onClick={() => setPrimaryType(null)} style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: COLORS.inkMuted, fontSize: 13, padding: 0, lineHeight: 1,
+              }} title="Clear selection">×</button>
+            </div>
+          ) : null;
+        })()}
         <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
           What clients book this person as. Add secondary roles below — this matches what registration collects.
         </div>
@@ -11906,6 +11938,26 @@ function NewTalentDrawer() {
         </div>
       </Section>
         </>
+      )}
+
+      {/* Inline hint when required fields aren't filled yet */}
+      {addMode === "single" && !minimumValid && (firstName.trim() || lastName.trim()) && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "10px 14px", borderRadius: 8,
+          background: "rgba(11,11,13,0.04)",
+          fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
+          marginTop: 4,
+        }}>
+          <span style={{ flexShrink: 0 }}>ℹ</span>
+          <span>
+            {!primaryType && !homeBase.trim()
+              ? "Pick a primary type and home base to continue"
+              : !primaryType
+                ? "Pick a primary type to continue"
+                : "Enter a home base to continue"}
+          </span>
+        </div>
       )}
 
       {/* #11 — Paste-anywhere fallback when clipboard.readText is denied */}

@@ -198,6 +198,7 @@ type RosterRow = {
           taxonomy_terms: {
             term_type: string | null;
             slug: string | null;
+            name_en: string | null;
           } | null;
         }[]
       | null;
@@ -217,6 +218,8 @@ type RosterRow = {
           sort_order: number | null;
           deleted_at: string | null;
           approval_state: string | null;
+          width: number | null;
+          height: number | null;
         }[]
       | null;
   } | null;
@@ -224,7 +227,11 @@ type RosterRow = {
 
 /**
  * Pick the talent's representative thumb from a list of media_assets.
- * Preference: card variant > original > anything else, ordered by sort_order.
+ * Preference order:
+ *   1. Variant: card > original > anything else
+ *   2. Orientation: portrait (height > width) before landscape
+ *   3. Sort order (ascending)
+ *
  * Filters out deleted + non-approved rows. Returns undefined if no usable
  * asset exists — roster card primitive handles that gracefully.
  */
@@ -236,15 +243,22 @@ function pickPrimaryThumb(
     (a) => !a.deleted_at && a.approval_state === "approved",
   );
   if (usable.length === 0) return undefined;
-  // Prefer card → original → anything; within that, prefer lower sort_order.
-  const rank = (kind: string | null) => {
+  const variantRank = (kind: string | null) => {
     if (kind === "card") return 0;
     if (kind === "original") return 1;
     return 2;
   };
+  // Portrait = height >= width. Landscape penalised so portrait assets win.
+  const orientRank = (a: { width: number | null; height: number | null }) => {
+    const w = a.width ?? 0;
+    const h = a.height ?? 0;
+    return w > 0 && h > 0 && h >= w ? 0 : 1;
+  };
   usable.sort((a, b) => {
-    const r = rank(a.variant_kind) - rank(b.variant_kind);
-    if (r !== 0) return r;
+    const vr = variantRank(a.variant_kind) - variantRank(b.variant_kind);
+    if (vr !== 0) return vr;
+    const or = orientRank(a) - orientRank(b);
+    if (or !== 0) return or;
     return (a.sort_order ?? 0) - (b.sort_order ?? 0);
   });
   return usable[0]?.storage_path;
@@ -261,9 +275,12 @@ function deriveProfileState(row: RosterRow): TalentProfile["state"] {
   const profileWorkflow = row.talent_profiles?.workflow_status ?? null;
 
   if (rosterStatus === "pending") return "awaiting-approval";
-  if (rosterStatus === "active" && profileWorkflow === "published") {
+  // DB uses 'approved' (not 'published') — both map to the "published" UI
+  // state which means the talent is live and visible to clients.
+  if (rosterStatus === "active" && (profileWorkflow === "approved" || profileWorkflow === "published")) {
     return "published";
   }
+  if (profileWorkflow === "submitted" || profileWorkflow === "under_review") return "awaiting-approval";
   if (profileWorkflow === "draft") return "draft";
   if (profileWorkflow === "invited") return "invited";
   return "draft";
@@ -282,10 +299,11 @@ function deriveDisplayName(
 }
 
 /**
- * Read the talent's primary role slug. The unique partial index
- * `ux_talent_profile_taxonomy_one_primary` (migration 20260801120100)
- * guarantees at most one row per profile with
- * `relationship_type='primary_role'`, so `find()` is safe.
+ * Read the talent's primary role. Returns the taxonomy_terms slug so the
+ * card renderer can match against the local TAXONOMY fixture for emoji +
+ * specialties. Falls back to name_en when the slug doesn't appear in the
+ * fixture (DB taxonomy was seeded independently, so slugs may diverge).
+ * The card's "No type set" fallback is rendered when this returns undefined.
  */
 function derivePrimaryType(
   profile: NonNullable<RosterRow["talent_profiles"]>,
@@ -294,7 +312,10 @@ function derivePrimaryType(
   const primary = taxonomy.find(
     (t) => t.relationship_type === "primary_role",
   );
-  return primary?.taxonomy_terms?.slug ?? undefined;
+  const slug = primary?.taxonomy_terms?.slug;
+  // Return the name_en as a display fallback — the card renderer shows it
+  // directly when TAXONOMY.children.find(c => c.id === slug) returns null.
+  return slug ?? primary?.taxonomy_terms?.name_en ?? undefined;
 }
 
 /**
@@ -367,7 +388,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
           height_cm,
           talent_profile_taxonomy (
             relationship_type,
-            taxonomy_terms ( term_type, slug )
+            taxonomy_terms ( term_type, slug, name_en )
           ),
           talent_service_areas (
             service_kind,
@@ -378,7 +399,9 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
             variant_kind,
             sort_order,
             deleted_at,
-            approval_state
+            approval_state,
+            width,
+            height
           )
         )
         `,
