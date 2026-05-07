@@ -51,13 +51,13 @@ export default async function AccountRedirectPage() {
   }
 
   if (isStaffRole(profile.app_role)) {
-    redirect("/admin/account");
+    redirect("/admin");
   }
   if (profile.app_role === "talent") {
-    redirect("/talent/account");
+    redirect("/talent");
   }
   if (profile.app_role === "client") {
-    redirect("/client/account");
+    redirect("/client");
   }
 
   // Fallback — unknown role, bounce to home.

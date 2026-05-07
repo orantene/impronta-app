@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
-import { MergeGuestFavorites } from "@/app/(dashboard)/client/merge-guest";
+import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { DirectoryAnalyticsMount } from "@/components/analytics/directory-analytics-mount";
 import { DirectoryDiscoverSection } from "@/components/directory/directory-discover-section";
 import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquiry-url-sync";

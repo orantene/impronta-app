@@ -70,15 +70,13 @@ test("admin-scope helpers are the single tenant-aware guard for admin actions", 
 });
 
 test("admin inquiry/booking action files delegate through requireStaffTenantAction", () => {
+  // Phase 4: canonical server-action files that own inquiry/booking writes.
+  // The legacy (dashboard)/ route group has been deleted; these canonical paths
+  // are the new source of truth. Keeping this test ensures future refactors
+  // can't accidentally drop the guard without an explicit allow-list change here.
   const mustUseGuard = [
-    "src/app/(dashboard)/admin/actions.ts",
-    "src/app/(dashboard)/admin/bookings/actions.ts",
-    "src/app/(dashboard)/admin/inquiries/[id]/coordinator-actions.ts",
-    "src/app/(dashboard)/admin/inquiries/[id]/messaging-actions.ts",
-    "src/app/(dashboard)/admin/inquiries/[id]/offer-actions.ts",
-    "src/app/(dashboard)/admin/inquiries/[id]/roster-actions.ts",
-    "src/app/(dashboard)/admin/inquiries/[id]/workspace-flow-actions.ts",
-    "src/app/(dashboard)/admin/inquiries/[id]/convert-booking-actions.ts",
+    "src/lib/server-actions/admin-inquiries.ts",
+    "src/lib/server-actions/admin-bookings.ts",
   ];
   for (const rel of mustUseGuard) {
     const body = readFileSync(join(WEB_ROOT, rel), "utf8");

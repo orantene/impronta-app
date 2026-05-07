@@ -73,10 +73,10 @@ export async function HeaderAuthArea({
     : destination === "/onboarding/role"
       ? { href: "/onboarding/role", label: t("public.header.finishSetup") }
       : isStaffRole(profile?.app_role)
-        ? { href: "/admin/inquiries", label: t("public.header.inquiries") }
+        ? { href: "/admin", label: t("public.header.inquiries") }
         : profile?.app_role === "talent"
-          ? { href: "/talent/edit-profile", label: t("public.header.myProfile") }
-          : { href: "/client/overview", label: t("public.header.dashboard") };
+          ? { href: "/talent", label: t("public.header.myProfile") }
+          : { href: "/client", label: t("public.header.dashboard") };
 
   const savedIds = showDiscoveryTools ? await getSavedTalentIds() : [];
 

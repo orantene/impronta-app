@@ -296,5 +296,5 @@ export async function completeTalentLocationOnboarding(
   if (rosterResult.error) {
     return { error: rosterResult.error };
   }
-  redirect(rosterResult.destination ?? "/talent/my-profile");
+  redirect(rosterResult.destination ?? "/talent");
 }
