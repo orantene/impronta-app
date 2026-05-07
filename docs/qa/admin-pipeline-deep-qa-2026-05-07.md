@@ -409,13 +409,37 @@ No Vercel push until the marathon completes its full run and the user gives go.
   `convertToBooking` already exist in `inquiry-engine.ts`, and the proper
   atomic `engine_convert_to_booking` RPC is in DB. B3's "missing actions"
   is reduced to just `talentSubmitRate` (still missing).
-- **rev 4 (this commit)** — full marathon: B2 final (convert-to-booking
+- **rev 4 (b9fd134d)** — full marathon: B2 final (convert-to-booking
   via atomic RPC), B6 PaymentTab live state + 5 wired transitions,
   B3 OfferTab LiveOfferPanel + create/send/approve/reject, B4 FilesTab
   LiveFilesPanel + soft-delete, ClientProfileDrawer → createClientAccount,
   TalentProfileDrawer → updateTalentIdentity. New `_pipeline-actions.ts`
   module hosts the engine wrappers. D3 root cause identified
   (architectural fix deferred). B8 lineup wiring deferred (UI rewrite scope).
+- **rev 5 (this commit)** — gap-closing pass:
+  - **D3 fixed** — shell is now route-aware. `ConditionalPrototypeRoot`
+    detects canonical paths (currently `/admin/work/[id]`) and skips the
+    SPA overlay so the canonical page renders.
+  - **`talentSubmitRate` moved to engine** — proper permissions (staff or
+    self-only), version safety, OFFER_DRAFT_UPDATED event, activity log.
+  - **`counterOffer` engine helper** — supersedes a rejected offer with
+    a fresh draft inheriting currency. Wrapped as `counterOfferAction`,
+    surfaced in LiveOfferPanel when offer.status === "rejected".
+  - **Transaction creation + payout state machine fully wired** —
+    PaymentTab now exposes Create draft / Request payment / Mark received /
+    Initiate payout / Mark payout sent / Mark disputed / Mark failed /
+    Cancel. Each visible only at the correct prior status.
+  - **ClientProfileDrawer edit path** — wires `updateAdminClientProfile`
+    when the row id is a real auth user UUID.
+  - **B8 lineup** — `LiveLineupPanel` lists real `inquiry_participants`
+    rows and exposes Remove + Add by talent UUID (full picker deferred).
+  - **A5 markThreadRead** — fires on Client/Talent tab open in
+    `AdminInquiryDetail` for real inquiries.
+  - **A6 pin/archive/manuallyUnread** — local toggles now also persist
+    to `inquiry_user_flags` for real inquiries; `archiveInquiry` exposed
+    and wired to the inbox row Archive quick action.
+  - **D4 duplicateBooking** — `LiveBookingActions` panel in the Booking
+    tab calls the canonical action via wrapper.
 
 ---
 
@@ -436,59 +460,58 @@ No Vercel push until the marathon completes its full run and the user gives go.
 | (this)   | B4 | FilesTab LiveFilesPanel + soft-delete via inquiry_attachments |
 | (this)   | H  | ClientProfileDrawer → createClientAccount (new mode) |
 | (this)   | H  | TalentProfileDrawer → updateTalentIdentity (uuid-guarded for mock fallback) |
-| (this)   | new | `_pipeline-actions.ts` module — engine wrappers + load helpers |
+| b9fd134d | new | `_pipeline-actions.ts` module — engine wrappers + load helpers |
+| (this)   | D3  | `ConditionalPrototypeRoot` — shell skips SPA overlay on canonical routes |
+| (this)   | engine | `submitTalentRate` + `counterOffer` added to `inquiry-engine-offers.ts` |
+| (this)   | B6  | Create draft / Request payment / Initiate payout / Mark payout sent wired |
+| (this)   | H   | ClientProfileDrawer edit path → `updateAdminClientProfile` |
+| (this)   | B8  | `LiveLineupPanel` — list + remove + add via real `inquiry_participants` |
+| (this)   | A5  | markThreadRead fires on Client/Talent tab open |
+| (this)   | A6  | pin/archive/manuallyUnread persist to `inquiry_user_flags` for real inquiries |
+| (this)   | D4  | `LiveBookingActions` — Duplicate booking wrapper |
 
-## What's left after the marathon
+## What's still open after rev 5
 
-### Architectural — needs design call
+### Backend gaps that remain
 
-- **D3** — `AdminShellPrototypePageClient` renders both `children` (canonical
-  pages like `/admin/work/[id]/page.tsx`) AND `<PrototypeRoot />` (full-viewport
-  SPA UI) at the same time. The canonical content is rendered but visually
-  obscured. Fix needs route-aware behavior in `_shell-client.tsx` to either
-  skip PrototypeRoot for known canonical paths, or render canonical content
-  in a slot the SPA exposes.
-
-### Backend gaps still missing
-
-- **`talentSubmitRate`** — engine still doesn't expose this; `submitTalentRate`
-  in `_pipeline-actions.ts` writes directly to `inquiry_offer_line_items`
-  for now. Move to `inquiry-engine-offers.ts` once we have permission +
-  event + activity-log wiring.
-- **Counter-offer action** — coordinator-side counter requires creating a
-  superseding offer version; the basic flow works (createOffer + sendOffer
-  on a new draft) but a dedicated `counterOffer` helper would make the
-  call-site cleaner.
-- **`uploadInquiryAttachment`** — FilesTab can list + delete real files but
-  upload still just opens a "choose file" toast. Needs storage signed-url
-  flow (RLS + bucket policies are already in place per
+- **`uploadInquiryAttachment`** — FilesTab can list + delete real files
+  but upload still just opens a "choose file" toast. Needs storage
+  signed-url flow (RLS + bucket policies are already in place per
   `20260907110000_inquiry_attachments.sql`).
-- **Booking transaction creation** — PaymentTab can mutate an existing
-  transaction but can't yet kick off `createTransactionDraftAction` from
-  the prototype. Needs a "Request payment" CTA + a small input drawer.
-- **Default payout receiver** — drawer at `_drawers.tsx:19396` still
-  toast-only; no workspace-default concept exists in the schema (per-
-  transaction selection is the model).
+- **`rosterReorderParticipant`** — engine helper exists but no UI in the
+  prototype. The lineup panel renders rows in invited_at order with no
+  drag handles.
+- **B8 talent picker** — Add-by-UUID input is staff-friendly but not
+  end-user-friendly; needs a roster picker with thumbs + types.
+- **Default payout receiver** — schema is per-transaction; no workspace
+  default. The drawer still toasts. Real model: select receiver inside
+  PaymentTab when transitioning to payout.
+- **Bulk inquiry/booking ops** — archive / restore from list views isn't
+  wired.
 
-### Smaller scope follow-ups
+### UI polish / small follow-ups
 
-- **B8 lineup** — `rosterAddTalent` / `rosterMoveParticipant` /
-  `rosterRemoveParticipant` exist but no prototype CTAs call them. Each
-  "Add talent" button (~10 occurrences) is still toast-only. Needs a
-  reusable talent-picker.
-- **ClientProfileDrawer edit path** — only the new-client path is wired;
-  editing an existing client still falls through to the toast. Need to
-  pick or build a client-account update action.
-- **A5 markThreadRead** — fire on tab open / scroll-to-bottom.
-- **A6 Pin / Archive** — quick actions still mocked.
 - **B5 LogisticsTab** — toast stubs (call sheet etc.). Defer until
   `call_sheets` schema direction confirmed.
 - **C4** — Drag-to-reschedule calendar (not implemented).
 - **C5** — Calendar StatusStrip mock+real double-counting risk.
-- **D4** — `duplicateBooking` UI.
 - **E2** — Verify other top-bar metrics (talent count, open inquiries) use
   bridge not RICH_INQUIRIES.
 - **F-pass** — full TalentJobShell audit (largest deferred surface).
 - **G-pass** — full ClientProjectShell audit.
-- **H** — Remaining toast-only drawers in `_drawers.tsx` (settings polish,
-  not pipeline-critical).
+- **H** — Remaining toast-only drawers in `_drawers.tsx` (theme, domain,
+  navigation, languages, SEO, visibility, filters, email branding) —
+  settings polish, not pipeline-critical.
+- **Real-time refresh** — bridge data is loaded server-side and stays
+  static between `router.refresh()` calls. Consider a Supabase realtime
+  subscription on `inquiries`, `inquiry_offers`, `booking_transactions`
+  for the active inquiry detail view.
+
+### Architectural — for future cleanup
+
+- **Bridge layer split** — `_data-bridge.ts` is large (1900+ lines) and
+  mixes concerns (inquiries, offers, calendar, bookings, clients, roster).
+  Splitting into per-domain files would keep churn contained.
+- **Engine event wiring** — many engine actions emit events but the
+  prototype isn't subscribed. Wire a single `useInquiryEventStream` hook
+  that pushes engine events into a toast / activity feed.

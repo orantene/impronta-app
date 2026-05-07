@@ -39,6 +39,7 @@
  */
 
 import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import {
   ProtoProvider, useProto, COLORS, FONTS, RADIUS, TRANSITION, Z, meetsRole,
   WORKSPACE_PAGES, PAGE_META,
@@ -191,6 +192,39 @@ class ErrorBoundary extends Component<
  * import it explicitly. The default export remains a thin server-only
  * wrapper at `./page.tsx`.
  */
+/**
+ * Route patterns that should render the canonical Next.js page (children)
+ * INSTEAD of the prototype SPA. Matched against `usePathname()` segments
+ * after the tenant slug. Add new patterns here when a canonical page is
+ * ready to be reachable via direct URL navigation.
+ *
+ * Each pattern is a function from path-segments-after-tenant → boolean.
+ * The tenant slug itself isn't passed (it's variable across workspaces).
+ */
+const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
+  // /<tenant>/admin/work/<id> — canonical booking detail w/ payment state machine
+  (s) => s[0] === "admin" && s[1] === "work" && typeof s[2] === "string" && s[2].length > 0,
+];
+
+function pathIsCanonical(pathname: string | null): boolean {
+  if (!pathname) return false;
+  // Drop leading slash and tenant slug (first segment), pass the rest.
+  const parts = pathname.replace(/^\/+/, "").split("/");
+  if (parts.length < 2) return false;
+  const afterTenant = parts.slice(1);
+  return CANONICAL_ROUTE_MATCHERS.some((match) => match(afterTenant));
+}
+
+function ConditionalPrototypeRoot() {
+  // usePathname is null during initial server render, then resolves on
+  // hydration. Returning null while it's null avoids a flash of the SPA
+  // on hard-refresh of a canonical route.
+  const pathname = usePathname();
+  if (pathname == null) return null;
+  if (pathIsCanonical(pathname)) return null;
+  return <PrototypeRoot />;
+}
+
 export function AdminShellPrototypePageClient({
   initialBridgeData = null,
   initialPage,
@@ -218,7 +252,7 @@ export function AdminShellPrototypePageClient({
           tenantSlug={tenantSlug}
         >
           {children}
-          <PrototypeRoot />
+          <ConditionalPrototypeRoot />
         </ProtoProvider>
       </Suspense>
     </ErrorBoundary>

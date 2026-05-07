@@ -26,9 +26,19 @@ import {
   markDisputed,
   markFailed,
   cancelTransaction,
+  createBookingTransaction,
+  requestPayment,
+  initiatePayout,
+  markPayoutSent,
   type BookingTransaction,
 } from "@/lib/bookings/transactions";
-import { sendOffer, clientRejectOffer, createOffer } from "@/lib/inquiry/inquiry-engine-offers";
+import {
+  sendOffer,
+  clientRejectOffer,
+  createOffer,
+  submitTalentRate as submitTalentRateEngine,
+  counterOffer,
+} from "@/lib/inquiry/inquiry-engine-offers";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 
 export type PipelineActionResult<T = undefined> =
@@ -103,63 +113,94 @@ export async function convertInquiryToBookingAction(
 
 /**
  * Update a single talent's rate on an offer line item. Used by the OfferTab
- * "Submit rate" CTA in the talent pov. Writes to inquiry_offer_line_items.
- *
- * Note: the engine doesn't have a dedicated `talentSubmitRate` function yet,
- * so this writes directly via the supabase client. Tenant ownership is
- * enforced by joining through `inquiry_offers.inquiry_id` → `inquiries.tenant_id`.
+ * "Submit rate" CTA in the talent pov. Delegates to the engine
+ * `submitTalentRate` which handles permissions, version checks, activity
+ * log, and event emission.
  */
 export async function submitTalentRate(
   _tenantSlug: string,
+  inquiryId: string,
+  offerId: string,
   lineItemId: string,
   talentCost: number,
 ): Promise<PipelineActionResult> {
   try {
-    if (!Number.isFinite(talentCost) || talentCost < 0) {
-      return { ok: false, error: "Rate must be a positive number." };
-    }
     const auth = await requireStaffTenantAction();
     if (!auth.ok) return { ok: false, error: auth.error };
-    const { supabase, tenantId } = auth;
+    const { supabase, user, tenantId } = auth;
 
-    // Verify the line item belongs to an inquiry in this tenant.
-    const { data: li } = await supabase
-      .from("inquiry_offer_line_items")
-      .select("id, units, inquiry_offers(inquiry_id, inquiries(tenant_id))")
-      .eq("id", lineItemId)
-      .maybeSingle();
+    const result = await submitTalentRateEngine(supabase, {
+      inquiryId,
+      tenantId,
+      offerId,
+      lineItemId,
+      actorUserId: user.id,
+      talentCost,
+    });
 
-    type Joined = {
-      units: number | null;
-      inquiry_offers: { inquiry_id: string; inquiries: { tenant_id: string } | null } | null;
-    };
-    const joined = li as unknown as Joined | null;
-    const liTenantId = joined?.inquiry_offers?.inquiries?.tenant_id ?? null;
-    if (!liTenantId || liTenantId !== tenantId) {
-      return { ok: false, error: "Line item not found in this workspace." };
-    }
-
-    const units = joined?.units ?? 1;
-    const totalPrice = talentCost * units;
-
-    const { error } = await supabase
-      .from("inquiry_offer_line_items")
-      .update({
-        talent_cost: talentCost,
-        unit_price: talentCost,
-        total_price: totalPrice,
-      })
-      .eq("id", lineItemId);
-
-    if (error) {
-      logServerError("admin._pipeline-actions.submitTalentRate", error);
-      return { ok: false, error: "Could not submit rate." };
+    if (!result.success) {
+      const reason = (result as { reason?: string; error?: string }).reason
+        ?? (result as { error?: string }).error
+        ?? "Could not submit rate.";
+      const friendly =
+        reason === "invalid_rate" ? "Rate must be a positive number."
+        : reason === "rate_limited" ? "Too many attempts — try again shortly."
+        : reason === "forbidden" ? "You can only submit a rate on your own line item."
+        : reason === "offer_not_editable" ? "This offer is locked — counter the offer to revise rates."
+        : reason === "line_item_not_found" ? "Line item not found."
+        : reason === "offer_not_found" ? "Offer not found."
+        : reason;
+      return { ok: false, error: friendly };
     }
 
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.submitTalentRate", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Coordinator counter-offer — supersedes the previous offer with a new
+ * draft. The previous offer must already be in `rejected` state (the
+ * inquiry returns to `coordination` after `clientRejectOffer`). This
+ * just opens v2 — caller still wires line items + send.
+ */
+export async function counterOfferAction(
+  _tenantSlug: string,
+  inquiryId: string,
+  previousOfferId: string | null,
+): Promise<PipelineActionResult<{ offerId: string }>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    const result = await counterOffer(supabase, {
+      inquiryId,
+      tenantId,
+      actorUserId: user.id,
+      expectedVersion: (inq.version as number | null) ?? 1,
+      previousOfferId,
+    });
+    if (!result.success) {
+      return { ok: false, error: (result as { reason?: string; error?: string }).reason ?? (result as { error?: string }).error ?? "Could not start counter offer." };
+    }
+    revalidatePath("/", "layout");
+    const offerId = (result as { data?: { offerId?: string } }).data?.offerId;
+    if (!offerId) return { ok: false, error: "Counter offer created but no id returned." };
+    return { ok: true, data: { offerId } };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.counterOfferAction", err);
     return { ok: false, error: "Unexpected error." };
   }
 }
@@ -312,6 +353,121 @@ export async function cancelInquiryTransaction(
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
+/**
+ * Create a draft booking transaction for an inquiry that's been booked.
+ * Mirrors the canonical createTransactionDraftAction but returns a result
+ * instead of redirecting. Fee basis points come from the workspace plan
+ * tier (calculateTransactionAmounts).
+ */
+export async function createInquiryTransactionDraft(
+  _tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: booking } = await supabase
+      .from("agency_bookings")
+      .select("id, total_client_revenue, currency_code, client_user_id, contact_email")
+      .eq("tenant_id", tenantId)
+      .eq("source_inquiry_id", inquiryId)
+      .maybeSingle();
+    if (!booking) return { ok: false, error: "No booking found for this inquiry yet." };
+
+    const existing = await loadActiveBookingTransaction(booking.id as string, supabase);
+    if (existing) {
+      return { ok: false, error: "An active transaction already exists for this booking." };
+    }
+
+    const grossAmountCents = booking.total_client_revenue != null
+      ? Math.max(0, Math.round(Number(booking.total_client_revenue) * 100))
+      : 0;
+    if (grossAmountCents <= 0) {
+      return { ok: false, error: "Set booking revenue before creating a transaction." };
+    }
+
+    const { data: agency } = await supabase
+      .from("agencies")
+      .select("plan_tier")
+      .eq("id", tenantId)
+      .maybeSingle();
+    const planTier = (agency as { plan_tier?: string } | null)?.plan_tier ?? "free";
+
+    const result = await createBookingTransaction({
+      bookingId: booking.id as string,
+      sourceTenantId: tenantId,
+      sourceInquiryId: inquiryId,
+      planTier,
+      grossAmountCents,
+      currency: (booking.currency_code as string | null) ?? "USD",
+      payerUserId: (booking.client_user_id as string | null) ?? null,
+      payerEmail: (booking.contact_email as string | null) ?? null,
+      createdByProfileId: null,
+    });
+    if (!result.ok) return { ok: false, error: result.error };
+
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.createInquiryTransactionDraft", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Move a draft transaction → payment_requested. Surfaces the payment link
+ * to the client (in production: triggers the payment provider checkout
+ * URL or invoice email).
+ */
+export async function requestInquiryPayment(
+  _tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult> {
+  const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
+    const txn = await loadActiveBookingTransaction(bookingId, supabase);
+    if (!txn) throw new Error("No active transaction.");
+    const result = await requestPayment(txn.id);
+    if (!result.ok) throw new Error(result.error);
+  });
+  return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
+}
+
+/**
+ * Move a paid transaction → payout_pending. Triggers the payout to the
+ * configured receiver (talent or agency payout account).
+ */
+export async function initiateInquiryPayout(
+  _tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult> {
+  const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
+    const txn = await loadActiveBookingTransaction(bookingId, supabase);
+    if (!txn) throw new Error("No active transaction.");
+    const result = await initiatePayout(txn.id);
+    if (!result.ok) throw new Error(result.error);
+  });
+  return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
+}
+
+/**
+ * Mark a payout_pending transaction as payout_sent (funds delivered).
+ */
+export async function markInquiryPayoutSent(
+  _tenantSlug: string,
+  inquiryId: string,
+  providerReference?: string | null,
+): Promise<PipelineActionResult> {
+  const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
+    const txn = await loadActiveBookingTransaction(bookingId, supabase);
+    if (!txn) throw new Error("No active transaction.");
+    const result = await markPayoutSent(txn.id, { providerReference: providerReference ?? null });
+    if (!result.ok) throw new Error(result.error);
+  });
+  return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
+}
+
 // ─── Offer engine wrappers ────────────────────────────────────────────────────
 
 /**
@@ -439,6 +595,254 @@ export async function rejectOfferAction(
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.rejectOfferAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── Inquiry user flags (pin / archive / manually_unread) ────────────────────
+
+type FlagKind = "pinned" | "archived" | "manually_unread";
+
+async function setInquiryUserFlag(
+  inquiryId: string,
+  flag: FlagKind,
+  value: boolean,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    // Pre-flight tenant ownership.
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("id")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = {
+      tenant_id: tenantId,
+      inquiry_id: inquiryId,
+      profile_id: user.id,
+      [flag]: value,
+    };
+    if (flag === "pinned")          patch.pinned_at          = value ? now : null;
+    if (flag === "archived")        patch.archived_at        = value ? now : null;
+    if (flag === "manually_unread") patch.manually_unread_at = value ? now : null;
+
+    const { error } = await supabase
+      .from("inquiry_user_flags")
+      .upsert(patch, { onConflict: "tenant_id,inquiry_id,profile_id" });
+
+    if (error) {
+      logServerError(`admin._pipeline-actions.setInquiryUserFlag/${flag}`, error);
+      return { ok: false, error: "Could not save flag." };
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.setInquiryUserFlag", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+export const setInquiryPinned = (slug: string, inquiryId: string, value: boolean) =>
+  setInquiryUserFlag(inquiryId, "pinned", value);
+export const setInquiryArchived = (slug: string, inquiryId: string, value: boolean) =>
+  setInquiryUserFlag(inquiryId, "archived", value);
+export const setInquiryManuallyUnread = (slug: string, inquiryId: string, value: boolean) =>
+  setInquiryUserFlag(inquiryId, "manually_unread", value);
+
+// ─── Booking duplication ──────────────────────────────────────────────────────
+
+/**
+ * Duplicate a booking — wraps the canonical `duplicateBooking` action and
+ * catches the redirect (the canonical action redirects to the new booking
+ * detail; we want to stay in the prototype).
+ */
+export async function duplicateInquiryBooking(
+  _tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: booking } = await supabase
+      .from("agency_bookings")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("source_inquiry_id", inquiryId)
+      .maybeSingle();
+    if (!booking) return { ok: false, error: "No booking found for this inquiry yet." };
+
+    const { duplicateBooking } = await import("@/lib/server-actions/admin-bookings");
+    const fd = new FormData();
+    fd.set("booking_id", booking.id as string);
+    try {
+      await duplicateBooking(fd);
+    } catch {
+      // duplicateBooking calls redirect() — the throw is the success path.
+    }
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.duplicateInquiryBooking", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── Lineup (inquiry_participants) ────────────────────────────────────────────
+
+export type InquiryParticipant = {
+  id: string;
+  role: "client" | "coordinator" | "talent";
+  status: "invited" | "active" | "declined" | "removed";
+  talentProfileId: string | null;
+  talentDisplayName: string | null;
+  userId: string | null;
+  invitedAt: string | null;
+};
+
+/**
+ * Load the active lineup for an inquiry. Returns participants in the
+ * "talent" role (the lineup proper) — coordinator + client rows are
+ * filtered out at the DB layer to keep the response focused.
+ */
+export async function loadInquiryLineup(
+  _tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult<InquiryParticipant[]>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data, error } = await supabase
+      .from("inquiry_participants")
+      .select(`
+        id, role, status, talent_profile_id, user_id, invited_at,
+        talent_profiles ( display_name )
+      `)
+      .eq("tenant_id", tenantId)
+      .eq("inquiry_id", inquiryId)
+      .eq("role", "talent")
+      .neq("status", "removed")
+      .order("invited_at", { ascending: true });
+
+    if (error) {
+      logServerError("admin._pipeline-actions.loadInquiryLineup", error);
+      return { ok: false, error: "Could not load lineup." };
+    }
+
+    type Row = {
+      id: string;
+      role: "client" | "coordinator" | "talent";
+      status: "invited" | "active" | "declined" | "removed";
+      talent_profile_id: string | null;
+      user_id: string | null;
+      invited_at: string | null;
+      talent_profiles: { display_name: string | null } | null;
+    };
+    const rows = (data ?? []) as Row[];
+    return {
+      ok: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        role: r.role,
+        status: r.status,
+        talentProfileId: r.talent_profile_id,
+        talentDisplayName: r.talent_profiles?.display_name ?? null,
+        userId: r.user_id,
+        invitedAt: r.invited_at,
+      })),
+    };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.loadInquiryLineup", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Remove a talent participant from an inquiry's lineup. Wraps
+ * `rosterRemoveParticipant` from admin-inquiry-roster.ts using a built
+ * FormData so the prototype can call this in startTransition.
+ */
+export async function removeInquiryLineupParticipant(
+  _tenantSlug: string,
+  inquiryId: string,
+  participantId: string,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    const fd = new FormData();
+    fd.set("inquiry_id", inquiryId);
+    fd.set("participant_id", participantId);
+    fd.set("expected_version", String((inq.version as number | null) ?? 1));
+
+    const { rosterRemoveParticipant } = await import("@/lib/server-actions/admin-inquiry-roster");
+    const result = await rosterRemoveParticipant(fd);
+    if (!result.ok) return { ok: false, error: result.message ?? "Could not remove." };
+
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.removeInquiryLineupParticipant", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Add a roster talent to an inquiry by talent_profile_id. Wraps
+ * `rosterAddTalent`.
+ */
+export async function addInquiryLineupTalent(
+  _tenantSlug: string,
+  inquiryId: string,
+  talentProfileId: string,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    const fd = new FormData();
+    fd.set("inquiry_id", inquiryId);
+    fd.set("talent_profile_id", talentProfileId);
+    fd.set("expected_version", String((inq.version as number | null) ?? 1));
+
+    const { rosterAddTalent } = await import("@/lib/server-actions/admin-inquiry-roster");
+    const result = await rosterAddTalent(fd);
+    if (!result.ok) return { ok: false, error: result.message ?? "Could not add talent." };
+
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.addInquiryLineupTalent", err);
     return { ok: false, error: "Unexpected error." };
   }
 }

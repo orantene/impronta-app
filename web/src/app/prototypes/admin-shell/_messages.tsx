@@ -42,7 +42,7 @@
 import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { createAgencyInquiry, quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
-import { sendMessage as sendMessageAction } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
+import { sendMessage as sendMessageAction, markThreadRead } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
 import {
   convertInquiryToBookingAction,
   loadInquiryPaymentState,
@@ -55,10 +55,23 @@ import {
   rejectOfferAction,
   sendOfferAction,
   createOfferAction,
+  counterOfferAction,
   loadInquiryAttachments,
   deleteInquiryAttachment,
+  createInquiryTransactionDraft,
+  requestInquiryPayment,
+  initiateInquiryPayout,
+  markInquiryPayoutSent,
+  loadInquiryLineup,
+  removeInquiryLineupParticipant,
+  addInquiryLineupTalent,
+  setInquiryPinned,
+  setInquiryArchived,
+  setInquiryManuallyUnread,
+  duplicateInquiryBooking,
   type InquiryPaymentState,
   type InquiryAttachment,
+  type InquiryParticipant,
 } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import type { ThreadType } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import {
@@ -444,7 +457,7 @@ function InboxRowHoverActions({
           <rect x="1.5" y="3" width="11" height="2.5" rx="0.5" stroke="currentColor" strokeWidth="1.3"/>
           <path d="M2.5 5.5v6.5h9V5.5M5.5 8h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
         </svg>
-      ), () => toast(`Archived · ${label}`))}
+      ), () => { archiveInquiry(rowId); toast(`Archived · ${label}`); })}
     </div>
   );
 }
@@ -1111,7 +1124,7 @@ function useMessageStashSubscription() {
 // state back to unseen so the user can come back to it later. Both
 // signals live in one store keyed by conv id, persisted to
 // localStorage so they survive refresh.
-type ConvFlags = { pinned?: boolean; manualUnread?: boolean };
+type ConvFlags = { pinned?: boolean; manualUnread?: boolean; archived?: boolean };
 const __FLAGS_STORAGE_KEY = "tulala.proto.convFlags.v1";
 const __convFlags: Record<string, ConvFlags> = (() => {
   if (typeof window === "undefined") return {};
@@ -1136,23 +1149,45 @@ export function isManualUnread(id: string): boolean {
 }
 export function togglePin(id: string) {
   const cur = __convFlags[id] ?? {};
-  __convFlags[id] = { ...cur, pinned: !cur.pinned };
+  const next = !cur.pinned;
+  __convFlags[id] = { ...cur, pinned: next };
   __persistFlags();
   __flagsSubscribers.forEach(fn => fn());
+  // Persist to DB for real inquiry UUIDs. Synthetic mock ids stay
+  // local-only so the demo continues to work.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    void setInquiryPinned(TENANT.slug, id, next);
+  }
 }
 export function toggleManualUnread(id: string) {
   const cur = __convFlags[id] ?? {};
-  __convFlags[id] = { ...cur, manualUnread: !cur.manualUnread };
+  const next = !cur.manualUnread;
+  __convFlags[id] = { ...cur, manualUnread: next };
   // When marking manual-unread, also remove from the locally-seen
   // set so the NEW pill / coral wash returns. When clearing, leave
   // locally-seen alone (the user already saw it once).
-  if (__convFlags[id]?.manualUnread) {
+  if (next) {
     __locallySeenConvs.delete(id);
     __persistSeen();
     __seenSubscribers.forEach(fn => fn());
   }
   __persistFlags();
   __flagsSubscribers.forEach(fn => fn());
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    void setInquiryManuallyUnread(TENANT.slug, id, next);
+  }
+}
+export function archiveInquiry(id: string) {
+  // Local archive flag (drives the inbox filter chip "Archived"). Persists
+  // to DB for real inquiry UUIDs.
+  const cur = __convFlags[id] ?? {};
+  const next = !cur.archived;
+  __convFlags[id] = { ...cur, archived: next };
+  __persistFlags();
+  __flagsSubscribers.forEach(fn => fn());
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    void setInquiryArchived(TENANT.slug, id, next);
+  }
 }
 function useFlagsSubscription(): void {
   const [, force] = useState(0);
@@ -2166,6 +2201,19 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
   const lineupAccepted = allTalents.filter(t => t.status === "accepted").length;
   const lineupPending = allTalents.filter(t => t.status === "pending").length;
 
+  // A5 — fire markThreadRead on tab open so the unread badge clears
+  // immediately when the user opens a Client or Talent thread. Skipped
+  // for synthetic mock inquiry ids (the demo data isn't in DB).
+  const inquiryIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiry.id);
+  useEffect(() => {
+    if (!inquiryIsUuid) return;
+    if (activeTab === "client") {
+      void markThreadRead(TENANT.slug, inquiry.id, "private");
+    } else if (activeTab === "talent") {
+      void markThreadRead(TENANT.slug, inquiry.id, "group");
+    }
+  }, [activeTab, inquiry.id, inquiryIsUuid]);
+
   // Offer state
   const offer = inquiry.offer;
   const offerLabel = (() => {
@@ -2283,6 +2331,10 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
         ) : undefined}
       />
 
+      {/* Live lineup panel — DB-backed roster manager. Renders nothing for
+          synthetic/mock inquiries, so the demo experience stays clean. */}
+      <LiveLineupPanel inquiryId={inquiry.id} />
+
       {/* TAB BAR — admin sees all 4 tabs unlocked. Lineup + Offer summaries
           live inside the Offer tab now (single source of truth). The hero
           stays slim: identity + brief + funnel only. */}
@@ -2373,8 +2425,9 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
             kept as a fallback for any external callers that still pin
             it (e.g. notification deep-links) until they migrate. */}
         {(activeTab === "booking" || activeTab === "details") && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
             <AdminBookingTab inquiry={toInquiry(inquiry)} planTier={planTier} />
+            <LiveBookingActions inquiryId={inquiry.id} />
           </div>
         )}
       </div>
@@ -7637,6 +7690,11 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
         )}
         {isAdmin && txn && (
           <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(txStatus === "draft") && (
+              <button type="button" disabled={pending} onClick={() => run("Request payment", () => requestInquiryPayment(TENANT.slug, inquiry.id))} style={primaryBtn(COLORS.accent)}>
+                Request payment
+              </button>
+            )}
             {(txStatus === "payment_requested") && (
               <button type="button" disabled={pending} onClick={() => run("Mark pending", () => markInquiryPaymentPending(TENANT.slug, inquiry.id))} style={ghostBtn()}>
                 Mark pending
@@ -7648,8 +7706,18 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
               </button>
             )}
             {(txStatus === "paid") && (
-              <button type="button" disabled={pending} onClick={() => run("Mark disputed", () => markInquiryPaymentDisputed(TENANT.slug, inquiry.id))} style={ghostBtn()}>
-                Mark disputed
+              <>
+                <button type="button" disabled={pending} onClick={() => run("Initiate payout", () => initiateInquiryPayout(TENANT.slug, inquiry.id))} style={primaryBtn(COLORS.accent)}>
+                  Initiate payout
+                </button>
+                <button type="button" disabled={pending} onClick={() => run("Mark disputed", () => markInquiryPaymentDisputed(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+                  Mark disputed
+                </button>
+              </>
+            )}
+            {(txStatus === "payout_pending") && (
+              <button type="button" disabled={pending} onClick={() => run("Mark payout sent", () => markInquiryPayoutSent(TENANT.slug, inquiry.id, null))} style={primaryBtn(COLORS.success)}>
+                Mark payout sent
               </button>
             )}
             {(txStatus === "payment_requested" || txStatus === "pending" || txStatus === "payout_pending") && (
@@ -7665,8 +7733,18 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
           </div>
         )}
         {isAdmin && !txn && state?.bookingId && (
-          <div style={{ marginTop: 10, fontSize: 12, color: COLORS.inkMuted }}>
-            No transaction yet — request payment from the canonical work detail page.
+          <div style={{ marginTop: 10 }}>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run("Create transaction draft", () => createInquiryTransactionDraft(TENANT.slug, inquiry.id))}
+              style={primaryBtn(COLORS.accent)}
+            >
+              {pending ? "Creating…" : "Create transaction draft"}
+            </button>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+              Drafts the booking transaction with platform fee from the workspace plan.
+            </div>
           </div>
         )}
       </DetailSection>
@@ -7676,7 +7754,9 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
             {txStatus === "payout_sent"
               ? `Payout sent ${txn?.payoutCompletedAt ? `at ${new Date(txn.payoutCompletedAt).toLocaleString()}` : ""}`
               : txStatus === "payout_pending"
-              ? "Payout pending — initiate from the canonical work detail page."
+              ? `Payout pending ${txn?.payoutInitiatedAt ? `since ${new Date(txn.payoutInitiatedAt).toLocaleString()}` : ""}`
+              : txStatus === "paid"
+              ? "Funds received — initiate payout to talent above."
               : "Released to talent once invoice clears."}
           </div>
         </DetailSection>
@@ -10202,6 +10282,127 @@ function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta?: stri
 }
 
 /**
+ * LiveLineupPanel — DB-backed roster manager for an inquiry. Lists active
+ * `inquiry_participants.role='talent'` rows and exposes an inline Remove
+ * for each (wraps `rosterRemoveParticipant`). An "Add talent by id" input
+ * accepts a roster talent UUID and calls `rosterAddTalent` — full picker
+ * UI is deferred but this unblocks staff-side workflow today.
+ *
+ * Renders nothing while loading or when no live lineup exists (mock UI
+ * still renders the demo lineup chips).
+ */
+function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
+  const { toast } = useProto();
+  const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pending, startTransition] = useTransition();
+  const [addId, setAddId] = useState("");
+
+  // Skip the DB roundtrip entirely for synthetic mock inquiry ids — the
+  // demo conversations use "RI-XXX" / "c1" style ids that won't resolve.
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
+
+  const reload = React.useCallback(() => {
+    if (!isUuid) { setLoading(false); return; }
+    setLoading(true);
+    loadInquiryLineup(TENANT.slug, inquiryId)
+      .then((r) => { if (r.ok) setLineup(r.data ?? []); })
+      .finally(() => setLoading(false));
+  }, [inquiryId, isUuid]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  if (!isUuid) return null;
+  if (loading || lineup == null) return null;
+
+  const remove = (participantId: string, name: string | null) => {
+    if (!confirm(`Remove ${name ?? "this talent"} from the lineup?`)) return;
+    startTransition(async () => {
+      const r = await removeInquiryLineupParticipant(TENANT.slug, inquiryId, participantId);
+      if (!r.ok) toast(`Remove failed: ${r.error}`);
+      else { toast("Removed from lineup"); reload(); }
+    });
+  };
+
+  const add = () => {
+    const id = addId.trim();
+    if (!id) { toast("Enter a talent profile id"); return; }
+    startTransition(async () => {
+      const r = await addInquiryLineupTalent(TENANT.slug, inquiryId, id);
+      if (!r.ok) toast(`Add failed: ${r.error}`);
+      else { toast("Talent added to lineup"); setAddId(""); reload(); }
+    });
+  };
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: 12, marginBottom: 10,
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontWeight: 700, color: COLORS.ink }}>
+          Live lineup ({lineup.length})
+        </span>
+        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
+          inquiry_participants
+        </span>
+      </div>
+      {lineup.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+          {lineup.map((p) => (
+            <div key={p.id} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "6px 10px", background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, color: COLORS.ink }}>
+                  {p.talentDisplayName ?? "(unnamed talent)"}
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
+                  {p.status}{p.invitedAt ? ` · invited ${new Date(p.invitedAt).toLocaleDateString()}` : ""}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => remove(p.id, p.talentDisplayName)}
+                style={{
+                  padding: "4px 8px", borderRadius: 6,
+                  background: "transparent", border: `1px solid ${COLORS.border}`,
+                  color: COLORS.coralDeep, cursor: pending ? "wait" : "pointer",
+                  fontSize: 11, fontWeight: 600,
+                }}
+              >Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          type="text"
+          value={addId}
+          onChange={(e) => setAddId(e.target.value)}
+          placeholder="Add by talent profile UUID…"
+          style={{
+            flex: 1, padding: "6px 10px",
+            border: `1px solid ${COLORS.border}`, borderRadius: 6,
+            fontSize: 12, fontFamily: FONTS.body,
+          }}
+        />
+        <button
+          type="button"
+          disabled={pending || !addId.trim()}
+          onClick={add}
+          style={primaryBtn(COLORS.accent)}
+        >Add</button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * "Start drafting offer" button shown in the OfferTab empty state. Calls
  * the real createOffer engine action and refreshes router state.
  */
@@ -10287,6 +10488,12 @@ function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }
             style={ghostBtn()}
           >Reject</button>
         </>
+      )}
+      {isAdmin && status === "rejected" && (
+        <button type="button" disabled={pending}
+          onClick={() => run("Counter offer", () => counterOfferAction(TENANT.slug, inquiryId, offerId))}
+          style={primaryBtn(COLORS.accent)}
+        >Counter offer</button>
       )}
     </div>
   );
@@ -11960,6 +12167,48 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * LiveBookingActions — bookings-related real DB actions exposed in the
+ * Booking/Project tab. Currently: Duplicate booking. Renders nothing for
+ * synthetic mock inquiry ids.
+ */
+function LiveBookingActions({ inquiryId }: { inquiryId: string }) {
+  const { toast } = useProto();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
+  if (!isUuid) return null;
+
+  const dup = () => {
+    if (!confirm("Duplicate this booking?")) return;
+    startTransition(async () => {
+      const r = await duplicateInquiryBooking(TENANT.slug, inquiryId);
+      if (!r.ok) toast(`Duplicate failed: ${r.error}`);
+      else { toast("Booking duplicated"); router.refresh(); }
+    });
+  };
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: 10, marginTop: 12,
+      display: "flex", alignItems: "center", gap: 10,
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <span style={{ fontWeight: 700, color: COLORS.ink }}>Booking actions</span>
+      <span style={{ flex: 1 }} />
+      <button
+        type="button"
+        disabled={pending}
+        onClick={dup}
+        style={ghostBtn()}
+      >
+        {pending ? "Duplicating…" : "Duplicate booking"}
+      </button>
     </div>
   );
 }

@@ -21,7 +21,14 @@ export {
   declineTalentInvitation,
   rosterMatchesOffer,
 } from "./inquiry-engine-roster";
-export { createOffer, updateOfferDraft, sendOffer, clientRejectOffer } from "./inquiry-engine-offers";
+export {
+  createOffer,
+  updateOfferDraft,
+  sendOffer,
+  clientRejectOffer,
+  submitTalentRate,
+  counterOffer,
+} from "./inquiry-engine-offers";
 export type { OfferLineDraft } from "./inquiry-engine-offers";
 export { submitApproval, rejectApproval, clientAcceptOffer } from "./inquiry-engine-approvals";
 export { convertToBooking } from "./inquiry-engine-booking";

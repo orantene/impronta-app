@@ -6,8 +6,9 @@ import { addTalentToRoster } from "./_actions";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields } from "@/lib/server-actions/admin-workspace-settings";
-import { createManualBooking } from "@/lib/server-actions/admin-bookings";
+import { createManualBooking, duplicateBooking } from "@/lib/server-actions/admin-bookings";
 import { createClientAccount } from "@/lib/server-actions/admin-inquiries";
+import { updateAdminClientProfile } from "@/lib/server-actions/admin-clients";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -13571,36 +13572,56 @@ function ClientProfileDrawer() {
   };
 
   const onSave = () => {
-    if (!isNew) {
-      // Edit path — no canonical update action wired in this pass; keep
-      // the toast-and-close stub so the existing demo flow doesn't break.
-      fallbackToast();
-      return;
-    }
     if (!name.trim()) {
       toast("Add a name");
       return;
     }
     startTransition(async () => {
+      if (isNew) {
+        const fd = new FormData();
+        fd.set("name", name.trim());
+        fd.set("account_type", industry ? (INDUSTRY_TO_ACCOUNT_TYPE[industry] ?? "other") : "other");
+        fd.set("account_type_detail", industry && !INDUSTRY_TO_ACCOUNT_TYPE[industry] ? industry : "");
+        fd.set("primary_email", contact.includes("@") ? contact.trim() : "");
+        fd.set("primary_phone", contact.includes("@") ? "" : contact.trim());
+        fd.set("website_url", "");
+        fd.set("location_text", homeBase.trim());
+        fd.set("city", homeBase.trim());
+        fd.set("country", "");
+        fd.set("address_notes", notes.trim());
+        fd.set("google_place_id", "");
+        fd.set("latitude", "");
+        fd.set("longitude", "");
+        const result = await createClientAccount({}, fd);
+        if (result && "error" in result && result.error) {
+          toast(`Save failed: ${result.error}`);
+        } else {
+          toast("Client created");
+          router.refresh();
+          closeDrawer();
+        }
+        return;
+      }
+      // Edit path — client.id is the auth user_id (per WorkspaceClientRow).
+      // Synthetic mock ids fall through to the toast-and-close stub.
+      if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        fallbackToast();
+        return;
+      }
       const fd = new FormData();
-      fd.set("name", name.trim());
-      fd.set("account_type", industry ? (INDUSTRY_TO_ACCOUNT_TYPE[industry] ?? "other") : "other");
-      fd.set("account_type_detail", industry && !INDUSTRY_TO_ACCOUNT_TYPE[industry] ? industry : "");
-      fd.set("primary_email", contact.includes("@") ? contact.trim() : "");
-      fd.set("primary_phone", contact.includes("@") ? "" : contact.trim());
+      fd.set("user_id", id);
+      // Map drawer fields onto client_profiles columns. industry → company
+      // when no explicit company name was entered.
+      fd.set("company_name", name.trim());
+      fd.set("phone", contact.includes("@") ? "" : contact.trim());
+      fd.set("whatsapp_phone", "");
       fd.set("website_url", "");
-      fd.set("location_text", homeBase.trim());
-      fd.set("city", homeBase.trim());
-      fd.set("country", "");
-      fd.set("address_notes", notes.trim());
-      fd.set("google_place_id", "");
-      fd.set("latitude", "");
-      fd.set("longitude", "");
-      const result = await createClientAccount({}, fd);
+      fd.set("notes", [homeBase.trim(), notes.trim()].filter(Boolean).join(" · "));
+      const result = await updateAdminClientProfile(undefined, fd);
       if (result && "error" in result && result.error) {
         toast(`Save failed: ${result.error}`);
       } else {
-        toast("Client created");
+        toast("Client saved");
         router.refresh();
         closeDrawer();
       }
