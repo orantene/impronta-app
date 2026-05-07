@@ -2568,7 +2568,19 @@ function TodaysFocusCard({
 }
 
 function OverviewPage() {
-  const { state, openDrawer, openUpgrade, completeTask, toast, setPage, overviewMetrics, effectiveMessagesInquiries, effectiveRoster } = useProto();
+  const {
+    state,
+    openDrawer,
+    openUpgrade,
+    completeTask,
+    toast,
+    setPage,
+    overviewMetrics,
+    effectiveMessagesInquiries,
+    effectiveRoster,
+    bridgeSessionIdentity,
+    bridgeTenantIdentity,
+  } = useProto();
   const isFree = state.plan === "free";
   const canEdit = meetsRole(state.role, "editor");
 
@@ -2576,9 +2588,14 @@ function OverviewPage() {
     return <OverviewFree />;
   }
 
-  // Phase 3.12 — use live bridge metrics when available; fall back to
-  // computing from effectiveMessagesInquiries (bridge-adapted RichInquiry[]).
-  const richInqs = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+  // Phase 1 / Phase 2 — Master plan: NO mock fallback in workspace mode.
+  // When the bridge provides a real inquiry list (even an empty one), use it
+  // and render the real empty state. The earlier `length > 0 ? real : MOCK`
+  // pattern lied to operators when their tenant had zero inquiries.
+  // Standalone /prototypes/admin-shell still gets RICH_INQUIRIES because the
+  // upstream effectiveMessagesInquiries already falls back to it when the
+  // bridge wasn't populated by a workspace layout.
+  const richInqs = effectiveMessagesInquiries;
   // Open inquiry count: prefer the pre-aggregated bridge metric over re-deriving.
   const openInquiryCount = overviewMetrics?.openInquiries ?? richInqs.filter((i) =>
     i.stage === "submitted" || i.stage === "coordination" || i.stage === "offer_pending" || i.stage === "approved"
@@ -2592,7 +2609,19 @@ function OverviewPage() {
   return (
     <>
       <PageHeader
-        title={`${greeting()}, ${MY_TALENT_PROFILE.name.split(" ")[0]}`}
+        title={(() => {
+          // Phase 1 — greeting uses real signed-in user when bridge identity
+          // is present; standalone demo falls back to MY_TALENT_PROFILE.
+          const realFirst = (() => {
+            if (!bridgeSessionIdentity) return null;
+            const dn = bridgeSessionIdentity.displayName?.trim();
+            if (dn) return dn.split(/\s+/u)[0];
+            const email = bridgeSessionIdentity.email;
+            if (email) return email.split("@")[0]?.split(/[.\-_]/u)[0] ?? null;
+            return null;
+          })();
+          return `${greeting()}, ${realFirst ?? MY_TALENT_PROFILE.name.split(" ")[0]}`;
+        })()}
         subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         actions={
           canEdit && (
