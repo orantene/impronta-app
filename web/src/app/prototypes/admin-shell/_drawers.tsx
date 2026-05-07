@@ -12679,7 +12679,7 @@ function NewInquiryDrawer() {
 // scheduled on that date so the coordinator can drill in without leaving
 // the calendar view.
 function DayDetailDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer, effectiveCalendarEvents, effectiveMessagesInquiries } = useProto();
   const dateStr: string = (state.drawer.payload as { date?: string })?.date ?? "";
 
   // Parse "YYYY-MM-DD" → human-readable label and month index
@@ -12693,21 +12693,53 @@ function DayDetailDrawer() {
   const displayMonth = dateStr ? parseInt(parts[1]) - 1 : -1;
   const displayDay   = dateStr ? parseInt(parts[2]) : -1;
 
-  // Match RICH_INQUIRIES whose date spans this calendar day.
-  const MONTH_ABBR: Record<string, number> = {
-    Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
+  // Match events for this calendar day.
+  // Phase 3.12: use bridge CalendarEvents when available (ISO date match);
+  // fall back to RICH_INQUIRIES human-readable date parsing.
+  // The rendering uses clientName/brief/location/requirementGroups, so we
+  // normalize both paths into a compatible partial-RichInquiry shape.
+  type DayInq = {
+    id: string;
+    clientName: string;
+    brief: string;
+    stage: import("./_state").InquiryStage;
+    location: string | null;
+    requirementGroups: { id: string; role: string; needed: number; approved: number }[];
   };
-  const dayInquiries = RICH_INQUIRIES.filter((inq) => {
-    if (!inq.date) return false;
-    const s = inq.date.replace(/^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat),?\s*/, "").trim();
-    const rangeM = s.match(/^([A-Z][a-z]{2})\s+(\d+)[–\-](\d+)/);
-    if (rangeM) {
-      if (MONTH_ABBR[rangeM[1]] !== displayMonth) return false;
-      return displayDay >= parseInt(rangeM[2]) && displayDay <= parseInt(rangeM[3]);
-    }
-    const singleM = s.match(/^([A-Z][a-z]{2})\s+(\d+)/);
-    return !!singleM && MONTH_ABBR[singleM[1]] === displayMonth && parseInt(singleM[2]) === displayDay;
-  });
+  let dayInquiries: DayInq[];
+  if (effectiveCalendarEvents != null && effectiveCalendarEvents.length > 0 && dateStr) {
+    dayInquiries = effectiveCalendarEvents
+      .filter((ev) => ev.event_date === dateStr)
+      .map((ev) => ({
+        id: ev.id,
+        clientName: ev.company ?? ev.contact_name,
+        brief: ev.contact_name,
+        stage: (ev.status === "booked" || ev.status === "converted" ? "booked"
+          : ev.status === "approved" ? "approved"
+          : ev.status === "offer_pending" ? "offer_pending"
+          : ev.status === "rejected" ? "rejected"
+          : ev.status === "expired" ? "expired"
+          : "submitted") as import("./_state").InquiryStage,
+        location: null,
+        requirementGroups: [],
+      }));
+  } else {
+    const MONTH_ABBR: Record<string, number> = {
+      Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
+    };
+    const richSource = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+    dayInquiries = richSource.filter((inq) => {
+      if (!inq.date) return false;
+      const s = inq.date.replace(/^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat),?\s*/, "").trim();
+      const rangeM = s.match(/^([A-Z][a-z]{2})\s+(\d+)[–\-](\d+)/);
+      if (rangeM) {
+        if (MONTH_ABBR[rangeM[1]] !== displayMonth) return false;
+        return displayDay >= parseInt(rangeM[2]) && displayDay <= parseInt(rangeM[3]);
+      }
+      const singleM = s.match(/^([A-Z][a-z]{2})\s+(\d+)/);
+      return !!singleM && MONTH_ABBR[singleM[1]] === displayMonth && parseInt(singleM[2]) === displayDay;
+    });
+  }
 
   const stageMeta = INQUIRY_STAGE_META;
 
