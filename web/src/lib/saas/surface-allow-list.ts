@@ -165,10 +165,10 @@ const CANONICAL_TALENT_PREFIX = "/t" as const;
  * Reserved first segments (existing top-level routes) are excluded explicitly
  * so this check can't shadow `/api/admin`, `/t/slug`, auth paths, etc.
  */
-const WORKSPACE_SLUG_SURFACES = ["admin", "talent", "client", "platform"] as const;
+const WORKSPACE_SLUG_SURFACES = ["admin", "talent", "client", "platform", "admin-preview"] as const;
 const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   // Existing APP_WORKSPACE_PREFIXES
-  "admin", "client", "talent", "onboarding", "invite", "account",
+  "admin", "admin-preview", "client", "talent", "onboarding", "invite", "account",
   // API + auth
   "api", "auth", "login", "register", "forgot-password", "update-password",
   // Public talent canonical

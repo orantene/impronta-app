@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useId, type ReactNode } from "react";
+import React, { useState, useEffect, useRef, useMemo, useId, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { addTalentToRoster } from "./_actions";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -10758,7 +10760,9 @@ function ToggleRow({ label, defaultOn = false }: { label: string; defaultOn?: bo
 // ════════════════════════════════════════════════════════════════════
 
 function NewTalentDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bulkAddTalent } = useProto();
+  const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug } = useProto();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -10829,21 +10833,68 @@ function NewTalentDrawer() {
     contact: email,
   });
 
+  // ── CTA handlers — use real server action in production, mock in prototype ──
+  const runAdd = (managementMethod: "agency" | "invited" | "draft", afterOk: (id?: string) => void) => {
+    if (!tenantSlug) {
+      // Prototype / preview mode — local mock only
+      toast(managementMethod === "invited" ? `Invite sent to ${email}` : `${computedDisplayName || "Talent"} saved`);
+      clearProfileDraft("default");
+      closeDrawer();
+      return;
+    }
+    startTransition(async () => {
+      const result = await addTalentToRoster({
+        tenantSlug: tenantSlug!,
+        firstName,
+        lastName,
+        displayName,
+        email,
+        phone,
+        homeBase,
+        primaryTypeSlugorId: primaryType ?? undefined,
+        managementMethod,
+      });
+      if (!result.ok) {
+        toast(result.error, { tone: "error" });
+        return;
+      }
+      clearProfileDraft("default");
+      router.refresh();
+      afterOk(result.talentProfileId);
+    });
+  };
+
   const sendInvite = () => {
     if (!inviteValid) return;
-    toast(`Invite sent to ${email}`);
-    clearProfileDraft("default");
-    closeDrawer();
+    runAdd("invited", () => {
+      toast(`Invite sent to ${email}`);
+      closeDrawer();
+    });
   };
   const continueEditing = () => {
     if (!minimumValid) return;
-    closeDrawer();
-    openDrawer("talent-profile-shell", { mode: "create", seed: seedForShell() });
+    if (!tenantSlug) {
+      // Prototype mode — open profile shell directly without persisting
+      closeDrawer();
+      openDrawer("talent-profile-shell", { mode: "create", seed: seedForShell() });
+      return;
+    }
+    runAdd("agency", (talentProfileId) => {
+      closeDrawer();
+      if (talentProfileId) {
+        // Navigate to the real edit page for this newly-created talent
+        router.push(`/${tenantSlug}/admin/roster/${talentProfileId}`);
+      } else {
+        openDrawer("talent-profile-shell", { mode: "create", seed: seedForShell() });
+      }
+    });
   };
   const saveDraft = () => {
     if (!minimumValid) return;
-    toast(`${computedDisplayName || "Talent"} saved as draft`);
-    closeDrawer();
+    runAdd("draft", () => {
+      toast(`${computedDisplayName || "Talent"} saved as draft`);
+      closeDrawer();
+    });
   };
 
   // Primary CTA copy is intentionally explicit so admins know what
@@ -10851,10 +10902,10 @@ function NewTalentDrawer() {
   // own profile. Agency-managed → drawer hands off to the full Profile
   // Shell where admin completes everything. Draft → quietly saves.
   const primaryAction = method === "invited"
-    ? { label: "Send claim invite", run: sendInvite, enabled: inviteValid }
+    ? { label: isPending ? "Sending…" : "Send claim invite", run: sendInvite, enabled: inviteValid && !isPending }
     : method === "draft"
-    ? { label: "Save as draft", run: saveDraft, enabled: minimumValid }
-    : { label: "Create + open full profile", run: continueEditing, enabled: minimumValid };
+    ? { label: isPending ? "Saving…" : "Save as draft", run: saveDraft, enabled: minimumValid && !isPending }
+    : { label: isPending ? "Creating…" : "Create + open full profile", run: continueEditing, enabled: minimumValid && !isPending };
 
   // #11 — Paste a vCard / Instagram handle / LinkedIn URL / plain text
   // contact. Parser detects shape and autofills first name + last name +

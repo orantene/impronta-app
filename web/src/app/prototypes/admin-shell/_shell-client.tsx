@@ -193,13 +193,31 @@ class ErrorBoundary extends Component<
  */
 export function AdminShellPrototypePageClient({
   initialBridgeData = null,
+  initialPage,
+  tenantSlug,
+  children,
 }: {
   initialBridgeData?: BridgeData | null;
+  /** Cutover mode — which page to start on. Passed through to ProtoProvider. */
+  initialPage?: import("./_state").WorkspacePage;
+  /** Cutover mode — slug for Next.js router.push() URL sync. */
+  tenantSlug?: string;
+  /**
+   * Cutover mode — slot for PageRouteSyncer. Rendered inside ProtoProvider
+   * so it can call useProto().setPage() to sync the shell's internal page
+   * with the current Next.js route. Returns null visually.
+   */
+  children?: import("react").ReactNode;
 } = {}) {
   return (
     <ErrorBoundary>
       <Suspense fallback={null}>
-        <ProtoProvider initialBridgeData={initialBridgeData}>
+        <ProtoProvider
+          initialBridgeData={initialBridgeData}
+          initialPage={initialPage}
+          tenantSlug={tenantSlug}
+        >
+          {children}
           <PrototypeRoot />
         </ProtoProvider>
       </Suspense>

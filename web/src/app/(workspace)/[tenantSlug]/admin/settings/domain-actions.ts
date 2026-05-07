@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AccessDeniedError, requireCapability } from "@/lib/access";
 import {
+  builderPlanAllows,
+  loadBuilderWorkspacePlan,
+} from "@/lib/site-admin/builder-capabilities";
+import { customDomainLockedCopy } from "@/lib/saas/workspace-public-url";
+import {
   ensureCustomDomainOnVercelProject,
   loadCustomDomainVerificationRecord,
   removeCustomDomainFromVercelProject,
@@ -19,8 +24,6 @@ import {
   normalizeCustomDomainHostname,
   pickFallbackSubdomainHostname,
 } from "./domain-utils";
-
-const ELIGIBLE_PLAN_TIERS = new Set(["agency", "network", "legacy"]);
 type DomainReturnTo = "settings" | "site";
 
 function domainPath(
@@ -111,7 +114,7 @@ export async function connectCustomDomainAction(formData: FormData): Promise<voi
 
   const { data: agency, error: agencyError } = await supabase
     .from("agencies")
-    .select("slug, plan_tier")
+    .select("slug")
     .eq("id", scope.tenantId)
     .maybeSingle();
 
@@ -120,10 +123,17 @@ export async function connectCustomDomainAction(formData: FormData): Promise<voi
     redirectWithDomainError(tenantSlug, "Workspace details could not be loaded.", returnTo);
   }
 
-  if (!ELIGIBLE_PLAN_TIERS.has(agency.plan_tier ?? "")) {
+  const workspacePlan = await loadBuilderWorkspacePlan(supabase, scope.tenantId, {
+    onError: (message) =>
+      logServerError(
+        "workspace.settings.connectCustomDomain.plan",
+        new Error(message),
+      ),
+  });
+  if (!builderPlanAllows(workspacePlan, "builder.domain.custom")) {
     redirectWithDomainError(
       tenantSlug,
-      "Custom domains are available on Agency and Network plans. Studio uses the branded Tulala subdomain.",
+      customDomainLockedCopy(workspacePlan),
       returnTo,
     );
   }

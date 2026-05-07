@@ -1,88 +1,38 @@
-// Phase 3 — canonical workspace admin shell.
-// Server Component — no "use client".
+// Workspace admin layout — cutover version.
 //
-// Two-bar horizontal layout matching the prototype's TulalaIdentityBar +
-// WorkspaceTopbar design. Replaces the old AdminDashboardShell (dark sidebar)
-// which was incorrect for the Phase 3 workspace surface.
+// Replaces the old two-bar shell (TulalaIdentityBar + WorkspaceTopbar +
+// content area) with the full prototype shell, which has all of that chrome
+// built in. Each admin surface page (admin/page.tsx, admin/messages/page.tsx,
+// etc.) renders only a <PageRouteSyncer page="…" /> as its content — a
+// client component that calls useProto().setPage() on mount to sync the
+// shell's internal page with the current Next.js route.
 //
-// Shell structure:
-//   ┌─────────────────────────────── 56px ────────────────────────────────┐
-//   │  Tulala  /  User Name  /  Agency Name  [plan]        [notifications] │  ← identity bar
-//   └──────────────────────────────────────────────────────────────────────┘
-//   ┌─────────────────────────────── 52px ────────────────────────────────┐
-//   │  Overview  Messages  Calendar  Talent  Clients  Operations  …        │  ← workspace topbar
-//   └──────────────────────────────────────────────────────────────────────┘
-//   ┌──────────────────────── content ────────────────────────────────────┐
-//   │  (children — page content, max-w 1320, padding 28px)                │
-//   └──────────────────────────────────────────────────────────────────────┘
-//
-// Capability gate: agency.workspace.view (viewer+).
-// Data: scope from URL slug, workspace summary for plan+displayName.
+// initialPage is derived from the request pathname so hard refreshes on
+// /admin/messages start on the correct surface without a flash.
 
-import { Suspense } from "react";
-import { Toaster } from "sonner";
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadWorkspaceAgencySummary, loadTotalUnreadMessages, loadPendingRosterCount, loadWorkspaceOverviewMetrics } from "../_data-bridge";
-import { signOut } from "@/app/auth/actions";
-import { WorkspaceTopbar } from "./workspace-topbar";
+import { loadWorkspaceRosterForCurrentTenant } from "@/app/prototypes/admin-shell/_data-bridge";
+import { AdminShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
+import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
+import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
+
+export const dynamic = "force-dynamic";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
-// ─── Design tokens ───────────────────────────────────────────────────────────
-
-const C = {
-  surface:    "#FAFAF7",   // cream body background
-  ink:        "#0B0B0D",
-  inkMuted:   "rgba(11,11,13,0.72)",
-  inkDim:     "rgba(11,11,13,0.38)",
-  borderSoft: "rgba(24,24,27,0.06)",
-  accent:     "#0F4F3E",
-  accentSoft: "rgba(15,79,62,0.10)",
-  green:      "#2E7D5B",
-} as const;
-
-const FONT_BODY    = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
-
-// ─── Plan chip styles ─────────────────────────────────────────────────────────
-
-const PLAN_CHIP: Record<string, { bg: string; color: string; label: string }> = {
-  free:    { bg: "rgba(82,96,109,0.10)",  color: "rgba(11,11,13,0.72)", label: "Free"    },
-  studio:  { bg: "rgba(180,130,20,0.12)", color: "#7A5710",             label: "Studio"  },
-  agency:  { bg: "rgba(15,79,62,0.10)",   color: "#0F4F3E",             label: "Agency"  },
-  network: { bg: "rgba(91,60,140,0.10)",  color: "#5B3C8C",             label: "Network" },
-};
-
-// ─── User display name helper ─────────────────────────────────────────────────
-
-function userDisplayName(email: string | null | undefined, meta: Record<string, unknown> | undefined): string {
-  if (meta?.full_name && typeof meta.full_name === "string") return meta.full_name;
-  if (meta?.name && typeof meta.name === "string") return meta.name;
-  if (email) return email.split("@")[0].replace(/[._-]/g, " ");
-  return "You";
+/** Derive the workspace page from the raw request pathname. */
+function deriveInitialPage(pathname: string, tenantSlug: string): WorkspacePage {
+  // Strip leading /{tenantSlug}/admin/ (or /{tenantSlug}/admin) to get segment
+  const prefix = `/${tenantSlug}/admin`;
+  const after = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "";
+  // after is "" | "/messages" | "/messages/…" | "/roster" | etc.
+  const segment = after.replace(/^\//, "").split("/")[0] ?? "";
+  return resolveWorkspaceAdminPage(segment || "overview");
 }
-
-// ─── Initials helper ──────────────────────────────────────────────────────────
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => {
-      // Skip leading non-alphabetic characters (digits, punctuation) so
-      // avatar never shows "0" or a symbol as the initial.
-      const ch = w.replace(/[^a-zA-ZÀ-ÿ]/g, "")[0];
-      return ch ? ch.toUpperCase() : "";
-    })
-    .filter(Boolean)
-    .join("");
-}
-
-// ─── Layout ───────────────────────────────────────────────────────────────────
 
 export default async function WorkspaceAdminLayout({
   children,
@@ -93,453 +43,35 @@ export default async function WorkspaceAdminLayout({
 }) {
   const { tenantSlug } = await params;
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────
   const session = await getCachedActorSession();
   if (!session.supabase) redirect("/login?error=config");
   if (!session.user) redirect(`/login?next=/${tenantSlug}/admin`);
 
-  // ── Tenant resolution ─────────────────────────────────────────────────────
+  // ── Tenant ─────────────────────────────────────────────────────────────────
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  // ── Capability gate ───────────────────────────────────────────────────────
+  // ── Capability ─────────────────────────────────────────────────────────────
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
   if (!canView) notFound();
 
-  // ── Shell data ────────────────────────────────────────────────────────────
-  const [summary, unreadMessages, pendingRoster, overviewMetrics] = await Promise.all([
-    loadWorkspaceAgencySummary(scope.tenantId),
-    loadTotalUnreadMessages(scope.tenantId),
-    loadPendingRosterCount(scope.tenantId),
-    loadWorkspaceOverviewMetrics(scope.tenantId),
-  ]);
+  // ── Derive initialPage from URL (avoids hard-refresh flash) ───────────────
+  const hdrs = await headers();
+  const pathname = hdrs.get("x-impronta-original-pathname") ?? `/${tenantSlug}/admin`;
+  const initialPage = deriveInitialPage(pathname, tenantSlug);
 
-  const displayName = summary?.displayName ?? scope.membership.display_name;
-  const plan        = summary?.plan ?? "free";
-  const chip        = PLAN_CHIP[plan] ?? PLAN_CHIP.agency;
-
-  // Prefer the profiles.display_name the workspace-signup flow just wrote.
-  // Fall back to auth user_metadata, then the email local-part.
-  const profileDisplayName = (session.profile as { display_name?: string | null } | null)
-    ?.display_name?.trim() || "";
-  const userName = profileDisplayName ||
-    userDisplayName(
-      session.user.email,
-      session.user.user_metadata as Record<string, unknown> | undefined,
-    );
-  const userInitials = initials(userName);
+  // ── Prefetch bridge data ───────────────────────────────────────────────────
+  const roster = await loadWorkspaceRosterForCurrentTenant();
 
   return (
-    <>
-      {/* Scoped CSS variables so all child pages (which reference --admin-*
-          vars) render correctly with the light workspace theme. */}
-      <style>{`
-        .workspace-admin-root {
-          --admin-workspace-fg:  ${C.ink};
-          --admin-workspace-bg:  ${C.surface};
-          --admin-border:        ${C.borderSoft};
-          --admin-card-bg:       #ffffff;
-          --admin-nav-idle:      ${C.inkMuted};
-          --admin-accent:        ${C.accent};
-
-          /* Override shadcn semantic vars to light workspace values.
-             Pages using bg-card, text-foreground, border-border etc. get
-             the correct light theme instead of inheriting a dark theme. */
-          --background:          ${C.surface};
-          --foreground:          ${C.ink};
-          --card:                #ffffff;
-          --card-foreground:     ${C.ink};
-          --muted-foreground:    ${C.inkMuted};
-          --border:              rgba(24,24,27,0.10);
-        }
-
-        /* Cinzel serif is the old dark-admin identity font.
-           Within the workspace shell, all headings use Inter. */
-        .workspace-admin-root .font-display {
-          font-family: "Inter", system-ui, sans-serif;
-        }
-      `}</style>
-
-      <div className="workspace-admin-root" style={{ minHeight: "100dvh", background: C.surface, fontFamily: FONT_BODY }}>
-
-        {/* ── Bar 1: TulalaIdentityBar (56px) ── */}
-        <header
-          style={{
-            background: "#fff",
-            borderBottom: `1px solid ${C.borderSoft}`,
-            position: "sticky",
-            top: 0,
-            zIndex: 50,
-            padding: "0 24px",
-            height: 56,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              height: "100%",
-              maxWidth: 1440,
-              margin: "0 auto",
-            }}
-          >
-            {/* Platform brand */}
-            <div
-              style={{
-                fontFamily: FONT_DISPLAY,
-                fontSize: 16,
-                fontWeight: 500,
-                letterSpacing: 0.4,
-                color: C.ink,
-                textTransform: "uppercase",
-                paddingRight: 4,
-                userSelect: "none",
-              }}
-            >
-              Tulala
-            </div>
-
-            <div style={{ width: 1, height: 22, background: C.borderSoft, margin: "0 4px", flexShrink: 0 }} />
-
-            {/* User identity */}
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 8px",
-                borderRadius: 999,
-              }}
-            >
-              {/* Avatar */}
-              <div
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: "50%",
-                  background: C.accentSoft,
-                  color: C.accent,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                  fontFamily: FONT_BODY,
-                  letterSpacing: 0.5,
-                }}
-              >
-                {userInitials}
-              </div>
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: C.ink,
-                  letterSpacing: -0.05,
-                }}
-              >
-                {userName}
-              </span>
-            </div>
-
-            {/* "/" separator */}
-            <span
-              aria-hidden
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 14,
-                color: C.inkDim,
-                marginLeft: -2,
-                flexShrink: 0,
-              }}
-            >
-              /
-            </span>
-
-            {/* Acting-as: agency name + plan badge + sub-line */}
-            <div
-              style={{
-                display: "inline-flex",
-                flexDirection: "column",
-                gap: 1,
-                padding: "3px 0",
-              }}
-            >
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                {/* Active dot */}
-                <span
-                  aria-hidden
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: C.green,
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontFamily: FONT_BODY,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: C.ink,
-                    letterSpacing: -0.1,
-                    minWidth: 0,
-                    overflow: "hidden",
-                    maxWidth: 220,
-                  }}
-                >
-                  <span
-                    style={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {displayName}
-                  </span>
-                  {/* Plan chip */}
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "1px 7px",
-                      borderRadius: 999,
-                      fontSize: 10,
-                      fontWeight: 600,
-                      letterSpacing: 0.3,
-                      background: chip.bg,
-                      color: chip.color,
-                      flexShrink: 0,
-                      fontFamily: FONT_BODY,
-                    }}
-                  >
-                    {chip.label}
-                  </span>
-                </span>
-              </div>
-              {/* Pipeline sub-line: open inquiries · confirmed bookings */}
-              {overviewMetrics && (overviewMetrics.openInquiries > 0 || overviewMetrics.nextBookingDate) && (
-                <div
-                  style={{
-                    fontFamily: FONT_BODY,
-                    fontSize: 11,
-                    color: C.inkMuted,
-                    paddingLeft: 14,
-                    letterSpacing: 0,
-                    lineHeight: 1,
-                  }}
-                >
-                  {overviewMetrics.openInquiries > 0
-                    ? `${overviewMetrics.openInquiries} pending`
-                    : null}
-                  {overviewMetrics.openInquiries > 0 && overviewMetrics.nextBookingDate
-                    ? " · "
-                    : null}
-                  {overviewMetrics.nextBookingDate
-                    ? `next: ${overviewMetrics.nextBookingLabel ?? "upcoming"}`
-                    : null}
-                </div>
-              )}
-            </div>
-
-            <div style={{ flex: 1 }} />
-
-            {/* ── Right-side utilities (matching prototype TulalaIdentityBar) ── */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-
-              {/* Talent surface link — visible when the workspace owner is also a talent */}
-              <a
-                href={`/${tenantSlug}/talent`}
-                title="Switch to Talent view"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  height: 30,
-                  padding: "0 10px",
-                  borderRadius: 999,
-                  background: "transparent",
-                  border: `1px solid ${C.borderSoft}`,
-                  color: C.inkMuted,
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  textDecoration: "none",
-                  letterSpacing: 0.1,
-                  cursor: "pointer",
-                }}
-              >
-                Talent
-              </a>
-
-              {/* Workspace pill — current surface indicator */}
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  height: 30,
-                  padding: "0 12px",
-                  borderRadius: 999,
-                  background: C.ink,
-                  color: "#fff",
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: 0.1,
-                }}
-              >
-                Workspace
-              </div>
-
-              {/* Notification bell */}
-              <div
-                aria-label={unreadMessages > 0 ? `${unreadMessages} unread messages` : "Notifications"}
-                style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer" }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: C.inkMuted }}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                {unreadMessages > 0 && (
-                  <span style={{
-                    position: "absolute", top: 3, right: 3,
-                    minWidth: 16, height: 16, padding: "0 3px",
-                    borderRadius: 999, background: "#C0392B", color: "#fff",
-                    fontSize: 9, fontWeight: 700, lineHeight: "16px",
-                    fontFamily: FONT_BODY, textAlign: "center",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {unreadMessages > 99 ? "99+" : unreadMessages}
-                  </span>
-                )}
-              </div>
-
-              {/* Help button */}
-              <div
-                aria-label="Help"
-                title="Help"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer", color: C.inkMuted, fontFamily: FONT_BODY, fontSize: 14, fontWeight: 600 }}
-              >
-                ?
-              </div>
-
-              {/* Language toggle stubs */}
-              <div
-                aria-label="Language"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 0,
-                  height: 28,
-                  borderRadius: 7,
-                  border: `1px solid ${C.borderSoft}`,
-                  overflow: "hidden",
-                  flexShrink: 0,
-                }}
-              >
-                <button
-                  type="button"
-                  aria-pressed
-                  style={{
-                    padding: "0 8px",
-                    height: "100%",
-                    background: C.ink,
-                    color: "#fff",
-                    border: "none",
-                    fontFamily: FONT_BODY,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: 0.3,
-                    cursor: "pointer",
-                  }}
-                >
-                  EN
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    padding: "0 8px",
-                    height: "100%",
-                    background: "transparent",
-                    color: C.inkMuted,
-                    border: "none",
-                    fontFamily: FONT_BODY,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    letterSpacing: 0.3,
-                    cursor: "pointer",
-                  }}
-                >
-                  ES
-                </button>
-              </div>
-
-              {/* Sign-out */}
-              <form action={signOut}>
-                <button
-                  type="submit"
-                  title="Sign out"
-                  aria-label="Sign out"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    border: `1px solid ${C.borderSoft}`,
-                    background: "transparent",
-                    color: C.inkMuted,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    fontFamily: FONT_BODY,
-                    transition: "border-color 100ms, color 100ms",
-                  }}
-                >
-                  ↩
-                </button>
-              </form>
-            </div>
-          </div>
-        </header>
-
-        {/* ── Bar 2: WorkspaceTopbar — client component for URL-based tab nav ── */}
-        <Suspense fallback={
-          <div style={{ height: 52, background: "#fff", borderBottom: `1px solid ${C.borderSoft}` }} />
-        }>
-          <WorkspaceTopbar
-            tenantSlug={tenantSlug}
-            isSuperAdmin={session.profile?.app_role === "super_admin"}
-            unreadMessages={unreadMessages}
-            pendingRoster={pendingRoster}
-          />
-        </Suspense>
-
-        {/* ── Content area ── */}
-        <main
-          style={{
-            padding: "28px 28px 60px",
-            maxWidth: 1320,
-            margin: "0 auto",
-          }}
-        >
-          {children}
-        </main>
-      </div>
-
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          className: "!rounded-xl !border-border/50 !shadow-lg",
-        }}
-      />
-    </>
+    <AdminShellPrototypePageClient
+      tenantSlug={tenantSlug}
+      initialPage={initialPage}
+      initialBridgeData={{ roster }}
+    >
+      {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}
+      {children}
+    </AdminShellPrototypePageClient>
   );
 }

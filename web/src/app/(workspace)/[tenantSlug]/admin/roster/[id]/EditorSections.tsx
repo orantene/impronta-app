@@ -69,15 +69,6 @@ function btnPrimary(disabled: boolean): React.CSSProperties {
     fontFamily: F, opacity: disabled ? 0.5 : 1,
   };
 }
-function btnGhost(disabled: boolean): React.CSSProperties {
-  return {
-    padding: "7px 12px", borderRadius: 8,
-    background: "transparent", color: C.ink,
-    border: `1px solid ${C.border}`,
-    fontSize: 12.5, fontWeight: 600, cursor: disabled ? "default" : "pointer",
-    fontFamily: F, opacity: disabled ? 0.5 : 1,
-  };
-}
 function btnDanger(disabled: boolean): React.CSSProperties {
   return {
     padding: "7px 12px", borderRadius: 8,
@@ -912,7 +903,7 @@ export function GallerySection({
             <div style={{ fontSize: 28, opacity: 0.5 }}>🖼</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>No portfolio photos yet</div>
             <div style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.5, textAlign: "center", maxWidth: 320 }}>
-              Drop images here or click "Upload photos" to start.
+              Drop images here or click &quot;Upload photos&quot; to start.
             </div>
           </div>
         ) : galleryItems.map((p) => (

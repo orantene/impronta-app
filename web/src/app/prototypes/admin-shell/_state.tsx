@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import type { ToastTone } from "./_primitives";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded
 // by `import "server-only"`. The `import type` form is erased at compile
@@ -6598,6 +6599,8 @@ type Ctx = {
    * be consumed inside hooks without re-render churn.
    */
   effectiveRoster: TalentProfile[];
+  /** Set when running in production (cutover) mode — the real tenant slug from the URL. */
+  tenantSlug: string | undefined;
 };
 
 /** Agency-defined custom field. Renders in Profile Shell's "Profile details"
@@ -6847,9 +6850,21 @@ function runWithViewTransition(work: () => void): void {
   doc.startViewTransition(work);
 }
 
+/**
+ * Map a canonical WorkspacePage to its Next.js route segment.
+ * "overview" → "" (the root /admin path with no sub-segment).
+ * All others → their own slug.
+ */
+function pageToSegment(p: WorkspacePage): string {
+  const resolved = resolveWorkspacePage(p as string);
+  return resolved === "overview" ? "" : resolved;
+}
+
 export function ProtoProvider({
   children,
   initialBridgeData = null,
+  initialPage,
+  tenantSlug,
 }: {
   children: ReactNode;
   /**
@@ -6858,14 +6873,49 @@ export function ProtoProvider({
    * `_data-bridge.ts` and `./page.tsx` for the server boundary.
    */
   initialBridgeData?: BridgeData | null;
+  /**
+   * Cutover mode — when set, the shell starts on this page and URL sync
+   * uses Next.js router.push() instead of replaceState query-params.
+   * Used by the production admin routes (Step 1 of the prototype cutover).
+   */
+  initialPage?: WorkspacePage;
+  /**
+   * When set alongside `initialPage`, page changes push to
+   * `/${tenantSlug}/admin/${segment}` via the Next.js router so the
+   * browser URL stays in sync with the shell's internal page state.
+   */
+  tenantSlug?: string;
 }) {
+  const router = useRouter();
+  const tenantSlugRef = useRef(tenantSlug);
+  useEffect(() => { tenantSlugRef.current = tenantSlug; }, [tenantSlug]);
+
   const [surface, setSurface] = useState<Surface>("workspace");
   // workspace
   const [plan, setPlan] = useState<Plan>("free");
   const [role, setRole] = useState<Role>("owner");
   const [entityType, setEntityType] = useState<EntityType>(TENANT.entityType);
   const [alsoTalent, setAlsoTalent] = useState<boolean>(true);
-  const [page, setPage] = useState<WorkspacePage>("overview");
+  const [page, setPageRaw] = useState<WorkspacePage>(initialPage ?? "overview");
+
+  // In production (cutover) mode the browser URL is the source of truth
+  // for page — driven by Next.js routing, not ?page= query params. When
+  // tenantSlug is set we skip the replaceState URL sync and instead push
+  // a real navigation so every page change is a proper Next.js route.
+  const setPage = useCallback((p: WorkspacePage) => {
+    setPageRaw(p);
+    const slug = tenantSlugRef.current;
+    if (slug) {
+      const segment = pageToSegment(p);
+      const targetHref = segment ? `/${slug}/admin/${segment}` : `/${slug}/admin`;
+      // Guard: skip push if we're already on this URL. This prevents a
+      // navigation loop when PageRouteSyncer fires setPage on mount while
+      // the browser is already at the correct route.
+      if (typeof window !== "undefined" && window.location.pathname !== targetHref) {
+        router.push(targetHref);
+      }
+    }
+  }, [router]);
   // talent
   const [talentPage, setTalentPage] = useState<TalentPage>("today");
   // client
@@ -7299,8 +7349,11 @@ export function ProtoProvider({
   // *defaults* and clobbers the user's URL params before they're read.
   const [urlHydrated, setUrlHydrated] = useState(false);
 
-  // Read initial state from URL on mount
+  // Read initial state from URL on mount.
+  // Skipped in production (cutover) mode — page is driven by Next.js
+  // routing, not ?page= query params.
   useEffect(() => {
+    if (tenantSlugRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const s = params.get("surface");
     const pl = params.get("plan");
@@ -7354,7 +7407,9 @@ export function ProtoProvider({
 
   // Persist to URL (replace, not push). Only sync the dimensions relevant to
   // the active surface to keep URLs short and shareable.
+  // Skipped in production (cutover) mode — URL is owned by Next.js router.
   useEffect(() => {
+    if (tenantSlugRef.current) return;
     // Skip until URL-read has applied. Otherwise the very first paint
     // writes defaults to the URL and discards whatever the user navigated to.
     if (!urlHydrated) return;
@@ -7644,6 +7699,7 @@ export function ProtoProvider({
       // should consume.
       bridgeRoster,
       effectiveRoster,
+      tenantSlug,
     }),
     [
       surface,
@@ -7716,6 +7772,7 @@ export function ProtoProvider({
       canClientContactTalent,
       bridgeRoster,
       effectiveRoster,
+      tenantSlug,
     ],
   );
 
@@ -8332,7 +8389,7 @@ export type WebsiteState = {
   analytics: WebsiteAnalytics;
 };
 
-const _now = Date.now();
+const _now = Date.UTC(2026, 4, 7, 12, 0, 0);
 const _daysAgo = (n: number) => new Date(_now - n * 86400e3).toISOString();
 const _daysAhead = (n: number) => new Date(_now + n * 86400e3).toISOString();
 

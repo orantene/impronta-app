@@ -9,7 +9,8 @@
  */
 
 import * as React from "react";
-import { SUPPORTED_CURRENCIES, setCurrencyPreferenceAction } from "./currency-actions";
+import { setCurrencyPreferenceAction } from "./currency-actions";
+import { SUPPORTED_CURRENCIES } from "./currency-options";
 
 const C = {
   ink:      "#0B0B0D",
