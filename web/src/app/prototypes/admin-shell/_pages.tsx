@@ -2927,7 +2927,7 @@ function OverviewPage() {
 }
 
 function OverviewFree() {
-  const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers, effectiveMessagesInquiries } = useProto();
 
   // Live signals that prove a step is "really done" — overrides the
   // user-confirmed Set. Order: real state first, manual confirmation
@@ -2941,7 +2941,7 @@ function OverviewFree() {
   // to the per-plan mock arrays; when present it overrides them.
   const liveRoster = effectiveRoster;
   const livePublished = liveRoster.filter((t) => t.state === "published").length;
-  const liveInquiries = getInquiries(state.plan);
+  const liveInquiries = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : getInquiries(state.plan);
   const liveTeam = effectiveTeamMembers.length > 0 ? effectiveTeamMembers : getTeam(state.plan);
   const autoComplete: Record<string, boolean> = {
     "add-talent": liveRoster.length > 0,
