@@ -67,6 +67,7 @@ import {
   type Conversation, type Participant,
   MOCK_CONVERSATIONS, MOCK_THREAD,
   CLIENT_MOCK_CONVERSATIONS_BY_PROFILE,
+  useTalentConversations,
 } from "./_talent";
 // WorkspaceBody import removed — admin now uses AdminInquiryDetail
 // (defined below) which mirrors the talent/client shell pattern.
@@ -2724,7 +2725,7 @@ function CollapsedInboxRail({
 }
 
 function TalentJobShell() {
-  const conversations = MOCK_CONVERSATIONS;
+  const conversations = useTalentConversations();
   // Subscribe to seen-state changes so the inbox re-sorts the moment
   // a row gets clicked (the NEW pill drops, the unseen sort tier loses
   // that conv, and it falls back to its recency rank).

@@ -23,6 +23,8 @@ import type {
   WorkspaceOverviewMetrics,
   WorkspaceBookingRow,
   WorkspaceTeamMember as BridgeTeamMember,
+  TalentSelfProfile as BridgeTalentSelfProfile,
+  TalentInquiryRow,
 } from "./_data-bridge";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
@@ -6637,6 +6639,20 @@ type Ctx = {
   effectiveTeamMembers: TeamMember[];
   /** Live total unread count for the nav badge. Falls back to 0 in mock mode. */
   totalUnread: number;
+
+  // ── Phase 3.12.2 talent self-surface bridge fields ─────────────────────────
+  /**
+   * Live talent inquiries from the bridge. Empty array = mock mode.
+   * `_talent.tsx` adapts these into its `Conversation[]` shape locally
+   * (adaptation stays in the consumer to avoid a circular import with
+   * the `Conversation` type defined in `_talent.tsx`).
+   */
+  effectiveTalentInquiries: TalentInquiryRow[];
+  /**
+   * The talent's own profile data from the bridge.
+   * null = mock mode; `_talent.tsx` falls back to MY_TALENT_PROFILE.
+   */
+  bridgeTalentSelfProfile: BridgeTalentSelfProfile | null;
 };
 
 /** Agency-defined custom field. Renders in Profile Shell's "Profile details"
@@ -7035,10 +7051,27 @@ function pageToSegment(p: WorkspacePage): string {
   return resolved === "overview" ? "" : resolved;
 }
 
+/** Maps a TalentPage to the URL segment for canonical talent routes. */
+function talentPageToSegment(p: TalentPage): string {
+  // Canonical canonical paths mirror the existing /talent/* route tree.
+  const map: Partial<Record<TalentPage, string>> = {
+    today:     "today",
+    messages:  "inbox",  // messages → inbox canonical route
+    inbox:     "inbox",
+    profile:   "profile",
+    calendar:  "calendar",
+    agencies:  "agencies",
+    settings:  "settings",
+  };
+  return map[p] ?? p;
+}
+
 export function ProtoProvider({
   children,
   initialBridgeData = null,
   initialPage,
+  initialSurface,
+  initialTalentPage,
   tenantSlug,
 }: {
   children: ReactNode;
@@ -7055,6 +7088,17 @@ export function ProtoProvider({
    */
   initialPage?: WorkspacePage;
   /**
+   * Phase 3.12.2 — when set, the shell starts on this surface (e.g. "talent"
+   * for the canonical talent self-surface, "client" for client self). When
+   * omitted, defaults to "workspace" (the admin shell default).
+   */
+  initialSurface?: Surface;
+  /**
+   * Phase 3.12.2 — when set, the talent shell starts on this page and URL
+   * sync uses Next.js router.push() for talent routes.
+   */
+  initialTalentPage?: TalentPage;
+  /**
    * When set alongside `initialPage`, page changes push to
    * `/${tenantSlug}/admin/${segment}` via the Next.js router so the
    * browser URL stays in sync with the shell's internal page state.
@@ -7065,7 +7109,7 @@ export function ProtoProvider({
   const tenantSlugRef = useRef(tenantSlug);
   useEffect(() => { tenantSlugRef.current = tenantSlug; }, [tenantSlug]);
 
-  const [surface, setSurface] = useState<Surface>("workspace");
+  const [surface, setSurface] = useState<Surface>(initialSurface ?? "workspace");
   // workspace
   const [plan, setPlan] = useState<Plan>("free");
   const [role, setRole] = useState<Role>("owner");
@@ -7092,7 +7136,18 @@ export function ProtoProvider({
     }
   }, [router]);
   // talent
-  const [talentPage, setTalentPage] = useState<TalentPage>("today");
+  const [talentPage, setTalentPageRaw] = useState<TalentPage>(initialTalentPage ?? "today");
+  const setTalentPage = useCallback((p: TalentPage) => {
+    setTalentPageRaw(p);
+    const slug = tenantSlugRef.current;
+    if (slug && initialSurface === "talent") {
+      const segment = talentPageToSegment(p);
+      const targetHref = `/${slug}/talent/${segment}`;
+      if (typeof window !== "undefined" && window.location.pathname !== targetHref) {
+        router.push(targetHref);
+      }
+    }
+  }, [router, initialSurface]);
   // client
   const [clientPlan, setClientPlan] = useState<ClientPlan>("pro");
   const [clientPage, setClientPage] = useState<ClientPage>("today");
@@ -7821,6 +7876,14 @@ export function ProtoProvider({
 
   const totalUnread = initialBridgeData?.totalUnread ?? 0;
 
+  // Phase 3.12.2 — talent self-surface bridge
+  const effectiveTalentInquiries = useMemo<TalentInquiryRow[]>(
+    () => initialBridgeData?.talentInquiries ?? [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [initialBridgeData?.talentInquiries],
+  );
+  const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;
+
   const value: Ctx = useMemo(
     () => ({
       state: {
@@ -7922,6 +7985,8 @@ export function ProtoProvider({
       effectiveBookings,
       effectiveTeamMembers,
       totalUnread,
+      effectiveTalentInquiries,
+      bridgeTalentSelfProfile,
     }),
     [
       surface,
@@ -8002,6 +8067,8 @@ export function ProtoProvider({
       effectiveBookings,
       effectiveTeamMembers,
       totalUnread,
+      effectiveTalentInquiries,
+      bridgeTalentSelfProfile,
     ],
   );
 

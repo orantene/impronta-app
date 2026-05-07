@@ -18,6 +18,9 @@ export {
   loadWorkspaceBillingState,
   loadWebsiteData,
   loadTotalUnreadMessages,
+  // Phase 3.12.2 — talent self-surface loaders
+  loadTalentSelfProfile,
+  loadTalentInquiries,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 export type {
@@ -28,6 +31,9 @@ export type {
   WorkspaceBookingRow,
   WorkspaceTeamMember,
   WebsiteData,
+  // Phase 3.12.2 — talent self-surface types
+  TalentSelfProfile,
+  TalentInquiryRow,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 // Type-only import. `_state.tsx` is a client module ("use client") and
@@ -43,6 +49,8 @@ import type {
   WorkspaceBookingRow,
   WorkspaceTeamMember,
   WebsiteData,
+  TalentSelfProfile,
+  TalentInquiryRow,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 /**
@@ -100,7 +108,7 @@ export type BridgeData = {
    */
   roster: TalentProfile[] | null;
 
-  // ── Phase 3.12 real-data bridge fields ────────────────────────────────────
+  // ── Phase 3.12 workspace real-data bridge fields ───────────────────────────
   /** Enriched inquiry rows for the Messages / Work surfaces. */
   inquiries: WorkspaceInquiryForMessages[] | null;
   /** Client rows for the Clients surface. */
@@ -115,6 +123,19 @@ export type BridgeData = {
   teamMembers: WorkspaceTeamMember[] | null;
   /** Unread message count for the nav badge. */
   totalUnread: number;
+
+  // ── Phase 3.12.2 talent self-surface bridge fields ─────────────────────────
+  /**
+   * The talent's own profile (display name, primary type, agency, profile code).
+   * `null` when not in talent-surface canonical mode.
+   */
+  talentSelfProfile?: TalentSelfProfile | null;
+  /**
+   * The talent's active inquiries — adapted into `Conversation[]` by the
+   * ProtoProvider adapter for use in TodayPage / InboxShell / CalendarPage.
+   * `null` means talent surface is in mock mode (use MOCK_CONVERSATIONS).
+   */
+  talentInquiries?: TalentInquiryRow[] | null;
 };
 
 export function createBridgeDataFromRoster(
@@ -129,6 +150,8 @@ export function createBridgeDataFromRoster(
     bookings: null,
     teamMembers: null,
     totalUnread: 0,
+    talentSelfProfile: null,
+    talentInquiries: null,
   };
 }
 

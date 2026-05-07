@@ -225,6 +225,51 @@ export function AdminShellPrototypePageClient({
   );
 }
 
+/**
+ * Phase 3.12.2 — Talent self-surface shell client.
+ *
+ * Mirrors AdminShellPrototypePageClient but initialises the ProtoProvider
+ * with `surface="talent"` and the talent-specific page routing. Mounted by
+ * `/(workspace)/[tenantSlug]/talent/layout.tsx` after auth + data pre-fetch.
+ *
+ * The shell renders the full prototype UI (TalentSurface) without the
+ * dark prototype ControlBar (which remains dev-only via ?dev=1).
+ */
+export function TalentShellPrototypePageClient({
+  initialBridgeData = null,
+  initialTalentPage,
+  tenantSlug,
+  children,
+}: {
+  initialBridgeData?: BridgeData | null;
+  /** Which talent page to start on (derived from URL segment on hard refresh). */
+  initialTalentPage?: import("./_state").TalentPage;
+  /** Slug for Next.js router.push() URL sync via setTalentPage. */
+  tenantSlug?: string;
+  /**
+   * Slot for TalentPageRouteSyncer — a tiny component rendered inside the
+   * ProtoProvider that calls setTalentPage on mount to sync the shell's
+   * internal page with the current Next.js route. Returns null visually.
+   */
+  children?: import("react").ReactNode;
+} = {}) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={null}>
+        <ProtoProvider
+          initialBridgeData={initialBridgeData}
+          initialSurface="talent"
+          initialTalentPage={initialTalentPage}
+          tenantSlug={tenantSlug}
+        >
+          {children}
+          <PrototypeRoot />
+        </ProtoProvider>
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
 function PrototypeRoot() {
   const defaultShow = useDevControlBar();
   const [showDevBar, setShowDevBar] = useState(defaultShow);
@@ -1142,6 +1187,41 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
   );
 }
 
+const SPECULATION_RULES = {
+  prerender: [
+    {
+      where: {
+        and: [
+          { href_matches: "/prototypes/admin-shell*" },
+          { not: { href_matches: "/prototypes/admin-shell?logout*" } },
+        ],
+      },
+      eagerness: "moderate",
+    },
+  ],
+  prefetch: [
+    {
+      where: { href_matches: "/prototypes/admin-shell*" },
+      eagerness: "moderate",
+    },
+  ],
+} as const;
+
+function SpeculationRulesScript() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const script = document.createElement("script");
+    script.type = "speculationrules";
+    script.text = JSON.stringify(SPECULATION_RULES);
+    document.head.appendChild(script);
+    return () => {
+      script.remove();
+    };
+  }, []);
+
+  return null;
+}
+
 function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
   return (
     <>
@@ -1152,19 +1232,7 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             no network or layout cost. Falls back silently on browsers
             without support. Uses "moderate" eagerness so we prerender
             on hover/focus rather than every link in viewport. */}
-        <script type="speculationrules" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          prerender: [{
-            where: { and: [
-              { href_matches: "/prototypes/admin-shell*" },
-              { not: { href_matches: "/prototypes/admin-shell?logout*" } },
-            ] },
-            eagerness: "moderate",
-          }],
-          prefetch: [{
-            where: { href_matches: "/prototypes/admin-shell*" },
-            eagerness: "moderate",
-          }],
-        })}} />
+        <SpeculationRulesScript />
         {/* Global keyboard-focus styling for the prototype. Scoped via
             `.tulala-shell` so we don't leak into other prototypes. Uses
             :focus-visible so mouse clicks don't trigger the ring. */}

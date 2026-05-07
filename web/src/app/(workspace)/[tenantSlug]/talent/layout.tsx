@@ -1,61 +1,48 @@
-// Phase 3.3 — canonical talent self-dashboard shell.
-// Server Component — no "use client".
+// Phase 3.12.2 — Talent self-surface canonical shell.
 //
-// Two-bar horizontal layout matching the prototype's TalentShell:
-//   ┌──────────────────────── 56px identity bar ──────────────────────────┐
-//   │  Tulala  /  Talent Name  [primary-type]    agency: Impronta    [↩]  │
-//   └─────────────────────────────────────────────────────────────────────┘
-//   ┌──────────────────────── 52px talent nav ────────────────────────────┐
-//   │  Today  Inbox  Calendar  Profile  Agencies  Settings   [Preview ↗]  │
-//   └─────────────────────────────────────────────────────────────────────┘
-//   ┌──────────────────────── content area ───────────────────────────────┐
-//   │  (children — page content, max-w 1320, padding 28px)                │
-//   └─────────────────────────────────────────────────────────────────────┘
+// Mounts the prototype talent shell at every /{tenantSlug}/talent/* route.
+// Mirrors the admin layout pattern (Phase 3.12): the server component does
+// auth + data pre-fetch; the client component renders the full prototype UI.
 //
-// Auth gate: user must be authenticated AND have a talent profile rostered
-// in this agency (agency_talent_roster WHERE tenant_id = tenantId AND
-// talent_profiles.user_id = auth.user.id AND status != removed).
+// Auth gate: user must be rostered talent for this agency. Uses
+// loadTalentSelfProfile() which also verifies agency_talent_roster membership.
+//
+// Bridge data pre-fetched in parallel:
+//   - talentSelfProfile  → TalentShellPrototypePageClient identity bar
+//   - talentInquiries    → ProtoProvider → effectiveTalentInquiries
+//
+// initialTalentPage is derived from the request pathname so hard refreshes
+// land on the correct tab without a flash.
 
 import { notFound, redirect } from "next/navigation";
-import { Toaster } from "sonner";
+import { headers } from "next/headers";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadTalentSelfProfile } from "../_data-bridge";
-import { signOut } from "@/app/auth/actions";
-import { TalentTopbar } from "./talent-topbar";
+import {
+  loadTalentSelfProfile,
+  loadTalentInquiries,
+} from "@/app/prototypes/admin-shell/_data-bridge";
+import { TalentShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
+import type { TalentPage } from "@/app/prototypes/admin-shell/_state";
+
+export const dynamic = "force-dynamic";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
-const C = {
-  surface:    "#FAFAF7",
-  ink:        "#0B0B0D",
-  inkMuted:   "rgba(11,11,13,0.72)",
-  inkDim:     "rgba(11,11,13,0.38)",
-  borderSoft: "rgba(24,24,27,0.06)",
-  accent:     "#0F4F3E",
-  accentSoft: "rgba(15,79,62,0.10)",
-  green:      "#2E7D5B",
-  indigoSoft: "rgba(43,63,163,0.08)",
-  indigoDeep: "#2B3FA3",
-} as const;
+const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
+  today:     "today",
+  inbox:     "messages",
+  profile:   "profile",
+  calendar:  "calendar",
+  agencies:  "agencies",
+  settings:  "settings",
+};
 
-const FONT_BODY    = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-function userDisplayName(email: string | null | undefined, meta: Record<string, unknown> | undefined): string {
-  if (meta?.full_name && typeof meta.full_name === "string") return meta.full_name;
-  if (meta?.name && typeof meta.name === "string") return meta.name;
-  if (email) return email.split("@")[0].replace(/[._-]/g, " ");
-  return "You";
+function deriveInitialTalentPage(pathname: string, tenantSlug: string): TalentPage {
+  const prefix = `/${tenantSlug}/talent`;
+  const after = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "";
+  const segment = after.replace(/^\//, "").split("/")[0] ?? "";
+  return TALENT_SEGMENT_MAP[segment] ?? "today";
 }
 
 export default async function TalentLayout({
@@ -75,307 +62,44 @@ export default async function TalentLayout({
   // ── Tenant resolution ────────────────────────────────────────────────────────
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
+  const tenantId = scope.tenantId;
 
   // ── Talent profile gate ────────────────────────────────────────────────────
-  // User must be a rostered talent for this agency.
-  const talentProfile = await loadTalentSelfProfile(session.user.id, scope.tenantId);
-  if (!talentProfile) notFound();
+  // loadTalentSelfProfile also verifies agency_talent_roster membership.
+  const talentSelfProfile = await loadTalentSelfProfile(session.user.id, tenantId);
+  if (!talentSelfProfile) notFound();
 
-  const userName = userDisplayName(
-    session.user.email,
-    session.user.user_metadata as Record<string, unknown> | undefined,
-  );
-  const userInitials = initials(talentProfile.displayName);
+  // ── Derive initialTalentPage from URL ────────────────────────────────────────
+  const hdrs = await headers();
+  const pathname = hdrs.get("x-impronta-original-pathname") ?? `/${tenantSlug}/talent/today`;
+  const initialTalentPage = deriveInitialTalentPage(pathname, tenantSlug);
 
-  const publicProfileUrl = talentProfile.profileCode
-    ? `https://tulala.digital/t/${talentProfile.profileCode}`
-    : null;
+  // ── Pre-fetch talent data in parallel ────────────────────────────────────────
+  const [talentInquiries] = await Promise.all([
+    loadTalentInquiries(talentSelfProfile.id, tenantId),
+  ]);
 
   return (
-    <>
-      <style>{`
-        .talent-root {
-          --admin-workspace-fg:  ${C.ink};
-          --admin-workspace-bg:  ${C.surface};
-          --admin-border:        ${C.borderSoft};
-          --admin-card-bg:       #ffffff;
-          --admin-nav-idle:      ${C.inkMuted};
-          --admin-accent:        ${C.accent};
-          --background:          ${C.surface};
-          --foreground:          ${C.ink};
-          --card:                #ffffff;
-          --card-foreground:     ${C.ink};
-          --muted-foreground:    ${C.inkMuted};
-          --border:              rgba(24,24,27,0.10);
-        }
-        .talent-root .font-display {
-          font-family: "Inter", system-ui, sans-serif;
-        }
-      `}</style>
-
-      <div className="talent-root" style={{ minHeight: "100dvh", background: C.surface, fontFamily: FONT_BODY }}>
-
-        {/* ── Bar 1: Identity bar (56px) ── */}
-        <header
-          style={{
-            background: "#fff",
-            borderBottom: `1px solid ${C.borderSoft}`,
-            position: "sticky",
-            top: 0,
-            zIndex: 50,
-            padding: "0 24px",
-            height: 56,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              height: "100%",
-              maxWidth: 1440,
-              margin: "0 auto",
-            }}
-          >
-            {/* Platform brand */}
-            <div
-              style={{
-                fontFamily: FONT_DISPLAY,
-                fontSize: 16,
-                fontWeight: 500,
-                letterSpacing: 0.4,
-                color: C.ink,
-                textTransform: "uppercase",
-                paddingRight: 4,
-                userSelect: "none",
-              }}
-            >
-              Tulala
-            </div>
-
-            <div style={{ width: 1, height: 22, background: C.borderSoft, margin: "0 4px", flexShrink: 0 }} />
-
-            {/* Talent identity */}
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 8px",
-                borderRadius: 999,
-              }}
-            >
-              {/* Avatar */}
-              <div
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: "50%",
-                  background: C.indigoSoft,
-                  color: C.indigoDeep,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                  fontFamily: FONT_BODY,
-                  letterSpacing: 0.5,
-                }}
-              >
-                {userInitials}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    fontFamily: FONT_BODY,
-                    fontSize: 13.5,
-                    fontWeight: 600,
-                    color: C.ink,
-                    letterSpacing: -0.1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    maxWidth: 180,
-                  }}
-                >
-                  {talentProfile.displayName}
-                </div>
-                {talentProfile.primaryTypeLabel && (
-                  <div
-                    style={{
-                      fontFamily: FONT_BODY,
-                      fontSize: 11,
-                      color: C.inkMuted,
-                      letterSpacing: 0.1,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {talentProfile.primaryTypeLabel}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <span aria-hidden style={{ fontSize: 14, color: C.inkDim, flexShrink: 0 }}>/</span>
-
-            {/* Agency context chip */}
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "4px 10px",
-                borderRadius: 999,
-                background: C.accentSoft,
-              }}
-            >
-              <span
-                style={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: "50%",
-                  background: C.green,
-                  flexShrink: 0,
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: C.accent,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  maxWidth: 160,
-                }}
-              >
-                {talentProfile.agencyName}
-              </span>
-            </div>
-
-            <div style={{ flex: 1 }} />
-
-            {/* ── Right-side utilities ── */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-
-              {/* Talent pill — current surface indicator */}
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  height: 30,
-                  padding: "0 12px",
-                  borderRadius: 999,
-                  background: C.ink,
-                  color: "#fff",
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: 0.1,
-                }}
-              >
-                Talent
-              </div>
-
-              {/* Workspace link */}
-              <a
-                href={`/${tenantSlug}/admin`}
-                title="Switch to Workspace"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  height: 30,
-                  padding: "0 10px",
-                  borderRadius: 999,
-                  background: "transparent",
-                  border: `1px solid ${C.borderSoft}`,
-                  color: C.inkMuted,
-                  fontFamily: FONT_BODY,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  textDecoration: "none",
-                  letterSpacing: 0.1,
-                }}
-              >
-                Workspace
-              </a>
-
-              {/* Notification bell (stub — no unread count on talent surface yet) */}
-              <div
-                aria-label="Notifications"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer" }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: C.inkMuted }}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-              </div>
-
-              {/* Help */}
-              <div aria-label="Help" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer", color: C.inkMuted, fontFamily: FONT_BODY, fontSize: 14, fontWeight: 600 }}>
-                ?
-              </div>
-
-              {/* EN/ES language toggle stubs */}
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 0, height: 28, borderRadius: 7, border: `1px solid ${C.borderSoft}`, overflow: "hidden", flexShrink: 0 }}>
-                <button type="button" aria-pressed style={{ padding: "0 8px", height: "100%", background: C.ink, color: "#fff", border: "none", fontFamily: FONT_BODY, fontSize: 11, fontWeight: 700, letterSpacing: 0.3, cursor: "pointer" }}>EN</button>
-                <button type="button" style={{ padding: "0 8px", height: "100%", background: "transparent", color: C.inkMuted, border: "none", fontFamily: FONT_BODY, fontSize: 11, fontWeight: 600, letterSpacing: 0.3, cursor: "pointer" }}>ES</button>
-              </div>
-
-              {/* Sign-out */}
-              <form action={signOut}>
-                <button
-                  type="submit"
-                  title="Sign out"
-                  aria-label="Sign out"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    border: `1px solid ${C.borderSoft}`,
-                    background: "transparent",
-                    color: C.inkMuted,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    fontFamily: FONT_BODY,
-                  }}
-                >
-                  ↩
-                </button>
-              </form>
-            </div>
-          </div>
-        </header>
-
-        {/* ── Bar 2: Talent nav topbar ── */}
-        <TalentTopbar
-          tenantSlug={tenantSlug}
-          publicProfileUrl={publicProfileUrl}
-        />
-
-        {/* ── Content area ── */}
-        <main
-          style={{
-            padding: "28px 28px 60px",
-            maxWidth: 1320,
-            margin: "0 auto",
-          }}
-        >
-          {children}
-        </main>
-      </div>
-
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          className: "!rounded-xl !border-border/50 !shadow-lg",
-        }}
-      />
-    </>
+    <TalentShellPrototypePageClient
+      tenantSlug={tenantSlug}
+      initialTalentPage={initialTalentPage}
+      initialBridgeData={{
+        // Workspace fields — null since we're in talent-only mode
+        roster: null,
+        inquiries: null,
+        clients: null,
+        calendarEvents: null,
+        overviewMetrics: null,
+        bookings: null,
+        teamMembers: null,
+        totalUnread: 0,
+        // Talent self-surface fields
+        talentSelfProfile,
+        talentInquiries,
+      }}
+    >
+      {/* TalentPageRouteSyncer lives here — inside ProtoProvider context, returns null */}
+      {children}
+    </TalentShellPrototypePageClient>
   );
 }

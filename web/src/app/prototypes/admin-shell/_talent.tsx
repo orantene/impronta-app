@@ -16,7 +16,10 @@
  *   plus ~15 talent drawer bodies dispatched from _drawers.tsx via talentDrawer()
  */
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, useMemo, type CSSProperties, type ReactNode } from "react";
+// Type-only import — `_data-bridge.ts` is server-only; `import type` is erased
+// at compile time and never reaches the client bundle (same pattern as _state.tsx).
+import type { TalentInquiryRow } from "./_data-bridge";
 import dynamic from "next/dynamic";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT, TALENT_RATE_FOR_CONV } from "./_messages";
@@ -167,6 +170,76 @@ function myStatusOn(inquiry: RichInquiry): "pending" | "accepted" | "declined" |
 function unreadOnInquiry(inquiry: RichInquiry): number {
   // Talent only ever sees the group thread, so private unread is hidden from them.
   return inquiry.unreadGroup;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 3.12.2 — Bridge adapter: DB row → Conversation
+//
+// `TalentInquiryRow` comes from the server-side bridge (Supabase).
+// We adapt it into the prototype's rich `Conversation` shape so every
+// component that previously read `MOCK_CONVERSATIONS` can instead call
+// `useTalentConversations()` and get real data when the bridge is live,
+// or the seed mock otherwise. Single fallback rule: if the bridge array
+// is empty (no real data / mock-mode session) return MOCK_CONVERSATIONS.
+// ════════════════════════════════════════════════════════════════════
+
+function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversation {
+  const clientName = row.company ?? row.contact_name;
+  const stage: MsgStage =
+    row.status === "booked" || row.status === "converted"
+      ? "booked"
+      : row.status === "rejected" || row.status === "expired" || row.status === "cancelled"
+      ? "cancelled"
+      : row.status === "approved" || row.status === "offer_pending"
+      ? "hold"
+      : "inquiry";
+  const initials = clientName
+    .split(/\s+/)
+    .map((w: string) => w[0]?.toUpperCase() ?? "")
+    .slice(0, 2)
+    .join("");
+  const ageHrs = Math.floor(
+    (Date.now() - new Date(row.updated_at).getTime()) / 3_600_000,
+  );
+  return {
+    id:            row.id,
+    client:        clientName,
+    clientInitials: initials || clientName.slice(0, 2).toUpperCase(),
+    clientTrust:   "basic" as ClientTrustLevel,
+    brief:         row.company ? `${row.company} inquiry` : "Direct inquiry",
+    stage,
+    agency:        agencyName,
+    leader: {
+      name:     agencyName,
+      role:     "Coordinator",
+      initials: agencyName.slice(0, 2).toUpperCase(),
+    },
+    lastMessage: {
+      sender:  "coordinator" as const,
+      preview: stage === "booked" ? "Booking confirmed — check logistics tab." : "Awaiting your response.",
+      ageHrs,
+    },
+    unreadCount: row.unreadCount,
+    pinned: {},
+  };
+}
+
+/**
+ * Hook — returns bridge-adapted conversations when real data exists,
+ * falls back to MOCK_CONVERSATIONS for prototype / mock-mode sessions.
+ * All talent components that previously read MOCK_CONVERSATIONS directly
+ * should call this instead. Exported so _messages.tsx can use it in
+ * TalentJobShell without accessing the proto context via a separate hook.
+ */
+export function useTalentConversations(): Conversation[] {
+  const { effectiveTalentInquiries, bridgeTalentSelfProfile } = useProto();
+  return useMemo(() => {
+    if (effectiveTalentInquiries.length > 0) {
+      const agencyName = bridgeTalentSelfProfile?.agencyName ?? "Agency";
+      return effectiveTalentInquiries.map((r) => adaptTalentInquiry(r, agencyName));
+    }
+    return MOCK_CONVERSATIONS;
+  }, [effectiveTalentInquiries, bridgeTalentSelfProfile]);
 }
 
 function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
@@ -687,6 +760,10 @@ const TALENT_INQUIRY_TO_CONV: Record<string, string> = {
 function TalentTodayPage() {
   const { openDrawer, setTalentPage } = useProto();
   const profile = MY_TALENT_PROFILE;
+  // Bridge-aware conversations. Falls back to MOCK_CONVERSATIONS when the
+  // bridge array is empty (prototype / mock-mode sessions). See
+  // `useTalentConversations()` above for the full adapter contract.
+  const conversations = useTalentConversations();
   // Funnel into the unified profile-shell from any Today CTA that
   // edits the profile. Same helper pattern as MyProfilePage + ProfileHero.
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: "t1", section });
@@ -694,7 +771,7 @@ function TalentTodayPage() {
   // prototype. Production wires this to a per-user kv pair.
   const [firstSessionDismissed, setFirstSessionDismissed] = useState(false);
 
-  // ── Today's data is derived directly from MOCK_CONVERSATIONS — the
+  // ── Today's data is derived from conversations (bridge-aware) — the
   //    same source the messages shell reads. One source, one truth.
   //    Every Today row click pins that exact conversation and lands the
   //    talent inside the messages shell where they can act on it.
@@ -702,7 +779,7 @@ function TalentTodayPage() {
   // "Needs your reply" — the talent owes the next message: stage is in
   // an active negotiation (inquiry/hold) and the last message wasn't
   // from them. Sorted oldest-first so the most overdue surfaces at top.
-  const replyConvs = MOCK_CONVERSATIONS
+  const replyConvs = conversations
     .filter((c) =>
       (c.stage === "inquiry" || c.stage === "hold") &&
       c.lastMessage.sender !== "you",
@@ -722,16 +799,15 @@ function TalentTodayPage() {
   // talent has already responded. Now waiting on coordinator/client/
   // peers. Includes anything in inquiry/hold not already in replyConvs.
   const replyConvIds = new Set(replyConvs.map((c) => c.id));
-  const watchingConvs = MOCK_CONVERSATIONS.filter((c) =>
+  const watchingConvs = conversations.filter((c) =>
     (c.stage === "inquiry" || c.stage === "hold") && !replyConvIds.has(c.id),
   );
 
-  // "Next on the calendar" — derived from MOCK_CONVERSATIONS (same
-  // source as the messages shell's Booked filter). The 3 jobs the
-  // talent has actually been booked on appear here, click takes them
-  // straight to the logistics tab inside the messages shell where the
-  // call sheet, transport, hotel, schedule live.
-  const upcoming = MOCK_CONVERSATIONS.filter((c) => c.stage === "booked");
+  // "Next on the calendar" — derived from conversations (same source as
+  // the messages shell's Booked filter). The booked jobs appear here;
+  // click takes the talent straight to the logistics tab inside the
+  // messages shell where the call sheet, transport, hotel, schedule live.
+  const upcoming = conversations.filter((c) => c.stage === "booked");
   const paidThisMonth = EARNINGS_ROWS.filter((e) => e.payoutDate.includes("Apr"));
   const paidThisMonthTotal = paidThisMonth.reduce((sum, e) => {
     const num = parseFloat(e.amount.replace(/[^0-9.]/g, ""));
@@ -6039,12 +6115,13 @@ const STAGE_META: Record<MsgStage, { label: string; tone: string; bg: string }> 
 function TalentMessagesFab() {
   const { state, setTalentPage } = useProto();
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const conversations = useTalentConversations();
   // Audit P1-10 — on phone, FAB navigates to the Messages route
   // instead of opening a sheet over the same content. Two parallel
   // entry points (FAB-overlay + page) created confusing IA on phone.
   const isPhone = useIsPhone();
   if (state.talentPage === "messages") return null;
-  const totalUnread = MOCK_CONVERSATIONS.reduce((s, c) => s + c.unreadCount, 0);
+  const totalUnread = conversations.reduce((s, c) => s + c.unreadCount, 0);
   return (
     <>
       <button
@@ -14277,6 +14354,7 @@ function EarningsTile({
   onLogWork: () => void;
 }) {
   const [cycle, setCycle] = useState<"month" | "quarter" | "year">("month");
+  const conversations = useTalentConversations();
   const data = EARNINGS_CYCLE_DATA[cycle];
   const sparkMax = Math.max(...EARNINGS_SPARKLINE);
   const width = 180, height = 44;
@@ -14285,7 +14363,7 @@ function EarningsTile({
   // home rate. Surfaces "money in flight" so the headline doesn't
   // pretend the month is over when the talent has 3 paydays coming.
   // Same source as the messages shell — single truth.
-  const pendingConvs = MOCK_CONVERSATIONS.filter((c) => c.stage === "booked");
+  const pendingConvs = conversations.filter((c) => c.stage === "booked");
   const pendingTotal = pendingConvs.reduce((sum, c) => {
     const raw = TALENT_RATE_FOR_CONV[c.id];
     if (!raw || raw === "—") return sum;
@@ -14518,6 +14596,7 @@ function convFirstDay(label?: string): { month: string; day: number } | null {
 
 function WeekRhythmStrip() {
   const { setTalentPage } = useProto();
+  const conversations = useTalentConversations();
   // "Today" in the prototype's mock world is May 6 (anchored to align
   // with TALENT_BOOKINGS[0] / dashboard demo). Production reads the
   // actual Date.now(). Build a Mon-Sun strip starting from the most
@@ -14542,7 +14621,7 @@ function WeekRhythmStrip() {
   const cellFor = (date: Date) => {
     const dayNum = date.getDate();
     const monthShort = date.toLocaleString("en-US", { month: "short" });
-    for (const c of MOCK_CONVERSATIONS) {
+    for (const c of conversations) {
       if (c.stage !== "booked" && c.stage !== "hold") continue;
       const parsed = convFirstDay(c.date);
       if (!parsed) continue;
