@@ -1,10 +1,11 @@
 "use client";
 
-// Phase 3 — workspace Calendar client shell.
+// Phase 3.12 — workspace Calendar client shell.
 // Interactive month-grid calendar reading real inquiry event_date data.
 // Matches the prototype CalendarPage design in _pages.tsx lines 3902–4140.
+// 3.12 additions: day-detail slide-in panel on cell click.
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import type { CalendarEvent } from "../../_data-bridge";
 
@@ -202,6 +203,7 @@ export function CalendarShell({
   const [displayYear, setDisplayYear]   = useState(today.getFullYear());
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
   const [activeTone, setActiveTone]     = useState<Tone | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const goToPrev = useCallback(() => {
     setDisplayMonth((m) => {
@@ -375,7 +377,7 @@ export function CalendarShell({
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
-            gridAutoRows: "minmax(88px, auto)",
+            gridAutoRows: "minmax(96px, auto)",
           }}
         >
           {/* Padding cells */}
@@ -407,11 +409,23 @@ export function CalendarShell({
                 dayEvents={dayEvents}
                 colIndex={colIndex}
                 tenantSlug={tenantSlug}
+                isSelected={selectedDate === isoDate}
+                onSelect={() => setSelectedDate(isoDate)}
               />
             );
           })}
         </div>
       </div>
+
+      {/* Day detail panel */}
+      {selectedDate && (
+        <DayDetailPanel
+          date={selectedDate}
+          events={events}
+          tenantSlug={tenantSlug}
+          onClose={() => setSelectedDate(null)}
+        />
+      )}
 
       {/* Empty state */}
       {totalEvents === 0 && (
@@ -445,6 +459,8 @@ function DayCell({
   dayEvents,
   colIndex,
   tenantSlug,
+  isSelected,
+  onSelect,
 }: {
   day: number;
   ariaLabel: string;
@@ -453,6 +469,8 @@ function DayCell({
   dayEvents: { id: string; title: string; tone: Tone }[];
   colIndex: number;
   tenantSlug: string;
+  isSelected: boolean;
+  onSelect: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -460,7 +478,10 @@ function DayCell({
     <div
       role="gridcell"
       aria-label={ariaLabel}
+      aria-selected={isSelected}
       tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -470,14 +491,17 @@ function DayCell({
         display: "flex",
         flexDirection: "column",
         gap: 4,
-        background: hovered ? "rgba(11,11,13,0.025)" : "transparent",
+        background: isSelected
+          ? "rgba(15,79,62,0.04)"
+          : hovered ? "rgba(11,11,13,0.025)" : "transparent",
+        outline: isSelected ? `2px solid ${C.accent}` : "none",
+        outlineOffset: -2,
         transition: "background 120ms",
+        cursor: "pointer",
       }}
     >
-      {/* Day number — links to work pipeline filtered by this date */}
-      <Link
-        href={`/${tenantSlug}/admin/work?date=${isoDate}`}
-        title={`View work for ${isoDate}`}
+      {/* Day number */}
+      <div
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -491,14 +515,13 @@ function DayCell({
           color: isToday ? "#fff" : C.ink,
           fontVariantNumeric: "tabular-nums",
           fontFamily: FONT,
-          textDecoration: "none",
           alignSelf: "flex-start",
         }}
       >
         {day}
-      </Link>
+      </div>
 
-      {/* Event chips (max 2 visible) — click through to the messages thread */}
+      {/* Event chips (max 2 visible) */}
       {dayEvents.slice(0, 2).map((ev, idx) => {
         const { text, bg } = toneColor(ev.tone);
         return (
@@ -512,16 +535,237 @@ function DayCell({
         );
       })}
 
-      {/* Overflow count — links to pipeline filtered to this date's items */}
+      {/* Overflow count */}
       {dayEvents.length > 2 && (
-        <a
-          href={`/${tenantSlug}/admin/work`}
-          style={{ fontSize: 10, color: C.accent, fontWeight: 600, fontFamily: FONT, textDecoration: "none" }}
-        >
+        <span style={{ fontSize: 10, color: C.accent, fontWeight: 600, fontFamily: FONT }}>
           +{dayEvents.length - 2} more
-        </a>
+        </span>
       )}
     </div>
+  );
+}
+
+// ─── Day detail panel ─────────────────────────────────────────────────────────
+
+const STATUS_LABEL: Record<string, { label: string; tone: Tone }> = {
+  draft:             { label: "Draft",         tone: "ink" },
+  submitted:         { label: "Submitted",     tone: "amber" },
+  talent_suggested:  { label: "Talent added",  tone: "amber" },
+  approved:          { label: "Approved",      tone: "amber" },
+  offer_pending:     { label: "Offer pending", tone: "amber" },
+  booked:            { label: "Booked",        tone: "green" },
+  converted:         { label: "Confirmed",     tone: "green" },
+  rejected:          { label: "Rejected",      tone: "red" },
+  expired:           { label: "Expired",       tone: "red" },
+  closed_lost:       { label: "Closed",        tone: "red" },
+};
+
+function DayDetailPanel({
+  date,
+  events,
+  tenantSlug,
+  onClose,
+}: {
+  date: string;
+  events: CalendarEvent[];
+  tenantSlug: string;
+  onClose: () => void;
+}) {
+  const parts = date.split("-");
+  const displayLabel = new Date(
+    parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])
+  ).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+  const dayEvents = events.filter((e) => e.event_date === date);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        aria-hidden
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.18)",
+          zIndex: 40,
+          animation: "fadeIn 120ms ease",
+        }}
+      />
+      {/* Panel */}
+      <div
+        role="dialog"
+        aria-label={displayLabel}
+        aria-modal
+        style={{
+          position: "fixed", top: 0, right: 0, bottom: 0,
+          width: "min(420px, 92vw)",
+          background: "#fff",
+          boxShadow: "-4px 0 32px rgba(0,0,0,0.12)",
+          zIndex: 50,
+          display: "flex", flexDirection: "column",
+          fontFamily: FONT,
+          animation: "slideInRight 180ms cubic-bezier(.4,0,.2,1)",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "18px 20px 14px",
+          borderBottom: `1px solid ${C.border}`,
+          display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
+        }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2 }}>
+              {displayLabel}
+            </div>
+            <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 3 }}>
+              {dayEvents.length === 0
+                ? "Nothing scheduled"
+                : `${dayEvents.length} ${dayEvents.length === 1 ? "inquiry" : "inquiries"} scheduled`}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              background: "transparent", border: "none", cursor: "pointer",
+              color: C.inkMuted, padding: 4, borderRadius: 6,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {dayEvents.length === 0 ? (
+            <div style={{
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              gap: 8, padding: "40px 0", textAlign: "center",
+            }}>
+              <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={C.inkDim} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+                <rect x={3} y={4} width={18} height={18} rx={2} />
+                <path d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+              <div style={{ fontSize: 13, color: C.inkMuted }}>Nothing scheduled for this day</div>
+              <Link
+                href={`/${tenantSlug}/admin/work`}
+                style={{ fontSize: 12.5, color: C.accent, fontWeight: 600, textDecoration: "none" }}
+              >
+                Open work pipeline →
+              </Link>
+            </div>
+          ) : (
+            dayEvents.map((ev) => {
+              const meta = STATUS_LABEL[ev.status] ?? { label: ev.status, tone: "ink" as Tone };
+              const { text: badgeText, bg: badgeBg } = toneColor(meta.tone);
+              const initials = (ev.contact_name || "?").slice(0, 2).toUpperCase();
+              return (
+                <Link
+                  key={ev.id}
+                  href={`/${tenantSlug}/admin/work/${ev.id}`}
+                  onClick={onClose}
+                  style={{
+                    display: "flex", gap: 12, alignItems: "flex-start",
+                    padding: "13px 14px",
+                    background: "#fff",
+                    border: `1px solid ${C.borderSoft}`,
+                    borderRadius: 10,
+                    textDecoration: "none",
+                    transition: "border-color 120ms",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.border)}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.borderSoft)}
+                >
+                  {/* Avatar */}
+                  <div style={{
+                    width: 36, height: 36, borderRadius: "50%",
+                    background: C.accent + "22",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, fontWeight: 700, color: C.accent,
+                    flexShrink: 0,
+                  }}>
+                    {initials}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>
+                        {ev.company ? `${ev.company}` : ev.contact_name}
+                      </span>
+                      <span style={{
+                        fontSize: 10.5, fontWeight: 600,
+                        padding: "1px 7px", borderRadius: 999,
+                        background: badgeBg, color: badgeText,
+                      }}>
+                        {meta.label}
+                      </span>
+                    </div>
+                    {ev.company && (
+                      <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
+                        {ev.contact_name}
+                      </div>
+                    )}
+                  </div>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={C.inkDim} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </Link>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: "12px 16px",
+          borderTop: `1px solid ${C.border}`,
+          display: "flex", gap: 8,
+        }}>
+          <Link
+            href={`/${tenantSlug}/admin/work`}
+            style={{
+              flex: 1, textAlign: "center",
+              padding: "8px 0",
+              background: C.accent, color: "#fff",
+              borderRadius: 8, fontSize: 13, fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            + New inquiry
+          </Link>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: "8px 16px",
+              background: "transparent",
+              border: `1px solid ${C.border}`,
+              borderRadius: 8, fontSize: 13,
+              color: C.inkMuted, cursor: "pointer",
+              fontFamily: FONT,
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideInRight { from { transform: translateX(100%) } to { transform: translateX(0) } }
+      `}</style>
+    </>
   );
 }
 
