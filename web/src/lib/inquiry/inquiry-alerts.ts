@@ -1,7 +1,4 @@
-import type {
-  AlertRow,
-  NeedsAttentionPanelData,
-} from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-panel-types";
+import type { AlertRow, NeedsAttentionPanelData } from "@/lib/inquiry/alert-types";
 
 /**
  * Admin Workspace V3 — Needs Attention derivation (spec §5.2.6, roadmap M4.6).
