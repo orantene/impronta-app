@@ -41,7 +41,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { createAgencyInquiry } from "@/lib/server-actions/admin-inquiries";
+import { createAgencyInquiry, quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { sendMessage as sendMessageAction } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
 import type { ThreadType } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import {
@@ -2022,6 +2022,94 @@ function AdminInboxList({
 
 // ── Admin thread header (slim — most context is in WorkspaceBody) ──
 // ── Admin INQUIRY DETAIL — same shell as talent/client, ops-flavored hero ──
+// ── Stage transition menu ─────────────────────────────────────────────────
+// Compact dropdown in the AdminInquiryDetail header that lets coordinators
+// advance an inquiry through the pipeline. Calls quickPatchInquiryStatus
+// server action and optimistically updates the UI via router.refresh().
+type InquiryStage = RichInquiry["stage"];
+const NEXT_STAGES: Record<string, { label: string; value: string }[]> = {
+  submitted:    [{ label: "Start review", value: "reviewing" }, { label: "Mark lost", value: "closed_lost" }],
+  reviewing:    [{ label: "Send offer", value: "offer_pending" }, { label: "Mark lost", value: "closed_lost" }],
+  offer_pending:[{ label: "Mark approved", value: "approved" }, { label: "Mark rejected", value: "rejected" }],
+  approved:     [{ label: "Convert to booking", value: "booked" }],
+  coordination: [{ label: "Start review", value: "reviewing" }, { label: "Mark lost", value: "closed_lost" }],
+  draft:        [{ label: "Submit", value: "submitted" }],
+};
+
+function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: InquiryStage }) {
+  const { toast } = useProto();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const options = NEXT_STAGES[stage as string] ?? [];
+  if (options.length === 0) return null;
+
+  const move = (nextStatus: string) => {
+    setOpen(false);
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("inquiry_id", inquiryId);
+      fd.set("status", nextStatus);
+      const result = await quickPatchInquiryStatus(fd);
+      if (result && "error" in result) {
+        toast(`Stage update failed: ${result.error}`);
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "5px 10px", borderRadius: 6,
+          background: COLORS.fill, color: "#fff",
+          border: "none", cursor: pending ? "wait" : "pointer",
+          fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+          opacity: pending ? 0.7 : 1,
+        }}
+      >
+        {pending ? "Moving…" : "Move to"}
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden>
+          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 50,
+          background: "#fff", borderRadius: 8,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+          border: `1px solid ${COLORS.borderSoft}`,
+          minWidth: 160, overflow: "hidden",
+        }}>
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => move(opt.value)}
+              style={{
+                display: "block", width: "100%", textAlign: "left",
+                padding: "9px 14px",
+                fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+                background: "none", border: "none", cursor: "pointer",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Hero: status pill + project + brief + funnel
 // Operational block: lineup status + offer state + needs-me action card
 // Tab bar: Client thread · Talent group · Files · Details (admin sees ALL — no locks)
@@ -2110,18 +2198,20 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
         onBack={onBack}
         backLabel="Inbox"
         showCoordPill={false}
-        rightSlot={(() => {
-          if (!offerLabel) return null;
-          return (
-            <span title={offerLabel} style={{
-              padding: "3px 9px", borderRadius: 999,
-              background: COLORS.surfaceAlt, color: COLORS.inkMuted,
-              fontSize: 11, fontWeight: 600,
-              fontFamily: FONTS.body, fontVariantNumeric: "tabular-nums",
-              maxWidth: 220, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            }}>{offerLabel}</span>
-          );
-        })()}
+        rightSlot={(
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {offerLabel && (
+              <span title={offerLabel} style={{
+                padding: "3px 9px", borderRadius: 999,
+                background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+                fontSize: 11, fontWeight: 600,
+                fontFamily: FONTS.body, fontVariantNumeric: "tabular-nums",
+                maxWidth: 180, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              }}>{offerLabel}</span>
+            )}
+            <StageTransitionMenu inquiryId={inquiry.id} stage={inquiry.stage} />
+          </div>
+        )}
         // Admin's lineup + coord signals — folded into the header instead
         // of a separate floating strip below, so the workspace detail
         // matches the client/talent header silhouette (single card).
