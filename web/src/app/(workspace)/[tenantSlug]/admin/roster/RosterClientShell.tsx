@@ -7,6 +7,7 @@
 
 import { useState, useTransition } from "react";
 import { bulkSetWorkflowStatus } from "./bulk-actions";
+import { WorkspaceDrawer } from "../_components/WorkspaceDrawer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -453,12 +454,12 @@ function FilterBar({
 // Individual talent card (grid view)
 function TalentCard({
   talent,
-  tenantSlug,
+  onOpen,
   selected,
   onSelect,
 }: {
   talent: RosterTalent;
-  tenantSlug: string;
+  onOpen: (id: string) => void;
   selected: boolean;
   onSelect?: (id: string) => void;
 }) {
@@ -472,8 +473,11 @@ function TalentCard({
     .toUpperCase();
 
   return (
-    <a
-      href={`/${tenantSlug}/admin/roster/${talent.id}`}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(talent.id)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(talent.id); } }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -486,7 +490,6 @@ function TalentCard({
         textAlign: "left",
         fontFamily: FONT,
         overflow: "hidden",
-        textDecoration: "none",
         transition: "border-color 0.15s, box-shadow 0.15s",
         boxShadow: hover
           ? "0 6px 20px -10px rgba(11,11,13,0.18)"
@@ -644,7 +647,7 @@ function TalentCard({
           )}
         </div>
       </div>
-    </a>
+    </div>
   );
 }
 
@@ -684,13 +687,13 @@ function CompletenessChip({ percent }: { percent: number }) {
 // Individual talent list row
 function TalentListRow({
   talent,
-  tenantSlug,
+  onOpen,
   isFirst,
   selected,
   onSelect,
 }: {
   talent: RosterTalent;
-  tenantSlug: string;
+  onOpen: (id: string) => void;
   isFirst: boolean;
   selected: boolean;
   onSelect?: (id: string) => void;
@@ -707,8 +710,11 @@ function TalentListRow({
     .toUpperCase();
 
   return (
-    <a
-      href={`/${tenantSlug}/admin/roster/${talent.id}`}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(talent.id)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(talent.id); } }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -718,7 +724,6 @@ function TalentListRow({
         padding: "10px 14px",
         borderTop: isFirst ? "none" : `1px solid ${C.borderSoft}`,
         cursor: "pointer",
-        textDecoration: "none",
         color: "inherit",
         background: hover
           ? "rgba(11,11,13,0.02)"
@@ -864,7 +869,7 @@ function TalentListRow({
           {stateLabel(talent.state)}
         </div>
       </div>
-    </a>
+    </div>
   );
 }
 
@@ -1092,6 +1097,201 @@ function TypeChips({
   );
 }
 
+// ─── Talent quick-view drawer ─────────────────────────────────────────────────
+
+function TalentQuickViewDrawer({
+  talent,
+  tenantSlug,
+  onClose,
+}: {
+  talent: RosterTalent;
+  tenantSlug: string;
+  onClose: () => void;
+}) {
+  const stateTone = STATE_DOT[talent.state] ?? C.inkMuted;
+  const pillBg   = STATE_PILL_BG[talent.state] ?? "rgba(11,11,13,0.05)";
+  const pillColor = STATE_PILL_COLOR[talent.state] ?? C.inkMuted;
+  const initials = talent.name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const addedDays = talent.addedAt
+    ? Math.floor((Date.now() - new Date(talent.addedAt).getTime()) / 86400000)
+    : null;
+  const addedLabel =
+    addedDays === null ? null
+    : addedDays === 0 ? "Added today"
+    : addedDays === 1 ? "Added 1 day ago"
+    : `Added ${addedDays} days ago`;
+
+  return (
+    <div style={{ fontFamily: FONT, color: C.ink }}>
+      {/* Header bar */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "14px 16px 10px",
+        borderBottom: `1px solid ${C.border}`,
+        position: "sticky",
+        top: 0,
+        background: "#FAFAF7",
+        zIndex: 1,
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.6, textTransform: "uppercase" }}>
+          Talent profile
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            width: 28, height: 28, borderRadius: "50%",
+            border: `1px solid ${C.borderSoft}`,
+            background: C.white,
+            cursor: "pointer",
+            fontSize: 16,
+            color: C.inkMuted,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: FONT,
+          }}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Photo — 4:5 aspect */}
+      <div style={{
+        position: "relative",
+        aspectRatio: "4 / 5",
+        background: talent.thumb
+          ? `url(${talent.thumb}) center/cover`
+          : "rgba(11,11,13,0.05)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        {!talent.thumb && (
+          <div style={{
+            fontSize: 56, fontWeight: 400, color: C.inkMuted,
+            letterSpacing: -2, userSelect: "none",
+          }}>
+            {initials}
+          </div>
+        )}
+        {/* State badge */}
+        <div style={{
+          position: "absolute", bottom: 12, left: 12,
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "4px 10px", borderRadius: 999,
+          background: pillBg,
+          color: pillColor,
+          fontSize: 11, fontWeight: 600,
+          backdropFilter: "blur(8px)",
+          boxShadow: "0 1px 6px rgba(11,11,13,0.12)",
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: stateTone }} />
+          {stateLabel(talent.state)}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: "18px 20px 24px" }}>
+        {/* Name */}
+        <h2 style={{
+          fontFamily: FONT, fontSize: 22, fontWeight: 600,
+          letterSpacing: -0.3, color: C.ink, margin: "0 0 4px",
+          lineHeight: 1.2,
+        }}>
+          {talent.name}
+        </h2>
+
+        {/* Primary type */}
+        <div style={{
+          fontSize: 13,
+          color: talent.primaryTypeLabel ? C.greenDeep : C.inkMuted,
+          fontWeight: talent.primaryTypeLabel ? 600 : 400,
+          marginBottom: 6,
+        }}>
+          {talent.primaryTypeLabel ?? "No type set"}
+        </div>
+
+        {/* Height · City */}
+        {(talent.height || talent.city) && (
+          <div style={{ fontSize: 12, color: C.inkMuted, marginBottom: 10, display: "flex", gap: 6, alignItems: "center" }}>
+            {talent.height && <span>{talent.height}</span>}
+            {talent.height && talent.city && <span style={{ opacity: 0.4 }}>·</span>}
+            {talent.city && <span>📍 {talent.city}</span>}
+          </div>
+        )}
+
+        {/* Completeness + added date */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+          {typeof talent.completenessPercent === "number" && talent.completenessPercent < 100 && (
+            <CompletenessChip percent={talent.completenessPercent} />
+          )}
+          {addedLabel && (
+            <span style={{ fontSize: 11, color: C.inkDim }}>{addedLabel}</span>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div style={{ borderTop: `1px solid ${C.border}`, marginBottom: 16 }} />
+
+        {/* CTAs */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <a
+            href={`/${tenantSlug}/admin/roster/${talent.id}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 38,
+              borderRadius: 9,
+              background: C.accent,
+              color: "#fff",
+              fontFamily: FONT,
+              fontSize: 13,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            Edit full profile →
+          </a>
+          {talent.profileCode && (
+            <a
+              href={`https://tulala.digital/t/${talent.profileCode}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: 38,
+                borderRadius: 9,
+                border: `1px solid ${C.borderSoft}`,
+                background: "transparent",
+                color: C.inkMuted,
+                fontFamily: FONT,
+                fontSize: 13,
+                fontWeight: 500,
+                textDecoration: "none",
+              }}
+            >
+              View public profile ↗
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main shell ───────────────────────────────────────────────────────────────
 
 export function RosterClientShell({
@@ -1124,6 +1324,9 @@ export function RosterClientShell({
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [bulkPending, startBulkTransition] = useTransition();
+  const [openTalentId, setOpenTalentId] = useState<string | null>(null);
+
+  const openDrawerTalent = openTalentId ? roster.find((r) => r.id === openTalentId) ?? null : null;
 
   // Unique non-empty type labels actually present in the roster
   const usedTypes = Array.from(
@@ -1581,7 +1784,7 @@ export function RosterClientShell({
             <TalentCard
               key={talent.id}
               talent={talent}
-              tenantSlug={tenantSlug}
+              onOpen={setOpenTalentId}
               selected={selected.has(talent.id)}
               onSelect={canEdit ? toggleSelect : undefined}
             />
@@ -1622,7 +1825,7 @@ export function RosterClientShell({
             <TalentListRow
               key={talent.id}
               talent={talent}
-              tenantSlug={tenantSlug}
+              onOpen={setOpenTalentId}
               isFirst={i === 0}
               selected={selected.has(talent.id)}
               onSelect={canEdit ? toggleSelect : undefined}
@@ -1690,6 +1893,20 @@ export function RosterClientShell({
           {toast}
         </div>
       )}
+
+      {/* ── Talent quick-view drawer ── */}
+      <WorkspaceDrawer
+        open={!!openDrawerTalent}
+        onClose={() => setOpenTalentId(null)}
+      >
+        {openDrawerTalent && (
+          <TalentQuickViewDrawer
+            talent={openDrawerTalent}
+            tenantSlug={tenantSlug}
+            onClose={() => setOpenTalentId(null)}
+          />
+        )}
+      </WorkspaceDrawer>
     </div>
   );
 }
