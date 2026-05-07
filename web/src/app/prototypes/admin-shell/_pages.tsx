@@ -3915,8 +3915,7 @@ function parseInquiryDays(dateStr: string, displayMonth: number): number[] {
 }
 
 function CalendarPage() {
-  const { openDrawer, setPage } = useProto();
-  const inquiries = RICH_INQUIRIES;
+  const { openDrawer, setPage, effectiveCalendarEvents } = useProto();
   const today = new Date();
   const [displayYear, setDisplayYear] = useState(today.getFullYear());
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
@@ -3925,26 +3924,41 @@ function CalendarPage() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstWeekday = new Date(year, month, 1).getDay(); // 0 = Sun
 
-  // Build event map from real inquiry dates — no hash guessing.
+  // Build event map. When bridge calendar events are available, use ISO
+  // dates directly. Otherwise fall back to RICH_INQUIRIES + parseInquiryDays.
   const events: Record<number, { id: string; title: string; tone: "ink" | "green" | "amber" | "red" }[]> = {};
-  inquiries.forEach((inq) => {
-    if (!inq.date) return;
-    const days = parseInquiryDays(inq.date, month);
-    if (days.length === 0) return;
-    const tone =
-      inq.stage === "booked" || inq.stage === "approved" ? "green"
-      : inq.stage === "rejected" || inq.stage === "expired" ? "red"
-      : inq.stage === "submitted" ? "amber"
-      : "ink";
-    days.forEach((d) => {
-      events[d] = events[d] ?? [];
-      events[d].push({
-        id: inq.id,
-        title: `${inq.clientName} — ${inq.brief.slice(0, 20)}`,
-        tone,
+  if (effectiveCalendarEvents != null && effectiveCalendarEvents.length > 0) {
+    // Bridge path: ISO date strings, filter to current month/year.
+    effectiveCalendarEvents.forEach((ev) => {
+      const d = new Date(ev.event_date + "T00:00:00");
+      if (d.getFullYear() !== year || d.getMonth() !== month) return;
+      const day = d.getDate();
+      const tone: "ink" | "green" | "amber" | "red" =
+        ev.status === "booked" || ev.status === "converted" || ev.status === "approved" ? "green"
+        : ev.status === "rejected" || ev.status === "expired" ? "red"
+        : ev.status === "submitted" ? "amber"
+        : "ink";
+      const label = ev.company ?? ev.contact_name;
+      events[day] = events[day] ?? [];
+      events[day].push({ id: ev.id, title: label.slice(0, 24), tone });
+    });
+  } else {
+    // Mock fallback: parse human-readable date strings from RICH_INQUIRIES.
+    RICH_INQUIRIES.forEach((inq) => {
+      if (!inq.date) return;
+      const days = parseInquiryDays(inq.date, month);
+      if (days.length === 0) return;
+      const tone: "ink" | "green" | "amber" | "red" =
+        inq.stage === "booked" || inq.stage === "approved" ? "green"
+        : inq.stage === "rejected" || inq.stage === "expired" ? "red"
+        : inq.stage === "submitted" ? "amber"
+        : "ink";
+      days.forEach((d) => {
+        events[d] = events[d] ?? [];
+        events[d].push({ id: inq.id, title: `${inq.clientName} — ${inq.brief.slice(0, 20)}`, tone });
       });
     });
-  });
+  }
 
   const monthLabel = new Date(year, month, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();

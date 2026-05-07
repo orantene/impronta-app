@@ -13251,14 +13251,27 @@ function PipelineDrawer() {
 }
 
 function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting" | "confirmed" | "archived" }) {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer, effectiveMessagesInquiries, effectiveBookings } = useProto();
   const meta = {
     drafts: { title: "Drafts & holds", desc: "Inquiries you started but haven't sent.", stages: ["draft", "hold"] },
     awaiting: { title: "Awaiting client", desc: "Offers sent — waiting on confirmation.", stages: ["awaiting-client"] },
     confirmed: { title: "Confirmed bookings", desc: "Booked. Calendar locked.", stages: ["confirmed"] },
     archived: { title: "Archived", desc: "Past or canceled work.", stages: ["archived"] },
   }[filter];
-  const items = getInquiries(state.plan).filter((i) => meta.stages.includes(i.stage));
+  // Phase 3.12 — "confirmed" filter uses live booking rows when available.
+  // Other filters use bridge-adapted RichInquiry or fall back to mock.
+  const items = filter === "confirmed" && effectiveBookings.length > 0
+    ? effectiveBookings.map((b) => ({
+        id: b.id,
+        client: b.contact_name,
+        brief: b.company ?? b.contact_name,
+        date: b.event_date ?? "",
+        stage: "confirmed",
+        amount: b.grossRevenueCents
+          ? new Intl.NumberFormat("en-EU", { style: "currency", currency: b.currencyCode ?? "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(b.grossRevenueCents / 100)
+          : undefined,
+      }))
+    : getInquiries(state.plan).filter((i) => meta.stages.includes(i.stage));
 
   return (
     <DrawerShell
