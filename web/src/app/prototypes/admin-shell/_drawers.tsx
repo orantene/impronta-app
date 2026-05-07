@@ -981,11 +981,11 @@ function Section({
 // ════════════════════════════════════════════════════════════════════
 
 function TenantSummaryDrawer() {
-  const { state, closeDrawer, openDrawer, openUpgrade, effectiveRoster } = useProto();
+  const { state, closeDrawer, openDrawer, openUpgrade, effectiveRoster, effectiveTeamMembers } = useProto();
   const planMeta = PLAN_META[state.plan];
   const rosterCount = effectiveRoster.length;
   const rosterCap = state.plan === "free" ? 5 : state.plan === "studio" ? 50 : state.plan === "agency" ? 200 : 999;
-  const teamCount = getTeam(state.plan).length;
+  const teamCount = effectiveTeamMembers.length > 0 ? effectiveTeamMembers.length : getTeam(state.plan).length;
 
   const jumpItems: { label: string; icon: any; drawer: DrawerId }[] = [
     { label: "Plan & billing", icon: "credit", drawer: "plan-billing" },
@@ -12429,9 +12429,28 @@ function MyProfileDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function InquiryPeekDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, effectiveMessagesInquiries } = useProto();
   const id = state.drawer.payload?.id as string | undefined;
-  const inquiry = getInquiries(state.plan).find((i) => i.id === id) ?? getInquiries(state.plan)[0];
+  // Bridge path: adapt RichInquiry → old Inquiry shape used by this drawer.
+  const richSource = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
+  const richInq = richSource.find((i) => i.id === id) ?? richSource[0];
+  const inquiry = richInq
+    ? {
+        id: richInq.id,
+        client: richInq.clientName,
+        brief: richInq.brief,
+        stage: (
+          richInq.stage === "draft"        ? "draft"
+          : richInq.stage === "booked"     ? "confirmed"
+          : richInq.stage === "rejected" || richInq.stage === "expired" ? "archived"
+          : "awaiting-client"
+        ) as "draft" | "awaiting-client" | "confirmed" | "archived" | "hold",
+        ageDays: richInq.ageDays,
+        talent: richInq.requirementGroups.flatMap((g) => g.talents.map((t) => t.name)),
+        amount: richInq.offer?.total,
+        date: richInq.date ?? undefined,
+      }
+    : (getInquiries(state.plan).find((i) => i.id === id) ?? getInquiries(state.plan)[0]);
   const canEdit = meetsRole(state.role, "coordinator");
   const onSend = useSaveAndClose("Offer sent to client");
 
@@ -12898,10 +12917,11 @@ function NewBookingDrawer() {
 }
 
 function ClientProfileDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, effectiveClients } = useProto();
   const id = state.drawer.payload?.id as string | undefined;
   const isNew = id === "new" || !id;
-  const client = isNew ? null : getClients(state.plan).find((c) => c.id === id) ?? null;
+  const clientPool = effectiveClients.length > 0 ? effectiveClients : getClients(state.plan);
+  const client = isNew ? null : clientPool.find((c) => c.id === id) ?? null;
   const onSave = useSaveAndClose(isNew ? "Client created" : "Client saved");
   const trust = client?.trust ?? "basic";
 
