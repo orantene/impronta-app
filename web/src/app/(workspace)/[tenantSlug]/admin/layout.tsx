@@ -25,6 +25,7 @@ import {
 import { AdminShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
 import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
+import { RealIdentityBanner } from "./_real-identity-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -91,22 +92,32 @@ export default async function WorkspaceAdminLayout({
   ]);
 
   return (
-    <AdminShellPrototypePageClient
-      tenantSlug={tenantSlug}
-      initialPage={initialPage}
-      initialBridgeData={{
-        roster,
-        inquiries,
-        clients,
-        calendarEvents,
-        overviewMetrics,
-        bookings,
-        teamMembers,
-        totalUnread,
-      }}
-    >
-      {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}
-      {children}
-    </AdminShellPrototypePageClient>
+    <>
+      {/* Real-data banner sits above the prototype chrome until the
+          prototype's top-bar identity is migrated to consume the bridge.
+          See _real-identity-banner.tsx for the replacement plan. */}
+      <RealIdentityBanner
+        scope={scope}
+        user={{ id: session.user.id, email: session.user.email ?? undefined }}
+        metrics={overviewMetrics}
+      />
+      <AdminShellPrototypePageClient
+        tenantSlug={tenantSlug}
+        initialPage={initialPage}
+        initialBridgeData={{
+          roster,
+          inquiries,
+          clients,
+          calendarEvents,
+          overviewMetrics,
+          bookings,
+          teamMembers,
+          totalUnread,
+        }}
+      >
+        {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}
+        {children}
+      </AdminShellPrototypePageClient>
+    </>
   );
 }
