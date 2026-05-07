@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useId, useTransition, type
 import { useRouter } from "next/navigation";
 import { addTalentToRoster } from "./_actions";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
+import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -3696,14 +3697,22 @@ function TalentProfileShellDrawer() {
     const handle = setTimeout(async () => {
       setAutosaveStatus("saving");
       const id = state.identity;
-      const visibilityPatch: Partial<Record<"legalName" | "pronouns" | "gender" | "dob", ("public" | "agency" | "private")[]>> = {};
-      if (id.visibility) {
-        for (const [k, v] of Object.entries(id.visibility)) {
-          if (k === "legalName" || k === "pronouns" || k === "gender" || k === "dob") {
-            visibilityPatch[k as "legalName" | "pronouns" | "gender" | "dob"] = [...v];
+      const visibilityDraft = id.visibility;
+      const hasVisibilityPatch = Boolean(
+        visibilityDraft &&
+          (visibilityDraft.legalName ||
+            visibilityDraft.pronouns ||
+            visibilityDraft.gender ||
+            visibilityDraft.dob),
+      );
+      const visibilityPatch = hasVisibilityPatch
+        ? {
+            legalName: [...(visibilityDraft?.legalName ?? ["agency"])],
+            pronouns: [...(visibilityDraft?.pronouns ?? ["agency"])],
+            gender: [...(visibilityDraft?.gender ?? ["agency"])],
+            dob: [...(visibilityDraft?.dob ?? ["agency"])],
           }
-        }
-      }
+        : undefined;
       const result = await updateTalentIdentity({
         talent_profile_id: tid,
         stage_name: id.stageName,
@@ -3725,7 +3734,7 @@ function TalentProfileShellDrawer() {
           id.responseTime === "48h"
             ? id.responseTime
             : null,
-        field_visibility: Object.keys(visibilityPatch).length > 0 ? visibilityPatch : undefined,
+        field_visibility: visibilityPatch,
       });
       if (result.ok) {
         lastSavedIdentityRef.current = serialized;
@@ -4375,6 +4384,93 @@ function TalentProfileShellDrawer() {
               }}>⇆ Review changes</button>
             )}
             <StatusPillDropdown status={state.profileStatus} onChange={(s) => patch({ profileStatus: s })} role={isSelf ? "talent" : "admin"} />
+
+            {/* Phase 3 (deep QA fix) — autosave status pill. Renders only
+                when the rich identity autosave hook is active (admin mode,
+                editing an existing talent). Mirrors the prototype's
+                "Saved just now" promise but tied to the real DB state. */}
+            {adminVisible && payload.talentId && autosaveStatus !== "idle" && (
+              <span
+                aria-live="polite"
+                title={
+                  autosaveStatus === "error" && autosaveErrorRef.current
+                    ? autosaveErrorRef.current
+                    : undefined
+                }
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "5px 11px", borderRadius: 999,
+                  background:
+                    autosaveStatus === "saved" ? "rgba(15,79,62,0.08)"
+                    : autosaveStatus === "error" ? "rgba(200,40,40,0.08)"
+                    : "rgba(11,11,13,0.05)",
+                  color:
+                    autosaveStatus === "saved" ? COLORS.accentDeep
+                    : autosaveStatus === "error" ? "#C82828"
+                    : COLORS.inkMuted,
+                  fontFamily: FONTS.body, fontSize: 11, fontWeight: 600,
+                  letterSpacing: 0.2, whiteSpace: "nowrap",
+                }}
+              >
+                <span aria-hidden style={{
+                  width: 6, height: 6, borderRadius: "50%",
+                  background:
+                    autosaveStatus === "saved" ? COLORS.accent
+                    : autosaveStatus === "error" ? "#C82828"
+                    : COLORS.inkDim,
+                }} />
+                {autosaveStatus === "saving" ? "Saving…"
+                  : autosaveStatus === "saved" ? "Saved"
+                  : "Couldn't save"}
+              </span>
+            )}
+
+            {/* Phase 3 (deep QA fix) — Remove from roster.
+                Critical business rule: this severs the agency relationship
+                ONLY. The talent keeps their Tulala account (auth.users
+                untouched), keeps their talent_profiles row (untouched),
+                and can be added to another agency. Confirm-first to
+                guard against accidental clicks. */}
+            {adminVisible && payload.talentId && (
+              <button
+                type="button"
+                title="Remove this talent from your agency's roster. They keep their Tulala account."
+                onClick={async () => {
+                  const tid = payload.talentId;
+                  if (!tid) return;
+                  const name = state.identity.stageName || "this talent";
+                  const ok = window.confirm(
+                    `Remove ${name} from your roster?\n\n` +
+                    `They'll keep their Tulala account and any work history. ` +
+                    `You can re-add them later. This only ends the agency ` +
+                    `relationship — it does NOT delete the talent's account.`,
+                  );
+                  if (!ok) return;
+                  const result = await removeFromRoster({ talent_profile_id: tid });
+                  if (!result.ok) {
+                    toast(result.error);
+                    return;
+                  }
+                  toast(
+                    result.keptUserAccount
+                      ? `${name} removed. Their Tulala account is still active.`
+                      : `${name} removed from your roster.`,
+                  );
+                  closeDrawer();
+                }}
+                style={{
+                  padding: "5px 12px", borderRadius: 999,
+                  border: `1px solid rgba(200,40,40,0.20)`,
+                  background: "#fff", color: "#C82828",
+                  fontSize: 11, fontWeight: 600, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  fontFamily: FONTS.body,
+                }}
+              >
+                ✕ Remove
+              </button>
+            )}
+
             <button type="button" onClick={saveAndExit} style={{
               padding: "8px 14px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
               background: "#fff", color: COLORS.ink,

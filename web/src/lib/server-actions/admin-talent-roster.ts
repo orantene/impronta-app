@@ -133,6 +133,110 @@ export async function removeFromRoster(input: {
 // and inquiry workflows immediately. No data loss because remove never
 // touches anything else.
 
+// ─── Card photo (avatar) registration ────────────────────────────────────────
+//
+// The actual file upload happens client-side via supabase-js storage
+// (anon key + per-talent RLS path policy). This action is the SERVER-SIDE
+// metadata write: after the client puts a file at a storage path, it
+// calls this with (talentId, path, width, height) and we soft-delete the
+// previous 'card' variant + insert the new media_assets row.
+//
+// Mirrors the canonical registerRosterTalentPhoto in
+// /admin/roster/[id]/actions.ts but tenantId-direct (no tenantSlug
+// resolution) so the prototype drawer can call it without that
+// indirection.
+
+const setCardPhotoSchema = z.object({
+  talent_profile_id: z.string().uuid("Invalid talent profile id."),
+  storage_path: z.string().min(1, "Missing storage path."),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});
+
+export type SetCardPhotoResult =
+  | { ok: true; talent_profile_id: string; public_url: string }
+  | { ok: false; error: string };
+
+export async function setTalentCardPhoto(input: {
+  talent_profile_id: string;
+  storage_path: string;
+  width: number;
+  height: number;
+}): Promise<SetCardPhotoResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId, user } = auth;
+
+  const parsed = setCardPhotoSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid photo data.",
+    };
+  }
+  const v = parsed.data;
+
+  // Storage path safety: must be scoped under the talent's id so a
+  // malicious caller can't claim someone else's existing file.
+  if (!v.storage_path.startsWith(`${v.talent_profile_id}/`)) {
+    return { ok: false, error: "Invalid storage path." };
+  }
+
+  // Verify talent is on this tenant's roster.
+  const { data: roster } = await supabase
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", v.talent_profile_id)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!roster) {
+    return { ok: false, error: "That talent isn't on your roster." };
+  }
+
+  const BUCKET = "media-public";
+  const now = new Date().toISOString();
+
+  // Soft-delete previous card variant (if any).
+  await supabase
+    .from("media_assets")
+    .update({ deleted_at: now, updated_at: now })
+    .eq("owner_talent_profile_id", v.talent_profile_id)
+    .eq("variant_kind", "card")
+    .is("deleted_at", null);
+
+  const { data: inserted, error: insErr } = await supabase
+    .from("media_assets")
+    .insert({
+      owner_talent_profile_id: v.talent_profile_id,
+      uploaded_by_user_id: user.id,
+      bucket_id: BUCKET,
+      storage_path: v.storage_path,
+      variant_kind: "card",
+      sort_order: 0,
+      approval_state: "approved",
+      width: v.width,
+      height: v.height,
+      metadata: { slot: "avatar", crop_mode: "avatar", source: "admin_workspace" },
+    })
+    .select("id")
+    .single();
+
+  if (insErr || !inserted) {
+    logServerError("admin-talent-roster.setCardPhoto.insert", insErr);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(v.storage_path).data.publicUrl;
+
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    talent_profile_id: v.talent_profile_id,
+    public_url: publicUrl,
+  };
+}
+
 export async function restoreToRoster(input: {
   talent_profile_id: string;
 }): Promise<RemoveFromRosterResult> {
