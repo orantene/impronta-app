@@ -23,6 +23,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { signOut } from "@/app/auth/actions";
 import type { TenantScope } from "@/lib/saas/scope";
 import type { Session } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
@@ -151,6 +152,26 @@ export async function RealIdentityBanner({ scope, user, metrics }: Props) {
       >
         /{scope.membership.slug}
       </span>
+      <form action={signOut} style={{ display: "inline-flex", margin: 0 }}>
+        <button
+          type="submit"
+          title="Sign out (kills session, returns to /)"
+          style={{
+            background: "#1E293B",
+            color: "#F8FAFC",
+            border: "1px solid #334155",
+            borderRadius: 6,
+            padding: "3px 10px",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: 0.3,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Sign out
+        </button>
+      </form>
     </div>
   );
 }

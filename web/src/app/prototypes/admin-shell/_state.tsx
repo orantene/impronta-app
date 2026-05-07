@@ -7134,8 +7134,25 @@ export function ProtoProvider({
 
   const [surface, setSurface] = useState<Surface>(initialSurface ?? "workspace");
   // workspace
-  const [plan, setPlan] = useState<Plan>("free");
-  const [role, setRole] = useState<Role>("owner");
+  // Phase 1 (master plan) — when the workspace admin layout supplies
+  // bridge identity, prime the prototype's plan + role from real data so
+  // capability gates (Settings > Team, Plan & billing, plan-locked
+  // sections) reflect the tenant's actual tier and the user's actual
+  // role. Falls back to the prototype's demo defaults in standalone mode.
+  const initialPlan: Plan = (() => {
+    const t = initialBridgeData?.tenantIdentity?.planTier;
+    return t === "free" || t === "studio" || t === "agency" || t === "network"
+      ? (t as Plan)
+      : "free";
+  })();
+  const initialRole: Role = (() => {
+    const r = initialBridgeData?.sessionIdentity?.role;
+    return r === "owner" || r === "admin" || r === "coordinator" || r === "editor" || r === "viewer"
+      ? (r as Role)
+      : "owner";
+  })();
+  const [plan, setPlan] = useState<Plan>(initialPlan);
+  const [role, setRole] = useState<Role>(initialRole);
   const [entityType, setEntityType] = useState<EntityType>(TENANT.entityType);
   const [alsoTalent, setAlsoTalent] = useState<boolean>(true);
   const [page, setPageRaw] = useState<WorkspacePage>(initialPage ?? "overview");
