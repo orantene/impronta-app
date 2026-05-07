@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { assignInquiryToCurrentStaffForm } from "@/app/(dashboard)/admin/actions";
+import { assignInquiryToCurrentStaffForm } from "@/lib/server-actions/admin-inquiries";
 import { AdminCommercialStatusBadge } from "@/components/admin/admin-commercial-status-badge";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
 import { Button } from "@/components/ui/button";

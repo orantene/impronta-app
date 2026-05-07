@@ -1,7 +1,7 @@
 import {
   startImpersonationAsQaClient,
   startImpersonationAsQaTalent,
-} from "@/app/(dashboard)/admin/impersonation/actions";
+} from "@/lib/server-actions/admin-impersonation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Briefcase, FlaskConical, UserRound } from "lucide-react";

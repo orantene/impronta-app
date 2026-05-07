@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
-import { createManualInquiry } from "@/app/(dashboard)/admin/actions";
-import { AdminNewClientSheet } from "@/app/(dashboard)/admin/clients/admin-new-client-sheet";
-import type { AccountOption } from "@/app/(dashboard)/admin/accounts/[id]/add-contact-form";
+import { createManualInquiry } from "@/lib/server-actions/admin-inquiries";
+import { AdminNewClientSheet } from "@/components/admin/forms/admin-new-client-sheet";
+import type { AccountOption } from "@/components/admin/forms/add-contact-form";
 import { AdminClientSearchPicker } from "@/components/admin/admin-client-search-picker";
 import { InquiryTalentDraftField } from "@/components/admin/inquiry-talent-editor";
 import { CreateClientAccountSheet } from "@/components/admin/create-client-account-sheet";

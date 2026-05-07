@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { AccountOption } from "@/app/(dashboard)/admin/accounts/[id]/add-contact-form";
-import { ManualBookingForm } from "@/app/(dashboard)/admin/bookings/new/manual-booking-form";
+import type { AccountOption } from "@/components/admin/forms/add-contact-form";
+import { ManualBookingForm } from "@/components/admin/forms/manual-booking-form";
 import { AdminNewInquirySheet } from "@/components/admin/admin-new-inquiry-sheet";
 import { CreateClientAccountSheet } from "@/components/admin/create-client-account-sheet";
 import { Button } from "@/components/ui/button";

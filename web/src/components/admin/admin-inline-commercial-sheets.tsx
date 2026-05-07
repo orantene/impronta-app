@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AccountOption } from "@/app/(dashboard)/admin/accounts/[id]/add-contact-form";
+import type { AccountOption } from "@/components/admin/forms/add-contact-form";
 import { CreateClientAccountSheet } from "@/components/admin/create-client-account-sheet";
 import { CreateClientContactSheetTrigger } from "@/components/admin/create-client-contact-sheet";
 import { Button } from "@/components/ui/button";

@@ -7,7 +7,7 @@ import {
   assignInquiryToCurrentStaffForm,
   quickPatchInquiryStatus,
   type AdminActionState,
-} from "@/app/(dashboard)/admin/actions";
+} from "@/lib/server-actions/admin-inquiries";
 import { Button } from "@/components/ui/button";
 import {
   ADMIN_ACTION_TERTIARY_CLASS,

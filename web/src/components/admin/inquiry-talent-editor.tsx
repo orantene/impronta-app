@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ExternalLink, Plus, Search, Trash2 } from "lucide-react";
-import { addInquiryTalent, type AdminActionState, moveInquiryTalent, removeInquiryTalent } from "@/app/(dashboard)/admin/actions";
+import { addInquiryTalent, type AdminActionState, moveInquiryTalent, removeInquiryTalent } from "@/lib/server-actions/admin-inquiries";
 import {
   rosterAddTalent,
   rosterMoveParticipant,
   rosterRemoveParticipant,
-} from "@/app/(dashboard)/admin/inquiries/[id]/roster-actions";
+} from "@/lib/server-actions/admin-inquiry-roster";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { handleActionResult, type ActionResult } from "@/lib/inquiry/inquiry-action-result";

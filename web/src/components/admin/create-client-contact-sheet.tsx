@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   AddContactForm,
   type AccountOption,
-} from "@/app/(dashboard)/admin/accounts/[id]/add-contact-form";
+} from "@/components/admin/forms/add-contact-form";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
 import { Button } from "@/components/ui/button";
 

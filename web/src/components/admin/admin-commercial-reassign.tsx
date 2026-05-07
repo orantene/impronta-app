@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
-import { patchInquiryEntityLinks, type AdminActionState } from "@/app/(dashboard)/admin/actions";
-import { patchBookingEntityLinks, type BookingActionState } from "@/app/(dashboard)/admin/bookings/actions";
+import { patchInquiryEntityLinks, type AdminActionState } from "@/lib/server-actions/admin-inquiries";
+import { patchBookingEntityLinks, type BookingActionState } from "@/lib/server-actions/admin-bookings";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
 import { Button } from "@/components/ui/button";
 import { ADMIN_FORM_CONTROL, ADMIN_OUTLINE_CONTROL_CLASS } from "@/lib/dashboard-shell-classes";

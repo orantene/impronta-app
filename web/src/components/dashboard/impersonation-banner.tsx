@@ -1,4 +1,4 @@
-import { endImpersonationToAdmin } from "@/app/(dashboard)/admin/impersonation/actions";
+import { endImpersonationToAdmin } from "@/lib/server-actions/admin-impersonation";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/ui/user-avatar";
 

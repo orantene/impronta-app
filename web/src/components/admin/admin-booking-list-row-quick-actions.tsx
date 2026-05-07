@@ -7,7 +7,7 @@ import {
   assignBookingToCurrentStaffForm,
   quickUpdateBookingPeek,
   type BookingActionState,
-} from "@/app/(dashboard)/admin/bookings/actions";
+} from "@/lib/server-actions/admin-bookings";
 import { Button } from "@/components/ui/button";
 import {
   ADMIN_ACTION_TERTIARY_CLASS,

@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import {
   quickUpdateBookingPeek,
   type BookingActionState,
-} from "@/app/(dashboard)/admin/bookings/actions";
+} from "@/lib/server-actions/admin-bookings";
 import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
 

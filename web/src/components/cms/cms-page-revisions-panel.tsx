@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/section-header";
-import type { CmsRevisionListItem } from "@/app/(dashboard)/admin/site-settings/content/cms-revision-actions";
-import { getCmsPageRevisionForRestore } from "@/app/(dashboard)/admin/site-settings/content/cms-revision-actions";
+import type { CmsRevisionListItem } from "@/lib/server-actions/admin-cms-revisions";
+import { getCmsPageRevisionForRestore } from "@/lib/server-actions/admin-cms-revisions";
 import type { CmsPageSnapshot } from "@/lib/cms/revision-snapshots";
 import type { Locale } from "@/i18n/config";
 

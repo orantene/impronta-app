@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { NewAccountForm } from "@/app/(dashboard)/admin/accounts/new/new-account-form";
+import { NewAccountForm } from "@/components/admin/forms/new-account-form";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
 import { Button } from "@/components/ui/button";
 import { ADMIN_OUTLINE_CONTROL_CLASS, LUXURY_GOLD_BUTTON_CLASS } from "@/lib/dashboard-shell-classes";

@@ -8,7 +8,7 @@ import type { Plan } from "./capability-catalog";
 import { UpgradeModal } from "./upgrade-modal";
 import { useUpgradeModal } from "./upgrade-context";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
-import { changeWorkspacePlan } from "@/app/(dashboard)/admin/account/billing-actions";
+import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
 
 /**
  * GlobalUpgradeModal — single modal instance mounted at the admin shell.

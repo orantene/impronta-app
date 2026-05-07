@@ -16,7 +16,7 @@ import {
   applyTranslationQuickEditSave,
   loadTranslationQuickEditPayload,
   type TranslationQuickEditPayload,
-} from "@/app/(dashboard)/admin/translations/translation-center-quick-edit-actions";
+} from "@/lib/server-actions/admin-translation-quick-edit";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {

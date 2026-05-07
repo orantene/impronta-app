@@ -28,7 +28,7 @@ import {
   duplicatePageAction,
   type PagePickerItem,
   type PagePickerAvailability,
-} from "@/app/(dashboard)/admin/site-settings/pages/actions";
+} from "@/lib/server-actions/admin-site-pages";
 import type { EditDevice } from "./edit-context";
 import { CHROME } from "./kit";
 

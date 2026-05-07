@@ -8,7 +8,7 @@ import {
   type BioFilterKey,
   type TaxLocFilterKey,
   VIEW_TABS,
-} from "@/app/(dashboard)/admin/translations/translations-url";
+} from "@/lib/server-actions/admin-translations-url";
 import { TranslationCenterQueue } from "@/components/translation-center/translation-center-queue";
 import { AdminCollapsibleSection } from "@/components/admin/admin-collapsible-section";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
@@ -23,7 +23,7 @@ import {
   ADMIN_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import type { TranslationCenterBootstrap, TranslationUnitDTO } from "@/lib/translation-center/types";
-import type { BioSortKey, LocationSortKey, SortDir, TaxonomySortKey } from "@/app/(dashboard)/admin/translations/translations-url";
+import type { BioSortKey, LocationSortKey, SortDir, TaxonomySortKey } from "@/lib/server-actions/admin-translations-url";
 import { cn } from "@/lib/utils";
 
 function SummaryCard({

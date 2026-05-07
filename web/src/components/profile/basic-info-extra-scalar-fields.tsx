@@ -2,11 +2,11 @@
 
 import { useActionState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { saveTalentScalarFieldValues, type TalentFieldValuesState } from "@/app/(dashboard)/talent/field-values-actions";
+import { saveTalentScalarFieldValues, type TalentFieldValuesState } from "@/lib/server-actions/talent-field-values";
 import {
   saveAdminTalentScalarFieldValues,
   type AdminTalentFieldValuesState,
-} from "@/app/(dashboard)/admin/talent/actions";
+} from "@/lib/server-actions/admin-talent";
 import { booleanFieldSentinelName } from "@/lib/field-form-boolean";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

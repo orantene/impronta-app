@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { TenantMembership } from "@/lib/saas";
-import { switchActiveTenant } from "@/app/(dashboard)/admin/tenant-switch-action";
+import { switchActiveTenant } from "@/lib/saas/tenant-switch-action";
 
 type AgencySwitcherProps = {
   tenants: TenantMembership[];
