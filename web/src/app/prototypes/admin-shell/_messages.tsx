@@ -39,9 +39,11 @@
 
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { createAgencyInquiry } from "@/lib/server-actions/admin-inquiries";
+import { sendMessage as sendMessageAction } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
+import type { ThreadType } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import {
   COLORS, FONTS, RADIUS, TRANSITION,
   MY_TALENT_PROFILE,
@@ -2201,6 +2203,9 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                   closedNotice={inquiry.stage === "rejected"
                     ? "Closed · the client passed on this offer."
                     : "Closed · auto-expired (no client response in the window)."}
+                  inquiryId={inquiry.id}
+                  tenantSlug={TENANT.slug}
+                  threadType="private"
                 />
               )}
               {activeTab === "talent" && (
@@ -2213,6 +2218,9 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                   closedNotice={inquiry.stage === "rejected"
                     ? "Closed · the client passed on this project."
                     : "Closed · auto-expired."}
+                  inquiryId={inquiry.id}
+                  tenantSlug={TENANT.slug}
+                  threadType="group"
                 />
               )}
             </>
@@ -2262,7 +2270,7 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
 // when the inquiry is past / cancelled / rejected / expired.
 function AdminMessageStream({
   messages, placeholder, closed, closedNotice, threadKey, smartReplyContext = "default",
-  firstTimeClientName,
+  firstTimeClientName, inquiryId, tenantSlug, threadType,
 }: {
   messages: RichInquiry["messages"];
   placeholder: string;
@@ -2283,8 +2291,15 @@ function AdminMessageStream({
    *  top of the stream. Caller computes the first-time signal so the
    *  stream stays presentation-only. */
   firstTimeClientName?: string;
+  /** Real inquiry UUID — used to persist messages to DB. */
+  inquiryId: string;
+  /** Workspace slug — passed to sendMessage server action. */
+  tenantSlug: string;
+  /** DB thread type for this stream: "private" = client, "group" = talent. */
+  threadType: ThreadType;
 }) {
   const { toast, state } = useProto();
+  const [, startTransition] = useTransition();
   // Subscribe so locally-sent messages re-render the stream.
   useMessageStashSubscription();
   const localMessages = readLocalMessages(threadKey);
@@ -2443,13 +2458,19 @@ function AdminMessageStream({
             smartReplyContext={smartReplyContext}
             onSend={(text) => {
               appendLocalMessage(threadKey, text);
-              toast("Message sent");
+              startTransition(async () => {
+                const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text);
+                if ("error" in result) toast(`Send failed: ${result.error}`);
+              });
             }}
             workspaceName={wsName}
             canSendAsWorkspace={canSendAsWs}
             onSendAsWorkspace={(text) => {
               appendLocalMessage(threadKey, text, "workspace");
-              toast(`Sent as ${wsName}`);
+              startTransition(async () => {
+                const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text);
+                if ("error" in result) toast(`Send failed: ${result.error}`);
+              });
             }}
           />
         )}
