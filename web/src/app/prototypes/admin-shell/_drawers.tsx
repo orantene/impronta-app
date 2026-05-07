@@ -13215,30 +13215,7 @@ function ConversationBubble({
 }
 
 function NewInquiryDrawer() {
-  const { state, closeDrawer, effectiveRoster } = useProto();
-  const onSave = useSaveAndClose("Inquiry created");
-  const roster = effectiveRoster;
-  // Wave 2 — let the user start from a similar past brief, and warn
-  // immediately if a chosen talent is double-booked.
-  const [client, setClient] = useState("");
-  const [brief, setBrief] = useState("");
-  const [date, setDate] = useState("");
-  const [conflictTalent, setConflictTalent] = useState<string | null>(null);
-
-  const handlePickTemplate = (t: { title: string; brief: string }) => {
-    setBrief(t.brief);
-  };
-
-  const pickTalent = (name: string) => {
-    // Mock conflict detection — Marta Reyes "is already booked" if the
-    // date string contains "May 14" (matching mock booking data).
-    if (name.toLowerCase().includes("marta") && date.toLowerCase().includes("may 14")) {
-      setConflictTalent(name);
-    } else {
-      setConflictTalent(null);
-    }
-  };
-
+  const { closeDrawer } = useProto();
   return (
     <DrawerShell
       open
@@ -13251,7 +13228,7 @@ function NewInquiryDrawer() {
         mode="admin"
         embedded
         onCancel={closeDrawer}
-        onSubmit={() => { onSave(); }}
+        onSubmit={() => { closeDrawer(); }}
       />
     </DrawerShell>
   );

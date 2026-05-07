@@ -399,6 +399,83 @@ No Vercel push until the marathon completes its full run and the user gives go.
 ## Changelog
 
 - **rev 1 (cc724be4)** — initial doc + sendMessage fix (A3)
-- **rev 2 (this commit)** — added D1 atomicity finding, missing offer backend
+- **rev 2 (26c5a89f)** — added D1 atomicity finding, missing offer backend
   inventory, PaymentTab + WorkPage wiring gaps, talent + client pov sections,
   drawer inventory, full marathon plan with phases + risks + DoD
+- **rev 3 (this commit)** — Phase 1 progress: D1 compensating cleanup, B2
+  stage transition menu, D2 WorkPage real bridge data, C3 NewBookingDrawer
+  wired, NewInquiryDrawer redundant toast removed. Discovered the engine is
+  more complete than rev 2 catalogued: `clientAcceptOffer`, `submitApproval`,
+  `convertToBooking` already exist in `inquiry-engine.ts`, and the proper
+  atomic `engine_convert_to_booking` RPC is in DB. B3's "missing actions"
+  is reduced to just `talentSubmitRate` (still missing).
+
+---
+
+## Marathon progress — what shipped this session
+
+| Commit | ID | Description |
+|--------|----|-------------|
+| cc724be4 | A3 | sendMessage → real DB action (admin Client + Talent threads) |
+| 26c5a89f | docs | QA doc rev 2 — full marathon plan |
+| 7a65cdba | D1 | convertInquiryToBooking compensating cleanup on talent-insert failure |
+| 7a65cdba | B2 | StageTransitionMenu in AdminInquiryDetail header → quickPatchInquiryStatus |
+| 20d2c44a | D2 | WorkPage uses effectiveMessagesInquiries + effectiveBookings from bridge |
+| 20d2c44a | C3 | NewBookingDrawer → createManualBooking server action |
+| (this) | docs+H | NewInquiryDrawer toast cleanup (composer already wires createAgencyInquiry) + this rev |
+
+## What's left — prioritised by pipeline impact
+
+### High impact, deferred (complex)
+
+- **B2 final step** — The "Convert to booking" stage transition currently calls
+  `quickPatchInquiryStatus` (status-only update) but should call
+  `convertToBooking` engine action which uses the atomic
+  `engine_convert_to_booking` RPC. Needs an `app/(workspace)/[tenantSlug]/admin/inquiries/[id]/actions.ts`
+  wrapper server action that calls the engine. Precondition: inquiry must have
+  status='approved' AND an accepted offer. Until the offer flow is wired
+  (B3), this transition will fail at the DB layer.
+- **B3 OfferTab DB wiring** — Replace `__offerStash` / `applyOfferOverride`
+  reads + writes with bridge query for `inquiry_offers` + `inquiry_offer_line_items`
+  and engine action calls (`createOffer`, `sendOffer`, `clientAcceptOffer`,
+  `clientRejectOffer`, `updateOfferDraft`). Largest single piece of work
+  in the marathon.
+- **B6 PaymentTab** — Wire to the 12 actions in `/admin/work/[id]/actions.ts`
+  (`markPaidAction`, `requestPaymentAction`, `initiatePayoutAction`, etc.).
+  The canonical work page already has the full UX — port that pattern.
+- **B4 FilesTab** — Build `loadInquiryAttachments` bridge query +
+  `uploadAttachment` / `deleteAttachment` server actions. Replace
+  `MOCK_FILES_FOR_CONV` reads.
+
+### Medium impact, smaller scope
+
+- **Build `talentSubmitRate`** in `inquiry-engine-offers.ts` to update
+  `inquiry_offer_line_items.talent_cost`. Mirror `updateOfferDraft` shape.
+- **B8 talent lineup** wire `rosterAddTalent` / `rosterMoveParticipant` /
+  `rosterRemoveParticipant` from the right rail menu in inquiry detail.
+- **Wire ClientProfileDrawer** (`_drawers.tsx:13488`) → `createClientAccount`
+  for new client creation; for edits use `updateInquiryClientInfo` or a
+  client-account update action (need to find/build).
+- **Wire DefaultPayoutReceiverDrawer** (`_drawers.tsx:19396`) →
+  `selectPayoutReceiverAction`.
+- **Wire TalentProfileDrawer** (`_drawers.tsx:11004`) → `updateTalentIdentity`
+  for the published button. Currently uncontrolled inputs — needs full
+  controlled-state rewrite.
+- **D3 investigation** — find why `/impronta/admin/work/[id]` renders blank
+  (prototype SPA shadowing canonical page). Probably in `_page-route-syncer.tsx`
+  or layout middleware.
+
+### Low impact / polish
+
+- **A5** — markThreadRead on tab open / scroll-to-bottom
+- **A6** — Pin / Archive quick actions (mock currently)
+- **B5 LogisticsTab** — All toast stubs (call sheet etc.). Defer until
+  `call_sheets` schema direction confirmed.
+- **C4** — Drag-to-reschedule in calendar (not implemented)
+- **C5** — Calendar StatusStrip mock+real double-counting risk
+- **D4** — `duplicateBooking` UI
+- **E2** — Verify other top-bar metrics (talent count, open inquiries) use
+  bridge not RICH_INQUIRIES
+- **F-pass** — full TalentJobShell audit (largest deferred surface)
+- **G-pass** — full ClientProjectShell audit
+- **H** — 10+ remaining toast-only drawers (settings polish, not pipeline)
