@@ -3584,6 +3584,7 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
 
 function TalentProfileShellDrawer() {
   const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug } = useProto();
+  const shellRouter = useRouter();
   const drawerId = protoState.drawer.drawerId;
   const drawerOpen = drawerId === "talent-profile-shell" || drawerId === "talent-profile-edit";
   const payload = (protoState.drawer.payload ?? {}) as ProfileShellPayload;
@@ -4538,6 +4539,46 @@ function TalentProfileShellDrawer() {
             }}
             onViewAsClient={() => setViewAsClient(true)}
             onSaveAndExit={saveAndExit}
+            onOpenFullEditor={
+              tenantSlug && payload.talentId
+                ? () => {
+                    window.location.href = `/${tenantSlug}/admin/roster/${payload.talentId}`;
+                  }
+                : undefined
+            }
+            onRemoveFromRoster={
+              payload.talentId
+                ? async () => {
+                    const tid = payload.talentId;
+                    if (!tid) return;
+                    const name = state.identity.stageName || "this talent";
+                    const ok = window.confirm(
+                      `Remove ${name} from your roster?\n\n` +
+                        `They'll keep their Tulala account and any work history. ` +
+                        `You can re-add them later. This only ends the agency ` +
+                        `relationship — it does NOT delete the talent's account.`,
+                    );
+                    if (!ok) return;
+                    const result = await removeFromRoster({ talent_profile_id: tid });
+                    if (!result.ok) {
+                      toast(result.error);
+                      return;
+                    }
+                    toast(
+                      result.keptUserAccount
+                        ? `${name} removed. Their Tulala account is still active.`
+                        : `${name} removed from your roster.`,
+                    );
+                    closeDrawer();
+                    // Refresh server-rendered roster list so the removed
+                    // talent disappears immediately (revalidatePath in the
+                    // action invalidates the cache; router.refresh fetches
+                    // the fresh layout payload). Without this the UI lies
+                    // for the rest of the session.
+                    shellRouter.refresh();
+                  }
+                : undefined
+            }
           />
         </div>
 
@@ -7782,6 +7823,7 @@ function RequiredCoach({ missing, onJump }: {
 function ProfileShellMobileMenu({
   adminVisible, isSelf, primaryTypeSet, canUndo, canRedo,
   onUndo, onRedo, onSaveAsTemplate, onApplyTemplate, onViewAsClient, onSaveAndExit,
+  onOpenFullEditor, onRemoveFromRoster,
 }: {
   adminVisible: boolean;
   isSelf: boolean;
@@ -7794,6 +7836,14 @@ function ProfileShellMobileMenu({
   onApplyTemplate: (tpl: ProfileTemplate) => void;
   onViewAsClient: () => void;
   onSaveAndExit: () => void;
+  /** Phase 3 — admin-only escape hatch to the canonical /{slug}/admin/
+   *  roster/[id] page. Provided as a callback so the menu doesn't need
+   *  to know how URLs are built. */
+  onOpenFullEditor?: () => void;
+  /** Phase 3 — admin-only destructive action. Severs the agency
+   *  relationship; talent keeps Tulala account. Confirmation handled
+   *  by the parent component. */
+  onRemoveFromRoster?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -7910,11 +7960,45 @@ function ProfileShellMobileMenu({
                     )}
                   </>
                 )}
+                {/* Phase 3 — admin-only Full editor escape hatch + Remove
+                    from roster. Mirrors the desktop header-extras buttons
+                    which are responsive-hidden at narrow drawer widths. */}
+                {adminVisible && onOpenFullEditor && (
+                  <>
+                    <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 6px" }} />
+                    <PMobileMenuItem
+                      icon="↗" label="Open full editor"
+                      onClick={() => { onOpenFullEditor(); close(); }}
+                    />
+                  </>
+                )}
                 <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 6px" }} />
                 <PMobileMenuItem
                   icon="💾" label="Save & exit"
                   onClick={() => { onSaveAndExit(); close(); }}
                 />
+                {adminVisible && onRemoveFromRoster && (
+                  <>
+                    <div style={{ height: 1, background: "rgba(200,40,40,0.16)", margin: "4px 6px" }} />
+                    <button
+                      type="button"
+                      onClick={() => { onRemoveFromRoster(); close(); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        width: "100%", padding: "9px 12px", borderRadius: 7,
+                        border: "none", background: "transparent",
+                        color: "#C82828", fontFamily: FONTS.body,
+                        fontSize: 13, fontWeight: 600, cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(200,40,40,0.06)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span aria-hidden style={{ width: 16, fontSize: 14 }}>✕</span>
+                      <span>Remove from roster</span>
+                    </button>
+                  </>
+                )}
               </>
             )}
       </div>
