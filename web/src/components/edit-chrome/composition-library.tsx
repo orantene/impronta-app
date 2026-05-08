@@ -332,14 +332,14 @@ export function CompositionLibraryOverlay() {
     });
   }, [activeTab, libraryTarget]);
 
-  const getStarterCompatibility = useCallback(
-    (starter: SectionTemplateStarter): TemplateCompatibility => {
-      if (!libraryTarget) {
-        return { ok: false, reason: "Choose an insertion point first." };
-      }
+  const getStarterCompatibilityForSlot = useCallback(
+    (
+      starter: SectionTemplateStarter,
+      targetSlotKey: string,
+    ): TemplateCompatibility => {
       const compatibility = checkSlotTypeCompatibility({
         slotDefs,
-        targetSlotKey: libraryTarget.slotKey,
+        targetSlotKey,
         sectionTypeKey: starter.sectionTypeKey,
       });
       if (!compatibility.ok) {
@@ -362,11 +362,21 @@ export function CompositionLibraryOverlay() {
       }
       return { ok: true, reason: null };
     },
-    [libraryTarget, slotDefs, workspacePlan],
+    [slotDefs, workspacePlan],
   );
 
-  const getKitCompatibility = useCallback(
-    (kit: SectionTemplateKit): TemplateCompatibility => {
+  const getStarterCompatibility = useCallback(
+    (starter: SectionTemplateStarter): TemplateCompatibility => {
+      if (!libraryTarget) {
+        return { ok: false, reason: "Choose an insertion point first." };
+      }
+      return getStarterCompatibilityForSlot(starter, libraryTarget.slotKey);
+    },
+    [getStarterCompatibilityForSlot, libraryTarget],
+  );
+
+  const getKitCompatibilityForSlot = useCallback(
+    (kit: SectionTemplateKit, targetSlotKey: string): TemplateCompatibility => {
       const starters = kit.starterIds
         .map((starterId) => startersById.get(starterId))
         .filter((starter): starter is SectionTemplateStarter => Boolean(starter));
@@ -379,7 +389,7 @@ export function CompositionLibraryOverlay() {
       const failedStarter = starters
         .map((starter) => ({
           starter,
-          compatibility: getStarterCompatibility(starter),
+          compatibility: getStarterCompatibilityForSlot(starter, targetSlotKey),
         }))
         .find((item) => !item.compatibility.ok);
       if (failedStarter) {
@@ -392,7 +402,17 @@ export function CompositionLibraryOverlay() {
       }
       return { ok: true, reason: null };
     },
-    [getStarterCompatibility, startersById],
+    [getStarterCompatibilityForSlot, startersById],
+  );
+
+  const getKitCompatibility = useCallback(
+    (kit: SectionTemplateKit): TemplateCompatibility => {
+      if (!libraryTarget) {
+        return { ok: false, reason: "Choose an insertion point first." };
+      }
+      return getKitCompatibilityForSlot(kit, libraryTarget.slotKey);
+    },
+    [getKitCompatibilityForSlot, libraryTarget],
   );
 
   const starterKindCounts = useMemo(() => {
@@ -594,16 +614,15 @@ export function CompositionLibraryOverlay() {
         reason = "This template is missing starter data. Reload and try again.";
       } else {
         const failedCompatibility = starters
-          .map((starter) =>
-            checkSlotTypeCompatibility({
-              slotDefs,
-              targetSlotKey,
-              sectionTypeKey: starter.sectionTypeKey,
-            }),
-          )
-          .find((result) => !result.ok);
-        if (failedCompatibility && !failedCompatibility.ok) {
-          reason = failedCompatibility.message;
+          .map((starter) => ({
+            starter,
+            compatibility: getStarterCompatibilityForSlot(starter, targetSlotKey),
+          }))
+          .find((item) => !item.compatibility.ok);
+        if (failedCompatibility) {
+          reason =
+            failedCompatibility.compatibility.reason ??
+            `${failedCompatibility.starter.label} is not compatible with this slot.`;
         } else {
           allowed = true;
         }
@@ -625,7 +644,7 @@ export function CompositionLibraryOverlay() {
         reason,
       };
     },
-    [getStartersForSource, slotDefs],
+    [getStarterCompatibilityForSlot, getStartersForSource, slotDefs],
   );
 
   const formatDropBlockedMessage = useCallback((target: TemplateDropTarget) => {
@@ -729,6 +748,11 @@ export function CompositionLibraryOverlay() {
     stylePresetId?: string | null,
   ) => {
     if (!libraryTarget) return;
+    const compatibility = getStarterCompatibility(starter);
+    if (!compatibility.ok) {
+      setError(compatibility.reason ?? "This section template is not available here.");
+      return;
+    }
     const busyKey = `template:${starter.id}`;
     setBusyTypeKey(busyKey);
     setError(null);
@@ -743,13 +767,18 @@ export function CompositionLibraryOverlay() {
     }
     setReviewStarter(null);
     closeLibrary();
-  }, [closeLibrary, insertSection, libraryTarget]);
+  }, [closeLibrary, getStarterCompatibility, insertSection, libraryTarget]);
 
   const handleKitPick = useCallback(async (
     kit: SectionTemplateKit,
     stylePresetIds?: Partial<Record<SectionTemplateStarterId, string | null>>,
   ) => {
     if (!libraryTarget) return;
+    const compatibility = getKitCompatibility(kit);
+    if (!compatibility.ok) {
+      setError(compatibility.reason ?? "This section kit is not available here.");
+      return;
+    }
     const busyKey = `kit:${kit.id}`;
     setBusyTypeKey(busyKey);
     setError(null);
@@ -782,7 +811,7 @@ export function CompositionLibraryOverlay() {
     setBusyTypeKey(null);
     setReviewKit(null);
     closeLibrary();
-  }, [closeLibrary, insertSection, libraryTarget, startersById]);
+  }, [closeLibrary, getKitCompatibility, insertSection, libraryTarget, startersById]);
 
   const openKitReview = useCallback((kit: SectionTemplateKit) => {
     setReviewKit(kit);
@@ -821,6 +850,16 @@ export function CompositionLibraryOverlay() {
       if (!activeTarget) return;
 
       if (source.kind === "starter") {
+        const compatibility = getStarterCompatibilityForSlot(
+          source.starter,
+          activeTarget.slotKey,
+        );
+        if (!compatibility.ok) {
+          setError(
+            compatibility.reason ?? "This section template is not available here.",
+          );
+          return;
+        }
         const busyKey = `template:${source.starter.id}`;
         setBusyTypeKey(busyKey);
         setError(null);
@@ -837,6 +876,14 @@ export function CompositionLibraryOverlay() {
         return;
       }
 
+      const compatibility = getKitCompatibilityForSlot(
+        source.kit,
+        activeTarget.slotKey,
+      );
+      if (!compatibility.ok) {
+        setError(compatibility.reason ?? "This section kit is not available here.");
+        return;
+      }
       const busyKey = `kit:${source.kit.id}`;
       setBusyTypeKey(busyKey);
       setError(null);
@@ -866,7 +913,14 @@ export function CompositionLibraryOverlay() {
       setBusyTypeKey(null);
       closeLibrary();
     },
-    [closeLibrary, insertSection, libraryTarget, startersById],
+    [
+      closeLibrary,
+      getKitCompatibilityForSlot,
+      getStarterCompatibilityForSlot,
+      insertSection,
+      libraryTarget,
+      startersById,
+    ],
   );
 
   useEffect(() => {
