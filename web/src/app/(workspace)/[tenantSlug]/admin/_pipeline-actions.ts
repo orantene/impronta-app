@@ -601,6 +601,152 @@ export async function rejectOfferAction(
   }
 }
 
+// ─── Workspace settings (generic JSONB patch) ────────────────────────────────
+
+/**
+ * Patch a single namespace within `agencies.settings` JSONB. The
+ * canonical workspace settings table is `agencies` (one row per tenant)
+ * with a free-form `settings` jsonb that already holds timezone,
+ * primary_locale etc.
+ *
+ * Used by the settings drawers (theme / SEO / navigation / languages /
+ * visibility / filters) that don't have a dedicated typed action.
+ *
+ * The merge is shallow — `patch` replaces top-level keys under the
+ * given namespace, but nested objects are not deep-merged. Callers
+ * should pass the full namespace value they want to persist.
+ */
+export async function patchAgencySettingsNamespace(
+  _tenantSlug: string,
+  namespace: "theme" | "seo" | "navigation" | "languages" | "visibility" | "filters" | "domain",
+  value: Record<string, unknown> | null,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: agency, error: readErr } = await supabase
+      .from("agencies")
+      .select("settings")
+      .eq("id", tenantId)
+      .single();
+    if (readErr || !agency) {
+      logServerError("admin._pipeline-actions.patchAgencySettings/read", readErr);
+      return { ok: false, error: "Could not load workspace settings." };
+    }
+
+    const current: Record<string, unknown> =
+      typeof agency.settings === "object" && agency.settings !== null
+        ? { ...(agency.settings as Record<string, unknown>) }
+        : {};
+
+    if (value == null) {
+      delete current[namespace];
+    } else {
+      current[namespace] = value;
+    }
+
+    const { error: writeErr } = await supabase
+      .from("agencies")
+      .update({ settings: current, updated_at: new Date().toISOString() })
+      .eq("id", tenantId);
+
+    if (writeErr) {
+      logServerError("admin._pipeline-actions.patchAgencySettings/write", writeErr);
+      return { ok: false, error: "Could not save workspace settings." };
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.patchAgencySettings", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Read a namespace from `agencies.settings`. Returns the JSON value as
+ * a plain record (or null when the namespace hasn't been written yet).
+ */
+export async function loadAgencySettingsNamespace(
+  _tenantSlug: string,
+  namespace: "theme" | "seo" | "navigation" | "languages" | "visibility" | "filters" | "domain",
+): Promise<PipelineActionResult<Record<string, unknown> | null>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: agency, error } = await supabase
+      .from("agencies")
+      .select("settings")
+      .eq("id", tenantId)
+      .single();
+    if (error || !agency) return { ok: false, error: "Could not load settings." };
+
+    const settings: Record<string, unknown> =
+      typeof agency.settings === "object" && agency.settings !== null
+        ? (agency.settings as Record<string, unknown>)
+        : {};
+    const value = settings[namespace];
+    if (value == null || typeof value !== "object" || Array.isArray(value)) {
+      return { ok: true, data: null };
+    }
+    return { ok: true, data: value as Record<string, unknown> };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.loadAgencySettings", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── Reschedule inquiry event date ───────────────────────────────────────────
+
+/**
+ * Patch the event_date on an inquiry. Used by the calendar
+ * drag-to-reschedule UX. Empty / null clears the date. Returns the
+ * canonical YYYY-MM-DD string on success so the optimistic UI can
+ * confirm the server agreed.
+ */
+export async function rescheduleInquiry(
+  _tenantSlug: string,
+  inquiryId: string,
+  eventDateIso: string | null,
+): Promise<PipelineActionResult<{ eventDate: string | null }>> {
+  try {
+    if (eventDateIso != null) {
+      // Loose validation — must look like YYYY-MM-DD. Anything else
+      // would round-trip to null at the DB level anyway.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDateIso)) {
+        return { ok: false, error: "Date must be YYYY-MM-DD." };
+      }
+    }
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data, error } = await supabase
+      .from("inquiries")
+      .update({ event_date: eventDateIso, updated_at: new Date().toISOString() })
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .select("event_date")
+      .maybeSingle();
+
+    if (error) {
+      logServerError("admin._pipeline-actions.rescheduleInquiry", error);
+      return { ok: false, error: "Could not save new date." };
+    }
+    if (!data) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    revalidatePath("/", "layout");
+    return { ok: true, data: { eventDate: (data.event_date as string | null) ?? null } };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.rescheduleInquiry", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
 // ─── Inquiry user flags (pin / archive / manually_unread) ────────────────────
 
 type FlagKind = "pinned" | "archived" | "manually_unread";
@@ -1344,6 +1490,39 @@ export async function reorderInquiryLineup(
 }
 
 // ─── Bulk inquiry archive ────────────────────────────────────────────────────
+
+/**
+ * Bulk-reassign coordinator on the selected inquiries. Each row is
+ * assigned to the current staff actor (the user driving the bulk bar).
+ * Wraps `assignInquiryToCurrentStaff` per row.
+ */
+export async function bulkReassignInquiriesToMe(
+  _tenantSlug: string,
+  inquiryIds: string[],
+): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+
+    const { assignInquiryToCurrentStaff } = await import("@/lib/server-actions/admin-inquiries");
+
+    let okCount = 0;
+    let failed = 0;
+    for (const id of inquiryIds) {
+      const fd = new FormData();
+      fd.set("inquiry_id", id);
+      const r = await assignInquiryToCurrentStaff({}, fd);
+      if (r && "error" in r && r.error) failed++;
+      else okCount++;
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true, data: { ok: okCount, failed } };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.bulkReassignInquiriesToMe", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
 
 /**
  * Archive multiple inquiries in a single round-trip per inquiry. Skips

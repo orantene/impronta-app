@@ -53,6 +53,7 @@ import {
   clientApproveCurrentOffer,
   clientRejectCurrentOffer,
   sendInquiryMessageAsClient,
+  startInquiryCheckout,
 } from "@/lib/server-actions/client-pipeline";
 import {
   convertInquiryToBookingAction,
@@ -88,6 +89,7 @@ import {
   setInquiryArchived,
   setInquiryManuallyUnread,
   bulkSetInquiryArchived,
+  bulkReassignInquiriesToMe,
   duplicateInquiryBooking,
   type InquiryPaymentState,
   type InquiryAttachment,
@@ -1387,7 +1389,7 @@ export function MessagesShell({ pov }: { pov: MessagesPov }) {
 // need. The admin's job: flip between Client thread / Talent group /
 // Files (the existing tabs) and use the rail to drive the deal forward.
 
-type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past";
+type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past" | "archived";
 
 function AdminOperationsShell() {
   const { effectiveMessagesInquiries } = useProto();
@@ -1437,11 +1439,16 @@ function AdminOperationsShell() {
   const handoffIds = new Set(getIncomingHandoffs("Marta Reyes").map(h => h.inquiryId));
   const filtered = inquiries.filter(i => {
     const bucket = stageBucket(i.stage);
+    const isArchived = !!__convFlags[i.id]?.archived;
+    // Hide archived from every other view; only the "archived" filter
+    // shows them. Mirrors how Gmail / iMessage hide archived threads.
+    if (filter !== "archived" && isArchived) return false;
+    if (filter === "archived" && !isArchived) return false;
     if (filter === "needs-me" && i.nextActionBy !== "coordinator") return false;
     if (filter === "unread" && i.unreadGroup === 0 && i.unreadPrivate === 0) return false;
     if (filter === "coordinating" && !isCoordOnInquiry(i)) return false;
     if (filter === "handoffs" && !handoffIds.has(i.id)) return false;
-    if (filter !== "all" && filter !== "needs-me" && filter !== "unread" && filter !== "coordinating" && filter !== "handoffs" && bucket !== filter) return false;
+    if (filter !== "all" && filter !== "needs-me" && filter !== "unread" && filter !== "coordinating" && filter !== "handoffs" && filter !== "archived" && bucket !== filter) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       // Search across all the things an admin would scan for: client
@@ -1862,6 +1869,7 @@ function AdminInboxList({
   // and pin their own (filter + search + sort). They appear at the
   // start of the chip row with a star pin so they read as
   // first-class user-curated entry points, not just filters.
+  const archivedCount = inquiries.filter(i => !!__convFlags[i.id]?.archived).length;
   const chips: { id: AdminFilter; label: string; count?: number; pin?: boolean }[] = [
     { id: "all", label: "All" },
     { id: "needs-me", label: `Needs me${needsMe > 0 ? ` (${needsMe})` : ""}` },
@@ -1872,6 +1880,7 @@ function AdminInboxList({
     { id: "hold", label: "Offer pending" },
     { id: "booked", label: "Booked" },
     { id: "past", label: "Past" },
+    ...(archivedCount > 0 ? [{ id: "archived" as const, label: `Archived${archivedCount > 0 ? ` (${archivedCount})` : ""}` }] : []),
   ];
 
   // Bulk-select state — flipping into bulk mode reveals row checkboxes
@@ -2068,19 +2077,21 @@ function AdminInboxList({
             onClick={() => {
               const count = selectedIds.size;
               const ids = Array.from(selectedIds);
-              // Always toggle the local archive flag so the inbox refreshes
+              const restoring = filter === "archived";
+              // Always toggle the local flag so the inbox refreshes
               // immediately (matches how single-row Archive works).
               ids.forEach((id) => archiveInquiry(id));
-              // Persist the real ones in one bulk round-trip.
+              // Persist the real ones in one bulk round-trip — direction
+              // is restore when we're in the archived view, archive otherwise.
               const realIds = ids.filter((id) =>
                 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
               );
               if (realIds.length > 0) {
-                void bulkSetInquiryArchived(TENANT.slug, realIds, true).then((r) => {
-                  if (!r.ok) toastBulk(`Bulk archive failed: ${r.error}`);
+                void bulkSetInquiryArchived(TENANT.slug, realIds, !restoring).then((r) => {
+                  if (!r.ok) toastBulk(`Bulk ${restoring ? "restore" : "archive"} failed: ${r.error}`);
                 });
               }
-              toastBulk(`Archived ${count} thread${count === 1 ? "" : "s"}`);
+              toastBulk(`${restoring ? "Restored" : "Archived"} ${count} thread${count === 1 ? "" : "s"}`);
               exitBulk();
             }}
             style={{
@@ -2090,10 +2101,24 @@ function AdminInboxList({
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               fontFamily: FONTS.body,
             }}>
-            Archive
+            {filter === "archived" ? "Restore" : "Archive"}
           </button>
           <button type="button"
-            onClick={() => { toastBulk(`Reassign ${selectedIds.size} thread${selectedIds.size === 1 ? "" : "s"}`); exitBulk(); }}
+            onClick={() => {
+              const count = selectedIds.size;
+              const ids = Array.from(selectedIds);
+              const realIds = ids.filter((id) =>
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+              );
+              if (realIds.length > 0) {
+                void bulkReassignInquiriesToMe(TENANT.slug, realIds).then((r) => {
+                  if (!r.ok) toastBulk(`Bulk reassign failed: ${r.error}`);
+                  else if (r.data?.failed) toastBulk(`Reassigned ${r.data.ok} (${r.data.failed} failed)`);
+                });
+              }
+              toastBulk(`Reassigned ${count} thread${count === 1 ? "" : "s"} to you`);
+              exitBulk();
+            }}
             style={{
               padding: "5px 12px", borderRadius: 999,
               border: "none",
@@ -4887,6 +4912,17 @@ function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () 
         const r = await clientRejectCurrentOffer(conv.id);
         if (!r.ok) toast(`Reject failed: ${r.error}`);
         else { toast("Offer rejected"); router.refresh(); }
+      });
+      return;
+    }
+    if (/pay|invoice|verify card/i.test(label)) {
+      startTransition(async () => {
+        const r = await startInquiryCheckout(conv.id);
+        if (!r.ok) { toast(`Checkout failed: ${r.error}`); return; }
+        if (r.url) {
+          if (r.mock) toast("Stripe not configured — opening mock success page");
+          window.location.href = r.url;
+        }
       });
       return;
     }

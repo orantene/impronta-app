@@ -9,6 +9,10 @@ import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields } f
 import { createManualBooking, duplicateBooking } from "@/lib/server-actions/admin-bookings";
 import { createClientAccount } from "@/lib/server-actions/admin-inquiries";
 import { updateAdminClientProfile } from "@/lib/server-actions/admin-clients";
+import {
+  patchAgencySettingsNamespace,
+  loadAgencySettingsNamespace,
+} from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -11280,11 +11284,20 @@ function RepresentationCard({
   );
 }
 
-function ToggleRow({ label, defaultOn = false }: { label: string; defaultOn?: boolean }) {
+function ToggleRow({
+  label, defaultOn = false, onChange,
+}: { label: string; defaultOn?: boolean; onChange?: (v: boolean) => void }) {
   const [on, setOn] = useState(defaultOn);
+  // Sync to defaultOn when the parent changes it (controlled-ish pattern
+  // so callers can drive state without passing a value prop everywhere).
+  useEffect(() => { setOn(defaultOn); }, [defaultOn]);
+  const handle = (v: boolean) => {
+    setOn(v);
+    onChange?.(v);
+  };
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
-      <Toggle on={on} onChange={setOn} label={label} />
+      <Toggle on={on} onChange={handle} label={label} />
       <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>{label}</span>
     </div>
   );
@@ -18589,25 +18602,65 @@ function SiteHealthDrawer() {
 }
 
 function StorefrontVisibilityDrawer() {
-  const { state, closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Visibility saved");
+  const router = useRouter();
+  const { state, closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+
+  // Defaults derived from the workspace plan — applied when the namespace
+  // hasn't been written yet so the drawer opens with sensible toggle state.
+  const planDefaults = useMemo(() => ({
+    rosterGrid: true,
+    clientLogos: state.plan !== "free",
+    editorialPosts: state.plan === "agency" || state.plan === "network",
+    directInquiries: true,
+    discoveryListed: state.plan === "free",
+    discoveryFeatured: state.plan === "free",
+  }), [state.plan]);
+
+  const [flags, setFlags] = useState(planDefaults);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "visibility").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Partial<typeof planDefaults>;
+        setFlags({ ...planDefaults, ...v } as typeof planDefaults);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [planDefaults]);
+
+  const set = <K extends keyof typeof flags>(k: K, v: boolean) =>
+    setFlags((prev) => ({ ...prev, [k]: v }));
+
+  const save = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "visibility", flags as unknown as Record<string, unknown>);
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Visibility saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Storefront visibility"
       description="What's public on your storefront — and what shows up in Tulala discovery."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={save} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Public storefront">
-        <ToggleRow label="Show roster grid" defaultOn />
-        <ToggleRow label="Show client logos" defaultOn={state.plan !== "free"} />
-        <ToggleRow label="Show editorial posts" defaultOn={state.plan === "agency" || state.plan === "network"} />
-        <ToggleRow label="Allow direct inquiries" defaultOn />
+        <ToggleRow label="Show roster grid" defaultOn={flags.rosterGrid} onChange={(v) => set("rosterGrid", v)} />
+        <ToggleRow label="Show client logos" defaultOn={flags.clientLogos} onChange={(v) => set("clientLogos", v)} />
+        <ToggleRow label="Show editorial posts" defaultOn={flags.editorialPosts} onChange={(v) => set("editorialPosts", v)} />
+        <ToggleRow label="Allow direct inquiries" defaultOn={flags.directInquiries} onChange={(v) => set("directInquiries", v)} />
       </Section>
       <Section title="Tulala discovery" description="On Free, you appear in our public talent directory. Studio and up are private by default.">
-        <ToggleRow label="Listed in Tulala directory" defaultOn={state.plan === "free"} />
-        <ToggleRow label="Featured rotation eligible" defaultOn={state.plan === "free"} />
+        <ToggleRow label="Listed in Tulala directory" defaultOn={flags.discoveryListed} onChange={(v) => set("discoveryListed", v)} />
+        <ToggleRow label="Featured rotation eligible" defaultOn={flags.discoveryFeatured} onChange={(v) => set("discoveryFeatured", v)} />
       </Section>
     </DrawerShell>
   );
@@ -18668,21 +18721,54 @@ function HubDistributionDrawer() {
 }
 
 function FilterConfigDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Filters saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+  const [flags, setFlags] = useState({
+    drafts: true,
+    awaitingClient: true,
+    confirmed: true,
+    archived: false,
+  });
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "filters").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Partial<typeof flags>;
+        setFlags((prev) => ({ ...prev, ...v }));
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const set = <K extends keyof typeof flags>(k: K, v: boolean) =>
+    setFlags((prev) => ({ ...prev, [k]: v }));
+
+  const save = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "filters", flags as unknown as Record<string, unknown>);
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Filters saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Filters"
       description="Narrow down what you see."
-      footer={<StandardFooter onSave={onSave} saveLabel="Apply filters" />}
+      footer={<StandardFooter onSave={save} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Apply filters"} />}
     >
       <Section title="Stage" framed>
-        <ToggleRow label="Drafts" defaultOn />
-        <ToggleRow label="Awaiting client" defaultOn />
-        <ToggleRow label="Confirmed" defaultOn />
-        <ToggleRow label="Archived" defaultOn={false} />
+        <ToggleRow label="Drafts" defaultOn={flags.drafts} onChange={(v) => set("drafts", v)} />
+        <ToggleRow label="Awaiting client" defaultOn={flags.awaitingClient} onChange={(v) => set("awaitingClient", v)} />
+        <ToggleRow label="Confirmed" defaultOn={flags.confirmed} onChange={(v) => set("confirmed", v)} />
+        <ToggleRow label="Archived" defaultOn={flags.archived} onChange={(v) => set("archived", v)} />
       </Section>
       <Section title="Talent" framed>
         <SelectInput options={["All talent", "Marta Reyes", "Kai Lin", "Tomás Navarro"]} />

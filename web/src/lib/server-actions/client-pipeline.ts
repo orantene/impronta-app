@@ -16,6 +16,9 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
+import { loadActiveBookingTransaction } from "@/lib/bookings/transactions";
+import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { headers } from "next/headers";
 
 export type ClientActionResult = { ok: true } | { ok: false; error: string };
 
@@ -130,6 +133,66 @@ export async function clientRejectCurrentOffer(
     return { ok: true };
   } catch (err) {
     logServerError("client-pipeline.clientRejectCurrentOffer", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Client requests a Stripe Checkout session to pay the inquiry's
+ * outstanding invoice. Returns the hosted Stripe URL on success — the
+ * client redirects the browser there. Webhook flips the transaction
+ * to `paid` once Stripe confirms the charge.
+ *
+ * Mock mode (no STRIPE_SECRET_KEY): returns a synthetic URL so the
+ * prototype demo still completes the redirect step without crashing.
+ */
+export async function startInquiryCheckout(
+  inquiryId: string,
+): Promise<ClientActionResult & { url?: string; mock?: boolean }> {
+  try {
+    const ctx = await loadClientInquiryContext(inquiryId);
+    if (!ctx.ok) return ctx;
+
+    const { data: booking } = await ctx.supabase
+      .from("agency_bookings")
+      .select("id, currency_code, contact_email")
+      .eq("tenant_id", ctx.tenantId)
+      .eq("source_inquiry_id", inquiryId)
+      .maybeSingle();
+    if (!booking) return { ok: false, error: "No booking yet for this inquiry." };
+
+    const txn = await loadActiveBookingTransaction(booking.id as string, ctx.supabase);
+    if (!txn) return { ok: false, error: "No active transaction — ask the agency to request payment first." };
+    if (txn.status === "paid" || txn.status === "payout_pending" || txn.status === "payout_sent") {
+      return { ok: false, error: "This invoice is already paid." };
+    }
+
+    // Build success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL but fall
+    // back to the request's origin so local dev works without env vars.
+    const hdrs = await headers();
+    const host = hdrs.get("host") ?? "localhost";
+    const proto = hdrs.get("x-forwarded-proto") ?? "https";
+    const origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
+    const successUrl = `${origin}/checkout/success`;
+    const cancelUrl = `${origin}/checkout/cancel`;
+
+    const result = await createCheckoutSessionForTransaction({
+      transactionId: txn.id,
+      amountCents: txn.grossAmountCents,
+      currency: txn.currency || (booking.currency_code as string | null) || "USD",
+      payerEmail: txn.payerEmail ?? (booking.contact_email as string | null) ?? null,
+      inquiryId,
+      bookingId: booking.id as string,
+      successUrl,
+      cancelUrl,
+      description: "Booking invoice",
+    });
+
+    if (!result.ok) return { ok: false, error: result.error };
+
+    return { ok: true, url: result.url, mock: result.mock };
+  } catch (err) {
+    logServerError("client-pipeline.startInquiryCheckout", err);
     return { ok: false, error: "Unexpected error." };
   }
 }

@@ -40,6 +40,7 @@
 
 import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
 import {
   ProtoProvider, useProto, COLORS, FONTS, RADIUS, TRANSITION, Z, meetsRole,
   WORKSPACE_PAGES, PAGE_META,
@@ -225,6 +226,18 @@ function ConditionalPrototypeRoot() {
   return <PrototypeRoot />;
 }
 
+/**
+ * RealtimeBridge — subscribes to Supabase realtime for the active
+ * tenant and triggers `router.refresh()` on each pipeline-table change.
+ * Renders nothing visually; lives inside ProtoProvider so it can read
+ * `bridgeTenantIdentity` via useProto.
+ */
+function RealtimeBridge() {
+  const { bridgeTenantIdentity } = useProto();
+  useInquiryRealtime(bridgeTenantIdentity?.tenantId ?? null);
+  return null;
+}
+
 export function AdminShellPrototypePageClient({
   initialBridgeData = null,
   initialPage,
@@ -252,6 +265,7 @@ export function AdminShellPrototypePageClient({
           tenantSlug={tenantSlug}
         >
           {children}
+          <RealtimeBridge />
           <ConditionalPrototypeRoot />
         </ProtoProvider>
       </Suspense>
@@ -297,6 +311,7 @@ export function TalentShellPrototypePageClient({
           tenantSlug={tenantSlug}
         >
           {children}
+          <RealtimeBridge />
           <PrototypeRoot />
         </ProtoProvider>
       </Suspense>

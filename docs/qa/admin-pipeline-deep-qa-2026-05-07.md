@@ -416,7 +416,44 @@ No Vercel push until the marathon completes its full run and the user gives go.
   TalentProfileDrawer → updateTalentIdentity. New `_pipeline-actions.ts`
   module hosts the engine wrappers. D3 root cause identified
   (architectural fix deferred). B8 lineup wiring deferred (UI rewrite scope).
-- **rev 8 (this commit)** — closing the in-scope items:
+- **rev 9 (this commit)** — close every "out of scope" item from rev 8:
+  - **Drag-to-reschedule calendar** — `rescheduleInquiry` action wraps
+    `inquiries.event_date` patch. CalendarPage cells are drop targets;
+    event chips are draggable with the inquiry id payload. Synthetic
+    mock events get a friendly "demo events can't be rescheduled" toast.
+  - **Bulk restore from archived view** — added "Archived" filter chip
+    + restore-aware bulk button (becomes "Restore" when filter is
+    archived). Wraps the existing `bulkSetInquiryArchived` with a flipped
+    boolean.
+  - **Bulk Reassign to me** — new `bulkReassignInquiriesToMe` wrapper
+    iterates `assignInquiryToCurrentStaff` per row. Inbox bulk Reassign
+    button now persists.
+  - **Stripe checkout scaffold** — full integration:
+    • `lib/payments/stripe-checkout.ts` — `createCheckoutSessionForTransaction`
+      builds a Stripe Checkout session for a `booking_transactions` row.
+      Mock-mode fallback when `STRIPE_SECRET_KEY` isn't set so the
+      prototype demo still works end-to-end.
+    • `/api/webhooks/stripe/route.ts` — webhook handler verifies signature
+      via `STRIPE_WEBHOOK_SECRET`, dispatches `checkout.session.completed`
+      → `markPaid(transactionId)`. Refuses unsigned events with 503.
+    • `/checkout/success` + `/checkout/cancel` pages.
+    • `startInquiryCheckout` in client-pipeline.ts → resolves active
+      transaction, builds session, returns URL. ClientProjectDetail's
+      "Pay invoice" / "Verify card" CTAs now redirect to Stripe.
+  - **Realtime subscription hook** — `web/src/hooks/use-inquiry-realtime.ts`
+    subscribes to Postgres-changes events on `inquiries`,
+    `inquiry_messages`, `inquiry_offers`, `booking_transactions`
+    scoped by tenant_id (or source_tenant_id for transactions).
+    Debounced `router.refresh()` on each event keeps the shell in sync.
+    Mounted via `<RealtimeBridge />` inside ProtoProvider.
+  - **Settings drawer canonical actions** — `patchAgencySettingsNamespace`
+    + `loadAgencySettingsNamespace` in `_pipeline-actions.ts` patch
+    namespaces inside the existing `agencies.settings` JSONB. Wired
+    `StorefrontVisibilityDrawer` and `FilterConfigDrawer` to load on
+    mount + save on click. `ToggleRow` extended with controllable
+    `onChange`. Other settings drawers (theme/SEO/navigation/
+    languages/domain) can adopt the same pattern as schemas firm up.
+- **rev 8 (151e2016)** — closing the in-scope items:
   - **Offer line-item editor** — new `OfferDraftEditor` component
     inside `LiveOfferPanel` (rendered when offer.status==="draft").
     Per-line dropdown picks roster talent, edits units / unit_price /
@@ -542,32 +579,44 @@ No Vercel push until the marathon completes its full run and the user gives go.
 | 14bb9090 | F-r | Hold/Confirm reuse engine Accept/Decline; action-confirm posts ack message |
 | 14bb9090 | B4u | `uploadInquiryAttachment` server action + LiveFilesPanel upload affordance |
 | 14bb9090 | B8p | LiveLineupPanel uses real roster picker (search + filter on-lineup) |
-| (this)   | B3e | `OfferDraftEditor` — coordinator line-item editor wraps `updateOfferDraft` |
-| (this)   | B6r | `PayoutReceiverPicker` — per-transaction receiver wraps `setTransactionPayoutReceiver` |
-| (this)   | B8r | LiveLineupPanel rows are draggable; reorder wraps `reorderRoster` |
-| (this)   | A6b | Bulk inbox Archive persists to `inquiry_user_flags` via `bulkSetInquiryArchived` |
+| 151e2016 | B3e | `OfferDraftEditor` — coordinator line-item editor wraps `updateOfferDraft` |
+| 151e2016 | B6r | `PayoutReceiverPicker` — per-transaction receiver wraps `setTransactionPayoutReceiver` |
+| 151e2016 | B8r | LiveLineupPanel rows are draggable; reorder wraps `reorderRoster` |
+| 151e2016 | A6b | Bulk inbox Archive persists to `inquiry_user_flags` via `bulkSetInquiryArchived` |
+| (this)   | C-d | `rescheduleInquiry` action + calendar drag-to-reschedule |
+| (this)   | A6r | "Archived" filter chip + restore-aware bulk button |
+| (this)   | A6n | `bulkReassignInquiriesToMe` wired to inbox Reassign |
+| (this)   | Pay | Stripe Checkout: session helper + webhook handler + success/cancel pages + client `startInquiryCheckout` |
+| (this)   | Rt  | `useInquiryRealtime` hook + `<RealtimeBridge />` mounted in shell |
+| (this)   | Set | `patchAgencySettingsNamespace` + visibility/filters drawers wired |
 
-## What's still open after rev 8
+## What's still open after rev 9
 
-### Genuinely out-of-scope (need new infrastructure)
+### Truly out of scope (need infrastructure or product decisions)
 
-- **Pay invoice → Stripe checkout** — the client-side "Pay invoice"
-  CTA needs a payment-provider integration (Stripe Checkout session,
-  webhook to mark `requested_at` → `paid`). This is genuinely new
-  infrastructure, not pipeline wiring.
-- **Bulk-restore from archived view** — current bulk archive only
-  archives. Restore would need an "Archived" filter chip + bulk
-  restore button. Wrapper supports both directions; UI to surface
-  the restore path isn't built.
-- **Bulk Nudge / Reassign** — the AdminInboxList bulk bar still has
-  Nudge + Reassign buttons that toast-only. Nudge needs a notification
-  system; Reassign needs `assignInquiryToCurrentStaff` per row.
-- **Settings drawers** (theme / SEO / domain / navigation / languages /
-  visibility / filters) — no canonical actions exist for any of these
-  yet. Building them is a separate phase orthogonal to the inquiry
-  pipeline.
-- **Drag-to-reschedule calendar** — would need `event_date` patch +
-  drag-drop infra on the calendar grid.
+- **Bulk Nudge** — the AdminInboxList bulk bar still has a Nudge
+  button that toast-only. Building it would require a notification
+  system (push / email digest / in-app inbox). The infra isn't here yet.
+- **Settings drawers — theme / SEO / navigation / languages / domain**
+  — visibility + filters are now persisted via
+  `patchAgencySettingsNamespace`. The same pattern works for any
+  settings drawer; the remaining ones aren't wired only because they
+  don't yet have committed schema decisions for what the persisted
+  shape should look like (e.g. theme tokens, SEO meta strategy,
+  custom-domain CNAME orchestration).
+- **Stripe configuration** — the integration ships with mock-mode
+  fallback so the prototype doesn't crash without env vars. Production
+  use requires `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` +
+  registering the webhook endpoint with Stripe. Stripe Connect for
+  per-tenant payouts is a separate piece on top.
+- **Realtime auth gating** — the realtime hook subscribes via the
+  browser anon-key client, which means RLS policies must allow the
+  authenticated user to SELECT from each watched table. They do today
+  for staff users on their own tenant; double-check before wiring this
+  for client / talent surfaces.
+- **Bridge layer split** — `_data-bridge.ts` is 1900+ lines mixing
+  concerns. Splitting into per-domain files would keep churn contained.
+  Not blocking anything, but pure tech-debt cleanup is overdue.
 
 ### UI polish / small follow-ups
 

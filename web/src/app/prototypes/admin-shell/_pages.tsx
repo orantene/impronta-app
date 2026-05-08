@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import {
   CLIENT_PAGES,
   CLIENT_PAGE_META,
@@ -3999,7 +4001,9 @@ function parseInquiryDays(dateStr: string, displayMonth: number): number[] {
 }
 
 function CalendarPage() {
-  const { openDrawer, setPage, effectiveCalendarEvents } = useProto();
+  const { openDrawer, setPage, effectiveCalendarEvents, toast } = useProto();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const today = new Date();
   const [displayYear, setDisplayYear] = useState(today.getFullYear());
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
@@ -4179,6 +4183,33 @@ function CalendarPage() {
                 tabIndex={0}
                 onClick={() => openDrawer("day-detail", { date: isoDate })}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrawer("day-detail", { date: isoDate }); } }}
+                onDragOver={(e) => {
+                  // Accept drops carrying our event payload.
+                  if (e.dataTransfer.types.includes("text/x-tulala-inquiry-id")) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    (e.currentTarget as HTMLDivElement).style.background = "rgba(46,125,91,0.10)";
+                  }
+                }}
+                onDragLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                  const inquiryId = e.dataTransfer.getData("text/x-tulala-inquiry-id");
+                  const fromDate = e.dataTransfer.getData("text/x-tulala-from-date");
+                  if (!inquiryId || isoDate === fromDate) return;
+                  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId)) {
+                    toast("Demo events can't be rescheduled — only real inquiries.");
+                    return;
+                  }
+                  startTransition(async () => {
+                    const r = await rescheduleInquiry(TENANT.slug, inquiryId, isoDate);
+                    if (!r.ok) toast(`Reschedule failed: ${r.error}`);
+                    else { toast(`Moved to ${isoDate}`); router.refresh(); }
+                  });
+                }}
                 style={{
                   padding: "8px 10px",
                   borderTop: `1px solid ${COLORS.borderSoft}`,
@@ -4186,7 +4217,7 @@ function CalendarPage() {
                   display: "flex",
                   flexDirection: "column",
                   gap: 4,
-                  cursor: "pointer",
+                  cursor: pending ? "wait" : "pointer",
                   transition: `background ${TRANSITION.micro}`,
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
@@ -4213,7 +4244,15 @@ function CalendarPage() {
                   <button
                     key={idx}
                     type="button"
+                    draggable
+                    onDragStart={(ev) => {
+                      ev.stopPropagation();
+                      ev.dataTransfer.setData("text/x-tulala-inquiry-id", e.id);
+                      ev.dataTransfer.setData("text/x-tulala-from-date", isoDate);
+                      ev.dataTransfer.effectAllowed = "move";
+                    }}
                     onClick={(ev) => { ev.stopPropagation(); pinNextConversationP(e.id); setPage("messages"); }}
+                    title="Click to open · drag to another day to reschedule"
                     style={{
                       fontSize: 10.5,
                       color: e.tone === "green" ? COLORS.green : e.tone === "amber" ? COLORS.amber : e.tone === "red" ? "#c0392b" : COLORS.ink,
@@ -4229,7 +4268,7 @@ function CalendarPage() {
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      cursor: "pointer",
+                      cursor: "grab",
                       fontFamily: FONTS.body,
                       textAlign: "left",
                       width: "100%",
