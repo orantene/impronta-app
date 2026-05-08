@@ -5292,7 +5292,7 @@ function TalentProfileShellDrawer() {
           /* Narrow drawer / phone — rail doesn't fit, fall back to the
              horizontal pill row so the nav stays one-tap. Body returns
              to column flow so pills sit above form. */
-          @container pshell (max-width: 600px) {
+          @container pshell (max-width: 480px) {
             [data-tulala-pshell] [data-pshell-rail] { display: none; }
             [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
             [data-tulala-pshell] [data-pshell-body] { flex-direction: column; }
@@ -5306,7 +5306,7 @@ function TalentProfileShellDrawer() {
               [data-tulala-pshell] [data-pshell-body] { padding-bottom: 64px; }
               [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
             }
-            @media (max-width: 600px) {
+            @media (max-width: 480px) {
               [data-tulala-pshell] [data-pshell-rail] { display: none; }
               [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
               [data-tulala-pshell] [data-pshell-body] { flex-direction: column; }
@@ -10161,7 +10161,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       fontFamily: FONTS.body,
     }}>
       <style>{`
-        @container pshell (max-width: 600px) {
+        @container pshell (max-width: 480px) {
           [data-pshell-identity-grid] { grid-template-columns: 1fr !important; }
         }
         [data-pshell-identity-grid] [data-pshell-identity-full] {
