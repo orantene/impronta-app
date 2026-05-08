@@ -4159,6 +4159,8 @@ function funnelIndexFor(stage: string): number {
 // Layout (top-down): unified header → tabs → conversation
 function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
   const { toast } = useProto();
+  const router = useRouter();
+  const [, startTalentInviteTransition] = useTransition();
   const yourRate = TALENT_RATE_FOR_CONV[conv.id] ?? "—";
 
   // Talent permission model:
@@ -4311,7 +4313,41 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           Was previously suppressed when an in-thread pin showed the
           same prompt; pins are gone now (replaced by TeamStrip), so
           the bar is the canonical action surface across all tabs. */}
-      <ShellNextActionBar {...resolveShellAction(conv, isCoordinator ? "talent_coord" : "talent", toast)} />
+      <ShellNextActionBar {...(() => {
+        // Wrap resolveShellAction to route the talent invite-stage Accept/
+        // Decline path through real engine actions for real-UUID inquiries.
+        // Mock conv ids fall through to the default toast behavior so the
+        // demo flow keeps working unchanged.
+        const baseAction = resolveShellAction(conv, isCoordinator ? "talent_coord" : "talent", toast);
+        const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+        const inviteStage = !isCoordinator
+          && (conv.stage === "inquiry" || conv.stage === "hold")
+          && !MOCK_OFFER_FOR_CONV[conv.id];
+        if (!isRealUuid || !inviteStage) return baseAction;
+        return {
+          ...baseAction,
+          primary: baseAction.primary ? {
+            ...baseAction.primary,
+            onClick: () => {
+              startTalentInviteTransition(async () => {
+                const r = await acceptInquiryInvitation(conv.id);
+                if (!r.ok) toast(`Accept failed: ${r.error}`);
+                else { toast("Inquiry accepted"); router.refresh(); }
+              });
+            },
+          } : baseAction.primary,
+          secondary: baseAction.secondary ? {
+            ...baseAction.secondary,
+            onClick: () => {
+              startTalentInviteTransition(async () => {
+                const r = await declineInquiryInvitation(conv.id);
+                if (!r.ok) toast(`Decline failed: ${r.error}`);
+                else { toast("Inquiry declined"); router.refresh(); }
+              });
+            },
+          } : baseAction.secondary,
+        };
+      })()} />
       {/* Lineup drawer — rendered at the TalentJobDetail level (not
           inside the booking tab) so the same drawer state survives
           tab-switches and so the conversation tab's TeamStrip and the
@@ -11031,6 +11067,8 @@ function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }
 
 function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const { toast } = useProto();
+  const router = useRouter();
+  const [, startClientOfferTransition] = useTransition();
   const baseOffer = getOffer(conv.id);
   const isClient = pov.kind === "client";
   const isAdmin = pov.kind === "admin";
@@ -11133,6 +11171,26 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               if (isTalent && (next.cta === "Submit my rate" || next.cta === "Review counter")) {
                 setRateSheetMode(next.cta === "Review counter" ? "edit" : "submit");
                 setRateSheetOpen(true);
+                return;
+              }
+              // Client-side: route Approve / Reject / Decline through the
+              // engine for real-UUID inquiries. Mock conv ids keep the
+              // legacy toast so the demo flow stays put.
+              const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+              if (isClient && isRealUuid && next.cta === "Approve") {
+                startClientOfferTransition(async () => {
+                  const r = await clientApproveCurrentOffer(conv.id);
+                  if (!r.ok) toast(`Approve failed: ${r.error}`);
+                  else { toast("Offer approved"); router.refresh(); }
+                });
+                return;
+              }
+              if (isClient && isRealUuid && (next.cta === "Reject" || next.cta === "Decline")) {
+                startClientOfferTransition(async () => {
+                  const r = await clientRejectCurrentOffer(conv.id);
+                  if (!r.ok) toast(`Reject failed: ${r.error}`);
+                  else { toast("Offer declined"); router.refresh(); }
+                });
                 return;
               }
               toast(`${next.cta}`);

@@ -13544,13 +13544,27 @@ function NewBookingDrawer() {
       fd.set("venue_location_text", location.trim());
       fd.set("internal_notes", notes.trim());
       fd.set("redirect_after_create", "list");
-      // createManualBooking calls redirect() on success — catch is normal here
+      // createManualBooking calls redirect() on success, which throws an
+      // error with a specific NEXT_REDIRECT digest. Distinguish that from
+      // real failures so genuine errors aren't silently shown as success.
       try {
         await createManualBooking(fd);
-      } catch {
-        // redirect() throws in Next.js — treat as success
+        // If we got here without throwing, the action neither redirected
+        // nor errored — treat as success. (Default codepath returns void.)
         toast("Booking created");
         closeDrawer();
+      } catch (err) {
+        const digest = (err as { digest?: unknown } | null)?.digest;
+        const isNextRedirect =
+          typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+        if (isNextRedirect) {
+          toast("Booking created");
+          closeDrawer();
+          throw err; // Re-throw so Next.js can perform the redirect.
+        }
+        const message =
+          err instanceof Error && err.message ? err.message : "Could not create booking.";
+        toast(`Create failed: ${message}`);
       }
     });
   };

@@ -398,7 +398,29 @@ No Vercel push until the marathon completes its full run and the user gives go.
 
 ## Changelog
 
-- **rev 12 (this commit)** — Stripe Connect (Express) per-tenant payouts:
+- **rev 12.1 (this commit)** — close 3 real bugs surfaced by static QA:
+  - **Talent invite Accept/Decline wired** — `resolveShellAction` returned
+    toast-only handlers for `pov === "talent"` at inquiry/hold stage
+    without an offer; `ConversationActionPin` had the engine wiring but
+    was never rendered in any JSX tree (orphan). Fixed at the call site
+    in `TalentJobDetail` (line 4314): wraps `resolveShellAction` and
+    overrides `primary.onClick` / `secondary.onClick` to call
+    `acceptInquiryInvitation` / `declineInquiryInvitation` for real-UUID
+    conversations. Mock `c1..c12` conv ids fall through to the default
+    toast behavior.
+  - **Client offer Approve/Reject wired** — `OfferTab` sticky bar's
+    `next.cta === "Approve"` / `"Reject"` / `"Decline"` for `pov.kind ===
+    "client"` was toast-only on real UUIDs. `clientApproveCurrentOffer` /
+    `clientRejectCurrentOffer` were imported but only routed through
+    `CLIENT_NEXT_ACTION_FOR_CONV` which returns null for real-UUID conv
+    ids. Fixed inline in the sticky-bar onClick — UUID-gated, calls
+    engine, `router.refresh()` on success.
+  - **createManualBooking error swallow fixed** — drawer catch-all
+    treated NEXT_REDIRECT throws and real errors identically (always
+    toasted "Booking created"). Now distinguishes via `err.digest`
+    starting with `"NEXT_REDIRECT"`; real errors surface a proper
+    `Create failed: <message>` toast.
+- **rev 12 (a3b2dc7f)** — Stripe Connect (Express) per-tenant payouts:
   - **DB migration** `20260907150000_stripe_connect_accounts.sql` —
     adds `stripe_account_id`, `stripe_account_status` (none/pending/
     enabled/restricted/disabled), `stripe_charges_enabled`,
