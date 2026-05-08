@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { SkillDiscoveryPanel } from "./_skill-discovery-panel";
 import {
   CLIENT_PAGES,
   CLIENT_PAGE_META,
@@ -5107,6 +5108,15 @@ function TalentPage() {
           }}
         />
       )}
+
+      <SkillDiscoveryPanel
+        onTalentClick={(talentProfileId) =>
+          openDrawer("talent-profile-shell", {
+            talentId: talentProfileId,
+            mode: "edit-admin",
+          })
+        }
+      />
 
       {/* Status strip — single line replaces 4-up StatusCard. Each segment
           is a clickable filter (toggle on/off). */}
