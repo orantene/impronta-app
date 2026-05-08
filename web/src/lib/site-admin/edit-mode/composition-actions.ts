@@ -52,6 +52,7 @@ import {
   getSectionTemplateStarterDefault,
   isSectionTemplateStarterId,
   isSectionTemplateStarterStylePresetId,
+  sectionTemplateStarterPlanDeniedReason,
 } from "@/lib/site-admin/sections/shared/section-template-starters";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import { upsertSection } from "@/lib/site-admin/server/sections";
@@ -986,11 +987,6 @@ export async function createAndInsertSectionAction(input: {
     }
   }
 
-  // --- step 1: create the draft section (unique-name retry once) ---------
-  const starterDefaults = getSectionTemplateStarterDefault(
-    input.sectionTemplateStarterId,
-    input.sectionTemplateStarterStylePresetId,
-  );
   if (
     input.sectionTemplateStarterId &&
     !isSectionTemplateStarterId(input.sectionTemplateStarterId)
@@ -1001,6 +997,29 @@ export async function createAndInsertSectionAction(input: {
       code: "UNKNOWN_SECTION_TYPE",
     };
   }
+
+  if (input.sectionTemplateStarterId) {
+    const plan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
+      logTag: "composition-section-template-plan-guard",
+    });
+    const deniedReason = sectionTemplateStarterPlanDeniedReason(
+      input.sectionTemplateStarterId,
+      plan,
+    );
+    if (deniedReason) {
+      return {
+        ok: false,
+        error: deniedReason,
+        code: "PLAN_RESTRICTED",
+      };
+    }
+  }
+
+  // --- step 1: create the draft section (unique-name retry once) ---------
+  const starterDefaults = getSectionTemplateStarterDefault(
+    input.sectionTemplateStarterId,
+    input.sectionTemplateStarterStylePresetId,
+  );
   if (
     input.sectionTemplateStarterStylePresetId &&
     !isSectionTemplateStarterStylePresetId(

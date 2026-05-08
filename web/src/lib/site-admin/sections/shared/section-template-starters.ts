@@ -486,6 +486,22 @@ export function getSectionTemplateKitRequiredPlan(
   );
 }
 
+export function sectionTemplateStarterPlanDeniedReason(
+  starterId: string | null | undefined,
+  workspacePlan: string | null | undefined,
+): string | null {
+  const starter = getSectionTemplateStarter(starterId);
+  if (!starter) return null;
+  const source = getBuilderDataSourceDefinition(starter.dataBindingKey);
+  if (!source) return null;
+  if (sectionTemplatePlanAllowsDataSource(workspacePlan, source.requiredPlan)) {
+    return null;
+  }
+  return `${source.label} templates require ${sectionTemplatePlanLabel(
+    source.requiredPlan,
+  )} or higher.`;
+}
+
 const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterDefault> = {
   "directory-search-hero": {
     name: "Directory search hero",

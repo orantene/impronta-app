@@ -57,8 +57,7 @@ import {
   SECTION_TEMPLATE_STARTERS,
   getSectionTemplateKitRequiredPlan,
   getSectionTemplateStarterRequiredPlan,
-  sectionTemplatePlanAllowsDataSource,
-  sectionTemplatePlanLabel,
+  sectionTemplateStarterPlanDeniedReason,
   type SectionTemplateKit,
   type SectionTemplateStarter,
   type SectionTemplateStarterId,
@@ -351,16 +350,14 @@ export function CompositionLibraryOverlay() {
             `${starter.label} is not compatible with this slot.`,
         };
       }
-      const dataSource = getBuilderDataSourceDefinition(starter.dataBindingKey);
-      if (
-        dataSource &&
-        !sectionTemplatePlanAllowsDataSource(workspacePlan, dataSource.requiredPlan)
-      ) {
+      const planDeniedReason = sectionTemplateStarterPlanDeniedReason(
+        starter.id,
+        workspacePlan,
+      );
+      if (planDeniedReason) {
         return {
           ok: false,
-          reason: `${dataSource.label} templates require ${sectionTemplatePlanLabel(
-            dataSource.requiredPlan,
-          )} or higher.`,
+          reason: planDeniedReason,
         };
       }
       return { ok: true, reason: null };

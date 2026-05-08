@@ -24,6 +24,7 @@ import {
   listSectionTemplateStartersByEditModel,
   sectionTemplatePlanAllowsDataSource,
   sectionTemplatePlanLabel,
+  sectionTemplateStarterPlanDeniedReason,
 } from "./section-template-starters";
 
 const STARTER_SECTION_SCHEMAS: Record<string, ZodTypeAny> = {
@@ -225,4 +226,17 @@ test("section template plan helpers centralize starter and kit requirements", ()
   assert.equal(sectionTemplatePlanAllowsDataSource("network", "agency"), true);
   assert.equal(sectionTemplatePlanAllowsDataSource("unknown", "free"), true);
   assert.equal(sectionTemplatePlanLabel("agency"), "Agency");
+  assert.equal(
+    sectionTemplateStarterPlanDeniedReason("explore-by-location-map", "free"),
+    "Locations templates require Studio or higher.",
+  );
+  assert.equal(
+    sectionTemplateStarterPlanDeniedReason("explore-by-location-map", "studio"),
+    null,
+  );
+  assert.equal(
+    sectionTemplateStarterPlanDeniedReason("agency-metrics-proof", "studio"),
+    "Custom fields templates require Agency or higher.",
+  );
+  assert.equal(sectionTemplateStarterPlanDeniedReason("missing", "free"), null);
 });
