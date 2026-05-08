@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { AgencyHomeStorefront } from "@/components/home/agency-home-storefront";
 import { AppLanding } from "@/components/home/app-landing";
 import { HubLanding } from "@/components/home/hub-landing";
 import { MarketingLanding } from "@/components/home/marketing-landing";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { createTranslator } from "@/i18n/messages";
-import { getRequestLocale } from "@/i18n/request-locale";
+import {
+  getRequestLocale,
+  ORIGINAL_PATHNAME_HEADER,
+} from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
@@ -94,6 +99,21 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
+  // Dev-only convenience: when hitting localhost root, jump straight to the
+  // QA admin roster so the Claude Preview tab lands on the working surface
+  // instead of the marketing landing. Production unaffected.
+  if (process.env.NODE_ENV === "development") {
+    const h = await headers();
+    const host = h.get("host") ?? "";
+    const originalPathname = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
+    if (
+      originalPathname === "/" &&
+      (host.startsWith("localhost") || host.startsWith("127.0.0.1"))
+    ) {
+      redirect("/impronta/admin/roster");
+    }
+  }
+
   const ctx = await getPublicHostContext();
 
   switch (ctx.kind) {
