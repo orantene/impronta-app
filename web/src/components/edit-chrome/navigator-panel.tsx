@@ -81,9 +81,9 @@ import {
   type HeadingNode,
 } from "@/lib/site-admin/a11y/heading-hierarchy";
 
-const PANEL_WIDTH = 280;
-const COLLAPSED_SECTIONS_STORAGE_KEY =
-  "impronta.editChrome.navigator.collapsedSections.v1";
+const PANEL_WIDTH = 320;
+const EXPANDED_SECTIONS_STORAGE_KEY =
+  "impronta.editChrome.navigator.expandedSections.v1";
 
 interface FlatRow {
   ref: CompositionSectionRef;
@@ -172,39 +172,41 @@ export function NavigatorPanel() {
     index: number;
     siblingCount: number;
   } | null>(null);
-  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(
+  const [expandedSectionIds, setExpandedSectionIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [collapsedHydrated, setCollapsedHydrated] = useState(false);
+  const [expandedHydrated, setExpandedHydrated] = useState(false);
+  const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
+  const [hoveredChildNodeId, setHoveredChildNodeId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(COLLAPSED_SECTIONS_STORAGE_KEY);
+      const raw = window.localStorage.getItem(EXPANDED_SECTIONS_STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : [];
       if (Array.isArray(parsed)) {
-        setCollapsedSectionIds(
+        setExpandedSectionIds(
           new Set(parsed.filter((value): value is string => typeof value === "string")),
         );
       }
     } catch {
-      setCollapsedSectionIds(new Set());
+      setExpandedSectionIds(new Set());
     } finally {
-      setCollapsedHydrated(true);
+      setExpandedHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!collapsedHydrated) return;
+    if (!expandedHydrated) return;
     try {
       window.localStorage.setItem(
-        COLLAPSED_SECTIONS_STORAGE_KEY,
-        JSON.stringify([...collapsedSectionIds]),
+        EXPANDED_SECTIONS_STORAGE_KEY,
+        JSON.stringify([...expandedSectionIds]),
       );
     } catch {
       // Local persistence is a convenience only; the builder should keep working
       // in private browsing or restricted storage contexts.
     }
-  }, [collapsedHydrated, collapsedSectionIds]);
+  }, [expandedHydrated, expandedSectionIds]);
 
   // Phase B.2.C — shell sections (header / footer) live on a different
   // page row than the homepage, so they're not in the EditProvider's
@@ -397,8 +399,8 @@ export function NavigatorPanel() {
   }, [flat, search, displayNameById]);
   const searchQuery = search.trim().toLowerCase();
 
-  const toggleSectionCollapsed = useCallback((sectionId: string) => {
-    setCollapsedSectionIds((prev) => {
+  const toggleSectionExpanded = useCallback((sectionId: string) => {
+    setExpandedSectionIds((prev) => {
       const next = new Set(prev);
       if (next.has(sectionId)) {
         next.delete(sectionId);
@@ -761,7 +763,7 @@ export function NavigatorPanel() {
         top: 54,
         bottom: 0,
         width: PANEL_WIDTH,
-        background: CHROME.paper2,
+        background: CHROME.surface,
         borderRight: `1px solid ${CHROME.line}`,
         boxShadow: `1px 0 0 ${CHROME.line}, 16px 0 32px -16px rgba(0,0,0,0.10)`,
         display: "flex",
@@ -955,7 +957,7 @@ export function NavigatorPanel() {
       </div>
 
       {/* Tree */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px" }}>
         {/* Sprint 4 — outline view branch. When the operator toggles to
          *  "Outline", we replace the flat sections tree with a heading
          *  hierarchy. Each row is indented by heading level, prefixed
@@ -1317,12 +1319,14 @@ export function NavigatorPanel() {
                     builderChildMatchesNavigatorSearch(child, searchQuery),
                   )
                 : row.childNodes;
-            const sectionCollapsed = collapsedSectionIds.has(row.ref.sectionId);
             const hasSelectedChild = row.childNodes.some(
               (child) => child.id === selectedBuilderNodeId,
             );
-            const childListCollapsed =
-              sectionCollapsed && !searchQuery && !hasSelectedChild;
+            const childListExpanded =
+              Boolean(searchQuery) ||
+              hasSelectedChild ||
+              expandedSectionIds.has(row.ref.sectionId);
+            const childListCollapsed = !childListExpanded;
             const isDragging = draggingId === row.ref.sectionId;
             const showDropLineAbove =
               draggingId && dropAt === row.flatIndex && !isDragging;
@@ -1333,6 +1337,11 @@ export function NavigatorPanel() {
               row.flatIndex === visible[visible.length - 1]?.flatIndex;
             const visibility = row.ref.visibility ?? "always";
             const hidden = visibility === "hidden";
+            const sectionHovered = hoveredSectionId === row.ref.sectionId;
+            const sectionActionsVisible =
+              selected ||
+              sectionHovered ||
+              nodeInsertTarget?.key === `section:${row.builderNodeId ?? ""}`;
 
             return (
               <div key={row.ref.sectionId} style={{ position: "relative" }}>
@@ -1386,9 +1395,9 @@ export function NavigatorPanel() {
                     // the primary as the focused one.
                     background: isPrimary
                       ? CHROME.accent
-                      : isAdditional
-                        ? "rgba(42, 49, 71, 0.65)"
-                        : "transparent",
+                        : isAdditional
+                          ? "rgba(42, 49, 71, 0.65)"
+                        : CHROME.surface,
                     color: selected ? "#ffffff" : hidden ? CHROME.muted2 : CHROME.text,
                     fontSize: 12,
                     fontWeight: selected ? 600 : 500,
@@ -1398,14 +1407,18 @@ export function NavigatorPanel() {
                       "background 80ms ease, color 80ms ease, opacity 120ms ease",
                   }}
                   onMouseEnter={(e) => {
+                    setHoveredSectionId(row.ref.sectionId);
                     if (!selected) {
                       e.currentTarget.style.background =
-                        "rgba(24,24,27,0.04)";
+                        "rgba(42,49,71,0.045)";
                     }
                   }}
                   onMouseLeave={(e) => {
+                    setHoveredSectionId((current) =>
+                      current === row.ref.sectionId ? null : current,
+                    );
                     if (!selected) {
-                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.background = CHROME.surface;
                     }
                   }}
                 >
@@ -1454,29 +1467,46 @@ export function NavigatorPanel() {
                       {labelFor(row)}
                     </span>
                   )}
-                  {row.builderNodeId ? (
-                    <NodeInlineActionButton
-                      label={`Add block to ${labelFor(row)}`}
-                      onClick={(e) => {
-                        const parentId = row.builderNodeId;
-                        if (!parentId) return;
-                        e.stopPropagation();
-                        toggleNodeInsertTarget({
-                          key: `section:${parentId}`,
-                          parentId,
-                          index: row.childNodes.filter(
-                            (node) => node.parentId === parentId,
-                          ).length,
-                          allowedKinds: allowedChildKindsForParent("section"),
-                          label: labelFor(row),
-                        });
-                      }}
-                      inverted={selected}
-                      dataAttr="data-builder-node-add-trigger"
-                    >
-                      +
-                    </NodeInlineActionButton>
-                  ) : null}
+                  <span
+                    data-navigator-section-actions=""
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      flexShrink: 0,
+                      opacity: sectionActionsVisible ? 1 : 0,
+                      pointerEvents: sectionActionsVisible ? "auto" : "none",
+                      position: "relative",
+                      transition: "opacity 100ms ease",
+                      zIndex: 2,
+                    }}
+                  >
+                    {row.builderNodeId ? (
+                      <NodeInlineActionButton
+                        label={`Add block to ${labelFor(row)}`}
+                        onClick={(e) => {
+                          const parentId = row.builderNodeId;
+                          if (!parentId) return;
+                          e.stopPropagation();
+                          toggleNodeInsertTarget({
+                            key: `section:${parentId}`,
+                            parentId,
+                            index: row.childNodes.filter(
+                              (node) => node.parentId === parentId,
+                            ).length,
+                            allowedKinds: allowedChildKindsForParent("section"),
+                            label: labelFor(row),
+                          });
+                        }}
+                        inverted={selected}
+                        dataAttr="data-builder-node-add-trigger"
+                      >
+                        +
+                      </NodeInlineActionButton>
+                    ) : null}
+                  </span>
                   {row.childNodes.length > 0 ? (
                     <NodeInlineActionButton
                       label={
@@ -1486,7 +1516,7 @@ export function NavigatorPanel() {
                       }
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleSectionCollapsed(row.ref.sectionId);
+                        toggleSectionExpanded(row.ref.sectionId);
                       }}
                       inverted={selected}
                       dataAttr="data-navigator-section-collapse-trigger"
@@ -1521,26 +1551,43 @@ export function NavigatorPanel() {
                       {row.childNodes.length}
                     </span>
                   ) : null}
-                  <NodeInlineActionButton
-                    label={`Duplicate ${labelFor(row)}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void commitSectionDuplicate(row.ref.sectionId);
+                  <span
+                    data-navigator-section-actions=""
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      flexShrink: 0,
+                      opacity: sectionActionsVisible ? 1 : 0,
+                      pointerEvents: sectionActionsVisible ? "auto" : "none",
+                      position: "relative",
+                      transition: "opacity 100ms ease",
+                      zIndex: 2,
                     }}
-                    inverted={selected}
-                    dataAttr="data-navigator-section-duplicate-trigger"
                   >
-                    <Files size={11} strokeWidth={2.2} aria-hidden />
-                  </NodeInlineActionButton>
-                  <VisibilityEye
-                    selected={selected}
-                    visibility={visibility}
-                    onToggle={() => {
-                      const next: SectionVisibilityT =
-                        visibility === "hidden" ? "always" : "hidden";
-                      void setSectionVisibility(row.ref.sectionId, next);
-                    }}
-                  />
+                    <NodeInlineActionButton
+                      label={`Duplicate ${labelFor(row)}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void commitSectionDuplicate(row.ref.sectionId);
+                      }}
+                      inverted={selected}
+                      dataAttr="data-navigator-section-duplicate-trigger"
+                    >
+                      <Files size={11} strokeWidth={2.2} aria-hidden />
+                    </NodeInlineActionButton>
+                    <VisibilityEye
+                      selected={selected}
+                      visibility={visibility}
+                      onToggle={() => {
+                        const next: SectionVisibilityT =
+                          visibility === "hidden" ? "always" : "hidden";
+                        void setSectionVisibility(row.ref.sectionId, next);
+                      }}
+                    />
+                  </span>
                 </div>
                 <NodeInsertMenu
                   targetKey={row.builderNodeId ? `section:${row.builderNodeId}` : null}
@@ -1548,7 +1595,7 @@ export function NavigatorPanel() {
                   onInsert={commitNodeInsert}
                   onDismiss={() => setNodeInsertTarget(null)}
                 />
-                {visibleChildNodes.length > 0 && !childListCollapsed ? (
+                {visibleChildNodes.length > 0 && childListExpanded ? (
                   <div
                     data-navigator-child-list=""
                     data-section-id={row.ref.sectionId}
@@ -1562,6 +1609,11 @@ export function NavigatorPanel() {
                   >
                     {visibleChildNodes.map((child) => {
                       const childSelected = selectedBuilderNodeId === child.id;
+                      const childHovered = hoveredChildNodeId === child.id;
+                      const childActionsVisible =
+                        childSelected ||
+                        childHovered ||
+                        nodeInsertTarget?.key === `child:${child.id}`;
                       const childAllowedKinds = allowedChildKindsForParent(child.kind);
                       const pastePreview = getCopiedBuilderNodePastePreview(child.id);
                       const canPaste =
@@ -1706,11 +1758,15 @@ export function NavigatorPanel() {
                                 : "none",
                             }}
                             onMouseEnter={(e) => {
+                              setHoveredChildNodeId(child.id);
                               if (!childSelected) {
-                                e.currentTarget.style.background = "rgba(24,24,27,0.04)";
+                                e.currentTarget.style.background = "rgba(42,49,71,0.045)";
                               }
                             }}
                             onMouseLeave={(e) => {
+                              setHoveredChildNodeId((current) =>
+                                current === child.id ? null : current,
+                              );
                               if (!childSelected) {
                                 e.currentTarget.style.background = "transparent";
                               }
@@ -1804,11 +1860,19 @@ export function NavigatorPanel() {
                               </NodeInlineActionButton>
                             ) : null}
                             <span
+                              data-navigator-child-actions=""
+                              onClick={(e) => e.stopPropagation()}
+                              onPointerDown={(e) => e.stopPropagation()}
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: 4,
                                 flexShrink: 0,
+                                opacity: childActionsVisible ? 1 : 0,
+                                pointerEvents: childActionsVisible ? "auto" : "none",
+                                position: "relative",
+                                transition: "opacity 100ms ease",
+                                zIndex: 2,
                               }}
                             >
                               <NodeInlineActionButton

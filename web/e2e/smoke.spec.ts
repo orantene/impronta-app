@@ -86,6 +86,7 @@ async function closeBuilderDrawersIfPresent(page: Page) {
 async function getFirstSectionBlockAddTrigger(page: Page) {
   const firstSectionRow = page.locator("[data-navigator-section-row]").first();
   await expect(firstSectionRow).toBeVisible({ timeout: 30_000 });
+  await firstSectionRow.hover();
   const trigger = firstSectionRow.locator("[data-builder-node-add-trigger]").first();
   await expect(trigger).toBeVisible({ timeout: 20_000 });
   return trigger;
@@ -385,7 +386,10 @@ async function removeBuilderNodeFromNavigator(page: Page, nodeId: string) {
     .then(() => true)
     .catch(() => false);
   if (rowVisible) {
-    await navigatorRow.locator("[data-builder-node-remove-trigger]").click();
+    await navigatorRow.hover().catch(() => undefined);
+    const removeTrigger = navigatorRow.locator("[data-builder-node-remove-trigger]");
+    await expect(removeTrigger).toBeVisible({ timeout: 10_000 });
+    await removeTrigger.dispatchEvent("click");
     if (await waitForRemoved()) return;
   }
 
@@ -534,7 +538,10 @@ test.describe("smoke: login → builder → publish → share", () => {
       ).toBeVisible();
       return;
     }
-    const addTrigger = page.locator("[data-builder-node-add-trigger]").first();
+    const firstSectionRow = page.locator("[data-navigator-section-row]").first();
+    await expect(firstSectionRow).toBeVisible({ timeout: 30_000 });
+    await firstSectionRow.hover();
+    const addTrigger = firstSectionRow.locator("[data-builder-node-add-trigger]").first();
     await expect(addTrigger).toBeVisible();
     await addTrigger.click();
     await expect(page.locator("[data-builder-node-insert-menu]").first()).toBeVisible();
@@ -1551,6 +1558,14 @@ test.describe("smoke: login → builder → publish → share", () => {
       await addHeroFromBlankState(page);
     }
 
+    const firstLayeredSection = page
+      .locator("[data-navigator-section-row]")
+      .filter({ has: page.locator("[data-navigator-block-count]") })
+      .first();
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    await firstLayeredSection
+      .locator("[data-navigator-section-collapse-trigger]")
+      .click();
     const childRow = page
       .locator("[data-navigator-child-node][data-builder-node-kind]")
       .first();
@@ -1588,6 +1603,10 @@ test.describe("smoke: login → builder → publish → share", () => {
     const childList = page.locator(
       `[data-navigator-child-list][data-section-id="${sectionId}"]`,
     );
+    await expect(childList).toHaveCount(0);
+    await firstLayeredSection
+      .locator("[data-navigator-section-collapse-trigger]")
+      .click();
     await expect(childList).toBeVisible({ timeout: 10_000 });
     const firstChildKind = await childList
       .locator("[data-navigator-child-node]")
@@ -1631,6 +1650,14 @@ test.describe("smoke: login → builder → publish → share", () => {
     }
 
     const childRows = page.locator("[data-navigator-child-node]");
+    const firstLayeredSection = page
+      .locator("[data-navigator-section-row]")
+      .filter({ has: page.locator("[data-navigator-block-count]") })
+      .first();
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    await firstLayeredSection
+      .locator("[data-navigator-section-collapse-trigger]")
+      .click();
     await expect(childRows.first()).toBeVisible({ timeout: 30_000 });
     const beforeNodeIds = new Set(
       await childRows.evaluateAll((nodes) =>
@@ -1643,6 +1670,9 @@ test.describe("smoke: login → builder → publish → share", () => {
 
     try {
       const firstChild = childRows.first();
+      const sourceNodeId = await firstChild.getAttribute("data-builder-node-id");
+      expect(sourceNodeId).toBeTruthy();
+      await firstChild.hover();
       await firstChild.locator("[data-builder-node-copy-trigger]").click();
 
       const pasteTrigger = firstChild.locator("[data-builder-node-paste-trigger]");
@@ -1660,7 +1690,16 @@ test.describe("smoke: login → builder → publish → share", () => {
         }, { timeout: 45_000 })
         .toBeGreaterThanOrEqual(1);
 
-      await firstChild.locator("[data-builder-node-duplicate-trigger]").click();
+      const duplicateTarget = page.locator(
+        `[data-navigator-child-node][data-builder-node-id="${sourceNodeId}"]`,
+      );
+      await expect(duplicateTarget).toBeVisible({ timeout: 10_000 });
+      await duplicateTarget.hover();
+      const duplicateTrigger = duplicateTarget.locator(
+        "[data-builder-node-duplicate-trigger]",
+      );
+      await expect(duplicateTrigger).toBeVisible({ timeout: 10_000 });
+      await duplicateTrigger.dispatchEvent("click");
 
       await expect
         .poll(async () => {
