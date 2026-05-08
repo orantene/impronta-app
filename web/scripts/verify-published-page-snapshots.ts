@@ -73,12 +73,17 @@ interface BuilderTreeAlignmentRow extends BuilderTreeGapRow {
   issues: string[];
 }
 
+interface MalformedSnapshotRow extends BuilderTreeGapRow {
+  issues: string[];
+}
+
 interface TenantVerificationResult {
   ok: true;
   tenantId: string;
   scannedPublishedRows: number;
   missing: MissingSnapshotRow[];
   missingBuilderTree: BuilderTreeGapRow[];
+  malformedSnapshot: MalformedSnapshotRow[];
   invalidBuilderTree: InvalidBuilderTreeRow[];
   misalignedBuilderTree: BuilderTreeAlignmentRow[];
 }
@@ -141,10 +146,61 @@ function isSnapshotMissing(row: CmsPageRow): boolean {
 function isBuilderTreeMissing(row: CmsPageRow): boolean {
   const snapshot = snapshotFromRow(row);
   if (!snapshot || typeof snapshot !== "object") return false;
-  const candidate = snapshot as { slots?: unknown; builderTree?: unknown };
-  const slots = Array.isArray(candidate.slots) ? candidate.slots : [];
-  if (slots.length === 0) return false;
+  const candidate = snapshot as { builderTree?: unknown };
   return candidate.builderTree == null;
+}
+
+function findMalformedSnapshot(row: CmsPageRow): MalformedSnapshotRow | null {
+  const snapshot = snapshotFromRow(row);
+  if (!snapshot || typeof snapshot !== "object") return null;
+  const candidate = snapshot as {
+    version?: unknown;
+    publishedAt?: unknown;
+    pageVersion?: unknown;
+    locale?: unknown;
+    templateSchemaVersion?: unknown;
+    fields?: unknown;
+    slots?: unknown;
+  };
+
+  const issues: string[] = [];
+  if (candidate.version !== 1) {
+    issues.push(`snapshot.version must be 1 (received ${String(candidate.version)})`);
+  }
+  if (
+    typeof candidate.publishedAt !== "string" ||
+    candidate.publishedAt.trim().length === 0
+  ) {
+    issues.push("snapshot.publishedAt must be a non-empty string");
+  }
+  if (typeof candidate.pageVersion !== "number" || !Number.isFinite(candidate.pageVersion)) {
+    issues.push("snapshot.pageVersion must be a finite number");
+  }
+  if (typeof candidate.locale !== "string" || candidate.locale.trim().length === 0) {
+    issues.push("snapshot.locale must be a non-empty string");
+  }
+  if (
+    typeof candidate.templateSchemaVersion !== "number" ||
+    !Number.isFinite(candidate.templateSchemaVersion)
+  ) {
+    issues.push("snapshot.templateSchemaVersion must be a finite number");
+  }
+  if (!candidate.fields || typeof candidate.fields !== "object" || Array.isArray(candidate.fields)) {
+    issues.push("snapshot.fields must be an object");
+  }
+  if (!Array.isArray(candidate.slots)) {
+    issues.push("snapshot.slots must be an array");
+  }
+  if (issues.length === 0) return null;
+
+  return {
+    pageId: row.id,
+    locale: row.locale,
+    slug: row.slug,
+    title: row.title,
+    kind: inferKind(row),
+    issues,
+  };
 }
 
 function findInvalidBuilderTree(row: CmsPageRow): InvalidBuilderTreeRow | null {
@@ -306,6 +362,9 @@ async function verifyTenant(
       title: row.title,
       kind: inferKind(row),
     }));
+  const malformedSnapshot = rows
+    .map(findMalformedSnapshot)
+    .filter((row): row is MalformedSnapshotRow => row !== null);
 
   const invalidBuilderTree = rows
     .map(findInvalidBuilderTree)
@@ -320,6 +379,7 @@ async function verifyTenant(
     scannedPublishedRows: rows.length,
     missing,
     missingBuilderTree,
+    malformedSnapshot,
     invalidBuilderTree,
     misalignedBuilderTree,
   };
@@ -343,6 +403,7 @@ async function main() {
   let scannedPublishedRows = 0;
   let totalMissing = 0;
   let totalMissingBuilderTree = 0;
+  let totalMalformedSnapshot = 0;
   let totalInvalidBuilderTree = 0;
   let totalMisalignedBuilderTree = 0;
 
@@ -355,6 +416,7 @@ async function main() {
     scannedPublishedRows += result.scannedPublishedRows;
     totalMissing += result.missing.length;
     totalMissingBuilderTree += result.missingBuilderTree.length;
+    totalMalformedSnapshot += result.malformedSnapshot.length;
     totalInvalidBuilderTree += result.invalidBuilderTree.length;
     totalMisalignedBuilderTree += result.misalignedBuilderTree.length;
     summaries.push(result);
@@ -368,6 +430,7 @@ async function main() {
     scannedPublishedRows,
     totalMissing,
     totalMissingBuilderTree,
+    totalMalformedSnapshot,
     totalInvalidBuilderTree,
     totalMisalignedBuilderTree,
     summaries,
@@ -379,6 +442,7 @@ async function main() {
     totalMissing > 0 ||
     (args.requireBuilderTree &&
       (totalMissingBuilderTree > 0 ||
+        totalMalformedSnapshot > 0 ||
         totalInvalidBuilderTree > 0 ||
         totalMisalignedBuilderTree > 0))
   ) {

@@ -55,11 +55,12 @@ test("builder capability gates keep free shell locked but body editable", () => 
 });
 
 test("resolveStarterTemplateSlugs keeps free plan on free starter only", () => {
-  const all = ["free-quickstart-5", "classic", "studio-minimal"];
+  const all = ["free-quickstart-5", "home-core-4", "classic", "studio-minimal"];
   assert.deepEqual(resolveStarterTemplateSlugs("free", all), [
     "free-quickstart-5",
   ]);
   assert.deepEqual(resolveStarterTemplateSlugs("studio", all), [
+    "home-core-4",
     "classic",
     "studio-minimal",
   ]);

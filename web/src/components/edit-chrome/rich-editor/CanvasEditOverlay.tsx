@@ -69,6 +69,7 @@ export function CanvasEditOverlay({
   onCancel,
 }: Props) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
   const [rect, setRect] = useState(() => target.getBoundingClientRect());
   const [typeStyles, setTypeStyles] = useState<Record<string, string>>({});
   // Mirror the live editor value so we can commit on outside-click without a
@@ -116,7 +117,9 @@ export function CanvasEditOverlay({
   function commit() {
     if (committedRef.current) return;
     committedRef.current = true;
-    onCommit(valueRef.current.trim());
+    const serialized = valueRef.current.trim();
+    const liveText = (fieldRef.current?.innerText ?? "").trim();
+    onCommit(serialized === initialValue.trim() && liveText ? liveText : serialized);
   }
   function cancel() {
     if (committedRef.current) return;
@@ -150,10 +153,10 @@ export function CanvasEditOverlay({
       }
     }
     document.addEventListener("mousedown", onMouseDown, true);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
     return () => {
       document.removeEventListener("mousedown", onMouseDown, true);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
@@ -179,7 +182,7 @@ export function CanvasEditOverlay({
         outline: "1px solid rgba(17,24,39,0.92)",
         outlineOffset: 2,
         boxShadow: "0 0 0 4px rgba(17,24,39,0.12)",
-        borderRadius: 2,
+        borderRadius: 0,
         // The RichEditor's default class adds borders; we override with
         // transparent backgrounds + no border so the inline edit reads as
         // a continuation of the page, not a chrome panel.
@@ -188,18 +191,69 @@ export function CanvasEditOverlay({
       // The overlay should not eat clicks meant for the toolbar (rendered
       // separately via portal). It does receive its own clicks normally.
     >
-      <RichEditor
-        value={initialValue}
-        onChange={(next) => {
-          valueRef.current = next;
+      <div ref={fieldRef}>
+        <RichEditor
+          value={initialValue}
+          onChange={(next) => {
+            valueRef.current = next;
+          }}
+          variant={variant}
+          tenantId={tenantId}
+          ariaLabel="Inline canvas editor"
+          // No surrounding pad / border — the overlay's outline + shadow
+          // already mark the edit affordance.
+          className="outline-none"
+        />
+      </div>
+      <div
+        data-edit-overlay="canvas-edit-actions"
+        style={{
+          position: "absolute",
+          right: 0,
+          top: "calc(100% + 8px)",
+          display: "inline-flex",
+          gap: 6,
+          padding: 4,
+          borderRadius: 0,
+          background: "rgba(36, 41, 66, 0.96)",
+          boxShadow: "0 12px 28px -12px rgba(0,0,0,0.42)",
         }}
-        variant={variant}
-        tenantId={tenantId}
-        ariaLabel="Inline canvas editor"
-        // No surrounding pad / border — the overlay's outline + shadow
-        // already mark the edit affordance.
-        className="outline-none"
-      />
+      >
+        <button
+          type="button"
+          aria-label="Cancel inline edit"
+          onClick={cancel}
+          style={{
+            border: "none",
+            borderRadius: 0,
+            background: "transparent",
+            color: "rgba(255,255,255,0.76)",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "5px 9px",
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          aria-label="Apply inline edit"
+          onClick={commit}
+          style={{
+            border: "none",
+            borderRadius: 0,
+            background: "#fff",
+            color: "#242942",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: 800,
+            padding: "5px 10px",
+          }}
+        >
+          Done
+        </button>
+      </div>
     </div>,
     document.body,
   );

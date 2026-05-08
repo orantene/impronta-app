@@ -30,6 +30,10 @@ import {
   type SectionTypeKey,
 } from "@/lib/site-admin/sections/registry";
 import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-content";
+import {
+  getSectionTemplateStarterDefault,
+  type SectionTemplateStarterId,
+} from "@/lib/site-admin/sections/shared/section-template-starters";
 import { upsertSection } from "@/lib/site-admin/server/sections";
 import {
   ensureHomepageRow,
@@ -40,6 +44,13 @@ import {
   createAndInsertSectionAction,
   loadHomepageCompositionAction,
 } from "@/lib/site-admin/edit-mode/composition-actions";
+import {
+  mergeStarterRecords,
+  parseSelectedStarterEntryIndexes,
+  parseSelectedStarterEntryStyles,
+  resolveSelectedStarterEntryIndexes,
+  resolveStarterEntryStylePatch,
+} from "@/lib/site-admin/edit-mode/starter-selection";
 import { applyThemePreset } from "@/lib/site-admin/server/design";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import {
@@ -78,6 +89,11 @@ export type EmptyCanvasQuickInsertState =
 interface RecipeEntry {
   slotKey: string;
   sectionTypeKey: SectionTypeKey;
+  /**
+   * Optional canonical starter-template baseline. When set, recipe seeding
+   * first merges this starter default, then applies propsOverride.
+   */
+  starterTemplateId?: SectionTemplateStarterId;
   /** Content overrides on top of getLibraryDefault. */
   propsOverride?: Record<string, unknown>;
 }
@@ -87,6 +103,38 @@ interface Recipe {
   label: string;
   presetSlug: string;
   entries: RecipeEntry[];
+}
+
+function resolveRecipeEntryBaselineProps(
+  recipe: Recipe,
+  entry: RecipeEntry,
+  defaultsProps: Record<string, unknown>,
+): { ok: true; props: Record<string, unknown> } | { ok: false; error: string } {
+  if (!entry.starterTemplateId) {
+    return { ok: true, props: defaultsProps };
+  }
+
+  const starterDefaults = getSectionTemplateStarterDefault(entry.starterTemplateId);
+  if (!starterDefaults) {
+    return {
+      ok: false,
+      error: `Starter recipe "${recipe.slug}" references missing starter template "${entry.starterTemplateId}".`,
+    };
+  }
+
+  if (starterDefaults.sectionTypeKey !== entry.sectionTypeKey) {
+    return {
+      ok: false,
+      error:
+        `Starter recipe "${recipe.slug}" maps "${entry.starterTemplateId}" (${starterDefaults.sectionTypeKey}) ` +
+        `to "${entry.sectionTypeKey}". Update the recipe entry to match section types.`,
+    };
+  }
+
+  return {
+    ok: true,
+    props: mergeStarterRecords(defaultsProps, starterDefaults.props),
+  };
 }
 
 const RECIPES: Record<string, Recipe> = {
@@ -146,6 +194,44 @@ const RECIPES: Record<string, Recipe> = {
             "Share your event details and we'll return availability with a suggested team within one business day.",
           primaryCta: { label: "Start inquiry", href: "/contact" },
           variant: "centered-overlay",
+        },
+      },
+    ],
+  },
+  "home-core-4": {
+    slug: "home-core-4",
+    label: "Home Core 4",
+    presetSlug: "studio-minimal",
+    entries: [
+      {
+        slotKey: "hero",
+        sectionTypeKey: "hero",
+        starterTemplateId: "directory-search-hero",
+        propsOverride: {
+          primaryCta: { label: "Browse talent", href: "/directory" },
+          secondaryCta: { label: "Start a brief", href: "/contact" },
+        },
+      },
+      {
+        slotKey: "services",
+        sectionTypeKey: "category_grid",
+        starterTemplateId: "browse-by-type-pills",
+      },
+      {
+        slotKey: "featured",
+        sectionTypeKey: "featured_talent",
+        starterTemplateId: "featured-talent-live-grid",
+        propsOverride: {
+          limit: 5,
+        },
+      },
+      {
+        slotKey: "destinations",
+        sectionTypeKey: "map_overlay",
+        starterTemplateId: "explore-by-location-map",
+        propsOverride: {
+          side: "card-bottom",
+          ratio: "21/9",
         },
       },
     ],
@@ -826,6 +912,31 @@ export async function applyStarterComposition(
   if (!recipe) {
     return { ok: false, error: `Unknown starter "${slug}".` };
   }
+  const selectedEntryIndexes = parseSelectedStarterEntryIndexes(
+    formData,
+    recipe.entries.length,
+  );
+  const lockHomeCore = String(formData.get("lockHomeCore") ?? "0") === "1";
+  const effectiveIndexes = resolveSelectedStarterEntryIndexes({
+    sectionTypeKeys: recipe.entries.map((entry) => entry.sectionTypeKey),
+    selectedIndexes: selectedEntryIndexes,
+    lockHomeCore,
+  });
+  const selectedEntryStyles = parseSelectedStarterEntryStyles(
+    formData,
+    recipe.entries.length,
+  );
+  const selectedEntries =
+    recipe.entries
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ index }) => effectiveIndexes.has(index));
+  if (selectedEntries.length === 0) {
+    return {
+      ok: false,
+      error: "Select at least one section before applying this starter.",
+      code: "NO_STARTER_SECTIONS_SELECTED",
+    };
+  }
 
   // Service-role for branding + section inserts; the request itself is
   // requireStaff + tenant-scope guarded.
@@ -887,19 +998,40 @@ export async function applyStarterComposition(
   // 3. Create a section per recipe entry.
   const created: Array<{ slotKey: string; sectionId: string; sortOrder: number }> = [];
   let skipped = 0;
-  for (const [idx, entry] of recipe.entries.entries()) {
+  for (const [slotOrder, item] of selectedEntries.entries()) {
+    const { entry } = item;
     const registryEntry = getSectionType(entry.sectionTypeKey);
     if (!registryEntry) {
       skipped += 1;
       continue;
     }
     const defaults = getLibraryDefault(entry.sectionTypeKey);
+    const baseline = resolveRecipeEntryBaselineProps(recipe, entry, defaults.props);
+    if (!baseline.ok) {
+      return {
+        ok: false,
+        error: baseline.error,
+        code: "STARTER_RECIPE_INVALID",
+      };
+    }
     const name = `${defaults.name} (${recipe.label}) ${shortToken()}`;
     const values = {
       tenantId: scope.tenantId,
       sectionTypeKey: entry.sectionTypeKey,
       schemaVersion: registryEntry.currentVersion,
-      props: { ...defaults.props, ...(entry.propsOverride ?? {}) },
+      props: (() => {
+        const baseProps = mergeStarterRecords(
+          baseline.props,
+          entry.propsOverride ?? {},
+        );
+        const stylePatch = resolveStarterEntryStylePatch(
+          entry.sectionTypeKey,
+          selectedEntryStyles.get(item.index),
+        );
+        return stylePatch
+          ? mergeStarterRecords(baseProps, stylePatch)
+          : baseProps;
+      })(),
       expectedVersion: 0 as const,
       name,
     };
@@ -920,7 +1052,7 @@ export async function applyStarterComposition(
     created.push({
       slotKey: entry.slotKey,
       sectionId: result.data.id,
-      sortOrder: idx,
+      sortOrder: slotOrder,
     });
   }
 

@@ -195,6 +195,7 @@ type RosterRow = {
     talent_profile_taxonomy:
       | {
           relationship_type: string | null;
+          display_order: number | null;
           taxonomy_terms: {
             term_type: string | null;
             slug: string | null;
@@ -217,6 +218,8 @@ type RosterRow = {
           sort_order: number | null;
           deleted_at: string | null;
           approval_state: string | null;
+          width: number | null;
+          height: number | null;
         }[]
       | null;
   } | null;
@@ -224,7 +227,16 @@ type RosterRow = {
 
 /**
  * Pick the talent's representative thumb from a list of media_assets.
- * Preference: card variant > original > anything else, ordered by sort_order.
+ *
+ * Strategy (best → fallback):
+ *   1. Prefer portrait or near-square aspect (height/width ≥ 1.0). Roster
+ *      cards render as portraits — landscape banners look terrible cropped.
+ *   2. Within portraits, prefer variant_kind in: card > gallery > original
+ *      (skip 'banner' + 'public_watermarked' — those are landscape/decor).
+ *   3. Within same variant, prefer lowest sort_order (talent-curated order).
+ *   4. If NO portrait candidate exists, fall back to any non-banner asset
+ *      sorted by variant_kind preference + sort_order.
+ *
  * Filters out deleted + non-approved rows. Returns undefined if no usable
  * asset exists — roster card primitive handles that gracefully.
  */
@@ -236,18 +248,45 @@ function pickPrimaryThumb(
     (a) => !a.deleted_at && a.approval_state === "approved",
   );
   if (usable.length === 0) return undefined;
-  // Prefer card → original → anything; within that, prefer lower sort_order.
-  const rank = (kind: string | null) => {
+
+  // Skip banner + public_watermarked — they're never good roster card photos.
+  const cardEligible = usable.filter(
+    (a) =>
+      a.variant_kind !== "banner" &&
+      a.variant_kind !== "public_watermarked",
+  );
+
+  // Prefer portraits/squares (height >= width) over landscapes.
+  // We don't have a strict aspect-ratio threshold — height >= width covers
+  // most real cases without rejecting square-ish portraits.
+  const isPortrait = (a: { width?: number | null; height?: number | null }) =>
+    typeof a.width === "number" &&
+    typeof a.height === "number" &&
+    a.width > 0 &&
+    a.height >= a.width;
+
+  const portraits = cardEligible.filter(isPortrait);
+
+  // variant_kind ranking: card > gallery > original > others
+  const variantRank = (kind: string | null) => {
     if (kind === "card") return 0;
-    if (kind === "original") return 1;
-    return 2;
+    if (kind === "gallery") return 1;
+    if (kind === "original") return 2;
+    if (kind === "lightbox") return 3;
+    return 4;
   };
-  usable.sort((a, b) => {
-    const r = rank(a.variant_kind) - rank(b.variant_kind);
-    if (r !== 0) return r;
-    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-  });
-  return usable[0]?.storage_path;
+  const sortByRank = <T extends { variant_kind?: string | null; sort_order?: number | null }>(arr: T[]) =>
+    arr.sort((a, b) => {
+      const r = variantRank(a.variant_kind ?? null) - variantRank(b.variant_kind ?? null);
+      if (r !== 0) return r;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+
+  // Pick from portraits first, fall back to any non-banner asset.
+  const pool = portraits.length > 0 ? portraits : cardEligible;
+  if (pool.length === 0) return undefined;
+  sortByRank(pool);
+  return pool[0]?.storage_path;
 }
 
 /**
@@ -282,19 +321,36 @@ function deriveDisplayName(
 }
 
 /**
- * Read the talent's primary role slug. The unique partial index
- * `ux_talent_profile_taxonomy_one_primary` (migration 20260801120100)
- * guarantees at most one row per profile with
- * `relationship_type='primary_role'`, so `find()` is safe.
+ * Read the talent's FEATURED skill slug for roster cards / search snippets.
+ *
+ * Multi-skill V1 (2026-05-07): a talent can have multiple primary_role rows
+ * (up to 9 total skills). The "featured" skill = lowest display_order among
+ * primary_role rows. Falls back to first secondary_role if no primary set.
+ *
+ * Returns the canonical slug — UI resolves to display name via TAXONOMY.
  */
 function derivePrimaryType(
   profile: NonNullable<RosterRow["talent_profiles"]>,
 ): string | undefined {
   const taxonomy = profile.talent_profile_taxonomy ?? [];
-  const primary = taxonomy.find(
-    (t) => t.relationship_type === "primary_role",
-  );
-  return primary?.taxonomy_terms?.slug ?? undefined;
+  if (taxonomy.length === 0) return undefined;
+
+  // Helper: sort by display_order ASC (lower = featured), then by relationship.
+  const ranked = [...taxonomy]
+    .filter(
+      (t) =>
+        t.relationship_type === "primary_role" ||
+        t.relationship_type === "secondary_role",
+    )
+    .sort((a, b) => {
+      // Primary always before secondary
+      if (a.relationship_type !== b.relationship_type) {
+        return a.relationship_type === "primary_role" ? -1 : 1;
+      }
+      return (a.display_order ?? 0) - (b.display_order ?? 0);
+    });
+
+  return ranked[0]?.taxonomy_terms?.slug ?? undefined;
 }
 
 /**
@@ -367,6 +423,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
           height_cm,
           talent_profile_taxonomy (
             relationship_type,
+            display_order,
             taxonomy_terms ( term_type, slug )
           ),
           talent_service_areas (
@@ -378,7 +435,9 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
             variant_kind,
             sort_order,
             deleted_at,
-            approval_state
+            approval_state,
+            width,
+            height
           )
         )
         `,

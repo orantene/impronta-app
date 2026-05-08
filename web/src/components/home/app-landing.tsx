@@ -23,7 +23,7 @@ export function AppLanding() {
         <div className="mt-10 flex flex-col items-center gap-3">
           <Link
             href="/login"
-            className="inline-flex h-11 items-center justify-center rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-8 text-sm font-medium text-foreground transition hover:bg-[var(--impronta-surface)]/60"
+            className="inline-flex h-11 items-center justify-center rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-8 text-sm font-medium text-foreground transition hover:bg-[var(--impronta-surface)]/60"
           >
             Sign in
           </Link>

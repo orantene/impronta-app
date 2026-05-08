@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { createBuilderNode } from "./create";
+import {
+  BUILDER_NODE_COMPOSITION_PRESETS,
+  createBuilderNode,
+  createBuilderNodeCompositionPreset,
+} from "./create";
 import { validateBuilderNodeTree } from "./validate";
 
 function assertValidCreatedNode(kind: Parameters<typeof createBuilderNode>[0]) {
@@ -125,4 +129,21 @@ test("gallery-like starters include usable image children", () => {
     masonry.children.map((child) => child.kind),
     ["image", "image", "image", "image"],
   );
+});
+
+test("composition presets create valid premium nested sections", () => {
+  for (const preset of BUILDER_NODE_COMPOSITION_PRESETS) {
+    const node = createBuilderNodeCompositionPreset(preset.id);
+    assert.equal(node.kind, preset.rootKind);
+    assert.ok(preset.keywords.length >= 3, preset.id);
+    assert.match(preset.dataMode, /^(starter|data-ready)$/);
+    if (preset.dataMode === "data-ready") {
+      assert.ok("dataBinding" in node.props, preset.id);
+      assert.ok(node.props.dataBinding?.sourceKey, preset.id);
+    }
+    const result = validateBuilderNodeTree([node]);
+    assert.equal(result.ok, true, preset.id);
+    assert.ok("children" in node);
+    assert.ok("children" in node && node.children.length >= 2, preset.id);
+  }
 });

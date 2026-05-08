@@ -25,6 +25,11 @@ import {
   builderSectionNodeAddressKey,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
+  indexBuilderSectionNodes,
+  type BuilderNode,
+  type BuilderNodeRenderDataSources,
+  renderBuilderNodes,
+  resolveBuilderNodeRole,
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -37,8 +42,10 @@ import {
   type SectionRegistryEntry,
 } from "@/lib/site-admin/sections/types";
 import { presentationScopedCss, presentationVideoBackground } from "@/lib/site-admin/sections/shared/presentation";
+import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
+import { getHomepageData } from "@/lib/home-data";
 
 interface HomepageCmsSectionsProps {
   snapshot: HomepageSnapshot;
@@ -60,8 +67,14 @@ export async function HomepageCmsSections({
   if (entries.length === 0) return null;
   const builderTreeResolution = resolveSnapshotBuilderTree(snapshot);
   const builderSectionNodeIds = indexBuilderSectionNodeIds(builderTreeResolution.tree);
+  const builderSectionNodes = indexBuilderSectionNodes(builderTreeResolution.tree);
   const builderSectionChildNodeIds = indexBuilderSectionChildNodeIds(
     builderTreeResolution.tree,
+  );
+  const builderDataSources = await loadBuilderNodeDataSources(
+    builderTreeResolution.tree,
+    tenantId,
+    locale,
   );
 
   if (
@@ -174,8 +187,20 @@ export async function HomepageCmsSections({
             sortOrder: entry.sortOrder,
           }) ?? "",
         );
+        const builderSectionNode = builderSectionNodes.get(
+          builderSectionNodeAddressKey({
+            sectionId: entry.sectionId,
+            slotKey: entry.slotKey,
+            sortOrder: entry.sortOrder,
+          }) ?? "",
+        );
+        const builderSectionChildren = builderSectionNode?.children ?? [];
         const roleBindingResult = buildBuilderNodeRoleBindings(
-          builderNodeId ? (builderSectionChildNodeIds.get(builderNodeId) ?? []) : [],
+          builderNodeId
+            ? (builderSectionChildNodeIds.get(builderNodeId) ?? []).filter((id) =>
+                resolveBuilderNodeRole(id),
+              )
+            : [],
         );
         const roleBindings = roleBindingResult.nodeIdsByRole;
         if (
@@ -269,9 +294,87 @@ export async function HomepageCmsSections({
               </>
             ) : null}
             {rendered}
+            {builderSectionChildren.length > 0
+              ? renderBuilderNodes(builderSectionChildren, {
+                  publicPathPrefix,
+                  mode: "freeform",
+                  dataSources: builderDataSources,
+                })
+              : null}
           </div>
         );
       })}
     </>
   );
+}
+
+function collectBuilderDataBindingMax(
+  nodes: ReadonlyArray<BuilderNode>,
+  sourceKey: string,
+): number | null {
+  let max: number | null = null;
+  const visit = (node: BuilderNode) => {
+    if (
+      node.kind === "container" &&
+      node.props.dataBinding?.sourceKey === sourceKey
+    ) {
+      max = Math.max(max ?? 0, node.props.dataBinding.maxItems ?? 4);
+    }
+    if ("children" in node && Array.isArray(node.children)) {
+      for (const child of node.children) visit(child);
+    }
+  };
+  for (const node of nodes) visit(node);
+  return max;
+}
+
+function hasBuilderDataBinding(
+  nodes: ReadonlyArray<BuilderNode>,
+  sourceKey: string,
+): boolean {
+  return collectBuilderDataBindingMax(nodes, sourceKey) != null;
+}
+
+async function loadBuilderNodeDataSources(
+  nodes: ReadonlyArray<BuilderNode>,
+  tenantId: string,
+  locale: string,
+): Promise<BuilderNodeRenderDataSources> {
+  const featuredLimit = collectBuilderDataBindingMax(
+    nodes,
+    "featured_talent_profiles",
+  );
+  const needsLocations = hasBuilderDataBinding(nodes, "talent_locations");
+  const needsDirectoryShortcuts = hasBuilderDataBinding(
+    nodes,
+    "tenant_directory_search",
+  );
+  if (featuredLimit == null && !needsLocations && !needsDirectoryShortcuts) {
+    return {};
+  }
+
+  const [featuredTalentProfiles, homepageData] = await Promise.all([
+    featuredLimit == null
+      ? Promise.resolve(undefined)
+      : fetchFeaturedTalentForSection(
+          tenantId,
+          {
+            sourceMode: "auto_featured_flag",
+            limit: Math.min(Math.max(featuredLimit, 1), 12),
+            columnsDesktop: 4,
+            variant: "grid",
+            presentation: {},
+          },
+          locale,
+        ),
+    needsLocations || needsDirectoryShortcuts
+      ? getHomepageData({ tenantId })
+      : Promise.resolve(null),
+  ]);
+
+  return {
+    featuredTalentProfiles,
+    talentLocations: homepageData?.locations,
+    directoryShortcuts: homepageData?.talentTypes,
+  };
 }

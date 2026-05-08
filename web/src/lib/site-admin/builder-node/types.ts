@@ -19,6 +19,28 @@ export interface BuilderNodeBase {
   kind: BuilderNodeKind;
 }
 
+export interface BuilderNodeStyleValue {
+  align?: "left" | "center" | "right";
+  size?: "sm" | "md" | "lg" | "xl";
+  tone?: "default" | "muted" | "strong";
+  maxWidth?: "narrow" | "reading" | "wide" | "full";
+  marginTop?: "none" | "s" | "m" | "l";
+  marginBottom?: "none" | "s" | "m" | "l";
+  paddingX?: "none" | "s" | "m" | "l";
+  paddingY?: "none" | "s" | "m" | "l";
+  background?: "none" | "surface" | "contrast";
+  radius?: "none" | "sm" | "md" | "lg" | "pill";
+  objectFit?: "cover" | "contain";
+  aspectRatio?: "auto" | "1:1" | "4:3" | "3:4" | "16:9" | "21:9";
+}
+
+export interface BuilderNodeStyle extends BuilderNodeStyleValue {
+  responsive?: {
+    tablet?: BuilderNodeStyleValue;
+    mobile?: BuilderNodeStyleValue;
+  };
+}
+
 export interface BuilderSectionNode extends BuilderNodeBase {
   kind: "section";
   props: {
@@ -58,6 +80,13 @@ export interface BuilderContainerNode extends BuilderNodeBase {
         align?: "start" | "center" | "end" | "stretch";
       };
     };
+    dataBinding?: {
+      sourceKey: string;
+      mode?: "auto" | "manual";
+      filterQuery?: string;
+      maxItems?: number;
+    };
+    style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
 }
@@ -68,6 +97,7 @@ export interface BuilderSplitNode extends BuilderNodeBase {
     ratio?: "50-50" | "40-60" | "60-40" | "30-70" | "70-30";
     gap?: "s" | "m" | "l";
     collapseOnMobile?: boolean;
+    style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
 }
@@ -77,6 +107,7 @@ export interface BuilderAccordionNode extends BuilderNodeBase {
   props: {
     allowMultiple?: boolean;
     defaultOpenItemIds?: string[];
+    style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
 }
@@ -85,6 +116,7 @@ export interface BuilderAccordionItemNode extends BuilderNodeBase {
   kind: "accordion_item";
   props: {
     title: string;
+    style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
 }
@@ -93,6 +125,7 @@ export interface BuilderTabsNode extends BuilderNodeBase {
   kind: "tabs";
   props: {
     defaultTabId?: string;
+    style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
 }
@@ -101,6 +134,7 @@ export interface BuilderTabPanelNode extends BuilderNodeBase {
   kind: "tab_panel";
   props: {
     title: string;
+    style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
 }
@@ -113,6 +147,7 @@ export interface BuilderCarouselNode extends BuilderNodeBase {
     loop?: boolean;
     showArrows?: boolean;
     showDots?: boolean;
+    style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
 }
@@ -122,6 +157,7 @@ export interface BuilderMasonryNode extends BuilderNodeBase {
   props: {
     columns?: 2 | 3 | 4 | 5;
     gap?: "s" | "m" | "l";
+    style?: BuilderNodeStyle;
   };
   children: BuilderNode[];
 }
@@ -131,6 +167,7 @@ export interface BuilderHeadingNode extends BuilderNodeBase {
   props: {
     text: string;
     level: 1 | 2 | 3 | 4;
+    style?: BuilderNodeStyle;
   };
 }
 
@@ -138,6 +175,7 @@ export interface BuilderParagraphNode extends BuilderNodeBase {
   kind: "paragraph";
   props: {
     text: string;
+    style?: BuilderNodeStyle;
   };
 }
 
@@ -153,6 +191,7 @@ export interface BuilderButtonNode extends BuilderNodeBase {
       active?: { tone?: "primary" | "secondary" };
       disabled?: { tone?: "primary" | "secondary" };
     };
+    style?: BuilderNodeStyle;
   };
 }
 
@@ -161,6 +200,7 @@ export interface BuilderImageNode extends BuilderNodeBase {
   props: {
     src: string;
     alt?: string;
+    style?: BuilderNodeStyle;
   };
 }
 
@@ -168,6 +208,7 @@ export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
     size: "s" | "m" | "l";
+    style?: BuilderNodeStyle;
   };
 }
 

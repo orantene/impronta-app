@@ -61,6 +61,7 @@ import {
   builderSectionNodeAddressKey,
   buildLegacySectionBuilderTree,
   BUILDER_NODE_REGISTRY,
+  createBuilderNodeCompositionPreset,
   builderNodeKindAllowedAtRoot,
   createBuilderNode,
   deriveLegacySectionChildNodes,
@@ -73,6 +74,7 @@ import {
   removeBuilderNode as removeBuilderNodeOp,
   validateBuilderNodeTree,
   type BuilderNode,
+  type BuilderNodeCompositionPresetId,
   type BuilderNodeTree,
   type LegacySnapshotSlot,
 } from "@/lib/site-admin/builder-node";
@@ -252,7 +254,15 @@ export interface EditContextValue {
   insertSection: (
     target: LibraryTarget,
     sectionTypeKey: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
+    options?: {
+      sectionTemplateStarterId?: string | null;
+      sectionTemplateStarterStylePresetId?: string | null;
+    },
+  ) => Promise<{
+    ok: boolean;
+    error?: string;
+    section?: { id: string; sortOrder: number };
+  }>;
   removeSection: (sectionId: string) => Promise<{ ok: boolean; error?: string }>;
   moveSection: (
     sectionId: string,
@@ -297,6 +307,11 @@ export interface EditContextValue {
   insertBuilderNode: (
     parentId: string | null,
     kind: BuilderNode["kind"],
+    index?: number,
+  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
+  insertBuilderNodeCompositionPreset: (
+    parentId: string | null,
+    presetId: BuilderNodeCompositionPresetId,
     index?: number,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
   duplicateBuilderNode: (
@@ -904,6 +919,30 @@ function findBuilderNodeLocation(
   return walk(tree, null);
 }
 
+function findOwnerSectionIdForBuilderNode(
+  tree: ReadonlyArray<BuilderNode>,
+  nodeId: string,
+): string | null {
+  function walk(
+    nodes: ReadonlyArray<BuilderNode>,
+    currentSectionId: string | null,
+  ): string | null {
+    for (const node of nodes) {
+      const nextSectionId =
+        node.kind === "section"
+          ? node.props.sectionId ?? node.id
+          : currentSectionId;
+      if (node.id === nodeId) return nextSectionId;
+      if ("children" in node && Array.isArray(node.children)) {
+        const nested = walk(node.children, nextSectionId);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  }
+  return walk(tree, null);
+}
+
 function builderNodeAllowsChild(
   parentKind: BuilderNode["kind"],
   childKind: BuilderNode["kind"],
@@ -1257,6 +1296,24 @@ export function EditProvider({
   const [availableLocales, setAvailableLocales] = useState<ReadonlyArray<string>>(
     initialComposition?.availableLocales ?? initialAvailableLocales ?? [],
   );
+  const pageVersionRef = useRef<number | null>(pageVersion);
+  const pageMetadataRef = useRef<PageMetadata | null>(pageMetadata);
+  const slotsRef = useRef<Record<string, CompositionSectionRef[]>>(slots);
+  const builderTreeRef = useRef<BuilderNodeTree>(builderTree);
+  const builderTreeSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+
+  useEffect(() => {
+    pageVersionRef.current = pageVersion;
+  }, [pageVersion]);
+  useEffect(() => {
+    pageMetadataRef.current = pageMetadata;
+  }, [pageMetadata]);
+  useEffect(() => {
+    slotsRef.current = slots;
+  }, [slots]);
+  useEffect(() => {
+    builderTreeRef.current = builderTree;
+  }, [builderTree]);
 
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
   // is Figma-ish and well past what any realistic undo chain needs for a
@@ -1329,6 +1386,8 @@ export function EditProvider({
   ] = useState<string | null>(null);
   const openStarterTemplateGallery = useCallback(
     (highlightedSlug?: string | null) => {
+      setLibraryTarget(null);
+      setPickerPopover(null);
       setStarterTemplateGalleryHighlightedSlug(highlightedSlug ?? null);
       setStarterTemplateGalleryOpen(true);
     },
@@ -1409,7 +1468,12 @@ export function EditProvider({
     ) => {
       setSlots((prev) => {
         const next = typeof updater === "function" ? updater(prev) : updater;
-        setBuilderTree((prevTree) => reconcileBuilderTreeFromSlots(prevTree, next));
+        slotsRef.current = next;
+        setBuilderTree((prevTree) => {
+          const nextTree = reconcileBuilderTreeFromSlots(prevTree, next);
+          builderTreeRef.current = nextTree;
+          return nextTree;
+        });
         return next;
       });
     },
@@ -1419,7 +1483,11 @@ export function EditProvider({
   const syncBuilderNodeChildrenForSection = useCallback<
     EditContextValue["syncBuilderNodeChildrenForSection"]
   >((input) => {
-    setBuilderTree((prev) => syncBuilderTreeSectionChildren(prev, input));
+    setBuilderTree((prev) => {
+      const nextTree = syncBuilderTreeSectionChildren(prev, input);
+      builderTreeRef.current = nextTree;
+      return nextTree;
+    });
   }, []);
 
   const builderNodeIdBySectionId = useMemo(() => {
@@ -1458,7 +1526,8 @@ export function EditProvider({
     if (!selectedBuilderNodeIdOverride) return;
     const ownerSectionId =
       sectionIdByBuilderNodeId.get(selectedBuilderNodeIdOverride) ?? null;
-    if (!ownerSectionId || ownerSectionId !== selectedSectionId) {
+    if (!ownerSectionId) return;
+    if (ownerSectionId !== selectedSectionId) {
       setSelectedBuilderNodeIdOverride(null);
     }
   }, [
@@ -1482,11 +1551,16 @@ export function EditProvider({
   );
 
   const applyComposition = useCallback((data: CompositionData) => {
+    pageVersionRef.current = data.pageVersion;
+    pageMetadataRef.current = data.metadata;
+    slotsRef.current = data.slots;
+    builderTreeRef.current =
+      data.builderTree ?? buildBuilderTreeFromSlots(data.slots);
     setPageId(data.pageId);
     setPageVersion(data.pageVersion);
     setPageMetadata(data.metadata);
     setSlots(data.slots);
-    setBuilderTree(data.builderTree ?? buildBuilderTreeFromSlots(data.slots));
+    setBuilderTree(builderTreeRef.current);
     setSlotDefs(data.slotDefs);
     setLibrary(data.library);
     setAvailableLocales(data.availableLocales);
@@ -1571,10 +1645,10 @@ export function EditProvider({
   // ── mutation helper ─────────────────────────────────────────────────
   const currentSnapshot = useCallback<() => CompositionSnapshot>(() => {
     return {
-      slots,
-      metadata: pageMetadata ?? DEFAULT_METADATA,
+      slots: slotsRef.current,
+      metadata: pageMetadataRef.current ?? DEFAULT_METADATA,
     };
-  }, [slots, pageMetadata]);
+  }, []);
 
   /**
    * Sprint 5 — canonical EditorStore dispatcher.
@@ -2042,8 +2116,9 @@ export function EditProvider({
 
   // ── insert ─────────────────────────────────────────────────────────
   const insertSection = useCallback<EditContextValue["insertSection"]>(
-    async (target, sectionTypeKey) => {
-      if (pageVersion === null) {
+    async (target, sectionTypeKey, options) => {
+      const activePageVersion = pageVersionRef.current;
+      if (activePageVersion === null) {
         return { ok: false, error: "Composition not loaded yet." };
       }
       const snap = currentSnapshot();
@@ -2058,13 +2133,16 @@ export function EditProvider({
       const res = await createAndInsertSectionAction({
         locale,
         pageId,
-        expectedVersion: pageVersion,
+        expectedVersion: activePageVersion,
         metadata: snap.metadata,
         slots: stripSnapshotForSave(snap).slots,
-        builderTree,
+        builderTree: builderTreeRef.current,
         targetSlotKey: target.slotKey,
         insertAfterSortOrder: target.insertAfterSortOrder,
         sectionTypeKey,
+        sectionTemplateStarterId: options?.sectionTemplateStarterId ?? null,
+        sectionTemplateStarterStylePresetId:
+          options?.sectionTemplateStarterStylePresetId ?? null,
       });
       setSaving(false);
 
@@ -2106,19 +2184,18 @@ export function EditProvider({
         sectionTypeKey: res.section.sectionTypeKey,
         props: res.section.props,
       });
+      pageVersionRef.current = res.pageVersion;
       setPageVersion(res.pageVersion);
       router.refresh();
-      return { ok: true };
+      return { ok: true, section: { id: res.section.id, sortOrder: insertAt } };
     },
     [
-      pageVersion,
       currentSnapshot,
       locale,
       pageId,
       refreshComposition,
       router,
       capHistory,
-      builderTree,
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
     ],
@@ -2359,23 +2436,26 @@ export function EditProvider({
 
   const persistBuilderTree = useCallback(
     async (nextTree: BuilderNodeTree) => {
-      if (pageVersion === null) {
+      const activePageVersion = pageVersionRef.current;
+      if (activePageVersion === null) {
         return { ok: false as const, error: "Composition not loaded yet." };
       }
-      const prevTree = builderTree;
+      const prevTree = builderTreeRef.current;
+      builderTreeRef.current = nextTree;
       setBuilderTree(nextTree);
       setSaving(true);
       const snapshot = currentSnapshot();
       const save = await saveDraftHomepageAction({
         locale,
         pageId,
-        expectedVersion: pageVersion,
+        expectedVersion: activePageVersion,
         metadata: snapshot.metadata,
         slots: stripSnapshotForSave(snapshot).slots,
         builderTree: nextTree,
       });
       setSaving(false);
       if (!save.ok) {
+        builderTreeRef.current = prevTree;
         setBuilderTree(prevTree);
         if (save.code === "VERSION_CONFLICT") {
           await refreshComposition();
@@ -2383,13 +2463,12 @@ export function EditProvider({
         setMutationError(save.error);
         return { ok: false as const, error: save.error };
       }
+      pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
       router.refresh();
       return { ok: true as const };
     },
     [
-      pageVersion,
-      builderTree,
       currentSnapshot,
       locale,
       pageId,
@@ -2400,7 +2479,7 @@ export function EditProvider({
 
   const commitBuilderTreeMutation = useCallback(
     async (nextTree: BuilderNodeTree) => {
-      const prevTree = builderTree;
+      const prevTree = builderTreeRef.current;
       if (JSON.stringify(prevTree) === JSON.stringify(nextTree)) {
         return { ok: true as const };
       }
@@ -2415,13 +2494,17 @@ export function EditProvider({
         ]),
       );
       setFuture([]);
-      const result = await persistBuilderTree(nextTree);
+      const resultPromise = builderTreeSaveQueueRef.current.then(() =>
+        persistBuilderTree(nextTree),
+      );
+      builderTreeSaveQueueRef.current = resultPromise.catch(() => undefined);
+      const result = await resultPromise;
       if (!result.ok) {
         setPast((p) => p.slice(0, -1));
       }
       return result;
     },
-    [builderTree, capHistory, persistBuilderTree],
+    [capHistory, persistBuilderTree],
   );
 
   // ── builder-node reorder within current parent ────────────────────
@@ -2521,10 +2604,50 @@ export function EditProvider({
       if (!result.ok) {
         return result;
       }
-      selectBuilderNode(node.id);
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        inserted.tree,
+        node.id,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(node.id);
+      }
       return { ok: true, nodeId: node.id };
     },
-    [pageVersion, builderTree, commitBuilderTreeMutation, selectBuilderNode],
+    [pageVersion, builderTree, commitBuilderTreeMutation, setSelectedSectionId],
+  );
+  const insertBuilderNodeCompositionPreset = useCallback<
+    EditContextValue["insertBuilderNodeCompositionPreset"]
+  >(
+    async (parentId, presetId, index) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      const node = createBuilderNodeCompositionPreset(presetId);
+      const inserted = insertBuilderNodeOp({
+        tree: builderTree,
+        node,
+        parentId,
+        index,
+      });
+      if (!inserted.ok) {
+        return { ok: false, error: inserted.message };
+      }
+      const result = await commitBuilderTreeMutation(inserted.tree);
+      if (!result.ok) {
+        return result;
+      }
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        inserted.tree,
+        node.id,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(node.id);
+      }
+      return { ok: true, nodeId: node.id };
+    },
+    [pageVersion, builderTree, commitBuilderTreeMutation, setSelectedSectionId],
   );
   const removeBuilderNode = useCallback<
     EditContextValue["removeBuilderNode"]
@@ -2562,10 +2685,17 @@ export function EditProvider({
       if (!result.ok) {
         return result;
       }
-      selectBuilderNode(duplicated.nodeId);
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        duplicated.tree,
+        duplicated.nodeId,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(duplicated.nodeId);
+      }
       return { ok: true, nodeId: duplicated.nodeId };
     },
-    [pageVersion, builderTree, commitBuilderTreeMutation, selectBuilderNode],
+    [pageVersion, builderTree, commitBuilderTreeMutation, setSelectedSectionId],
   );
   const copyBuilderNode = useCallback<EditContextValue["copyBuilderNode"]>(
     (nodeId) => {
@@ -2660,7 +2790,14 @@ export function EditProvider({
       }
       const result = await commitBuilderTreeMutation(pasted.tree);
       if (!result.ok) return result;
-      selectBuilderNode(pasted.nodeId);
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        pasted.tree,
+        pasted.nodeId,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(pasted.nodeId);
+      }
       return { ok: true, nodeId: pasted.nodeId };
     },
     [
@@ -2668,7 +2805,7 @@ export function EditProvider({
       builderBlockPresets,
       builderTree,
       commitBuilderTreeMutation,
-      selectBuilderNode,
+      setSelectedSectionId,
     ],
   );
   const pasteCopiedBuilderNode = useCallback<
@@ -2704,7 +2841,14 @@ export function EditProvider({
       if (!result.ok) {
         return result;
       }
-      selectBuilderNode(pasted.nodeId);
+      const ownerSectionId = findOwnerSectionIdForBuilderNode(
+        pasted.tree,
+        pasted.nodeId,
+      );
+      if (ownerSectionId) {
+        setSelectedSectionId(ownerSectionId);
+        setSelectedBuilderNodeIdOverride(pasted.nodeId);
+      }
       return { ok: true, nodeId: pasted.nodeId };
     },
     [
@@ -2712,18 +2856,18 @@ export function EditProvider({
       copiedBuilderNode,
       builderTree,
       commitBuilderTreeMutation,
-      selectBuilderNode,
+      setSelectedSectionId,
     ],
   );
   const patchBuilderNodeProps = useCallback<
     EditContextValue["patchBuilderNodeProps"]
   >(
     async (nodeId, patch) => {
-      if (pageVersion === null) {
+      if (pageVersionRef.current === null) {
         return { ok: false, error: "Composition not loaded yet." };
       }
       const patched = patchBuilderNodePropsOp({
-        tree: builderTree,
+        tree: builderTreeRef.current,
         nodeId,
         patch,
       });
@@ -2732,7 +2876,7 @@ export function EditProvider({
       }
       return commitBuilderTreeMutation(patched.tree);
     },
-    [pageVersion, builderTree, commitBuilderTreeMutation],
+    [commitBuilderTreeMutation],
   );
   const moveBuilderNodeWithinParent = useCallback<
     EditContextValue["moveBuilderNodeWithinParent"]
@@ -3209,6 +3353,7 @@ export function EditProvider({
       moveBuilderNodeToIndex,
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
+      insertBuilderNodeCompositionPreset,
       duplicateBuilderNode,
       removeBuilderNode,
       patchBuilderNodeProps,
@@ -3333,6 +3478,7 @@ export function EditProvider({
       moveBuilderNodeToIndex,
       moveBuilderNodeToParentIndex,
       insertBuilderNode,
+      insertBuilderNodeCompositionPreset,
       duplicateBuilderNode,
       copyBuilderNode,
       saveCopiedBuilderNodeAsPreset,

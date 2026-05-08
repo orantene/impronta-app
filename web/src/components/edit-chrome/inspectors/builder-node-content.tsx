@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useState,
   type DragEvent,
   type KeyboardEvent,
@@ -9,8 +10,11 @@ import {
 } from "react";
 
 import {
+  BUILDER_NODE_COMPOSITION_PRESETS,
   BUILDER_NODE_REGISTRY,
   type BuilderNode,
+  type BuilderNodeCompositionPreset,
+  type BuilderNodeCompositionPresetId,
   type BuilderNodeKind,
 } from "@/lib/site-admin/builder-node";
 import {
@@ -38,6 +42,7 @@ export function BuilderNodeContentInspector({
     duplicateBuilderNode,
     getCopiedBuilderNodePastePreview,
     insertBuilderNode,
+    insertBuilderNodeCompositionPreset,
     moveBuilderNodeToParentIndex,
     moveBuilderNodeWithinParent,
     pasteCopiedBuilderNode,
@@ -77,6 +82,16 @@ export function BuilderNodeContentInspector({
 
   async function commitInsert(kind: BuilderNodeKind, index?: number) {
     const result = await insertBuilderNode(node.id, kind, index);
+    if (!result.ok && result.error) {
+      reportMutationError(result.error);
+    }
+  }
+
+  async function commitInsertCompositionPreset(
+    presetId: BuilderNodeCompositionPresetId,
+    index?: number,
+  ) {
+    const result = await insertBuilderNodeCompositionPreset(node.id, presetId, index);
     if (!result.ok && result.error) {
       reportMutationError(result.error);
     }
@@ -350,6 +365,7 @@ export function BuilderNodeContentInspector({
           nodes={nestedChildren}
           addKinds={quickAddKinds}
           onAdd={commitInsert}
+          onAddCompositionPreset={commitInsertCompositionPreset}
           onSelect={selectBuilderNode}
           onMove={commitMove}
           onMoveToIndex={commitMoveToIndex}
@@ -396,6 +412,7 @@ export function BuilderNodeContentInspector({
           nodes={nestedChildren}
           addKinds={quickAddKinds}
           onAdd={commitInsert}
+          onAddCompositionPreset={commitInsertCompositionPreset}
           onSelect={selectBuilderNode}
           onMove={commitMove}
           onMoveToIndex={commitMoveToIndex}
@@ -448,6 +465,7 @@ export function BuilderNodeContentInspector({
           nodes={nestedChildren}
           addKinds={quickAddKinds}
           onAdd={commitInsert}
+          onAddCompositionPreset={commitInsertCompositionPreset}
           onSelect={selectBuilderNode}
           onMove={commitMove}
           onMoveToIndex={commitMoveToIndex}
@@ -509,6 +527,7 @@ export function BuilderNodeContentInspector({
           nodes={nestedChildren}
           addKinds={quickAddKinds}
           onAdd={commitInsert}
+          onAddCompositionPreset={commitInsertCompositionPreset}
           onSelect={selectBuilderNode}
           onMove={commitMove}
           onMoveToIndex={commitMoveToIndex}
@@ -551,6 +570,58 @@ export function BuilderNodeContentInspector({
   ) {
     return (
       <div className="flex flex-col gap-3">
+        {node.kind === "container" && node.props.dataBinding ? (
+          <Card state="active">
+            <CardHead title="Data source" sub="Live tenant content" iconAccent="blue" />
+            <CardBody>
+              <div className="flex flex-col gap-3">
+                <div
+                  data-builder-node-data-source={node.props.dataBinding.sourceKey}
+                  className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2"
+                >
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                    Connected
+                  </div>
+                  <div className="mt-1 text-[12px] font-semibold text-stone-800">
+                    {dataSourceLabel(node.props.dataBinding.sourceKey)}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-snug text-stone-600">
+                    {dataSourceHelper(node.props.dataBinding.sourceKey)}
+                  </p>
+                </div>
+                <Field flush>
+                  <FieldLabel>Items shown</FieldLabel>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={
+                      String(
+                        normalizeDataSourceLimit(node.props.dataBinding.maxItems),
+                      ) as "4" | "6" | "8" | "12"
+                    }
+                    onChange={(next) => {
+                      void commitPatch({
+                        dataBinding: {
+                          ...node.props.dataBinding,
+                          maxItems: Number.parseInt(next, 10),
+                        },
+                      });
+                    }}
+                    options={[
+                      { value: "4", label: "4" },
+                      { value: "6", label: "6" },
+                      { value: "8", label: "8" },
+                      { value: "12", label: "12" },
+                    ]}
+                  />
+                  <Helper>
+                    Controls the live data limit while keeping the section&apos;s editable copy.
+                  </Helper>
+                </Field>
+              </div>
+            </CardBody>
+          </Card>
+        ) : null}
         <NestedBlocksCard
           title={`${BUILDER_NODE_REGISTRY[node.kind].label} blocks`}
           parentNodeId={node.id}
@@ -558,6 +629,7 @@ export function BuilderNodeContentInspector({
           nodes={nestedChildren}
           addKinds={quickAddKinds}
           onAdd={commitInsert}
+          onAddCompositionPreset={commitInsertCompositionPreset}
           onSelect={selectBuilderNode}
           onMove={commitMove}
           onMoveToIndex={commitMoveToIndex}
@@ -606,6 +678,7 @@ function NestedBlocksCard({
   nodes,
   addKinds,
   onAdd,
+  onAddCompositionPreset,
   onSelect,
   onMove,
   onMoveToIndex,
@@ -628,6 +701,10 @@ function NestedBlocksCard({
   nodes: BuilderNode[];
   addKinds: BuilderNodeKind[];
   onAdd: (kind: BuilderNodeKind, index?: number) => void | Promise<void>;
+  onAddCompositionPreset: (
+    presetId: BuilderNodeCompositionPresetId,
+    index?: number,
+  ) => void | Promise<void>;
   onSelect: (nodeId: string) => void;
   onMove: (nodeId: string, direction: "up" | "down") => void | Promise<void>;
   onMoveToIndex: (
@@ -660,6 +737,10 @@ function NestedBlocksCard({
   const [selectedChildIds, setSelectedChildIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  const [packQuery, setPackQuery] = useState("");
+  const [packCategory, setPackCategory] = useState<
+    "all" | BuilderNodeCompositionPreset["category"]
+  >("all");
   useEffect(() => {
     const currentIds = new Set(nodes.map((node) => node.id));
     setSelectedChildIds((current) => {
@@ -669,6 +750,34 @@ function NestedBlocksCard({
   }, [nodes]);
   const selectedChildren = nodes.filter((node) => selectedChildIds.has(node.id));
   const selectedChildCount = selectedChildren.length;
+  const compositionPresets = BUILDER_NODE_COMPOSITION_PRESETS.filter((preset) =>
+    addKinds.includes(preset.rootKind),
+  );
+  const packCategories = useMemo(() => {
+    const categories = new Set<BuilderNodeCompositionPreset["category"]>();
+    for (const preset of compositionPresets) categories.add(preset.category);
+    return ["all", ...categories] as const;
+  }, [compositionPresets]);
+  const visibleCompositionPresets = useMemo(() => {
+    const q = packQuery.trim().toLowerCase();
+    return compositionPresets.filter((preset) => {
+      if (packCategory !== "all" && preset.category !== packCategory) {
+        return false;
+      }
+      if (!q) return true;
+      const hay = [
+        preset.label,
+        preset.description,
+        preset.category,
+        preset.dataMode,
+        preset.rootKind,
+        ...preset.keywords,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [compositionPresets, packCategory, packQuery]);
   const toggleSelectedChild = (nodeId: string) => {
     setSelectedChildIds((current) => {
       const next = new Set(current);
@@ -745,27 +854,64 @@ function NestedBlocksCard({
         <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-indigo-700">
           Insert block here
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {addKinds.map((kind) => (
+        <div className="flex flex-col gap-2">
+          {compositionPresets.length > 0 ? (
+            <div className="grid gap-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.10em] text-indigo-700/80">
+                Section packs
+              </div>
+              {compositionPresets.map((preset) => (
+                <button
+                  key={`${index}-${preset.id}`}
+                  type="button"
+                  className="flex items-center justify-between gap-2 border border-indigo-100 bg-white px-2 py-1.5 text-left text-[11px] text-stone-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50"
+                  data-builder-node-composition-preset={preset.id}
+                  onClick={() => {
+                    closeInsertPicker();
+                    void onAddCompositionPreset(preset.id, index);
+                  }}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold">{preset.label}</span>
+                    <span className="block truncate text-[10px] text-stone-500">
+                      {formatPresetLabel(preset.category)} · {preset.sectionCount} blocks
+                    </span>
+                  </span>
+                  <span
+                    className={
+                      preset.dataMode === "data-ready"
+                        ? "shrink-0 border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-700"
+                        : "shrink-0 border border-stone-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-stone-500"
+                    }
+                  >
+                    {preset.dataMode === "data-ready" ? "Data" : "Starter"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-1.5">
+            {addKinds.map((kind) => (
+              <button
+                key={`${index}-${kind}`}
+                type="button"
+                className={KIT.ghostButton}
+                onClick={() => {
+                  closeInsertPicker();
+                  void onAdd(kind, index);
+                }}
+              >
+                + {BUILDER_NODE_REGISTRY[kind].label}
+              </button>
+            ))}
             <button
-              key={`${index}-${kind}`}
               type="button"
-              className={KIT.ghostButton}
-              onClick={() => {
-                closeInsertPicker();
-                void onAdd(kind, index);
-              }}
+              className={KIT.subtleButton}
+              onClick={closeInsertPicker}
             >
-              + {BUILDER_NODE_REGISTRY[kind].label}
+              Cancel
             </button>
-          ))}
-          <button
-            type="button"
-            className={KIT.subtleButton}
-            onClick={closeInsertPicker}
-          >
-            Cancel
-          </button>
+          </div>
         </div>
       </div>
     ) : null;
@@ -819,6 +965,112 @@ function NestedBlocksCard({
                 </button>
               ) : null}
             </div>
+          ) : null}
+          {compositionPresets.length > 0 ? (
+            <details
+              data-builder-node-composition-presets=""
+              className="rounded-lg border border-stone-200 bg-white px-3 py-2"
+              open={nodes.length <= 3}
+            >
+              <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
+                Section packs ({compositionPresets.length})
+              </summary>
+              <div className="mt-2 flex flex-col gap-2">
+                <div className="flex flex-col gap-2 rounded-md border border-stone-200 bg-[#faf9f6] p-2">
+                  <input
+                    data-builder-node-composition-search=""
+                    type="search"
+                    value={packQuery}
+                    onChange={(event) => setPackQuery(event.currentTarget.value)}
+                    placeholder="Search section packs"
+                    className={KIT.input}
+                  />
+                  <div
+                    data-builder-node-composition-category-filter=""
+                    className="flex flex-wrap gap-1.5"
+                  >
+                    {packCategories.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        className={
+                          packCategory === category
+                            ? KIT.primaryButton
+                            : KIT.ghostButton
+                        }
+                        onClick={() =>
+                          setPackCategory(
+                            category as "all" | BuilderNodeCompositionPreset["category"],
+                          )
+                        }
+                      >
+                        {category === "all" ? "All" : category}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {visibleCompositionPresets.map((preset) => (
+                  <div
+                    key={preset.id}
+                    className="rounded-md border border-stone-200 bg-[#faf9f6] px-3 py-2"
+                  >
+                    <div className="flex items-start gap-3">
+                      <CompositionPresetPreview preset={preset} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[11px] font-semibold text-stone-800">
+                          {preset.label}
+                        </span>
+                        <span className="mt-0.5 block text-[10.5px] leading-snug text-stone-500">
+                          {preset.description}
+                        </span>
+                        <span className="mt-1 inline-flex text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-400">
+                          {formatPresetLabel(preset.category)} · {preset.sectionCount} blocks
+                        </span>
+                        <span className="mt-2 flex flex-wrap gap-1">
+                          <span
+                            data-builder-node-composition-data-mode={preset.dataMode}
+                            className={
+                              preset.dataMode === "data-ready"
+                                ? "border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-emerald-700"
+                                : "border border-stone-200 bg-white px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-stone-500"
+                            }
+                          >
+                            {preset.dataMode === "data-ready" ? "Data ready" : "Starter"}
+                          </span>
+                          {preset.keywords.slice(0, 3).map((keyword) => (
+                            <span
+                              key={`${preset.id}-${keyword}`}
+                              className="border border-stone-200 bg-white px-1.5 py-0.5 text-[9.5px] font-medium text-stone-500"
+                            >
+                              {keyword}
+                            </span>
+                          ))}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        data-builder-node-composition-preset={preset.id}
+                        className={KIT.subtleButton}
+                        onClick={() => {
+                          void onAddCompositionPreset(preset.id);
+                        }}
+                      >
+                        Insert
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {visibleCompositionPresets.length === 0 ? (
+                  <div
+                    data-builder-node-composition-empty=""
+                    className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11.5px] text-stone-500"
+                  >
+                    No section packs match this search. Try a category, data-ready,
+                    roster, map, FAQ, or story.
+                  </div>
+                ) : null}
+              </div>
+            </details>
           ) : null}
           {presets.length > 0 ? (
             <details className="rounded-lg border border-stone-200 bg-white px-3 py-2">
@@ -1092,6 +1344,73 @@ function NestedBlocksCard({
   );
 }
 
+function CompositionPresetPreview({
+  preset,
+}: {
+  preset: BuilderNodeCompositionPreset;
+}) {
+  const rows =
+    preset.category === "data"
+      ? ["wide", "grid", "grid", "grid"]
+      : preset.category === "hero"
+        ? ["wide", "thin", "wide", "chips"]
+        : preset.category === "story"
+          ? ["split", "split", "thin"]
+          : preset.category === "trust"
+            ? ["thin", "chips", "wide"]
+            : ["thin", "wide", "wide", "button"];
+  return (
+    <span
+      aria-hidden
+      className="grid shrink-0 gap-1 border border-stone-200 bg-white p-1.5"
+      style={{ width: 66, minHeight: 48 }}
+    >
+      {rows.map((row, index) => {
+        if (row === "grid") {
+          return (
+            <span key={`${preset.id}:${index}`} className="grid grid-cols-3 gap-1">
+              <span className="h-3 bg-stone-200" />
+              <span className="h-3 bg-stone-200" />
+              <span className="h-3 bg-stone-200" />
+            </span>
+          );
+        }
+        if (row === "split") {
+          return (
+            <span key={`${preset.id}:${index}`} className="grid grid-cols-2 gap-1">
+              <span className="h-4 bg-stone-200" />
+              <span className="h-4 bg-stone-100" />
+            </span>
+          );
+        }
+        if (row === "chips") {
+          return (
+            <span key={`${preset.id}:${index}`} className="grid grid-cols-3 gap-1">
+              <span className="h-2 bg-stone-100" />
+              <span className="h-2 bg-stone-100" />
+              <span className="h-2 bg-stone-100" />
+            </span>
+          );
+        }
+        return (
+          <span
+            key={`${preset.id}:${index}`}
+            className={row === "button" ? "h-3 bg-stone-800" : "bg-stone-200"}
+            style={{ height: row === "thin" ? 4 : 12 }}
+          />
+        );
+      })}
+    </span>
+  );
+}
+
+function formatPresetLabel(value: string): string {
+  return value
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function childCount(node: Exclude<BuilderNode, { kind: "section" }>): number {
   return childNodes(node).length;
 }
@@ -1136,6 +1455,37 @@ function contentHint(node: Exclude<BuilderNode, { kind: "section" }>): string {
       return "Spacer blocks have no direct content. Use Layout to change their size and keep page rhythm tidy.";
     default:
       return BUILDER_NODE_REGISTRY[node.kind].description;
+  }
+}
+
+function normalizeDataSourceLimit(value: number | undefined): 4 | 6 | 8 | 12 {
+  if (value === 6 || value === 8 || value === 12) return value;
+  return 4;
+}
+
+function dataSourceLabel(sourceKey: string): string {
+  switch (sourceKey) {
+    case "tenant_directory_search":
+      return "Directory search shortcuts";
+    case "featured_talent_profiles":
+      return "Featured talent profiles";
+    case "talent_locations":
+      return "Talent locations";
+    default:
+      return sourceKey;
+  }
+}
+
+function dataSourceHelper(sourceKey: string): string {
+  switch (sourceKey) {
+    case "tenant_directory_search":
+      return "Uses this tenant's public taxonomy shortcuts to route visitors into the directory.";
+    case "featured_talent_profiles":
+      return "Uses this tenant's featured public roster cards, with the static cards as fallback.";
+    case "talent_locations":
+      return "Uses this tenant's public roster locations and talent counts.";
+    default:
+      return "This section uses a live data binding and keeps editable fallback blocks.";
   }
 }
 

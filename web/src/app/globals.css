@@ -1080,3 +1080,44 @@ body[data-edit-preview="1"] [data-edit-affordance] {
   display: none !important;
 }
 
+/* ---------------------------------------------------------------------------
+ * Builder selector chrome — keep template/section selectors sharp-cornered.
+ * Scope only to edit-chrome template surfaces so storefront content is
+ * unaffected.
+ * ------------------------------------------------------------------------- */
+:where([data-builder-selector-surface], [data-empty-canvas-template-gallery])
+  :where(
+    [data-edit-drawer="picker"],
+    [data-edit-drawer="picker"] *,
+    [data-edit-mobile-picker],
+    [data-edit-mobile-picker] *,
+    [data-empty-canvas-template-open],
+    [data-empty-canvas-template-search],
+    form[data-template-card],
+    form[data-template-card] *,
+    [data-workspace-template-save-panel],
+    [data-workspace-template-save-source],
+    [data-workspace-template-type-filters],
+    [data-workspace-template-card],
+    [data-workspace-template-card] *,
+    [data-workspace-template-preview],
+    [data-workspace-template-preview] *,
+    [data-workspace-template-apply-review],
+    [data-workspace-template-apply-review] *,
+    [data-workspace-template-archive-review],
+    [data-workspace-template-archive-review] *,
+    [data-section-template-kind-filter],
+    [data-section-template-source-filter],
+    [data-section-template-readiness-filter],
+    [data-section-template-filters-reset],
+    [data-section-template-kit],
+    [data-section-template-kit] *,
+    [data-section-template-starter],
+    [data-section-template-starter] *,
+    [data-section-kit-review],
+    [data-section-kit-review] *,
+    [data-section-starter-review],
+    [data-section-starter-review] *
+  ) {
+  border-radius: 0 !important;
+}

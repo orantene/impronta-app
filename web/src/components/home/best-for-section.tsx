@@ -52,7 +52,7 @@ export function BestForSection({
             <Link
               key={label.id}
               href={clientLocaleHref(pathname, `/directory?tax=${label.id}`)}
-              className="group flex items-center justify-between rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] p-5 transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5"
+              className="group flex items-center justify-between rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] p-5 transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5"
             >
               <span className="text-m font-medium text-foreground transition-colors group-hover:text-[var(--impronta-gold)]">
                 {label.name}
@@ -67,7 +67,7 @@ export function BestForSection({
             <button
               type="button"
               onClick={() => setExpanded((prev) => !prev)}
-              className="flex items-center gap-1.5 rounded-full border border-[var(--impronta-gold-border)] px-5 py-2 text-sm text-[var(--impronta-muted)] transition-all hover:border-[var(--impronta-gold)]/40 hover:text-[var(--impronta-gold)]"
+              className="flex items-center gap-1.5 rounded-[var(--site-radius-pill)] border border-[var(--impronta-gold-border)] px-5 py-2 text-sm text-[var(--impronta-muted)] transition-all hover:border-[var(--impronta-gold)]/40 hover:text-[var(--impronta-gold)]"
             >
               {expanded ? (
                 <>

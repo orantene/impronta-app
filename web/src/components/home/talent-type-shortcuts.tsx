@@ -87,7 +87,7 @@ export function TalentTypeShortcuts({
                   prefixPublicHref(`/directory?tax=${s.taxId}`, publicPathPrefix),
                   locale,
                 )}
-                className="group flex shrink-0 items-center gap-2.5 rounded-full border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-5 py-2.5 text-m font-medium text-[var(--impronta-foreground)] transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5 hover:text-[var(--impronta-gold)]"
+                className="group flex shrink-0 items-center gap-2.5 rounded-[var(--site-radius-pill)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-5 py-2.5 text-m font-medium text-[var(--impronta-foreground)] transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5 hover:text-[var(--impronta-gold)]"
               >
                 {s.imageUrl ? (
                   <span className="relative size-8 shrink-0 overflow-hidden rounded-full ring-1 ring-[var(--impronta-gold-border)] transition-opacity group-hover:opacity-95">

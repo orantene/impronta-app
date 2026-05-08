@@ -271,6 +271,32 @@ export function indexBuilderSectionNodeIds(
   return out;
 }
 
+export function indexBuilderSectionNodes(
+  tree: BuilderNodeTree,
+): ReadonlyMap<string, Extract<BuilderNode, { kind: "section" }>> {
+  const out = new Map<string, Extract<BuilderNode, { kind: "section" }>>();
+
+  function walk(node: BuilderNode): void {
+    if (node.kind === "section") {
+      const key = builderSectionNodeAddressKey({
+        sectionId: node.props.sectionId ?? "",
+        slotKey: node.props.slotKey,
+        sortOrder: node.props.sortOrder,
+      });
+      if (key && !out.has(key)) {
+        out.set(key, node);
+      }
+      return;
+    }
+    if ("children" in node) {
+      node.children.forEach(walk);
+    }
+  }
+
+  tree.forEach(walk);
+  return out;
+}
+
 export function indexBuilderSectionChildNodeIds(
   tree: BuilderNodeTree,
 ): ReadonlyMap<string, ReadonlyArray<string>> {

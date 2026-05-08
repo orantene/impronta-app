@@ -46,7 +46,7 @@ export function HowItWorks({ copy }: { copy: HowItWorksCopy }) {
               <p className="font-display text-xs tracking-[0.3em] text-[var(--impronta-gold-dim)]">
                 {String(i + 1).padStart(2, "0")}
               </p>
-              <div className="mx-auto mt-2.5 flex size-14 items-center justify-center rounded-full border border-[var(--impronta-gold-border)] bg-[var(--impronta-gold)]/5 text-[var(--impronta-gold)]">
+              <div className="mx-auto mt-2.5 flex size-14 items-center justify-center rounded-[var(--site-radius-pill)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-gold)]/5 text-[var(--impronta-gold)]">
                 {step.icon}
               </div>
               <h3 className="mt-5 text-base font-semibold text-foreground">

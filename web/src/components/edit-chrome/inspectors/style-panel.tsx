@@ -27,12 +27,16 @@ import {
 } from "@/lib/site-admin/sections/shared/presentation";
 import {
   resolveBuilderNodeRole,
+  type BuilderNode,
   type BuilderNodeRole,
+  type BuilderNodeStyle,
+  type BuilderNodeStyleValue,
 } from "@/lib/site-admin/builder-node";
 import type {
   NodePresentation,
   NodePresentationValue,
 } from "@/lib/site-admin/sections/shared/node-presentation";
+import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-utils";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -166,10 +170,77 @@ const SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "xl", label: "XL" },
 ];
 
+const BUILDER_NODE_STYLE_SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "sm", label: "S" },
+  { value: "md", label: "M" },
+  { value: "lg", label: "L" },
+  { value: "xl", label: "XL" },
+];
+
 const TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "", label: "Default" },
   { value: "muted", label: "Muted" },
   { value: "strong", label: "Strong" },
+];
+
+const BUILDER_NODE_TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "muted", label: "Muted" },
+  { value: "strong", label: "Strong" },
+];
+
+const BUILDER_NODE_WIDTH_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Auto" },
+  { value: "narrow", label: "Narrow" },
+  { value: "reading", label: "Read" },
+  { value: "wide", label: "Wide" },
+  { value: "full", label: "Full" },
+];
+
+const BUILDER_NODE_SPACING_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "none", label: "0" },
+  { value: "s", label: "S" },
+  { value: "m", label: "M" },
+  { value: "l", label: "L" },
+];
+
+const BUILDER_NODE_BACKGROUND_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "none", label: "None" },
+  { value: "surface", label: "Surface" },
+  { value: "contrast", label: "Dark" },
+];
+
+const BUILDER_NODE_RADIUS_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "none", label: "Sharp" },
+  { value: "sm", label: "S" },
+  { value: "md", label: "M" },
+  { value: "lg", label: "L" },
+  { value: "pill", label: "Pill" },
+];
+
+const BUILDER_NODE_FIT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "cover", label: "Cover" },
+  { value: "contain", label: "Contain" },
+];
+
+const BUILDER_NODE_RATIO_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Auto" },
+  { value: "1:1", label: "1:1" },
+  { value: "4:3", label: "4:3" },
+  { value: "3:4", label: "3:4" },
+  { value: "16:9", label: "16:9" },
+  { value: "21:9", label: "21:9" },
+];
+
+const BUILDER_BUTTON_TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "", label: "Default" },
+  { value: "primary", label: "Primary" },
+  { value: "secondary", label: "Secondary" },
 ];
 
 const VISIBILITY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
@@ -550,15 +621,405 @@ function resolveViewportPresentationForValue(
   return value.breakpoints?.[viewport] ?? buildDesktopNodePresentationBase(value);
 }
 
+type StandaloneStyleNode = Exclude<BuilderNode, { kind: "section" }>;
+type StandaloneStylePreset = {
+  id: string;
+  label: string;
+  hint: string;
+  style?: BuilderNodeStyleValue;
+  propsPatch?: Record<string, unknown>;
+};
+type StandaloneButtonStateStyles = Extract<
+  BuilderNode,
+  { kind: "button" }
+>["props"]["stateStyles"];
+type StandaloneStyleClipboard = {
+  kind: StandaloneStyleNode["kind"];
+  label: string;
+  viewport: NodeViewport;
+  style?: BuilderNodeStyleValue;
+  buttonTone?: "primary" | "secondary";
+  buttonStateStyles?: StandaloneButtonStateStyles;
+};
+
+function standaloneNodeLabel(node: StandaloneStyleNode): string {
+  if (node.kind === "accordion_item") return "Accordion item";
+  if (node.kind === "tab_panel") return "Tab panel";
+  return node.kind
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function cleanBuilderNodeStyle(
+  value: BuilderNodeStyle | undefined,
+): BuilderNodeStyle | undefined {
+  if (!value) return undefined;
+  const out: BuilderNodeStyle = {};
+  if (value.align) out.align = value.align;
+  if (value.size) out.size = value.size;
+  if (value.tone) out.tone = value.tone;
+  if (value.maxWidth) out.maxWidth = value.maxWidth;
+  if (value.marginTop) out.marginTop = value.marginTop;
+  if (value.marginBottom) out.marginBottom = value.marginBottom;
+  if (value.paddingX) out.paddingX = value.paddingX;
+  if (value.paddingY) out.paddingY = value.paddingY;
+  if (value.background) out.background = value.background;
+  if (value.radius) out.radius = value.radius;
+  if (value.objectFit) out.objectFit = value.objectFit;
+  if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
+  const tablet = cleanBuilderNodeStyleValue(value.responsive?.tablet);
+  const mobile = cleanBuilderNodeStyleValue(value.responsive?.mobile);
+  if (tablet || mobile) {
+    out.responsive = {};
+    if (tablet) out.responsive.tablet = tablet;
+    if (mobile) out.responsive.mobile = mobile;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function cleanBuilderNodeStyleValue(
+  value: BuilderNodeStyleValue | undefined,
+): BuilderNodeStyleValue | undefined {
+  if (!value) return undefined;
+  const out: BuilderNodeStyleValue = {};
+  if (value.align) out.align = value.align;
+  if (value.size) out.size = value.size;
+  if (value.tone) out.tone = value.tone;
+  if (value.maxWidth) out.maxWidth = value.maxWidth;
+  if (value.marginTop) out.marginTop = value.marginTop;
+  if (value.marginBottom) out.marginBottom = value.marginBottom;
+  if (value.paddingX) out.paddingX = value.paddingX;
+  if (value.paddingY) out.paddingY = value.paddingY;
+  if (value.background) out.background = value.background;
+  if (value.radius) out.radius = value.radius;
+  if (value.objectFit) out.objectFit = value.objectFit;
+  if (value.aspectRatio) out.aspectRatio = value.aspectRatio;
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function resolveBuilderNodeViewportStyle(
+  style: BuilderNodeStyle | undefined,
+  viewport: NodeViewport,
+): BuilderNodeStyleValue | undefined {
+  if (viewport === "desktop") return style;
+  return style?.responsive?.[viewport];
+}
+
+function standaloneStylePresetsForNode(
+  node: StandaloneStyleNode,
+): ReadonlyArray<StandaloneStylePreset> {
+  if (node.kind === "heading") {
+    return [
+      {
+        id: "editorial-title",
+        label: "Editorial title",
+        hint: "Large, centered, strong width.",
+        style: {
+          align: "center",
+          size: "xl",
+          tone: "strong",
+          maxWidth: "wide",
+          marginTop: "m",
+          marginBottom: "s",
+        },
+      },
+      {
+        id: "quiet-kicker",
+        label: "Quiet kicker",
+        hint: "Small muted intro label.",
+        style: {
+          align: "center",
+          size: "sm",
+          tone: "muted",
+          maxWidth: "reading",
+          marginBottom: "s",
+        },
+      },
+      {
+        id: "left-lead",
+        label: "Left lead",
+        hint: "Sharp editorial page lead.",
+        style: {
+          align: "left",
+          size: "lg",
+          tone: "strong",
+          maxWidth: "reading",
+          marginBottom: "m",
+        },
+      },
+    ];
+  }
+
+  if (node.kind === "paragraph") {
+    return [
+      {
+        id: "centered-lead",
+        label: "Centered lead",
+        hint: "Readable intro copy.",
+        style: {
+          align: "center",
+          size: "lg",
+          tone: "muted",
+          maxWidth: "reading",
+          marginBottom: "m",
+        },
+      },
+      {
+        id: "compact-note",
+        label: "Compact note",
+        hint: "Small supporting text.",
+        style: {
+          align: "left",
+          size: "sm",
+          tone: "muted",
+          maxWidth: "narrow",
+          marginTop: "s",
+          marginBottom: "s",
+        },
+      },
+      {
+        id: "wide-copy",
+        label: "Wide copy",
+        hint: "Fuller content block.",
+        style: {
+          align: "left",
+          size: "md",
+          maxWidth: "wide",
+          marginBottom: "m",
+        },
+      },
+    ];
+  }
+
+  if (node.kind === "image") {
+    return [
+      {
+        id: "sharp-editorial",
+        label: "Sharp editorial",
+        hint: "No corners, wide crop.",
+        style: {
+          maxWidth: "wide",
+          radius: "none",
+          objectFit: "cover",
+          aspectRatio: "16:9",
+          marginTop: "m",
+          marginBottom: "m",
+        },
+      },
+      {
+        id: "portrait-card",
+        label: "Portrait card",
+        hint: "Tall model/profile frame.",
+        style: {
+          maxWidth: "narrow",
+          radius: "none",
+          objectFit: "cover",
+          aspectRatio: "3:4",
+          marginTop: "s",
+          marginBottom: "m",
+        },
+      },
+      {
+        id: "full-bleed-strip",
+        label: "Full strip",
+        hint: "Full-width cinematic band.",
+        style: {
+          maxWidth: "full",
+          radius: "none",
+          objectFit: "cover",
+          aspectRatio: "21:9",
+          marginTop: "l",
+          marginBottom: "l",
+        },
+      },
+    ];
+  }
+
+  if (node.kind === "button") {
+    return [
+      {
+        id: "primary-cta",
+        label: "Primary CTA",
+        hint: "Solid action button.",
+        style: {
+          align: "center",
+          size: "md",
+          radius: "none",
+          paddingX: "m",
+          paddingY: "s",
+          marginTop: "m",
+        },
+        propsPatch: {
+          tone: "primary",
+          stateStyles: {
+            hover: { tone: "secondary" },
+            focus: { tone: "secondary" },
+            active: { tone: "secondary" },
+          },
+        },
+      },
+      {
+        id: "secondary-sharp",
+        label: "Secondary sharp",
+        hint: "Quiet rectangular action.",
+        style: {
+          align: "left",
+          size: "sm",
+          radius: "none",
+          paddingX: "s",
+          paddingY: "s",
+        },
+        propsPatch: {
+          tone: "secondary",
+          stateStyles: {
+            hover: { tone: "primary" },
+            focus: { tone: "primary" },
+          },
+        },
+      },
+      {
+        id: "wide-action",
+        label: "Wide action",
+        hint: "Large centered conversion.",
+        style: {
+          align: "center",
+          size: "lg",
+          maxWidth: "reading",
+          radius: "none",
+          paddingX: "l",
+          paddingY: "m",
+          marginTop: "l",
+        },
+        propsPatch: {
+          tone: "primary",
+          stateStyles: {
+            hover: { tone: "secondary" },
+            active: { tone: "secondary" },
+          },
+        },
+      },
+    ];
+  }
+
+  if (node.kind === "container" || node.kind === "split") {
+    return [
+      {
+        id: "clean-stack",
+        label: "Clean stack",
+        hint: "Sharp, open page rhythm.",
+        style: {
+          maxWidth: "wide",
+          background: "none",
+          radius: "none",
+          paddingX: "none",
+          paddingY: "none",
+          marginTop: "m",
+          marginBottom: "m",
+        },
+      },
+      {
+        id: "surface-band",
+        label: "Surface band",
+        hint: "Contained background panel.",
+        style: {
+          maxWidth: "wide",
+          background: "surface",
+          radius: "none",
+          paddingX: "l",
+          paddingY: "l",
+          marginTop: "l",
+          marginBottom: "l",
+        },
+      },
+      {
+        id: "contrast-feature",
+        label: "Contrast feature",
+        hint: "Dark feature moment.",
+        style: {
+          maxWidth: "full",
+          background: "contrast",
+          radius: "none",
+          paddingX: "l",
+          paddingY: "l",
+          marginTop: "l",
+          marginBottom: "l",
+        },
+      },
+    ];
+  }
+
+  if (node.kind === "spacer") {
+    return [
+      {
+        id: "micro-gap",
+        label: "Micro gap",
+        hint: "Tight separation.",
+        style: { marginTop: "s", marginBottom: "s" },
+      },
+      {
+        id: "section-gap",
+        label: "Section gap",
+        hint: "Large breathing room.",
+        style: { marginTop: "l", marginBottom: "l" },
+      },
+    ];
+  }
+
+  return [
+    {
+      id: "sharp-contained",
+      label: "Sharp contained",
+      hint: "Safe editorial default.",
+      style: {
+        maxWidth: "wide",
+        radius: "none",
+        marginTop: "m",
+        marginBottom: "m",
+      },
+    },
+    {
+      id: "surface-contained",
+      label: "Surface contained",
+      hint: "Adds background and padding.",
+      style: {
+        maxWidth: "wide",
+        background: "surface",
+        radius: "none",
+        paddingX: "m",
+        paddingY: "m",
+        marginTop: "m",
+        marginBottom: "m",
+      },
+    },
+  ];
+}
+
+function buttonStateTone(
+  node: Extract<BuilderNode, { kind: "button" }>,
+  state: "hover" | "focus" | "active" | "disabled",
+): string {
+  return node.props.stateStyles?.[state]?.tone ?? "";
+}
+
 export function StylePanel({
   sectionTypeKey,
   draftProps,
   selectedBuilderNodeId,
   onPatch,
 }: StylePanelProps) {
-  const { canUndo, canRedo, undo, redo } = useEditContext();
+  const {
+    builderTree,
+    canUndo,
+    canRedo,
+    patchBuilderNodeProps,
+    undo,
+    redo,
+  } = useEditContext();
   const [nodeStyleClipboard, setNodeStyleClipboard] =
     useState<NodeStyleClipboard | null>(null);
+  const [standaloneStyleClipboard, setStandaloneStyleClipboard] =
+    useState<StandaloneStyleClipboard | null>(null);
   const [recentNodeActions, setRecentNodeActions] = useState<
     ReadonlyArray<NodeStyleActionEntry>
   >([]);
@@ -572,6 +1033,11 @@ export function StylePanel({
   >([]);
   const nodeActionIdRef = useRef(1);
   const presetFallbackIdRef = useRef(1);
+  const standaloneStyleDraftRef = useRef<{
+    nodeId: string | null;
+    style: BuilderNodeStyle | undefined;
+  }>({ nodeId: null, style: undefined });
+  const standalonePatchChainRef = useRef<Promise<void>>(Promise.resolve());
   const presentation =
     (draftProps.presentation as Record<string, unknown> | undefined) ?? {};
   const present = (key: string): string =>
@@ -602,6 +1068,10 @@ export function StylePanel({
   const selectedNodeRole = useMemo(
     () => resolveNodeRole(sectionTypeKey, selectedBuilderNodeId),
     [sectionTypeKey, selectedBuilderNodeId],
+  );
+  const selectedStandaloneStyleNode = useMemo(
+    () => resolveStandaloneBuilderNodeForContent(builderTree, selectedBuilderNodeId),
+    [builderTree, selectedBuilderNodeId],
   );
   const [selectedViewport, setSelectedViewport] = useState<NodeViewport>("desktop");
   const selectedNodeLabel = nodeRoleLabel(selectedNodeRole);
@@ -734,6 +1204,29 @@ export function StylePanel({
       nodeStyleClipboard?.viewport &&
       hasSubsetValue(pickViewportSubset(nodeStyleClipboard.viewport, "spacing")),
   );
+  const selectedStandaloneStylePresets = useMemo(
+    () =>
+      selectedStandaloneStyleNode
+        ? standaloneStylePresetsForNode(selectedStandaloneStyleNode)
+        : [],
+    [selectedStandaloneStyleNode],
+  );
+  const selectedStandaloneFullStyle =
+    selectedStandaloneStyleNode?.props.style;
+  const selectedStandaloneViewportStyle = resolveBuilderNodeViewportStyle(
+    selectedStandaloneFullStyle,
+    selectedViewport,
+  );
+  const selectedStandaloneViewportOverrideCount = Object.keys(
+    selectedStandaloneViewportStyle ?? {},
+  ).length;
+  const canResetSelectedStandaloneViewport =
+    selectedViewport === "desktop"
+      ? Boolean(selectedStandaloneFullStyle)
+      : Boolean(selectedStandaloneFullStyle?.responsive?.[selectedViewport]);
+  const canCopyStandaloneDesktopToViewport =
+    selectedViewport !== "desktop" &&
+    Boolean(cleanBuilderNodeStyleValue(selectedStandaloneFullStyle));
 
   function cleanNodePresentation(
     value: NodePresentation | undefined,
@@ -1871,6 +2364,271 @@ export function StylePanel({
       ].slice(0, 6),
     );
   }
+
+  function patchSelectedStandaloneNodeProps(patch: Record<string, unknown>) {
+    if (!selectedStandaloneStyleNode) return;
+    const nodeId = selectedStandaloneStyleNode.id;
+    const label = standaloneNodeLabel(selectedStandaloneStyleNode);
+    standalonePatchChainRef.current = standalonePatchChainRef.current
+      .catch(() => {
+        // Keep the queue alive after a failed save attempt.
+      })
+      .then(async () => {
+        const result = await patchBuilderNodeProps(nodeId, patch);
+        if (!result.ok) return;
+        recordNodeAction(`Updated ${label}`);
+      });
+  }
+
+  function patchSelectedStandaloneStyle(patch: Partial<BuilderNodeStyleValue>) {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    const nextStyle =
+      selectedViewport === "desktop"
+        ? cleanBuilderNodeStyle({
+            ...currentStyle,
+            ...patch,
+          })
+        : cleanBuilderNodeStyle({
+            ...currentStyle,
+            responsive: {
+              ...(currentStyle?.responsive ?? {}),
+              [selectedViewport]: cleanBuilderNodeStyleValue({
+                ...(currentStyle?.responsive?.[selectedViewport] ?? {}),
+                ...patch,
+              }),
+            },
+          });
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps({ style: nextStyle });
+  }
+
+  function setOrToggleStandaloneStyle(
+    key: keyof BuilderNodeStyleValue,
+    next: string,
+  ) {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    const current = resolveBuilderNodeViewportStyle(
+      currentStyle,
+      selectedViewport,
+    )?.[key];
+    patchSelectedStandaloneStyle({
+      [key]: current === next ? undefined : next,
+    } as Partial<BuilderNodeStyleValue>);
+  }
+
+  function resetSelectedStandaloneStyle() {
+    if (!selectedStandaloneStyleNode) return;
+    if (selectedViewport === "desktop") {
+      standaloneStyleDraftRef.current = {
+        nodeId: selectedStandaloneStyleNode.id,
+        style: undefined,
+      };
+      patchSelectedStandaloneNodeProps({ style: undefined });
+      return;
+    }
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    const nextResponsive = {
+      ...(currentStyle?.responsive ?? {}),
+    };
+    delete nextResponsive[selectedViewport];
+    const nextStyle = cleanBuilderNodeStyle({
+      ...currentStyle,
+      responsive: nextResponsive,
+    });
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps({ style: nextStyle });
+  }
+
+  function applyStandaloneStylePreset(preset: StandaloneStylePreset) {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    const nextStyle =
+      selectedViewport === "desktop"
+        ? cleanBuilderNodeStyle({
+            ...currentStyle,
+            ...(preset.style ?? {}),
+          })
+        : cleanBuilderNodeStyle({
+            ...currentStyle,
+            responsive: {
+              ...(currentStyle?.responsive ?? {}),
+              [selectedViewport]: cleanBuilderNodeStyleValue({
+                ...(currentStyle?.responsive?.[selectedViewport] ?? {}),
+                ...(preset.style ?? {}),
+              }),
+            },
+          });
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps({
+      ...(preset.propsPatch ?? {}),
+      style: nextStyle,
+    });
+  }
+
+  function copySelectedStandaloneStyle() {
+    if (!selectedStandaloneStyleNode) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    const cleanedStyle = cleanBuilderNodeStyleValue(
+      resolveBuilderNodeViewportStyle(currentStyle, selectedViewport),
+    );
+    const clipboard: StandaloneStyleClipboard = {
+      kind: selectedStandaloneStyleNode.kind,
+      label: standaloneNodeLabel(selectedStandaloneStyleNode),
+      viewport: selectedViewport,
+      style: cleanedStyle ? { ...cleanedStyle } : undefined,
+    };
+
+    if (selectedStandaloneStyleNode.kind === "button") {
+      if (selectedStandaloneStyleNode.props.tone) {
+        clipboard.buttonTone = selectedStandaloneStyleNode.props.tone;
+      }
+      if (selectedStandaloneStyleNode.props.stateStyles) {
+        clipboard.buttonStateStyles = {
+          ...selectedStandaloneStyleNode.props.stateStyles,
+        };
+      }
+    }
+
+    if (
+      !clipboard.style &&
+      !clipboard.buttonTone &&
+      !clipboard.buttonStateStyles
+    ) {
+      recordNodeAction("Nothing to copy");
+      return;
+    }
+
+    setStandaloneStyleClipboard(clipboard);
+    recordNodeAction(`Copied ${clipboard.label} style`);
+  }
+
+  function pasteStandaloneStyle() {
+    if (!selectedStandaloneStyleNode || !standaloneStyleClipboard) return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    const nextStyle =
+      selectedViewport === "desktop"
+        ? cleanBuilderNodeStyle({
+            ...currentStyle,
+            ...(standaloneStyleClipboard.style ?? {}),
+          })
+        : cleanBuilderNodeStyle({
+            ...currentStyle,
+            responsive: {
+              ...(currentStyle?.responsive ?? {}),
+              [selectedViewport]: cleanBuilderNodeStyleValue({
+                ...(currentStyle?.responsive?.[selectedViewport] ?? {}),
+                ...(standaloneStyleClipboard.style ?? {}),
+              }),
+            },
+          });
+    const patch: Record<string, unknown> = {
+      style: nextStyle,
+    };
+
+    if (
+      selectedStandaloneStyleNode.kind === "button" &&
+      standaloneStyleClipboard.kind === "button"
+    ) {
+      patch.tone = standaloneStyleClipboard.buttonTone;
+      patch.stateStyles = standaloneStyleClipboard.buttonStateStyles;
+    }
+
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps(patch);
+    recordNodeAction(`Pasted ${standaloneStyleClipboard.label} style`);
+  }
+
+  function clearStandaloneStyleClipboard() {
+    setStandaloneStyleClipboard(null);
+    recordNodeAction("Cleared block style clipboard");
+  }
+
+  function copyStandaloneDesktopStyleToViewport() {
+    if (!selectedStandaloneStyleNode || selectedViewport === "desktop") return;
+    const currentStyle =
+      standaloneStyleDraftRef.current.nodeId === selectedStandaloneStyleNode.id
+        ? standaloneStyleDraftRef.current.style
+        : selectedStandaloneStyleNode.props.style;
+    const desktopStyle = cleanBuilderNodeStyleValue(currentStyle);
+    if (!desktopStyle) return;
+    const nextStyle = cleanBuilderNodeStyle({
+      ...currentStyle,
+      responsive: {
+        ...(currentStyle?.responsive ?? {}),
+        [selectedViewport]: {
+          ...desktopStyle,
+        },
+      },
+    });
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: nextStyle ? { ...nextStyle } : undefined,
+    };
+    patchSelectedStandaloneNodeProps({ style: nextStyle });
+    recordNodeAction(`Copied desktop style to ${selectedViewport}`);
+  }
+
+  function setButtonTone(
+    key: "tone" | "hover" | "focus" | "active" | "disabled",
+    next: string,
+  ) {
+    if (!selectedStandaloneStyleNode || selectedStandaloneStyleNode.kind !== "button") {
+      return;
+    }
+    if (key === "tone") {
+      patchSelectedStandaloneNodeProps({
+        tone:
+          selectedStandaloneStyleNode.props.tone === next
+            ? undefined
+            : next || undefined,
+      });
+      return;
+    }
+    const current = selectedStandaloneStyleNode.props.stateStyles ?? {};
+    const nextTone = buttonStateTone(selectedStandaloneStyleNode, key);
+    const nextStateStyles = {
+      ...current,
+      [key]: nextTone === next || !next ? undefined : { tone: next },
+    };
+    const cleaned = Object.fromEntries(
+      Object.entries(nextStateStyles).filter(([, value]) => Boolean(value)),
+    );
+    patchSelectedStandaloneNodeProps({
+      stateStyles: Object.keys(cleaned).length > 0 ? cleaned : undefined,
+    });
+  }
   useEffect(() => {
     if (!resetConfirmTarget) return;
     const timer = window.setTimeout(() => {
@@ -1911,6 +2669,18 @@ export function StylePanel({
       // Ignore storage write failures (private mode/quota); presets stay in-memory.
     }
   }, [storedNodeStylePresets]);
+  useEffect(() => {
+    if (!selectedStandaloneStyleNode) {
+      standaloneStyleDraftRef.current = { nodeId: null, style: undefined };
+      return;
+    }
+    standaloneStyleDraftRef.current = {
+      nodeId: selectedStandaloneStyleNode.id,
+      style: selectedStandaloneStyleNode.props.style
+        ? { ...selectedStandaloneStyleNode.props.style }
+        : undefined,
+    };
+  }, [selectedStandaloneStyleNode]);
 
   function confirmThenRunReset(target: Exclude<ResetConfirmTarget, null>, run: () => void) {
     if (resetConfirmTarget === target) {
@@ -3030,6 +3800,389 @@ export function StylePanel({
                 </div>
               ) : null}
             </div>
+          </div>
+        </section>
+      ) : null}
+      {!selectedNodeRole && selectedStandaloneStyleNode ? (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className={SECTION_TITLE}>Selected block</div>
+            <span className={INHERIT_HINT}>
+              {standaloneNodeLabel(selectedStandaloneStyleNode)}
+            </span>
+          </div>
+          <div
+            className="flex flex-col gap-3 p-3"
+            data-builder-node-style-panel={selectedStandaloneStyleNode.kind}
+            style={{
+              background: CHROME.paper,
+              border: `1px solid ${CHROME.line}`,
+            }}
+          >
+            <div
+              className="flex flex-col gap-1.5"
+              data-builder-node-style-control="viewport"
+            >
+              <div className="flex items-end justify-between gap-2">
+                <span className={FIELD_LABEL}>Viewport</span>
+                <span className={INHERIT_HINT}>
+                  {selectedViewport === "desktop"
+                    ? `${selectedStandaloneViewportOverrideCount} desktop rule${
+                        selectedStandaloneViewportOverrideCount === 1 ? "" : "s"
+                      }`
+                    : selectedStandaloneViewportOverrideCount > 0
+                      ? `${selectedStandaloneViewportOverrideCount} override${
+                          selectedStandaloneViewportOverrideCount === 1 ? "" : "s"
+                        }`
+                      : "Inherits desktop"}
+                </span>
+              </div>
+              <Segmented
+                fullWidth
+                compact
+                value={selectedViewport}
+                onChange={(next) => setSelectedViewport(next as NodeViewport)}
+                options={VIEWPORT_OPTIONS}
+              />
+              {selectedViewport !== "desktop" ? (
+                <button
+                  type="button"
+                  data-builder-node-style-copy-desktop=""
+                  onClick={copyStandaloneDesktopStyleToViewport}
+                  disabled={!canCopyStandaloneDesktopToViewport}
+                  className="text-[10px] font-semibold uppercase tracking-[0.10em]"
+                  style={{
+                    alignSelf: "flex-start",
+                    background: "transparent",
+                    border: "none",
+                    color: canCopyStandaloneDesktopToViewport
+                      ? CHROME.muted
+                      : CHROME.muted2,
+                    cursor: canCopyStandaloneDesktopToViewport
+                      ? "pointer"
+                      : "not-allowed",
+                    padding: 0,
+                  }}
+                >
+                  Copy desktop to {selectedViewport}
+                </button>
+              ) : null}
+            </div>
+
+            {selectedStandaloneStylePresets.length > 0 ? (
+              <div
+                className="flex flex-col gap-2"
+                data-builder-node-style-control="quick-presets"
+              >
+                <div className="flex items-end justify-between gap-2">
+                  <span className={FIELD_LABEL}>Quick styles</span>
+                  <span className={INHERIT_HINT}>
+                    Applies to {selectedViewport}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {selectedStandaloneStylePresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      data-builder-node-style-preset={preset.id}
+                      onClick={() => applyStandaloneStylePreset(preset)}
+                      className="cursor-pointer text-left"
+                      style={{
+                        background: CHROME.surface,
+                        border: `1px solid ${CHROME.lineMid}`,
+                        color: CHROME.ink,
+                        padding: "8px 10px",
+                      }}
+                    >
+                      <span className="block text-[11px] font-semibold">
+                        {preset.label}
+                      </span>
+                      <span className="mt-0.5 block text-[10.5px] leading-tight text-zinc-500">
+                        {preset.hint}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-col gap-1.5" data-builder-node-style-control="align">
+              <span className={FIELD_LABEL}>Align</span>
+              <Segmented
+                fullWidth
+                compact
+                value={selectedStandaloneViewportStyle?.align ?? ""}
+                onChange={(next) => setOrToggleStandaloneStyle("align", next)}
+                options={ALIGN_OPTIONS}
+              />
+            </div>
+
+            {["heading", "paragraph", "button"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div className="flex flex-col gap-1.5" data-builder-node-style-control="size">
+                <span className={FIELD_LABEL}>Size</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.size ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("size", next)}
+                  options={BUILDER_NODE_STYLE_SIZE_OPTIONS}
+                />
+              </div>
+            ) : null}
+
+            {["heading", "paragraph"].includes(selectedStandaloneStyleNode.kind) ? (
+              <div className="flex flex-col gap-1.5" data-builder-node-style-control="tone">
+                <span className={FIELD_LABEL}>Tone</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.tone ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("tone", next)}
+                  options={BUILDER_NODE_TONE_OPTIONS}
+                />
+              </div>
+            ) : null}
+
+            <div className="flex flex-col gap-1.5" data-builder-node-style-control="maxWidth">
+              <span className={FIELD_LABEL}>Width</span>
+              <Segmented
+                fullWidth
+                compact
+                value={selectedStandaloneViewportStyle?.maxWidth ?? ""}
+                onChange={(next) => setOrToggleStandaloneStyle("maxWidth", next)}
+                options={BUILDER_NODE_WIDTH_OPTIONS}
+              />
+            </div>
+
+            {["container", "split"].includes(selectedStandaloneStyleNode.kind) ? (
+              <div className="flex flex-col gap-1.5" data-builder-node-style-control="background">
+                <span className={FIELD_LABEL}>Background</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.background ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("background", next)}
+                  options={BUILDER_NODE_BACKGROUND_OPTIONS}
+                />
+              </div>
+            ) : null}
+
+            {["container", "split", "button", "image"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div className="flex flex-col gap-1.5" data-builder-node-style-control="radius">
+                <span className={FIELD_LABEL}>Corners</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.radius ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("radius", next)}
+                  options={BUILDER_NODE_RADIUS_OPTIONS}
+                />
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1.5" data-builder-node-style-control="marginTop">
+                <span className={FIELD_LABEL}>Margin top</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.marginTop ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("marginTop", next)}
+                  options={BUILDER_NODE_SPACING_OPTIONS}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5" data-builder-node-style-control="marginBottom">
+                <span className={FIELD_LABEL}>Bottom</span>
+                <Segmented
+                  fullWidth
+                  compact
+                  value={selectedStandaloneViewportStyle?.marginBottom ?? ""}
+                  onChange={(next) => setOrToggleStandaloneStyle("marginBottom", next)}
+                  options={BUILDER_NODE_SPACING_OPTIONS}
+                />
+              </div>
+            </div>
+
+            {["container", "split", "button"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5" data-builder-node-style-control="paddingX">
+                  <span className={FIELD_LABEL}>Padding X</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.paddingX ?? ""}
+                    onChange={(next) => setOrToggleStandaloneStyle("paddingX", next)}
+                    options={BUILDER_NODE_SPACING_OPTIONS}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5" data-builder-node-style-control="paddingY">
+                  <span className={FIELD_LABEL}>Padding Y</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.paddingY ?? ""}
+                    onChange={(next) => setOrToggleStandaloneStyle("paddingY", next)}
+                    options={BUILDER_NODE_SPACING_OPTIONS}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {selectedStandaloneStyleNode.kind === "image" ? (
+              <>
+                <div className="flex flex-col gap-1.5" data-builder-node-style-control="objectFit">
+                  <span className={FIELD_LABEL}>Image fit</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.objectFit ?? ""}
+                    onChange={(next) => setOrToggleStandaloneStyle("objectFit", next)}
+                    options={BUILDER_NODE_FIT_OPTIONS}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5" data-builder-node-style-control="aspectRatio">
+                  <span className={FIELD_LABEL}>Ratio</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneViewportStyle?.aspectRatio ?? ""}
+                    onChange={(next) => setOrToggleStandaloneStyle("aspectRatio", next)}
+                    options={BUILDER_NODE_RATIO_OPTIONS}
+                  />
+                </div>
+              </>
+            ) : null}
+
+            {selectedStandaloneStyleNode.kind === "button" ? (
+              <div className="flex flex-col gap-2" data-builder-node-style-control="buttonStates">
+                <span className={FIELD_LABEL}>Button states</span>
+                <div data-builder-node-style-control="button-tone">
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneStyleNode.props.tone ?? ""}
+                    onChange={(next) => setButtonTone("tone", next)}
+                    options={BUILDER_BUTTON_TONE_OPTIONS}
+                  />
+                </div>
+                {(["hover", "focus", "active", "disabled"] as const).map((state) => (
+                  <div
+                    key={state}
+                    className="flex flex-col gap-1.5"
+                    data-builder-node-style-control={`button-${state}`}
+                  >
+                    <span className={INHERIT_HINT}>{state}</span>
+                    <Segmented
+                      fullWidth
+                      compact
+                      value={buttonStateTone(selectedStandaloneStyleNode, state)}
+                      onChange={(next) => setButtonTone(state, next)}
+                      options={BUILDER_BUTTON_TONE_OPTIONS}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div
+              className="flex flex-col gap-2 border-t pt-3"
+              data-builder-node-style-control="style-clipboard"
+              style={{ borderColor: CHROME.line }}
+            >
+              <div className="flex items-end justify-between gap-2">
+                <span className={FIELD_LABEL}>Reuse style</span>
+                {standaloneStyleClipboard ? (
+                  <span className={INHERIT_HINT}>
+                    From {standaloneStyleClipboard.label} /
+                    {" "}
+                    {standaloneStyleClipboard.viewport}
+                  </span>
+                ) : (
+                  <span className={INHERIT_HINT}>Copy once, paste anywhere</span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  data-builder-node-style-copy=""
+                  onClick={copySelectedStandaloneStyle}
+                  className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                  style={{
+                    background: CHROME.surface,
+                    border: `1px solid ${CHROME.lineMid}`,
+                    color: CHROME.ink,
+                    padding: "8px 6px",
+                  }}
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  data-builder-node-style-paste=""
+                  onClick={pasteStandaloneStyle}
+                  disabled={!standaloneStyleClipboard}
+                  className="text-[10px] font-semibold uppercase tracking-[0.10em]"
+                  style={{
+                    background: standaloneStyleClipboard
+                      ? CHROME.ink
+                      : CHROME.surface2,
+                    border: `1px solid ${
+                      standaloneStyleClipboard ? CHROME.ink : CHROME.lineMid
+                    }`,
+                    color: standaloneStyleClipboard ? "#fff" : CHROME.muted2,
+                    cursor: standaloneStyleClipboard ? "pointer" : "not-allowed",
+                    padding: "8px 6px",
+                  }}
+                >
+                  Paste
+                </button>
+                <button
+                  type="button"
+                  data-builder-node-style-clear-clipboard=""
+                  onClick={clearStandaloneStyleClipboard}
+                  disabled={!standaloneStyleClipboard}
+                  className="text-[10px] font-semibold uppercase tracking-[0.10em]"
+                  style={{
+                    background: "transparent",
+                    border: `1px solid ${CHROME.lineMid}`,
+                    color: standaloneStyleClipboard ? CHROME.muted : CHROME.muted2,
+                    cursor: standaloneStyleClipboard ? "pointer" : "not-allowed",
+                    padding: "8px 6px",
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              data-builder-node-style-reset=""
+              onClick={resetSelectedStandaloneStyle}
+              disabled={!canResetSelectedStandaloneViewport}
+              className="text-[10px] font-semibold uppercase tracking-[0.10em]"
+              style={{
+                alignSelf: "flex-start",
+                background: "transparent",
+                border: "none",
+                color: canResetSelectedStandaloneViewport
+                  ? CHROME.muted
+                  : CHROME.muted2,
+                cursor: canResetSelectedStandaloneViewport
+                  ? "pointer"
+                  : "not-allowed",
+                padding: 0,
+              }}
+            >
+              Reset {selectedViewport} style
+            </button>
           </div>
         </section>
       ) : null}

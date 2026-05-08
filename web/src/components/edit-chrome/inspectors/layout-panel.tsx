@@ -27,6 +27,7 @@
  */
 
 import {
+  BREAKPOINT_LABELS,
   PRESENTATION_FIELD_LABELS,
   PRESENTATION_OPTIONS,
   type CustomLength,
@@ -42,6 +43,10 @@ import type {
   BuilderSplitNode,
   BuilderTabsNode,
 } from "@/lib/site-admin/builder-node";
+import {
+  getBuilderNodeLayoutFindings,
+  type BuilderNodeLayoutFinding,
+} from "@/lib/site-admin/builder-node/layout-health";
 
 import { useMemo, useState, type ReactElement } from "react";
 
@@ -60,6 +65,7 @@ const INHERIT_HINT = "text-[10.5px] text-zinc-400";
 interface LayoutPanelProps {
   presentation: Record<string, unknown>;
   onPatch: (patch: Record<string, unknown>) => void;
+  onDeepPatch?: (patch: Record<string, unknown>) => void;
 }
 
 // Short pill labels — full descriptors live in PRESENTATION_OPTIONS for the
@@ -429,6 +435,170 @@ const SPACER_SIZE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "m", label: "M" },
   { value: "l", label: "L" },
 ];
+type NodeLayoutPreset<T extends AdvancedEditableBuilderNode["kind"]> = {
+  id: string;
+  label: string;
+  description: string;
+  kind: T;
+  patch: Extract<AdvancedEditableBuilderNode, { kind: T }>["props"];
+};
+type AnyNodeLayoutPreset =
+  | NodeLayoutPreset<"container">
+  | NodeLayoutPreset<"split">
+  | NodeLayoutPreset<"carousel">
+  | NodeLayoutPreset<"masonry">;
+const CONTAINER_LAYOUT_PRESETS: ReadonlyArray<NodeLayoutPreset<"container">> = [
+  {
+    id: "editorial-stack",
+    label: "Editorial stack",
+    description: "Vertical rhythm for copy-led sections.",
+    kind: "container",
+    patch: { layout: "stack", gap: "m", align: "stretch", columns: undefined, responsive: undefined },
+  },
+  {
+    id: "media-row",
+    label: "Media row",
+    description: "Flexible row that wraps gracefully.",
+    kind: "container",
+    patch: { layout: "row", gap: "m", align: "center", columns: undefined, responsive: undefined },
+  },
+  {
+    id: "two-column-grid",
+    label: "Two columns",
+    description: "Classic split grid with mobile stack.",
+    kind: "container",
+    patch: {
+      layout: "grid",
+      gap: "m",
+      align: "stretch",
+      columns: 2,
+      responsive: { tablet: { columns: 2 }, mobile: { layout: "stack", columns: 1 } },
+    },
+  },
+  {
+    id: "card-grid",
+    label: "Card grid",
+    description: "Three-up desktop, two-up tablet, one-up mobile.",
+    kind: "container",
+    patch: {
+      layout: "grid",
+      gap: "l",
+      align: "stretch",
+      columns: 3,
+      responsive: { tablet: { layout: "grid", columns: 2 }, mobile: { layout: "stack", columns: 1 } },
+    },
+  },
+];
+const SPLIT_LAYOUT_PRESETS: ReadonlyArray<NodeLayoutPreset<"split">> = [
+  {
+    id: "balanced-split",
+    label: "Balanced",
+    description: "Even columns with a mobile stack.",
+    kind: "split",
+    patch: { ratio: "50-50", gap: "m", collapseOnMobile: undefined },
+  },
+  {
+    id: "media-left",
+    label: "Media left",
+    description: "Stronger visual column on the left.",
+    kind: "split",
+    patch: { ratio: "60-40", gap: "l", collapseOnMobile: undefined },
+  },
+  {
+    id: "copy-led",
+    label: "Copy led",
+    description: "Text column leads with supporting media.",
+    kind: "split",
+    patch: { ratio: "40-60", gap: "l", collapseOnMobile: undefined },
+  },
+];
+const CAROUSEL_LAYOUT_PRESETS: ReadonlyArray<NodeLayoutPreset<"carousel">> = [
+  {
+    id: "editorial-reel",
+    label: "Editorial reel",
+    description: "Two visible slides with arrows and dots.",
+    kind: "carousel",
+    patch: { slidesPerView: 2, showArrows: true, showDots: true, loop: undefined, autoplayMs: undefined },
+  },
+  {
+    id: "campaign-strip",
+    label: "Campaign strip",
+    description: "Three visible slides for dense story rows.",
+    kind: "carousel",
+    patch: { slidesPerView: 3, showArrows: true, showDots: undefined, loop: true, autoplayMs: undefined },
+  },
+  {
+    id: "auto-showcase",
+    label: "Auto showcase",
+    description: "Single-slide feature carousel with slow autoplay.",
+    kind: "carousel",
+    patch: { slidesPerView: 1, showArrows: true, showDots: true, loop: true, autoplayMs: 6000 },
+  },
+];
+const MASONRY_LAYOUT_PRESETS: ReadonlyArray<NodeLayoutPreset<"masonry">> = [
+  {
+    id: "portfolio-wall",
+    label: "Portfolio wall",
+    description: "Three-column editorial masonry.",
+    kind: "masonry",
+    patch: { columns: 3, gap: "m" },
+  },
+  {
+    id: "dense-board",
+    label: "Dense board",
+    description: "Four columns for image-heavy discovery.",
+    kind: "masonry",
+    patch: { columns: 4, gap: "s" },
+  },
+];
+const SECTION_SPACING_PRESETS: ReadonlyArray<{
+  id: string;
+  label: string;
+  description: string;
+  paddingTop?: string;
+  paddingBottom?: string;
+}> = [
+  {
+    id: "compact",
+    label: "Compact",
+    description: "Tight vertical rhythm for dense utility pages.",
+    paddingTop: "tight",
+    paddingBottom: "tight",
+  },
+  {
+    id: "balanced",
+    label: "Balanced",
+    description: "Default editorial breathing room.",
+    paddingTop: "standard",
+    paddingBottom: "standard",
+  },
+  {
+    id: "feature",
+    label: "Feature",
+    description: "Larger lead-in and close-out spacing.",
+    paddingTop: "airy",
+    paddingBottom: "airy",
+  },
+  {
+    id: "editorial",
+    label: "Editorial",
+    description: "Maximum premium whitespace.",
+    paddingTop: "editorial",
+    paddingBottom: "editorial",
+  },
+  {
+    id: "flush",
+    label: "Flush",
+    description: "Remove vertical padding for embedded layouts.",
+    paddingTop: "none",
+    paddingBottom: "none",
+  },
+];
+type ResponsiveSpacingTarget = "tablet" | "mobile";
+const RESPONSIVE_SPACING_TARGETS: ReadonlyArray<ResponsiveSpacingTarget> = [
+  "tablet",
+  "mobile",
+];
 
 type AdvancedEditableBuilderNode =
   | BuilderContainerNode
@@ -496,6 +666,112 @@ function cleanContainerResponsive(
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
+function nodeLayoutPresetsFor(
+  kind: AdvancedEditableBuilderNode["kind"],
+): ReadonlyArray<AnyNodeLayoutPreset> {
+  switch (kind) {
+    case "container":
+      return CONTAINER_LAYOUT_PRESETS;
+    case "split":
+      return SPLIT_LAYOUT_PRESETS;
+    case "carousel":
+      return CAROUSEL_LAYOUT_PRESETS;
+    case "masonry":
+      return MASONRY_LAYOUT_PRESETS;
+    default:
+      return [];
+  }
+}
+
+function nodeLayoutResetPatch(
+  node: AdvancedEditableBuilderNode,
+): Record<string, unknown> {
+  switch (node.kind) {
+    case "container":
+      return {
+        layout: "stack",
+        gap: "m",
+        columns: undefined,
+        align: "stretch",
+        responsive: undefined,
+      };
+    case "split":
+      return {
+        ratio: undefined,
+        gap: "m",
+        collapseOnMobile: undefined,
+      };
+    case "accordion":
+      return {
+        allowMultiple: undefined,
+        defaultOpenItemIds: undefined,
+      };
+    case "tabs":
+      return {
+        defaultTabId: undefined,
+      };
+    case "carousel":
+      return {
+        slidesPerView: 2,
+        autoplayMs: undefined,
+        loop: undefined,
+        showArrows: undefined,
+        showDots: undefined,
+      };
+    case "masonry":
+      return {
+        columns: 3,
+        gap: "m",
+      };
+    case "spacer":
+      return {
+        size: "m",
+      };
+  }
+}
+
+function NodeLayoutPresetGrid({
+  kind,
+  onApply,
+}: {
+  kind: AdvancedEditableBuilderNode["kind"];
+  onApply: (patch: Record<string, unknown>) => void;
+}) {
+  const presets = nodeLayoutPresetsFor(kind);
+  if (presets.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={FIELD_LABEL}>Quick layouts</span>
+      <div className="grid grid-cols-2 gap-2">
+        {presets.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            data-builder-node-layout-preset={preset.id}
+            onClick={() => onApply(preset.patch)}
+            className="cursor-pointer text-left transition-colors"
+            style={{
+              background: CHROME.paper,
+              border: `1px solid ${CHROME.line}`,
+              borderRadius: 6,
+              padding: "8px 9px",
+              color: CHROME.ink,
+            }}
+          >
+            <span className="block text-[11.5px] font-semibold">
+              {preset.label}
+            </span>
+            <span className="mt-0.5 block text-[10.5px] leading-tight text-zinc-500">
+              {preset.description}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ToggleRow({
   label,
   hint,
@@ -526,6 +802,93 @@ function ToggleRow({
         className="h-4 w-4 cursor-pointer"
       />
     </label>
+  );
+}
+
+function LayoutHealthCard({
+  findings,
+  onApply,
+}: {
+  findings: ReadonlyArray<BuilderNodeLayoutFinding>;
+  onApply: (patch: Record<string, unknown>) => void;
+}) {
+  if (findings.length === 0) {
+    return (
+      <div
+        data-builder-node-layout-health="ok"
+        className="rounded-md px-3 py-2"
+        style={{
+          background: "rgba(16, 185, 129, 0.08)",
+          border: "1px solid rgba(16, 185, 129, 0.22)",
+        }}
+      >
+        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+          Layout checks
+        </div>
+        <p className="mt-1 text-[11px] leading-snug text-emerald-700">
+          No obvious responsive layout issues found for this node.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      data-builder-node-layout-health="findings"
+      className="flex flex-col gap-2 rounded-md p-3"
+      style={{ background: CHROME.paper, border: `1px solid ${CHROME.line}` }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className={FIELD_LABEL}>Layout checks</span>
+        <span className={INHERIT_HINT}>
+          {findings.length} finding{findings.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      {findings.map((finding) => (
+        <div
+          key={finding.id}
+          data-builder-node-layout-finding={finding.id}
+          className="rounded-md px-2.5 py-2"
+          style={{
+            background:
+              finding.level === "warning"
+                ? "rgba(245, 158, 11, 0.10)"
+                : "rgba(59, 130, 246, 0.08)",
+            border:
+              finding.level === "warning"
+                ? "1px solid rgba(245, 158, 11, 0.28)"
+                : "1px solid rgba(59, 130, 246, 0.18)",
+          }}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold text-zinc-800">
+                {finding.title}
+              </div>
+              <p className="mt-0.5 text-[10.5px] leading-snug text-zinc-500">
+                {finding.message}
+              </p>
+            </div>
+            {finding.quickFixPatch && finding.quickFixLabel ? (
+              <button
+                type="button"
+                data-builder-node-layout-fix={finding.id}
+                onClick={() => onApply(finding.quickFixPatch!)}
+                className="shrink-0 cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: CHROME.muted,
+                  padding: 0,
+                }}
+              >
+                {finding.quickFixLabel}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -609,6 +972,8 @@ function AdvancedNodeLayoutEditor({
   node: AdvancedEditableBuilderNode;
   onPatch: (patch: Record<string, unknown>) => void;
 }) {
+  const resetNodeLayout = () => onPatch(nodeLayoutResetPatch(node));
+
   if (node.kind === "container") {
     const responsive = node.props.responsive;
     const patchResponsive = (
@@ -627,7 +992,24 @@ function AdvancedNodeLayoutEditor({
     };
 
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="container">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
+        <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5">
             <span className={FIELD_LABEL}>Layout</span>
@@ -686,9 +1068,24 @@ function AdvancedNodeLayoutEditor({
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <span className={FIELD_LABEL}>Responsive overrides</span>
-            {!responsive ? (
+            {responsive ? (
+              <button
+                type="button"
+                data-builder-node-responsive-reset=""
+                onClick={() => onPatch({ responsive: undefined })}
+                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: CHROME.muted,
+                  padding: 0,
+                }}
+              >
+                Clear
+              </button>
+            ) : (
               <span className={INHERIT_HINT}>Desktop only</span>
-            ) : null}
+            )}
           </div>
           <ContainerResponsiveEditor
             viewport="tablet"
@@ -707,7 +1104,24 @@ function AdvancedNodeLayoutEditor({
 
   if (node.kind === "split") {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="split">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
+        <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
         <div className="flex flex-col gap-1.5">
           <span className={FIELD_LABEL}>Column ratio</span>
           <Segmented
@@ -731,8 +1145,8 @@ function AdvancedNodeLayoutEditor({
         <ToggleRow
           label="Collapse on mobile"
           hint="Stack the two columns vertically on mobile."
-          checked={Boolean(node.props.collapseOnMobile)}
-          onChange={(next) => onPatch({ collapseOnMobile: next || undefined })}
+          checked={node.props.collapseOnMobile !== false}
+          onChange={(next) => onPatch({ collapseOnMobile: next ? undefined : false })}
         />
       </div>
     );
@@ -745,7 +1159,23 @@ function AdvancedNodeLayoutEditor({
         child.kind === "accordion_item",
     );
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="accordion">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
         <ToggleRow
           label="Allow multiple open"
           hint="Visitors can expand more than one item at the same time."
@@ -798,7 +1228,23 @@ function AdvancedNodeLayoutEditor({
         child.kind === "tab_panel",
     );
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="tabs">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
         {panels.length > 0 ? (
           <div className="flex flex-col gap-1.5">
             <span className={FIELD_LABEL}>Default tab</span>
@@ -835,14 +1281,31 @@ function AdvancedNodeLayoutEditor({
 
   if (node.kind === "carousel") {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="carousel">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
+        <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5">
             <span className={FIELD_LABEL}>Slides per view</span>
             <Segmented
               fullWidth
               compact
-              value={String(node.props.slidesPerView ?? "1")}
+              value={String(node.props.slidesPerView ?? "2")}
               onChange={(next) =>
                 onPatch({ slidesPerView: Number.parseInt(next, 10) })
               }
@@ -888,7 +1351,24 @@ function AdvancedNodeLayoutEditor({
 
   if (node.kind === "masonry") {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="masonry">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
+        <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5">
             <span className={FIELD_LABEL}>Columns</span>
@@ -917,7 +1397,24 @@ function AdvancedNodeLayoutEditor({
 
   if (node.kind === "spacer") {
     return (
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="spacer">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
+        <div className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>Spacer size</span>
         <Segmented
           fullWidth
@@ -926,6 +1423,7 @@ function AdvancedNodeLayoutEditor({
           onChange={(next) => onPatch({ size: next })}
           options={SPACER_SIZE_OPTIONS}
         />
+        </div>
       </div>
     );
   }
@@ -933,9 +1431,18 @@ function AdvancedNodeLayoutEditor({
   return null;
 }
 
-export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
-  const { builderTree, selectedBuilderNodeId, patchBuilderNodeProps } =
-    useEditContext();
+export function LayoutPanel({
+  presentation,
+  onPatch,
+  onDeepPatch,
+}: LayoutPanelProps) {
+  const {
+    builderTree,
+    selectedBuilderNodeId,
+    patchBuilderNodeProps,
+    device,
+    setDevice,
+  } = useEditContext();
   const val = (key: string): string =>
     (presentation[key] as string | undefined) ?? "";
 
@@ -997,6 +1504,101 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
   const alignValue = val("align");
   const mobileStackValue = val("mobileStack");
   const visibilityValue = val("visibility");
+  const responsiveSpacingTarget: ResponsiveSpacingTarget =
+    device === "tablet" || device === "mobile" ? device : "mobile";
+  const breakpointOverrides =
+    (presentation.breakpoints as
+      | Partial<Record<ResponsiveSpacingTarget, Record<string, unknown>>>
+      | undefined) ?? {};
+  const responsiveSpacingOverride =
+    breakpointOverrides[responsiveSpacingTarget] ?? {};
+  const responsivePadTop =
+    (responsiveSpacingOverride.paddingTop as string | undefined) ?? "";
+  const responsivePadBottom =
+    (responsiveSpacingOverride.paddingBottom as string | undefined) ?? "";
+  const responsiveContainerWidth =
+    (responsiveSpacingOverride.containerWidth as string | undefined) ?? "";
+  const responsiveAlign =
+    (responsiveSpacingOverride.align as string | undefined) ?? "";
+  const hasResponsiveLayoutOverride =
+    Boolean(responsivePadTop) ||
+    Boolean(responsivePadBottom) ||
+    Boolean(responsiveContainerWidth) ||
+    Boolean(responsiveAlign);
+  const spacingCustomKeys = [
+    "paddingTopCustom",
+    "paddingBottomCustom",
+    "paddingLeftCustom",
+    "paddingRightCustom",
+    "marginTopCustom",
+    "marginBottomCustom",
+  ] as const;
+  const hasSpacingOverride =
+    Boolean(padTopValue) ||
+    Boolean(padBottomValue) ||
+    spacingCustomKeys.some((key) => Boolean(customVal(key)));
+  const applySpacingPreset = (
+    preset: (typeof SECTION_SPACING_PRESETS)[number],
+  ) => {
+    onPatch({
+      paddingTop: preset.paddingTop,
+      paddingBottom: preset.paddingBottom,
+      paddingTopCustom: undefined,
+      paddingBottomCustom: undefined,
+      paddingLeftCustom: undefined,
+      paddingRightCustom: undefined,
+    });
+  };
+  const resetSpacing = () => {
+    onPatch({
+      paddingTop: undefined,
+      paddingBottom: undefined,
+      paddingTopCustom: undefined,
+      paddingBottomCustom: undefined,
+      paddingLeftCustom: undefined,
+      paddingRightCustom: undefined,
+      marginTopCustom: undefined,
+      marginBottomCustom: undefined,
+    });
+  };
+  const applyResponsiveSpacingPreset = (
+    preset: (typeof SECTION_SPACING_PRESETS)[number],
+  ) => {
+    onDeepPatch?.({
+      breakpoints: {
+        [responsiveSpacingTarget]: {
+          paddingTop: preset.paddingTop,
+          paddingBottom: preset.paddingBottom,
+        },
+      },
+    });
+  };
+  const resetResponsiveSpacing = () => {
+    onDeepPatch?.({
+      breakpoints: {
+        [responsiveSpacingTarget]: {
+          paddingTop: undefined,
+          paddingBottom: undefined,
+          containerWidth: undefined,
+          align: undefined,
+        },
+      },
+    });
+  };
+  const setResponsiveLayoutField = (
+    key: "containerWidth" | "align",
+    next: string,
+  ) => {
+    const current =
+      key === "containerWidth" ? responsiveContainerWidth : responsiveAlign;
+    onDeepPatch?.({
+      breakpoints: {
+        [responsiveSpacingTarget]: {
+          [key]: current === next ? undefined : next,
+        },
+      },
+    });
+  };
   const selectedBuilderNode = useMemo(() => {
     const resolved = findBuilderNodeById(builderTree, selectedBuilderNodeId);
     if (!resolved) return null;
@@ -1013,6 +1615,13 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
         return null;
     }
   }, [builderTree, selectedBuilderNodeId]);
+  const selectedBuilderNodeFindings = useMemo(
+    () =>
+      selectedBuilderNode
+        ? getBuilderNodeLayoutFindings(selectedBuilderNode)
+        : [],
+    [selectedBuilderNode],
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -1025,12 +1634,18 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
             </span>
           </div>
           <div
-            className="rounded-md p-3"
+            className="flex flex-col gap-3 rounded-md p-3"
             style={{
               background: CHROME.surface2,
               border: `1px solid ${CHROME.line}`,
             }}
           >
+            <LayoutHealthCard
+              findings={selectedBuilderNodeFindings}
+              onApply={(patch) => {
+                void patchBuilderNodeProps(selectedBuilderNode.id, patch);
+              }}
+            />
             <AdvancedNodeLayoutEditor
               node={selectedBuilderNode}
               onPatch={(patch) => {
@@ -1067,14 +1682,23 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className={SECTION_TITLE}>Padding</div>
-          {!padTopValue &&
-          !padBottomValue &&
-          !customVal("paddingTopCustom") &&
-          !customVal("paddingBottomCustom") &&
-          !customVal("paddingLeftCustom") &&
-          !customVal("paddingRightCustom") ? (
+          {!hasSpacingOverride ? (
             <span className={INHERIT_HINT}>Theme default</span>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={resetSpacing}
+              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: CHROME.muted,
+                padding: 0,
+              }}
+            >
+              Reset spacing
+            </button>
+          )}
         </div>
         <div
           className="rounded-md p-3"
@@ -1084,6 +1708,44 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
           }}
         >
           <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className={FIELD_LABEL}>Presets</span>
+                <span className={INHERIT_HINT}>Clears custom L/R</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {SECTION_SPACING_PRESETS.map((preset) => {
+                  const selectedPreset =
+                    padTopValue === preset.paddingTop &&
+                    padBottomValue === preset.paddingBottom &&
+                    !customVal("paddingTopCustom") &&
+                    !customVal("paddingBottomCustom") &&
+                    !customVal("paddingLeftCustom") &&
+                    !customVal("paddingRightCustom");
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      data-layout-spacing-preset={preset.id}
+                      aria-pressed={selectedPreset}
+                      title={preset.description}
+                      onClick={() => applySpacingPreset(preset)}
+                      className="min-h-8 cursor-pointer px-2 text-left text-[11px] font-semibold"
+                      style={{
+                        background: selectedPreset ? CHROME.accent : CHROME.surface2,
+                        border: `1px solid ${
+                          selectedPreset ? CHROME.accent : CHROME.line
+                        }`,
+                        borderRadius: 6,
+                        color: selectedPreset ? "#fff" : CHROME.text,
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <LengthRow
               label="Top"
               tokenValue={padTopValue}
@@ -1153,6 +1815,157 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
           </div>
         </div>
       </section>
+
+      {onDeepPatch ? (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className={SECTION_TITLE}>Responsive layout</div>
+            {hasResponsiveLayoutOverride ? (
+              <button
+                type="button"
+                onClick={resetResponsiveSpacing}
+                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: CHROME.muted,
+                  padding: 0,
+                }}
+              >
+                Reset {BREAKPOINT_LABELS[responsiveSpacingTarget]}
+              </button>
+            ) : (
+              <span className={INHERIT_HINT}>
+                Inherits desktop
+              </span>
+            )}
+          </div>
+          <div
+            className="rounded-md p-3"
+            style={{
+              background: CHROME.paper,
+              border: `1px solid ${CHROME.line}`,
+            }}
+          >
+            <div className="flex flex-col gap-3">
+              <div
+                className="inline-flex w-fit p-0.5"
+                style={{
+                  background: CHROME.surface2,
+                  border: `1px solid ${CHROME.line}`,
+                  borderRadius: 7,
+                }}
+              >
+                {RESPONSIVE_SPACING_TARGETS.map((target) => {
+                  const active = responsiveSpacingTarget === target;
+                  const targetHasOverride = Boolean(
+                    breakpointOverrides[target]?.paddingTop ||
+                      breakpointOverrides[target]?.paddingBottom ||
+                      breakpointOverrides[target]?.containerWidth ||
+                      breakpointOverrides[target]?.align,
+                  );
+                  return (
+                    <button
+                      key={target}
+                      type="button"
+                      data-layout-responsive-target={target}
+                      aria-pressed={active}
+                      onClick={() => setDevice(target)}
+                      className="relative rounded-[5px] px-3 py-1 text-[11px] font-semibold transition"
+                      style={{
+                        background: active ? CHROME.surface : "transparent",
+                        color: active ? CHROME.ink : CHROME.muted,
+                        boxShadow: active
+                          ? "0 1px 3px rgba(0,0,0,0.08)"
+                          : "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {BREAKPOINT_LABELS[target]}
+                      {targetHasOverride ? (
+                        <span
+                          aria-hidden
+                          style={{
+                            position: "absolute",
+                            right: 4,
+                            top: 4,
+                            width: 4,
+                            height: 4,
+                            borderRadius: "50%",
+                            background: CHROME.blue,
+                          }}
+                        />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {SECTION_SPACING_PRESETS.map((preset) => {
+                  const selectedPreset =
+                    responsivePadTop === preset.paddingTop &&
+                    responsivePadBottom === preset.paddingBottom;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      data-layout-responsive-spacing-preset={preset.id}
+                      aria-pressed={selectedPreset}
+                      title={`${BREAKPOINT_LABELS[responsiveSpacingTarget]}: ${preset.description}`}
+                      onClick={() => applyResponsiveSpacingPreset(preset)}
+                      className="min-h-8 cursor-pointer px-2 text-left text-[11px] font-semibold"
+                      style={{
+                        background: selectedPreset ? CHROME.accent : CHROME.surface2,
+                        border: `1px solid ${
+                          selectedPreset ? CHROME.accent : CHROME.line
+                        }`,
+                        borderRadius: 6,
+                        color: selectedPreset ? "#fff" : CHROME.text,
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-layout-responsive-container-control=""
+                >
+                  <span className={FIELD_LABEL}>Container</span>
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={responsiveContainerWidth}
+                    onChange={(next) =>
+                      setResponsiveLayoutField("containerWidth", next)
+                    }
+                    options={chipOptions("containerWidth")}
+                  />
+                </div>
+                <div
+                  className="flex flex-col gap-1.5"
+                  data-layout-responsive-align-control=""
+                >
+                  <span className={FIELD_LABEL}>Align</span>
+                  <Segmented
+                    compact
+                    value={responsiveAlign}
+                    onChange={(next) => setResponsiveLayoutField("align", next)}
+                    options={iconOptions("align", ALIGN_ICONS)}
+                  />
+                </div>
+              </div>
+              <span className={HINT}>
+                Applies only to {BREAKPOINT_LABELS[responsiveSpacingTarget]}.
+                Desktop spacing stays untouched.
+              </span>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* ── Margin (pixel-only — no token equivalent) ────────────────── */}
       <section className="flex flex-col gap-3">

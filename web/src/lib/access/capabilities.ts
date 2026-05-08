@@ -396,6 +396,30 @@ export const CAPABILITIES = {
     scope: "tenant",
     deprecated: false,
   }),
+  "agency.workspace.media.watermark": define({
+    key: "agency.workspace.media.watermark",
+    displayName: "Logo watermark",
+    description: "Apply your agency logo as a watermark on talent photos. Studio plan and above.",
+    category: "site",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.workspace.media.gallery": define({
+    key: "agency.workspace.media.gallery",
+    displayName: "Workspace media gallery",
+    description: "Browse every photo across every talent, with usage tracking. Agency plan and above.",
+    category: "site",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.workspace.media.bulk_watermark": define({
+    key: "agency.workspace.media.bulk_watermark",
+    displayName: "Bulk watermark apply",
+    description: "Apply or override watermarks across many photos in a single action. Agency plan and above.",
+    category: "site",
+    scope: "tenant",
+    deprecated: false,
+  }),
 
   // ─── Team / memberships / fields ────────────────────────────────────
   manage_memberships: define({

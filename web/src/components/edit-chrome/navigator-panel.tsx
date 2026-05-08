@@ -45,6 +45,7 @@ import {
   type MouseEventHandler,
   type ReactNode,
 } from "react";
+import { ClipboardPaste, Copy, Files } from "lucide-react";
 
 import {
   CHROME,
@@ -81,6 +82,8 @@ import {
 } from "@/lib/site-admin/a11y/heading-hierarchy";
 
 const PANEL_WIDTH = 280;
+const COLLAPSED_SECTIONS_STORAGE_KEY =
+  "impronta.editChrome.navigator.collapsedSections.v1";
 
 interface FlatRow {
   ref: CompositionSectionRef;
@@ -125,7 +128,13 @@ export function NavigatorPanel() {
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     insertBuilderNode,
+    duplicateBuilderNode,
+    copyBuilderNode,
+    pasteCopiedBuilderNode,
+    copiedBuilderNodeKind,
+    getCopiedBuilderNodePastePreview,
     removeBuilderNode,
+    duplicateSection,
     openPageSettings,
     openTheme,
     canEditSiteShell,
@@ -151,6 +160,7 @@ export function NavigatorPanel() {
   const [viewMode, setViewMode] = useState<"sections" | "outline">("sections");
   const [draggingChildNode, setDraggingChildNode] = useState<{
     nodeId: string;
+    kind: BuilderNodeKind;
     parentId: string;
     sourceIndex: number;
   } | null>(null);
@@ -162,6 +172,39 @@ export function NavigatorPanel() {
     index: number;
     siblingCount: number;
   } | null>(null);
+  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [collapsedHydrated, setCollapsedHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COLLAPSED_SECTIONS_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        setCollapsedSectionIds(
+          new Set(parsed.filter((value): value is string => typeof value === "string")),
+        );
+      }
+    } catch {
+      setCollapsedSectionIds(new Set());
+    } finally {
+      setCollapsedHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!collapsedHydrated) return;
+    try {
+      window.localStorage.setItem(
+        COLLAPSED_SECTIONS_STORAGE_KEY,
+        JSON.stringify([...collapsedSectionIds]),
+      );
+    } catch {
+      // Local persistence is a convenience only; the builder should keep working
+      // in private browsing or restricted storage contexts.
+    }
+  }, [collapsedHydrated, collapsedSectionIds]);
 
   // Phase B.2.C — shell sections (header / footer) live on a different
   // page row than the homepage, so they're not in the EditProvider's
@@ -346,45 +389,25 @@ export function NavigatorPanel() {
     const q = search.trim().toLowerCase();
     if (!q) return flat;
     return flat.filter((r) => {
-      // T2-2 — search the cleaned display name, not the raw seeder string.
-      // Otherwise queries for "Classic starter" would match every starter
-      // section, polluting results with operator-invisible boilerplate.
-      //
-      // QA-2 follow-on — content-derived display names mean the visible
-      // label can be a headline string. We search across BOTH the
-      // headline AND the cleaned stored name so an operator hunting for
-      // "Featured talent" still matches a section the navigator is
-      // labelling as "A short list, always on call." We also match the
-      // humanized type key ("featured talent") not the raw underscore
-      // form ("featured_talent") — verification caught that "featured
-      // talent" returned zero results because the literal type key
-      // contains an underscore the operator never sees.
-      const cleanedName = (
-        cleanSectionName(r.ref.name) || r.ref.name
-      ).toLowerCase();
-      const probedHeadline = (
-        displayNameById.get(r.ref.sectionId) ?? ""
-      ).toLowerCase();
-      const typeKey = r.ref.sectionTypeKey.toLowerCase();
-      const typeKeyHumanized = typeKey.replace(/_/g, " ");
-      const childMatch = r.childNodes.some((child) => {
-        const kindLabel = BUILDER_NODE_REGISTRY[child.kind].label.toLowerCase();
-        return (
-          child.label.toLowerCase().includes(q) ||
-          child.kind.toLowerCase().includes(q) ||
-          kindLabel.includes(q) ||
-          (child.role ?? "").toLowerCase().includes(q)
-        );
-      });
       return (
-        cleanedName.includes(q) ||
-        probedHeadline.includes(q) ||
-        typeKey.includes(q) ||
-        typeKeyHumanized.includes(q) ||
-        childMatch
+        sectionMatchesNavigatorSearch(r, q, displayNameById) ||
+        r.childNodes.some((child) => builderChildMatchesNavigatorSearch(child, q))
       );
     });
   }, [flat, search, displayNameById]);
+  const searchQuery = search.trim().toLowerCase();
+
+  const toggleSectionCollapsed = useCallback((sectionId: string) => {
+    setCollapsedSectionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, []);
 
   // Sprint 4 — outline mode data. Builds the operator-facing heading
   // tree from the same flat + headingProbe combo the lint already uses.
@@ -496,6 +519,42 @@ export function NavigatorPanel() {
     },
     [insertBuilderNode, nodeInsertTarget, reportMutationError],
   );
+  const commitSectionDuplicate = useCallback(
+    async (sectionId: string) => {
+      const duplicated = await duplicateSection(sectionId);
+      if (!duplicated.ok && duplicated.error) {
+        reportMutationError(duplicated.error);
+      }
+    },
+    [duplicateSection, reportMutationError],
+  );
+  const commitNodeDuplicate = useCallback(
+    async (nodeId: string) => {
+      const duplicated = await duplicateBuilderNode(nodeId);
+      if (!duplicated.ok && duplicated.error) {
+        reportMutationError(duplicated.error);
+      }
+    },
+    [duplicateBuilderNode, reportMutationError],
+  );
+  const commitNodeCopy = useCallback(
+    (nodeId: string) => {
+      const copied = copyBuilderNode(nodeId);
+      if (!copied.ok && copied.error) {
+        reportMutationError(copied.error);
+      }
+    },
+    [copyBuilderNode, reportMutationError],
+  );
+  const commitNodePaste = useCallback(
+    async (targetNodeId: string) => {
+      const pasted = await pasteCopiedBuilderNode(targetNodeId);
+      if (!pasted.ok && pasted.error) {
+        reportMutationError(pasted.error);
+      }
+    },
+    [pasteCopiedBuilderNode, reportMutationError],
+  );
   const commitNodeRemoval = useCallback(
     async (nodeId: string) => {
       setNodeInsertTarget((prev) => (prev?.parentId === nodeId ? null : prev));
@@ -513,7 +572,12 @@ export function NavigatorPanel() {
   const onChildDragStart = useCallback(
     (
       e: DragEvent<HTMLDivElement>,
-      input: { nodeId: string; parentId: string; sourceIndex: number },
+      input: {
+        nodeId: string;
+        kind: BuilderNodeKind;
+        parentId: string;
+        sourceIndex: number;
+      },
     ) => {
       e.stopPropagation();
       setDraggingChildNode(input);
@@ -1244,6 +1308,21 @@ export function NavigatorPanel() {
             const isPrimary = selectedSectionId === row.ref.sectionId;
             const isAdditional = additionalSelectedIds.has(row.ref.sectionId);
             const selected = isPrimary || isAdditional;
+            const rowMatchesSearch = searchQuery
+              ? sectionMatchesNavigatorSearch(row, searchQuery, displayNameById)
+              : true;
+            const visibleChildNodes =
+              searchQuery && !rowMatchesSearch
+                ? row.childNodes.filter((child) =>
+                    builderChildMatchesNavigatorSearch(child, searchQuery),
+                  )
+                : row.childNodes;
+            const sectionCollapsed = collapsedSectionIds.has(row.ref.sectionId);
+            const hasSelectedChild = row.childNodes.some(
+              (child) => child.id === selectedBuilderNodeId,
+            );
+            const childListCollapsed =
+              sectionCollapsed && !searchQuery && !hasSelectedChild;
             const isDragging = draggingId === row.ref.sectionId;
             const showDropLineAbove =
               draggingId && dropAt === row.flatIndex && !isDragging;
@@ -1283,6 +1362,9 @@ export function NavigatorPanel() {
                     }
                   }}
                   data-builder-node-id={row.builderNodeId ?? undefined}
+                  data-navigator-section-row=""
+                  data-section-id={row.ref.sectionId}
+                  data-section-type-key={row.ref.sectionTypeKey}
                   title={
                     row.builderNodeId
                       ? `${labelFor(row)} · ${row.builderNodeId}`
@@ -1396,6 +1478,24 @@ export function NavigatorPanel() {
                     </NodeInlineActionButton>
                   ) : null}
                   {row.childNodes.length > 0 ? (
+                    <NodeInlineActionButton
+                      label={
+                        childListCollapsed
+                          ? `Expand layers in ${labelFor(row)}`
+                          : `Collapse layers in ${labelFor(row)}`
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSectionCollapsed(row.ref.sectionId);
+                      }}
+                      inverted={selected}
+                      dataAttr="data-navigator-section-collapse-trigger"
+                      ariaExpanded={!childListCollapsed}
+                    >
+                      {childListCollapsed ? "›" : "⌄"}
+                    </NodeInlineActionButton>
+                  ) : null}
+                  {row.childNodes.length > 0 ? (
                     <span
                       data-navigator-block-count=""
                       aria-label={`${row.childNodes.length} nested blocks`}
@@ -1421,6 +1521,17 @@ export function NavigatorPanel() {
                       {row.childNodes.length}
                     </span>
                   ) : null}
+                  <NodeInlineActionButton
+                    label={`Duplicate ${labelFor(row)}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void commitSectionDuplicate(row.ref.sectionId);
+                    }}
+                    inverted={selected}
+                    dataAttr="data-navigator-section-duplicate-trigger"
+                  >
+                    <Files size={11} strokeWidth={2.2} aria-hidden />
+                  </NodeInlineActionButton>
                   <VisibilityEye
                     selected={selected}
                     visibility={visibility}
@@ -1437,8 +1548,10 @@ export function NavigatorPanel() {
                   onInsert={commitNodeInsert}
                   onDismiss={() => setNodeInsertTarget(null)}
                 />
-                {row.childNodes.length > 0 ? (
+                {visibleChildNodes.length > 0 && !childListCollapsed ? (
                   <div
+                    data-navigator-child-list=""
+                    data-section-id={row.ref.sectionId}
                     style={{
                       marginLeft: 30,
                       display: "flex",
@@ -1447,24 +1560,47 @@ export function NavigatorPanel() {
                       marginTop: 2,
                     }}
                   >
-                    {row.childNodes.map((child) => {
+                    {visibleChildNodes.map((child) => {
                       const childSelected = selectedBuilderNodeId === child.id;
                       const childAllowedKinds = allowedChildKindsForParent(child.kind);
+                      const pastePreview = getCopiedBuilderNodePastePreview(child.id);
+                      const canPaste =
+                        Boolean(copiedBuilderNodeKind) &&
+                        Boolean(pastePreview) &&
+                        pastePreview?.mode !== "blocked";
                       const siblingIds = row.childNodes
                         .filter((node) => node.parentId === child.parentId)
                         .map((node) => node.id);
                       const siblingIndex = siblingIds.indexOf(child.id);
                       const siblingCount = siblingIds.length;
+                      const childDragEnabled = !searchQuery;
+                      const parentKindFor = (
+                        parentId: string,
+                      ): BuilderNodeKind | null => {
+                        if (parentId === row.builderNodeId) return "section";
+                        return (
+                          row.childNodes.find((node) => node.id === parentId)
+                            ?.kind ?? null
+                        );
+                      };
+                      const acceptsDraggedChild = (parentId: string) => {
+                        if (!draggingChildNode) return false;
+                        const parentKind = parentKindFor(parentId);
+                        if (!parentKind) return false;
+                        return allowedChildKindsForParent(parentKind).includes(
+                          draggingChildNode.kind,
+                        );
+                      };
                       const canMoveUp = siblingIndex > 0;
                       const canMoveDown =
                         siblingIndex >= 0 && siblingIndex < siblingCount - 1;
                       const showChildDropTop =
-                        draggingChildNode?.parentId === child.parentId &&
+                        draggingChildNode &&
                         childDropTarget?.parentId === child.parentId &&
                         childDropTarget.index === siblingIndex;
                       const showChildDropTail =
                         siblingIndex === siblingCount - 1 &&
-                        draggingChildNode?.parentId === child.parentId &&
+                        draggingChildNode &&
                         childDropTarget?.parentId === child.parentId &&
                         childDropTarget.index === siblingCount;
                       return (
@@ -1473,14 +1609,15 @@ export function NavigatorPanel() {
                           <div
                             role="button"
                             tabIndex={0}
-                            draggable={siblingCount > 1}
+                            draggable={childDragEnabled}
                             onDragStart={(e) => {
-                              if (siblingIndex < 0 || siblingCount < 2) {
+                              if (!childDragEnabled || siblingIndex < 0) {
                                 e.preventDefault();
                                 return;
                               }
                               onChildDragStart(e, {
                                 nodeId: child.id,
+                                kind: child.kind,
                                 parentId: child.parentId,
                                 sourceIndex: siblingIndex,
                               });
@@ -1488,9 +1625,14 @@ export function NavigatorPanel() {
                             onDragEnd={onChildDragEnd}
                             onDragOver={(e) => {
                               if (
+                                searchQuery ||
                                 !draggingChildNode ||
                                 siblingIndex < 0
                               ) {
+                                return;
+                              }
+                              if (!acceptsDraggedChild(child.parentId)) {
+                                setChildDropTarget(null);
                                 return;
                               }
                               e.preventDefault();
@@ -1512,6 +1654,12 @@ export function NavigatorPanel() {
                               selectBuilderNode(child.id);
                             }}
                             onKeyDown={(e) => {
+                              if (!e.altKey && (e.key === "Enter" || e.key === " ")) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                selectBuilderNode(child.id);
+                                return;
+                              }
                               if (!e.altKey) return;
                               if (e.key === "ArrowUp") {
                                 e.preventDefault();
@@ -1532,6 +1680,7 @@ export function NavigatorPanel() {
                             data-builder-node-id={child.id}
                             data-builder-node-kind={child.kind}
                             data-builder-node-role={child.role ?? undefined}
+                            data-selected={childSelected ? "true" : "false"}
                             style={{
                               position: "relative",
                               display: "flex",
@@ -1551,7 +1700,7 @@ export function NavigatorPanel() {
                               textAlign: "left",
                               fontSize: 11,
                               fontWeight: childSelected ? 600 : 500,
-                              cursor: siblingCount > 1 ? "grab" : "pointer",
+                              cursor: childDragEnabled ? "grab" : "pointer",
                               boxShadow: childSelected
                                 ? "0 6px 16px -12px rgba(0,0,0,0.55)"
                                 : "none",
@@ -1662,6 +1811,44 @@ export function NavigatorPanel() {
                                 flexShrink: 0,
                               }}
                             >
+                              <NodeInlineActionButton
+                                label={`Duplicate ${child.label}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void commitNodeDuplicate(child.id);
+                                }}
+                                inverted={childSelected}
+                                dataAttr="data-builder-node-duplicate-trigger"
+                              >
+                                <Files size={11} strokeWidth={2.2} aria-hidden />
+                              </NodeInlineActionButton>
+                              <NodeInlineActionButton
+                                label={`Copy ${child.label}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  commitNodeCopy(child.id);
+                                }}
+                                inverted={childSelected}
+                                dataAttr="data-builder-node-copy-trigger"
+                              >
+                                <Copy size={11} strokeWidth={2.2} aria-hidden />
+                              </NodeInlineActionButton>
+                              <NodeInlineActionButton
+                                label={
+                                  pastePreview?.message ??
+                                  `Paste copied block near ${child.label}`
+                                }
+                                disabled={!canPaste}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!canPaste) return;
+                                  void commitNodePaste(child.id);
+                                }}
+                                inverted={childSelected}
+                                dataAttr="data-builder-node-paste-trigger"
+                              >
+                                <ClipboardPaste size={11} strokeWidth={2.2} aria-hidden />
+                              </NodeInlineActionButton>
                               <NodeInlineActionButton
                                 label={`Move ${child.label} up`}
                                 disabled={!canMoveUp}
@@ -1777,6 +1964,44 @@ function slotDefsOrder(
     if (!seen.has(key)) out.push(key);
   }
   return out;
+}
+
+function sectionMatchesNavigatorSearch(
+  row: FlatRow,
+  query: string,
+  displayNameById: ReadonlyMap<string, string>,
+): boolean {
+  // T2-2 — search the cleaned display name, not the raw seeder string.
+  // Otherwise queries for "Classic starter" would match every starter
+  // section, polluting results with operator-invisible boilerplate.
+  //
+  // QA-2 follow-on — content-derived display names mean the visible
+  // label can be a headline string. Search BOTH the headline and the
+  // cleaned stored name so an operator hunting for "Featured talent" still
+  // matches a section the navigator labels as real page copy.
+  const cleanedName = (cleanSectionName(row.ref.name) || row.ref.name).toLowerCase();
+  const probedHeadline = (displayNameById.get(row.ref.sectionId) ?? "").toLowerCase();
+  const typeKey = row.ref.sectionTypeKey.toLowerCase();
+  const typeKeyHumanized = typeKey.replace(/_/g, " ");
+  return (
+    cleanedName.includes(query) ||
+    probedHeadline.includes(query) ||
+    typeKey.includes(query) ||
+    typeKeyHumanized.includes(query)
+  );
+}
+
+function builderChildMatchesNavigatorSearch(
+  child: FlatRow["childNodes"][number],
+  query: string,
+): boolean {
+  const kindLabel = BUILDER_NODE_REGISTRY[child.kind].label.toLowerCase();
+  return (
+    child.label.toLowerCase().includes(query) ||
+    child.kind.toLowerCase().includes(query) ||
+    kindLabel.includes(query) ||
+    (child.role ?? "").toLowerCase().includes(query)
+  );
 }
 
 function defaultSectionAddSlot(
@@ -1970,6 +2195,7 @@ function NodeInlineActionButton({
   disabled,
   inverted = false,
   dataAttr,
+  ariaExpanded,
 }: {
   children: ReactNode;
   label: string;
@@ -1977,12 +2203,14 @@ function NodeInlineActionButton({
   disabled?: boolean;
   inverted?: boolean;
   dataAttr?: string;
+  ariaExpanded?: boolean;
 }) {
   const dataProps = dataAttr ? { [dataAttr]: "true" } : {};
   return (
     <button
       type="button"
       aria-label={label}
+      aria-expanded={ariaExpanded}
       title={label}
       disabled={disabled}
       onClick={onClick}

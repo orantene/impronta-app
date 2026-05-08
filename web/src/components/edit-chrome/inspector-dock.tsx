@@ -40,10 +40,12 @@ import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-edit
 import type { LoadedSection } from "./edit-context";
 import { useEditContext } from "./edit-context";
 import { ContentTab } from "./inspectors/content-dispatch";
+import { resolveStandaloneBuilderNodeForContent } from "./inspectors/builder-node-content-utils";
 import { SiteHeaderInspector } from "./inspectors/site-header/SiteHeaderInspector";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
+import { DataPanel } from "./inspectors/data-panel";
 import { ResponsivePanel } from "./inspectors/responsive-panel";
 import { MotionPanel } from "./inspectors/motion-panel";
 import { PanelSaveChip } from "./inspectors/kit";
@@ -60,13 +62,20 @@ import {
 } from "./kit";
 import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
+import {
+  BUILDER_NODE_REGISTRY,
+  builderNodeSupportsDataBinding,
+  normalizeBuilderDataBinding,
+  type BuilderNode,
+} from "@/lib/site-admin/builder-node";
 
-type TabKey = "content" | "layout" | "style" | "responsive" | "motion";
+type TabKey = "content" | "layout" | "style" | "data" | "responsive" | "motion";
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "content", label: "Content" },
   { key: "layout", label: "Layout" },
   { key: "style", label: "Style" },
+  { key: "data", label: "Data" },
   { key: "responsive", label: "Responsive" },
   { key: "motion", label: "Motion" },
 ];
@@ -92,7 +101,7 @@ const TABS_BY_SECTION_TYPE: Record<string, ReadonlyArray<TabKey>> = {
   hero: ["content", "style", "layout", "responsive", "motion"],
   // Featured Talent grids meaningfully benefit from per-breakpoint counts +
   // entry animation when scrolling into view.
-  featured_talent: ["content", "style", "layout", "responsive", "motion"],
+  featured_talent: ["content", "style", "layout", "data", "responsive", "motion"],
   gallery_strip: ["content", "style", "layout", "responsive", "motion"],
   testimonials_trio: ["content", "style", "layout", "motion"],
   // CTA banners are short and benefit from a subtle entry animation.
@@ -104,8 +113,9 @@ const TABS_BY_SECTION_TYPE: Record<string, ReadonlyArray<TabKey>> = {
   press_strip: ["content", "style", "layout"],
   values_trio: ["content", "style", "layout"],
   process_steps: ["content", "style", "layout"],
-  category_grid: ["content", "style", "layout", "responsive"],
-  destinations_mosaic: ["content", "style", "layout", "responsive"],
+  category_grid: ["content", "style", "layout", "data", "responsive"],
+  destinations_mosaic: ["content", "style", "layout", "data", "responsive"],
+  map_overlay: ["content", "style", "layout", "data", "responsive"],
   marquee: ["content", "style", "layout", "motion"],
 };
 
@@ -120,6 +130,45 @@ function humanizeTypeKey(key: string | null | undefined): string {
     .split("_")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+}
+
+function builderNodeTitle(node: Exclude<BuilderNode, { kind: "section" }>): string {
+  switch (node.kind) {
+    case "heading":
+      return node.props.text || "Heading";
+    case "paragraph":
+      return node.props.text.length > 64
+        ? `${node.props.text.slice(0, 63).trimEnd()}…`
+        : node.props.text || "Paragraph";
+    case "button":
+      return node.props.label || "Button";
+    case "image":
+      return node.props.alt?.trim() || "Image";
+    case "accordion_item":
+    case "tab_panel":
+      return node.props.title || BUILDER_NODE_REGISTRY[node.kind].label;
+    case "spacer":
+      return `Spacer · ${node.props.size.toUpperCase()}`;
+    default:
+      return BUILDER_NODE_REGISTRY[node.kind].label;
+  }
+}
+
+function nodeUsesLayoutInspector(
+  node: Exclude<BuilderNode, { kind: "section" }>,
+): boolean {
+  switch (node.kind) {
+    case "container":
+    case "split":
+    case "accordion":
+    case "tabs":
+    case "carousel":
+    case "masonry":
+    case "spacer":
+      return true;
+    default:
+      return false;
+  }
 }
 
 /** Returns null if raw is empty/null, otherwise strips seeder debug suffixes. */
@@ -145,9 +194,39 @@ export function InspectorDock() {
     setSaving,
     recordFieldEdit,
     syncBuilderNodeChildrenForSection,
+    patchBuilderNodeProps,
     slots,
+    builderTree,
     canEditSiteShell,
   } = useEditContext();
+
+  const selectedStandaloneBuilderNode = useMemo(
+    () =>
+      resolveStandaloneBuilderNodeForContent(
+        builderTree,
+        selectedBuilderNodeId,
+      ),
+    [builderTree, selectedBuilderNodeId],
+  );
+
+  const selectedDataTargetNode = useMemo<BuilderNode | null>(() => {
+    if (selectedStandaloneBuilderNode) return selectedStandaloneBuilderNode;
+    if (selectedBuilderNodeId) return null;
+    if (!loadedSection || !draftProps) return null;
+    return {
+      id: loadedSection.id,
+      kind: "section",
+      props: {
+        sectionId: loadedSection.id,
+        sectionTypeKey: loadedSection.sectionTypeKey,
+        label: cleanSectionName(loadedSection.name),
+        dataBinding: normalizeBuilderDataBinding(
+          (draftProps as Record<string, unknown>).dataBinding,
+        ) ?? undefined,
+      },
+      children: [],
+    };
+  }, [draftProps, loadedSection, selectedBuilderNodeId, selectedStandaloneBuilderNode]);
 
   // T2-1 — Look up the selected section's name + type from the composition
   // BEFORE the field-draft fetch resolves. The audit said the skeleton's
@@ -559,17 +638,19 @@ export function InspectorDock() {
   // dock still rendering "Featured professionals — new" while the chip
   // and navigator already showed "A short list, always on call." Three
   // surfaces, one rule.
-  const sectionTitle = loadedSection
-    ? (sectionDisplayName({
+  const sectionTitle = selectedStandaloneBuilderNode
+    ? builderNodeTitle(selectedStandaloneBuilderNode)
+    : loadedSection
+      ? (sectionDisplayName({
         typeKey: loadedSection.sectionTypeKey,
         rawName: loadedSection.name,
         props: loadedSection.props as Record<string, unknown> | null,
-      }) || humanizeTypeKey(loadedSection.sectionTypeKey))
-    : skeletonHint
-      ? skeletonHint.name
-      : selectedSectionId && loadingId
-        ? "Loading…"
-        : "Inspector";
+        }) || humanizeTypeKey(loadedSection.sectionTypeKey))
+      : skeletonHint
+        ? skeletonHint.name
+        : selectedSectionId && loadingId
+          ? "Loading…"
+          : "Inspector";
 
   // 2026-04-28 — Tab strip is now adaptive per section type. Sections
   // declare which tabs they meaningfully use; the strip only renders
@@ -578,6 +659,16 @@ export function InspectorDock() {
   // while the section row is still loading, so the strip doesn't jump
   // size at hand-off.
   const visibleTabs = useMemo<ReadonlyArray<TabKey>>(() => {
+    if (selectedStandaloneBuilderNode) {
+      const tabs: TabKey[] = ["content", "style"];
+      if (nodeUsesLayoutInspector(selectedStandaloneBuilderNode)) {
+        tabs.push("layout");
+      }
+      if (builderNodeSupportsDataBinding(selectedStandaloneBuilderNode.kind)) {
+        tabs.push("data");
+      }
+      return tabs;
+    }
     const allowed = loadedSection
       ? tabsForSection(loadedSection.sectionTypeKey)
       : skeletonHint
@@ -586,17 +677,18 @@ export function InspectorDock() {
     const set = new Set(allowed);
     // Preserve the canonical TABS order.
     return TABS.filter((t) => set.has(t.key)).map((t) => t.key);
-  }, [loadedSection, skeletonHint]);
+  }, [loadedSection, selectedStandaloneBuilderNode, skeletonHint]);
 
   // If the active tab disappears for the new section type (e.g. operator
   // had Motion open for Hero, then selects Trust Strip which doesn't
   // surface Motion), fall back to Content so we never render an
   // orphaned-but-active tab.
   useEffect(() => {
+    if (selectedBuilderNodeId && !selectedStandaloneBuilderNode) return;
     if (!visibleTabs.includes(tab)) {
       setTab("content");
     }
-  }, [visibleTabs, tab]);
+  }, [selectedBuilderNodeId, selectedStandaloneBuilderNode, visibleTabs, tab]);
 
   return (
     <Drawer
@@ -611,6 +703,8 @@ export function InspectorDock() {
         meta={
           isSiteHeaderSelected
             ? undefined
+            : selectedStandaloneBuilderNode
+              ? `Builder block · ${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label}`
             : loadedSection
               ? humanizeTypeKey(loadedSection.sectionTypeKey)
               : skeletonHint
@@ -652,7 +746,7 @@ export function InspectorDock() {
         >
           {loadError}
         </div>
-      ) : !loadedSection || !registryEntry ? (
+      ) : !selectedStandaloneBuilderNode && (!loadedSection || !registryEntry) ? (
         <InspectorSkeleton />
       ) : (
         <>
@@ -691,19 +785,19 @@ export function InspectorDock() {
             {tab === "content" ? (
               <>
                 <SectionA11yWarning
-                  sectionTypeKey={loadedSection.sectionTypeKey}
+                  sectionTypeKey={loadedSection?.sectionTypeKey ?? "custom"}
                   draftProps={draftProps}
                 />
                 <ContentTab
-                  sectionTypeKey={loadedSection.sectionTypeKey}
-                  schemaVersion={loadedSection.schemaVersion}
+                  sectionTypeKey={loadedSection?.sectionTypeKey ?? "custom"}
+                  schemaVersion={loadedSection?.schemaVersion ?? 1}
                   tenantId={tenantId}
                   draftProps={draftProps ?? {}}
                   selectedBuilderNodeId={selectedBuilderNodeId}
                   onChange={handleContentChange}
                 />
                 {/* AI translate — secondary tool at the foot of Content */}
-                {draftProps ? (
+                {loadedSection && draftProps ? (
                   <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: CHROME.line }}>
                     <AiTranslateSectionButton
                       sectionTypeKey={loadedSection.sectionTypeKey}
@@ -732,14 +826,40 @@ export function InspectorDock() {
                     | undefined) ?? {}
                 }
                 onPatch={handlePresentationPatch}
+                onDeepPatch={handlePresentationDeepPatch}
               />
             ) : null}
             {tab === "style" ? (
               <StylePanel
-                sectionTypeKey={loadedSection.sectionTypeKey}
+                sectionTypeKey={loadedSection?.sectionTypeKey ?? "custom"}
                 draftProps={draftProps ?? {}}
                 selectedBuilderNodeId={selectedBuilderNodeId}
                 onPatch={handleStylePatch}
+              />
+            ) : null}
+            {tab === "data" ? (
+              <DataPanel
+                selectedBuilderNode={selectedDataTargetNode}
+                onPatchBuilderNodeProps={async (nodeId, patch) => {
+                  if (loadedSection && nodeId === loadedSection.id) {
+                    setDraftProps((prev) => {
+                      if (!prev) return prev;
+                      const next: Record<string, unknown> = {
+                        ...prev,
+                        dataBinding: patch.dataBinding,
+                      };
+                      if (patch.dataBinding === undefined) {
+                        delete next.dataBinding;
+                      }
+                      return next;
+                    });
+                    setDirty(true);
+                    return { ok: true };
+                  }
+                  const result = await patchBuilderNodeProps(nodeId, patch);
+                  return result;
+                }}
+                onMutationError={setSaveError}
               />
             ) : null}
             {tab === "responsive" ? (
