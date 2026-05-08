@@ -44,6 +44,19 @@ export type CheckoutSessionInput = {
   successUrl: string;
   cancelUrl: string;
   description?: string;
+  /**
+   * Stripe Connect account id (`acct_*`) to route this charge to. When set,
+   * the charge becomes a Direct Charge on the connected account; the
+   * platform receives `applicationFeeCents` as its cut. When omitted, the
+   * charge runs as single-account on the platform's Stripe account
+   * (legacy / fallback path).
+   */
+  connectedAccountId?: string | null;
+  /**
+   * Platform application fee, in cents. Only meaningful when
+   * `connectedAccountId` is set. Defaults to 0 (no platform cut).
+   */
+  applicationFeeCents?: number;
 };
 
 export type CheckoutSessionResult =
@@ -81,7 +94,10 @@ export async function createCheckoutSessionForTransaction(
       return { ok: false, error: "Amount must be positive." };
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const useConnect = !!input.connectedAccountId;
+    const applicationFee = Math.max(0, Math.floor(input.applicationFeeCents ?? 0));
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
       line_items: [
@@ -105,7 +121,22 @@ export async function createCheckoutSessionForTransaction(
         inquiry_id: input.inquiryId,
         booking_id: input.bookingId,
       },
-    });
+    };
+
+    // Connect: Direct Charge on the connected account, platform takes
+    // `application_fee_amount`. Application fee can only be set when the
+    // charge is on a Connect account, hence the conditional.
+    if (useConnect && applicationFee > 0) {
+      sessionParams.payment_intent_data = {
+        application_fee_amount: applicationFee,
+      };
+    }
+
+    const session = useConnect
+      ? await stripe.checkout.sessions.create(sessionParams, {
+          stripeAccount: input.connectedAccountId!,
+        })
+      : await stripe.checkout.sessions.create(sessionParams);
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };

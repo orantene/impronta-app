@@ -18,6 +18,11 @@ import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { loadActiveBookingTransaction } from "@/lib/bookings/transactions";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import {
+  getConnectedAccountSnapshotById,
+  canRouteCheckoutsToAgency,
+  getApplicationFeeForAgency,
+} from "@/lib/payments/stripe-connect";
 import { headers } from "next/headers";
 
 export type ClientActionResult = { ok: true } | { ok: false; error: string };
@@ -176,6 +181,16 @@ export async function startInquiryCheckout(
     const successUrl = `${origin}/checkout/success`;
     const cancelUrl = `${origin}/checkout/cancel`;
 
+    // Connect routing: if the agency has connected Stripe and the account is
+    // fully enabled, run a Direct Charge against their account. Otherwise
+    // fall back to the platform's single-account flow (legacy / pre-launch).
+    const connectSnap = await getConnectedAccountSnapshotById(ctx.tenantId);
+    const useConnect = connectSnap.ok && canRouteCheckoutsToAgency(connectSnap.data);
+    const connectedAccountId = useConnect ? connectSnap.data.stripeAccountId : null;
+    const applicationFeeCents = useConnect
+      ? getApplicationFeeForAgency(ctx.tenantId, txn.grossAmountCents)
+      : 0;
+
     const result = await createCheckoutSessionForTransaction({
       transactionId: txn.id,
       amountCents: txn.grossAmountCents,
@@ -186,6 +201,8 @@ export async function startInquiryCheckout(
       successUrl,
       cancelUrl,
       description: "Booking invoice",
+      connectedAccountId,
+      applicationFeeCents,
     });
 
     if (!result.ok) return { ok: false, error: result.error };

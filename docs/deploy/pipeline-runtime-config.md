@@ -33,13 +33,50 @@ The handler uses `client_reference_id` (set by
 `createCheckoutSessionForTransaction` to the `booking_transactions.id`)
 to find the transaction to mark paid. No customer match required.
 
-### Stripe Connect (deferred)
+### Stripe Connect (Express) — per-tenant payouts
 
-This pass uses a single-account Checkout (the agency receives funds in
-the connected Stripe account; payout to talent is recorded as a
-manual-mode `payout_sent` for audit). True per-tenant payouts require
-Stripe Connect (Express or Standard accounts per workspace). That's a
-separate phase.
+**Status: built (rev 12).** Each agency can connect its own Stripe
+account; client payments route directly to that account via Direct
+Charges. The platform takes an application fee
+(currently 0 — see `getApplicationFeeForAgency` in `stripe-connect.ts`).
+
+Architecture:
+
+- **Express accounts** — Stripe-hosted KYC + dashboard. Created on
+  demand when an agency hits Connect for the first time.
+- **Direct Charges** — `stripe.checkout.sessions.create(params, { stripeAccount })`.
+  Connected account bears chargebacks; platform receives `application_fee_amount`.
+- **Lifecycle mirror** — `agencies.stripe_account_status` /
+  `stripe_charges_enabled` / `stripe_payouts_enabled` /
+  `stripe_details_submitted` / `stripe_account_synced_at` track the
+  Stripe account state. Refreshed on `account.updated` webhook,
+  return-from-onboarding redirect, and on-demand from the settings page.
+- **Fallback** — When an agency hasn't connected, `startInquiryCheckout`
+  falls back to single-account (platform's Stripe account). This
+  preserves backwards compat and keeps the demo working in mock mode.
+
+**Routes:**
+- `/<tenantSlug>/admin/payouts` — settings page with Connect / Refresh /
+  Manage / Disconnect buttons. Capability-gated to `agency.workspace.edit`.
+- `/<tenantSlug>/admin/payouts/return` — Stripe redirects here after
+  hosted onboarding; refreshes status, sends user back to /payouts.
+
+**Connect-specific webhook events (handled at `/api/webhooks/stripe`):**
+- `account.updated` → refresh persisted snapshot
+- `capability.updated` → re-fetch and persist
+- `payout.paid` / `payout.failed` / `payout.created` / `payout.canceled` → log only
+
+**Stripe dashboard requirements (one-time platform setup):**
+1. Enable Connect in the Stripe dashboard (Settings → Connect → Get started).
+2. Configure the Connect platform profile (name, branding, support email).
+3. Configure Express dashboard branding (logo, accent color).
+4. Set up the platform business profile under Connect settings.
+
+The webhook endpoint at `/api/webhooks/stripe` receives both base events
+AND Connect events automatically when:
+- The same endpoint is registered as a Connect webhook in Stripe
+  (Developers → Webhooks → "Listen to events on Connected accounts" toggled on,
+  OR a separate Connect-flagged endpoint pointing to the same URL).
 
 ---
 
@@ -132,6 +169,98 @@ required.
 If you want a richer dispatch later (push / email / digest), build it
 as a new layer that consumes the same `inquiry_messages` insert event
 (via realtime / triggers) rather than replacing this path.
+
+---
+
+## Stripe go-live checklist (USER ACTIONS)
+
+Everything below requires credentials / accounts that only you have.
+The code is shipped and waiting on these env + dashboard configurations.
+
+### Step 1 — Stripe account + keys
+
+1. Create a Stripe account at https://dashboard.stripe.com/register
+   (or use your existing one).
+2. **Live mode**: complete platform activation (legal entity, bank account,
+   support details). Without activation you can only run in test mode.
+3. Grab your secret key from Developers → API keys:
+   - Test: `sk_test_…`
+   - Live: `sk_live_…`
+
+### Step 2 — Enable Connect (for per-tenant payouts)
+
+1. Stripe dashboard → Connect → Get started.
+2. Choose **Platform or marketplace**.
+3. Configure the platform profile:
+   - Name: "Tulala" (or your platform's brand)
+   - Country: your platform's country
+   - Support email: from your branding
+4. Under Connect → Settings → Branding, upload logo and accent color
+   for the Express dashboard your agencies will see.
+5. Verify "Express" account type is enabled (it is by default).
+
+### Step 3 — Webhook endpoint
+
+1. Stripe dashboard → Developers → Webhooks → **Add endpoint**.
+2. URL: `https://<your-production-domain>/api/webhooks/stripe`
+   - For Tulala on the live alias: `https://app.tulala.digital/api/webhooks/stripe`
+3. Select **"Account in Connect — listen to events on Connected accounts"** —
+   this is essential, otherwise you only get platform events.
+4. Subscribe to these events (minimum):
+   - `checkout.session.completed`         (payment confirmation)
+   - `payment_intent.payment_failed`      (failure logging)
+   - `account.updated`                    (Connect account status changes)
+   - `capability.updated`                 (Connect capability changes)
+   - `payout.created` / `payout.paid` / `payout.failed` / `payout.canceled` (logging)
+5. After creating, copy the **signing secret** (`whsec_…`).
+
+### Step 4 — Vercel env vars
+
+Set these on the Vercel project (`tulala`, team `oran-tenes-projects`):
+
+| Var | Value | Where to get it |
+|-----|-------|-----------------|
+| `STRIPE_SECRET_KEY` | `sk_live_…` (or `sk_test_…` for staging) | Step 1 |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Step 3 |
+| `NEXT_PUBLIC_BASE_URL` | `https://app.tulala.digital` (production) | (Optional — already falls back to host header) |
+
+Set them via the Vercel dashboard or CLI:
+```
+vercel env add STRIPE_SECRET_KEY production
+vercel env add STRIPE_WEBHOOK_SECRET production
+```
+
+After setting, redeploy: `vercel --prod` or push to `phase-1` to trigger
+a build. Without the keys, the code falls back to mock-mode (returns a
+mock success URL) and the webhook returns 503.
+
+### Step 5 — Smoke test
+
+After deploying with the env vars set:
+
+1. Sign in as an agency admin → `/<slug>/admin/payouts`.
+2. Click "Connect Stripe" → complete the Express onboarding form.
+   In test mode, Stripe accepts dummy values for everything; in live
+   mode you'll need real legal + bank info.
+3. Return to `/<slug>/admin/payouts` and verify status pill shows "Active".
+4. Drive a real client payment via the inquiry flow and verify the
+   funds land in the agency's connected Stripe account (Stripe dashboard
+   → Connect → Accounts → that account → Payments).
+5. Verify the `booking_transactions` row flips to `paid` in the DB.
+6. Verify the corresponding `account.updated` webhook hit your endpoint
+   (Stripe dashboard → Webhooks → endpoint → recent deliveries).
+
+### Step 6 — Application fee (when ready)
+
+The code path passes `application_fee_amount: 0` today. To start taking
+a platform cut:
+
+1. Edit `getApplicationFeeForAgency` in `web/src/lib/payments/stripe-connect.ts`.
+2. Either compute from a flat-bps platform fee (e.g. 5% = 500 bps) or
+   read from a new column on `agencies` for per-agency fees.
+3. Communicate the fee to your agencies before turning it on; existing
+   bookings created before the change should not be affected (the fee
+   is fixed per Checkout session, not per transaction history).
 
 ---
 

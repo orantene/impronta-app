@@ -398,6 +398,57 @@ No Vercel push until the marathon completes its full run and the user gives go.
 
 ## Changelog
 
+- **rev 12 (this commit)** — Stripe Connect (Express) per-tenant payouts:
+  - **DB migration** `20260907150000_stripe_connect_accounts.sql` —
+    adds `stripe_account_id`, `stripe_account_status` (none/pending/
+    enabled/restricted/disabled), `stripe_charges_enabled`,
+    `stripe_payouts_enabled`, `stripe_details_submitted`,
+    `stripe_account_synced_at` to `agencies`. Unique index on
+    `stripe_account_id` for webhook reverse-lookup. Applied via
+    Supabase Management API.
+  - **Connect helpers** in `lib/payments/stripe-connect.ts` —
+    `createOrGetConnectedAccount` (idempotent Express account create),
+    `createOnboardingLink` (one-shot hosted onboarding URL),
+    `createDashboardLink` (Express login link), `refreshAccountStatus`
+    (pull latest from Stripe), `disconnectAccount` (clear binding),
+    `getConnectedAccountSnapshot` / `getConnectedAccountSnapshotById`
+    (persisted reads), `findAgencyByStripeAccountId` (webhook lookup),
+    `persistAccountSnapshot` (shared push/pull persist), helpers
+    `canRouteCheckoutsToAgency` + `getApplicationFeeForAgency`.
+    Compensating delete on Stripe-account-create-then-DB-fail.
+  - **Direct Charge routing** — `createCheckoutSessionForTransaction`
+    accepts `connectedAccountId` + `applicationFeeCents`. When set,
+    creates the Checkout session against the connected account via
+    `{ stripeAccount }`; sets `payment_intent_data.application_fee_amount`
+    when fee is non-zero.
+  - **Client checkout flow** — `startInquiryCheckout` looks up the
+    agency's snapshot by tenant_id; if `canRouteCheckoutsToAgency`
+    returns true, routes the charge through Connect. Otherwise falls
+    back to single-account (legacy / pre-launch).
+  - **Webhook handler** — adds `account.updated`, `capability.updated`,
+    `payout.created/paid/failed/canceled`. Account events resolve
+    agency via `findAgencyByStripeAccountId` and persist a fresh
+    snapshot. Payout events log only (no DB write — Express dashboard
+    is the source of truth for payouts).
+  - **Admin server actions** in `lib/server-actions/admin-stripe-connect.ts` —
+    `ensureConnectedAccountAction`, `getConnectOnboardingLinkAction`,
+    `getConnectDashboardLinkAction`, `refreshConnectStatusAction`,
+    `getConnectSnapshotAction`, `disconnectStripeAccountAction`. Each
+    re-validates that `tenantSlug` matches the caller's active scope
+    (defense against URL-tampering since the lib uses service-role).
+  - **Canonical pages** —
+    `(workspace)/[tenantSlug]/admin/payouts/page.tsx` (status display +
+    capability rows), `payouts-actions-client.tsx` (Connect / Continue
+    onboarding / Manage on Stripe / Refresh / Disconnect),
+    `payouts/return/page.tsx` (post-onboarding refresh + redirect).
+    Capability gate: `agency.workspace.edit`.
+  - **Deployment doc** — `docs/deploy/pipeline-runtime-config.md`
+    expanded with full Connect architecture notes + a 6-step go-live
+    checklist for the user (Stripe account, Connect enable, webhook
+    setup with required events, Vercel env vars, smoke test, fee config).
+  - **Application fee defaults to 0** — `getApplicationFeeForAgency`
+    returns 0 today. Single source of change when the platform decides
+    to monetize Connect payouts.
 - **rev 11 (95e4e050)** — final polish pass:
   - **Talent-side file uploads** — new `uploadInquiryAttachmentAsTalent` in
     `lib/server-actions/talent-pipeline.ts`. Validates caller has an active
@@ -634,24 +685,26 @@ No Vercel push until the marathon completes its full run and the user gives go.
 | (this)   | Dom | DomainDrawer wired |
 | (this)   | Doc | `docs/deploy/pipeline-runtime-config.md` — Stripe env, realtime RLS, settings schema |
 
-## What's still open after rev 11
+## What's still open after rev 12
 
-### Truly out of scope (config or refactor, not pipeline functionality)
+### Truly out of scope (user actions or refactor, not pipeline functionality)
 
-- **Stripe production config** — code path is complete with mock-mode
-  fallback. To go live, set `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`
-  + register the webhook endpoint with Stripe. See
-  `docs/deploy/pipeline-runtime-config.md`.
-- **Stripe Connect (per-tenant payouts)** — current Checkout is
-  single-account. Connect (Express or Standard) is a separate phase.
-- **Realtime publication + RLS** — code is complete; deployment must
-  ensure the `supabase_realtime` publication includes all four watched
-  tables and that RLS allows the active session's SELECT. See
-  deployment notes.
-- **Bridge layer split** — `_data-bridge.ts` is 1900+ lines mixing
-  concerns. Pure tech-debt cleanup; deferred because the churn risk
-  across all importers outweighs zero functional benefit. Recommend
-  doing it as a dedicated pass with full test coverage.
+- **Stripe go-live config** ⏸ user-side — code path is complete with
+  mock-mode fallback. To go live, the user follows the 6-step checklist
+  in `docs/deploy/pipeline-runtime-config.md` (Stripe account →
+  Connect enable → webhook with the right Connect-account events →
+  Vercel env vars → smoke test → application fee). The platform-side
+  build is finished; we can't proceed without their Stripe credentials.
+- **Stripe Connect (per-tenant payouts)** ✅ done in rev 12. Express
+  accounts; Direct Charges with `application_fee_amount`. See changelog.
+- **Realtime publication + RLS** ⏸ deployment-side — code is complete;
+  deployment must ensure the `supabase_realtime` publication includes
+  the four watched tables and that RLS allows the active session's
+  SELECT. See deployment notes.
+- **Bridge layer split** ⏸ deferred — `_data-bridge.ts` is 1900+ lines
+  mixing concerns. Pure tech-debt cleanup; the churn risk across all
+  importers outweighs zero functional benefit. Recommend doing it as a
+  dedicated pass with full test coverage.
 
 ### UI polish / small follow-ups
 

@@ -14,6 +14,10 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { getStripe } from "@/lib/payments/stripe-checkout";
+import {
+  findAgencyByStripeAccountId,
+  persistAccountSnapshot,
+} from "@/lib/payments/stripe-connect";
 import { markPaid, loadActiveBookingTransaction } from "@/lib/bookings/transactions";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -79,8 +83,59 @@ export async function POST(req: NextRequest) {
         }
         break;
       }
+      // ── Connect events ──────────────────────────────────────────────────
+      // These arrive at the same endpoint when the platform's webhook
+      // subscription includes "Listen to events on Connected accounts" or
+      // when the event itself originates on a connected account
+      // (`event.account` is set on the envelope in either case).
+      case "account.updated": {
+        const account = event.data.object as import("stripe").Stripe.Account;
+        const agency = await findAgencyByStripeAccountId(account.id);
+        if (!agency) break; // event for an account we don't know about — ignore
+        const persisted = await persistAccountSnapshot(agency.agencyId, account);
+        if (!persisted.ok) {
+          logServerError("webhooks.stripe.account.updated", new Error(persisted.error));
+        }
+        break;
+      }
+      case "payout.paid":
+      case "payout.failed":
+      case "payout.created":
+      case "payout.canceled": {
+        // Connect payout events. We don't write to DB today — the agency's
+        // payout history is fully visible in their Stripe Express dashboard.
+        // Logging here lets us see them in the platform logs for debugging.
+        const payout = event.data.object as import("stripe").Stripe.Payout;
+        const stripeAccountId = (event.account as string | undefined) ?? null;
+        if (process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.info(`[stripe.connect] ${event.type} acct=${stripeAccountId ?? "?"} payout=${payout.id} amount=${payout.amount} ${payout.currency}`);
+        }
+        break;
+      }
+      case "capability.updated": {
+        // A capability flag on a Connect account changed (e.g. transfers
+        // got enabled or restricted). Refresh the persisted snapshot.
+        const cap = event.data.object as import("stripe").Stripe.Capability;
+        const stripeAccountId = (event.account as string | undefined) ?? (cap.account as string | undefined) ?? null;
+        if (!stripeAccountId) break;
+        const agency = await findAgencyByStripeAccountId(stripeAccountId);
+        if (!agency) break;
+        // Re-fetch the account to get the full state, then persist.
+        try {
+          const acct = await stripe.accounts.retrieve(stripeAccountId);
+          const persisted = await persistAccountSnapshot(agency.agencyId, acct);
+          if (!persisted.ok) {
+            logServerError("webhooks.stripe.capability.updated", new Error(persisted.error));
+          }
+        } catch (err) {
+          logServerError("webhooks.stripe.capability.updated/retrieve", err);
+        }
+        break;
+      }
       default:
-        // Ignore other event types — we only care about checkout completion.
+        // Ignore other event types — we only care about checkout completion
+        // and Connect account lifecycle.
         break;
     }
     return NextResponse.json({ received: true });
