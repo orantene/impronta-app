@@ -1489,6 +1489,14 @@ export async function assignInquiryToCurrentStaff(
   return undefined;
 }
 
+const proficiencyMinSchema = z.enum([
+  "beginner",
+  "intermediate",
+  "advanced",
+  "expert",
+  "master",
+]);
+
 const manualInquirySchema = z.object({
   contact_name: z.string().min(1, "Contact name is required."),
   contact_email: z.string().min(1, "Email is required."),
@@ -1502,6 +1510,9 @@ const manualInquirySchema = z.object({
   message: z.string(),
   event_location: z.string(),
   source_channel: inquirySourceChannelSchema,
+  // Phase 6.1 — optional skill targeting
+  requested_skill_term_id: z.string().optional().default(""),
+  requested_proficiency_min: z.string().optional().default(""),
 });
 
 /** Staff-created inquiry (phone / walk-in). Supports sheet mode via `submit_mode=sheet`. */
@@ -1533,7 +1544,10 @@ export async function createManualInquiry(
     message: trimmedString(formData, "message"),
     event_location: trimmedString(formData, "event_location"),
     source_channel: channelParsed.data,
+    requested_skill_term_id: trimmedString(formData, "requested_skill_term_id"),
+    requested_proficiency_min: trimmedString(formData, "requested_proficiency_min"),
   });
+
   if ("error" in parsed) return { error: parsed.error };
 
   const d = parsed.data;
@@ -1571,6 +1585,13 @@ export async function createManualInquiry(
     createdInquiryClientAccountName = acc?.name ?? null;
   }
 
+  // Phase 6.1 — optional skill targeting
+  const skillTermId = d.requested_skill_term_id.length > 0 ? d.requested_skill_term_id : null;
+  const proficiencyRaw = d.requested_proficiency_min.length > 0 ? d.requested_proficiency_min : null;
+  const proficiencyMin = proficiencyRaw && proficiencyMinSchema.safeParse(proficiencyRaw).success
+    ? proficiencyRaw
+    : null;
+
   const { data: created, error: insErr } = await supabase
     .from("inquiries")
     .insert({
@@ -1597,6 +1618,8 @@ export async function createManualInquiry(
       source_channel: d.source_channel as never,
       closed_reason: null,
       duplicate_of_inquiry_id: null,
+      requested_skill_term_id: skillTermId,
+      requested_proficiency_min: proficiencyMin as never,
     })
     .select("id")
     .single();

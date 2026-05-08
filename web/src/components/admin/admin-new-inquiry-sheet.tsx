@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
 import { INQUIRY_SOURCE_CHANNEL_VALUES } from "@/lib/admin/validation";
+import { useLiveTaxonomy } from "@/app/prototypes/admin-shell/_taxonomy-loader";
 
 type Contact = { id: string; client_account_id: string; label: string };
 type TalentOption = { id: string; profile_code: string; display_name: string | null };
@@ -75,6 +76,19 @@ function AdminNewInquirySheetBody({
   const [contactPhone, setContactPhone] = useState("");
   const [contactCompany, setContactCompany] = useState("");
   const [clientSnapshotLoading, setClientSnapshotLoading] = useState(false);
+
+  // Phase 6.1 — skill targeting (optional)
+  const taxonomy = useLiveTaxonomy();
+  const allParents = [
+    ...(taxonomy.visibleParents ?? []),
+    ...(taxonomy.restParents ?? []),
+  ];
+  const [selectedParentId, setSelectedParentId] = useState("");
+  const [selectedSkillTermId, setSelectedSkillTermId] = useState("");
+  const [selectedProficiencyMin, setSelectedProficiencyMin] = useState("");
+
+  const selectedParent = allParents.find((p) => p.raw.id === selectedParentId) ?? null;
+  const talentTypesForParent = selectedParent?.talentTypes ?? [];
 
   useEffect(() => {
     if (!selectedClient?.id) return;
@@ -176,6 +190,8 @@ function AdminNewInquirySheetBody({
     <form ref={formRef} action={action} className="space-y-4">
       <input type="hidden" name="submit_mode" value="sheet" />
       <input type="hidden" name="client_user_id" value={selectedClient?.id ?? ""} />
+      <input type="hidden" name="requested_skill_term_id" value={selectedSkillTermId} />
+      <input type="hidden" name="requested_proficiency_min" value={selectedProficiencyMin} />
 
       <SectionCard
         title="1. Client"
@@ -395,6 +411,67 @@ function AdminNewInquirySheetBody({
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="ni_staff_notes">Internal notes</Label>
             <Textarea id="ni_staff_notes" name="staff_notes" rows={2} placeholder="Staff-only context." />
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="5. Skill needed (optional)"
+        description="Narrow the search to a specific talent type and proficiency floor. Leave blank to keep the inquiry open to any skill."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="ni_skill_parent">Category</Label>
+            <select
+              id="ni_skill_parent"
+              value={selectedParentId}
+              onChange={(event) => {
+                setSelectedParentId(event.target.value);
+                setSelectedSkillTermId("");
+              }}
+              className={ADMIN_FORM_CONTROL}
+              disabled={taxonomy.loading}
+            >
+              <option value="">Any category</option>
+              {allParents.map((p) => (
+                <option key={p.raw.id} value={p.raw.id}>
+                  {p.display.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ni_skill_type">Talent type</Label>
+            <select
+              id="ni_skill_type"
+              value={selectedSkillTermId}
+              onChange={(event) => setSelectedSkillTermId(event.target.value)}
+              className={ADMIN_FORM_CONTROL}
+              disabled={!selectedParentId || talentTypesForParent.length === 0}
+            >
+              <option value="">Any type</option>
+              {talentTypesForParent.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="ni_proficiency_min">Minimum proficiency (optional)</Label>
+            <select
+              id="ni_proficiency_min"
+              value={selectedProficiencyMin}
+              onChange={(event) => setSelectedProficiencyMin(event.target.value)}
+              className={ADMIN_FORM_CONTROL}
+            >
+              <option value="">Any (no minimum)</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+              <option value="expert">Expert</option>
+              <option value="master">Master</option>
+            </select>
           </div>
         </div>
       </SectionCard>
