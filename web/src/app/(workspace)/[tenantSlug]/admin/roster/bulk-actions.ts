@@ -23,10 +23,14 @@ export type BulkWorkflowResult =
  * Only IDs that are confirmed to be on this tenant's roster (status != 'removed') are touched.
  * Returns the number of profiles actually updated.
  */
+/**
+ * "publish" sets workflow_status='approved' + visibility='public'.
+ * "archive" sets workflow_status='hidden'.
+ */
 export async function bulkSetWorkflowStatus(
   tenantSlug: string,
   talentIds: string[],
-  targetStatus: "published" | "hidden",
+  targetStatus: "publish" | "archive",
 ): Promise<BulkWorkflowResult> {
   if (talentIds.length === 0) return { ok: true, updatedCount: 0 };
 
@@ -61,9 +65,14 @@ export async function bulkSetWorkflowStatus(
 
   if (confirmedIds.length === 0) return { ok: true, updatedCount: 0 };
 
+  const updatePayload =
+    targetStatus === "publish"
+      ? { workflow_status: "approved", visibility: "public", updated_at: new Date().toISOString() }
+      : { workflow_status: "hidden", updated_at: new Date().toISOString() };
+
   const { error: updateErr, count } = await admin
     .from("talent_profiles")
-    .update({ workflow_status: targetStatus, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .in("id", confirmedIds);
 
   if (updateErr) {
@@ -78,7 +87,7 @@ export async function bulkSetWorkflowStatus(
         talent_profile_id: talentId,
         actor_user_id: session.user!.id,
         event_type: "workflow_status_changed",
-        payload: { to: targetStatus, note: "bulk action" },
+        payload: { to: targetStatus === "publish" ? "approved" : "hidden", note: "bulk action" },
       })),
     );
   } catch (e) {

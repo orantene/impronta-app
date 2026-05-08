@@ -111,6 +111,8 @@ const COORDINATOR_CAPS: readonly CapabilityKey[] = [
   "approve_offer_internal",
   "convert_to_booking",
   "cancel_inquiry",
+  // Phase 9 — pitch curation (compose, send, cancel pitches)
+  "agency.pitch.manage",
   "publish_cms_pages",
   // Booking transactions (manual provider v1)
   "booking.payment.select_receiver",

@@ -56,6 +56,7 @@ export type WorkspacePage =
   | "operations" // WS-19/20: analytics + workflow automation
   | "production" // WS-28/29/30/33/34/35: casting, crew, on-set, rights, safety
   | "website"    // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain, maintenance, announcement)
+  | "pitches"    // Phase 9 — pitch history (admin curation of talent suggestions sent to clients). Renders via real server component, not the prototype shell.
   | "settings"   // replaces workspace; billing folded in via anchor nav
   // ── legacy aliases (hidden from nav, kept for URL compat) ──
   | "inbox"
@@ -119,6 +120,7 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "calendar",
   "roster",
   "clients",
+  "pitches",   // Phase 9 — pitch history surface.
   "operations",
   "production",
   "website",   // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain). Sits between Production and Settings.
@@ -349,6 +351,7 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   operations:{ label: "Operations",icon: "layers",   description: "Analytics, queues, SLAs, automations, and team workload" },
   production:{ label: "Production",icon: "camera",   description: "Casting, crew bookings, call sheets, rights, and safety" },
   website:   { label: "Website",   icon: "globe",    description: "Pages, posts, redirects, custom code, tracking, SEO, domain" },
+  pitches:   { label: "Pitches",   icon: "send",     description: "Curated talent suggestions sent to clients" },
   settings:  { label: "Settings",  icon: "settings", description: "Account, plan, branding, integrations, team, and danger zone" },
   // ── legacy aliases (hidden from nav) ──
   inbox:     { label: "Inbox",     icon: "mail" },

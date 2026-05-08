@@ -2911,6 +2911,8 @@ export type ClientInquiryRow = {
   next_action_by: string | null;
   /** Unread count in the private client thread. */
   unreadCount: number;
+  /** Phase 9 — set when this inquiry was converted from a curated pitch. */
+  source_pitch_id: string | null;
 };
 
 /**
@@ -2927,7 +2929,7 @@ export async function loadClientInquiries(
 
     const { data, error } = await supabase
       .from("inquiries")
-      .select("id, status, event_date, event_location, company, quantity, created_at, next_action_by")
+      .select("id, status, event_date, event_location, company, quantity, created_at, next_action_by, source_pitch_id")
       .eq("tenant_id", tenantId)
       .eq("client_user_id", userId)
       .order("created_at", { ascending: false })

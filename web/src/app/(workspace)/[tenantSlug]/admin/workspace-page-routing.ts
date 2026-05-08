@@ -18,6 +18,7 @@ const WORKSPACE_PAGE_SEGMENTS = new Set<string>([
   "operations",
   "production",
   "website",
+  "pitches",
   "settings",
 ]);
 

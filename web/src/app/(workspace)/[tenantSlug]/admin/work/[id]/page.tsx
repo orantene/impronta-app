@@ -151,7 +151,7 @@ export default async function WorkspaceWorkDetailPage({
 
   const { data: inquiry } = await supabase
     .from("inquiries")
-    .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source")
+    .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source, source_pitch_id")
     .eq("tenant_id", scope.tenantId)
     .eq("id", inquiryId)
     .maybeSingle();
@@ -182,6 +182,8 @@ export default async function WorkspaceWorkDetailPage({
   // Age of this inquiry in days
   const ageDays = Math.floor((Date.now() - new Date(inquiry.created_at).getTime()) / (1000 * 60 * 60 * 24));
   const inquirySource = (inquiry as { source?: string | null }).source ?? null;
+  const sourcePitchId =
+    (inquiry as { source_pitch_id?: string | null }).source_pitch_id ?? null;
 
   const grossRevenueCents = readRevenueCents(
     (booking as { total_client_revenue: number | string | null } | null)?.total_client_revenue ?? null,
@@ -305,6 +307,48 @@ export default async function WorkspaceWorkDetailPage({
         <div style={{ border: `1px solid ${C.border}`, background: C.redSoft, color: C.red, borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
           {txerr}
         </div>
+      ) : null}
+
+      {sourcePitchId ? (
+        <Link
+          href={`/${tenantSlug}/admin/pitches`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid rgba(15,79,62,0.18)",
+            background: "rgba(15,79,62,0.06)",
+            color: "#0F4F3E",
+            textDecoration: "none",
+            fontSize: 12.5,
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              display: "inline-flex",
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: "rgba(15,79,62,0.12)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </span>
+          <span style={{ flex: 1, fontWeight: 600 }}>
+            Originated from a curated Pitch
+          </span>
+          <span style={{ color: "rgba(15,79,62,0.7)", fontSize: 12, fontWeight: 600 }}>
+            View all pitches →
+          </span>
+        </Link>
       ) : null}
 
       <section style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.cardBg, padding: 14 }}>

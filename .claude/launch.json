@@ -2,6 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Worktree Dev Server",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/nostalgic-blackwell-593264/web && npm run dev -- -p 3002"],
+      "port": 3002,
+      "autoPort": true
+    },
+    {
       "name": "Next.js Dev Server",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && npm run dev"],
