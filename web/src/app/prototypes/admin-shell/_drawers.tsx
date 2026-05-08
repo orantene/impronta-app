@@ -1351,13 +1351,42 @@ function SiteSetupDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function ThemeFoundationsDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Theme saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
   const [theme, setTheme] = useState<"editorial-noir" | "modern-mono" | "warm-light">("editorial-noir");
   const [headingFont, setHeadingFont] = useState("Cormorant Garamond");
   const [bodyFont, setBodyFont] = useState("Inter");
   const [accent, setAccent] = useState("#B8860B");
   const [density, setDensity] = useState<"compact" | "comfortable" | "spacious">("comfortable");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "theme").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (typeof v.theme === "string") setTheme(v.theme as typeof theme);
+        if (typeof v.headingFont === "string") setHeadingFont(v.headingFont);
+        if (typeof v.bodyFont === "string") setBodyFont(v.bodyFont);
+        if (typeof v.accent === "string") setAccent(v.accent);
+        if (typeof v.density === "string") setDensity(v.density as typeof density);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "theme", {
+        theme, headingFont, bodyFont, accent, density,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Theme saved"); router.refresh(); closeDrawer(); }
+    });
+  };
 
   return (
     <DrawerShell
@@ -1366,7 +1395,7 @@ function ThemeFoundationsDrawer() {
       title="Theme & foundations"
       description="Typography, color, and density — applied across your site."
       width={580}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Theme preset" description="Three starting points. Customize anything below.">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -10571,12 +10600,41 @@ function BrandingDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function DomainDrawer() {
+  const router = useRouter();
   const { state, closeDrawer, toast } = useProto();
-  const onSave = useSaveAndClose("Domain settings saved");
+  const [pending, startTransition] = useTransition();
   const isLive = meetsPlan(state.plan, "studio");
   // I3 — read live domain status from the Website page's source of
   // truth so the drawer stays in sync with WebsiteDomainPanel.
   const domain = WEBSITE_STATE.domain;
+  const [customDomain, setCustomDomain] = useState(isLive ? domain.primaryDomain : "");
+  const [redirectToWww, setRedirectToWww] = useState(domain.redirectsToWww);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "domain").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (typeof v.customDomain === "string") setCustomDomain(v.customDomain);
+        if (typeof v.redirectToWww === "boolean") setRedirectToWww(v.redirectToWww);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "domain", {
+        customDomain: customDomain.trim(),
+        redirectToWww,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Domain settings saved"); router.refresh(); closeDrawer(); }
+    });
+  };
   const sslDaysLeft = domain.sslExpiresOn
     ? Math.round((new Date(domain.sslExpiresOn).getTime() - Date.now()) / 86400e3)
     : null;
@@ -10597,18 +10655,23 @@ function DomainDrawer() {
       title="Custom domain"
       description={isLive ? `Your storefront runs on ${domain.primaryDomain}.` : "Your storefront runs on Tulala's subdomain."}
       width={580}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Public URL">
         <FieldRow label="Tulala subdomain" hint="Always available. Used as fallback.">
           <TextInput defaultValue={TENANT.domain} prefix="https://" />
         </FieldRow>
         <FieldRow label="Custom domain" optional>
-          <TextInput defaultValue={isLive ? domain.primaryDomain : ""} placeholder="acme-models.com" prefix="https://" />
+          <TextInput
+            value={customDomain}
+            onChange={(e) => setCustomDomain((e.target as HTMLInputElement).value)}
+            placeholder="acme-models.com"
+            prefix="https://"
+          />
         </FieldRow>
         {isLive && (
           <FieldRow label="Redirect bare → www" optional hint="When on, atelier-roma.com is rewritten to www.atelier-roma.com at the edge.">
-            <ToggleControl value={domain.redirectsToWww} label="" onChange={() => toast("Redirect-to-www toggle — wires to edge config in production")} />
+            <ToggleControl value={redirectToWww} label="" onChange={(v) => setRedirectToWww(v)} />
           </FieldRow>
         )}
       </Section>
@@ -14728,28 +14791,63 @@ function PostsDrawer() {
 }
 
 function NavigationDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Navigation saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+  const [headerItems, setHeaderItems] = useState<string[]>([
+    "Roster", "About", "Editorial", "Press", "Contact",
+  ]);
+  const [col1, setCol1] = useState("Agency");
+  const [col2, setCol2] = useState("Talent");
+  const [col3, setCol3] = useState("Get in touch");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "navigation").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (Array.isArray(v.headerItems)) setHeaderItems((v.headerItems as string[]).map(String));
+        if (typeof v.col1 === "string") setCol1(v.col1);
+        if (typeof v.col2 === "string") setCol2(v.col2);
+        if (typeof v.col3 === "string") setCol3(v.col3);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "navigation", {
+        headerItems, col1, col2, col3,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Navigation saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Navigation & footer"
       description="Header structure and footer columns."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
-      <Section title="Header — 5 items">
-        <ReorderList items={["Roster", "About", "Editorial", "Press", "Contact"]} />
+      <Section title={`Header — ${headerItems.length} items`}>
+        <ReorderList items={headerItems} />
       </Section>
       <Section title="Footer — 3 columns">
         <FieldRow label="Column 1 title">
-          <TextInput defaultValue="Agency" />
+          <TextInput value={col1} onChange={(e) => setCol1((e.target as HTMLInputElement).value)} />
         </FieldRow>
         <FieldRow label="Column 2 title">
-          <TextInput defaultValue="Talent" />
+          <TextInput value={col2} onChange={(e) => setCol2((e.target as HTMLInputElement).value)} />
         </FieldRow>
         <FieldRow label="Column 3 title">
-          <TextInput defaultValue="Get in touch" />
+          <TextInput value={col3} onChange={(e) => setCol3((e.target as HTMLInputElement).value)} />
         </FieldRow>
       </Section>
     </DrawerShell>
@@ -14830,67 +14928,153 @@ function MediaDrawer() {
 }
 
 function TranslationsDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Languages saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+  const ALL = [
+    { code: "EN", name: "English" },
+    { code: "ES", name: "Español" },
+    { code: "IT", name: "Italiano" },
+    { code: "FR", name: "Français" },
+  ];
+  const [enabled, setEnabled] = useState<string[]>(["EN", "ES"]);
+  const [primary, setPrimary] = useState<string>("EN");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "languages").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (Array.isArray(v.enabled)) setEnabled((v.enabled as string[]).map(String));
+        if (typeof v.primary === "string") setPrimary(v.primary);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const toggle = (code: string) => {
+    setEnabled((prev) => {
+      if (prev.includes(code)) return prev.filter((c) => c !== code);
+      return [...prev, code];
+    });
+  };
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "languages", {
+        enabled, primary,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Languages saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Translations"
       description="Run your storefront in multiple languages."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Active languages">
-        {[
-          { code: "EN", name: "English", primary: true },
-          { code: "ES", name: "Español", primary: false },
-          { code: "IT", name: "Italiano", primary: false },
-          { code: "FR", name: "Français", primary: false },
-        ].map((l) => (
-          <div
-            key={l.code}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "10px 12px",
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 8,
-              fontFamily: FONTS.body,
-            }}
-          >
-            <span style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, minWidth: 24 }}>
-              {l.code}
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, flex: 1 }}>
-              {l.name}
-            </span>
-            {l.primary && <StateChipMini label="Primary" tone="green" />}
-          </div>
-        ))}
+        {ALL.map((l) => {
+          const isOn = enabled.includes(l.code);
+          const isPrimary = primary === l.code;
+          return (
+            <div
+              key={l.code}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "10px 12px", background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
+                fontFamily: FONTS.body,
+              }}
+            >
+              <span style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, minWidth: 24 }}>
+                {l.code}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, flex: 1 }}>
+                {l.name}
+              </span>
+              {isPrimary && <StateChipMini label="Primary" tone="green" />}
+              {!isPrimary && isOn && (
+                <button type="button" onClick={() => setPrimary(l.code)} style={{
+                  fontSize: 11, fontFamily: FONTS.body, padding: "3px 8px",
+                  borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                  background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
+                }}>
+                  Make primary
+                </button>
+              )}
+              <button type="button" onClick={() => toggle(l.code)} disabled={isPrimary && isOn} style={{
+                fontSize: 11, fontFamily: FONTS.body, padding: "3px 8px",
+                borderRadius: 999,
+                border: `1px solid ${isOn ? COLORS.coralDeep : COLORS.border}`,
+                background: "transparent",
+                color: isOn ? COLORS.coralDeep : COLORS.ink,
+                cursor: (isPrimary && isOn) ? "not-allowed" : "pointer",
+                opacity: (isPrimary && isOn) ? 0.4 : 1,
+              }}>
+                {isOn ? "Remove" : "Add"}
+              </button>
+            </div>
+          );
+        })}
       </Section>
     </DrawerShell>
   );
 }
 
 function SeoDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("SEO saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+  const [siteTitle, setSiteTitle] = useState(`${TENANT.name} · Talent agency`);
+  const [description, setDescription] = useState(
+    "A boutique agency representing editorial, runway, and commercial talent across Europe.",
+  );
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "seo").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (typeof v.siteTitle === "string") setSiteTitle(v.siteTitle);
+        if (typeof v.description === "string") setDescription(v.description);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "seo", { siteTitle, description });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("SEO saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="SEO & defaults"
       description="Meta tags, social previews, sitemap."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Defaults">
         <FieldRow label="Site title">
-          <TextInput defaultValue={`${TENANT.name} · Talent agency`} />
+          <TextInput value={siteTitle} onChange={(e) => setSiteTitle((e.target as HTMLInputElement).value)} />
         </FieldRow>
         <FieldRow label="Description">
-          <TextArea rows={2} defaultValue="A boutique agency representing editorial, runway, and commercial talent across Europe." />
+          <TextArea rows={2} value={description} onChange={(e) => setDescription((e.target as HTMLTextAreaElement).value)} />
         </FieldRow>
       </Section>
       <Section title="Open Graph image">

@@ -90,6 +90,7 @@ import {
   setInquiryManuallyUnread,
   bulkSetInquiryArchived,
   bulkReassignInquiriesToMe,
+  bulkNudgeInquiries,
   duplicateInquiryBooking,
   type InquiryPaymentState,
   type InquiryAttachment,
@@ -2063,7 +2064,21 @@ function AdminInboxList({
           </span>
           <span style={{ flex: 1 }} />
           <button type="button"
-            onClick={() => { toastBulk(`Nudged ${selectedIds.size} thread${selectedIds.size === 1 ? "" : "s"}`); exitBulk(); }}
+            onClick={() => {
+              const count = selectedIds.size;
+              const ids = Array.from(selectedIds);
+              const realIds = ids.filter((id) =>
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+              );
+              if (realIds.length > 0) {
+                void bulkNudgeInquiries(TENANT.slug, realIds).then((r) => {
+                  if (!r.ok) toastBulk(`Bulk nudge failed: ${r.error}`);
+                  else if (r.data?.failed) toastBulk(`Nudged ${r.data.ok} (${r.data.failed} failed)`);
+                });
+              }
+              toastBulk(`Nudged ${count} thread${count === 1 ? "" : "s"}`);
+              exitBulk();
+            }}
             style={{
               padding: "5px 10px", borderRadius: 999,
               border: "1px solid rgba(255,255,255,0.25)",

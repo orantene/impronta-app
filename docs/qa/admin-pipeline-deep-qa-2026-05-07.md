@@ -416,7 +416,28 @@ No Vercel push until the marathon completes its full run and the user gives go.
   TalentProfileDrawer → updateTalentIdentity. New `_pipeline-actions.ts`
   module hosts the engine wrappers. D3 root cause identified
   (architectural fix deferred). B8 lineup wiring deferred (UI rewrite scope).
-- **rev 9 (this commit)** — close every "out of scope" item from rev 8:
+- **rev 10 (this commit)** — close every remaining item from rev 9:
+  - **Bulk Nudge** — `bulkNudgeInquiries` posts a coordinator-attributed
+    system message into the **group** thread on each selected inquiry.
+    Talent participants pick it up via the existing unread-count
+    plumbing, no separate notifications system required.
+  - **Theme / SEO / Navigation / Languages / Domain drawers** — all
+    five wired through `patchAgencySettingsNamespace` /
+    `loadAgencySettingsNamespace`. Each drawer:
+    1. Loads its namespace from `agencies.settings` JSONB on mount
+    2. Renders controlled inputs/toggles
+    3. Saves on click via `startTransition`
+    4. Toasts on success / failure, closes the drawer, refreshes router
+  - **Deployment notes** — new `docs/deploy/pipeline-runtime-config.md`
+    covering Stripe env + webhook setup, Supabase realtime publication +
+    RLS requirements, the `agencies.settings` JSONB schema, the
+    consistent UUID-guard pattern for synthetic mock ids, and Stripe
+    Connect deferred-piece notes.
+  - **Bridge layer split** — explicitly deferred. The pipeline is
+    functionally complete; splitting `_data-bridge.ts` is pure
+    organization with non-trivial churn risk across all importers and
+    no functional improvement. Recorded as tech debt.
+- **rev 9 (62f574ef)** — close every "out of scope" item from rev 8:
   - **Drag-to-reschedule calendar** — `rescheduleInquiry` action wraps
     `inquiries.event_date` patch. CalendarPage cells are drop targets;
     event chips are draggable with the inquiry id payload. Synthetic
@@ -583,40 +604,42 @@ No Vercel push until the marathon completes its full run and the user gives go.
 | 151e2016 | B6r | `PayoutReceiverPicker` — per-transaction receiver wraps `setTransactionPayoutReceiver` |
 | 151e2016 | B8r | LiveLineupPanel rows are draggable; reorder wraps `reorderRoster` |
 | 151e2016 | A6b | Bulk inbox Archive persists to `inquiry_user_flags` via `bulkSetInquiryArchived` |
-| (this)   | C-d | `rescheduleInquiry` action + calendar drag-to-reschedule |
-| (this)   | A6r | "Archived" filter chip + restore-aware bulk button |
-| (this)   | A6n | `bulkReassignInquiriesToMe` wired to inbox Reassign |
-| (this)   | Pay | Stripe Checkout: session helper + webhook handler + success/cancel pages + client `startInquiryCheckout` |
-| (this)   | Rt  | `useInquiryRealtime` hook + `<RealtimeBridge />` mounted in shell |
-| (this)   | Set | `patchAgencySettingsNamespace` + visibility/filters drawers wired |
+| 62f574ef | C-d | `rescheduleInquiry` action + calendar drag-to-reschedule |
+| 62f574ef | A6r | "Archived" filter chip + restore-aware bulk button |
+| 62f574ef | A6n | `bulkReassignInquiriesToMe` wired to inbox Reassign |
+| 62f574ef | Pay | Stripe Checkout: session helper + webhook handler + success/cancel pages + client `startInquiryCheckout` |
+| 62f574ef | Rt  | `useInquiryRealtime` hook + `<RealtimeBridge />` mounted in shell |
+| 62f574ef | Set | `patchAgencySettingsNamespace` + visibility/filters drawers wired |
+| (this)   | Nud | `bulkNudgeInquiries` — bulk Nudge posts system message into group thread |
+| (this)   | Thm | ThemeFoundationsDrawer wired |
+| (this)   | Seo | SeoDrawer wired |
+| (this)   | Nav | NavigationDrawer wired |
+| (this)   | Lng | TranslationsDrawer (Languages) wired |
+| (this)   | Dom | DomainDrawer wired |
+| (this)   | Doc | `docs/deploy/pipeline-runtime-config.md` — Stripe env, realtime RLS, settings schema |
 
-## What's still open after rev 9
+## What's still open after rev 10
 
-### Truly out of scope (need infrastructure or product decisions)
+### Truly out of scope (config or refactor, not pipeline functionality)
 
-- **Bulk Nudge** — the AdminInboxList bulk bar still has a Nudge
-  button that toast-only. Building it would require a notification
-  system (push / email digest / in-app inbox). The infra isn't here yet.
-- **Settings drawers — theme / SEO / navigation / languages / domain**
-  — visibility + filters are now persisted via
-  `patchAgencySettingsNamespace`. The same pattern works for any
-  settings drawer; the remaining ones aren't wired only because they
-  don't yet have committed schema decisions for what the persisted
-  shape should look like (e.g. theme tokens, SEO meta strategy,
-  custom-domain CNAME orchestration).
-- **Stripe configuration** — the integration ships with mock-mode
-  fallback so the prototype doesn't crash without env vars. Production
-  use requires `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` +
-  registering the webhook endpoint with Stripe. Stripe Connect for
-  per-tenant payouts is a separate piece on top.
-- **Realtime auth gating** — the realtime hook subscribes via the
-  browser anon-key client, which means RLS policies must allow the
-  authenticated user to SELECT from each watched table. They do today
-  for staff users on their own tenant; double-check before wiring this
-  for client / talent surfaces.
+- **Stripe production config** — code path is complete with mock-mode
+  fallback. To go live, set `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`
+  + register the webhook endpoint with Stripe. See
+  `docs/deploy/pipeline-runtime-config.md`.
+- **Stripe Connect (per-tenant payouts)** — current Checkout is
+  single-account. Connect (Express or Standard) is a separate phase.
+- **Realtime publication + RLS** — code is complete; deployment must
+  ensure the `supabase_realtime` publication includes all four watched
+  tables and that RLS allows the active session's SELECT. See
+  deployment notes.
 - **Bridge layer split** — `_data-bridge.ts` is 1900+ lines mixing
-  concerns. Splitting into per-domain files would keep churn contained.
-  Not blocking anything, but pure tech-debt cleanup is overdue.
+  concerns. Pure tech-debt cleanup; deferred because the churn risk
+  across all importers outweighs zero functional benefit. Recommend
+  doing it as a dedicated pass with full test coverage.
+- **Talent-side file uploads** — the staff `uploadInquiryAttachment`
+  path uses `requireStaffTenantAction`. A talent-side equivalent
+  (with participant-role gating instead of staff capability) would
+  let talent upload polaroids/contracts directly. Not built.
 
 ### UI polish / small follow-ups
 

@@ -1492,6 +1492,64 @@ export async function reorderInquiryLineup(
 // ─── Bulk inquiry archive ────────────────────────────────────────────────────
 
 /**
+ * Bulk-nudge — posts a coordinator-attributed system message into the
+ * group thread on each selected inquiry. The talent participants see
+ * the bump in their inbox via the standard unread-count plumbing, so
+ * Nudge surfaces as "the coordinator is waiting on me" without needing
+ * a separate notifications system.
+ *
+ * `body` defaults to a friendly bump if the caller doesn't provide one.
+ */
+export async function bulkNudgeInquiries(
+  _tenantSlug: string,
+  inquiryIds: string[],
+  body?: string,
+): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    const trimmed = (body ?? "✋ Bumping this — coordinator is waiting on the talent group's reply.")
+      .trim()
+      .slice(0, 10_000);
+    if (!trimmed) return { ok: false, error: "Empty nudge body." };
+
+    let okCount = 0;
+    let failed = 0;
+    for (const inquiryId of inquiryIds) {
+      // Tenant + role gating is implicit — we only insert when the row
+      // belongs to this tenant. Failure on one row doesn't abort the rest.
+      const { data: inq } = await supabase
+        .from("inquiries")
+        .select("id")
+        .eq("id", inquiryId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (!inq) { failed++; continue; }
+
+      const { error } = await supabase
+        .from("inquiry_messages")
+        .insert({
+          inquiry_id: inquiryId,
+          thread_type: "group",
+          sender_user_id: user.id,
+          body: trimmed,
+          tenant_id: tenantId,
+        });
+      if (error) failed++;
+      else okCount++;
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true, data: { ok: okCount, failed } };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.bulkNudgeInquiries", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
  * Bulk-reassign coordinator on the selected inquiries. Each row is
  * assigned to the current staff actor (the user driving the bulk bar).
  * Wraps `assignInquiryToCurrentStaff` per row.
