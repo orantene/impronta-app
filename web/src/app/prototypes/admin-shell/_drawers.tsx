@@ -191,6 +191,7 @@ import {
 import { InquiryWorkspaceDrawer } from "./_workspace";
 import SkillOverridesPanel from "./_skill-overrides-panel";
 import SkillHintsBanner from "./_skill-hints-banner";
+import SkillFreshnessBanner from "./_skill-freshness-banner";
 import dynamic from "next/dynamic";
 const InquiryComposerLazyD = dynamic(
   () => import("./_messages").then((m) => m.InquiryComposer),
@@ -5418,6 +5419,17 @@ function TalentProfileShellDrawer() {
                   viewMode="admin"
                 />
               </div>
+            )}
+
+            {/* SKILL FRESHNESS + VERIFICATION-EXPIRY PROMPTS — Phase 6.4
+                Mounted below Phase 6.3 hints banner and below Per-agency
+                overrides. Shown to both admins and the talent themselves.
+                Render nothing when there are no pending prompts. */}
+            {(adminVisible || isSelf) && payload.talentId && (
+              <SkillFreshnessBanner
+                talentProfileId={payload.talentId}
+                viewMode={adminVisible ? "admin" : "talent-self"}
+              />
             )}
 
             {/* CREDITS — past work / campaigns / editorials */}
