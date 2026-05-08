@@ -398,7 +398,31 @@ No Vercel push until the marathon completes its full run and the user gives go.
 
 ## Changelog
 
-- **rev 12.1 (this commit)** — close 3 real bugs surfaced by static QA:
+- **rev 13 (this commit)** — bridge layer split (deferred tech debt now done):
+  - `_data-bridge.ts` was 3,226 lines mixing 11 domains. Split into
+    `web/src/app/(workspace)/[tenantSlug]/_data-bridge/<domain>.ts`:
+    `calendar.ts`, `overview-metrics.ts`, `workspace-config.ts` (agency +
+    domain + plan + team), `website.ts`, `activity.ts`, `billing.ts`,
+    `roster.ts`, `bookings.ts` (workspace + client), `clients.ts`
+    (workspace + client self + client inquiries), `talent.ts` (self
+    profile + inquiries + agencies + contact prefs),
+    `inquiries-workspace.ts`, `inquiries-messages.ts` (LARGEST, 626 lines).
+  - The original `_data-bridge.ts` shrunk 3,226 → 277 lines and is
+    now a pure re-export shim. **Zero importer churn**: all 25
+    distinct import statements across 31 importer files still
+    resolve identically (verified by import-baseline diff).
+  - Domain-local helpers stayed local: `RosterRow` + 6 derive helpers
+    in `roster.ts`; `formatMoneyMinor`/`truncate`/`shortInitials`/
+    `inferSourceKind`/`INQUIRY_INBOX_OPEN_STATUSES` in
+    `inquiries-messages.ts`. Only `INQUIRY_CLOSED_STATUSES` is
+    cross-domain (exported from `inquiries-workspace.ts`,
+    re-imported by `inquiries-messages.ts`).
+  - Typecheck clean after every domain move (11 verifications across
+    the migration, no errors introduced). Untracked-imports clean.
+  - Migration order: easiest-first (calendar 47 lines → workspace-config
+    → website → activity → billing → roster → bookings → talent →
+    clients → inquiries-workspace → inquiries-messages 626 lines).
+- **rev 12.1 (689dbf7d)** — close 3 real bugs surfaced by static QA:
   - **Talent invite Accept/Decline wired** — `resolveShellAction` returned
     toast-only handlers for `pov === "talent"` at inquiry/hold stage
     without an offer; `ConversationActionPin` had the engine wiring but
@@ -723,10 +747,9 @@ No Vercel push until the marathon completes its full run and the user gives go.
   deployment must ensure the `supabase_realtime` publication includes
   the four watched tables and that RLS allows the active session's
   SELECT. See deployment notes.
-- **Bridge layer split** ⏸ deferred — `_data-bridge.ts` is 1900+ lines
-  mixing concerns. Pure tech-debt cleanup; the churn risk across all
-  importers outweighs zero functional benefit. Recommend doing it as a
-  dedicated pass with full test coverage.
+- **Bridge layer split** ✅ done in rev 13 — split into
+  `_data-bridge/<domain>.ts` (11 files); original is a 277-line
+  re-export shim with zero importer churn.
 
 ### UI polish / small follow-ups
 
