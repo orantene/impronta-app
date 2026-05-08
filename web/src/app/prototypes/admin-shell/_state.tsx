@@ -56,6 +56,7 @@ export type WorkspacePage =
   | "operations" // WS-19/20: analytics + workflow automation
   | "production" // WS-28/29/30/33/34/35: casting, crew, on-set, rights, safety
   | "website"    // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain, maintenance, announcement)
+  | "media"      // Agency/Studio — workspace media gallery + watermark control
   | "settings"   // replaces workspace; billing folded in via anchor nav
   // ── legacy aliases (hidden from nav, kept for URL compat) ──
   | "inbox"
@@ -112,7 +113,7 @@ export const ROLES: Role[] = ["viewer", "editor", "coordinator", "admin", "owner
 export const ENTITY_TYPES: EntityType[] = ["agency", "hub"];
 export const CLIENT_PLANS: ClientPlan[] = ["free", "pro", "enterprise"];
 export const HQ_ROLES: HqRole[] = ["support", "ops", "billing", "exec"];
-// WS-3.1 — The 6 canonical nav pages. Legacy aliases excluded.
+// WS-3.1 — The canonical nav pages. Legacy aliases excluded.
 export const WORKSPACE_PAGES: WorkspacePage[] = [
   "overview",
   "messages",
@@ -122,6 +123,7 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "operations",
   "production",
   "website",   // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain). Sits between Production and Settings.
+  "media",     // Agency/Studio — workspace media gallery + watermark control
   "settings",
 ];
 
@@ -340,7 +342,7 @@ export const SURFACE_META: Record<
 // WS-3.2 — canonical page metadata.  Legacy aliases included so code that
 // still references them doesn't throw; they redirect immediately in nav.
 export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; description?: string }> = {
-  // ── canonical 6 ──
+  // ── canonical pages ──
   overview:  { label: "Overview",  icon: "home",     description: "Today's snapshot: unread, pending actions, recent activity" },
   messages:  { label: "Messages",  icon: "mail",     description: "All threads across active inquiries and bookings" },
   calendar:  { label: "Calendar",  icon: "calendar", description: "Scheduled shoots, holds, and deadlines" },
@@ -349,6 +351,7 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   operations:{ label: "Operations",icon: "layers",   description: "Analytics, queues, SLAs, automations, and team workload" },
   production:{ label: "Production",icon: "camera",   description: "Casting, crew bookings, call sheets, rights, and safety" },
   website:   { label: "Website",   icon: "globe",    description: "Pages, posts, redirects, custom code, tracking, SEO, domain" },
+  media:     { label: "Media",     icon: "camera",   description: "Workspace photo library, watermark control, and usage tracking" },
   settings:  { label: "Settings",  icon: "settings", description: "Account, plan, branding, integrations, team, and danger zone" },
   // ── legacy aliases (hidden from nav) ──
   inbox:     { label: "Inbox",     icon: "mail" },
@@ -729,7 +732,10 @@ export type DrawerId =
   // ── Phase E workspace field settings ─────────────────────────────────
   | "workspace-field-settings"  // per-tenant field catalog customisation
   // ── Phase B workspace profile shell ──────────────────────────────────
-  | "workspace-profile";        // workspace own identity / branding summary
+  | "workspace-profile"         // workspace own identity / branding summary
+  // ── Media Gallery + Watermark ────────────────────────────────────────
+  | "watermark-editor"          // per-image watermark position/opacity/size editor
+  | "workspace-media-gallery";  // full-screen agency media grid (Agency tier)
 
 export type DrawerContext = {
   drawerId: DrawerId | null;

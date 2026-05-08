@@ -31,16 +31,40 @@ const HEX_COLOR = z
   .string()
   .regex(/^#[0-9a-fA-F]{6}$/u, "Color must be a 6-digit hex like #0B0B0D");
 
+const WATERMARK_POSITIONS = [
+  "tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br",
+] as const;
+
+const watermarkPresetSchema = z.object({
+  enabled:     z.boolean(),
+  position:    z.enum(WATERMARK_POSITIONS),
+  size_pct:    z.number().min(4).max(25),
+  opacity:     z.number().min(0).max(1),
+  padding_pct: z.number().min(0).max(10),
+  variant:     z.enum(["light", "dark"]),
+}).optional();
+
 const updateBrandingSchema = z
   .object({
-    tagline: z.string().max(120).optional(),
-    description: z.string().max(500).optional(),
-    primary_color: HEX_COLOR.optional(),
-    accent_color: HEX_COLOR.optional(),
-    logo_url: z.string().url().optional(),
-    sender_email: z.string().email().optional(),
+    tagline:           z.string().max(120).optional(),
+    description:       z.string().max(500).optional(),
+    primary_color:     HEX_COLOR.optional(),
+    accent_color:      HEX_COLOR.optional(),
+    logo_url:          z.string().url().optional(),
+    sender_email:      z.string().email().optional(),
+    watermark_preset:  watermarkPresetSchema,
   })
   .strict();
+
+export type WatermarkPreset = NonNullable<z.infer<typeof watermarkPresetSchema>>;
+export const DEFAULT_WATERMARK_PRESET: WatermarkPreset = {
+  enabled: false,
+  position: "br",
+  size_pct: 12,
+  opacity: 0.6,
+  padding_pct: 4,
+  variant: "light",
+};
 
 export type UpdateBrandingInput = z.infer<typeof updateBrandingSchema>;
 
@@ -238,6 +262,53 @@ export async function updateWorkspaceFields(
   const { error } = await supabase.from("agencies").update(patch).eq("id", tenantId);
   if (error) {
     logServerError("admin-workspace-settings.fields.update", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+// ─── Per-image watermark override ────────────────────────────────────────────
+
+const watermarkPresetSchema2 = z.object({
+  enabled:     z.boolean(),
+  position:    z.enum(["tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"] as const),
+  size_pct:    z.number().min(4).max(25),
+  opacity:     z.number().min(0).max(1),
+  padding_pct: z.number().min(0).max(10),
+  variant:     z.enum(["light", "dark"] as const),
+}).optional();
+
+const overrideSchema = z.object({
+  mediaAssetId: z.string().uuid(),
+  override: watermarkPresetSchema2,
+}).strict();
+
+export type UpdateWatermarkOverrideInput = z.infer<typeof overrideSchema>;
+
+export async function updateMediaWatermarkOverride(
+  input: UpdateWatermarkOverrideInput,
+): Promise<UpdateBrandingResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth;
+
+  const parsed = overrideSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid override." };
+  }
+
+  const { error } = await supabase
+    .from("media_assets")
+    .update({
+      watermark_override_json: parsed.data.override ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", parsed.data.mediaAssetId);
+
+  if (error) {
+    logServerError("admin-workspace-settings.watermark-override", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
 

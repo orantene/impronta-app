@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { addTalentToRoster } from "./_actions";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
-import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields } from "@/lib/server-actions/admin-workspace-settings";
+import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, type WatermarkPreset, DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings";
+import { actionUploadAgencyLogo } from "@/lib/server-actions/admin-agency-logo-upload";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -348,6 +349,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentApprovalsDrawer />;
     case "branding":
       return <BrandingDrawer />;
+    case "watermark-editor":
+      return <WatermarkEditorDrawer />;
     case "domain":
       return <DomainDrawer />;
     case "identity":
@@ -10408,33 +10411,176 @@ function FieldLockToggle({ path, locks, onChange }: {
 // Branding
 // ════════════════════════════════════════════════════════════════════
 
+// ── Watermark position grid ──────────────────────────────────────────────────
+type WmPos = WatermarkPreset["position"];
+const WM_POSITIONS: WmPos[] = ["tl","tc","tr","ml","mc","mr","bl","bc","br"];
+function WatermarkPositionGrid({
+  value, onChange,
+}: { value: WmPos; onChange: (p: WmPos) => void }) {
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "repeat(3, 28px)",
+      gap: 4, width: "fit-content",
+    }}>
+      {WM_POSITIONS.map((pos) => {
+        const active = pos === value;
+        return (
+          <button
+            key={pos}
+            type="button"
+            title={pos.toUpperCase()}
+            onClick={() => onChange(pos)}
+            style={{
+              width: 28, height: 28, borderRadius: 6, border: "none",
+              background: active ? COLORS.fill : COLORS.surfaceAlt,
+              cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: `background 0.12s`,
+            }}
+          >
+            <span style={{
+              width: 6, height: 6, borderRadius: 2,
+              background: active ? "#fff" : COLORS.inkDim,
+            }} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Watermark live preview card ───────────────────────────────────────────────
+function WatermarkPreviewCard({
+  preset, logoUrl,
+}: { preset: WatermarkPreset; logoUrl: string | null }) {
+  const posMap: Record<WmPos, React.CSSProperties> = {
+    tl: { top: `${preset.padding_pct}%`, left: `${preset.padding_pct}%` },
+    tc: { top: `${preset.padding_pct}%`, left: "50%", transform: "translateX(-50%)" },
+    tr: { top: `${preset.padding_pct}%`, right: `${preset.padding_pct}%` },
+    ml: { top: "50%", left: `${preset.padding_pct}%`, transform: "translateY(-50%)" },
+    mc: { top: "50%", left: "50%", transform: "translate(-50%,-50%)" },
+    mr: { top: "50%", right: `${preset.padding_pct}%`, transform: "translateY(-50%)" },
+    bl: { bottom: `${preset.padding_pct}%`, left: `${preset.padding_pct}%` },
+    bc: { bottom: `${preset.padding_pct}%`, left: "50%", transform: "translateX(-50%)" },
+    br: { bottom: `${preset.padding_pct}%`, right: `${preset.padding_pct}%` },
+  };
+  return (
+    <div style={{
+      position: "relative", width: "100%", aspectRatio: "16/9",
+      borderRadius: 10, overflow: "hidden",
+      background: "linear-gradient(135deg,#e8e4df 0%,#d4cfc9 100%)",
+      border: `1px solid ${COLORS.borderSoft}`,
+    }}>
+      {/* Fake photo grid */}
+      <div style={{
+        position: "absolute", inset: 0,
+        backgroundImage: "repeating-linear-gradient(0deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 40px)",
+      }} />
+      <div style={{
+        position: "absolute", inset: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <span style={{
+          fontFamily: FONTS.body, fontSize: 11, color: "rgba(11,11,13,0.3)",
+          letterSpacing: 0.5,
+        }}>Sample photo</span>
+      </div>
+      {preset.enabled && (
+        <div style={{
+          position: "absolute",
+          ...posMap[preset.position],
+          width: `${preset.size_pct}%`,
+          opacity: preset.opacity,
+          pointerEvents: "none",
+        }}>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" style={{ width: "100%", height: "auto", display: "block" }} />
+          ) : (
+            <div style={{
+              background: "#fff", borderRadius: 4, padding: "3px 6px",
+              fontFamily: FONTS.body, fontSize: 10, fontWeight: 700,
+              color: COLORS.ink, whiteSpace: "nowrap",
+            }}>
+              YOUR LOGO
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BrandingDrawer() {
-  const { closeDrawer, toast, tenantSlug } = useProto();
-  // Phase 3 (deep QA fix) — controlled state replacing the prior
-  // defaultValue uncontrolled inputs. Wired to updateAgencyBranding
-  // server action which writes to agencies.settings.branding JSONB.
-  const [tagline, setTagline] = useState("");
+  const { state, closeDrawer, openUpgrade, toast, tenantSlug } = useProto();
+  const isStudioPlus = meetsPlan(state.plan, "studio");
+
+  // ── Brand identity state ─────────────────────────────────────────────────
+  const [tagline, setTagline]         = useState("");
   const [description, setDescription] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#0B0B0D");
-  const [accentColor, setAccentColor] = useState(COLORS.accent);
+  const [accentColor, setAccentColor]   = useState(COLORS.accent);
+
+  // ── Logo state ───────────────────────────────────────────────────────────
+  const logoFileRef   = useRef<HTMLInputElement | null>(null);
+  const [logoPreview, setLogoPreview]   = useState<string | null>(null);
+  const [logoFile, setLogoFile]         = useState<File | null>(null);
+  const [logoFileName, setLogoFileName] = useState<string>("No logo uploaded");
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  // ── Watermark preset state (Studio+) ─────────────────────────────────────
+  const [wm, setWm] = useState<WatermarkPreset>({ ...DEFAULT_WATERMARK_PRESET });
+  const setWmField = <K extends keyof WatermarkPreset>(k: K, v: WatermarkPreset[K]) =>
+    setWm(prev => ({ ...prev, [k]: v }));
+
   const [isSaving, setIsSaving] = useState(false);
+
+  const onPickLogo = () => logoFileRef.current?.click();
+  const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const onSave = async () => {
     if (isSaving) return;
     if (!tenantSlug) {
-      // Standalone /prototypes/admin-shell mode — no real tenant; mock save.
       toast("Branding saved (demo)");
       closeDrawer();
       return;
     }
     setIsSaving(true);
     try {
+      // ── Upload logo if changed ──
+      let logoUrl: string | undefined;
+      if (logoFile) {
+        setIsUploadingLogo(true);
+        const fd = new FormData();
+        fd.append("logo", logoFile);
+        const upResult = await actionUploadAgencyLogo(fd);
+        setIsUploadingLogo(false);
+        if (!upResult.ok) {
+          toast(upResult.error || "Logo upload failed. Try again.");
+          setIsSaving(false);
+          return;
+        }
+        logoUrl = upResult.logoUrl;
+      }
+
+      // ── Save branding fields + optional logo_url + watermark preset ──
       const result = await updateAgencyBranding({
         tagline: tagline.trim() || undefined,
         description: description.trim() || undefined,
         primary_color: /^#[0-9a-fA-F]{6}$/u.test(primaryColor) ? primaryColor : undefined,
         accent_color: /^#[0-9a-fA-F]{6}$/u.test(accentColor) ? accentColor : undefined,
+        logo_url: logoUrl,
+        watermark_preset: isStudioPlus ? wm : undefined,
       });
+
       if (!result.ok) {
         toast(result.error || "Couldn't save branding. Try again.");
         return;
@@ -10442,11 +10588,11 @@ function BrandingDrawer() {
       toast("Branding saved");
       closeDrawer();
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[updateAgencyBranding] failed", err);
-      toast("Couldn't save branding. Try again.");
+      console.error("[BrandingDrawer.save]", err);
+      toast("Couldn't save. Try again.");
     } finally {
       setIsSaving(false);
+      setIsUploadingLogo(false);
     }
   };
 
@@ -10456,57 +10602,55 @@ function BrandingDrawer() {
       onClose={closeDrawer}
       title="Branding"
       description="Logo, voice, brand colors. What clients see across emails and storefront."
-      width={560}
-      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? "Saving…" : "Save"} />}
+      width={580}
+      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? (isUploadingLogo ? "Uploading…" : "Saving…") : "Save"} />}
     >
+      {/* ── Logo ──────────────────────────────────────────────────────── */}
       <Section title="Logo & icon">
-        <FieldRow label="Wordmark" hint="SVG preferred. Used in storefront header and emails.">
-          <div
-            style={{
-              border: `1px dashed ${COLORS.border}`,
-              borderRadius: 10,
-              padding: 18,
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              background: "#fff",
-            }}
-          >
-            <span
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 8,
-                background: COLORS.fill,
-                color: "#fff",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: FONTS.display,
-                fontSize: 22,
-                fontWeight: 500,
-              }}
-            >
-              {TENANT.initials}
-            </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
-                acme-models-logo.svg
+        <FieldRow label="Wordmark" hint="PNG or SVG, up to 10 MB. Used in storefront header and emails.">
+          <div style={{
+            border: `1px dashed ${COLORS.border}`, borderRadius: 10,
+            padding: 18, display: "flex", alignItems: "center", gap: 14, background: "#fff",
+          }}>
+            {logoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoPreview} alt="logo preview" style={{
+                width: 56, height: 56, objectFit: "contain", borderRadius: 8,
+                background: COLORS.surfaceAlt,
+              }} />
+            ) : (
+              <span style={{
+                width: 56, height: 56, borderRadius: 8, background: COLORS.fill, color: "#fff",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, flexShrink: 0,
+              }}>
+                {TENANT.initials}
+              </span>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {logoFileName}
               </div>
               <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
-                Uploaded · 312 KB
+                {logoFile ? `${(logoFile.size / 1024).toFixed(0)} KB · ready to save` : "Upload to use as watermark and in storefront header"}
               </div>
             </div>
-            <SecondaryButton
-              size="sm"
-              onClick={() => toast("Logo upload coming next iteration.")}
-            >
-              Replace
+            <SecondaryButton size="sm" onClick={onPickLogo}>
+              {logoFile ? "Change" : "Upload"}
             </SecondaryButton>
+            <input
+              ref={logoFileRef}
+              type="file"
+              accept="image/png,image/svg+xml,image/jpeg,image/webp"
+              style={{ display: "none" }}
+              onChange={onLogoChange}
+            />
           </div>
         </FieldRow>
       </Section>
 
+      {/* ── Brand voice ───────────────────────────────────────────────── */}
       <Section title="Brand voice" framed>
         <FieldRow label="Tagline" optional>
           <TextInput
@@ -10525,35 +10669,297 @@ function BrandingDrawer() {
         </FieldRow>
       </Section>
 
+      {/* ── Color tokens ──────────────────────────────────────────────── */}
       <Section title="Color tokens" framed>
         <FieldRow label="Primary">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <input
-              type="color"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }}
-            />
-            <TextInput
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-            />
+            <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)}
+              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
+            <TextInput value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} />
           </div>
         </FieldRow>
         <FieldRow label="Accent">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <input
-              type="color"
-              value={accentColor}
-              onChange={(e) => setAccentColor(e.target.value)}
-              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }}
-            />
-            <TextInput
-              value={accentColor}
-              onChange={(e) => setAccentColor(e.target.value)}
-            />
+            <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)}
+              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
+            <TextInput value={accentColor} onChange={(e) => setAccentColor(e.target.value)} />
           </div>
         </FieldRow>
+      </Section>
+
+      {/* ── Watermark preset (Studio+) ────────────────────────────────── */}
+      {isStudioPlus ? (
+        <Section title="Photo watermark" framed>
+          <div style={{ marginBottom: 12 }}>
+            <WatermarkPreviewCard
+              preset={wm}
+              logoUrl={logoPreview}
+            />
+          </div>
+
+          <FieldRow label="Enable watermark">
+            <ToggleControl
+              value={wm.enabled}
+              label={wm.enabled ? "On — applies to public photos" : "Off"}
+              onChange={(v) => setWmField("enabled", v)}
+            />
+          </FieldRow>
+
+          {wm.enabled && (
+            <>
+              <FieldRow label="Position" hint="Where the logo sits on the photo.">
+                <WatermarkPositionGrid
+                  value={wm.position}
+                  onChange={(p) => setWmField("position", p)}
+                />
+              </FieldRow>
+
+              <FieldRow label="Logo size" hint={`${wm.size_pct}% of shorter edge`}>
+                <input
+                  type="range" min={4} max={25} step={1} value={wm.size_pct}
+                  onChange={(e) => setWmField("size_pct", Number(e.target.value))}
+                  style={{ width: "100%", accentColor: COLORS.fill }}
+                />
+              </FieldRow>
+
+              <FieldRow label="Opacity" hint={`${Math.round(wm.opacity * 100)}%`}>
+                <input
+                  type="range" min={0} max={1} step={0.05} value={wm.opacity}
+                  onChange={(e) => setWmField("opacity", Number(e.target.value))}
+                  style={{ width: "100%", accentColor: COLORS.fill }}
+                />
+              </FieldRow>
+
+              <FieldRow label="Edge padding" hint={`${wm.padding_pct}% inset`}>
+                <input
+                  type="range" min={0} max={10} step={0.5} value={wm.padding_pct}
+                  onChange={(e) => setWmField("padding_pct", Number(e.target.value))}
+                  style={{ width: "100%", accentColor: COLORS.fill }}
+                />
+              </FieldRow>
+
+              <FieldRow label="Logo variant" hint="Match logo to background tone.">
+                <div style={{ display: "flex", gap: 8 }}>
+                  {(["light", "dark"] as const).map((v) => (
+                    <button key={v} type="button" onClick={() => setWmField("variant", v)} style={{
+                      padding: "5px 14px", borderRadius: 999, border: "none", cursor: "pointer",
+                      fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+                      background: wm.variant === v ? COLORS.fill : COLORS.surfaceAlt,
+                      color: wm.variant === v ? "#fff" : COLORS.ink,
+                      textTransform: "capitalize",
+                    }}>{v}</button>
+                  ))}
+                </div>
+              </FieldRow>
+            </>
+          )}
+        </Section>
+      ) : (
+        <Section title="Photo watermark" framed>
+          <div style={{
+            padding: 16, borderRadius: 10, background: COLORS.surfaceAlt,
+            display: "flex", gap: 14, alignItems: "flex-start",
+          }}>
+            <span style={{ fontSize: 22 }}>🔒</span>
+            <div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
+                Logo watermark — Studio &amp; above
+              </div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+                Apply your logo to talent photos on public profiles and pitch links. Control position, opacity, and size.
+              </div>
+              <SecondaryButton size="sm" onClick={() => openUpgrade({
+                feature: "Logo watermark",
+                why: "Brand every photo your agency distributes — no extra effort.",
+                requiredPlan: "studio",
+                unlocks: ["Logo watermark on public photos", "Position, opacity & size control", "Per-image overrides", "Light / dark logo variants"],
+              })}>
+                Upgrade to Studio
+              </SecondaryButton>
+            </div>
+          </div>
+        </Section>
+      )}
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Watermark Editor — per-image override
+// ════════════════════════════════════════════════════════════════════
+//
+// Opened from: Media page tile (⋯ menu → "Edit watermark"), or from
+// the talent roster EditorSections media row.
+// Payload: { mediaAssetId: string; imageUrl: string; talentName: string }
+//          Falls back to mock when payload is missing.
+// ════════════════════════════════════════════════════════════════════
+
+function WatermarkEditorDrawer() {
+  const { state, closeDrawer, openUpgrade, toast, tenantSlug } = useProto();
+  const isStudioPlus = meetsPlan(state.plan, "studio");
+  const payload = state.drawer.payload as { mediaAssetId?: string; imageUrl?: string; talentName?: string } | undefined;
+
+  const assetId   = payload?.mediaAssetId ?? "demo-asset";
+  const imageUrl  = payload?.imageUrl ?? null;
+  const talentName = payload?.talentName ?? "Sample photo";
+
+  // Inherit workspace default or fall back to defaults
+  const [wm, setWm] = useState<WatermarkPreset>({ ...DEFAULT_WATERMARK_PRESET, enabled: true });
+  const setWmField = <K extends keyof WatermarkPreset>(k: K, v: WatermarkPreset[K]) =>
+    setWm(prev => ({ ...prev, [k]: v }));
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  const onApply = async () => {
+    if (isSaving) return;
+    if (!tenantSlug || assetId === "demo-asset") {
+      toast("Watermark override saved (demo)");
+      closeDrawer();
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const result = await updateMediaWatermarkOverride({
+        mediaAssetId: assetId,
+        override: wm,
+      });
+      if (!result.ok) {
+        toast(result.error || "Couldn't save. Try again.");
+        return;
+      }
+      toast("Watermark override saved");
+      closeDrawer();
+    } catch (err) {
+      console.error("[WatermarkEditorDrawer]", err);
+      toast("Couldn't save. Try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const onClear = async () => {
+    if (!tenantSlug || assetId === "demo-asset") {
+      toast("Override cleared (demo)");
+      closeDrawer();
+      return;
+    }
+    await updateMediaWatermarkOverride({ mediaAssetId: assetId, override: undefined });
+    toast("Reverted to workspace default");
+    closeDrawer();
+  };
+
+  if (!isStudioPlus) {
+    return (
+      <DrawerShell open onClose={closeDrawer} title="Watermark editor" width={480}
+        footer={<StandardFooter onSave={() => openUpgrade({ feature: "Logo watermark", requiredPlan: "studio" })} saveLabel="Upgrade to unlock" />}>
+        <div style={{ padding: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>Studio plan required</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
+            Logo watermarks on individual photos are a Studio &amp; Agency feature.
+          </div>
+        </div>
+      </DrawerShell>
+    );
+  }
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title="Edit watermark"
+      description={talentName}
+      width={520}
+      footer={
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flex: 1 }}>
+          <SecondaryButton onClick={onClear} style={{ marginRight: "auto" }}>
+            Reset to default
+          </SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={onApply}>{isSaving ? "Saving…" : "Apply"}</PrimaryButton>
+        </div>
+      }
+    >
+      {/* Live preview */}
+      <div style={{ marginBottom: 20 }}>
+        {imageUrl ? (
+          <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "3/2" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imageUrl} alt={talentName} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            {wm.enabled && (
+              <div style={{
+                position: "absolute",
+                ...({
+                  tl: { top: `${wm.padding_pct}%`, left: `${wm.padding_pct}%` },
+                  tc: { top: `${wm.padding_pct}%`, left: "50%", transform: "translateX(-50%)" },
+                  tr: { top: `${wm.padding_pct}%`, right: `${wm.padding_pct}%` },
+                  ml: { top: "50%", left: `${wm.padding_pct}%`, transform: "translateY(-50%)" },
+                  mc: { top: "50%", left: "50%", transform: "translate(-50%,-50%)" },
+                  mr: { top: "50%", right: `${wm.padding_pct}%`, transform: "translateY(-50%)" },
+                  bl: { bottom: `${wm.padding_pct}%`, left: `${wm.padding_pct}%` },
+                  bc: { bottom: `${wm.padding_pct}%`, left: "50%", transform: "translateX(-50%)" },
+                  br: { bottom: `${wm.padding_pct}%`, right: `${wm.padding_pct}%` },
+                } as Record<WmPos, React.CSSProperties>)[wm.position],
+                width: `${wm.size_pct}%`,
+                opacity: wm.opacity,
+                pointerEvents: "none",
+              }}>
+                <div style={{
+                  background: "#fff", borderRadius: 3, padding: "2px 5px",
+                  fontFamily: FONTS.body, fontSize: 9, fontWeight: 800,
+                  color: "#000", whiteSpace: "nowrap",
+                }}>LOGO</div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <WatermarkPreviewCard preset={wm} logoUrl={null} />
+        )}
+      </div>
+
+      <Section title="Override" framed>
+        <FieldRow label="Enable on this photo">
+          <ToggleControl
+            value={wm.enabled}
+            label={wm.enabled ? "On" : "Off (uses workspace default)"}
+            onChange={(v) => setWmField("enabled", v)}
+          />
+        </FieldRow>
+
+        {wm.enabled && (
+          <>
+            <FieldRow label="Position">
+              <WatermarkPositionGrid value={wm.position} onChange={(p) => setWmField("position", p)} />
+            </FieldRow>
+            <FieldRow label="Size" hint={`${wm.size_pct}%`}>
+              <input type="range" min={4} max={25} step={1} value={wm.size_pct}
+                onChange={(e) => setWmField("size_pct", Number(e.target.value))}
+                style={{ width: "100%", accentColor: COLORS.fill }} />
+            </FieldRow>
+            <FieldRow label="Opacity" hint={`${Math.round(wm.opacity * 100)}%`}>
+              <input type="range" min={0} max={1} step={0.05} value={wm.opacity}
+                onChange={(e) => setWmField("opacity", Number(e.target.value))}
+                style={{ width: "100%", accentColor: COLORS.fill }} />
+            </FieldRow>
+            <FieldRow label="Padding" hint={`${wm.padding_pct}% inset`}>
+              <input type="range" min={0} max={10} step={0.5} value={wm.padding_pct}
+                onChange={(e) => setWmField("padding_pct", Number(e.target.value))}
+                style={{ width: "100%", accentColor: COLORS.fill }} />
+            </FieldRow>
+            <FieldRow label="Logo variant">
+              <div style={{ display: "flex", gap: 8 }}>
+                {(["light", "dark"] as const).map((v) => (
+                  <button key={v} type="button" onClick={() => setWmField("variant", v)} style={{
+                    padding: "5px 14px", borderRadius: 999, border: "none", cursor: "pointer",
+                    fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+                    background: wm.variant === v ? COLORS.fill : COLORS.surfaceAlt,
+                    color: wm.variant === v ? "#fff" : COLORS.ink, textTransform: "capitalize",
+                  }}>{v}</button>
+                ))}
+              </div>
+            </FieldRow>
+          </>
+        )}
       </Section>
     </DrawerShell>
   );
@@ -18923,9 +19329,9 @@ export function UpgradeModal() {
 function defaultUnlocks(plan: Plan): string[] {
   switch (plan) {
     case "studio":
-      return ["Custom domain", "Private inquiries", "Owned client list", "Verified email-from"];
+      return ["Custom domain", "Private inquiries", "Owned client list", "Verified email-from", "Logo watermark"];
     case "agency":
-      return ["Branded site design", "Custom fields", "Team & roles (up to 25)", "Translations", "Reports"];
+      return ["Branded site design", "Custom fields", "Team & roles (up to 25)", "Translations", "Reports", "Branded media gallery", "Photo usage tracking"];
     case "network":
       return ["Multi-brand workspaces", "Cross-roster pool", "Hub-level analytics", "Dedicated success"];
     default:

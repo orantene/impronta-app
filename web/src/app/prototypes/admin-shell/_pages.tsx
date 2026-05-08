@@ -2232,6 +2232,10 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     case "site":
       body = <WebsitePage />;
       break;
+    // Media Gallery + Watermark — Agency/Studio gated
+    case "media":
+      body = <WorkspaceMediaPage />;
+      break;
     // WS-3.5 — canonical "settings" route (was "workspace"); billing
     // is folded in as an anchor section inside the settings page.
     case "settings":
@@ -8701,8 +8705,518 @@ function LockedPill({ plan }: { plan: Plan }) {
   );
 }
 
+// ════════════════════════════════════════════════════════════════════
+// Workspace Media Page — Agency photo library + watermark control
+// ════════════════════════════════════════════════════════════════════
+//
+// Tier gating:
+//   • Studio  → can see watermark controls only (via BrandingDrawer)
+//   • Agency+ → full gallery + watermark editor + usage view + bulk apply
+//
+// Prototype uses a MOCK_MEDIA array. Production wires to
+// admin-workspace-media-data.ts which queries media_assets joined to
+// talent_profiles.tenant_id.
+// ════════════════════════════════════════════════════════════════════
+
+const MOCK_TALENT_NAMES = [
+  "Anna Kovacs", "Beatriz Moura", "Cleo Nilsson", "Diana Petrov",
+  "Elena Rossi", "Faye Brennan", "Greta Müller", "Hana Yamada",
+];
+const MOCK_PHOTO_COLORS = [
+  "#d4cfc9", "#c5bfbb", "#b8b2ae", "#cec8c2",
+  "#c2bab4", "#bfb9b3", "#ccc6c0", "#c8c2bc",
+];
+type MockPhoto = {
+  id: string; talentName: string; bg: string;
+  hasWatermark: boolean; approvalState: "approved" | "pending";
+  usedIn: string[];
+};
+const MOCK_MEDIA: MockPhoto[] = MOCK_TALENT_NAMES.flatMap((name, ti) =>
+  Array.from({ length: 3 + (ti % 3) }, (_, pi) => ({
+    id: `${ti}-${pi}`,
+    talentName: name,
+    bg: MOCK_PHOTO_COLORS[(ti * 3 + pi) % MOCK_PHOTO_COLORS.length],
+    hasWatermark: (ti + pi) % 3 !== 0,
+    approvalState: pi === 0 ? "approved" as const : pi === 1 ? (ti % 2 === 0 ? "approved" as const : "pending" as const) : "approved" as const,
+    usedIn: pi === 0 ? ["Profile", "Pitch #24"] : pi === 1 ? ["Profile"] : [],
+  }))
+);
+
+function WorkspaceMediaPage() {
+  const { state, openDrawer, openUpgrade } = useProto();
+  const isAgency = meetsPlan(state.plan, "agency");
+  const isStudio = meetsPlan(state.plan, "studio");
+
+  const [activeTab, setActiveTab]           = useState<"all" | "usage">("all");
+  const [filterTalent, setFilterTalent]     = useState<string>("all");
+  const [filterStatus, setFilterStatus]     = useState<"all" | "approved" | "pending">("all");
+  const [filterWm, setFilterWm]             = useState<"all" | "yes" | "no">("all");
+  const [selected, setSelected]             = useState<Set<string>>(new Set());
+  const [usageFocus, setUsageFocus]         = useState<MockPhoto | null>(null);
+
+  // Gate — non-Agency users see upgrade CTA
+  if (!isAgency) {
+    return (
+      <div style={{ padding: "48px 28px", maxWidth: 560, margin: "0 auto" }}>
+        <PageHeader
+          title="Media"
+          subtitle="Your workspace photo library — every photo across every talent, with watermark control and usage tracking."
+        />
+        <div style={{
+          marginTop: 32, padding: 28, borderRadius: 16,
+          border: `1px solid ${COLORS.borderSoft}`,
+          background: "#fff",
+          display: "flex", flexDirection: "column", gap: 18,
+        }}>
+          <div style={{ fontSize: 36 }}>🖼️</div>
+          <div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 6 }}>
+              Branded media gallery — Agency plan
+            </div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6, marginBottom: 16 }}>
+              See every photo your agency has, see exactly where each one is used, and apply your logo as a watermark so attribution travels with the image.
+            </div>
+            <ul style={{ padding: 0, margin: "0 0 20px 0", listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                "Workspace-wide photo inventory across all talent",
+                "Logo watermark — position, opacity, size",
+                "Bulk apply across selections",
+                "Usage view — which photo is on which profile / pitch",
+              ].map((item) => (
+                <li key={item} style={{
+                  display: "flex", gap: 8, alignItems: "flex-start",
+                  fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+                }}>
+                  <span style={{ color: COLORS.success, flexShrink: 0 }}>✓</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            {isStudio && (
+              <div style={{
+                marginBottom: 16, padding: "10px 14px", borderRadius: 10,
+                background: "rgba(91,107,160,0.07)", border: `1px solid rgba(91,107,160,0.15)`,
+              }}>
+                <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "#3B4A75" }}>
+                  <strong>You have Studio</strong> — you already have logo watermark control in Branding settings.
+                  Upgrade to Agency for the full media gallery and usage tracking.
+                </div>
+              </div>
+            )}
+          </div>
+          <PrimaryButton onClick={() => openUpgrade({
+            feature: "Branded media gallery",
+            why: "See every photo your agency controls — and where each one lives.",
+            requiredPlan: "agency",
+            unlocks: ["Workspace-wide photo inventory", "Logo watermark (position · opacity · size)", "Bulk apply", "Usage tracking"],
+          })}>
+            Upgrade to Agency
+          </PrimaryButton>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Filtered data ──────────────────────────────────────────────────────
+  const allTalentNames = Array.from(new Set(MOCK_MEDIA.map((p) => p.talentName)));
+  const filtered = MOCK_MEDIA.filter((p) => {
+    if (filterTalent !== "all" && p.talentName !== filterTalent) return false;
+    if (filterStatus !== "all" && p.approvalState !== filterStatus) return false;
+    if (filterWm === "yes" && !p.hasWatermark) return false;
+    if (filterWm === "no" && p.hasWatermark) return false;
+    return true;
+  });
+
+  const allSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((p) => p.id)));
+    }
+  };
+  const toggleOne = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelected(next);
+  };
+  const selCount = selected.size;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      {/* ── Page header ─────────────────────────────────────────── */}
+      <div style={{ padding: "24px 28px 0" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, color: COLORS.ink, margin: 0 }}>Media</h1>
+            <p style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, marginTop: 4, marginBottom: 0 }}>
+              {MOCK_MEDIA.length} photos across {allTalentNames.length} talent
+            </p>
+          </div>
+          <SecondaryButton
+            size="sm"
+            onClick={() => openDrawer("branding")}
+          >
+            ⚙ Watermark settings
+          </SecondaryButton>
+        </div>
+
+        {/* Tab strip */}
+        <div style={{ display: "flex", gap: 2, marginTop: 20, borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+          {(["all", "usage"] as const).map((tab) => {
+            const label = tab === "all" ? `All photos (${MOCK_MEDIA.length})` : "Usage view";
+            const active = activeTab === tab;
+            return (
+              <button key={tab} type="button" onClick={() => { setActiveTab(tab); setUsageFocus(null); }} style={{
+                fontFamily: FONTS.body, fontSize: 13, fontWeight: active ? 600 : 500,
+                color: active ? COLORS.ink : COLORS.inkMuted,
+                background: "transparent", border: "none", cursor: "pointer",
+                padding: "8px 14px 10px",
+                borderBottom: active ? `2px solid ${COLORS.ink}` : "2px solid transparent",
+                marginBottom: -1,
+              }}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {activeTab === "all" && (
+        <div style={{ flex: 1, overflow: "auto", padding: "16px 28px 32px" }}>
+          {/* ── Filter bar ───────────────────────────────────────── */}
+          <div style={{
+            display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center",
+            marginBottom: 16,
+          }}>
+            <select
+              value={filterTalent}
+              onChange={(e) => { setFilterTalent(e.target.value); setSelected(new Set()); }}
+              style={{
+                fontFamily: FONTS.body, fontSize: 12, padding: "5px 10px",
+                borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#fff",
+                color: COLORS.ink, cursor: "pointer",
+              }}
+            >
+              <option value="all">All talent</option>
+              {allTalentNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => { setFilterStatus(e.target.value as typeof filterStatus); setSelected(new Set()); }}
+              style={{
+                fontFamily: FONTS.body, fontSize: 12, padding: "5px 10px",
+                borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#fff",
+                color: COLORS.ink, cursor: "pointer",
+              }}
+            >
+              <option value="all">All statuses</option>
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+            </select>
+            <select
+              value={filterWm}
+              onChange={(e) => { setFilterWm(e.target.value as typeof filterWm); setSelected(new Set()); }}
+              style={{
+                fontFamily: FONTS.body, fontSize: 12, padding: "5px 10px",
+                borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#fff",
+                color: COLORS.ink, cursor: "pointer",
+              }}
+            >
+              <option value="all">All watermark</option>
+              <option value="yes">Watermarked</option>
+              <option value="no">No watermark</option>
+            </select>
+            {(filterTalent !== "all" || filterStatus !== "all" || filterWm !== "all") && (
+              <button type="button" onClick={() => { setFilterTalent("all"); setFilterStatus("all"); setFilterWm("all"); setSelected(new Set()); }} style={{
+                fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
+                background: "none", border: "none", cursor: "pointer", padding: "5px 6px",
+              }}>
+                × Clear filters
+              </button>
+            )}
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                  style={{ accentColor: COLORS.fill, cursor: "pointer" }} />
+                <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
+                  Select all ({filtered.length})
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* ── Bulk action toolbar (appears when selection > 0) ─── */}
+          {selCount > 0 && (
+            <div style={{
+              position: "sticky", top: 0, zIndex: 10, marginBottom: 12,
+              padding: "10px 14px",
+              background: COLORS.fill, borderRadius: 10, color: "#fff",
+              display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+              fontFamily: FONTS.body, fontSize: 13,
+            }}>
+              <span style={{ fontWeight: 600 }}>{selCount} selected</span>
+              <button type="button" onClick={() => {
+                openDrawer("watermark-editor");
+              }} style={{
+                background: "rgba(255,255,255,0.18)", border: "none", color: "#fff",
+                padding: "5px 12px", borderRadius: 7, cursor: "pointer",
+                fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+              }}>
+                Apply watermark override
+              </button>
+              <button type="button" onClick={() => {
+                setSelected(new Set());
+              }} style={{
+                background: "rgba(255,255,255,0.12)", border: "none", color: "rgba(255,255,255,0.7)",
+                padding: "5px 12px", borderRadius: 7, cursor: "pointer",
+                fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+              }}>
+                Clear override
+              </button>
+              <button type="button" onClick={() => setSelected(new Set())} style={{
+                marginLeft: "auto", background: "none", border: "none",
+                color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 16,
+              }}>×</button>
+            </div>
+          )}
+
+          {/* ── Photo grid ───────────────────────────────────────── */}
+          {filtered.length === 0 ? (
+            <div style={{
+              padding: 48, textAlign: "center",
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted,
+            }}>
+              No photos match the current filters.
+            </div>
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+              gap: 12,
+            }}>
+              {filtered.map((photo) => {
+                const isSel = selected.has(photo.id);
+                return (
+                  <div
+                    key={photo.id}
+                    style={{
+                      borderRadius: 12, overflow: "hidden", position: "relative",
+                      border: isSel ? `2px solid ${COLORS.fill}` : `2px solid transparent`,
+                      boxShadow: isSel ? `0 0 0 2px ${COLORS.fill}22` : "0 1px 3px rgba(11,11,13,0.06)",
+                      cursor: "pointer",
+                      transition: "border 0.12s, box-shadow 0.12s",
+                      background: "#fff",
+                    }}
+                    onClick={() => toggleOne(photo.id)}
+                  >
+                    {/* Photo placeholder */}
+                    <div style={{
+                      width: "100%", aspectRatio: "3/4",
+                      background: photo.bg,
+                      position: "relative",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {/* Watermark badge */}
+                      {photo.hasWatermark && (
+                        <div style={{
+                          position: "absolute", bottom: 6, right: 6,
+                          background: "rgba(11,11,13,0.65)", backdropFilter: "blur(4px)",
+                          color: "#fff", borderRadius: 5,
+                          fontFamily: FONTS.body, fontSize: 9, fontWeight: 700,
+                          padding: "2px 5px", letterSpacing: 0.3,
+                        }}>
+                          WM
+                        </div>
+                      )}
+                      {/* Status badge */}
+                      {photo.approvalState === "pending" && (
+                        <div style={{
+                          position: "absolute", top: 6, left: 6,
+                          background: COLORS.amber, color: "#fff",
+                          borderRadius: 5, fontFamily: FONTS.body, fontSize: 9,
+                          fontWeight: 700, padding: "2px 5px",
+                        }}>
+                          PENDING
+                        </div>
+                      )}
+                      {/* Select checkbox */}
+                      <div style={{
+                        position: "absolute", top: 6, right: 6,
+                        width: 18, height: 18, borderRadius: 5,
+                        border: `2px solid ${isSel ? COLORS.fill : "rgba(255,255,255,0.7)"}`,
+                        background: isSel ? COLORS.fill : "rgba(255,255,255,0.35)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        backdropFilter: "blur(4px)",
+                        transition: "all 0.12s",
+                      }}>
+                        {isSel && <span style={{ color: "#fff", fontSize: 11, lineHeight: 1 }}>✓</span>}
+                      </div>
+                    </div>
+
+                    {/* Meta */}
+                    <div style={{ padding: "8px 10px 10px" }}>
+                      <div style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, color: COLORS.ink,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {photo.talentName}
+                      </div>
+                      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                        {photo.usedIn.length > 0 ? photo.usedIn.join(" · ") : "Not in use"}
+                      </div>
+                      {/* Quick actions */}
+                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDrawer("watermark-editor", {
+                              mediaAssetId: photo.id,
+                              talentName: photo.talentName,
+                            });
+                          }}
+                          style={{
+                            flex: 1, padding: "4px 0", borderRadius: 6,
+                            border: `1px solid ${COLORS.border}`,
+                            background: "transparent", color: COLORS.ink,
+                            fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Edit WM
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveTab("usage");
+                            setUsageFocus(photo);
+                          }}
+                          style={{
+                            flex: 1, padding: "4px 0", borderRadius: 6,
+                            border: `1px solid ${COLORS.border}`,
+                            background: "transparent", color: COLORS.ink,
+                            fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Usage
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Usage tab ───────────────────────────────────────────── */}
+      {activeTab === "usage" && (
+        <div style={{ flex: 1, overflow: "auto", padding: "20px 28px 32px", display: "flex", gap: 24 }}>
+          {/* Left: photo picker */}
+          <div style={{ width: 200, flexShrink: 0 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 700, color: COLORS.inkMuted,
+              textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
+              Select photo
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {MOCK_MEDIA.slice(0, 12).map((photo) => {
+                const active = usageFocus?.id === photo.id;
+                return (
+                  <button
+                    key={photo.id}
+                    type="button"
+                    onClick={() => setUsageFocus(photo)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8, padding: "6px 8px",
+                      borderRadius: 8, border: "none", cursor: "pointer", textAlign: "left",
+                      background: active ? `${COLORS.fill}12` : "transparent",
+                      outline: active ? `1.5px solid ${COLORS.fill}` : "none",
+                    }}
+                  >
+                    <div style={{
+                      width: 32, height: 40, borderRadius: 5, background: photo.bg, flexShrink: 0,
+                    }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, color: COLORS.ink,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {photo.talentName}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right: usage detail */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {usageFocus ? (
+              <>
+                <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 20 }}>
+                  <div style={{ width: 80, height: 100, borderRadius: 8, background: usageFocus.bg, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontFamily: FONTS.body, fontSize: 15, fontWeight: 700, color: COLORS.ink }}>
+                      {usageFocus.talentName}
+                    </div>
+                    <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                      {usageFocus.hasWatermark ? "✓ Watermark applied" : "No watermark"}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 700, color: COLORS.inkMuted,
+                  textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                  Used in
+                </div>
+
+                {usageFocus.usedIn.length === 0 ? (
+                  <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
+                    This photo isn&apos;t currently used anywhere.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {usageFocus.usedIn.map((surface) => (
+                      <div key={surface} style={{
+                        padding: "12px 14px", borderRadius: 10,
+                        border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+                        display: "flex", alignItems: "center", gap: 12,
+                      }}>
+                        <span style={{ fontSize: 16 }}>
+                          {surface.startsWith("Pitch") ? "📋" : surface === "Profile" ? "👤" : "📄"}
+                        </span>
+                        <div>
+                          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                            {surface}
+                          </div>
+                          <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
+                            {surface === "Profile" ? `${usageFocus.talentName}'s public profile` : "Sent to client"}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{
+                padding: 40, textAlign: "center",
+                fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted,
+                border: `1px dashed ${COLORS.border}`, borderRadius: 12,
+              }}>
+                Select a photo on the left to see where it appears.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WorkspacePageView() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers } = useProto();
   const pendingTrustCount = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
   ).length;
@@ -8732,7 +9246,7 @@ function WorkspacePageView() {
   type SettingsTab = "workspace" | "roster" | "team" | "billing" | "advanced";
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
   const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
-    { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "domain", "branding"] },
+    { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "domain", "branding", "media-watermark"] },
     { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types"] },
     { id: "team",      label: "Team & legal",  emoji: "👥", sections: ["team", "compliance"] },
     { id: "billing",   label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
@@ -9052,6 +9566,67 @@ function WorkspacePageView() {
               >
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Brand identity</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Agency or above</div>
+                </div>
+                <LockedPill plan="agency" />
+              </SettingsRow>
+            )}
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("media-watermark") && (
+          <AccordionItem id="media-watermark" label="Media & watermark" desc="Agency photo library, logo watermark, and photo usage tracking." supportLink="/help/settings/media">
+            {/* Watermark — Studio+ */}
+            {meetsPlan(state.plan, "studio") ? (
+              <SettingsRow onClick={() => openDrawer("branding")}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Logo watermark</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                    Position · Opacity · Size — applied to public photos
+                  </div>
+                </div>
+                <Affordance label="Configure" />
+              </SettingsRow>
+            ) : (
+              <SettingsRow
+                opacity={0.55}
+                onClick={() => openUpgrade({
+                  feature: "Logo watermark",
+                  why: "Brand every photo your agency distributes.",
+                  requiredPlan: "studio",
+                  unlocks: ["Logo watermark on public photos", "Position, opacity & size control", "Light / dark logo variants"],
+                })}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Logo watermark</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Studio or above</div>
+                </div>
+                <LockedPill plan="studio" />
+              </SettingsRow>
+            )}
+            {/* Media gallery + usage — Agency+ */}
+            {meetsPlan(state.plan, "agency") ? (
+              <SettingsRow onClick={() => setPage("media")}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Media gallery</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                    All workspace photos · bulk watermark · usage tracking
+                  </div>
+                </div>
+                <Affordance label="Open" />
+              </SettingsRow>
+            ) : (
+              <SettingsRow
+                opacity={0.55}
+                onClick={() => openUpgrade({
+                  feature: "Branded media gallery",
+                  why: "See every photo your agency controls — and where each one lives.",
+                  requiredPlan: "agency",
+                  unlocks: ["Workspace-wide photo inventory", "Bulk watermark apply", "Photo usage tracking"],
+                })}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Media gallery</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Agency or above</div>
                 </div>
                 <LockedPill plan="agency" />
