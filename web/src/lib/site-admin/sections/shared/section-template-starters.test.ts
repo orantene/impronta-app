@@ -113,6 +113,18 @@ test("section template starters document their edit and data behavior", () => {
       starter.editModel.length > 0,
       `${starter.id} should declare the editor model it belongs to`,
     );
+    assert.ok(
+      starter.editableCapabilities.length >= 3,
+      `${starter.id} should declare the operator controls it exposes`,
+    );
+    assert.ok(
+      starter.editableCapabilities.includes("content"),
+      `${starter.id} should at least expose content editing`,
+    );
+    assert.ok(
+      starter.editableCapabilities.includes("layout"),
+      `${starter.id} should at least expose layout editing`,
+    );
     if (starter.dataBindingKey) {
       assert.ok(
         knownDataSources.has(starter.dataBindingKey),
@@ -127,6 +139,24 @@ test("section template starters document their edit and data behavior", () => {
       assert.ok(
         starter.dataBindingKey,
         `${starter.id} should carry a canonical data binding key`,
+      );
+    }
+    if (starter.sourceKind === "live-data") {
+      assert.ok(
+        starter.editableCapabilities.includes("data"),
+        `${starter.id} should expose data controls for live-data starters`,
+      );
+    }
+    if (starter.sourceKind === "navigation") {
+      assert.ok(
+        starter.editableCapabilities.includes("navigation"),
+        `${starter.id} should expose navigation controls`,
+      );
+    }
+    if (starter.sourceKind === "route-action") {
+      assert.ok(
+        starter.editableCapabilities.includes("action"),
+        `${starter.id} should expose action controls`,
       );
     }
     assert.ok(

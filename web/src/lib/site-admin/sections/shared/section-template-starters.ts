@@ -18,6 +18,14 @@ export type SectionTemplateStarterEditModel =
   | "navigation"
   | "action-route"
   | "asset";
+export type SectionTemplateEditableCapability =
+  | "content"
+  | "style"
+  | "layout"
+  | "data"
+  | "navigation"
+  | "media"
+  | "action";
 
 export interface SectionTemplateStarter {
   id: string;
@@ -41,6 +49,7 @@ export interface SectionTemplateStarter {
    */
   dataBindingKey?: BuilderDataSourceKey;
   editModel: SectionTemplateStarterEditModel;
+  editableCapabilities: readonly SectionTemplateEditableCapability[];
   componentRecipe: readonly string[];
   editScope: string;
   preview: "search" | "talent" | "map" | "chips" | "gallery" | "cta";
@@ -77,6 +86,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataSource: "Static copy now; ready for directory search wiring.",
     dataBindingKey: "tenant_directory_search",
     editModel: "section-props",
+    editableCapabilities: ["content", "style", "layout", "data"],
     componentRecipe: ["eyebrow", "headline", "search input", "category chips"],
     editScope: "Copy, CTAs, presentation, and future search controls.",
     preview: "search",
@@ -108,6 +118,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataSource: "Database: featured talent profiles.",
     dataBindingKey: "featured_talent_profiles",
     editModel: "live-data",
+    editableCapabilities: ["content", "style", "layout", "data"],
     componentRecipe: ["heading", "live profile cards", "directory CTA"],
     editScope: "Heading, limit, layout, and live talent source controls.",
     preview: "talent",
@@ -141,6 +152,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataSource: "Data-ready: destinations and talent counts.",
     dataBindingKey: "talent_locations",
     editModel: "live-data",
+    editableCapabilities: ["content", "style", "layout", "data"],
     componentRecipe: ["heading", "location chips", "map embed", "market summary card"],
     editScope: "Location copy, map embed, card position, and layout.",
     preview: "map",
@@ -172,6 +184,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataSource: "Navigation: tenant taxonomy links.",
     dataBindingKey: "tenant_directory_search",
     editModel: "navigation",
+    editableCapabilities: ["content", "style", "layout", "navigation", "data"],
     componentRecipe: ["heading", "taxonomy icon chips", "directory links"],
     editScope: "Category labels, links, icons, columns, and spacing.",
     preview: "chips",
@@ -203,6 +216,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataSource: "Starter images; swappable through the inspector.",
     dataBindingKey: "asset",
     editModel: "asset",
+    editableCapabilities: ["content", "style", "layout", "media"],
     componentRecipe: ["image rail", "caption", "media picker-ready items"],
     editScope: "Images, captions, aspect rhythm, and section styling.",
     preview: "gallery",
@@ -236,6 +250,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataSource: "Static CTA; connects to inquiry routes.",
     dataBindingKey: "inquiry_path",
     editModel: "action-route",
+    editableCapabilities: ["content", "style", "layout", "action"],
     componentRecipe: ["headline", "supporting copy", "primary CTA", "secondary CTA"],
     editScope: "CTA copy, links, tone, imagery, and conversion layout.",
     preview: "cta",
@@ -269,6 +284,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataSource: "Starter metrics now; ready to connect to tenant analytics later.",
     dataBindingKey: "custom_field",
     editModel: "section-props",
+    editableCapabilities: ["content", "style", "layout", "data"],
     componentRecipe: ["stats row", "metric captions", "trust headline"],
     editScope: "Metric values, labels, captions, layout density, and presentation.",
     preview: "chips",
@@ -300,6 +316,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataSource: "Starter quotes; replace with approved client testimonials.",
     dataBindingKey: "custom_field",
     editModel: "section-props",
+    editableCapabilities: ["content", "style", "layout"],
     componentRecipe: ["quote cards", "author metadata", "accent controls"],
     editScope: "Quotes, authors, contexts, accents, carousel/card layout, and spacing.",
     preview: "cta",
@@ -331,6 +348,7 @@ export const SECTION_TEMPLATE_STARTERS = [
     dataSource: "Starter image and copy; replace media and CTAs in the inspector.",
     dataBindingKey: "asset",
     editModel: "asset",
+    editableCapabilities: ["content", "style", "layout", "media", "action"],
     componentRecipe: ["split layout", "hero copy", "CTA pair", "editable media"],
     editScope: "Image, alt text, headline, supporting copy, CTAs, side, and hero variant.",
     preview: "gallery",

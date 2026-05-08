@@ -1063,6 +1063,9 @@ test.describe("smoke: login → builder → publish → share", () => {
     await expect(
       kitReview.locator('[data-section-kit-review-row="featured-talent-live-grid"]'),
     ).toHaveAttribute("data-section-kit-review-edit-model", "live-data");
+    await expect(
+      kitReview.locator('[data-section-kit-review-row="featured-talent-live-grid"]'),
+    ).toHaveAttribute("data-section-kit-review-capabilities", /data/);
     await expect(kitReview).toContainText("Starting style");
     await expect(kitReview).toContainText("Compact brief");
     await expect(kitReview.getByRole("button", { name: /add selected/i })).toBeVisible();
@@ -1110,6 +1113,10 @@ test.describe("smoke: login → builder → publish → share", () => {
     await expect(featuredTalentStarter).toHaveAttribute(
       "data-section-template-edit-model",
       "live-data",
+    );
+    await expect(featuredTalentStarter).toHaveAttribute(
+      "data-section-template-capabilities",
+      /content.*layout.*data/,
     );
     await expect(featuredTalentStarter).toHaveAttribute(
       "data-section-template-compatible",

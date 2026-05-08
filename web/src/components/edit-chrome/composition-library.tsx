@@ -500,6 +500,7 @@ export function CompositionLibraryOverlay() {
           starter.dataBindingKey ?? "",
           starter.editModel,
           starter.editScope,
+          starter.editableCapabilities.join(" "),
           starter.componentRecipe.join(" "),
           starter.homeCore ? "home core fixed homepage starter" : "",
           ...starter.searchTerms,
@@ -685,6 +686,7 @@ export function CompositionLibraryOverlay() {
             starter.dataBindingKey ?? "",
             starter.editModel,
             starter.editScope,
+            starter.editableCapabilities.join(" "),
             starter.componentRecipe.join(" "),
             starter.homeCore ? "home core fixed homepage starter" : "",
             ...starter.searchTerms,
@@ -1862,6 +1864,7 @@ function KitReviewOverlay({
                 data-section-kit-review-row={starterId}
                 data-section-kit-review-data-binding={starter.dataBindingKey ?? ""}
                 data-section-kit-review-edit-model={starter.editModel}
+                data-section-kit-review-capabilities={starter.editableCapabilities.join(" ")}
                 className={`flex items-start gap-3 rounded-xl border p-3 transition hover:border-[#3d4f7c]/35 ${
                   checked
                     ? "border-[#3d4f7c]/25 bg-[#fbfaf7]"
@@ -1907,6 +1910,9 @@ function KitReviewOverlay({
                     </span>
                     <span className="mt-1 inline-flex">
                       <ReadinessBadge readiness={starter.readiness} />
+                    </span>
+                    <span className="mt-1 flex">
+                      <EditableCapabilityBadges starter={starter} limit={4} />
                     </span>
                     {starter.dataBindingKey ? (
                       <span className="mt-1 inline-flex">
@@ -2134,6 +2140,12 @@ function StarterReviewOverlay({
             </span>
             <span className="mt-2 block text-[11px] leading-relaxed text-zinc-500">
               Edit scope: {starter.editScope}
+            </span>
+            <span className="mt-2 block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
+              Editable controls
+            </span>
+            <span className="mt-1 flex">
+              <EditableCapabilityBadges starter={starter} />
             </span>
           </div>
         </div>
@@ -2486,6 +2498,56 @@ function ReadinessBadge({
   );
 }
 
+function editableCapabilityLabel(capability: SectionTemplateStarter["editableCapabilities"][number]): string {
+  switch (capability) {
+    case "content":
+      return "Content";
+    case "style":
+      return "Style";
+    case "layout":
+      return "Layout";
+    case "data":
+      return "Data";
+    case "navigation":
+      return "Navigation";
+    case "media":
+      return "Media";
+    case "action":
+      return "Action";
+  }
+}
+
+function EditableCapabilityBadges({
+  starter,
+  limit,
+}: {
+  starter: SectionTemplateStarter;
+  limit?: number;
+}) {
+  const visibleCapabilities =
+    typeof limit === "number"
+      ? starter.editableCapabilities.slice(0, limit)
+      : starter.editableCapabilities;
+  const hiddenCount = starter.editableCapabilities.length - visibleCapabilities.length;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {visibleCapabilities.map((capability) => (
+        <span
+          key={capability}
+          className="inline-flex items-center rounded-full bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-500 ring-1 ring-inset ring-zinc-200"
+        >
+          {editableCapabilityLabel(capability)}
+        </span>
+      ))}
+      {hiddenCount > 0 ? (
+        <span className="inline-flex items-center rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-500 ring-1 ring-inset ring-zinc-200">
+          +{hiddenCount}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function TemplateKitCard({
   kit,
   startersById,
@@ -2627,6 +2689,7 @@ function TemplateStarterCard({
       data-section-template-readiness={starter.readiness}
       data-section-template-data-binding={starter.dataBindingKey ?? ""}
       data-section-template-edit-model={starter.editModel}
+      data-section-template-capabilities={starter.editableCapabilities.join(" ")}
       data-section-template-home-core={starter.homeCore ? "true" : "false"}
       data-section-template-section-type={starter.sectionTypeKey}
       data-section-template-style-count={starter.stylePresets?.length ?? 0}
@@ -2685,6 +2748,7 @@ function TemplateStarterCard({
           <DataBindingBadge sourceKey={starter.dataBindingKey} />
         ) : null}
         <ReadinessBadge readiness={starter.readiness} />
+        <EditableCapabilityBadges starter={starter} limit={3} />
         {starter.homeCore ? (
           <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-sky-700 ring-1 ring-inset ring-sky-200">
             Home core
