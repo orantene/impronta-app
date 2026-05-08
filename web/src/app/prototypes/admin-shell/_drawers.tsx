@@ -5,9 +5,27 @@ import { useRouter } from "next/navigation";
 import { addTalentToRoster } from "./_actions";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
-import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields } from "@/lib/server-actions/admin-workspace-settings";
+import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
+import { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
+import { actionUploadAgencyLogo } from "@/lib/server-actions/admin-agency-logo-upload";
+import {
+  getEnabledTaxonomyTree,
+  getCategoryDetail,
+  setTaxonomyEnabled,
+  setTaxonomyFlags,
+  addCustomSubType,
+  removeCustomSubType,
+  getFieldsForTalent,
+  type TaxonomyNode,
+  type ResolvedField,
+  type CategoryDetail,
+  type CategoryFieldEntry,
+} from "@/lib/server-actions/admin-taxonomy";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
+import { SkillSlotPanel } from "./_skill-slot-panel";
+import { TrustBadgesPanel } from "./_phase7-drawers";
+import { MetricsRibbon } from "./_metrics-ribbon";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
 import {
   CLIENT_TRUST_META,
@@ -351,6 +369,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentApprovalsDrawer />;
     case "branding":
       return <BrandingDrawer />;
+    case "watermark-editor":
+      return <WatermarkEditorDrawer />;
     case "domain":
       return <DomainDrawer />;
     case "identity":
@@ -1750,7 +1770,957 @@ function TeamDrawer() {
 // Plan tier limits how many parents can be enabled simultaneously.
 // ════════════════════════════════════════════════════════════════════
 
+function LiveCategoryFieldsPanelStateful({ talentProfileId }: { talentProfileId: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <LiveCategoryFieldsPanel
+      talentProfileId={talentProfileId}
+      open={open}
+      onToggle={() => setOpen((o) => !o)}
+    />
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// LiveCategoryFieldsPanel — read-only preview of the DB-resolved field
+// catalog for a talent based on their primary + secondary taxonomy.
+//
+// Calls getFieldsForTalent(), which walks talent_profile_taxonomy →
+// expands each term to its parent_category → unions universal/global/
+// type-specific recommendations from profile_field_definitions, applies
+// workspace overrides.
+//
+// What it proves:
+//   - The taxonomy → field-recommendation pipeline works end-to-end.
+//   - Adding a secondary type immediately surfaces that type's fields.
+//   - The 1066 agency_taxonomy_settings rows + 171 recommendations
+//     resolve into a clean per-talent field set the UI can render.
+//
+// What it deliberately doesn't do (yet):
+//   - Edit values. Persistence to talent_profile_field_values is a
+//     follow-up slice — it needs a setFieldValue server action plus
+//     write-mode wiring in this panel.
+// ════════════════════════════════════════════════════════════════════
+
+type ResolvedGroupForUI = {
+  group_slug: string;
+  group_label_en: string;
+  weight: string;
+  display_order: number;
+  field_count: number;
+};
+
+/** Renders one resolved group: title + field rows with requirement badges. */
+function FieldGroupBlock({
+  title,
+  subtitle,
+  fields,
+}: {
+  title: string;
+  subtitle: string;
+  fields: ResolvedField[];
+}) {
+  return (
+    <div>
+      <div style={{
+        fontSize: 11.5, fontWeight: 700, color: COLORS.ink,
+        letterSpacing: 0.3, marginBottom: 2,
+      }}>{title}</div>
+      <div style={{
+        fontSize: 10.5, color: COLORS.inkMuted, marginBottom: 6,
+      }}>{subtitle}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {fields.map((f) => (
+          <div key={f.field_definition_id} style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "6px 10px", borderRadius: 6,
+            background: COLORS.surfaceAlt,
+            border: `1px solid ${COLORS.borderSoft}`,
+          }}>
+            <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink }}>
+              {f.label}
+              {f.required_before_publish && (
+                <span style={{ marginLeft: 6, color: COLORS.red, fontWeight: 700, fontSize: 10 }}
+                  title="Required before publish">*</span>
+              )}
+              {f.required_at_registration && (
+                <span style={{
+                  marginLeft: 6, fontSize: 9, fontWeight: 700,
+                  padding: "1px 5px", borderRadius: 3,
+                  background: COLORS.red, color: "#fff",
+                  letterSpacing: 0.4,
+                }}>REG</span>
+              )}
+              {f.required_before_verification && (
+                <span style={{
+                  marginLeft: 6, fontSize: 9, fontWeight: 700,
+                  padding: "1px 5px", borderRadius: 3,
+                  background: COLORS.indigoDeep, color: "#fff",
+                  letterSpacing: 0.4,
+                }}>VERIFY</span>
+              )}
+              {f.is_admin_only && (
+                <span style={{
+                  marginLeft: 6, fontSize: 9, fontWeight: 700,
+                  padding: "1px 5px", borderRadius: 3,
+                  background: COLORS.inkMuted, color: "#fff",
+                  letterSpacing: 0.4,
+                }}>ADMIN</span>
+              )}
+            </span>
+            <span style={{
+              fontSize: 9.5, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
+              background: f.tier === "universal" ? COLORS.surfaceAlt
+                : f.tier === "global" ? COLORS.indigoSoft
+                : "rgba(184,135,49,0.16)",
+              color: f.tier === "universal" ? COLORS.inkMuted
+                : f.tier === "global" ? COLORS.indigoDeep
+                : "#7A5A1F",
+              textTransform: "uppercase", letterSpacing: 0.4,
+            }}>{f.tier}</span>
+            <span style={{
+              fontSize: 10.5, color: COLORS.inkMuted,
+              fontFamily: "ui-monospace, monospace",
+            }}>{f.kind}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LiveCategoryFieldsPanel({
+  talentProfileId,
+  open,
+  onToggle,
+}: {
+  talentProfileId: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const [fields, setFields] = useState<ResolvedField[] | null>(null);
+  const [groups, setGroups] = useState<ResolvedGroupForUI[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || fields !== null || loading) return;
+    setLoading(true);
+    setError(null);
+    getFieldsForTalent({ talent_profile_id: talentProfileId }).then((res) => {
+      if (res.ok) {
+        setFields(res.fields);
+        setGroups(res.groups);
+      } else {
+        setError(res.error);
+      }
+      setLoading(false);
+    });
+  }, [open, talentProfileId, fields, loading]);
+
+  // Group fields by their resolved field_group (Phase 6 architecture).
+  // Universal/global fields without a group end up in a "Universal" bucket.
+  const grouped = useMemo(() => {
+    if (!fields) return new Map<string, ResolvedField[]>();
+    const m = new Map<string, ResolvedField[]>();
+    for (const f of fields) {
+      const key = f.field_group_slug ?? (f.tier === "universal" || f.tier === "global" ? "_universal" : "_other");
+      const list = m.get(key) ?? [];
+      list.push(f);
+      m.set(key, list);
+    }
+    // Sort each group internally by display_order
+    for (const list of m.values()) {
+      list.sort((a, b) => a.display_order - b.display_order);
+    }
+    return m;
+  }, [fields]);
+
+  // Required-by-publish completion stats.
+  const completion = useMemo(() => {
+    if (!fields) return { required: 0, total: 0 };
+    const required = fields.filter((f) => f.required_before_publish).length;
+    return { required, total: fields.length };
+  }, [fields]);
+
+  return (
+    <div style={{
+      border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
+      background: "#fff", overflow: "hidden", marginBottom: 8,
+      fontFamily: FONTS.body,
+    }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", gap: 10,
+          padding: "12px 14px", background: open ? COLORS.surfaceAlt : "#fff",
+          border: "none", cursor: "pointer", textAlign: "left",
+          borderBottom: open ? `1px solid ${COLORS.borderSoft}` : "none",
+        }}
+      >
+        <span style={{ fontSize: 18 }}>🧬</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+            Category fields (live)
+          </div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+            {fields
+              ? `${fields.length} field${fields.length === 1 ? "" : "s"} resolved from primary + secondary types`
+              : "DB-resolved field catalog for this talent's types"}
+          </div>
+        </div>
+        <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div style={{ padding: "12px 14px" }}>
+          {loading && (
+            <div style={{ color: COLORS.inkMuted, fontSize: 12 }}>Loading…</div>
+          )}
+          {error && (
+            <div style={{
+              padding: 10, borderRadius: 8, background: COLORS.amberSoft,
+              border: `1px solid ${COLORS.amber}`, fontSize: 12, color: COLORS.ink,
+            }}>{error}</div>
+          )}
+          {fields && fields.length === 0 && (
+            <div style={{ color: COLORS.inkMuted, fontSize: 12 }}>
+              No category-specific fields yet. Set a primary type first.
+            </div>
+          )}
+          {fields && fields.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Architecture summary header */}
+              <div style={{
+                padding: "10px 12px", borderRadius: 8,
+                background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
+                fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  {fields.length} fields across {groups.length} groups · {completion.required} required to publish
+                </div>
+                <div style={{ fontSize: 10.5 }}>
+                  Groups auto-loaded from primary + secondary parent categories. Universal + global fields apply to everyone.
+                </div>
+              </div>
+
+              {/* Render groups in display_order */}
+              {groups
+                .slice()
+                .sort((a, b) => a.display_order - b.display_order)
+                .map((g) => {
+                  const list = grouped.get(g.group_slug) ?? [];
+                  if (list.length === 0) return null;
+                  return (
+                    <FieldGroupBlock
+                      key={g.group_slug}
+                      title={g.group_label_en}
+                      subtitle={`${list.length} field${list.length === 1 ? "" : "s"} · ${g.weight} weight`}
+                      fields={list}
+                    />
+                  );
+                })}
+
+              {/* Universal/global bucket (no group) */}
+              {(grouped.get("_universal") ?? []).length > 0 && (
+                <FieldGroupBlock
+                  title="Universal & global"
+                  subtitle={`${(grouped.get("_universal") ?? []).length} field${(grouped.get("_universal") ?? []).length === 1 ? "" : "s"} · always shown`}
+                  fields={grouped.get("_universal") ?? []}
+                />
+              )}
+
+              {/* Recommendation-only bucket (no group, but has rec) */}
+              {(grouped.get("_other") ?? []).length > 0 && (
+                <FieldGroupBlock
+                  title="Type-specific"
+                  subtitle={`${(grouped.get("_other") ?? []).length} field${(grouped.get("_other") ?? []).length === 1 ? "" : "s"} · brought in by talent type`}
+                  fields={grouped.get("_other") ?? []}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CategoryExpandPanel — what an admin sees when they tap into a parent
+// category in Settings → Roster. Three tabs:
+//   • Sub-types    → category_groups + their talent_types (level 2 + 3)
+//                    so you can see EVERYTHING that comes with this
+//                    category. Custom sub-types live here too.
+//   • Fields       → universal + global + type-specific fields, grouped
+//                    by tier with source labels — answers "what data
+//                    will my roster collect for this category?"
+//   • Settings     → the 5 flag toggles (allow primary/secondary, show
+//                    in registration/directory, require approval).
+// ════════════════════════════════════════════════════════════════════
+
+function CategoryExpandPanel({
+  parent,
+  detail,
+  isLoading,
+  tab,
+  onTabChange,
+  onFlag,
+  onToggleSubEnabled,
+  onRemoveCustom,
+  addingCustom,
+  newSubName,
+  onAddingChange,
+  onNewSubName,
+  onAddCustom,
+}: {
+  parent: TaxonomyNode;
+  detail: CategoryDetail | null;
+  isLoading: boolean;
+  tab: "subtypes" | "fields" | "settings";
+  onTabChange: (t: "subtypes" | "fields" | "settings") => void;
+  onFlag: (key: keyof TaxonomyNode, val: boolean) => void;
+  onToggleSubEnabled: (sub: TaxonomyNode) => void;
+  onRemoveCustom: (sub: TaxonomyNode) => void;
+  addingCustom: boolean;
+  newSubName: string;
+  onAddingChange: (adding: boolean) => void;
+  onNewSubName: (name: string) => void;
+  onAddCustom: () => void;
+}) {
+  const TabBtn = ({ id, label, count }: { id: "subtypes" | "fields" | "settings"; label: string; count?: number }) => (
+    <button
+      type="button"
+      onClick={() => onTabChange(id)}
+      style={{
+        padding: "8px 12px", fontSize: 12, fontWeight: 600,
+        background: tab === id ? "#fff" : "transparent",
+        color: tab === id ? COLORS.ink : COLORS.inkMuted,
+        border: `1px solid ${tab === id ? COLORS.border : "transparent"}`,
+        borderRadius: 8, cursor: "pointer",
+        fontFamily: FONTS.body,
+        display: "inline-flex", alignItems: "center", gap: 6,
+      }}
+    >
+      {label}
+      {typeof count === "number" && (
+        <span style={{
+          fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
+          background: tab === id ? COLORS.surfaceAlt : "rgba(11,11,13,0.06)",
+          color: COLORS.inkMuted,
+        }}>{count}</span>
+      )}
+    </button>
+  );
+
+  const subtypeCount =
+    parent.children.length +
+    (detail
+      ? detail.groups.reduce((acc, g) => acc + g.talentTypes.length, 0) +
+        detail.directTalentTypes.length
+      : 0);
+
+  return (
+    <div style={{
+      padding: "0 14px 14px 14px", display: "flex", flexDirection: "column", gap: 10,
+      background: COLORS.surfaceAlt,
+    }}>
+      {/* Tab strip */}
+      <div style={{ display: "flex", gap: 6, paddingTop: 10 }}>
+        <TabBtn id="subtypes" label="Sub-types" count={subtypeCount} />
+        <TabBtn id="fields" label="Field catalog" count={detail?.fields.length} />
+        <TabBtn id="settings" label="Settings" />
+      </div>
+
+      {/* SUBTYPES TAB */}
+      {tab === "subtypes" && (
+        <div>
+          {isLoading && !detail && (
+            <div style={{ padding: 12, color: COLORS.inkMuted, fontSize: 12, fontFamily: FONTS.body }}>
+              Loading sub-types…
+            </div>
+          )}
+          {detail && detail.groups.length === 0 && detail.directTalentTypes.length === 0 && parent.children.length === 0 && (
+            <div style={{ padding: 12, color: COLORS.inkMuted, fontSize: 12, fontFamily: FONTS.body }}>
+              No sub-types defined yet. Add a custom one below.
+            </div>
+          )}
+
+          {/* Level-2 category_groups (from getEnabledTaxonomyTree)
+              with their level-3 talent_types nested (from getCategoryDetail). */}
+          {parent.children.map((sub) => {
+            const groupRow = detail?.groups.find((g) => g.group.id === sub.id);
+            const ttList = groupRow?.talentTypes ?? [];
+            return (
+              <div key={sub.id} style={{
+                marginBottom: 8, borderRadius: 8, background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden",
+                fontFamily: FONTS.body,
+              }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "8px 10px",
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+                      {sub.custom_label ?? sub.name_en}
+                      {sub.is_custom && (
+                        <span style={{
+                          marginLeft: 6, fontSize: 9.5, fontWeight: 700,
+                          padding: "1px 6px", borderRadius: 4,
+                          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+                        }}>CUSTOM</span>
+                      )}
+                    </div>
+                    {ttList.length > 0 && (
+                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                        {ttList.length} talent type{ttList.length === 1 ? "" : "s"}
+                      </div>
+                    )}
+                  </div>
+                  {!sub.is_custom && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleSubEnabled(sub)}
+                      aria-pressed={sub.is_enabled}
+                      style={{
+                        width: 28, height: 16, borderRadius: 999,
+                        background: sub.is_enabled ? COLORS.accent : "rgba(11,11,13,0.12)",
+                        border: "none", cursor: "pointer", padding: 0,
+                        position: "relative",
+                      }}
+                    >
+                      <span style={{
+                        position: "absolute", top: 2, left: sub.is_enabled ? 14 : 2,
+                        width: 12, height: 12, borderRadius: "50%", background: "#fff",
+                      }} />
+                    </button>
+                  )}
+                  {sub.is_custom && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveCustom(sub)}
+                      style={{
+                        padding: "3px 8px", fontSize: 11, fontWeight: 600,
+                        borderRadius: 6, border: `1px solid ${COLORS.border}`,
+                        background: "#fff", color: COLORS.red, cursor: "pointer",
+                        fontFamily: FONTS.body,
+                      }}
+                    >Remove</button>
+                  )}
+                </div>
+                {ttList.length > 0 && (
+                  <div style={{
+                    padding: "6px 10px 10px 24px", display: "flex", flexWrap: "wrap", gap: 4,
+                    background: COLORS.surfaceAlt,
+                    borderTop: `1px solid ${COLORS.borderSoft}`,
+                  }}>
+                    {ttList.map((tt) => (
+                      <span key={tt.id} style={{
+                        padding: "3px 8px", fontSize: 11, color: COLORS.inkMuted,
+                        background: "#fff", borderRadius: 999,
+                        border: `1px solid ${COLORS.borderSoft}`,
+                      }}>{tt.name_en}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Direct talent_types (rare). */}
+          {detail && detail.directTalentTypes.length > 0 && (
+            <div style={{
+              marginBottom: 8, padding: "8px 10px", borderRadius: 8,
+              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+              fontFamily: FONTS.body,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted, marginBottom: 6, letterSpacing: 0.4 }}>
+                DIRECT TYPES
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {detail.directTalentTypes.map((tt) => (
+                  <span key={tt.id} style={{
+                    padding: "3px 8px", fontSize: 11, color: COLORS.inkMuted,
+                    background: COLORS.surfaceAlt, borderRadius: 999,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                  }}>{tt.name_en}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Add custom sub-type. */}
+          {addingCustom ? (
+            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+              <input
+                value={newSubName}
+                onChange={(e) => onNewSubName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") onAddCustom(); }}
+                placeholder={`e.g. "Ambient DJs"`}
+                autoFocus
+                style={{
+                  flex: 1, padding: "8px 10px", borderRadius: 8,
+                  border: `1px solid ${COLORS.border}`, fontSize: 13,
+                  fontFamily: FONTS.body, background: "#fff",
+                }}
+              />
+              <button
+                type="button"
+                onClick={onAddCustom}
+                style={{
+                  padding: "8px 12px", fontSize: 12, fontWeight: 600,
+                  borderRadius: 8, border: "none",
+                  background: COLORS.ink, color: "#fff", cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}
+              >Add</button>
+              <button
+                type="button"
+                onClick={() => { onAddingChange(false); onNewSubName(""); }}
+                style={{
+                  padding: "8px 12px", fontSize: 12, fontWeight: 600,
+                  borderRadius: 8, border: `1px solid ${COLORS.border}`,
+                  background: "#fff", color: COLORS.inkMuted, cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}
+              >Cancel</button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAddingChange(true)}
+              style={{
+                padding: "6px 10px", fontSize: 12, fontWeight: 600,
+                borderRadius: 8, border: `1px dashed ${COLORS.border}`,
+                background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
+                fontFamily: FONTS.body, alignSelf: "flex-start",
+              }}
+            >+ Add custom sub-type</button>
+          )}
+        </div>
+      )}
+
+      {/* FIELDS TAB */}
+      {tab === "fields" && (
+        <div>
+          {isLoading && !detail && (
+            <div style={{ padding: 12, color: COLORS.inkMuted, fontSize: 12, fontFamily: FONTS.body }}>
+              Loading field catalog…
+            </div>
+          )}
+          {detail && (() => {
+            const grouped = new Map<string, CategoryFieldEntry[]>();
+            for (const f of detail.fields) {
+              const list = grouped.get(f.tier) ?? [];
+              list.push(f);
+              grouped.set(f.tier, list);
+            }
+            const tierOrder: Array<["universal" | "global" | "type-specific", string, string]> = [
+              ["universal", "Universal", "Every talent has these — required to publish."],
+              ["global", "Global", "Cross-category. Most talent fill these in."],
+              ["type-specific", "Category-specific", `Only for ${parent.name_en} — and the sub-types within.`],
+            ];
+            return tierOrder.map(([tier, label, desc]) => {
+              const list = grouped.get(tier) ?? [];
+              if (list.length === 0) return null;
+              return (
+                <div key={tier} style={{ marginBottom: 12 }}>
+                  <div style={{
+                    fontSize: 11, fontWeight: 700, color: COLORS.ink, letterSpacing: 0.4,
+                    marginBottom: 4, fontFamily: FONTS.body,
+                  }}>{label.toUpperCase()} · {list.length}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 6, fontFamily: FONTS.body }}>{desc}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    {list.map((f) => (
+                      <div key={f.field_definition_id} style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "6px 10px", borderRadius: 6,
+                        background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                        fontFamily: FONTS.body,
+                      }}>
+                        <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink }}>
+                          {f.label}
+                          {f.is_required && (
+                            <span style={{ marginLeft: 6, color: COLORS.red, fontWeight: 700 }}>*</span>
+                          )}
+                        </span>
+                        {f.tier === "type-specific" && (
+                          <span style={{
+                            fontSize: 10, color: COLORS.inkMuted,
+                          }}>{f.source}</span>
+                        )}
+                        <span style={{
+                          fontSize: 10, color: COLORS.inkMuted,
+                          fontFamily: "ui-monospace, monospace",
+                        }}>{f.kind}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      )}
+
+      {/* SETTINGS TAB */}
+      {tab === "settings" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {!parent.is_enabled && (
+            <div style={{
+              padding: 10, borderRadius: 8,
+              background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`,
+              fontSize: 11.5, color: COLORS.ink, fontFamily: FONTS.body,
+            }}>
+              This category is currently disabled. The flags below take effect once you enable it.
+            </div>
+          )}
+          <TaxonomyToggleRow
+            label="Allow as primary"
+            desc="Talent can pick this as their main category."
+            value={parent.allow_as_primary}
+            onChange={(v) => onFlag("allow_as_primary", v)}
+          />
+          <TaxonomyToggleRow
+            label="Allow as secondary"
+            desc="Talent can add this as one of their two secondary categories."
+            value={parent.allow_as_secondary}
+            onChange={(v) => onFlag("allow_as_secondary", v)}
+          />
+          <TaxonomyToggleRow
+            label="Show in registration"
+            desc="Talent can self-register under this category."
+            value={parent.show_in_registration}
+            onChange={(v) => onFlag("show_in_registration", v)}
+          />
+          <TaxonomyToggleRow
+            label="Show in directory"
+            desc="Discover surfaces this category to clients."
+            value={parent.show_in_directory}
+            onChange={(v) => onFlag("show_in_directory", v)}
+          />
+          <TaxonomyToggleRow
+            label="Require approval"
+            desc="New profiles in this category go to admin queue first."
+            value={parent.requires_approval}
+            onChange={(v) => onFlag("requires_approval", v)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// LiveTalentTypesDrawer — real-DB view of taxonomy management.
+//
+// Reads getEnabledTaxonomyTree() (parent_category → talent_type), wires
+// every toggle/flag to setTaxonomyEnabled / setTaxonomyFlags, and lets
+// the workspace add a tenant-local sub-type via addCustomSubType.
+//
+// When this returns null (no tenant context, hooks not ready), the
+// legacy WorkspaceTalentTypesDrawer below renders the prototype state
+// so design QA without auth still works.
+// ════════════════════════════════════════════════════════════════════
+
+function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useProto();
+  const [tree, setTree] = useState<TaxonomyNode[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [addingForParent, setAddingForParent] = useState<string | null>(null);
+  const [newSubName, setNewSubName] = useState("");
+  // Lazy-loaded category detail (level-3 talent_types + recommended fields).
+  // Keyed by parent_id; populated when the admin first expands a category.
+  const [details, setDetails] = useState<Map<string, CategoryDetail>>(new Map());
+  const [detailLoading, setDetailLoading] = useState<Set<string>>(new Set());
+  const [detailTab, setDetailTab] = useState<Map<string, "subtypes" | "fields" | "settings">>(new Map());
+
+  const loadDetail = async (parentId: string) => {
+    if (details.has(parentId) || detailLoading.has(parentId)) return;
+    setDetailLoading((p) => new Set(p).add(parentId));
+    const res = await getCategoryDetail({ parent_id: parentId });
+    setDetailLoading((p) => {
+      const n = new Set(p);
+      n.delete(parentId);
+      return n;
+    });
+    if (res.ok) {
+      setDetails((p) => new Map(p).set(parentId, res.detail));
+    }
+  };
+
+  const toggleExpand = (parentId: string) => {
+    setExpanded((p) => {
+      const n = new Set(p);
+      if (n.has(parentId)) n.delete(parentId);
+      else {
+        n.add(parentId);
+        loadDetail(parentId);
+      }
+      return n;
+    });
+  };
+
+  const getTab = (parentId: string) => detailTab.get(parentId) ?? "subtypes";
+  const setTab = (parentId: string, tab: "subtypes" | "fields" | "settings") => {
+    setDetailTab((p) => new Map(p).set(parentId, tab));
+  };
+
+  // Load tree on first open.
+  useEffect(() => {
+    if (!open || tree !== null || loading) return;
+    setLoading(true);
+    setError(null);
+    getEnabledTaxonomyTree().then((res) => {
+      if (res.ok) {
+        setTree(res.tree);
+      } else {
+        setError(res.error);
+      }
+      setLoading(false);
+    });
+  }, [open, tree, loading]);
+
+  const markSaving = (id: string, isSaving: boolean) => {
+    setSaving((prev) => {
+      const next = new Set(prev);
+      if (isSaving) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  // Optimistic mutation helper — patches the local tree, fires server
+  // action, reverts on failure.
+  const patchNode = (id: string, patch: Partial<TaxonomyNode>) => {
+    setTree((cur) => {
+      if (!cur) return cur;
+      const apply = (list: TaxonomyNode[]): TaxonomyNode[] =>
+        list.map((n) =>
+          n.id === id
+            ? { ...n, ...patch }
+            : { ...n, children: apply(n.children) },
+        );
+      return apply(cur);
+    });
+  };
+
+  const handleToggleEnabled = async (node: TaxonomyNode) => {
+    markSaving(node.id, true);
+    const before = node.is_enabled;
+    patchNode(node.id, { is_enabled: !before });
+    const res = await setTaxonomyEnabled({
+      taxonomy_term_id: node.id,
+      is_enabled: !before,
+    });
+    if (!res.ok) {
+      patchNode(node.id, { is_enabled: before });
+      toast(res.error);
+    }
+    markSaving(node.id, false);
+  };
+
+  const handleFlag = async (node: TaxonomyNode, key: keyof TaxonomyNode, val: boolean) => {
+    markSaving(node.id, true);
+    const before = node[key] as boolean;
+    patchNode(node.id, { [key]: val } as Partial<TaxonomyNode>);
+    const res = await setTaxonomyFlags({
+      taxonomy_term_id: node.id,
+      [key]: val,
+    });
+    if (!res.ok) {
+      patchNode(node.id, { [key]: before } as Partial<TaxonomyNode>);
+      toast(res.error);
+    }
+    markSaving(node.id, false);
+  };
+
+  const handleAddCustom = async (parent: TaxonomyNode) => {
+    const name = newSubName.trim();
+    if (!name) {
+      toast("Enter a name first.");
+      return;
+    }
+    const res = await addCustomSubType({
+      parent_id: parent.id,
+      name_en: name,
+    });
+    if (!res.ok) {
+      toast(res.error);
+      return;
+    }
+    setNewSubName("");
+    setAddingForParent(null);
+    // Reload tree to pick up the new sub-type.
+    const fresh = await getEnabledTaxonomyTree();
+    if (fresh.ok) setTree(fresh.tree);
+    toast(`Added "${name}" as a custom sub-type.`);
+  };
+
+  const handleRemoveCustom = async (node: TaxonomyNode) => {
+    if (!confirm(`Remove "${node.name_en}" from your sub-types? Talent already tagged with it keep their assignment for history.`)) return;
+    const res = await removeCustomSubType({ id: node.id });
+    if (!res.ok) {
+      toast(res.error);
+      return;
+    }
+    const fresh = await getEnabledTaxonomyTree();
+    if (fresh.ok) setTree(fresh.tree);
+    toast(`Removed "${node.name_en}".`);
+  };
+
+  const totalEnabled = useMemo(
+    () => (tree ?? []).filter((n) => n.is_enabled).length,
+    [tree],
+  );
+
+  if (!open) return null;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={onClose}
+      title="Talent types"
+      description="Pick which talent your agency accepts. Disabled categories disappear from Add Talent and the public registration form. Sub-types let you customize within a category — perfect for niches your roster specializes in."
+      footer={
+        <PrimaryButton onClick={onClose}>Done</PrimaryButton>
+      }
+    >
+      {error && (
+        <div style={{
+          padding: 12, borderRadius: 10, background: COLORS.amberSoft,
+          border: `1px solid ${COLORS.amber}`, fontSize: 12, color: COLORS.ink,
+          marginBottom: 14, fontFamily: FONTS.body,
+        }}>
+          Couldn't load live taxonomy: {error}
+        </div>
+      )}
+
+      {loading && (
+        <div style={{
+          padding: 24, textAlign: "center", color: COLORS.inkMuted,
+          fontFamily: FONTS.body, fontSize: 13,
+        }}>Loading taxonomy…</div>
+      )}
+
+      {tree && (
+        <>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 14px", borderRadius: 10,
+            background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
+            fontFamily: FONTS.body, marginBottom: 14,
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.indigoDeep }}>
+                {totalEnabled} of {tree.length} categories enabled
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+                Changes save instantly to your workspace.
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            background: "#fff", borderRadius: 12, overflow: "hidden",
+            border: `1px solid ${COLORS.borderSoft}`,
+            boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+          }}>
+            {tree.map((parent, i) => {
+              const isExpanded = expanded.has(parent.id);
+              const isSaving = saving.has(parent.id);
+              const childCount = parent.children.length;
+              const customCount = parent.children.filter(c => c.is_custom).length;
+              return (
+                <div
+                  key={parent.id}
+                  style={{
+                    borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                    fontFamily: FONTS.body,
+                    opacity: parent.is_enabled ? 1 : 0.55,
+                  }}
+                >
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "12px 14px", cursor: "pointer",
+                  }} onClick={() => toggleExpand(parent.id)}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+                        {parent.custom_label ?? parent.name_en}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                        {childCount} sub-type{childCount === 1 ? "" : "s"}
+                        {customCount > 0 ? ` · ${customCount} custom` : ""}
+                        {parent.is_enabled ? "" : " · disabled"}
+                        {isSaving ? " · saving…" : ""}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleToggleEnabled(parent); }}
+                      aria-pressed={parent.is_enabled}
+                      style={{
+                        width: 36, height: 22, borderRadius: 999,
+                        background: parent.is_enabled ? COLORS.accent : "rgba(11,11,13,0.12)",
+                        border: "none", cursor: "pointer", padding: 0,
+                        position: "relative", transition: "background 0.15s",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span style={{
+                        position: "absolute", top: 2, left: parent.is_enabled ? 16 : 2,
+                        width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                        transition: "left 0.15s",
+                      }} />
+                    </button>
+                  </div>
+
+                  {isExpanded && (
+                    <CategoryExpandPanel
+                      parent={parent}
+                      detail={details.get(parent.id) ?? null}
+                      isLoading={detailLoading.has(parent.id)}
+                      tab={getTab(parent.id)}
+                      onTabChange={(t) => setTab(parent.id, t)}
+                      onFlag={(key, val) => handleFlag(parent, key, val)}
+                      onToggleSubEnabled={handleToggleEnabled}
+                      onRemoveCustom={handleRemoveCustom}
+                      addingCustom={addingForParent === parent.id}
+                      newSubName={newSubName}
+                      onAddingChange={(adding) => setAddingForParent(adding ? parent.id : null)}
+                      onNewSubName={setNewSubName}
+                      onAddCustom={() => handleAddCustom(parent)}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </DrawerShell>
+  );
+}
+
 function TalentTypesDrawer() {
+  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity } = useProto();
+  const open = state.drawer.drawerId === "talent-types";
+
+  // Live mode when we have a real tenant; legacy prototype when not.
+  if (bridgeTenantIdentity?.tenantId) {
+    return <LiveTalentTypesDrawer open={open} onClose={closeDrawer} />;
+  }
+
+  // Legacy prototype path (mock state) — preserved for design QA without
+  // an authenticated tenant.
+  return <LegacyTalentTypesDrawer />;
+}
+
+function LegacyTalentTypesDrawer() {
   const { state, closeDrawer, openDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-types";
   const [settings, setSettings] = useState(WORKSPACE_TAXONOMY_DEFAULT);
@@ -3215,8 +4185,9 @@ function ageString(d: Date): string {
   const sec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
   if (sec < 5) return "just now";
   if (sec < 60) return `${sec}s ago`;
-  const min = Math.floor(sec / 60);
-  return `${min}m ago`;
+  // Q6: after 60 seconds, collapse to bare "Saved" — counting forever
+  // implies stale state and adds anxiety. The save IS persisted.
+  return "saved";
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -3586,7 +4557,7 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
 // ════════════════════════════════════════════════════════════════════
 
 function TalentProfileShellDrawer() {
-  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug } = useProto();
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity } = useProto();
   const shellRouter = useRouter();
   const drawerId = protoState.drawer.drawerId;
   const drawerOpen = drawerId === "talent-profile-shell" || drawerId === "talent-profile-edit";
@@ -3803,13 +4774,48 @@ function TalentProfileShellDrawer() {
   const planRank = (p: "free" | "studio" | "agency" | "network") =>
     ({ free: 0, studio: 1, agency: 2, network: 3 } as const)[p];
   const currentRank = planRank(protoState.plan as "free" | "studio" | "agency" | "network");
-  const allowedParentIds = new Set(
+
+  // Live mode: load this tenant's enabled-taxonomy set from the DB. When
+  // present we filter by allow_as_primary on the real overlay, instead
+  // of the WORKSPACE_TAXONOMY_DEFAULT fixture. Falls back to the fixture
+  // when not on a real tenant. (bridgeTenantIdentity is destructured from
+  // useProto at the top of TalentProfileShellDrawer.)
+  const [liveEnabledPrimaryIds, setLiveEnabledPrimaryIds] = useState<Set<string> | null>(null);
+  const [liveEnabledPrimarySlugs, setLiveEnabledPrimarySlugs] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!bridgeTenantIdentity?.tenantId) return;
+    let cancelled = false;
+    getEnabledTaxonomyTree().then((res) => {
+      if (cancelled || !res.ok) return;
+      const ids = new Set<string>();
+      const slugs = new Set<string>();
+      for (const p of res.tree) {
+        if (p.is_enabled && p.allow_as_primary) {
+          ids.add(p.id);
+          slugs.add(p.slug);
+        }
+      }
+      setLiveEnabledPrimaryIds(ids);
+      setLiveEnabledPrimarySlugs(slugs);
+    });
+    return () => { cancelled = true; };
+  }, [bridgeTenantIdentity?.tenantId]);
+
+  const fixtureAllowedParentIds = new Set(
     WORKSPACE_TAXONOMY_DEFAULT
       .filter(s => s.isEnabled && s.showInRegistration)
       .map(s => s.parentId as string)
   );
-  const filterByWS = (lp: LiveTaxonomyParent) =>
-    allowedParentIds.has(lp.raw.slug) || allowedParentIds.has(lp.display.id);
+  const filterByWS = (lp: LiveTaxonomyParent) => {
+    // Live mode wins when we have it.
+    if (liveEnabledPrimaryIds) {
+      return liveEnabledPrimaryIds.has(lp.raw.id)
+        || liveEnabledPrimarySlugs.has(lp.raw.slug)
+        || liveEnabledPrimarySlugs.has(lp.display.id);
+    }
+    return fixtureAllowedParentIds.has(lp.raw.slug)
+      || fixtureAllowedParentIds.has(lp.display.id);
+  };
   const visibleParentsLP = liveTax.visibleParents
     .filter(filterByWS)
     .filter(lp => planRank(lp.display.minPlan) <= currentRank);
@@ -4202,13 +5208,35 @@ function TalentProfileShellDrawer() {
              the profile underneath. RequiredCoach and ProfileGrowthMetric
              still render, but inline above the form so they participate
              in the same scroll. */
-          [data-tulala-pshell] [data-pshell-body] { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; padding: 0; position: relative; }
+          [data-tulala-pshell] [data-pshell-body] { display: flex; flex-direction: row; flex: 1; min-height: 0; }
+          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; padding: 0; position: relative; min-width: 0; }
           [data-tulala-pshell] [data-pshell-form-banners] {
             display: flex; flex-direction: column; gap: 10px;
             padding: 14px 18px 0;
           }
+          /* Vertical section rail — primary nav for the drawer at >= 601px.
+             Replaces the horizontal pill row. Rail click sets activeSection
+             and the existing single-section body shows that section's form. */
+          [data-tulala-pshell] [data-pshell-rail] {
+            width: 176px; flex-shrink: 0;
+            border-right: 1px solid ${COLORS.borderSoft};
+            background: rgba(11,11,13,0.018);
+            overflow-y: auto;
+            padding: 10px 8px;
+            display: flex; flex-direction: column; gap: 1px;
+          }
+          [data-tulala-pshell] [data-pshell-rail]::-webkit-scrollbar { width: 4px; }
+          [data-tulala-pshell] [data-pshell-rail]::-webkit-scrollbar-thumb { background: rgba(11,11,13,0.10); border-radius: 4px; }
           [data-tulala-pshell] [data-pshell-tab-nav] { display: none; }
+          /* Single-section pattern at all widths: rail (or pills, on narrow)
+             is the nav. Closed sections + section headers are hidden — rail
+             names the active section, header would be redundant. */
+          [data-tulala-pshell] section[data-paccordion-section]:not(:has([data-open="true"])) { display: none; }
+          [data-tulala-pshell] section[data-paccordion-section] [data-paccordion-header] { display: none; }
+          [data-tulala-pshell] section[data-paccordion-section] [data-paccordion-body][data-open="true"] {
+            max-height: none !important;
+            padding: 14px 18px !important;
+          }
           [data-tulala-pshell] [data-paccordion-section] [data-paccordion-header] {
             position: sticky; top: 0; z-index: 5;
             background: #fff;
@@ -4223,13 +5251,6 @@ function TalentProfileShellDrawer() {
           }
           [data-tulala-pshell] [data-paccordion-body][data-open="true"] {
             max-height: 4000px; opacity: 1;
-          }
-          /* 2026 #4 — :has() selector. State-aware styling without
-             className shuffling: any open accordion gets a subtle left
-             accent strip so the active section is visually clear at a
-             glance. Falls back gracefully where :has() isn't supported. */
-          [data-tulala-pshell] section:has([data-open="true"]) {
-            box-shadow: inset 3px 0 0 0 ${COLORS.accent};
           }
           /* Disabled inputs flag their parent FieldRow as "locked" so
              the helper text dims naturally without a class on the parent. */
@@ -4250,24 +5271,7 @@ function TalentProfileShellDrawer() {
              slides from the bottom with a rounded top + safe-area pad. */
           @container pshell (max-width: 720px) {
             [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; }
-            [data-tulala-pshell] [data-pshell-body] { flex-direction: column; padding-bottom: 64px; }
-            [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
-            /* 2026 single-section pattern: at mobile widths, ONLY the
-               active accordion section is visible. The collapsed ones
-               disappear entirely (no empty headers eating viewport).
-               The tab nav above still gives a single tap to switch
-               sections. The active section's header also hides since
-               the tab nav already names it — saves another row. */
-            [data-tulala-pshell] section[data-paccordion-section]:not(:has([data-open="true"])) {
-              display: none !important;
-            }
-            [data-tulala-pshell] section[data-paccordion-section] [data-paccordion-header] {
-              display: none !important;
-            }
-            [data-tulala-pshell] section[data-paccordion-section] [data-paccordion-body][data-open="true"] {
-              max-height: none !important;
-              padding: 14px 16px !important;
-            }
+            [data-tulala-pshell] [data-pshell-body] { padding-bottom: 64px; }
             [data-tulala-pshell] [data-pshell-mobile-save] {
               position: fixed; bottom: 0; left: 0; right: 0;
               z-index: 5;
@@ -4288,15 +5292,27 @@ function TalentProfileShellDrawer() {
             [data-tulala-pshell] [data-pshell-mobile-save] { display: none !important; }
             [data-tulala-pshell] [data-pshell-mobile-menu] { display: none !important; }
           }
+          /* Narrow drawer / phone — rail doesn't fit, fall back to the
+             horizontal pill row so the nav stays one-tap. Body returns
+             to column flow so pills sit above form. */
+          @container pshell (max-width: 480px) {
+            [data-tulala-pshell] [data-pshell-rail] { display: none; }
+            [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
+            [data-tulala-pshell] [data-pshell-body] { flex-direction: column; }
+          }
           /* Fallback for browsers without container-query support
              (Safari < 16, Firefox < 110). Same rules, viewport-keyed.
              Modern browsers ignore these because @container wins. */
           @supports not (container-type: inline-size) {
             @media (max-width: 720px) {
               [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; max-width: none; }
-              [data-tulala-pshell] [data-pshell-body] { flex-direction: column; padding-bottom: 64px; }
-              [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
+              [data-tulala-pshell] [data-pshell-body] { padding-bottom: 64px; }
               [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
+            }
+            @media (max-width: 480px) {
+              [data-tulala-pshell] [data-pshell-rail] { display: none; }
+              [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
+              [data-tulala-pshell] [data-pshell-body] { flex-direction: column; }
             }
             @media (min-width: 721px) {
               [data-tulala-pshell] [data-pshell-mobile-save] { display: none !important; }
@@ -4330,6 +5346,11 @@ function TalentProfileShellDrawer() {
               {savedAt ? `Saved ${ageString(savedAt)}` : "Not saved yet"}
             </div>
           </div>
+
+          {/* Compact "Add N to publish" coach — replaces the bulky in-form
+              banner. Click opens a popover with the missing items + jump
+              actions. Hidden when nothing is missing. */}
+          <HeaderPublishCoach missing={missing} onJump={onJumpToMissing} />
 
           {/* Desktop-only toolbar — every secondary action lives here. */}
           <div data-pshell-header-extras style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
@@ -4626,27 +5647,134 @@ function TalentProfileShellDrawer() {
           })}
         </div>
 
-        {/* Body — single column, no preview pane. Coach + growth chips
-            ride above the form so they participate in the same scroll. */}
+        {/* Body — rail on the left (>= 601px) + scrolling form on the right.
+            On narrow widths the rail collapses and the horizontal pill nav
+            above the body takes over (single nav at any width, never two). */}
         <div data-pshell-body>
+          {(() => {
+            // Group sections by mental task. Order is the order shown in
+            // the rail. Each group has a small label header. Sections that
+            // don't apply (e.g. physical/wardrobe for non-models, admin
+            // for non-admins, details with no fields) are filtered out and
+            // empty groups collapse so the rail stays tight.
+            const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
+              { label: "Essentials", ids: ["identity", "services", "location", "about"] },
+              { label: "Visual", ids: ["media", "albums", "polaroids"] },
+              { label: "Type-specific", ids: ["physical", "wardrobe", "details"] },
+              { label: "Booking", ids: ["availability", "rates", "languages"] },
+              { label: "Polish", ids: ["refinement", "credits", "limits", "social_proof"] },
+              { label: "Admin", ids: ["files", "verifications", "admin"] },
+            ];
+            const visible = (s: ProfileSectionId) => {
+              if (!s) return false;
+              if (s === "admin" && !adminVisible) return false;
+              if (s === "details" && dynamicGroups.length === 0) return false;
+              if (s === "physical" && !dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical"))) return false;
+              if (s === "wardrobe" && !dynamicGroups.some(g => g.fields.some(f => f.subsection === "wardrobe"))) return false;
+              return true;
+            };
+            // Top-of-rail summary: how many sections are complete out of
+            // the visible total. Replaces the bulky "Add N to publish"
+            // banner with a quiet progress indicator inside the nav itself.
+            const allVisibleSections = RAIL_GROUPS.flatMap(g => g.ids).filter(visible) as Exclude<ProfileSectionId, "">[];
+            const totalVisible = allVisibleSections.length;
+            const totalDone = allVisibleSections.filter(s => sectionComplete[s]).length;
+            const ratio = totalVisible > 0 ? totalDone / totalVisible : 0;
+            return (
+              <aside data-pshell-rail aria-label="Profile sections">
+                <div style={{
+                  padding: "8px 12px 12px",
+                  borderBottom: `1px solid ${COLORS.borderSoft}`,
+                  marginBottom: 6,
+                }}>
+                  <div style={{
+                    display: "flex", alignItems: "baseline", justifyContent: "space-between",
+                    fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
+                    letterSpacing: 0.6, textTransform: "uppercase",
+                    color: COLORS.inkMuted, marginBottom: 6,
+                  }}>
+                    <span>Profile</span>
+                    <span style={{ color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>{totalDone}/{totalVisible}</span>
+                  </div>
+                  <div style={{
+                    height: 3, borderRadius: 2,
+                    background: "rgba(11,11,13,0.06)",
+                    overflow: "hidden",
+                  }}>
+                    <div style={{
+                      height: "100%", width: `${Math.round(ratio * 100)}%`,
+                      background: COLORS.accent,
+                      transition: "width .3s cubic-bezier(.4,0,.2,1)",
+                    }} />
+                  </div>
+                </div>
+                {RAIL_GROUPS.map(group => {
+                  const items = group.ids.filter(visible) as Exclude<ProfileSectionId, "">[];
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={group.label} style={{ marginBottom: 4 }}>
+                      <div style={{
+                        padding: "6px 12px 4px",
+                        fontSize: 9.5, fontWeight: 700,
+                        letterSpacing: 0.7, textTransform: "uppercase",
+                        color: "rgba(11,11,13,0.42)",
+                        fontFamily: FONTS.body,
+                      }}>{group.label}</div>
+                      {items.map(s => {
+                        const meta = SECTION_META[s];
+                        const active = activeSection === s;
+                        const done = sectionComplete[s];
+                        const started = sectionStarted[s];
+                        return (
+                          <button key={s} type="button" onClick={() => setActiveSection(s)} style={{
+                            width: "100%",
+                            display: "flex", alignItems: "center", gap: 8,
+                            padding: "7px 10px 7px 12px", borderRadius: 8,
+                            border: "none",
+                            background: active ? "rgba(15,79,62,0.10)" : "transparent",
+                            color: active ? COLORS.accentDeep : COLORS.ink,
+                            fontSize: 12.5, fontWeight: active ? 600 : 500,
+                            textAlign: "left", cursor: "pointer",
+                            fontFamily: FONTS.body,
+                            position: "relative",
+                            letterSpacing: 0.1,
+                          }}>
+                            {active && (
+                              <span aria-hidden style={{
+                                position: "absolute", left: 2, top: 7, bottom: 7, width: 2,
+                                background: COLORS.accent, borderRadius: 2,
+                              }} />
+                            )}
+                            <span aria-hidden style={{
+                              width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                              background: done ? COLORS.green
+                                : started ? "#D9A441"
+                                : "rgba(11,11,13,0.18)",
+                            }} />
+                            <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>{meta.emoji}</span>
+                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </aside>
+            );
+          })()}
           <div data-pshell-form>
             {/* Inline banners — replaces the old left-pane chrome.
                 Render only when there's something to say so the form
                 starts close to the top edge on healthy profiles. */}
-            {(missing.length > 0 || completeness < 35) && (
+            {/* "Add N to publish" coach moved to the drawer header. The
+                FirstTimeHero (only fires for very low completeness) still
+                lives in-form because it's a richer onboarding moment. */}
+            {completeness < 35 && (
               <div data-pshell-form-banners>
-                {missing.length > 0 && (
-                  <RequiredCoach missing={missing} onJump={onJumpToMissing} />
-                )}
-                {/* 2026 reset (A5) — stats banner ("47 Profile views · 3 Inquiries")
-                    removed from the edit drawer. Editing and analytics are
-                    different mental tasks; stats live on the dashboard. */}
-                {completeness < 35 && (
-                  <FirstTimeHero
-                    completeness={completeness}
-                    onStart={(sectionId) => setActiveSection(sectionId)}
-                  />
-                )}
+                <FirstTimeHero
+                  completeness={completeness}
+                  onStart={(sectionId) => setActiveSection(sectionId)}
+                />
               </div>
             )}
             {/* IDENTITY */}
@@ -4672,6 +5800,13 @@ function TalentProfileShellDrawer() {
               )}
             </ProfileAccordionSection>
 
+            {/* LIVE CATEGORY FIELDS — read-only preview from DB resolver.
+                Uses its own open-state since "live-fields" isn't part of
+                the typed PROFILE_SECTIONS union. */}
+            {payload.talentId && bridgeTenantIdentity?.tenantId && (
+              <LiveCategoryFieldsPanelStateful talentProfileId={payload.talentId} />
+            )}
+
             {/* SERVICES */}
             <ProfileAccordionSection
               id="services" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Services"
@@ -4683,39 +5818,76 @@ function TalentProfileShellDrawer() {
               <FieldRow label="Tagline" optional hint="One line clients see at a glance." catalogId="identity.tagline">
                 <TextInput placeholder="e.g. Editorial fashion model · Madrid" value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
               </FieldRow>
-              <ServicesEditor
-                allowedParents={allowedParents}
-                primaryType={state.primaryType}
-                secondaryTypes={state.secondaryTypes}
-                specialties={state.specialties}
-                primaryRes={primaryRes}
-                specialtyOptions={specialtyOptions}
-                onPickPrimary={(id) => patch({ primaryType: id })}
-                onClearPrimary={() => patch({ primaryType: null })}
-                onToggleSecondary={(id) => {
-                  if (id === state.primaryType) return;
-                  toggleSet("secondaryTypes")(id);
-                }}
-                onToggleSpecialty={(s) => toggleSet("specialties")(s)}
-              />
-              {/* PR-A — "More…" expander to load the 11 non-public-filter parents */}
-              {!state.primaryType && restParentsLP.length > 0 && (
-                <button type="button" onClick={() => setShowMoreParents(s => !s)} style={{
-                  alignSelf: "flex-start", padding: "6px 12px", borderRadius: 999,
-                  background: "transparent", border: `1px dashed ${COLORS.border}`,
-                  color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
-                  fontFamily: FONTS.body,
-                }}>
-                  {showMoreParents
-                    ? `– Hide ${restParentsLP.length} more`
-                    : `+ More categories… (${restParentsLP.length})`}
-                </button>
+
+              {/* Multi-skill panel — live DB-backed, replaces the
+                  prototype's chip-grid picker for real talents. Renders
+                  only when on a real tenant + the talent has a UUID
+                  (i.e., the profile has been persisted to DB).
+
+                  When this panel is shown, the legacy ServicesEditor +
+                  "More categories" expander + "Live taxonomy" footer +
+                  "Career interests" details are all hidden — they are
+                  duplicates of what SkillSlotPanel already covers.
+
+                  The legacy block still renders for prototype/demo mode
+                  where there's no real tenant to query. */}
+              {bridgeTenantIdentity?.tenantId && payload.talentId ? (
+                <div style={{ marginTop: 6, marginBottom: 14 }}>
+                  {/* Phase 5.2 — Earned-trust ribbon. Read-only signals
+                      (last_active_at, total_completed_bookings, verified
+                      skills, verified trust badges) at the top. Hidden when
+                      all metrics are zero (new talent), shows welcome instead. */}
+                  <MetricsRibbon talentProfileId={payload.talentId} />
+                  <SkillSlotPanel talentProfileId={payload.talentId} isAdmin={adminVisible} />
+                  {/* Phase 4.2: Trust badges panel surfaces identity / license /
+                      insurance / etc. verification states alongside skills.
+                      Skill verifications also create a "skills_verified" badge
+                      automatically (Phase 4.1). Admin-only — talent doesn't
+                      manage trust state directly. */}
+                  {adminVisible && (
+                    <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.borderSoft}` }}>
+                      <TrustBadgesPanel talentProfileId={payload.talentId} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <ServicesEditor
+                    allowedParents={allowedParents}
+                    primaryType={state.primaryType}
+                    secondaryTypes={state.secondaryTypes}
+                    specialties={state.specialties}
+                    primaryRes={primaryRes}
+                    specialtyOptions={specialtyOptions}
+                    onPickPrimary={(id) => patch({ primaryType: id })}
+                    onClearPrimary={() => patch({ primaryType: null })}
+                    onToggleSecondary={(id) => {
+                      if (id === state.primaryType) return;
+                      toggleSet("secondaryTypes")(id);
+                    }}
+                    onToggleSpecialty={(s) => toggleSet("specialties")(s)}
+                  />
+                  {/* PR-A — "More…" expander to load the 11 non-public-filter parents */}
+                  {!state.primaryType && restParentsLP.length > 0 && (
+                    <button type="button" onClick={() => setShowMoreParents(s => !s)} style={{
+                      alignSelf: "flex-start", padding: "6px 12px", borderRadius: 999,
+                      background: "transparent", border: `1px dashed ${COLORS.border}`,
+                      color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+                      fontFamily: FONTS.body,
+                    }}>
+                      {showMoreParents
+                        ? `– Hide ${restParentsLP.length} more`
+                        : `+ More categories… (${restParentsLP.length})`}
+                    </button>
+                  )}
+                  {/* M7 fix — "Live taxonomy" replaced with plain English. */}
+                  <div style={{ fontSize: 10.5, color: COLORS.inkDim }}>
+                    Showing {visibleParentsLP.length} categories{restParentsLP.length > 0 ? ` · ${restParentsLP.length} more available` : ""}
+                    {liveTax.error && ` · ${liveTax.error}`}
+                  </div>
+                </>
               )}
-              <div style={{ fontSize: 10.5, color: COLORS.inkDim }}>
-                {liveTax.source === "live" ? "Live taxonomy ·" : "Local fixture ·"} {visibleParentsLP.length} visible{restParentsLP.length > 0 ? ` · ${restParentsLP.length} more` : ""}
-                {liveTax.error && ` · ${liveTax.error}`}
-              </div>
-              {state.primaryType && (
+              {!bridgeTenantIdentity?.tenantId && state.primaryType && (
                 <details style={{ marginTop: 12 }}>
                   <summary style={{
                     fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
@@ -7861,6 +9033,89 @@ function RequiredCoach({ missing, onJump }: {
   );
 }
 
+// Compact header chip — same data as RequiredCoach, but lives in the
+// drawer header next to the title. Click opens a small popover anchored
+// below with the missing items + jump-to actions. Replaces the bulky
+// in-form banner that used to push the form down on every drawer open.
+function HeaderPublishCoach({ missing, onJump }: {
+  missing: { id: string; label: string; met: boolean }[];
+  onJump: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  if (missing.length === 0) return null;
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "5px 10px", borderRadius: 999,
+          border: `1px solid rgba(91,107,160,0.25)`,
+          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+          fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600,
+          cursor: "pointer", whiteSpace: "nowrap",
+        }}
+      >
+        <span aria-hidden style={{
+          width: 6, height: 6, borderRadius: "50%", background: COLORS.indigoDeep,
+        }} />
+        Add {missing.length} to publish
+        <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <div role="menu" style={{
+          position: "absolute", top: "calc(100% + 6px)", right: 0,
+          minWidth: 240, zIndex: 20,
+          background: "#fff", borderRadius: 12,
+          border: `1px solid ${COLORS.borderSoft}`,
+          boxShadow: "0 12px 32px -8px rgba(11,11,13,0.18)",
+          padding: 6, fontFamily: FONTS.body,
+        }}>
+          {missing.map(m => (
+            <button key={m.id} type="button" role="menuitem"
+              onClick={() => { onJump(m.id); setOpen(false); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 10px", width: "100%",
+                borderRadius: 8, border: "none",
+                background: "transparent", cursor: "pointer", textAlign: "left",
+                fontFamily: FONTS.body,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.04)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <span aria-hidden style={{
+                width: 14, height: 14, borderRadius: "50%",
+                border: `1.5px solid ${COLORS.indigoDeep}`, flexShrink: 0,
+              }} />
+              <span style={{ fontSize: 12.5, color: COLORS.ink, flex: 1 }}>Add {m.label}</span>
+              <span aria-hidden style={{ color: COLORS.indigoDeep, fontSize: 13 }}>›</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Mobile overflow menu — collapses Undo / Redo / Templates / View-as-
 // client / Save & exit into one ••• button on screens ≤880px. Status,
 // autosave, and Smart CTA already live in the bottom save bar; this
@@ -8205,56 +9460,29 @@ function ProfileAccordionSection({ id, title, sub, complete, started, open, onTo
     const applies = sectionAppliesToType(id as DrawerSectionId, arg);
     if (!applies) return null;
   }
+  // Single-section pattern: with the rail handling navigation, only the
+  // active section renders in the body. Closed sections return null —
+  // the rail row already names the section, so an in-body header is
+  // redundant and adds vertical noise.
+  if (!open) return null;
   return (
     <section id={`pshell-${id}`} style={{
-      borderTop: `1px solid ${COLORS.borderSoft}`,
       background: "#fff",
     }}>
-      <button type="button" onClick={onToggle} style={{
-        width: "100%", display: "flex", alignItems: "center", gap: 10,
-        padding: "16px 24px", border: "none",
-        background: "transparent", cursor: "pointer", textAlign: "left",
+      {/* Compact section title row — replaces the bulky accordion button.
+          The rail already shows section name + completion dot, so this is
+          just a slim heading + sub-text for in-body context. */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "16px 24px 6px", textAlign: "left",
         fontFamily: FONTS.body,
-      }}
-        title={
-          complete
-            ? "Complete"
-            : started
-              ? "Started — finish when ready"
-              : "Not started"
-        }
-      >
-        <span
-          aria-label={complete ? "complete" : started ? "in progress" : "not started"}
-          style={{
-            width: 18, height: 18, borderRadius: "50%",
-            border: `1.5px solid ${
-              complete ? COLORS.green : started ? COLORS.amberDeep : COLORS.borderStrong
-            }`,
-            background: complete
-              ? COLORS.green
-              : started
-                ? COLORS.amberSoft
-                : "transparent",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          {complete && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-          {!complete && started && (
-            <span style={{
-              width: 6, height: 6, borderRadius: "50%",
-              background: COLORS.amberDeep,
-            }} />
-          )}
-        </span>
+      }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: accent === "amber" ? COLORS.amberDeep : COLORS.ink, letterSpacing: -0.1 }}>{title}</div>
           {sub && <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{sub}</div>}
         </div>
-        <span style={{ color: COLORS.inkMuted, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s", fontSize: 16 }}>›</span>
-      </button>
-      {open && (
+      </div>
+      {(
         <div style={{ padding: "0 24px 20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
           {children}
         </div>
@@ -8965,24 +10193,90 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
 }) {
   const age = deriveAge(identity.dob);
   const ageRange = ageRangeFor(age);
+  const inputStyle: React.CSSProperties = {
+    width: "100%", boxSizing: "border-box", padding: "10px 12px",
+    borderRadius: 10, border: `1px solid ${COLORS.border}`,
+    fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+  };
+  // Subsection title — small uppercase header that visually divides
+  // the editor into intent-blocks instead of one long field list.
+  const SubLabel = ({ children }: { children: React.ReactNode }) => (
+    <div style={{
+      gridColumn: "1 / -1",
+      paddingTop: 4,
+      fontSize: 10.5, fontWeight: 700,
+      letterSpacing: 0.7, textTransform: "uppercase",
+      color: "rgba(11,11,13,0.42)",
+      fontFamily: FONTS.body,
+    }}>{children}</div>
+  );
+  // Single-pick dropdown — used for Pronouns / Gender / Reply time / Age
+  // display. Native <select> styled to match the rest of the form so the
+  // editor reads as one calm surface instead of a wall of choice chips.
+  const SelectPicker = ({
+    options, value, placeholder, onPick,
+  }: {
+    options: { id: string; label: string }[];
+    value: string | null | undefined;
+    placeholder?: string;
+    onPick: (id: string | null) => void;
+  }) => (
+    <div style={{ position: "relative" }}>
+      <select
+        value={value ?? ""}
+        onChange={(e) => onPick(e.target.value === "" ? null : e.target.value)}
+        style={{
+          ...inputStyle,
+          appearance: "none",
+          paddingRight: 32,
+          cursor: "pointer",
+          background: "#fff",
+        }}
+      >
+        <option value="">{placeholder ?? "Select…"}</option>
+        {options.map(opt => (
+          <option key={opt.id} value={opt.id}>{opt.label}</option>
+        ))}
+      </select>
+      <span aria-hidden style={{
+        position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+        pointerEvents: "none", fontSize: 10, color: COLORS.inkMuted,
+      }}>▾</span>
+    </div>
+  );
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
-      <FieldRow label="Stage / professional name" hint="What clients see on the public profile.">
-        <input data-pshell-field="stageName"
-          placeholder="First Last"
-          value={identity.stageName}
-          onChange={(e) => onChange({ ...identity, stageName: e.target.value })}
-          disabled={isFieldLocked("identity.stageName")}
-          style={{
-            width: "100%", boxSizing: "border-box", padding: "10px 12px",
-            borderRadius: 10, border: `1px solid ${COLORS.border}`,
-            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-            opacity: isFieldLocked("identity.stageName") ? 0.55 : 1,
-          }}
-        />
-        {/* Audit fix #3 — LockedHint with reason on stageName too. */}
-        {isFieldLocked("identity.stageName") && <LockedHint reason={lockReasons?.["identity.stageName"]} />}
-      </FieldRow>
+    <div data-pshell-identity-grid style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      gap: "16px 18px",
+      fontFamily: FONTS.body,
+    }}>
+      <style>{`
+        @container pshell (max-width: 480px) {
+          [data-pshell-identity-grid] { grid-template-columns: 1fr !important; }
+        }
+        [data-pshell-identity-grid] [data-pshell-identity-full] {
+          grid-column: 1 / -1;
+        }
+      `}</style>
+
+      {/* ── Profile name ────────────────────────────────────────────── */}
+      <div data-pshell-identity-full>
+        <FieldRow label="Stage / professional name" hint="What clients see on the public profile.">
+          <input data-pshell-field="stageName"
+            placeholder="First Last"
+            value={identity.stageName}
+            onChange={(e) => onChange({ ...identity, stageName: e.target.value })}
+            disabled={isFieldLocked("identity.stageName")}
+            style={{
+              ...inputStyle,
+              padding: "12px 14px", fontSize: 16, fontWeight: 500,
+              opacity: isFieldLocked("identity.stageName") ? 0.55 : 1,
+            }}
+          />
+          {isFieldLocked("identity.stageName") && <LockedHint reason={lockReasons?.["identity.stageName"]} />}
+        </FieldRow>
+      </div>
 
       <FieldRow
         label="Legal name"
@@ -9000,28 +10294,22 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           value={identity.legalName}
           onChange={(e) => onChange({ ...identity, legalName: e.target.value })}
           disabled={isFieldLocked("identity.legalName")}
-          style={{
-            width: "100%", boxSizing: "border-box", padding: "10px 12px",
-            borderRadius: 10, border: `1px solid ${COLORS.border}`,
-            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-            opacity: isFieldLocked("identity.legalName") ? 0.55 : 1,
-          }}
+          style={{ ...inputStyle, opacity: isFieldLocked("identity.legalName") ? 0.55 : 1 }}
         />
         {isFieldLocked("identity.legalName") && <LockedHint reason={lockReasons?.["identity.legalName"]} />}
       </FieldRow>
 
-      <FieldRow label="Pronunciation" optional hint={`Phonetic — e.g. "soh-FEE-ah loo-PO".`}>
+      <FieldRow label="Pronunciation" optional hint={`e.g. "soh-FEE-ah loo-PO".`}>
         <input
           placeholder="soh-FEE-ah loo-PO"
           value={identity.pronunciation}
           onChange={(e) => onChange({ ...identity, pronunciation: e.target.value })}
-          style={{
-            width: "100%", boxSizing: "border-box", padding: "10px 12px",
-            borderRadius: 10, border: `1px solid ${COLORS.border}`,
-            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-          }}
+          style={inputStyle}
         />
       </FieldRow>
+
+      {/* ── Demographics ────────────────────────────────────────────── */}
+      <SubLabel>Demographics</SubLabel>
 
       <FieldRow
         label="Pronouns"
@@ -9032,28 +10320,19 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           visibility: { ...(identity.visibility ?? {}), pronouns: next },
         })}
       >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {PRONOUNS_OPTIONS.map(opt => {
-            const active = identity.pronouns === opt.id;
-            return (
-              <button key={opt.id} type="button" onClick={() => onChange({ ...identity, pronouns: active ? null : opt.id })} style={{
-                padding: "6px 11px", borderRadius: 999,
-                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                color: active ? COLORS.accentDeep : COLORS.ink,
-                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                fontFamily: FONTS.body,
-              }}>{opt.label}</button>
-            );
-          })}
-        </div>
+        <SelectPicker
+          options={PRONOUNS_OPTIONS}
+          value={identity.pronouns}
+          placeholder="Select pronouns"
+          onPick={(id) => onChange({ ...identity, pronouns: id as typeof identity.pronouns })}
+        />
         {identity.pronouns === "custom" && (
           <input
             placeholder="e.g. xe / xem"
             value={identity.pronounsCustom ?? ""}
             onChange={(e) => onChange({ ...identity, pronounsCustom: e.target.value })}
             style={{
-              marginTop: 6, width: "100%", boxSizing: "border-box", padding: "8px 12px",
+              marginTop: 8, width: "100%", boxSizing: "border-box", padding: "8px 12px",
               borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
               fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
             }}
@@ -9070,28 +10349,19 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           visibility: { ...(identity.visibility ?? {}), gender: next },
         })}
       >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {GENDER_OPTIONS.map(opt => {
-            const active = identity.gender === opt.id;
-            return (
-              <button key={opt.id} type="button" onClick={() => onChange({ ...identity, gender: active ? null : opt.id })} style={{
-                padding: "6px 11px", borderRadius: 999,
-                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                color: active ? COLORS.accentDeep : COLORS.ink,
-                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                fontFamily: FONTS.body,
-              }}>{opt.label}</button>
-            );
-          })}
-        </div>
+        <SelectPicker
+          options={GENDER_OPTIONS}
+          value={identity.gender}
+          placeholder="Select gender"
+          onPick={(id) => onChange({ ...identity, gender: id as typeof identity.gender })}
+        />
       </FieldRow>
 
       <FieldRow
         label="Date of birth"
         catalogId="identity.dob"
         optional
-        hint="Used to compute age. You control how it shows."
+        hint="Used to compute age."
         visibility={identity.visibility?.dob ?? ["private"]}
         onVisibilityChange={(next) => onChange({
           ...identity,
@@ -9102,47 +10372,59 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           type="date"
           value={identity.dob ?? ""}
           onChange={(e) => onChange({ ...identity, dob: e.target.value || null })}
-          style={{
-            padding: "10px 12px", borderRadius: 10,
-            border: `1px solid ${COLORS.border}`,
-            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-            background: "#fff",
-          }}
+          style={{ ...inputStyle, background: "#fff" }}
         />
-        {age != null && (
-          <div style={{
-            marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
-          }}>
-            <span style={{ fontSize: 11, color: COLORS.inkMuted, marginRight: 4 }}>Show on profile as:</span>
-            {([
-              { id: "exact" as const,  label: `Exact (${age})` },
-              { id: "range" as const,  label: ageRange ? `Range (${ageRange})` : "Range" },
-              { id: "hidden" as const, label: "Hidden" },
-            ]).map(opt => {
-              const active = identity.ageDisplay === opt.id;
-              return (
-                <button key={opt.id} type="button" onClick={() => onChange({ ...identity, ageDisplay: opt.id })} style={{
-                  padding: "5px 10px", borderRadius: 999,
-                  border: `1px solid ${active ? COLORS.indigo : COLORS.borderSoft}`,
-                  background: active ? COLORS.indigoSoft : "#fff",
-                  color: active ? COLORS.indigoDeep : COLORS.ink,
-                  fontSize: 11, fontWeight: 500, cursor: "pointer",
-                  fontFamily: FONTS.body,
-                }}>{opt.label}</button>
-              );
-            })}
-          </div>
-        )}
       </FieldRow>
 
-      {/* Audit fix #8 — pointer to where the rest of the travel/legal
-          fields live (passport, work-eligibility, driver's license).
-          Same person, same shoot logistics — splitting them across
-          Identity + Location was structurally awkward; this hint at
-          least bridges the two so the talent isn't hunting. */}
-      <div style={{
-        margin: "2px 0 -4px",
-        padding: "6px 10px",
+      {age != null && (
+        <FieldRow label="Show age as" optional>
+          <SelectPicker
+            options={[
+              { id: "exact",  label: `Exact (${age})` },
+              { id: "range",  label: ageRange ? `Range (${ageRange})` : "Range" },
+              { id: "hidden", label: "Hidden" },
+            ]}
+            value={identity.ageDisplay ?? "range"}
+            onPick={(id) => onChange({ ...identity, ageDisplay: (id ?? "range") as typeof identity.ageDisplay })}
+          />
+        </FieldRow>
+      )}
+
+      {/* ── Origin & residence ──────────────────────────────────────── */}
+      <SubLabel>Origin &amp; residence</SubLabel>
+
+      <FieldRow
+        label="Nationality"
+        catalogId="identity.nationality"
+        optional
+        hint="Citizenship country."
+        visibility={["agency"]}
+      >
+        <input
+          placeholder="e.g. ES · Spain"
+          value={identity.nationality ?? ""}
+          onChange={(e) => onChange({ ...identity, nationality: e.target.value })}
+          style={inputStyle}
+        />
+      </FieldRow>
+
+      <FieldRow
+        label="Country of residence"
+        catalogId="identity.homeCountry"
+        optional
+        hint="Tax + payout routing."
+        visibility={["agency"]}
+      >
+        <input
+          placeholder="e.g. ES · Spain"
+          value={identity.homeCountry ?? ""}
+          onChange={(e) => onChange({ ...identity, homeCountry: e.target.value })}
+          style={inputStyle}
+        />
+      </FieldRow>
+
+      <div data-pshell-identity-full style={{
+        padding: "8px 12px",
         borderRadius: 8,
         background: "rgba(11,11,13,0.025)",
         fontSize: 11.5,
@@ -9151,79 +10433,38 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
+        width: "fit-content",
       }}>
         <span aria-hidden>ℹ️</span>
         <span>Passport, work eligibility &amp; license live in <strong>Location &amp; travel</strong>.</span>
       </div>
-      <FieldRow
-        label="Nationality"
-        catalogId="identity.nationality"
-        optional
-        hint="Country of citizenship — drives international booking pre-checks."
-        visibility={["agency"]}
-      >
-        <input
-          placeholder="e.g. ES · Spain"
-          value={identity.nationality ?? ""}
-          onChange={(e) => onChange({ ...identity, nationality: e.target.value })}
-          style={{
-            width: "100%", boxSizing: "border-box", padding: "10px 12px",
-            borderRadius: 10, border: `1px solid ${COLORS.border}`,
-            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-          }}
-        />
-      </FieldRow>
 
-      <FieldRow
-        label="Country of residence"
-        catalogId="identity.homeCountry"
-        optional
-        hint="Tax + payout routing reads this. Separate from your home base city."
-        visibility={["agency"]}
-      >
-        <input
-          placeholder="e.g. ES · Spain"
-          value={identity.homeCountry ?? ""}
-          onChange={(e) => onChange({ ...identity, homeCountry: e.target.value })}
-          style={{
-            width: "100%", boxSizing: "border-box", padding: "10px 12px",
-            borderRadius: 10, border: `1px solid ${COLORS.border}`,
-            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-          }}
-        />
-      </FieldRow>
+      {/* ── Service commitment ──────────────────────────────────────── */}
+      <SubLabel>Service commitment</SubLabel>
 
-      <FieldRow
-        label="Reply-time commitment"
-        catalogId="identity.responseTime"
-        optional
-        hint="Surfaces on Discover as a chip — sets client expectations."
-        visibility={["public", "agency"]}
-      >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {[
-            { id: "1h",  label: "Within 1h" },
-            { id: "4h",  label: "Within 4h" },
-            { id: "24h", label: "Within 24h" },
-            { id: "48h", label: "48h+" },
-          ].map(opt => {
-            const active = identity.responseTime === opt.id;
-            return (
-              <button key={opt.id} type="button" onClick={() => onChange({
-                ...identity,
-                responseTime: active ? undefined : opt.id as "1h" | "4h" | "24h" | "48h",
-              })} style={{
-                padding: "6px 11px", borderRadius: 999,
-                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                color: active ? COLORS.accentDeep : COLORS.ink,
-                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                fontFamily: FONTS.body,
-              }}>{opt.label}</button>
-            );
-          })}
-        </div>
-      </FieldRow>
+      <div data-pshell-identity-full>
+        <FieldRow
+          label="Reply time"
+          catalogId="identity.responseTime"
+          optional
+          hint="Surfaces on Discover as a chip."
+          visibility={["public", "agency"]}
+        >
+          <ChipPicker
+            options={[
+              { id: "1h",  label: "Within 1h" },
+              { id: "4h",  label: "Within 4h" },
+              { id: "24h", label: "Within 24h" },
+              { id: "48h", label: "48h+" },
+            ]}
+            active={identity.responseTime ?? null}
+            onPick={(id) => onChange({
+              ...identity,
+              responseTime: identity.responseTime === id ? undefined : id as "1h" | "4h" | "24h" | "48h",
+            })}
+          />
+        </FieldRow>
+      </div>
     </div>
   );
 }
@@ -10453,152 +11694,373 @@ function FieldLockToggle({ path, locks, onChange }: {
 // Branding
 // ════════════════════════════════════════════════════════════════════
 
+// ── Watermark position grid ──────────────────────────────────────────────────
+type WmPos = WatermarkPreset["position"];
+const WM_POSITIONS: WmPos[] = ["tl","tc","tr","ml","mc","mr","bl","bc","br"];
+function WatermarkPositionGrid({ value, onChange }: { value: WmPos; onChange: (p: WmPos) => void }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 28px)", gap: 4, width: "fit-content" }}>
+      {WM_POSITIONS.map((pos) => {
+        const active = pos === value;
+        return (
+          <button key={pos} type="button" title={pos.toUpperCase()} onClick={() => onChange(pos)} style={{
+            width: 28, height: 28, borderRadius: 6, border: "none",
+            background: active ? COLORS.fill : COLORS.surfaceAlt,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: 2, background: active ? "#fff" : COLORS.inkDim }} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function WatermarkPreviewCard({ preset, logoUrl }: { preset: WatermarkPreset; logoUrl: string | null }) {
+  const posMap: Record<WmPos, React.CSSProperties> = {
+    tl: { top: `${preset.padding_pct}%`, left: `${preset.padding_pct}%` },
+    tc: { top: `${preset.padding_pct}%`, left: "50%", transform: "translateX(-50%)" },
+    tr: { top: `${preset.padding_pct}%`, right: `${preset.padding_pct}%` },
+    ml: { top: "50%", left: `${preset.padding_pct}%`, transform: "translateY(-50%)" },
+    mc: { top: "50%", left: "50%", transform: "translate(-50%,-50%)" },
+    mr: { top: "50%", right: `${preset.padding_pct}%`, transform: "translateY(-50%)" },
+    bl: { bottom: `${preset.padding_pct}%`, left: `${preset.padding_pct}%` },
+    bc: { bottom: `${preset.padding_pct}%`, left: "50%", transform: "translateX(-50%)" },
+    br: { bottom: `${preset.padding_pct}%`, right: `${preset.padding_pct}%` },
+  };
+  return (
+    <div style={{
+      position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: 10, overflow: "hidden",
+      background: "linear-gradient(135deg,#e8e4df 0%,#d4cfc9 100%)", border: `1px solid ${COLORS.borderSoft}`,
+    }}>
+      <div style={{
+        position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 11, color: "rgba(11,11,13,0.3)", letterSpacing: 0.5 }}>Sample photo</span>
+      </div>
+      {preset.enabled && (
+        <div style={{
+          position: "absolute", ...posMap[preset.position],
+          width: `${preset.size_pct}%`, opacity: preset.opacity, pointerEvents: "none",
+        }}>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" style={{ width: "100%", height: "auto", display: "block" }} />
+          ) : (
+            <div style={{
+              background: "#fff", borderRadius: 4, padding: "3px 6px",
+              fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, color: COLORS.ink, whiteSpace: "nowrap",
+            }}>YOUR LOGO</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BrandingDrawer() {
-  const { closeDrawer, toast, tenantSlug } = useProto();
-  // Phase 3 (deep QA fix) — controlled state replacing the prior
-  // defaultValue uncontrolled inputs. Wired to updateAgencyBranding
-  // server action which writes to agencies.settings.branding JSONB.
-  const [tagline, setTagline] = useState("");
+  const { state, closeDrawer, openUpgrade, toast, tenantSlug } = useProto();
+  const isStudioPlus = meetsPlan(state.plan, "studio");
+
+  const [tagline, setTagline]         = useState("");
   const [description, setDescription] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#0B0B0D");
-  const [accentColor, setAccentColor] = useState(COLORS.accent);
+  const [accentColor, setAccentColor]   = useState(COLORS.accent);
+
+  const logoFileRef = useRef<HTMLInputElement | null>(null);
+  const [logoPreview, setLogoPreview]   = useState<string | null>(null);
+  const [logoFile, setLogoFile]         = useState<File | null>(null);
+  const [logoFileName, setLogoFileName] = useState<string>("No logo uploaded");
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  const [wm, setWm] = useState<WatermarkPreset>({ ...DEFAULT_WATERMARK_PRESET });
+  const setWmField = <K extends keyof WatermarkPreset>(k: K, v: WatermarkPreset[K]) =>
+    setWm(prev => ({ ...prev, [k]: v }));
+
   const [isSaving, setIsSaving] = useState(false);
+
+  const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const onSave = async () => {
     if (isSaving) return;
     if (!tenantSlug) {
-      // Standalone /prototypes/admin-shell mode — no real tenant; mock save.
       toast("Branding saved (demo)");
       closeDrawer();
       return;
     }
     setIsSaving(true);
     try {
+      let logoUrl: string | undefined;
+      if (logoFile) {
+        setIsUploadingLogo(true);
+        const fd = new FormData();
+        fd.append("logo", logoFile);
+        const upResult = await actionUploadAgencyLogo(fd);
+        setIsUploadingLogo(false);
+        if (!upResult.ok) { toast(upResult.error || "Logo upload failed."); setIsSaving(false); return; }
+        logoUrl = upResult.logoUrl;
+      }
       const result = await updateAgencyBranding({
         tagline: tagline.trim() || undefined,
         description: description.trim() || undefined,
         primary_color: /^#[0-9a-fA-F]{6}$/u.test(primaryColor) ? primaryColor : undefined,
         accent_color: /^#[0-9a-fA-F]{6}$/u.test(accentColor) ? accentColor : undefined,
+        logo_url: logoUrl,
+        watermark_preset: isStudioPlus ? wm : undefined,
       });
-      if (!result.ok) {
-        toast(result.error || "Couldn't save branding. Try again.");
-        return;
-      }
+      if (!result.ok) { toast(result.error || "Couldn't save. Try again."); return; }
       toast("Branding saved");
       closeDrawer();
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[updateAgencyBranding] failed", err);
-      toast("Couldn't save branding. Try again.");
+      console.error("[BrandingDrawer.save]", err);
+      toast("Couldn't save. Try again.");
     } finally {
-      setIsSaving(false);
+      setIsSaving(false); setIsUploadingLogo(false);
     }
   };
 
   return (
     <DrawerShell
-      open
-      onClose={closeDrawer}
+      open onClose={closeDrawer}
       title="Branding"
       description="Logo, voice, brand colors. What clients see across emails and storefront."
-      width={560}
-      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? "Saving…" : "Save"} />}
+      width={580}
+      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? (isUploadingLogo ? "Uploading…" : "Saving…") : "Save"} />}
     >
       <Section title="Logo & icon">
-        <FieldRow label="Wordmark" hint="SVG preferred. Used in storefront header and emails.">
-          <div
-            style={{
-              border: `1px dashed ${COLORS.border}`,
-              borderRadius: 10,
-              padding: 18,
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              background: "#fff",
-            }}
-          >
-            <span
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 8,
-                background: COLORS.fill,
-                color: "#fff",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: FONTS.display,
-                fontSize: 22,
-                fontWeight: 500,
-              }}
-            >
-              {TENANT.initials}
-            </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
-                acme-models-logo.svg
-              </div>
+        <FieldRow label="Wordmark" hint="PNG or SVG, up to 10 MB. Used in storefront header and emails.">
+          <div style={{
+            border: `1px dashed ${COLORS.border}`, borderRadius: 10, padding: 18,
+            display: "flex", alignItems: "center", gap: 14, background: "#fff",
+          }}>
+            {logoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoPreview} alt="logo preview" style={{
+                width: 56, height: 56, objectFit: "contain", borderRadius: 8, background: COLORS.surfaceAlt,
+              }} />
+            ) : (
+              <span style={{
+                width: 56, height: 56, borderRadius: 8, background: COLORS.fill, color: "#fff",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, flexShrink: 0,
+              }}>{TENANT.initials}</span>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{logoFileName}</div>
               <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
-                Uploaded · 312 KB
+                {logoFile ? `${(logoFile.size / 1024).toFixed(0)} KB · ready to save` : "Upload to use as watermark"}
               </div>
             </div>
-            <SecondaryButton
-              size="sm"
-              onClick={() => toast("Logo upload coming next iteration.")}
-            >
-              Replace
+            <SecondaryButton size="sm" onClick={() => logoFileRef.current?.click()}>
+              {logoFile ? "Change" : "Upload"}
             </SecondaryButton>
+            <input ref={logoFileRef} type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp"
+              style={{ display: "none" }} onChange={onLogoChange} />
           </div>
         </FieldRow>
       </Section>
 
       <Section title="Brand voice" framed>
         <FieldRow label="Tagline" optional>
-          <TextInput
-            value={tagline}
-            onChange={(e) => setTagline(e.target.value)}
-            placeholder="An agency built around our talent."
-          />
+          <TextInput value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="An agency built around our talent." />
         </FieldRow>
         <FieldRow label="Brand description" hint="Used in social previews and footer.">
-          <TextArea
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="A boutique agency representing editorial, runway, and commercial talent across Europe."
-          />
+          <TextArea rows={3} value={description} onChange={(e) => setDescription(e.target.value)}
+            placeholder="A boutique agency representing editorial, runway, and commercial talent across Europe." />
         </FieldRow>
       </Section>
 
       <Section title="Color tokens" framed>
         <FieldRow label="Primary">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <input
-              type="color"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }}
-            />
-            <TextInput
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-            />
+            <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)}
+              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
+            <TextInput value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} />
           </div>
         </FieldRow>
         <FieldRow label="Accent">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <input
-              type="color"
-              value={accentColor}
-              onChange={(e) => setAccentColor(e.target.value)}
-              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }}
-            />
-            <TextInput
-              value={accentColor}
-              onChange={(e) => setAccentColor(e.target.value)}
-            />
+            <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)}
+              style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
+            <TextInput value={accentColor} onChange={(e) => setAccentColor(e.target.value)} />
           </div>
         </FieldRow>
+      </Section>
+
+      {isStudioPlus ? (
+        <Section title="Photo watermark" framed>
+          <div style={{ marginBottom: 12 }}>
+            <WatermarkPreviewCard preset={wm} logoUrl={logoPreview} />
+          </div>
+          <FieldRow label="Enable watermark">
+            <ToggleControl value={wm.enabled} label={wm.enabled ? "On — applies to public photos" : "Off"}
+              onChange={(v) => setWmField("enabled", v)} />
+          </FieldRow>
+          {wm.enabled && (
+            <>
+              <FieldRow label="Position" hint="Where the logo sits on the photo.">
+                <WatermarkPositionGrid value={wm.position} onChange={(p) => setWmField("position", p)} />
+              </FieldRow>
+              <FieldRow label="Logo size" hint={`${wm.size_pct}% of shorter edge`}>
+                <input type="range" min={4} max={25} step={1} value={wm.size_pct}
+                  onChange={(e) => setWmField("size_pct", Number(e.target.value))}
+                  style={{ width: "100%", accentColor: COLORS.fill }} />
+              </FieldRow>
+              <FieldRow label="Opacity" hint={`${Math.round(wm.opacity * 100)}%`}>
+                <input type="range" min={0} max={1} step={0.05} value={wm.opacity}
+                  onChange={(e) => setWmField("opacity", Number(e.target.value))}
+                  style={{ width: "100%", accentColor: COLORS.fill }} />
+              </FieldRow>
+              <FieldRow label="Edge padding" hint={`${wm.padding_pct}% inset`}>
+                <input type="range" min={0} max={10} step={0.5} value={wm.padding_pct}
+                  onChange={(e) => setWmField("padding_pct", Number(e.target.value))}
+                  style={{ width: "100%", accentColor: COLORS.fill }} />
+              </FieldRow>
+              <FieldRow label="Logo variant">
+                <div style={{ display: "flex", gap: 8 }}>
+                  {(["light", "dark"] as const).map((v) => (
+                    <button key={v} type="button" onClick={() => setWmField("variant", v)} style={{
+                      padding: "5px 14px", borderRadius: 999, border: "none", cursor: "pointer",
+                      fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, textTransform: "capitalize",
+                      background: wm.variant === v ? COLORS.fill : COLORS.surfaceAlt,
+                      color: wm.variant === v ? "#fff" : COLORS.ink,
+                    }}>{v}</button>
+                  ))}
+                </div>
+              </FieldRow>
+            </>
+          )}
+        </Section>
+      ) : (
+        <Section title="Photo watermark" framed>
+          <div style={{ padding: 16, borderRadius: 10, background: COLORS.surfaceAlt, display: "flex", gap: 14, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 22 }}>🔒</span>
+            <div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
+                Logo watermark — Studio &amp; above
+              </div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+                Apply your logo to talent photos on public profiles and pitch links.
+              </div>
+              <SecondaryButton size="sm" onClick={() => openUpgrade({
+                feature: "Logo watermark", why: "Brand every photo your agency distributes.",
+                requiredPlan: "studio",
+                unlocks: ["Logo watermark on public photos", "Position, opacity & size control", "Per-image overrides"],
+              })}>Upgrade to Studio</SecondaryButton>
+            </div>
+          </div>
+        </Section>
+      )}
+    </DrawerShell>
+  );
+}
+
+function WatermarkEditorDrawer() {
+  const { state, closeDrawer, openUpgrade, toast, tenantSlug } = useProto();
+  const isStudioPlus = meetsPlan(state.plan, "studio");
+  const payload = state.drawer.payload as { mediaAssetId?: string; imageUrl?: string; talentName?: string } | undefined;
+  const assetId    = payload?.mediaAssetId ?? "demo-asset";
+  const talentName = payload?.talentName ?? "Sample photo";
+
+  const [wm, setWm] = useState<WatermarkPreset>({ ...DEFAULT_WATERMARK_PRESET, enabled: true });
+  const setWmField = <K extends keyof WatermarkPreset>(k: K, v: WatermarkPreset[K]) =>
+    setWm(prev => ({ ...prev, [k]: v }));
+  const [isSaving, setIsSaving] = useState(false);
+
+  const onApply = async () => {
+    if (isSaving) return;
+    if (!tenantSlug || assetId === "demo-asset") { toast("Watermark override saved (demo)"); closeDrawer(); return; }
+    setIsSaving(true);
+    try {
+      const result = await updateMediaWatermarkOverride({ mediaAssetId: assetId, override: wm });
+      if (!result.ok) { toast(result.error || "Couldn't save."); return; }
+      toast("Watermark override saved");
+      closeDrawer();
+    } catch { toast("Couldn't save."); }
+    finally { setIsSaving(false); }
+  };
+
+  if (!isStudioPlus) {
+    return (
+      <DrawerShell open onClose={closeDrawer} title="Watermark editor" width={480}
+        footer={<StandardFooter onSave={() => openUpgrade({ feature: "Logo watermark", requiredPlan: "studio" })} saveLabel="Upgrade to unlock" />}>
+        <div style={{ padding: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 14, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>Studio plan required</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>Logo watermarks are a Studio &amp; Agency feature.</div>
+        </div>
+      </DrawerShell>
+    );
+  }
+
+  return (
+    <DrawerShell
+      open onClose={closeDrawer}
+      title="Edit watermark" description={talentName} width={520}
+      footer={
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flex: 1 }}>
+          <div style={{ marginRight: "auto" }}>
+            <SecondaryButton onClick={async () => {
+              await updateMediaWatermarkOverride({ mediaAssetId: assetId, override: undefined });
+              toast("Reset to workspace default"); closeDrawer();
+            }}>Reset to default</SecondaryButton>
+          </div>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={onApply}>{isSaving ? "Saving…" : "Apply"}</PrimaryButton>
+        </div>
+      }
+    >
+      <div style={{ marginBottom: 20 }}>
+        <WatermarkPreviewCard preset={wm} logoUrl={null} />
+      </div>
+      <Section title="Override" framed>
+        <FieldRow label="Enable on this photo">
+          <ToggleControl value={wm.enabled} label={wm.enabled ? "On" : "Off (uses workspace default)"}
+            onChange={(v) => setWmField("enabled", v)} />
+        </FieldRow>
+        {wm.enabled && (
+          <>
+            <FieldRow label="Position">
+              <WatermarkPositionGrid value={wm.position} onChange={(p) => setWmField("position", p)} />
+            </FieldRow>
+            <FieldRow label="Size" hint={`${wm.size_pct}%`}>
+              <input type="range" min={4} max={25} step={1} value={wm.size_pct}
+                onChange={(e) => setWmField("size_pct", Number(e.target.value))}
+                style={{ width: "100%", accentColor: COLORS.fill }} />
+            </FieldRow>
+            <FieldRow label="Opacity" hint={`${Math.round(wm.opacity * 100)}%`}>
+              <input type="range" min={0} max={1} step={0.05} value={wm.opacity}
+                onChange={(e) => setWmField("opacity", Number(e.target.value))}
+                style={{ width: "100%", accentColor: COLORS.fill }} />
+            </FieldRow>
+            <FieldRow label="Padding" hint={`${wm.padding_pct}%`}>
+              <input type="range" min={0} max={10} step={0.5} value={wm.padding_pct}
+                onChange={(e) => setWmField("padding_pct", Number(e.target.value))}
+                style={{ width: "100%", accentColor: COLORS.fill }} />
+            </FieldRow>
+            <FieldRow label="Logo variant">
+              <div style={{ display: "flex", gap: 8 }}>
+                {(["light", "dark"] as const).map((v) => (
+                  <button key={v} type="button" onClick={() => setWmField("variant", v)} style={{
+                    padding: "5px 14px", borderRadius: 999, border: "none", cursor: "pointer",
+                    fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, textTransform: "capitalize",
+                    background: wm.variant === v ? COLORS.fill : COLORS.surfaceAlt,
+                    color: wm.variant === v ? "#fff" : COLORS.ink,
+                  }}>{v}</button>
+                ))}
+              </div>
+            </FieldRow>
+          </>
+        )}
       </Section>
     </DrawerShell>
   );
@@ -18968,9 +20430,24 @@ export function UpgradeModal() {
 function defaultUnlocks(plan: Plan): string[] {
   switch (plan) {
     case "studio":
-      return ["Custom domain", "Private inquiries", "Owned client list", "Verified email-from"];
+      return [
+        "Custom domain",
+        "Private inquiries",
+        "Owned client list",
+        "Verified email-from",
+        "Logo watermark on photos",
+      ];
     case "agency":
-      return ["Branded site design", "Custom fields", "Team & roles (up to 25)", "Translations", "Reports"];
+      return [
+        "Branded site design",
+        "Custom fields",
+        "Team & roles (up to 25)",
+        "Translations",
+        "Reports",
+        "Branded media gallery",
+        "Photo usage tracking",
+        "Bulk watermark apply",
+      ];
     case "network":
       return ["Multi-brand workspaces", "Cross-roster pool", "Hub-level analytics", "Dedicated success"];
     default:

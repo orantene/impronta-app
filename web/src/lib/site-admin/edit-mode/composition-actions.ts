@@ -48,6 +48,11 @@ import {
   SECTION_REGISTRY,
 } from "@/lib/site-admin/sections/registry";
 import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-content";
+import {
+  getSectionTemplateStarterDefault,
+  isSectionTemplateStarterId,
+  isSectionTemplateStarterStylePresetId,
+} from "@/lib/site-admin/sections/shared/section-template-starters";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import { upsertSection } from "@/lib/site-admin/server/sections";
 import { homepageTemplate } from "@/lib/site-admin";
@@ -917,6 +922,8 @@ export async function createAndInsertSectionAction(input: {
   targetSlotKey: string;
   insertAfterSortOrder: number | null; // null → prepend (sort 0)
   sectionTypeKey: string;
+  sectionTemplateStarterId?: string | null;
+  sectionTemplateStarterStylePresetId?: string | null;
 }): Promise<CreateAndInsertResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -980,7 +987,41 @@ export async function createAndInsertSectionAction(input: {
   }
 
   // --- step 1: create the draft section (unique-name retry once) ---------
-  const defaults = getLibraryDefault(typeKey);
+  const starterDefaults = getSectionTemplateStarterDefault(
+    input.sectionTemplateStarterId,
+    input.sectionTemplateStarterStylePresetId,
+  );
+  if (
+    input.sectionTemplateStarterId &&
+    !isSectionTemplateStarterId(input.sectionTemplateStarterId)
+  ) {
+    return {
+      ok: false,
+      error: "Unknown section template starter.",
+      code: "UNKNOWN_SECTION_TYPE",
+    };
+  }
+  if (
+    input.sectionTemplateStarterStylePresetId &&
+    !isSectionTemplateStarterStylePresetId(
+      input.sectionTemplateStarterId,
+      input.sectionTemplateStarterStylePresetId,
+    )
+  ) {
+    return {
+      ok: false,
+      error: "Unknown section template style preset.",
+      code: "UNKNOWN_SECTION_TYPE",
+    };
+  }
+  if (starterDefaults && starterDefaults.sectionTypeKey !== typeKey) {
+    return {
+      ok: false,
+      error: "Section template does not match the requested section type.",
+      code: "VALIDATION_FAILED",
+    };
+  }
+  const defaults = starterDefaults ?? getLibraryDefault(typeKey);
   const baseValues = {
     tenantId: scope.tenantId,
     sectionTypeKey: typeKey,

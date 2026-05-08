@@ -59,7 +59,11 @@ export function WorkspaceTemplateGallery({
   const [info, setInfo] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [saveSource, setSaveSource] = useState<"draft" | "live">("draft");
   const [query, setQuery] = useState("");
+  const [modeFilter, setModeFilter] = useState<
+    "all" | "data-ready" | "starter" | "platform" | "shared"
+  >("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [reviewTemplateId, setReviewTemplateId] = useState<string | null>(null);
@@ -86,36 +90,89 @@ export function WorkspaceTemplateGallery({
   const filteredTemplates = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = templates ?? [];
+    const modeFilteredRows =
+      modeFilter === "all"
+        ? rows
+        : modeFilter === "platform"
+          ? rows.filter((template) => template.visibility === "platform")
+          : modeFilter === "shared"
+            ? rows.filter((template) => !template.ownTenant)
+            : rows.filter((template) => template.mode === modeFilter);
     const typeFilteredRows =
       typeFilter === "all"
-        ? rows
-        : rows.filter((template) => template.typeSummary.includes(typeFilter));
+        ? modeFilteredRows
+        : modeFilteredRows.filter((template) =>
+            [...template.typeSummary, ...template.categorySummary].includes(typeFilter),
+          );
     if (!q) return typeFilteredRows;
     return typeFilteredRows.filter((template) =>
       [
         template.name,
         template.description ?? "",
         template.visibility,
+        template.mode,
         template.typeSummary.join(" "),
+        template.categorySummary.join(" "),
+        template.dataSourceSummary.join(" "),
         template.sections.map((section) => `${section.name} ${section.label}`).join(" "),
       ]
         .join(" ")
         .toLowerCase()
         .includes(q),
     );
-  }, [query, templates, typeFilter]);
+  }, [modeFilter, query, templates, typeFilter]);
 
   const typeFilters = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const template of templates ?? []) {
-      for (const label of template.typeSummary) {
+    const sourceRows =
+      modeFilter === "all"
+        ? (templates ?? [])
+        : modeFilter === "platform"
+          ? (templates ?? []).filter((template) => template.visibility === "platform")
+          : modeFilter === "shared"
+            ? (templates ?? []).filter((template) => !template.ownTenant)
+            : (templates ?? []).filter((template) => template.mode === modeFilter);
+    for (const template of sourceRows) {
+      for (const label of [...template.dataSourceSummary, ...template.typeSummary]) {
         counts.set(label, (counts.get(label) ?? 0) + 1);
       }
     }
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 8);
+  }, [modeFilter, templates]);
+
+  const modeFilters = useMemo(() => {
+    const rows = templates ?? [];
+    const count = (predicate: (template: WorkspaceTemplateRow) => boolean) =>
+      rows.filter(predicate).length;
+    return [
+      { key: "all", label: "All", count: rows.length },
+      {
+        key: "data-ready",
+        label: "Data ready",
+        count: count((template) => template.mode === "data-ready"),
+      },
+      {
+        key: "starter",
+        label: "Starter",
+        count: count((template) => template.mode === "starter"),
+      },
+      {
+        key: "platform",
+        label: "Platform",
+        count: count((template) => template.visibility === "platform"),
+      },
+      {
+        key: "shared",
+        label: "Shared",
+        count: count((template) => !template.ownTenant),
+      },
+    ] as const;
   }, [templates]);
+
+  const activeModeCount =
+    modeFilters.find((filter) => filter.key === modeFilter)?.count ?? 0;
 
   const selectedTemplate =
     filteredTemplates.find((template) => template.id === selectedTemplateId) ??
@@ -164,7 +221,11 @@ export function WorkspaceTemplateGallery({
     setError(null);
     setInfo(null);
     startTransition(async () => {
-      const r = await saveCurrentHomepageAsTemplate({ name, description });
+      const r = await saveCurrentHomepageAsTemplate({
+        name,
+        description,
+        fromLive: saveSource === "live",
+      });
       if (!r.ok) {
         setError(r.error);
         return;
@@ -230,6 +291,7 @@ export function WorkspaceTemplateGallery({
     setScope(next);
     setTemplates(null);
     setSelectedTemplateId(null);
+    setModeFilter("all");
     setTypeFilter("all");
     void refresh(next);
   }
@@ -249,11 +311,56 @@ export function WorkspaceTemplateGallery({
 
       <div className="mt-3 flex flex-col gap-3">
         {enableSave ? (
-          <div className="rounded-md border border-border/60 bg-background p-2">
-            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Save current draft as template
-            </label>
-            <div className="mt-1 grid gap-1.5 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_auto]">
+          <div
+            data-workspace-template-save-panel
+            className="rounded-md border border-border/60 bg-background p-2"
+          >
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Save as reusable template
+                </label>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Snapshot the current composition into your workspace library.
+                </p>
+              </div>
+              <div
+                data-workspace-template-save-source
+                className="inline-flex w-fit rounded-md border border-border/60 bg-muted/40 p-0.5"
+                aria-label="Template save source"
+              >
+                <button
+                  type="button"
+                  onClick={() => setSaveSource("draft")}
+                  disabled={pending}
+                  className={
+                    saveSource === "draft"
+                      ? "rounded px-2 py-1 text-[10px] font-semibold bg-background text-foreground shadow-sm"
+                      : "rounded px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground"
+                  }
+                >
+                  Current draft
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSaveSource("live")}
+                  disabled={pending}
+                  className={
+                    saveSource === "live"
+                      ? "rounded px-2 py-1 text-[10px] font-semibold bg-background text-foreground shadow-sm"
+                      : "rounded px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground"
+                  }
+                >
+                  Published live
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 rounded-md border border-border/50 bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground">
+              {saveSource === "draft"
+                ? `Draft source selected · ${currentDraftSections.length} current section${currentDraftSections.length === 1 ? "" : "s"}.`
+                : "Published source selected · uses the last live composition."}
+            </div>
+            <div className="mt-2 grid gap-1.5 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_auto]">
               <input
                 type="text"
                 value={name}
@@ -323,11 +430,50 @@ export function WorkspaceTemplateGallery({
           </button>
         </div>
 
+        <div
+          data-workspace-template-mode-filters
+          className="grid gap-1.5 sm:grid-cols-3 lg:grid-cols-5"
+          aria-label="Filter templates by source and capability"
+        >
+          {modeFilters.map((filter) => {
+            const active = modeFilter === filter.key;
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => {
+                  setModeFilter(filter.key);
+                  setTypeFilter("all");
+                }}
+                disabled={pending}
+                className={
+                  active
+                    ? "rounded-lg border border-[#3d4f7c] bg-[#3d4f7c] px-2.5 py-2 text-left text-white shadow-sm disabled:opacity-50"
+                    : "rounded-lg border border-border/60 bg-background px-2.5 py-2 text-left transition hover:border-[#3d4f7c]/40 hover:bg-muted/30 disabled:opacity-50"
+                }
+              >
+                <span className="block text-[10px] font-semibold uppercase tracking-wide">
+                  {filter.label}
+                </span>
+                <span
+                  className={
+                    active
+                      ? "mt-0.5 block text-[11px] text-white/75"
+                      : "mt-0.5 block text-[11px] text-muted-foreground"
+                  }
+                >
+                  {filter.count} template{filter.count === 1 ? "" : "s"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {typeFilters.length > 0 ? (
           <div
             data-workspace-template-type-filters
             className="flex gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            aria-label="Filter saved templates by section type"
+            aria-label="Filter saved templates by section type or data source"
           >
             <button
               type="button"
@@ -344,9 +490,9 @@ export function WorkspaceTemplateGallery({
                   typeFilter === "all"
                     ? "ml-1 text-white/70"
                     : "ml-1 text-muted-foreground/70"
-                }
+                  }
               >
-                {(templates ?? []).length}
+                {activeModeCount}
               </span>
             </button>
             {typeFilters.map(([label, count]) => (
@@ -394,17 +540,28 @@ export function WorkspaceTemplateGallery({
                   <li
                     key={template.id}
                     data-workspace-template-card={template.id}
+                    data-workspace-template-mode={template.mode}
                     className={
                       selected
                         ? "flex min-h-40 flex-col rounded-lg border border-[#3d4f7c] bg-background p-3 shadow-[0_0_0_2px_rgba(61,79,124,0.10)]"
                         : "flex min-h-40 flex-col rounded-lg border border-border/60 bg-background p-3 transition hover:border-[#3d4f7c]/40"
                     }
                   >
+                    <TemplateWireframe template={template} compact />
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="truncate text-sm font-semibold text-foreground">
                             {template.name}
+                          </span>
+                          <span
+                            className={
+                              template.mode === "data-ready"
+                                ? "rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300"
+                                : "rounded-full bg-zinc-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300"
+                            }
+                          >
+                            {template.mode === "data-ready" ? "Data ready" : "Starter"}
                           </span>
                           {template.visibility === "platform" ? (
                             <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
@@ -429,10 +586,27 @@ export function WorkspaceTemplateGallery({
                       data-workspace-template-type-summary={template.id}
                       className="mt-3 flex flex-wrap gap-1"
                     >
+                      {template.dataSourceSummary.map((label) => (
+                        <span
+                          key={`${template.id}-data-${label}`}
+                          data-workspace-template-data-summary={label}
+                          className="rounded-full border border-blue-500/20 bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700 dark:text-blue-300"
+                        >
+                          {label}
+                        </span>
+                      ))}
                       {template.typeSummary.slice(0, 4).map((label) => (
                         <span
                           key={`${template.id}-${label}`}
                           className="rounded-full border border-border/60 bg-muted/20 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground"
+                        >
+                          {label}
+                        </span>
+                      ))}
+                      {template.categorySummary.slice(0, 2).map((label) => (
+                        <span
+                          key={`${template.id}-category-${label}`}
+                          className="rounded-full border border-border/60 bg-background px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground"
                         >
                           {label}
                         </span>
@@ -545,6 +719,58 @@ function formatTemplateDate(value: string | null): string {
   }).format(date);
 }
 
+function TemplateWireframe({
+  template,
+  compact = false,
+}: {
+  template: WorkspaceTemplateRow;
+  compact?: boolean;
+}) {
+  const sections = template.sections.slice(0, compact ? 6 : 9);
+  return (
+    <div
+      data-workspace-template-wireframe={template.id}
+      className={
+        compact
+          ? "mb-3 rounded-md border border-border/50 bg-muted/20 p-2"
+          : "rounded-md border border-border/60 bg-muted/20 p-3"
+      }
+      aria-hidden
+    >
+      <div className={compact ? "flex h-16 flex-col gap-1.5" : "flex h-24 flex-col gap-2"}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="h-2.5 w-1/2 rounded-sm bg-muted-foreground/20" />
+          {template.mode === "data-ready" ? (
+            <div className="h-2.5 w-12 rounded-sm bg-blue-500/25" />
+          ) : (
+            <div className="h-2.5 w-8 rounded-sm bg-muted-foreground/10" />
+          )}
+        </div>
+        <div className="grid flex-1 grid-cols-3 gap-1.5">
+          {sections.map((section, index) => {
+            const isData = Boolean(section.dataSourceLabel);
+            return (
+              <div
+                key={`${template.id}-wire-${section.slotKey}-${section.sortOrder}-${index}`}
+                className={
+                  isData
+                    ? "rounded-sm border border-blue-500/20 bg-blue-500/15"
+                    : "rounded-sm bg-muted-foreground/10"
+                }
+                title={section.label}
+              />
+            );
+          })}
+          {sections.length === 0 ? (
+            <div className="col-span-3 rounded-sm border border-dashed border-border/60" />
+          ) : null}
+        </div>
+        <div className="h-1.5 w-full rounded-sm bg-muted-foreground/15" />
+      </div>
+    </div>
+  );
+}
+
 function WorkspaceTemplatePreviewPanel({
   template,
   pending,
@@ -560,26 +786,14 @@ function WorkspaceTemplatePreviewPanel({
       className="rounded-lg border border-border/60 bg-background p-3"
       aria-label={`${template.name} template preview`}
     >
-      <div className="rounded-md border border-border/60 bg-muted/20 p-3">
-        <div className="flex h-20 flex-col gap-2">
-          <div className="h-3 w-2/3 rounded bg-muted-foreground/15" />
-          <div className="grid flex-1 grid-cols-3 gap-1.5">
-            {template.sections.slice(0, 6).map((section, index) => (
-              <div
-                key={`${template.id}-wire-${section.slotKey}-${section.sortOrder}-${index}`}
-                className="rounded bg-muted-foreground/10"
-                title={section.label}
-              />
-            ))}
-          </div>
-          <div className="h-2 w-full rounded bg-muted-foreground/15" />
-        </div>
-      </div>
+      <TemplateWireframe template={template} />
 
       <div className="mt-3 flex items-start justify-between gap-2">
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Saved template
+            {template.mode === "data-ready"
+              ? "Data-ready template"
+              : "Starter template"}
           </div>
           <h4 className="mt-0.5 text-sm font-semibold leading-tight text-foreground">
             {template.name}
@@ -593,6 +807,37 @@ function WorkspaceTemplatePreviewPanel({
         {template.description ||
           "Reusable draft snapshot with cloned sections and preserved ordering."}
       </p>
+      <div className="mt-3 grid gap-1.5">
+        {template.dataSourceSummary.length > 0 ? (
+          <div className="rounded-md border border-blue-500/20 bg-blue-500/10 px-2 py-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+              Live data
+            </div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {template.dataSourceSummary.map((label) => (
+                <span
+                  key={`${template.id}-preview-data-${label}`}
+                  className="rounded-full bg-background/70 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-300"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {template.categorySummary.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {template.categorySummary.map((label) => (
+              <span
+                key={`${template.id}-preview-category-${label}`}
+                className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <div className="mt-3">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Section order

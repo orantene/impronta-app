@@ -318,7 +318,10 @@ function LocationMapMarker({
   stackIndex: number;
 }) {
   const map = useMap();
-  const position = { lat: loc.latitude!, lng: loc.longitude! };
+  const position = useMemo(
+    () => ({ lat: loc.latitude!, lng: loc.longitude! }),
+    [loc.latitude, loc.longitude],
+  );
   const selected = selectedId === loc.id;
   const [hovered, setHovered] = useState(false);
   const [pulse, setPulse] = useState(false);
@@ -438,7 +441,7 @@ export function LocationMap({
 
   return (
     <div className="mt-10 w-full">
-      <div className="relative h-[350px] w-full overflow-hidden rounded-xl border border-[var(--impronta-gold-border)] sm:h-[450px]">
+      <div className="relative h-[350px] w-full overflow-hidden rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] sm:h-[450px]">
         <APIProvider apiKey={apiKey} onError={onMapLoadFailed}>
           <div className="relative h-full w-full">
             <GmAuthFailureBridge onFailed={onMapLoadFailed} />

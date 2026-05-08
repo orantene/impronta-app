@@ -38,9 +38,65 @@ npm --prefix web run qa:impronta-local
 Current gate includes:
 - auth routing role-safe redirects
 - builder capability policy checks
-- BuilderNode binding + operation tests
+- BuilderNode binding, operation, render, data-binding, and layout-health tests
 - publish preflight validation tests
 - strict tenant-wide published snapshot verification
+
+## Layout health QA
+
+The Layout inspector now shows `Layout checks` for selected parent builder
+nodes. These checks stay inside the current builder foundation and are covered
+by `npm --prefix web run test:builder-node-bindings`.
+
+Manual checks on `http://localhost:3000/impronta?edit=1`:
+
+1. Insert or select a grid container with 2+ columns.
+2. Open the Layout tab.
+3. Confirm the selected-node panel shows a mobile-stack warning when mobile
+   overrides are missing.
+4. Click `Stack on mobile`.
+5. Confirm the warning clears or downgrades after the responsive patch saves.
+
+Current rule coverage:
+
+- multi-column container without mobile stack
+- 3+ column container without tablet column tuning
+- split layouts that refuse mobile collapse
+- autoplay carousel without arrows/dots
+- dense carousel/masonry patterns that may need operator review
+
+## Data binding QA
+
+The inspector now has a Data tab for selected data-capable BuilderNodes. This
+is the Wave 6 foundation for SaaS-aware builder blocks: the user can connect a
+container to workspace data without leaving the current `/{tenantSlug}?edit=1`
+surface.
+
+Manual checks on `http://localhost:3000/impronta?edit=1`:
+
+1. Select a parent container/freeform data-ready block on the canvas.
+2. Open the Data tab.
+3. Choose `Roster talent`, `Directory taxonomy`, `Locations`, `Inquiry path`,
+   `CMS page`, `Asset library`, or `Custom fields`.
+4. Confirm the mode, visible limit, and filter note fields appear only when the
+   selected source supports them.
+5. Confirm Binding health offers quick fixes for missing mode, missing item
+   limit, unknown source, and Free roster limits.
+
+Publish preflight also checks the latest homepage `builderTree` revision for
+binding drift. Warning/error findings from the Data tab become publish-drawer
+issues before the tree is snapshotted.
+
+Current registry coverage:
+
+- workspace profile
+- roster talent
+- directory taxonomy
+- locations
+- inquiry path
+- CMS page
+- asset library
+- custom fields
 
 ## Empty-canvas reset
 
@@ -120,3 +176,34 @@ and category filters. The visible starter tiles open the gallery first, then
 the modal applies a starter through the same existing draft-seeding action.
 This keeps future made-up and saved templates inside the current builder
 foundation instead of creating a parallel template surface.
+
+## Section template selector QA
+
+The Add section drawer now exposes starter kits and starter section templates
+with explicit data contracts:
+
+- `data-section-template-data-binding` identifies the canonical builder data
+  source for each starter.
+- `data-section-template-edit-model` identifies whether the starter is edited
+  as section props, live data, navigation, an action route, or asset media.
+- Starter cards and review dialogs show the component recipe, so the team can
+  distinguish fixed starter content from database-backed blocks.
+- The drawer includes a `Data` facet for source-specific filtering such as
+  roster talent, tenant directory search, asset library, and inquiry paths.
+- Incompatible starter cards stay visible but disabled. They expose
+  `data-section-template-compatible="false"` plus an incompatible reason, so
+  restricted slots explain the blocker instead of making templates disappear.
+- Template compatibility also checks the workspace plan against the starter's
+  data source. Studio-only and Agency-only data blocks stay visible on lower
+  tiers, but the card explains the required plan before insertion.
+
+Fast check:
+
+```bash
+npm --prefix web run test:e2e:impronta-section-starters
+```
+
+That test opens `http://localhost:3000/impronta?edit=1`, opens the Add section
+drawer, verifies homepage kits, validates the featured roster starter contract,
+filters by data source, opens the review dialog, and confirms the data/recipe
+metadata is visible before insertion.

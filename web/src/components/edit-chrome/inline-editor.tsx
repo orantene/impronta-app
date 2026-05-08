@@ -40,6 +40,11 @@ import { useEditContext } from "./edit-context";
 import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { CanvasEditOverlay } from "./rich-editor";
+import {
+  resolveBuilderNodeRole,
+  type BuilderNode,
+  type BuilderNodeTree,
+} from "@/lib/site-admin/builder-node";
 
 type Banner =
   | { kind: "none" }
@@ -50,6 +55,15 @@ interface ActiveTextEdit {
   el: HTMLElement;
   original: string;
   variant: "single" | "multi";
+  builderNode?: {
+    id: string;
+    propKey: "text" | "label" | "title";
+  };
+}
+
+interface TargetImageEdit {
+  img: HTMLImageElement;
+  builderNodeId?: string;
 }
 
 const SINGLE_LINE_TAGS = new Set([
@@ -70,13 +84,17 @@ export function InlineEditor() {
   const {
     tenantId,
     selectedSectionId,
+    builderTree,
     draftProps,
+    patchBuilderNodeProps,
+    reportMutationError,
+    selectBuilderNode,
     setDraftProps,
     setDirty,
   } = useEditContext();
 
   const [mediaOpen, setMediaOpen] = useState(false);
-  const targetImgRef = useRef<HTMLImageElement | null>(null);
+  const targetImgRef = useRef<TargetImageEdit | null>(null);
   const [imgHover, setImgHover] = useState<{
     img: HTMLImageElement;
     rect: DOMRect;
@@ -85,6 +103,10 @@ export function InlineEditor() {
   // Phase C.1 — active canvas-edit overlay. The overlay (RichEditor +
   // floating toolbar) is rendered when this is non-null.
   const [activeEdit, setActiveEdit] = useState<ActiveTextEdit | null>(null);
+  const builderTreeRef = useRef(builderTree);
+  useEffect(() => {
+    builderTreeRef.current = builderTree;
+  }, [builderTree]);
 
   // Auto-dismiss info/error banners after 4s.
   useEffect(() => {
@@ -131,6 +153,32 @@ export function InlineEditor() {
     [setDraftProps, setDirty],
   );
 
+  const commitBuilderNodeText = useCallback(
+    async (
+      target: NonNullable<ActiveTextEdit["builderNode"]>,
+      original: string,
+      next: string,
+    ) => {
+      if (next === original) return;
+      if (next.trim().length === 0) {
+        setBanner({
+          kind: "error",
+          text: "This block cannot be saved empty. Use delete if you want to remove it.",
+        });
+        return;
+      }
+      const result = await patchBuilderNodeProps(target.id, {
+        [target.propKey]: next.trim(),
+      });
+      if (!result.ok) {
+        const text = result.error ?? "Couldn't save this block. Try the inspector.";
+        reportMutationError(text);
+        setBanner({ kind: "error", text });
+      }
+    },
+    [patchBuilderNodeProps, reportMutationError],
+  );
+
   // ── text editing driver ──────────────────────────────────────────────
   useEffect(() => {
     function findEditableTextEl(start: HTMLElement): HTMLElement | null {
@@ -175,9 +223,6 @@ export function InlineEditor() {
       if (!sectionEl) return;
       const sectionId = sectionEl.getAttribute("data-section-id");
       if (!sectionId || sectionId !== selectedIdRef.current) return;
-      // Only engage if the inspector has finished loading this section's
-      // draftProps. Otherwise the commit has nothing to write to.
-      if (!draftPropsRef.current) return;
 
       // Don't re-engage an already-editing element.
       if (e.target.closest('[data-edit-overlay="canvas-edit"]')) return;
@@ -197,6 +242,27 @@ export function InlineEditor() {
       const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
         ? "single"
         : "multi";
+      const builderNodeTarget = resolveEditableBuilderNodeTextTarget(
+        builderTreeRef.current,
+        editable,
+      );
+      if (builderNodeTarget) {
+        selectBuilderNode(builderNodeTarget.id);
+        setActiveEdit({
+          el: editable,
+          original,
+          variant: builderNodeTarget.variant,
+          builderNode: {
+            id: builderNodeTarget.id,
+            propKey: builderNodeTarget.propKey,
+          },
+        });
+        return;
+      }
+      // Legacy section text still writes through draftProps, so wait until
+      // the inspector has loaded that payload. Freeform nodes patch directly
+      // above and do not need this section-prop payload.
+      if (!draftPropsRef.current) return;
       setActiveEdit({ el: editable, original, variant });
     }
 
@@ -204,12 +270,20 @@ export function InlineEditor() {
     return () => {
       document.removeEventListener("dblclick", onDblClick, true);
     };
-  }, []);
+  }, [selectBuilderNode]);
 
   function endActiveEdit(commit: boolean, next?: string) {
     if (!activeEdit) return;
     if (commit && next !== undefined) {
-      commitText(activeEdit.original, next);
+      if (activeEdit.builderNode) {
+        void commitBuilderNodeText(
+          activeEdit.builderNode,
+          activeEdit.original,
+          next,
+        );
+      } else {
+        commitText(activeEdit.original, next);
+      }
     }
     setActiveEdit(null);
   }
@@ -259,15 +333,39 @@ export function InlineEditor() {
   }, []);
 
   const handleReplaceClick = (img: HTMLImageElement) => {
-    targetImgRef.current = img;
+    const imageTarget = resolveEditableBuilderNodeImageTarget(
+      builderTreeRef.current,
+      img,
+    );
+    if (imageTarget) {
+      selectBuilderNode(imageTarget.id);
+    }
+    targetImgRef.current = imageTarget
+      ? { img, builderNodeId: imageTarget.id }
+      : { img };
     setMediaOpen(true);
   };
 
   const handleImagePicked = useCallback(
     (publicUrl: string) => {
-      const img = targetImgRef.current;
+      const target = targetImgRef.current;
       setMediaOpen(false);
-      if (!img) return;
+      if (!target) return;
+      if (target.builderNodeId) {
+        void patchBuilderNodeProps(target.builderNodeId, { src: publicUrl }).then(
+          (result) => {
+            if (!result.ok) {
+              const text =
+                result.error ?? "Couldn't replace this image. Try the inspector.";
+              reportMutationError(text);
+              setBanner({ kind: "error", text });
+            }
+          },
+        );
+        targetImgRef.current = null;
+        return;
+      }
+      const { img } = target;
       const tree = draftPropsRef.current;
       if (!tree) return;
       const originalSrc = img.getAttribute("src") ?? "";
@@ -295,7 +393,7 @@ export function InlineEditor() {
       setDirty(true);
       targetImgRef.current = null;
     },
-    [setDraftProps, setDirty],
+    [patchBuilderNodeProps, reportMutationError, setDraftProps, setDirty],
   );
 
   // Only render the hover pill when a section is selected and we're hovering
@@ -399,4 +497,73 @@ function resolveOriginalImageSrc(src: string): string {
     // fall through to raw
   }
   return src;
+}
+
+function findBuilderNodeById(
+  tree: BuilderNodeTree,
+  nodeId: string | null,
+): BuilderNode | null {
+  if (!nodeId) return null;
+  const queue = [...tree];
+  while (queue.length > 0) {
+    const current = queue.shift() ?? null;
+    if (!current) continue;
+    if (current.id === nodeId) return current;
+    if ("children" in current && Array.isArray(current.children)) {
+      queue.unshift(...current.children);
+    }
+  }
+  return null;
+}
+
+function resolveEditableBuilderNodeTextTarget(
+  tree: BuilderNodeTree,
+  el: HTMLElement,
+): {
+  id: string;
+  propKey: "text" | "label" | "title";
+  variant: "single" | "multi";
+} | null {
+  const nodeEl = el.closest<HTMLElement>("[data-builder-node-id]");
+  const nodeId = nodeEl?.getAttribute("data-builder-node-id") ?? null;
+  if (!nodeId || resolveBuilderNodeRole(nodeId)) return null;
+  const renderedKind = nodeEl?.getAttribute("data-builder-node-kind");
+  if (renderedKind === "heading") {
+    return { id: nodeId, propKey: "text", variant: "single" };
+  }
+  if (renderedKind === "paragraph") {
+    return { id: nodeId, propKey: "text", variant: "multi" };
+  }
+  if (renderedKind === "button") {
+    return { id: nodeId, propKey: "label", variant: "single" };
+  }
+  if (renderedKind === "accordion_item" || renderedKind === "tab_panel") {
+    return { id: nodeId, propKey: "title", variant: "single" };
+  }
+  const node = findBuilderNodeById(tree, nodeId);
+  if (!node || node.kind === "section") return null;
+  if (node.kind === "heading") {
+    return { id: node.id, propKey: "text", variant: "single" };
+  }
+  if (node.kind === "paragraph") {
+    return { id: node.id, propKey: "text", variant: "multi" };
+  }
+  if (node.kind === "button") {
+    return { id: node.id, propKey: "label", variant: "single" };
+  }
+  if (node.kind === "accordion_item" || node.kind === "tab_panel") {
+    return { id: node.id, propKey: "title", variant: "single" };
+  }
+  return null;
+}
+
+function resolveEditableBuilderNodeImageTarget(
+  tree: BuilderNodeTree,
+  img: HTMLImageElement,
+): { id: string } | null {
+  const nodeEl = img.closest<HTMLElement>("[data-builder-node-id]");
+  const nodeId = nodeEl?.getAttribute("data-builder-node-id") ?? null;
+  if (!nodeId || resolveBuilderNodeRole(nodeId)) return null;
+  const node = findBuilderNodeById(tree, nodeId);
+  return node?.kind === "image" ? { id: node.id } : null;
 }

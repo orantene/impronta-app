@@ -9,7 +9,7 @@ const LocationMapClient = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="mt-10 h-[350px] w-full overflow-hidden rounded-xl border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 sm:h-[450px]" />
+      <div className="mt-10 h-[350px] w-full overflow-hidden rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 sm:h-[450px]" />
     ),
   },
 );

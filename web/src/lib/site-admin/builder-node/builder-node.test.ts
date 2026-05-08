@@ -7,6 +7,7 @@ import {
   indexBuilderSectionChildNodes,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
+  indexBuilderSectionNodes,
   reconcileBuilderTreeWithLegacySlots,
   resolveSnapshotBuilderTree,
   resolveSnapshotBuilderTreeForPublish,
@@ -19,7 +20,15 @@ test("validates a registry-backed node tree", () => {
     {
       id: "root-content",
       kind: "container",
-      props: { layout: "stack", gap: "m" },
+      props: {
+        layout: "stack",
+        gap: "m",
+        dataBinding: {
+          sourceKey: "featured_talent_profiles",
+          mode: "auto",
+          maxItems: 4,
+        },
+      },
       children: [
         {
           id: "headline",
@@ -2776,6 +2785,26 @@ test("indexBuilderSectionNodeIds maps section address to stable node id", () => 
   });
 
   assert.equal(index.get(key!), "legacy:hero:2:11111111-1111-4111-8111-111111111111");
+});
+
+test("indexBuilderSectionNodes maps section address to section node", () => {
+  const tree = buildLegacySectionBuilderTree([
+    {
+      slotKey: "body",
+      sortOrder: 1,
+      sectionId: "22222222-2222-4222-8222-222222222222",
+      sectionTypeKey: "cta_banner",
+      name: "CTA",
+    },
+  ]);
+  const index = indexBuilderSectionNodes(tree);
+  const key = builderSectionNodeAddressKey({
+    sectionId: "22222222-2222-4222-8222-222222222222",
+    slotKey: "body",
+    sortOrder: 1,
+  });
+
+  assert.equal(index.get(key!)?.props.sectionTypeKey, "cta_banner");
 });
 
 test("indexBuilderSectionChildNodeIds maps section node id to descendant node ids", () => {

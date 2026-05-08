@@ -42,6 +42,7 @@ import { createPortal } from "react-dom";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import {
   BUILDER_NODE_REGISTRY,
+  resolveBuilderNodeRole,
   type BuilderNode,
   type BuilderNodeKind,
   type BuilderNodeTree,
@@ -65,15 +66,23 @@ interface Rect {
   height: number;
 }
 
+function eventTargetElement(target: EventTarget | null): Element | null {
+  if (target instanceof Element) return target;
+  if (target instanceof Node) return target.parentElement;
+  return null;
+}
+
 function findSectionEl(target: EventTarget | null): HTMLElement | null {
-  if (!(target instanceof Element)) return null;
-  const el = target.closest<HTMLElement>("[data-cms-section]");
+  const source = eventTargetElement(target);
+  if (!source) return null;
+  const el = source.closest<HTMLElement>("[data-cms-section]");
   return el;
 }
 
 function findBuilderNodeEl(target: EventTarget | null): HTMLElement | null {
-  if (!(target instanceof Element)) return null;
-  return target.closest<HTMLElement>("[data-builder-node-id]");
+  const source = eventTargetElement(target);
+  if (!source) return null;
+  return source.closest<HTMLElement>("[data-builder-node-id]");
 }
 
 function rectOf(el: HTMLElement): Rect {
@@ -123,6 +132,8 @@ const CHIP_SHADOW =
   "0 12px 32px -8px rgba(0,0,0,0.38), 0 2px 6px -2px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)";
 const RAIL_SHADOW =
   "0 8px 22px -8px rgba(0,0,0,0.32), 0 1px 3px rgba(0,0,0,0.16), inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 1px 0 rgba(255,255,255,0.10)";
+const CANVAS_SELECTION_RADIUS = 0;
+const CANVAS_CHROME_RADIUS = 0;
 
 interface DropTarget {
   slotKey: string;
@@ -172,6 +183,7 @@ interface NodeInsertTarget {
   nodeId: string;
   allowedKinds: ReadonlyArray<BuilderNodeKind>;
   label: string;
+  index?: number;
 }
 
 interface SelectionBreadcrumbCrumb {
@@ -351,9 +363,6 @@ export function SelectionLayer() {
 
   useEffect(() => {
     scheduleRectRecompute();
-    // Reset the remove confirmation any time selection switches.
-    setConfirmRemove(false);
-    setNodeInsertTarget(null);
     // selection/hover changes → recompute immediately
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -364,12 +373,17 @@ export function SelectionLayer() {
     getSelectedBuilderNodeEl,
   ]);
 
+  useEffect(() => {
+    setConfirmRemove(false);
+    setNodeInsertTarget(null);
+  }, [selectedSectionId, selectedBuilderNodeId]);
+
   const commitNodeInsert = useCallback(
     async (kind: BuilderNodeKind) => {
       if (!nodeInsertTarget) return;
       const target = nodeInsertTarget;
       setNodeInsertTarget(null);
-      const inserted = await insertBuilderNode(target.nodeId, kind);
+      const inserted = await insertBuilderNode(target.nodeId, kind, target.index);
       if (!inserted.ok && inserted.error) {
         reportMutationError(inserted.error);
       }
@@ -871,10 +885,52 @@ export function SelectionLayer() {
       ? chipLabel
       : BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].label
     : chipLabel;
+  const selectedNodeIsEditableBlock =
+    !!selectedBuilderNode &&
+    selectedBuilderNode.kind !== "section" &&
+    !!selectedBuilderNodeId &&
+    selectedCanvasNodeId === selectedBuilderNodeId &&
+    !resolveBuilderNodeRole(selectedBuilderNode.id);
+  const chipPrimaryLabel = selectedNodeIsEditableBlock
+    ? builderNodeCrumbLabel(selectedBuilderNode, chipLabel)
+    : chipLabel;
+  const chipPrimaryType = selectedNodeIsEditableBlock
+    ? "Block"
+    : chipType;
   const selectedNodePath = useMemo(
     () => findBuilderNodePath(builderTree, selectedCanvasNodeId),
     [builderTree, selectedCanvasNodeId],
   );
+  const selectedSiblingContext = useMemo(() => {
+    if (
+      !selectedNodeIsEditableBlock ||
+      !selectedBuilderNode ||
+      selectedNodePath.length < 2
+    ) {
+      return null;
+    }
+    const parentNode = selectedNodePath[selectedNodePath.length - 2];
+    if (!parentNode || !("children" in parentNode)) return null;
+    const parentChildren = parentNode.children ?? [];
+    const policy = BUILDER_NODE_REGISTRY[parentNode.kind].children;
+    if (policy.type !== "allow_list") return null;
+    const selectedIndex = parentChildren.findIndex(
+      (node) => node.id === selectedBuilderNode.id,
+    );
+    if (selectedIndex < 0) return null;
+    return {
+      parentNodeId: parentNode.id,
+      beforeIndex: selectedIndex,
+      afterIndex: selectedIndex + 1,
+      allowedKinds: [...policy.kinds],
+      canMoveUp: selectedIndex > 0,
+      canMoveDown: selectedIndex < parentChildren.length - 1,
+    };
+  }, [
+    selectedBuilderNode,
+    selectedNodeIsEditableBlock,
+    selectedNodePath,
+  ]);
   const selectionBreadcrumb = useMemo<SelectionBreadcrumbCrumb[]>(() => {
     if (!selectedSectionId) return [];
     const crumbs: SelectionBreadcrumbCrumb[] = [
@@ -994,6 +1050,34 @@ export function SelectionLayer() {
     },
     [pasteCopiedBuilderNode, reportMutationError],
   );
+  const requestInlineEdit = useCallback(
+    (nodeId?: string | null) => {
+      const nodeEl = nodeId
+        ? document.querySelector<HTMLElement>(
+            `[data-builder-node-id="${CSS.escape(nodeId)}"]`,
+          )
+        : getSelectedBuilderNodeEl();
+      const rootEl = nodeEl ?? getSelectedSectionEl();
+      if (!rootEl) return;
+      const target =
+        rootEl.matches(
+          "h1,h2,h3,h4,h5,h6,p,a,button,summary,[data-editable-text]",
+        )
+          ? rootEl
+          : rootEl.querySelector<HTMLElement>(
+              "h1,h2,h3,h4,h5,h6,p,a,button,summary,[data-editable-text]",
+            );
+      const editTarget = target ?? rootEl;
+      editTarget.dispatchEvent(
+        new MouseEvent("dblclick", {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        }),
+      );
+    },
+    [getSelectedBuilderNodeEl, getSelectedSectionEl],
+  );
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const contextMenuIsChildNode =
     !!contextMenu?.builderNodeId &&
@@ -1062,13 +1146,14 @@ export function SelectionLayer() {
       {showHover ? (
         <>
           <div
+            data-selection-hover-ring=""
             style={{
               position: "fixed",
               top: hoverRect.top,
               left: hoverRect.left,
               width: hoverRect.width,
               height: hoverRect.height,
-              borderRadius: 6,
+              borderRadius: CANVAS_SELECTION_RADIUS,
               boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}`,
               pointerEvents: "none",
               transition: isScrollingRef.current
@@ -1091,7 +1176,7 @@ export function SelectionLayer() {
                 alignItems: "stretch",
                 background: RAIL_BG,
                 color: "white",
-                borderRadius: 7,
+                borderRadius: CANVAS_CHROME_RADIUS,
                 boxShadow: RAIL_SHADOW,
                 backdropFilter: "blur(12px)",
                 WebkitBackdropFilter: "blur(12px)",
@@ -1261,13 +1346,14 @@ export function SelectionLayer() {
         return (
           <div
             key={`add-${id}`}
+            data-selection-additional-ring=""
             style={{
               position: "fixed",
               top: r.top,
               left: r.left,
               width: r.width,
               height: r.height,
-              borderRadius: 6,
+              borderRadius: CANVAS_SELECTION_RADIUS,
               boxShadow: `inset 0 0 0 1px rgba(255,255,255,0.50), 0 0 0 2px rgba(42, 49, 71, 0.85), 0 0 0 6px rgba(42, 49, 71, 0.10)`,
               pointerEvents: "none",
               transition: "box-shadow 120ms",
@@ -1280,13 +1366,14 @@ export function SelectionLayer() {
       {renderSelectedRect ? (
         <>
           <div
+            data-selection-ring=""
             style={{
               position: "fixed",
               top: renderSelectedRect.top,
               left: renderSelectedRect.left,
               width: renderSelectedRect.width,
               height: renderSelectedRect.height,
-              borderRadius: 6,
+              borderRadius: CANVAS_SELECTION_RADIUS,
               // Dual-tone: white inset 1px, ink outset 2px, soft outer halo 8px.
               // Uses box-shadow so inset + outset coexist without a second element.
               boxShadow: isDragging
@@ -1329,7 +1416,7 @@ export function SelectionLayer() {
                 alignItems: "stretch",
                 background: RAIL_BG,
                 color: "white",
-                borderRadius: 8,
+                borderRadius: CANVAS_CHROME_RADIUS,
                 boxShadow: RAIL_SHADOW,
                 backdropFilter: "blur(12px)",
                 WebkitBackdropFilter: "blur(12px)",
@@ -1468,6 +1555,7 @@ export function SelectionLayer() {
             saving={saving}
             onClose={closeContextMenu}
             onEdit={() => {
+              requestInlineEdit(contextMenu?.builderNodeId ?? null);
               closeContextMenu();
             }}
             onAddInside={() => {
@@ -1558,6 +1646,8 @@ export function SelectionLayer() {
 
           {/* ── Premium selection chip ────────────────────────────── */}
           <div
+            data-selection-chip=""
+            data-selection-chip-scope={selectedNodeIsEditableBlock ? "block" : "section"}
             style={{
               position: "fixed",
               // Pin just above the section (within top-bar boundary).
@@ -1568,7 +1658,7 @@ export function SelectionLayer() {
               alignItems: "stretch",
               background: CHIP_BG,
               color: "white",
-              borderRadius: 10,
+              borderRadius: CANVAS_CHROME_RADIUS,
               boxShadow: CHIP_SHADOW,
               backdropFilter: "blur(12px)",
               overflow: "hidden",
@@ -1584,14 +1674,22 @@ export function SelectionLayer() {
           >
             {/* Grip area — drag handle */}
             <div
-              onPointerDown={startDrag}
-              title="Drag to reorder"
+              onPointerDown={selectedNodeIsEditableBlock ? undefined : startDrag}
+              title={
+                selectedNodeIsEditableBlock
+                  ? "Selected block"
+                  : "Drag to reorder"
+              }
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 padding: "0 14px 0 10px",
                 gap: 9,
-                cursor: drag.phase === "idle" ? "grab" : "grabbing",
+                cursor: selectedNodeIsEditableBlock
+                  ? "default"
+                  : drag.phase === "idle"
+                    ? "grab"
+                    : "grabbing",
                 touchAction: "none",
               }}
             >
@@ -1618,7 +1716,7 @@ export function SelectionLayer() {
                 style={{
                   width: 22,
                   height: 22,
-                  borderRadius: 5,
+                  borderRadius: CANVAS_CHROME_RADIUS,
                   background: "rgba(255,255,255,0.08)",
                   color: "rgba(255,255,255,0.92)",
                   display: "inline-flex",
@@ -1639,7 +1737,7 @@ export function SelectionLayer() {
                   letterSpacing: "-0.005em",
                 }}
               >
-                {chipLabel}
+                {chipPrimaryLabel}
               </span>
 
               {/* Sprint 4 — multi-select count badge. Renders only when the
@@ -1659,7 +1757,7 @@ export function SelectionLayer() {
                     letterSpacing: "0.02em",
                     color: "white",
                     background: "rgba(42, 49, 71, 0.95)",
-                    borderRadius: 999,
+                    borderRadius: CANVAS_CHROME_RADIUS,
                     boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)",
                     flexShrink: 0,
                   }}
@@ -1694,7 +1792,7 @@ export function SelectionLayer() {
                     color: "rgba(255,255,255,0.55)",
                   }}
                 >
-                  {chipType}
+                  {chipPrimaryType}
                 </span>
               </span>
             </div>
@@ -1707,56 +1805,111 @@ export function SelectionLayer() {
              * the primary because order is fragile during a bulk move
              * (top-down vs bottom-up changes outcome). Duplicate / Hide /
              * Delete fan out cleanly. */}
-            <ChipToolBar
-              disabled={saving}
-              confirmRemove={confirmRemove}
-              isHidden={isHidden}
-              multiCount={additionalSelectedIds.size}
-              onMoveUp={() => {
-                if (!selectedSectionId) return;
-                void moveSection(selectedSectionId, "up");
-              }}
-              onMoveDown={() => {
-                if (!selectedSectionId) return;
-                void moveSection(selectedSectionId, "down");
-              }}
-              onToggleHide={() => {
-                const ids = getAllSelectedIds();
-                if (ids.length === 0) return;
-                const next = isHidden ? "always" : "hidden";
-                for (const id of ids) {
-                  void setSectionVisibility(id, next);
+            {selectedNodeIsEditableBlock ? (
+              <BlockChipToolBar
+                disabled={saving}
+                confirmRemove={confirmRemove}
+                onEdit={() => requestInlineEdit(selectedBuilderNodeId)}
+                onMoveUp={
+                  selectedSiblingContext?.canMoveUp && selectedBuilderNodeId
+                    ? () => void commitChildMove(selectedBuilderNodeId, "up")
+                    : null
                 }
-              }}
-              onDuplicate={() => {
-                const ids = getAllSelectedIds();
-                if (ids.length === 0) return;
-                // Fire all duplicate actions in parallel; promote the
-                // first new id to primary so the inspector follows the
-                // operator's intent. The multi-set clears as a side
-                // effect of setSelectedSectionId.
-                const promises = ids.map((id) => duplicateSection(id));
-                void Promise.all(promises).then((results) => {
-                  const firstNew = results.find(
-                    (r) => r.ok && r.newSectionId,
-                  );
-                  if (firstNew && "newSectionId" in firstNew && firstNew.newSectionId) {
-                    setSelectedSectionId(firstNew.newSectionId);
+                onMoveDown={
+                  selectedSiblingContext?.canMoveDown && selectedBuilderNodeId
+                    ? () => void commitChildMove(selectedBuilderNodeId, "down")
+                    : null
+                }
+                onAddBefore={
+                  selectedSiblingContext
+                    ? () =>
+                        setNodeInsertTarget({
+                          nodeId: selectedSiblingContext.parentNodeId,
+                          index: selectedSiblingContext.beforeIndex,
+                          allowedKinds: selectedSiblingContext.allowedKinds,
+                          label: `Before ${chipPrimaryLabel}`,
+                        })
+                    : null
+                }
+                onAddAfter={
+                  selectedSiblingContext
+                    ? () =>
+                        setNodeInsertTarget({
+                          nodeId: selectedSiblingContext.parentNodeId,
+                          index: selectedSiblingContext.afterIndex,
+                          allowedKinds: selectedSiblingContext.allowedKinds,
+                          label: `After ${chipPrimaryLabel}`,
+                        })
+                    : null
+                }
+                onCopy={() => {
+                  if (!selectedBuilderNodeId) return;
+                  void commitChildCopy(selectedBuilderNodeId);
+                }}
+                onDuplicate={() => {
+                  if (!selectedBuilderNodeId) return;
+                  void commitChildDuplicate(selectedBuilderNodeId);
+                }}
+                onRemoveTrigger={() => setConfirmRemove(true)}
+                onRemoveConfirm={() => {
+                  void commitNodeRemoval().then(() => {
+                    setConfirmRemove(false);
+                  });
+                }}
+                onRemoveCancel={() => setConfirmRemove(false)}
+              />
+            ) : (
+              <ChipToolBar
+                disabled={saving}
+                confirmRemove={confirmRemove}
+                isHidden={isHidden}
+                multiCount={additionalSelectedIds.size}
+                onMoveUp={() => {
+                  if (!selectedSectionId) return;
+                  void moveSection(selectedSectionId, "up");
+                }}
+                onMoveDown={() => {
+                  if (!selectedSectionId) return;
+                  void moveSection(selectedSectionId, "down");
+                }}
+                onToggleHide={() => {
+                  const ids = getAllSelectedIds();
+                  if (ids.length === 0) return;
+                  const next = isHidden ? "always" : "hidden";
+                  for (const id of ids) {
+                    void setSectionVisibility(id, next);
                   }
-                });
-              }}
-              onRemoveTrigger={() => setConfirmRemove(true)}
-              onRemoveConfirm={() => {
-                const ids = getAllSelectedIds();
-                if (ids.length === 0) return;
-                const promises = ids.map((id) => removeSection(id));
-                void Promise.all(promises).then(() => {
-                  setConfirmRemove(false);
-                  setSelectedSectionId(null);
-                });
-              }}
-              onRemoveCancel={() => setConfirmRemove(false)}
-            />
+                }}
+                onDuplicate={() => {
+                  const ids = getAllSelectedIds();
+                  if (ids.length === 0) return;
+                  // Fire all duplicate actions in parallel; promote the
+                  // first new id to primary so the inspector follows the
+                  // operator's intent. The multi-set clears as a side
+                  // effect of setSelectedSectionId.
+                  const promises = ids.map((id) => duplicateSection(id));
+                  void Promise.all(promises).then((results) => {
+                    const firstNew = results.find(
+                      (r) => r.ok && r.newSectionId,
+                    );
+                    if (firstNew && "newSectionId" in firstNew && firstNew.newSectionId) {
+                      setSelectedSectionId(firstNew.newSectionId);
+                    }
+                  });
+                }}
+                onRemoveTrigger={() => setConfirmRemove(true)}
+                onRemoveConfirm={() => {
+                  const ids = getAllSelectedIds();
+                  if (ids.length === 0) return;
+                  const promises = ids.map((id) => removeSection(id));
+                  void Promise.all(promises).then(() => {
+                    setConfirmRemove(false);
+                    setSelectedSectionId(null);
+                  });
+                }}
+                onRemoveCancel={() => setConfirmRemove(false)}
+              />
+            )}
           </div>
         </>
       ) : null}
@@ -1777,7 +1930,7 @@ export function SelectionLayer() {
             boxShadow: drag.drop.allowed
               ? `0 0 0 4px rgba(${BLUE_RGB},0.12), 0 0 16px 4px rgba(${BLUE_RGB},0.40)`
               : "0 0 0 4px rgba(239,68,68,0.10), 0 0 16px 4px rgba(239,68,68,0.20)",
-            borderRadius: 2,
+            borderRadius: CANVAS_CHROME_RADIUS,
             transition:
               "top 80ms linear, left 80ms linear, width 80ms linear",
             pointerEvents: "none",
@@ -1830,7 +1983,7 @@ export function SelectionLayer() {
             background: CHIP_BG,
             color: "white",
             padding: "12px 16px",
-            borderRadius: 12,
+            borderRadius: CANVAS_CHROME_RADIUS,
             boxShadow:
               "0 24px 56px -12px rgba(0,0,0,0.42), 0 4px 12px -2px rgba(0,0,0,0.24), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)",
             display: "flex",
@@ -1846,7 +1999,7 @@ export function SelectionLayer() {
             style={{
               width: 36,
               height: 36,
-              borderRadius: 8,
+              borderRadius: CANVAS_CHROME_RADIUS,
               background: "rgba(255,255,255,0.10)",
               display: "inline-flex",
               alignItems: "center",
@@ -1970,7 +2123,7 @@ function SelectionContextMenu({
         left,
         width: 228,
         padding: 6,
-        borderRadius: 12,
+        borderRadius: CANVAS_CHROME_RADIUS,
         border: "1px solid rgba(255,255,255,0.10)",
         background: CHIP_BG,
         color: "white",
@@ -2126,7 +2279,7 @@ function ContextMenuButton({
         display: "flex",
         alignItems: "center",
         padding: "0 9px",
-        borderRadius: 8,
+        borderRadius: CANVAS_CHROME_RADIUS,
         border: "none",
         background: "transparent",
         color: danger ? "rgba(255,195,195,0.95)" : "rgba(255,255,255,0.86)",
@@ -2189,14 +2342,14 @@ function SelectionBreadcrumb({
         alignItems: "center",
         gap: 4,
         padding: "3px 5px",
-        borderRadius: 999,
+        borderRadius: CANVAS_CHROME_RADIUS,
         border: "1px solid rgba(255,255,255,0.10)",
         background: "rgba(36,41,66,0.92)",
         color: "white",
         boxShadow: RAIL_SHADOW,
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
-        zIndex: 91,
+        zIndex: 96,
         pointerEvents: "auto",
         opacity: isDragging ? 0 : 1,
         transition: isScrolling
@@ -2249,7 +2402,7 @@ function SelectionBreadcrumb({
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   padding: "2px 6px",
-                  borderRadius: 999,
+                  borderRadius: CANVAS_CHROME_RADIUS,
                   color: isEllipsis
                     ? "rgba(255,255,255,0.50)"
                     : "rgba(255,255,255,0.62)",
@@ -2279,7 +2432,7 @@ function SelectionBreadcrumb({
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   padding: "2px 7px",
-                  borderRadius: 999,
+                  borderRadius: CANVAS_CHROME_RADIUS,
                   border: "none",
                   background: isLast
                     ? "rgba(255,255,255,0.14)"
@@ -2312,17 +2465,27 @@ function CanvasNodeInsertMenu({
   onDismiss: () => void;
 }) {
   if (!target) return null;
+  const viewportHeight =
+    typeof window === "undefined" ? selectedRect.top + selectedRect.height + 260 : window.innerHeight;
+  const viewportWidth =
+    typeof window === "undefined" ? selectedRect.left + 248 : window.innerWidth;
 
   return (
     <div
       data-builder-node-canvas-insert-menu=""
       style={{
         position: "fixed",
-        top: Math.max(selectedRect.top + 42, 92),
-        left: Math.max(selectedRect.left + selectedRect.width - 240, 8),
+        top: Math.max(
+          Math.min(selectedRect.top + 42, viewportHeight - 230),
+          92,
+        ),
+        left: Math.max(
+          Math.min(selectedRect.left + selectedRect.width - 240, viewportWidth - 248),
+          8,
+        ),
         width: 232,
         padding: "10px 10px 11px",
-        borderRadius: 10,
+        borderRadius: CANVAS_CHROME_RADIUS,
         border: `1px solid rgba(255,255,255,0.09)`,
         background: CHIP_BG,
         color: "white",
@@ -2376,7 +2539,7 @@ function CanvasNodeInsertMenu({
             width: 18,
             height: 18,
             border: "none",
-            borderRadius: 5,
+            borderRadius: CANVAS_CHROME_RADIUS,
             background: "transparent",
             color: "rgba(255,255,255,0.72)",
             cursor: "pointer",
@@ -2398,11 +2561,12 @@ function CanvasNodeInsertMenu({
           <button
             key={kind}
             type="button"
+            data-builder-node-canvas-insert-kind={kind}
             onClick={() => void onInsert(kind)}
             style={{
               minHeight: 25,
               padding: "0 8px",
-              borderRadius: 999,
+              borderRadius: CANVAS_CHROME_RADIUS,
               border: "1px solid rgba(255,255,255,0.12)",
               background: "rgba(255,255,255,0.07)",
               color: "white",
@@ -2513,7 +2677,7 @@ function CanvasNodeChildrenPanel({
         width: 300,
         maxHeight: 208,
         padding: "10px 10px 11px",
-        borderRadius: 12,
+        borderRadius: CANVAS_CHROME_RADIUS,
         border: "1px solid rgba(255,255,255,0.09)",
         background: CHIP_BG,
         color: "white",
@@ -2592,7 +2756,7 @@ function CanvasNodeChildrenPanel({
                   style={{
                     height: 2,
                     margin: "0 2px 6px",
-                    borderRadius: 999,
+                    borderRadius: CANVAS_CHROME_RADIUS,
                     background: `rgba(${BLUE_RGB},0.95)`,
                     boxShadow: `0 0 0 3px rgba(${BLUE_RGB},0.18)`,
                   }}
@@ -2609,7 +2773,7 @@ function CanvasNodeChildrenPanel({
                   alignItems: "center",
                   gap: 8,
                   padding: "7px 8px",
-                  borderRadius: 9,
+                  borderRadius: CANVAS_CHROME_RADIUS,
                   opacity: draggingNode?.nodeId === node.id ? 0.62 : 1,
                   background: isSelected
                     ? "rgba(255,255,255,0.14)"
@@ -2640,7 +2804,7 @@ function CanvasNodeChildrenPanel({
                   style={{
                     width: 18,
                     height: 18,
-                    borderRadius: 5,
+                    borderRadius: CANVAS_CHROME_RADIUS,
                     background: "rgba(255,255,255,0.08)",
                     color: "rgba(255,255,255,0.85)",
                     display: "inline-flex",
@@ -2746,7 +2910,7 @@ function CanvasNodeChildrenPanel({
             onDrop={(event) => void handleDrop(event)}
             style={{
               height: dropIndex === nodes.length ? 8 : 2,
-              borderRadius: 999,
+              borderRadius: CANVAS_CHROME_RADIUS,
               background:
                 dropIndex === nodes.length
                   ? `rgba(${BLUE_RGB},0.85)`
@@ -2783,7 +2947,7 @@ function CanvasMiniButton({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: 6,
+        borderRadius: CANVAS_CHROME_RADIUS,
         border: "none",
         background: "rgba(255,255,255,0.08)",
         color: "rgba(255,255,255,0.84)",
@@ -2996,6 +3160,182 @@ function ChipToolBar({
         disabled={disabled}
         onClick={onRemoveTrigger}
         aria-label="Remove section"
+        title="Remove"
+        danger
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
+      </ChipBtn>
+    </div>
+  );
+}
+
+function BlockChipToolBar({
+  disabled,
+  confirmRemove,
+  onEdit,
+  onMoveUp,
+  onMoveDown,
+  onAddBefore,
+  onAddAfter,
+  onCopy,
+  onDuplicate,
+  onRemoveTrigger,
+  onRemoveConfirm,
+  onRemoveCancel,
+}: {
+  disabled: boolean;
+  confirmRemove: boolean;
+  onEdit: () => void;
+  onMoveUp: (() => void) | null;
+  onMoveDown: (() => void) | null;
+  onAddBefore: (() => void) | null;
+  onAddAfter: (() => void) | null;
+  onCopy: () => void;
+  onDuplicate: () => void;
+  onRemoveTrigger: () => void;
+  onRemoveConfirm: () => void;
+  onRemoveCancel: () => void;
+}) {
+  if (confirmRemove) {
+    return (
+      <div style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onRemoveConfirm}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "0 12px",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            background: "rgba(196,61,61,0.90)",
+            color: "white",
+            border: "none",
+            borderLeft: "1px solid rgba(255,255,255,0.10)",
+            cursor: "pointer",
+          }}
+        >
+          Remove block?
+        </button>
+        <button
+          type="button"
+          onClick={onRemoveCancel}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "0 12px",
+            fontSize: 11,
+            fontWeight: 500,
+            background: "transparent",
+            color: "rgba(255,255,255,0.72)",
+            border: "none",
+            borderLeft: "1px solid rgba(255,255,255,0.10)",
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  const btnStyle: React.CSSProperties = {
+    width: 34,
+    height: 34,
+    background: "transparent",
+    color: "rgba(255,255,255,0.72)",
+    border: "none",
+    borderLeft: "1px solid rgba(255,255,255,0.10)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    transition: "background 100ms, color 100ms",
+  };
+
+  return (
+    <div
+      data-selection-block-toolbar=""
+      style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}
+    >
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled}
+        onClick={onEdit}
+        aria-label="Edit block content"
+        data-selection-block-action="edit"
+        title="Edit"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled || !onMoveUp}
+        onClick={() => onMoveUp?.()}
+        aria-label="Move block up"
+        data-selection-block-action="move-up"
+        title="Move up"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled || !onMoveDown}
+        onClick={() => onMoveDown?.()}
+        aria-label="Move block down"
+        data-selection-block-action="move-down"
+        title="Move down"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled || !onAddBefore}
+        onClick={() => onAddBefore?.()}
+        aria-label="Add block before"
+        data-selection-block-action="add-before"
+        title="Add before"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 4h10" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled || !onAddAfter}
+        onClick={() => onAddAfter?.()}
+        aria-label="Add block after"
+        data-selection-block-action="add-after"
+        title="Add after"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 20h10" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled}
+        onClick={onCopy}
+        aria-label="Copy block"
+        data-selection-block-action="copy"
+        title="Copy"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled}
+        onClick={onDuplicate}
+        aria-label="Duplicate block"
+        data-selection-block-action="duplicate"
+        title="Duplicate"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 8h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" /><path d="M4 16H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
+        disabled={disabled}
+        onClick={onRemoveTrigger}
+        aria-label="Remove block"
+        data-selection-block-action="remove"
         title="Remove"
         danger
       >

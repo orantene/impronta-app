@@ -1,4 +1,5 @@
 import type { SectionTypeKey } from "../registry";
+import type { BuilderDataSourceKey } from "../../builder-node/data-bindings";
 
 export type SectionTemplateStarterKind = "data" | "design" | "conversion";
 export type SectionTemplateStarterSourceKind =
@@ -6,16 +7,37 @@ export type SectionTemplateStarterSourceKind =
   | "starter-content"
   | "navigation"
   | "route-action";
+export type SectionTemplateStarterReadiness = "ready-now" | "needs-setup";
+export type SectionTemplateStarterEditModel =
+  | "section-props"
+  | "live-data"
+  | "navigation"
+  | "action-route"
+  | "asset";
 
 export interface SectionTemplateStarter {
   id: string;
   label: string;
   description: string;
   sectionTypeKey: SectionTypeKey;
+  /**
+   * True when this starter belongs to the fixed homepage core sequence
+   * (hero + discovery + roster + destination map) used by fast-launch flows.
+   */
+  homeCore: boolean;
   category: string;
   kind: SectionTemplateStarterKind;
   sourceKind: SectionTemplateStarterSourceKind;
+  readiness: SectionTemplateStarterReadiness;
   dataSource: string;
+  /**
+   * Canonical builder data source key when this starter is expected to stay
+   * connected to tenant/workspace data. This keeps template cards, tests, and
+   * future BuilderNode conversion work pointed at the same data registry.
+   */
+  dataBindingKey?: BuilderDataSourceKey;
+  editModel: SectionTemplateStarterEditModel;
+  componentRecipe: readonly string[];
   editScope: string;
   preview: "search" | "talent" | "map" | "chips" | "gallery" | "cta";
   previewImageUrl?: string;
@@ -43,10 +65,15 @@ export const SECTION_TEMPLATE_STARTERS = [
     description:
       "A centered talent-directory opener with search-first copy and category navigation.",
     sectionTypeKey: "hero",
+    homeCore: true,
     category: "hero",
     kind: "design",
     sourceKind: "starter-content",
+    readiness: "ready-now",
     dataSource: "Static copy now; ready for directory search wiring.",
+    dataBindingKey: "tenant_directory_search",
+    editModel: "section-props",
+    componentRecipe: ["eyebrow", "headline", "search input", "category chips"],
     editScope: "Copy, CTAs, presentation, and future search controls.",
     preview: "search",
     stylePresets: [
@@ -69,10 +96,15 @@ export const SECTION_TEMPLATE_STARTERS = [
     description:
       "Live roster cards pulled from the tenant directory using the featured talent flag.",
     sectionTypeKey: "featured_talent",
+    homeCore: true,
     category: "showcase",
     kind: "data",
     sourceKind: "live-data",
+    readiness: "ready-now",
     dataSource: "Database: featured talent profiles.",
+    dataBindingKey: "featured_talent_profiles",
+    editModel: "live-data",
+    componentRecipe: ["heading", "live profile cards", "directory CTA"],
     editScope: "Heading, limit, layout, and live talent source controls.",
     preview: "talent",
     previewImageUrl:
@@ -97,10 +129,15 @@ export const SECTION_TEMPLATE_STARTERS = [
     description:
       "A map-led destination section for operating markets, location counts, and regional discovery.",
     sectionTypeKey: "map_overlay",
+    homeCore: true,
     category: "embed",
     kind: "data",
     sourceKind: "live-data",
+    readiness: "needs-setup",
     dataSource: "Data-ready: destinations and talent counts.",
+    dataBindingKey: "talent_locations",
+    editModel: "live-data",
+    componentRecipe: ["heading", "location chips", "map embed", "market summary card"],
     editScope: "Location copy, map embed, card position, and layout.",
     preview: "map",
     stylePresets: [
@@ -123,10 +160,15 @@ export const SECTION_TEMPLATE_STARTERS = [
     description:
       "A compact icon-chip section for service categories like models, hosts, creators, and photo/video.",
     sectionTypeKey: "category_grid",
+    homeCore: true,
     category: "navigation",
     kind: "data",
     sourceKind: "navigation",
+    readiness: "needs-setup",
     dataSource: "Navigation: tenant taxonomy links.",
+    dataBindingKey: "tenant_directory_search",
+    editModel: "navigation",
+    componentRecipe: ["heading", "taxonomy icon chips", "directory links"],
     editScope: "Category labels, links, icons, columns, and spacing.",
     preview: "chips",
     stylePresets: [
@@ -149,10 +191,15 @@ export const SECTION_TEMPLATE_STARTERS = [
     description:
       "A ready-made image strip with premium editorial rhythm for campaign, venue, or talent storytelling.",
     sectionTypeKey: "gallery_strip",
+    homeCore: false,
     category: "showcase",
     kind: "design",
     sourceKind: "starter-content",
+    readiness: "ready-now",
     dataSource: "Starter images; swappable through the inspector.",
+    dataBindingKey: "asset",
+    editModel: "asset",
+    componentRecipe: ["image rail", "caption", "media picker-ready items"],
     editScope: "Images, captions, aspect rhythm, and section styling.",
     preview: "gallery",
     previewImageUrl:
@@ -177,10 +224,15 @@ export const SECTION_TEMPLATE_STARTERS = [
     description:
       "A conversion band for routing visitors into an agency-managed booking or inquiry flow.",
     sectionTypeKey: "cta_banner",
+    homeCore: false,
     category: "convert",
     kind: "conversion",
     sourceKind: "route-action",
+    readiness: "ready-now",
     dataSource: "Static CTA; connects to inquiry routes.",
+    dataBindingKey: "inquiry_path",
+    editModel: "action-route",
+    componentRecipe: ["headline", "supporting copy", "primary CTA", "secondary CTA"],
     editScope: "CTA copy, links, tone, imagery, and conversion layout.",
     preview: "cta",
     previewImageUrl:
@@ -198,6 +250,101 @@ export const SECTION_TEMPLATE_STARTERS = [
       },
     ],
     searchTerms: ["cta", "booking", "inquiry", "brief", "contact", "convert"],
+  },
+  {
+    id: "agency-metrics-proof",
+    label: "Agency Metrics Proof",
+    description:
+      "A premium stats band for production reach, response speed, market coverage, and trust signals.",
+    sectionTypeKey: "stats",
+    homeCore: false,
+    category: "trust",
+    kind: "data",
+    sourceKind: "starter-content",
+    readiness: "ready-now",
+    dataSource: "Starter metrics now; ready to connect to tenant analytics later.",
+    dataBindingKey: "custom_field",
+    editModel: "section-props",
+    componentRecipe: ["stats row", "metric captions", "trust headline"],
+    editScope: "Metric values, labels, captions, layout density, and presentation.",
+    preview: "chips",
+    stylePresets: [
+      {
+        id: "center-row",
+        label: "Center row",
+        description: "Elegant centered metrics for homepage trust bands.",
+      },
+      {
+        id: "split-proof",
+        label: "Split proof",
+        description: "More editorial proof block with a stronger headline.",
+      },
+    ],
+    searchTerms: ["stats", "metrics", "proof", "trust", "numbers", "analytics"],
+  },
+  {
+    id: "client-testimonial-proof",
+    label: "Client Testimonial Proof",
+    description:
+      "Three editorial client quotes for agencies that need social proof close to inquiry CTAs.",
+    sectionTypeKey: "testimonials_trio",
+    homeCore: false,
+    category: "trust",
+    kind: "conversion",
+    sourceKind: "starter-content",
+    readiness: "ready-now",
+    dataSource: "Starter quotes; replace with approved client testimonials.",
+    dataBindingKey: "custom_field",
+    editModel: "section-props",
+    componentRecipe: ["quote cards", "author metadata", "accent controls"],
+    editScope: "Quotes, authors, contexts, accents, carousel/card layout, and spacing.",
+    preview: "cta",
+    stylePresets: [
+      {
+        id: "trio-cards",
+        label: "Trio cards",
+        description: "Three compact proof cards in an airy editorial row.",
+      },
+      {
+        id: "single-hero",
+        label: "Single hero",
+        description: "One large testimonial moment for high-consideration pages.",
+      },
+    ],
+    searchTerms: ["testimonials", "reviews", "quotes", "clients", "proof", "trust"],
+  },
+  {
+    id: "visual-story-hero-split",
+    label: "Visual Story Hero Split",
+    description:
+      "A split hero with editorial image, strong copy, and paired CTAs for campaign or agency pages.",
+    sectionTypeKey: "hero_split",
+    homeCore: false,
+    category: "hero",
+    kind: "design",
+    sourceKind: "starter-content",
+    readiness: "ready-now",
+    dataSource: "Starter image and copy; replace media and CTAs in the inspector.",
+    dataBindingKey: "asset",
+    editModel: "asset",
+    componentRecipe: ["split layout", "hero copy", "CTA pair", "editable media"],
+    editScope: "Image, alt text, headline, supporting copy, CTAs, side, and hero variant.",
+    preview: "gallery",
+    previewImageUrl:
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f",
+    stylePresets: [
+      {
+        id: "asymmetric-editorial",
+        label: "Asymmetric editorial",
+        description: "Media-forward split for premium agency storytelling.",
+      },
+      {
+        id: "fullbleed-campaign",
+        label: "Full-bleed campaign",
+        description: "More immersive visual hero with broader image weight.",
+      },
+    ],
+    searchTerms: ["hero", "split", "image", "campaign", "story", "visual"],
   },
 ] as const satisfies ReadonlyArray<SectionTemplateStarter>;
 
@@ -256,6 +403,21 @@ export const SECTION_TEMPLATE_KITS = [
       "brief-intake-cta",
     ],
     searchTerms: ["editorial", "lookbook", "gallery", "photo", "campaign", "brand"],
+  },
+  {
+    id: "proof-stack-4",
+    label: "Proof Stack",
+    description:
+      "Four-section trust and conversion stack: visual story, metrics, testimonials, and inquiry CTA.",
+    category: "trust",
+    kind: "conversion-kit",
+    starterIds: [
+      "visual-story-hero-split",
+      "agency-metrics-proof",
+      "client-testimonial-proof",
+      "brief-intake-cta",
+    ],
+    searchTerms: ["proof", "trust", "metrics", "testimonials", "conversion", "agency"],
   },
 ] as const satisfies ReadonlyArray<SectionTemplateKit>;
 
@@ -407,6 +569,95 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
       },
     },
   },
+  "agency-metrics-proof": {
+    name: "Agency metrics proof",
+    sectionTypeKey: "stats",
+    props: {
+      eyebrow: "Agency proof",
+      headline: "Built for briefs that need speed, taste, and control.",
+      items: [
+        { value: "180+", label: "active talent", caption: "Across priority markets" },
+        { value: "4", label: "core destinations", caption: "Cancun, Ibiza, Playa, Tulum" },
+        { value: "24h", label: "shortlist window", caption: "For qualified briefs" },
+        { value: "1", label: "managed contact", caption: "Agency-led from request to wrap" },
+      ],
+      variant: "row",
+      align: "center",
+      presentation: {
+        background: "canvas",
+        paddingTop: "standard",
+        paddingBottom: "standard",
+        containerWidth: "wide",
+        align: "center",
+      },
+    },
+  },
+  "client-testimonial-proof": {
+    name: "Client testimonial proof",
+    sectionTypeKey: "testimonials_trio",
+    props: {
+      eyebrow: "Client notes",
+      headline: "Trusted for briefs where the shortlist has to feel exact.",
+      items: [
+        {
+          quote:
+            "The agency understood the look, timing, and client tone before the first shortlist landed.",
+          author: "Production Lead",
+          context: "Luxury hospitality launch",
+          location: "Tulum",
+          accent: "champagne",
+        },
+        {
+          quote:
+            "We needed faces, presence, and reliability. The booking flow stayed calm from start to finish.",
+          author: "Brand Director",
+          context: "Commercial campaign",
+          location: "Cancun",
+          accent: "sage",
+        },
+        {
+          quote:
+            "Every profile felt curated, not dumped into a spreadsheet. That saved us hours.",
+          author: "Event Producer",
+          context: "Private venue opening",
+          location: "Ibiza",
+          accent: "blush",
+        },
+      ],
+      variant: "trio-card",
+      defaultAccent: "auto",
+      presentation: {
+        background: "muted-surface",
+        paddingTop: "airy",
+        paddingBottom: "airy",
+        containerWidth: "wide",
+        align: "center",
+      },
+    },
+  },
+  "visual-story-hero-split": {
+    name: "Visual story hero split",
+    sectionTypeKey: "hero_split",
+    props: {
+      eyebrow: "Models & image agency",
+      headline: "A sharper way to shape the talent shortlist.",
+      subheadline:
+        "Blend editorial presentation with agency-managed discovery, so visitors understand the offer before they search.",
+      primaryCta: { label: "Start a brief", href: "/contact" },
+      secondaryCta: { label: "Browse talent", href: "/directory" },
+      imageUrl: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f",
+      imageAlt: "Editorial model campaign",
+      side: "media-right",
+      variant: "asymmetric",
+      presentation: {
+        background: "canvas",
+        paddingTop: "editorial",
+        paddingBottom: "airy",
+        containerWidth: "wide",
+        align: "left",
+      },
+    },
+  },
 };
 
 const STARTER_STYLE_PRESET_DEFAULTS: Partial<
@@ -509,6 +760,59 @@ const STARTER_STYLE_PRESET_DEFAULTS: Partial<
       overlayOpacity: 55,
     },
   },
+  "agency-metrics-proof": {
+    "center-row": {
+      variant: "row",
+      align: "center",
+      presentation: {
+        background: "canvas",
+        paddingTop: "standard",
+        paddingBottom: "standard",
+        align: "center",
+      },
+    },
+    "split-proof": {
+      variant: "split",
+      align: "start",
+      headline: "Proof points for high-touch casting and production briefs.",
+      presentation: {
+        background: "muted-surface",
+        paddingTop: "airy",
+        paddingBottom: "airy",
+        align: "left",
+      },
+    },
+  },
+  "client-testimonial-proof": {
+    "trio-cards": {
+      variant: "trio-card",
+      defaultAccent: "auto",
+    },
+    "single-hero": {
+      variant: "single-hero",
+      headline: "A calm, curated process clients can feel.",
+      presentation: {
+        containerWidth: "narrow",
+      },
+    },
+  },
+  "visual-story-hero-split": {
+    "asymmetric-editorial": {
+      side: "media-right",
+      variant: "asymmetric",
+    },
+    "fullbleed-campaign": {
+      side: "media-left",
+      variant: "fullbleed",
+      subheadline:
+        "Lead with campaign imagery, then route visitors into search, directory, and agency-managed inquiry.",
+      presentation: {
+        background: "muted-surface",
+        paddingTop: "airy",
+        paddingBottom: "airy",
+      },
+    },
+  },
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -551,6 +855,31 @@ export function getSectionTemplateStarterDefault(
     ...defaults,
     props: mergeRecords(defaults.props, presetProps),
   };
+}
+
+export function getSectionTemplateStarter(
+  starterId: string | null | undefined,
+): SectionTemplateStarter | null {
+  if (!starterId) return null;
+  return (
+    SECTION_TEMPLATE_STARTERS.find((starter) => starter.id === starterId) ?? null
+  );
+}
+
+export function listSectionTemplateStartersByDataBinding(
+  dataBindingKey: BuilderDataSourceKey,
+): readonly SectionTemplateStarter[] {
+  return SECTION_TEMPLATE_STARTERS.filter(
+    (starter) => starter.dataBindingKey === dataBindingKey,
+  );
+}
+
+export function listSectionTemplateStartersByEditModel(
+  editModel: SectionTemplateStarterEditModel,
+): readonly SectionTemplateStarter[] {
+  return SECTION_TEMPLATE_STARTERS.filter(
+    (starter) => starter.editModel === editModel,
+  );
 }
 
 export function isSectionTemplateStarterId(

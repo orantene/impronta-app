@@ -1,5 +1,6 @@
 export * from "./types";
 export * from "./create";
+export * from "./data-bindings";
 export * from "./registry";
 export * from "./validate";
 export * from "./legacy-section-tree";
@@ -7,3 +8,5 @@ export * from "./snapshot-tree";
 export * from "./role-bindings";
 export * from "./operations";
 export * from "./drop-policy";
+export * from "./layout-health";
+export * from "./render";

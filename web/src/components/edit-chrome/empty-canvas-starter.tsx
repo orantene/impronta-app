@@ -39,7 +39,14 @@ import {
   loadStarterAvailability,
   type StarterActionState,
 } from "@/lib/site-admin/edit-mode/starter-action";
+import {
+  resolveEssentialHomeIndexes,
+  sectionSourceKind,
+  sectionSourceLabel,
+  STARTER_STYLE_OPTIONS_BY_TYPE,
+} from "@/lib/site-admin/edit-mode/starter-selection";
 import { getBuilderPlanPolicy } from "@/lib/site-admin/builder-capabilities";
+import type { SectionTypeKey } from "@/lib/site-admin/sections/registry";
 import { InfoTip } from "@/components/ui/info-tip";
 import {
   WireClassic,
@@ -57,7 +64,38 @@ export interface RecipeTile {
   category: "featured" | "agency" | "service" | "portfolio" | "food";
   bestFor: string;
   sequence: ReadonlyArray<string>;
+  sectionTypeKeys: ReadonlyArray<SectionTypeKey>;
   Wire: ComponentType<{ className?: string }>;
+}
+
+function sectionSourceBadgeClass(typeKey: SectionTypeKey): string {
+  const source = sectionSourceKind(typeKey);
+  if (source === "live-data") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  if (source === "navigation") {
+    return "border-indigo-200 bg-indigo-50 text-indigo-700";
+  }
+  return "border-zinc-200 bg-zinc-50 text-zinc-600";
+}
+
+function summarizeTemplateSourceKinds(tile: RecipeTile): {
+  liveData: number;
+  navigation: number;
+  starterContent: number;
+  homeCore: number;
+} {
+  let liveData = 0;
+  let navigation = 0;
+  let starterContent = 0;
+  for (const typeKey of tile.sectionTypeKeys) {
+    const kind = sectionSourceKind(typeKey);
+    if (kind === "live-data") liveData += 1;
+    else if (kind === "navigation") navigation += 1;
+    else starterContent += 1;
+  }
+  const homeCore = resolveEssentialHomeIndexes(tile.sectionTypeKeys).length;
+  return { liveData, navigation, starterContent, homeCore };
 }
 
 export interface TemplateCurrentSectionSummary {
@@ -78,7 +116,21 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
     category: "featured",
     bestFor: "Free roster launch",
     sequence: ["Hero", "Services", "Featured roster", "CTA"],
+    sectionTypeKeys: ["hero", "category_grid", "featured_talent", "cta_banner"],
     Wire: WireClassic,
+  },
+  {
+    slug: "home-core-4",
+    label: "Home Core 4",
+    summary:
+      "Fixed homepage core — search hero, browse-by-type, featured talent, and location map.",
+    info: "Best base for agency directory homepages. Blends live-data sections with editable copy and layout controls.",
+    sections: 4,
+    category: "featured",
+    bestFor: "Directory-first homepages",
+    sequence: ["Search hero", "Browse by type", "Featured talent", "Location map"],
+    sectionTypeKeys: ["hero", "category_grid", "featured_talent", "map_overlay"],
+    Wire: WireStudioMinimal,
   },
   {
     slug: "editorial-bridal",
@@ -100,6 +152,17 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
       "Testimonials",
       "CTA",
     ],
+    sectionTypeKeys: [
+      "hero",
+      "trust_strip",
+      "category_grid",
+      "featured_talent",
+      "process_steps",
+      "destinations_mosaic",
+      "gallery_strip",
+      "testimonials_trio",
+      "cta_banner",
+    ],
     Wire: WireEditorial,
   },
   {
@@ -111,6 +174,7 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
     category: "featured",
     bestFor: "Clean migrations",
     sequence: ["Hero", "Services", "Featured roster", "CTA"],
+    sectionTypeKeys: ["hero", "category_grid", "featured_talent", "cta_banner"],
     Wire: WireClassic,
   },
   {
@@ -122,6 +186,7 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
     category: "portfolio",
     bestFor: "Portfolio studios",
     sequence: ["Hero", "Services", "Gallery", "CTA"],
+    sectionTypeKeys: ["hero", "category_grid", "gallery_strip", "cta_banner"],
     Wire: WireStudioMinimal,
   },
   {
@@ -144,6 +209,17 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
       "FAQ",
       "CTA",
     ],
+    sectionTypeKeys: [
+      "hero",
+      "stats",
+      "image_copy_alternating",
+      "gallery_strip",
+      "process_steps",
+      "testimonials_trio",
+      "pricing_grid",
+      "faq_accordion",
+      "cta_banner",
+    ],
     Wire: WireEditorial,
   },
   {
@@ -165,6 +241,16 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
       "Pricing",
       "CTA",
     ],
+    sectionTypeKeys: [
+      "hero",
+      "marquee",
+      "category_grid",
+      "team_grid",
+      "before_after",
+      "testimonials_trio",
+      "pricing_grid",
+      "cta_banner",
+    ],
     Wire: WireClassic,
   },
   {
@@ -185,6 +271,15 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
       "Stats",
       "CTA",
     ],
+    sectionTypeKeys: [
+      "hero",
+      "marquee",
+      "featured_talent",
+      "category_grid",
+      "process_steps",
+      "stats",
+      "cta_banner",
+    ],
     Wire: WireEditorial,
   },
   {
@@ -197,6 +292,14 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
     category: "service",
     bestFor: "Wellness offers",
     sequence: ["Hero", "Stats", "Treatments", "Pricing", "FAQ", "CTA"],
+    sectionTypeKeys: [
+      "hero",
+      "stats",
+      "image_copy_alternating",
+      "pricing_grid",
+      "faq_accordion",
+      "cta_banner",
+    ],
     Wire: WireStudioMinimal,
   },
   {
@@ -209,6 +312,14 @@ export const STARTER_TEMPLATE_TILES: RecipeTile[] = [
     category: "food",
     bestFor: "Hospitality pages",
     sequence: ["Hero", "Anchor nav", "Dishes", "Hours", "Press", "Reserve"],
+    sectionTypeKeys: [
+      "hero",
+      "anchor_nav",
+      "image_copy_alternating",
+      "stats",
+      "testimonials_trio",
+      "cta_banner",
+    ],
     Wire: WireStudioMinimal,
   },
 ];
@@ -339,7 +450,10 @@ export function EmptyCanvasStarter({
   }
 
   return (
-    <div className="mx-auto my-16 w-full max-w-3xl px-6">
+    <div
+      data-builder-selector-surface
+      className="mx-auto my-16 w-full max-w-3xl px-6"
+    >
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.25),0_2px_0_rgba(0,0,0,0.04)]">
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
           Start here
@@ -547,6 +661,7 @@ export function StarterTemplateGalleryModal({
 }) {
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [confirmSlug, setConfirmSlug] = useState<string | null>(null);
+  const [homeCoreOnly, setHomeCoreOnly] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const countFor = (
@@ -568,7 +683,12 @@ export function StarterTemplateGalleryModal({
     if (open) return;
     setConfirmSlug(null);
     setPreviewSlug(null);
+    setHomeCoreOnly(false);
   }, [open]);
+
+  const visibleTiles = homeCoreOnly
+    ? tiles.filter((tile) => summarizeTemplateSourceKinds(tile).homeCore >= 3)
+    : tiles;
 
   useEffect(() => {
     if (!open) return;
@@ -588,12 +708,12 @@ export function StarterTemplateGalleryModal({
   if (!open) return null;
 
   const previewTile =
-    tiles.find((tile) => tile.slug === previewSlug) ??
-    tiles.find((tile) => tile.slug === highlightedSlug) ??
-    tiles[0] ??
+    visibleTiles.find((tile) => tile.slug === previewSlug) ??
+    visibleTiles.find((tile) => tile.slug === highlightedSlug) ??
+    visibleTiles[0] ??
     null;
   const confirmTile =
-    tiles.find((tile) => tile.slug === confirmSlug) ??
+    visibleTiles.find((tile) => tile.slug === confirmSlug) ??
     allTiles.find((tile) => tile.slug === confirmSlug) ??
     null;
   const requiresReview = confirmOnApply && currentDraftSections.length > 0;
@@ -706,6 +826,19 @@ export function StarterTemplateGalleryModal({
                   </button>
                 );
               })}
+              <button
+                type="button"
+                data-template-home-core-toggle
+                aria-pressed={homeCoreOnly}
+                onClick={() => setHomeCoreOnly((value) => !value)}
+                className={
+                  homeCoreOnly
+                    ? "shrink-0 rounded-full bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white"
+                    : "shrink-0 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:border-sky-300"
+                }
+              >
+                Home core
+              </button>
             </div>
           </div>
         </div>
@@ -721,18 +854,21 @@ export function StarterTemplateGalleryModal({
               {infoMessage}
             </div>
           ) : null}
-          {tiles.length === 0 ? (
+          {visibleTiles.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-10 text-center text-sm text-zinc-500">
-              No templates match this search yet.
+              {homeCoreOnly
+                ? "No home-core templates match this search yet."
+                : "No templates match this search yet."}
             </div>
           ) : (
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
               <div className="grid content-start gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2">
-                {tiles.map((tile) => {
+                {visibleTiles.map((tile) => {
                   const Wire = tile.Wire;
                   const highlighted = highlightedSlug === tile.slug;
                   const selected = previewTile?.slug === tile.slug;
                   const busy = pending && pendingSlug === tile.slug;
+                  const sources = summarizeTemplateSourceKinds(tile);
                   return (
                     <form
                       key={tile.slug}
@@ -802,6 +938,28 @@ export function StarterTemplateGalleryModal({
                         {tile.sequence.length > 6 ? (
                           <span className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-400">
                             +{tile.sequence.length - 6}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {sources.homeCore > 0 ? (
+                          <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+                            Home core {sources.homeCore}
+                          </span>
+                        ) : null}
+                        {sources.liveData > 0 ? (
+                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                            Live data {sources.liveData}
+                          </span>
+                        ) : null}
+                        {sources.navigation > 0 ? (
+                          <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700">
+                            Navigation {sources.navigation}
+                          </span>
+                        ) : null}
+                        {sources.starterContent > 0 ? (
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+                            Starter {sources.starterContent}
                           </span>
                         ) : null}
                       </div>
@@ -889,6 +1047,7 @@ function TemplatePreviewPanel({
   onReviewApply: (slug: string) => void;
 }) {
   const Wire = tile.Wire;
+  const sources = summarizeTemplateSourceKinds(tile);
 
   return (
     <aside
@@ -922,6 +1081,28 @@ function TemplatePreviewPanel({
           <div className="font-semibold text-zinc-900">Category</div>
           <div className="mt-1 capitalize text-zinc-500">{tile.category}</div>
         </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {sources.homeCore > 0 ? (
+          <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+            Home core sections: {sources.homeCore}
+          </span>
+        ) : null}
+        {sources.liveData > 0 ? (
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+            Live data sections: {sources.liveData}
+          </span>
+        ) : null}
+        {sources.navigation > 0 ? (
+          <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700">
+            Navigation sections: {sources.navigation}
+          </span>
+        ) : null}
+        {sources.starterContent > 0 ? (
+          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+            Starter sections: {sources.starterContent}
+          </span>
+        ) : null}
       </div>
       <div className="mt-4">
         <div className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400">
@@ -1001,6 +1182,81 @@ function TemplateApplyReviewDialog({
   onApplyStart: (slug: string) => void;
   onClose: () => void;
 }) {
+  const homeCoreIndexSet = useMemo(
+    () => new Set(resolveEssentialHomeIndexes(tile.sectionTypeKeys)),
+    [tile.sectionTypeKeys],
+  );
+  const hasStrongHomeCore = homeCoreIndexSet.size >= 3;
+  const [selectedIndexes, setSelectedIndexes] = useState<ReadonlySet<number>>(
+    () => new Set(tile.sequence.map((_, index) => index)),
+  );
+  const [styleByIndex, setStyleByIndex] = useState<ReadonlyMap<number, string>>(
+    () => new Map(),
+  );
+  const [lockHomeCore, setLockHomeCore] = useState<boolean>(hasStrongHomeCore);
+
+  useEffect(() => {
+    setSelectedIndexes(new Set(tile.sequence.map((_, index) => index)));
+    setStyleByIndex(new Map());
+    setLockHomeCore(hasStrongHomeCore);
+  }, [hasStrongHomeCore, tile.slug, tile.sequence]);
+
+  const normalizedSelectedIndexes = useMemo(() => {
+    if (!lockHomeCore || !hasStrongHomeCore) return selectedIndexes;
+    const next = new Set(selectedIndexes);
+    for (const index of homeCoreIndexSet) next.add(index);
+    return next;
+  }, [hasStrongHomeCore, homeCoreIndexSet, lockHomeCore, selectedIndexes]);
+
+  const selectedCount = normalizedSelectedIndexes.size;
+  const canApply = selectedCount > 0;
+
+  function toggleIndex(index: number) {
+    if (lockHomeCore && homeCoreIndexSet.has(index)) return;
+    setSelectedIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedIndexes(new Set(tile.sequence.map((_, index) => index)));
+  }
+
+  function selectCore() {
+    const next = new Set(tile.sequence.slice(0, 4).map((_, index) => index));
+    if (lockHomeCore) {
+      for (const index of homeCoreIndexSet) next.add(index);
+    }
+    setSelectedIndexes(next);
+  }
+
+  function selectHomeCoreSet() {
+    const indexes = resolveEssentialHomeIndexes(tile.sectionTypeKeys);
+    if (indexes.length >= 3) {
+      setSelectedIndexes(new Set(indexes));
+      return;
+    }
+    selectCore();
+  }
+
+  function setStyle(index: number, styleId: string) {
+    setStyleByIndex((prev) => {
+      const next = new Map(prev);
+      if (!styleId) {
+        next.delete(index);
+      } else {
+        next.set(index, styleId);
+      }
+      return next;
+    });
+  }
+
   return (
     <div
       data-template-apply-review={tile.slug}
@@ -1090,25 +1346,122 @@ function TemplateApplyReviewDialog({
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold text-zinc-950">Starter draft</div>
               <span className="rounded-full border border-indigo-100 bg-white px-2 py-0.5 text-xs font-medium text-indigo-700">
-                {tile.sections} sections
+                {selectedCount} of {tile.sections} sections
               </span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={selectAll}
+                className="rounded-lg border border-indigo-100 bg-white px-2.5 py-1 text-[11px] font-medium text-indigo-700"
+              >
+                Select all
+              </button>
+              {tile.sequence.length > 4 ? (
+                <button
+                  type="button"
+                  onClick={selectCore}
+                  className="rounded-lg border border-indigo-100 bg-white px-2.5 py-1 text-[11px] font-medium text-indigo-700"
+                >
+                  Core 4
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={selectHomeCoreSet}
+                className="rounded-lg border border-indigo-100 bg-white px-2.5 py-1 text-[11px] font-medium text-indigo-700"
+              >
+                Home core
+              </button>
+              {hasStrongHomeCore ? (
+                <button
+                  type="button"
+                  data-template-lock-home-core-toggle
+                  aria-pressed={lockHomeCore}
+                  onClick={() => setLockHomeCore((value) => !value)}
+                  className={
+                    lockHomeCore
+                      ? "rounded-lg border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-800"
+                      : "rounded-lg border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-medium text-sky-700"
+                  }
+                >
+                  {lockHomeCore ? "Home core locked" : "Home core unlocked"}
+                </button>
+              ) : null}
             </div>
             <ol
               data-template-review-next-sections={tile.slug}
               className="mt-3 space-y-1.5"
             >
-              {tile.sequence.map((item, index) => (
-                <li
-                  key={`${tile.slug}-review-${item}-${index}`}
-                  className="flex items-center gap-2 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-sm text-zinc-800"
-                >
-                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[10px] font-semibold tabular-nums text-indigo-700">
-                    {index + 1}
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
+              {tile.sequence.map((item, index) => {
+                const sectionType = tile.sectionTypeKeys[index] ?? "hero";
+                const homeCoreSection = homeCoreIndexSet.has(index);
+                return (
+                  <li
+                    key={`${tile.slug}-review-${item}-${index}`}
+                    className={`rounded-lg border px-3 py-2 text-sm ${
+                      normalizedSelectedIndexes.has(index)
+                        ? "border-indigo-200 bg-white text-zinc-800"
+                        : "border-zinc-200 bg-zinc-50 text-zinc-500"
+                    }`}
+                  >
+                    <div className="mb-1.5 pl-7">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${sectionSourceBadgeClass(sectionType)}`}
+                        >
+                          {sectionSourceLabel(sectionType)}
+                        </span>
+                        {homeCoreSection ? (
+                          <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">
+                            Home core
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={normalizedSelectedIndexes.has(index)}
+                      onChange={() => toggleIndex(index)}
+                      disabled={lockHomeCore && homeCoreSection}
+                      aria-label={`Include ${item}`}
+                      className="h-4 w-4 shrink-0 border-zinc-300 text-indigo-600"
+                    />
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[10px] font-semibold tabular-nums text-indigo-700">
+                      {index + 1}
+                    </span>
+                    <span>{item}</span>
+                  </div>
+                    {normalizedSelectedIndexes.has(index) &&
+                    STARTER_STYLE_OPTIONS_BY_TYPE[sectionType] ? (
+                    <div className="mt-2 pl-7">
+                      <label className="text-[11px] font-medium text-zinc-500">
+                        Layout style
+                        <select
+                          value={styleByIndex.get(index) ?? ""}
+                          onChange={(event) => setStyle(index, event.target.value)}
+                          className="mt-1 block h-8 w-full rounded-lg border border-indigo-100 bg-white px-2 text-xs text-zinc-700"
+                        >
+                          <option value="">Default style</option>
+                          {(STARTER_STYLE_OPTIONS_BY_TYPE[sectionType] ?? []).map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ol>
+            {!canApply ? (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Select at least one section to apply this starter.
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -1121,14 +1474,44 @@ function TemplateApplyReviewDialog({
           >
             Keep current draft
           </button>
-          <form action={dispatch} onSubmit={() => onApplyStart(tile.slug)}>
+          <form
+            action={dispatch}
+            onSubmit={(event) => {
+              if (!canApply) {
+                event.preventDefault();
+                return;
+              }
+              onApplyStart(tile.slug);
+            }}
+          >
             <input type="hidden" name="recipeSlug" value={tile.slug} />
+            <input
+              type="hidden"
+              name="lockHomeCore"
+              value={lockHomeCore ? "1" : "0"}
+            />
+            {Array.from(normalizedSelectedIndexes).map((index) => (
+              <input
+                key={`${tile.slug}-selected-${index}`}
+                type="hidden"
+                name="starterEntryIndex"
+                value={String(index)}
+              />
+            ))}
+            {Array.from(styleByIndex.entries()).map(([index, styleId]) => (
+              <input
+                key={`${tile.slug}-style-${index}`}
+                type="hidden"
+                name="starterEntryStyle"
+                value={`${index}:${styleId}`}
+              />
+            ))}
             <button
               type="submit"
-              disabled={pending}
+              disabled={pending || !canApply}
               className="inline-flex h-10 items-center justify-center rounded-lg bg-[#3d4f7c] px-4 text-sm font-semibold text-white transition hover:bg-[#4a5e94] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {busy ? "Applying..." : "Apply and replace draft"}
+              {busy ? "Applying..." : `Apply ${selectedCount} section${selectedCount === 1 ? "" : "s"}`}
             </button>
           </form>
         </div>

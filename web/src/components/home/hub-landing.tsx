@@ -78,7 +78,7 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
               <li key={a.hostname}>
                 <a
                   href={`//${a.hostname}`}
-                  className="block rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-5 py-4 text-sm text-foreground transition hover:bg-[var(--impronta-surface)]/60"
+                  className="block rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-5 py-4 text-sm text-foreground transition hover:bg-[var(--impronta-surface)]/60"
                 >
                   <span className="font-display tracking-[0.08em]">
                     {a.hostname}
@@ -116,7 +116,7 @@ async function HubTalentDirectory({ talent }: { talent: HubTalentCard[] }) {
         {talent.map((t) => {
           const label = t.display_name?.trim() || t.profile_code;
           const card = (
-            <div className="flex h-full flex-col justify-between rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-5 py-4 text-sm transition hover:bg-[var(--impronta-surface)]/60">
+            <div className="flex h-full flex-col justify-between rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-5 py-4 text-sm transition hover:bg-[var(--impronta-surface)]/60">
               <span className="font-display tracking-[0.06em] text-foreground">
                 {label}
               </span>

@@ -68,7 +68,7 @@ export function FeaturedTalentSection({
                 prefixPublicHref(`/t/${t.profileCode}`, publicPathPrefix),
                 locale,
               )}
-              className={`group relative overflow-hidden rounded-lg bg-[var(--impronta-surface)]${i >= 4 ? " hidden sm:block" : ""}`}
+              className={`group relative overflow-hidden rounded-[var(--site-radius)] bg-[var(--impronta-surface)]${i >= 4 ? " hidden sm:block" : ""}`}
             >
               <div className="relative aspect-[3/4] w-full overflow-hidden">
                 {t.thumbnailUrl ? (

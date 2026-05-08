@@ -7,12 +7,19 @@ import { ctaBannerSchemaV1 } from "../cta_banner/schema";
 import { featuredTalentSchemaV1 } from "../featured_talent/schema";
 import { gallerySchemaV1 } from "../gallery_strip/schema";
 import { heroSchemaV1 } from "../hero/schema";
+import { heroSplitSchemaV1 } from "../hero_split/schema";
 import { mapOverlaySchemaV1 } from "../map_overlay/schema";
 import { getSectionMeta } from "../section-meta-registry";
+import { statsSchemaV1 } from "../stats/schema";
+import { testimonialsTrioSchemaV1 } from "../testimonials_trio/schema";
+import { BUILDER_DATA_SOURCE_REGISTRY } from "../../builder-node/data-bindings";
 import {
   SECTION_TEMPLATE_KITS,
   SECTION_TEMPLATE_STARTERS,
+  getSectionTemplateStarter,
   getSectionTemplateStarterDefault,
+  listSectionTemplateStartersByDataBinding,
+  listSectionTemplateStartersByEditModel,
 } from "./section-template-starters";
 
 const STARTER_SECTION_SCHEMAS: Record<string, ZodTypeAny> = {
@@ -21,7 +28,10 @@ const STARTER_SECTION_SCHEMAS: Record<string, ZodTypeAny> = {
   featured_talent: featuredTalentSchemaV1,
   gallery_strip: gallerySchemaV1,
   hero: heroSchemaV1,
+  hero_split: heroSplitSchemaV1,
   map_overlay: mapOverlaySchemaV1,
+  stats: statsSchemaV1,
+  testimonials_trio: testimonialsTrioSchemaV1,
 };
 
 test("section template starters point at registered section types", () => {
@@ -69,6 +79,9 @@ test("section template starter defaults validate against their section schema", 
 });
 
 test("section template starters document their edit and data behavior", () => {
+  const knownDataSources = new Set(
+    BUILDER_DATA_SOURCE_REGISTRY.map((source) => source.key),
+  );
   const liveDataStarters = SECTION_TEMPLATE_STARTERS.filter(
     (starter) => starter.sourceKind === "live-data",
   );
@@ -88,8 +101,36 @@ test("section template starters document their edit and data behavior", () => {
       `${starter.id} should explain what the builder can edit`,
     );
     assert.ok(
+      starter.componentRecipe.length >= 3,
+      `${starter.id} should describe the UI components that make up the template`,
+    );
+    assert.ok(
+      starter.editModel.length > 0,
+      `${starter.id} should declare the editor model it belongs to`,
+    );
+    if (starter.dataBindingKey) {
+      assert.ok(
+        knownDataSources.has(starter.dataBindingKey),
+        `${starter.id} references unknown data binding ${starter.dataBindingKey}`,
+      );
+    }
+    if (
+      starter.sourceKind === "live-data" ||
+      starter.sourceKind === "navigation" ||
+      starter.sourceKind === "route-action"
+    ) {
+      assert.ok(
+        starter.dataBindingKey,
+        `${starter.id} should carry a canonical data binding key`,
+      );
+    }
+    assert.ok(
       (starter.stylePresets ?? []).length >= 2,
       `${starter.id} should expose multiple visual starting styles`,
+    );
+    assert.ok(
+      starter.readiness === "ready-now" || starter.readiness === "needs-setup",
+      `${starter.id} should declare readiness state`,
     );
     const searchTerms: readonly string[] = starter.searchTerms;
     assert.ok(
@@ -97,6 +138,23 @@ test("section template starters document their edit and data behavior", () => {
       `${starter.id} should stay discoverable in search`,
     );
   }
+
+  const needsSetupStarters = SECTION_TEMPLATE_STARTERS.filter(
+    (starter) => starter.readiness === "needs-setup",
+  );
+  assert.ok(
+    needsSetupStarters.length >= 1,
+    "starter gallery should clearly mark at least one setup-required template",
+  );
+
+  const homeCoreStarters = SECTION_TEMPLATE_STARTERS.filter(
+    (starter) => starter.homeCore,
+  );
+  assert.equal(
+    homeCoreStarters.length,
+    4,
+    "starter gallery should expose exactly four fixed home-core starters",
+  );
 });
 
 test("section template kits only reference known starters", () => {
@@ -106,5 +164,34 @@ test("section template kits only reference known starters", () => {
     for (const starterId of kit.starterIds) {
       assert.ok(starterIds.has(starterId), `${kit.id} references ${starterId}`);
     }
+    if (kit.kind === "home-kit") {
+      const coreCount = kit.starterIds.reduce((acc, starterId) => {
+        const starter = SECTION_TEMPLATE_STARTERS.find((item) => item.id === starterId);
+        return starter?.homeCore ? acc + 1 : acc;
+      }, 0);
+      assert.ok(coreCount >= 3, `${kit.id} should retain a strong home-core baseline`);
+    }
   }
+});
+
+test("section template starter lookup helpers expose data and edit contracts", () => {
+  const featured = getSectionTemplateStarter("featured-talent-live-grid");
+  assert.ok(featured);
+  assert.equal(featured.dataBindingKey, "featured_talent_profiles");
+  assert.equal(featured.editModel, "live-data");
+  assert.equal(getSectionTemplateStarter("missing"), null);
+
+  const rosterStarters = listSectionTemplateStartersByDataBinding(
+    "featured_talent_profiles",
+  );
+  assert.deepEqual(
+    rosterStarters.map((starter) => starter.id),
+    ["featured-talent-live-grid"],
+  );
+
+  const assetStarters = listSectionTemplateStartersByEditModel("asset").map(
+    (starter) => starter.id,
+  );
+  assert.ok(assetStarters.includes("editorial-photo-story"));
+  assert.ok(assetStarters.includes("visual-story-hero-split"));
 });

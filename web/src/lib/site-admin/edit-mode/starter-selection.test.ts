@@ -6,6 +6,7 @@ import {
   parseSelectedStarterEntryIndexes,
   parseSelectedStarterEntryStyles,
   resolveEssentialHomeIndexes,
+  resolveSelectedStarterEntryIndexes,
   resolveStarterEntryStylePatch,
   sectionSourceKind,
   sectionSourceLabel,
@@ -38,6 +39,24 @@ test("parseSelectedStarterEntryIndexes keeps only valid in-range indexes", () =>
   formData.append("starterEntryIndex", "nope");
   const selected = parseSelectedStarterEntryIndexes(formData, 4);
   assert.deepEqual([...((selected ?? new Set()).values())], [0, 2]);
+});
+
+test("resolveSelectedStarterEntryIndexes falls back to all entries when none selected", () => {
+  const selected = resolveSelectedStarterEntryIndexes({
+    sectionTypeKeys: ["hero", "category_grid", "featured_talent", "cta_banner"],
+    selectedIndexes: null,
+    lockHomeCore: false,
+  });
+  assert.deepEqual([...selected.values()], [0, 1, 2, 3]);
+});
+
+test("resolveSelectedStarterEntryIndexes enforces home core when locked", () => {
+  const selected = resolveSelectedStarterEntryIndexes({
+    sectionTypeKeys: ["hero", "stats", "category_grid", "featured_talent", "cta_banner"],
+    selectedIndexes: new Set([4]),
+    lockHomeCore: true,
+  });
+  assert.deepEqual([...selected.values()], [4, 0, 2, 3]);
 });
 
 test("parseSelectedStarterEntryStyles parses index:style pairs safely", () => {

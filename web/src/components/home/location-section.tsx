@@ -73,7 +73,7 @@ export function LocationSection({
                   ),
                   locale,
                 )}
-                className="group flex shrink-0 items-center gap-2.5 rounded-xl border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-4 py-3 transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5"
+                className="group flex shrink-0 items-center gap-2.5 rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-4 py-3 transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5"
               >
                 <MapPin className="size-4 text-[var(--impronta-gold)]" />
                 <div>

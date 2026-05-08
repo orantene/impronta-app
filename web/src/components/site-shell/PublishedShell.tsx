@@ -28,6 +28,9 @@ import {
   builderSectionNodeAddressKey,
   indexBuilderSectionChildNodeIds,
   indexBuilderSectionNodeIds,
+  indexBuilderSectionNodes,
+  renderBuilderNodes,
+  resolveBuilderNodeRole,
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
@@ -87,6 +90,9 @@ export async function PublishedShellHeader({
   const builderSectionNodeIds = indexBuilderSectionNodeIds(
     builderTree,
   );
+  const builderSectionNodes = indexBuilderSectionNodes(
+    builderTree,
+  );
   const builderSectionChildNodeIds = indexBuilderSectionChildNodeIds(
     builderTree,
   );
@@ -95,6 +101,7 @@ export async function PublishedShellHeader({
     tenantId,
     locale,
     builderSectionNodeIds,
+    builderSectionNodes,
     builderSectionChildNodeIds,
   );
 }
@@ -119,6 +126,9 @@ export async function PublishedShellFooter({
   const builderSectionNodeIds = indexBuilderSectionNodeIds(
     builderTree,
   );
+  const builderSectionNodes = indexBuilderSectionNodes(
+    builderTree,
+  );
   const builderSectionChildNodeIds = indexBuilderSectionChildNodeIds(
     builderTree,
   );
@@ -127,6 +137,7 @@ export async function PublishedShellFooter({
     tenantId,
     locale,
     builderSectionNodeIds,
+    builderSectionNodes,
     builderSectionChildNodeIds,
   );
 }
@@ -159,6 +170,7 @@ async function renderShellSlot(
   tenantId: string,
   locale: string,
   builderSectionNodeIds: ReadonlyMap<string, string>,
+  builderSectionNodes: ReturnType<typeof indexBuilderSectionNodes>,
   builderSectionChildNodeIds: ReadonlyMap<string, ReadonlyArray<string>>,
 ): Promise<React.ReactNode> {
   const reg = getSectionType(slot.sectionTypeKey);
@@ -180,8 +192,20 @@ async function renderShellSlot(
       sortOrder: slot.sortOrder,
     }) ?? "",
   );
+  const builderSectionNode = builderSectionNodes.get(
+    builderSectionNodeAddressKey({
+      sectionId: slot.sectionId,
+      slotKey: slot.slotKey,
+      sortOrder: slot.sortOrder,
+    }) ?? "",
+  );
+  const builderSectionChildren = builderSectionNode?.children ?? [];
   const roleBindingResult = buildBuilderNodeRoleBindings(
-    builderNodeId ? (builderSectionChildNodeIds.get(builderNodeId) ?? []) : [],
+    builderNodeId
+      ? (builderSectionChildNodeIds.get(builderNodeId) ?? []).filter((id) =>
+          resolveBuilderNodeRole(id),
+        )
+      : [],
   );
   const roleBindings = roleBindingResult.nodeIdsByRole;
   if (
@@ -227,6 +251,12 @@ async function renderShellSlot(
         publicPathPrefix={publicPathPrefix}
         builderNodeBindings={builderNodeBindings}
       />
+      {builderSectionChildren.length > 0
+        ? renderBuilderNodes(builderSectionChildren, {
+            publicPathPrefix,
+            mode: "freeform",
+          })
+        : null}
     </div>
   );
 }

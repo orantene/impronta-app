@@ -14,20 +14,86 @@ export interface BuilderNodeRegistryEntry {
   propsSchema: z.ZodTypeAny;
 }
 
+const dataBindingPropsSchema = z.object({
+  sourceKey: z.string().min(1),
+  mode: z.enum(["auto", "manual"]).optional(),
+  filterQuery: z.string().max(500).optional(),
+  maxItems: z.number().int().min(1).max(100).optional(),
+});
+
 const sectionPropsSchema = z.object({
   sectionId: z.string().uuid().nullable().optional(),
   sectionTypeKey: z.string().min(1),
   label: z.string().nullable().optional(),
   slotKey: z.string().min(1).nullable().optional(),
   sortOrder: z.number().int().min(0).optional(),
-  dataBinding: z
-    .object({
-      sourceKey: z.string().min(1),
-      mode: z.enum(["auto", "manual"]).optional(),
-      filterQuery: z.string().max(500).optional(),
-      maxItems: z.number().int().min(1).max(100).optional(),
-    })
+  dataBinding: dataBindingPropsSchema.optional(),
+});
+
+const builderNodeStyleValueSchema = z.object({
+  align: z.enum(["left", "center", "right"]).optional(),
+  size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+  tone: z.enum(["default", "muted", "strong"]).optional(),
+  maxWidth: z.enum(["narrow", "reading", "wide", "full"]).optional(),
+  marginTop: z.enum(["none", "s", "m", "l"]).optional(),
+  marginBottom: z.enum(["none", "s", "m", "l"]).optional(),
+  paddingX: z.enum(["none", "s", "m", "l"]).optional(),
+  paddingY: z.enum(["none", "s", "m", "l"]).optional(),
+  background: z.enum(["none", "surface", "contrast"]).optional(),
+  radius: z.enum(["none", "sm", "md", "lg", "pill"]).optional(),
+  objectFit: z.enum(["cover", "contain"]).optional(),
+  aspectRatio: z.enum(["auto", "1:1", "4:3", "3:4", "16:9", "21:9"]).optional(),
+});
+
+const builderNodeStyleSchema = builderNodeStyleValueSchema
+  .extend({
+    responsive: z
+      .object({
+        tablet: builderNodeStyleValueSchema.optional(),
+        mobile: builderNodeStyleValueSchema.optional(),
+      })
+      .optional(),
+  })
+  .optional();
+
+const accordionPropsSchema = z.object({
+  allowMultiple: z.boolean().optional(),
+  defaultOpenItemIds: z.array(z.string().min(1)).max(30).optional(),
+  style: builderNodeStyleSchema,
+});
+
+const accordionItemPropsSchema = z.object({
+  title: z.string().min(1).max(180),
+  style: builderNodeStyleSchema,
+});
+
+const tabsPropsSchema = z.object({
+  defaultTabId: z.string().min(1).optional(),
+  style: builderNodeStyleSchema,
+});
+
+const tabPanelPropsSchema = z.object({
+  title: z.string().min(1).max(180),
+  style: builderNodeStyleSchema,
+});
+
+const carouselPropsSchema = z.object({
+  slidesPerView: z
+    .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
     .optional(),
+  autoplayMs: z.number().int().min(1000).max(30000).optional(),
+  loop: z.boolean().optional(),
+  showArrows: z.boolean().optional(),
+  showDots: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+const masonryPropsSchema = z.object({
+  columns: z
+    .union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)])
+    .optional(),
+  gap: z.enum(["s", "m", "l"]).optional(),
+  style: builderNodeStyleSchema,
 });
 
 const containerPropsSchema = z.object({
@@ -59,55 +125,26 @@ const containerPropsSchema = z.object({
         .optional(),
     })
     .optional(),
+  dataBinding: dataBindingPropsSchema.optional(),
+  style: builderNodeStyleSchema,
 });
 
 const splitPropsSchema = z.object({
   ratio: z.enum(["50-50", "40-60", "60-40", "30-70", "70-30"]).optional(),
   gap: z.enum(["s", "m", "l"]).optional(),
   collapseOnMobile: z.boolean().optional(),
-});
-
-const accordionPropsSchema = z.object({
-  allowMultiple: z.boolean().optional(),
-  defaultOpenItemIds: z.array(z.string().min(1)).max(30).optional(),
-});
-
-const accordionItemPropsSchema = z.object({
-  title: z.string().min(1).max(180),
-});
-
-const tabsPropsSchema = z.object({
-  defaultTabId: z.string().min(1).optional(),
-});
-
-const tabPanelPropsSchema = z.object({
-  title: z.string().min(1).max(180),
-});
-
-const carouselPropsSchema = z.object({
-  slidesPerView: z
-    .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
-    .optional(),
-  autoplayMs: z.number().int().min(1000).max(30000).optional(),
-  loop: z.boolean().optional(),
-  showArrows: z.boolean().optional(),
-  showDots: z.boolean().optional(),
-});
-
-const masonryPropsSchema = z.object({
-  columns: z
-    .union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)])
-    .optional(),
-  gap: z.enum(["s", "m", "l"]).optional(),
+  style: builderNodeStyleSchema,
 });
 
 const headingPropsSchema = z.object({
   text: z.string().min(1).max(240),
   level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  style: builderNodeStyleSchema,
 });
 
 const paragraphPropsSchema = z.object({
   text: z.string().min(1).max(5000),
+  style: builderNodeStyleSchema,
 });
 
 const buttonPropsSchema = z.object({
@@ -122,15 +159,18 @@ const buttonPropsSchema = z.object({
       disabled: z.object({ tone: z.enum(["primary", "secondary"]).optional() }).optional(),
     })
     .optional(),
+  style: builderNodeStyleSchema,
 });
 
 const imagePropsSchema = z.object({
   src: z.string().url().max(2048),
   alt: z.string().max(240).optional(),
+  style: builderNodeStyleSchema,
 });
 
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
+  style: builderNodeStyleSchema,
 });
 
 export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNodeRegistryEntry>> =

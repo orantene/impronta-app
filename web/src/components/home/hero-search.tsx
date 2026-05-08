@@ -332,7 +332,7 @@ export function HeroSearch({
         <input
           ref={inputRef}
           type="text"
-          className="h-14 w-full rounded-xl border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] pl-12 pr-14 text-base text-foreground placeholder:text-transparent outline-none transition-colors focus:border-[var(--impronta-gold)] focus:ring-1 focus:ring-[var(--impronta-gold)]/30 sm:h-16 sm:pr-28 sm:text-lg"
+          className="h-14 w-full rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] pl-12 pr-14 text-base text-foreground placeholder:text-transparent outline-none transition-colors focus:border-[var(--impronta-gold)] focus:ring-1 focus:ring-[var(--impronta-gold)]/30 sm:h-16 sm:pr-28 sm:text-lg"
           placeholder={copy.placeholder}
           aria-label={copy.ariaLabel}
           disabled={interpreting}
@@ -368,7 +368,7 @@ export function HeroSearch({
           type="submit"
           size="lg"
           disabled={interpreting}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--site-radius)]"
         >
           {/* Icon-only on mobile, text on sm+ */}
           <Search className="size-5 sm:hidden" />

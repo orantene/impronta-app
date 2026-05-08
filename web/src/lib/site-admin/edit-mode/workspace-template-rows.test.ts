@@ -3,6 +3,8 @@ import { test } from "node:test";
 
 import {
   buildWorkspaceTemplateRow,
+  summarizeWorkspaceTemplateCategories,
+  summarizeWorkspaceTemplateDataSources,
   summarizeWorkspaceTemplateSections,
   summarizeWorkspaceTemplateTypes,
   type WorkspaceTemplateRecord,
@@ -36,26 +38,34 @@ test("summarizes template sections in stable slot and sort order", () => {
     sections.map((section) => ({
       slotKey: section.slotKey,
       sortOrder: section.sortOrder,
-      label: section.label,
-      name: section.name,
-    })),
+        label: section.label,
+        categoryLabel: section.categoryLabel,
+        dataSourceLabel: section.dataSourceLabel,
+        name: section.name,
+      })),
     [
       {
         slotKey: "body",
         sortOrder: 10,
         label: "Gallery strip",
+        categoryLabel: "Showcase",
+        dataSourceLabel: null,
         name: "Work gallery",
       },
       {
         slotKey: "body",
         sortOrder: 20,
         label: "CTA banner",
+        categoryLabel: "Convert",
+        dataSourceLabel: null,
         name: "Final conversion",
       },
       {
         slotKey: "hero",
         sortOrder: 0,
         label: "Hero",
+        categoryLabel: "Hero",
+        dataSourceLabel: null,
         name: "Hero",
       },
     ],
@@ -86,6 +96,8 @@ test("summarizes malformed template slots with safe fallbacks", () => {
       sortOrder: section.sortOrder,
       sectionTypeKey: section.sectionTypeKey,
       label: section.label,
+      categoryLabel: section.categoryLabel,
+      dataSourceLabel: section.dataSourceLabel,
       name: section.name,
     })),
     [
@@ -94,6 +106,8 @@ test("summarizes malformed template slots with safe fallbacks", () => {
         sortOrder: 0,
         sectionTypeKey: "unknown",
         label: "unknown",
+        categoryLabel: "Custom",
+        dataSourceLabel: null,
         name: "unknown",
       },
       {
@@ -101,6 +115,8 @@ test("summarizes malformed template slots with safe fallbacks", () => {
         sortOrder: 0,
         sectionTypeKey: "unknown",
         label: "unknown",
+        categoryLabel: "Custom",
+        dataSourceLabel: null,
         name: "unknown",
       },
       {
@@ -108,6 +124,8 @@ test("summarizes malformed template slots with safe fallbacks", () => {
         sortOrder: 1,
         sectionTypeKey: "mystery_panel",
         label: "mystery_panel",
+        categoryLabel: "Custom",
+        dataSourceLabel: null,
         name: "mystery_panel",
       },
     ],
@@ -134,6 +152,48 @@ test("summarizes unique template section types and caps gallery badges", () => {
   ]);
 });
 
+test("summarizes template categories and data source cues", () => {
+  const sections = summarizeWorkspaceTemplateSections({
+    slots: [
+      {
+        slotKey: "hero",
+        sortOrder: 0,
+        sectionTypeKey: "hero",
+        name: "Opening",
+      },
+      {
+        slotKey: "body",
+        sortOrder: 10,
+        sectionTypeKey: "featured_talent",
+        name: "Featured roster",
+      },
+      {
+        slotKey: "body",
+        sortOrder: 20,
+        sectionTypeKey: "map_overlay",
+        name: "Locations",
+      },
+      {
+        slotKey: "body",
+        sortOrder: 30,
+        sectionTypeKey: "category_grid",
+        name: "Types",
+      },
+    ],
+  });
+
+  assert.deepEqual(summarizeWorkspaceTemplateCategories(sections), [
+    "Showcase",
+    "Convert",
+    "Hero",
+  ]);
+  assert.deepEqual(summarizeWorkspaceTemplateDataSources(sections), [
+    "Talent profiles",
+    "Talent locations",
+    "Directory taxonomy",
+  ]);
+});
+
 test("builds saved template rows with ownership and snapshot metadata", () => {
   const record: WorkspaceTemplateRecord = {
     id: "tpl_1",
@@ -154,7 +214,7 @@ test("builds saved template rows with ownership and snapshot metadata", () => {
         {
           slotKey: "body",
           sortOrder: 10,
-          sectionTypeKey: "cta_banner",
+          sectionTypeKey: "featured_talent",
           name: "Book now",
         },
       ],
@@ -171,7 +231,10 @@ test("builds saved template rows with ownership and snapshot metadata", () => {
   assert.equal(row.capturedAt, "2026-05-06T11:00:00.000Z");
   assert.equal(row.createdAt, "2026-05-06T12:00:00.000Z");
   assert.equal(row.ownTenant, true);
-  assert.deepEqual(row.typeSummary, ["CTA banner", "Hero"]);
+  assert.deepEqual(row.typeSummary, ["Featured professionals", "Hero"]);
+  assert.deepEqual(row.categorySummary, ["Showcase", "Hero"]);
+  assert.deepEqual(row.dataSourceSummary, ["Talent profiles"]);
+  assert.equal(row.mode, "data-ready");
 });
 
 test("builds template rows defensively when legacy records are sparse", () => {
@@ -195,6 +258,9 @@ test("builds template rows defensively when legacy records are sparse", () => {
   assert.equal(row.capturedAt, null);
   assert.equal(row.createdAt, "");
   assert.equal(row.ownTenant, false);
+  assert.equal(row.mode, "starter");
   assert.deepEqual(row.sections, []);
   assert.deepEqual(row.typeSummary, []);
+  assert.deepEqual(row.categorySummary, []);
+  assert.deepEqual(row.dataSourceSummary, []);
 });

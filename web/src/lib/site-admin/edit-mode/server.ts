@@ -50,6 +50,7 @@ import {
  */
 export interface EnterEditModeResult {
   ok: boolean;
+  entered?: boolean;
   error?: string;
 }
 
@@ -95,7 +96,7 @@ export async function enterEditModeAction(): Promise<EnterEditModeResult> {
       ...EDIT_COOKIE_OPTIONS,
     });
     revalidatePath("/", "layout");
-    return { ok: true };
+    return { ok: true, entered: true };
   } catch (e) {
     console.warn("[edit-mode] enter failed:", e);
     return {

@@ -27,6 +27,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 
 import {
   enterEditModeAction,
@@ -46,13 +47,17 @@ async function enterAction(
   _prev: EnterEditModeResult,
   _formData: FormData,
 ): Promise<EnterEditModeResult> {
+  void _prev;
+  void _formData;
   return enterEditModeAction();
 }
 
 export function EditPill({ autoEnter = false }: EditPillProps) {
+  const router = useRouter();
   const [state, formAction] = useActionState(enterAction, INITIAL_STATE);
   const formRef = useRef<HTMLFormElement | null>(null);
   const autoFiredRef = useRef(false);
+  const refreshedRef = useRef(false);
 
   useEffect(() => {
     if (!autoEnter || autoFiredRef.current) return;
@@ -78,6 +83,12 @@ export function EditPill({ autoEnter = false }: EditPillProps) {
     // result lands in `state` exactly like a manual click.
     formRef.current.requestSubmit();
   }, [autoEnter]);
+
+  useEffect(() => {
+    if (!state.entered || refreshedRef.current) return;
+    refreshedRef.current = true;
+    router.refresh();
+  }, [router, state.entered]);
 
   return (
     <form

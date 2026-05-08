@@ -150,6 +150,25 @@ function buildSnapshot({ row, sourceRows, sectionFacts, nowIso }) {
   };
 }
 
+function buildEmptySnapshot({ row, nowIso }) {
+  const kind = inferKind(row);
+  const publishedAt = row.published_at ?? nowIso;
+  return {
+    version: 1,
+    publishedAt,
+    pageVersion: row.version + 1,
+    locale: row.locale,
+    fields: {
+      title: row.title,
+      metaDescription: row.meta_description ?? null,
+      introTagline: kind === "homepage" ? introTaglineFromHero(row.hero) : null,
+    },
+    templateSchemaVersion: row.template_schema_version ?? 1,
+    slots: [],
+    builderTree: [],
+  };
+}
+
 async function loadSourceRows(supabase, tenantId, pageId) {
   const select = "section_id, slot_key, sort_order";
   const { data: liveRows, error: liveErr } = await supabase
@@ -454,14 +473,93 @@ async function backfillTenant(supabase, tenantId, args) {
       }
     }
     if (sourceRows.length === 0) {
-      skipped += 1;
+      const emptySnapshot = buildEmptySnapshot({ row, nowIso });
+      const nextVersion = row.version + 1;
+      if (!args.apply) {
+        results.push({
+          pageId: row.id,
+          locale: row.locale,
+          slug: row.slug,
+          kind,
+          status: "would_apply",
+          sourceMode: "empty_snapshot_baseline",
+          convertedLegacyBody: false,
+          sectionCount: 0,
+          writeColumn: snapshotColumn,
+          nextVersion,
+        });
+        continue;
+      }
+
+      const { error: emptySnapshotErr } = await supabase
+        .from("cms_pages")
+        .update({
+          version: nextVersion,
+          published_at: emptySnapshot.publishedAt,
+          updated_at: nowIso,
+          [snapshotColumn]: emptySnapshot,
+        })
+        .eq("id", row.id)
+        .eq("tenant_id", tenantId)
+        .eq("version", row.version);
+      if (emptySnapshotErr) {
+        failed += 1;
+        results.push({
+          pageId: row.id,
+          locale: row.locale,
+          slug: row.slug,
+          kind,
+          status: "failed",
+          error: emptySnapshotErr.message,
+        });
+        continue;
+      }
+
+      const liveSync = await syncLiveRows(supabase, tenantId, row.id, []);
+      if (!liveSync.ok) {
+        failed += 1;
+        results.push({
+          pageId: row.id,
+          locale: row.locale,
+          slug: row.slug,
+          kind,
+          status: "failed",
+          error: `snapshot written but live-sync failed: ${liveSync.error}`,
+        });
+        continue;
+      }
+
+      await writeAuditRow(supabase, {
+        tenant_id: tenantId,
+        actor_profile_id: null,
+        actor_role: "system",
+        action: `agency.site_admin.snapshot_backfill.${kind}`,
+        target_type: "cms_pages",
+        target_id: row.id,
+        severity: "info",
+        reason: "published_snapshot_backfill",
+        metadata: {
+          source_mode: "empty_snapshot_baseline",
+          section_count: 0,
+          previous_version: row.version,
+          next_version: nextVersion,
+          write_column: snapshotColumn,
+        },
+        created_at: nowIso,
+      });
+
+      applied += 1;
       results.push({
         pageId: row.id,
         locale: row.locale,
         slug: row.slug,
         kind,
-        status: "skipped",
-        reason: "no_page_sections",
+        status: "applied",
+        sourceMode: "empty_snapshot_baseline",
+        convertedLegacyBody: false,
+        sectionCount: 0,
+        writeColumn: snapshotColumn,
+        nextVersion,
       });
       continue;
     }

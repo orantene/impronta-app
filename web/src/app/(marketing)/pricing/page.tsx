@@ -54,6 +54,18 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: "Media & branding",
+    rows: [
+      { label: "Logo watermark on photos", values: ["no", "yes", "yes", "yes"] },
+      { label: "Watermark position, opacity & size", values: ["no", "yes", "yes", "yes"] },
+      { label: "Per-photo watermark override", values: ["no", "yes", "yes", "yes"] },
+      { label: "Workspace media gallery", values: ["no", "no", "yes", "yes"] },
+      { label: "Photo usage tracking", values: ["no", "no", "yes", "yes"] },
+      { label: "Bulk watermark apply", values: ["no", "no", "yes", "yes"] },
+      { label: "Baked watermark exports (PDF / lookbook)", values: ["no", "yes", "yes", "yes"] },
+    ],
+  },
+  {
     title: "Team & access",
     rows: [
       { label: "Seats", values: ["1", "Up to 3", "Up to 8", "Unlimited"] },

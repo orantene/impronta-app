@@ -36,6 +36,10 @@ import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talen
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
+import {
+  collectBuilderDataBindingTreeFindings,
+  validateBuilderNodeTree,
+} from "@/lib/site-admin/builder-node";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 export type PreflightSeverity = "error" | "warn";
@@ -50,6 +54,7 @@ export interface PreflightIssue {
     | "cta"
     | "builder_payload"
     | "featured_talent"
+    | "data_binding"
     | "link_integrity"
     | "seo"
     | "layout";
@@ -110,11 +115,16 @@ export async function runPublishPreflight(input?: {
   });
   const { data: homepageMeta } = await auth.supabase
     .from("cms_pages")
-    .select("canonical_url, noindex")
+    .select("id, version, canonical_url, noindex")
     .eq("tenant_id", scope.tenantId)
     .eq("locale", locale)
     .eq("system_template_key", "homepage")
-    .maybeSingle<{ canonical_url: string | null; noindex: boolean | null }>();
+    .maybeSingle<{
+      id: string;
+      version: number;
+      canonical_url: string | null;
+      noindex: boolean | null;
+    }>();
 
   const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);
   const issues: PreflightIssue[] = [];
@@ -293,6 +303,49 @@ export async function runPublishPreflight(input?: {
   }
 
   await Promise.all(featuredChecks);
+
+  // BuilderTree data-binding guardrails. Section schema validation catches
+  // section props; this checks the newer freeform/nested BuilderNode layer
+  // before it becomes the published snapshot.
+  if (homepageMeta?.id && typeof homepageMeta.version === "number") {
+    const { data: revisionRow } = await auth.supabase
+      .from("cms_page_revisions")
+      .select("snapshot")
+      .eq("tenant_id", scope.tenantId)
+      .eq("page_id", homepageMeta.id)
+      .eq("version", homepageMeta.version)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+    const builderTree =
+      revisionRow?.snapshot &&
+      typeof revisionRow.snapshot === "object" &&
+      Array.isArray(revisionRow.snapshot.builderTree)
+        ? revisionRow.snapshot.builderTree
+        : null;
+    if (builderTree) {
+      const validation = validateBuilderNodeTree(builderTree);
+      if (!validation.ok) {
+        issues.push({
+          severity: "error",
+          category: "builder_payload",
+          message: `Builder tree is invalid: ${validation.issues
+            .slice(0, 2)
+            .map((issue) => `${issue.path}: ${issue.message}`)
+            .join("; ")}`,
+        });
+      } else {
+        for (const finding of collectBuilderDataBindingTreeFindings(validation.tree)) {
+          if (finding.severity === "info") continue;
+          issues.push({
+            severity: finding.severity === "error" ? "error" : "warn",
+            category: "data_binding",
+            message: `${finding.nodeKind} ${finding.nodeId}: ${finding.message}`,
+          });
+        }
+      }
+    }
+  }
 
   // SEO baseline audit.
   for (const issue of classifyCanonicalIssue({
