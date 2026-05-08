@@ -798,12 +798,17 @@ async function setInquiryUserFlag(
   }
 }
 
-export const setInquiryPinned = (slug: string, inquiryId: string, value: boolean) =>
-  setInquiryUserFlag(inquiryId, "pinned", value);
-export const setInquiryArchived = (slug: string, inquiryId: string, value: boolean) =>
-  setInquiryUserFlag(inquiryId, "archived", value);
-export const setInquiryManuallyUnread = (slug: string, inquiryId: string, value: boolean) =>
-  setInquiryUserFlag(inquiryId, "manually_unread", value);
+// "use server" files allow only `async function` exports — these wrappers
+// must be functions, not const arrows, or Turbopack will refuse to bundle.
+export async function setInquiryPinned(_slug: string, inquiryId: string, value: boolean) {
+  return setInquiryUserFlag(inquiryId, "pinned", value);
+}
+export async function setInquiryArchived(_slug: string, inquiryId: string, value: boolean) {
+  return setInquiryUserFlag(inquiryId, "archived", value);
+}
+export async function setInquiryManuallyUnread(_slug: string, inquiryId: string, value: boolean) {
+  return setInquiryUserFlag(inquiryId, "manually_unread", value);
+}
 
 // ─── Booking duplication ──────────────────────────────────────────────────────
 

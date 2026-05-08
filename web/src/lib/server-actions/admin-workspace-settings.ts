@@ -57,14 +57,8 @@ const updateBrandingSchema = z
   .strict();
 
 export type WatermarkPreset = NonNullable<z.infer<typeof watermarkPresetSchema>>;
-export const DEFAULT_WATERMARK_PRESET: WatermarkPreset = {
-  enabled: false,
-  position: "br",
-  size_pct: 12,
-  opacity: 0.6,
-  padding_pct: 4,
-  variant: "light",
-};
+// DEFAULT_WATERMARK_PRESET lives in ./admin-workspace-settings-constants.ts —
+// "use server" files cannot export non-async constants (Turbopack rejects them).
 
 export type UpdateBrandingInput = z.infer<typeof updateBrandingSchema>;
 
