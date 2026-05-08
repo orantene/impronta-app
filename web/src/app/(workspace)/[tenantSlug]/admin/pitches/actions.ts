@@ -344,10 +344,10 @@ export async function regeneratePitchShareLinkAction(
     let agencyName = "your agency";
     const { data: agencyRow } = await auth.admin
       .from("agencies")
-      .select("name")
+      .select("display_name")
       .eq("id", pitch.tenant_id)
       .maybeSingle();
-    const fetchedName = (agencyRow as { name?: string } | null)?.name?.trim();
+    const fetchedName = (agencyRow as { display_name?: string } | null)?.display_name?.trim();
     if (fetchedName) agencyName = fetchedName;
 
     return {

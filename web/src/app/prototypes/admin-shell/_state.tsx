@@ -22,6 +22,7 @@ import type {
   CalendarEvent as BridgeCalendarEvent,
   WorkspaceOverviewMetrics,
   WorkspaceBookingRow,
+  WorkspacePitchRow,
   WorkspaceTeamMember as BridgeTeamMember,
   TalentSelfProfile as BridgeTalentSelfProfile,
   TalentInquiryRow,
@@ -6645,6 +6646,8 @@ type Ctx = {
   overviewMetrics: WorkspaceOverviewMetrics | null;
   /** Live booking rows. Falls back to empty array in mock mode. */
   effectiveBookings: WorkspaceBookingRow[];
+  /** Phase 9 — live pitch rows for the Pitches surface. Empty array in mock mode. */
+  effectivePitches: WorkspacePitchRow[];
   /** Live team member rows → adapted to TeamMember[]. Falls back to getTeam(plan). */
   effectiveTeamMembers: TeamMember[];
   /** Live total unread count for the nav badge. Falls back to 0 in mock mode. */
@@ -7950,6 +7953,12 @@ export function ProtoProvider({
     [bridgeBookings],
   );
 
+  const bridgePitches = initialBridgeData?.pitches ?? null;
+  const effectivePitches = useMemo<WorkspacePitchRow[]>(
+    () => bridgePitches ?? [],
+    [bridgePitches],
+  );
+
   const bridgeTeamMembers = initialBridgeData?.teamMembers ?? null;
   const effectiveTeamMembers = useMemo<TeamMember[]>(
     () =>
@@ -8080,6 +8089,7 @@ export function ProtoProvider({
       effectiveCalendarEvents,
       overviewMetrics,
       effectiveBookings,
+      effectivePitches,
       effectiveTeamMembers,
       totalUnread,
       effectiveTalentInquiries,
@@ -8165,6 +8175,7 @@ export function ProtoProvider({
       effectiveCalendarEvents,
       overviewMetrics,
       effectiveBookings,
+      effectivePitches,
       effectiveTeamMembers,
       totalUnread,
       effectiveTalentInquiries,

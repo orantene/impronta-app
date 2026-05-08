@@ -34,7 +34,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
+// Use the prototype's DrawerShell (light surface, matches the rest of the
+// workspace chrome) instead of the production drawer which defaults to a
+// dark theme when no [data-dashboard-theme] attribute is set.
+import { DrawerShell, GhostButton, PrimaryButton, Eyebrow } from "./_primitives";
 import { COLORS, FONTS, type TalentProfile, type Client } from "./_state";
 
 // Server actions use node:crypto transitively and cannot be statically imported
@@ -128,25 +131,25 @@ export type PitchComposeDrawerProps = {
 
 const field: CSSProperties = {
   width: "100%",
-  padding: "8px 10px",
-  borderRadius: 8,
+  padding: "10px 12px",
+  borderRadius: 10,
   border: `1px solid ${COLORS.borderSoft}`,
   fontFamily: FONTS.body,
-  fontSize: 13,
+  fontSize: 13.5,
   color: COLORS.ink,
   background: "#fff",
   outline: "none",
   boxSizing: "border-box",
+  transition: "border-color 0.12s, box-shadow 0.12s",
 };
 
 const fieldLabel: CSSProperties = {
   display: "block",
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: 0.4,
-  textTransform: "uppercase",
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: 0,
   color: COLORS.inkMuted,
-  marginBottom: 5,
+  marginBottom: 6,
   fontFamily: FONTS.body,
 };
 
@@ -187,13 +190,15 @@ function SortableTalentRow({
       style={{
         ...style,
         display: "flex",
-        gap: 10,
-        padding: "10px 0",
-        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        gap: 12,
+        padding: "12px",
+        borderRadius: 12,
+        background: isDragging ? "rgba(11,11,13,0.04)" : "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
         alignItems: "flex-start",
       }}
     >
-      {/* Drag handle */}
+      {/* Drag handle — six-dot grip affordance */}
       <button
         type="button"
         {...attributes}
@@ -204,55 +209,74 @@ function SortableTalentRow({
           border: "none",
           cursor: "grab",
           color: COLORS.inkDim,
-          padding: "2px 4px",
-          marginTop: 6,
+          padding: "8px 4px",
+          marginTop: 14,
           flexShrink: 0,
-          fontSize: 14,
-          lineHeight: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        ⠿
+        <svg width="10" height="16" viewBox="0 0 10 16" fill="none" aria-hidden>
+          <circle cx="2" cy="3" r="1.2" fill="currentColor" />
+          <circle cx="8" cy="3" r="1.2" fill="currentColor" />
+          <circle cx="2" cy="8" r="1.2" fill="currentColor" />
+          <circle cx="8" cy="8" r="1.2" fill="currentColor" />
+          <circle cx="2" cy="13" r="1.2" fill="currentColor" />
+          <circle cx="8" cy="13" r="1.2" fill="currentColor" />
+        </svg>
       </button>
 
-      {/* Avatar */}
+      {/* Avatar — larger, premium feel */}
       {entry.thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={entry.thumb}
           alt={entry.name}
-          style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 10,
+            objectFit: "cover",
+            flexShrink: 0,
+            border: `1px solid ${COLORS.borderSoft}`,
+          }}
         />
       ) : (
         <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 8,
-            background: COLORS.borderSoft,
+            width: 48,
+            height: 48,
+            borderRadius: 10,
+            background: "rgba(11,11,13,0.04)",
+            border: `1px solid ${COLORS.borderSoft}`,
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 14,
-            color: COLORS.inkDim,
+            fontSize: 17,
+            fontWeight: 600,
+            color: COLORS.inkMuted,
             fontFamily: FONTS.body,
           }}
         >
-          {entry.name[0]}
+          {entry.name.charAt(0).toUpperCase()}
         </div>
       )}
 
       {/* Name + type + note */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <span
             style={{
               fontFamily: FONTS.body,
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
               color: COLORS.ink,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              letterSpacing: -0.1,
             }}
           >
             {entry.name}
@@ -260,17 +284,19 @@ function SortableTalentRow({
           {entry.primaryType && (
             <span
               style={{
-                fontSize: 10,
+                fontSize: 10.5,
                 fontWeight: 600,
-                color: COLORS.inkDim,
-                background: COLORS.borderSoft,
-                borderRadius: 4,
-                padding: "1px 5px",
+                color: COLORS.inkMuted,
+                background: "rgba(11,11,13,0.04)",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 999,
+                padding: "2px 8px",
                 letterSpacing: 0.3,
+                textTransform: "capitalize",
                 flexShrink: 0,
               }}
             >
-              {entry.primaryType}
+              {entry.primaryType.replace(/[-_]/g, " ")}
             </span>
           )}
         </div>
@@ -282,13 +308,14 @@ function SortableTalentRow({
           style={{
             ...field,
             resize: "none",
-            fontSize: 12,
-            padding: "6px 8px",
+            fontSize: 12.5,
+            padding: "8px 10px",
+            background: "rgba(11,11,13,0.02)",
           }}
         />
       </div>
 
-      {/* Remove */}
+      {/* Remove — larger hit target, tonal hover */}
       <button
         type="button"
         onClick={() => onRemove(entry.id)}
@@ -298,14 +325,28 @@ function SortableTalentRow({
           border: "none",
           cursor: "pointer",
           color: COLORS.inkDim,
-          fontSize: 16,
-          padding: "2px",
-          marginTop: 4,
+          padding: "6px",
+          marginTop: 6,
           flexShrink: 0,
           lineHeight: 1,
+          borderRadius: 6,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(11,11,13,0.05)";
+          e.currentTarget.style.color = COLORS.ink;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "none";
+          e.currentTarget.style.color = COLORS.inkDim;
         }}
       >
-        ×
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
       </button>
     </div>
   );
@@ -782,52 +823,42 @@ export function PitchComposeDrawer({
   return (
     <DrawerShell
       open={open}
-      onOpenChange={(v) => { if (!v) resetAndClose(); else onOpenChange(true); }}
+      onClose={resetAndClose}
       title="Send pitch"
-      subtitle={
+      description={
         postSend
-          ? "Your pitch is live"
-          : `${talents.length} talent${talents.length === 1 ? "" : "s"} selected`
+          ? "Your pitch is live — share the link with your client"
+          : `${talents.length} talent${talents.length === 1 ? "" : "s"} selected · craft the message and send`
       }
-      icon={SendLucideIcon}
-      size="md"
+      defaultSize="half"
+      width={560}
       footer={
         !postSend ? (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <GhostButton size="sm" onClick={resetAndClose}>
+              Cancel
+            </GhostButton>
             <button
               type="button"
-              onClick={resetAndClose}
+              onClick={canSend ? handleSend : undefined}
+              disabled={!canSend}
               style={{
-                flex: 1,
-                padding: "10px 0",
-                background: "none",
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 8,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                height: 36,
+                padding: "0 18px",
+                background: canSend ? COLORS.ink : COLORS.borderSoft,
+                border: "none",
+                borderRadius: 999,
                 fontFamily: FONTS.body,
                 fontSize: 13,
                 fontWeight: 600,
-                color: COLORS.ink,
-                cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={!canSend}
-              style={{
-                flex: 2,
-                padding: "10px 0",
-                background: canSend ? COLORS.ink : COLORS.borderSoft,
-                border: "none",
-                borderRadius: 8,
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                fontWeight: 700,
                 color: canSend ? "#fff" : COLORS.inkDim,
                 cursor: canSend ? "pointer" : "default",
-                transition: "background 0.15s",
+                transition: "background 0.15s, transform 0.1s",
+                letterSpacing: 0.1,
               }}
             >
               {isLoading ? "Sending…" : "Send pitch →"}
@@ -849,10 +880,11 @@ export function PitchComposeDrawer({
           }}
         />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {/* ── Recipient ─────────────────────────────────────── */}
           <section>
-            <p style={sectionHeading}>Recipient</p>
+            <Eyebrow>Who is this for?</Eyebrow>
+            <div style={{ marginTop: 12 }} />
 
             {/* Client autocomplete */}
             <div style={{ position: "relative", marginBottom: 10 }}>
@@ -957,36 +989,49 @@ export function PitchComposeDrawer({
 
           {/* ── Personal message ──────────────────────────────── */}
           <section>
-            <label style={{ ...fieldLabel, display: "block", marginBottom: 5 }}>
-              Personal message
-            </label>
+            <Eyebrow>A short note from you</Eyebrow>
+            <p style={{ margin: "4px 0 10px", fontSize: 12, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+              Sets the tone — first thing the recipient reads.
+            </p>
             <textarea
               placeholder="Hi Sara — here's a curated selection for your upcoming campaign…"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
-              style={{ ...field, resize: "vertical" }}
+              style={{ ...field, resize: "vertical", lineHeight: 1.5 }}
             />
           </section>
 
           {/* ── Talent list ───────────────────────────────────── */}
           <section>
-            <p style={sectionHeading}>
-              Talent ({talents.length}) — drag to reorder
-            </p>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+              <Eyebrow>
+                Talent ({talents.length})
+              </Eyebrow>
+              {talents.length > 1 ? (
+                <span style={{ fontSize: 11.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+                  Drag to reorder
+                </span>
+              ) : null}
+            </div>
             {talents.length === 0 ? (
               <div
                 style={{
-                  padding: "16px",
+                  padding: "24px",
                   textAlign: "center",
-                  color: COLORS.inkDim,
+                  color: COLORS.inkMuted,
                   fontSize: 13,
                   fontFamily: FONTS.body,
-                  background: COLORS.fill,
-                  borderRadius: 8,
+                  background: "rgba(11,11,13,0.02)",
+                  border: `1px dashed ${COLORS.borderSoft}`,
+                  borderRadius: 12,
+                  lineHeight: 1.6,
                 }}
               >
-                No talents selected. Close and select some from the roster.
+                No talents selected.<br />
+                <span style={{ color: COLORS.inkDim, fontSize: 12 }}>
+                  Close, then pick some from the roster to start a pitch.
+                </span>
               </div>
             ) : (
               <DndContext
@@ -998,43 +1043,56 @@ export function PitchComposeDrawer({
                   items={talents.map((t) => t.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  {talents.map((entry) => (
-                    <SortableTalentRow
-                      key={entry.id}
-                      entry={entry}
-                      onNoteChange={updateNote}
-                      onRemove={removeTalent}
-                    />
-                  ))}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {talents.map((entry) => (
+                      <SortableTalentRow
+                        key={entry.id}
+                        entry={entry}
+                        onNoteChange={updateNote}
+                        onRemove={removeTalent}
+                      />
+                    ))}
+                  </div>
                 </SortableContext>
               </DndContext>
             )}
           </section>
 
           {/* ── Expiry ────────────────────────────────────────── */}
-          <section>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <section
+            style={{
+              padding: "12px 14px",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12,
+              background: "rgba(11,11,13,0.02)",
+            }}
+          >
+            <label
+              htmlFor="pitch-expiry"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}
+            >
               <input
                 type="checkbox"
                 id="pitch-expiry"
                 checked={expiryEnabled}
                 onChange={(e) => setExpiryEnabled(e.target.checked)}
-                style={{ cursor: "pointer" }}
+                style={{ cursor: "pointer", width: 16, height: 16, accentColor: COLORS.ink }}
               />
-              <label
-                htmlFor="pitch-expiry"
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 13,
-                  color: COLORS.ink,
-                  cursor: "pointer",
-                }}
-              >
-                Set an expiry
-              </label>
-            </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Set an expiry</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 1 }}>
+                  Link auto-expires; recipient sees a friendly notice instead of stale data.
+                </div>
+              </div>
+            </label>
             {expiryEnabled && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, paddingLeft: 26 }}>
                 <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
                   Expires in
                 </span>
@@ -1044,7 +1102,7 @@ export function PitchComposeDrawer({
                   max={90}
                   value={expiryDays}
                   onChange={(e) => setExpiryDays(Math.max(1, Math.min(90, Number(e.target.value))))}
-                  style={{ ...field, width: 68 }}
+                  style={{ ...field, width: 72, padding: "8px 10px" }}
                 />
                 <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
                   days
@@ -1055,7 +1113,10 @@ export function PitchComposeDrawer({
 
           {/* ── File attachments ──────────────────────────────── */}
           <section>
-            <p style={sectionHeading}>Attachments (lookbook, casting brief…)</p>
+            <Eyebrow>Attachments</Eyebrow>
+            <p style={{ margin: "4px 0 10px", fontSize: 12, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+              Lookbook, casting brief, mood board — optional.
+            </p>
             {attachments.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
                 {attachments.map((f, i) => (
@@ -1083,20 +1144,35 @@ export function PitchComposeDrawer({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               style={{
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: 6,
-                padding: "7px 12px",
-                background: "none",
+                gap: 8,
+                padding: "10px 14px",
+                background: "rgba(11,11,13,0.02)",
                 border: `1px dashed ${COLORS.borderSoft}`,
-                borderRadius: 8,
+                borderRadius: 10,
                 fontFamily: FONTS.body,
-                fontSize: 12.5,
-                color: COLORS.inkDim,
+                fontSize: 13,
+                fontWeight: 500,
+                color: COLORS.inkMuted,
                 cursor: "pointer",
+                transition: "background 0.12s, border-color 0.12s, color 0.12s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(11,11,13,0.04)";
+                e.currentTarget.style.borderColor = "rgba(11,11,13,0.2)";
+                e.currentTarget.style.color = COLORS.ink;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(11,11,13,0.02)";
+                e.currentTarget.style.borderColor = COLORS.borderSoft;
+                e.currentTarget.style.color = COLORS.inkMuted;
               }}
             >
-              <span style={{ fontSize: 14 }}>+</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
               Add files
             </button>
             <p

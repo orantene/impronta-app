@@ -13,6 +13,7 @@ export {
   loadCalendarEvents,
   loadWorkspaceOverviewMetrics,
   loadWorkspaceBookings,
+  loadWorkspacePitches,
   loadWorkspaceTeamMembers,
   loadWorkspaceDomainSummary,
   loadWorkspaceBillingState,
@@ -33,6 +34,7 @@ export type {
   CalendarEvent,
   WorkspaceOverviewMetrics,
   WorkspaceBookingRow,
+  WorkspacePitchRow,
   WorkspaceTeamMember,
   WebsiteData,
   // Phase 3.12.2 — talent self-surface types
@@ -51,6 +53,7 @@ import type {
   CalendarEvent,
   WorkspaceOverviewMetrics,
   WorkspaceBookingRow,
+  WorkspacePitchRow,
   WorkspaceTeamMember,
   WebsiteData,
   TalentSelfProfile,
@@ -123,6 +126,8 @@ export type BridgeData = {
   overviewMetrics: WorkspaceOverviewMetrics | null;
   /** Recent bookings for the Bookings surface. */
   bookings: WorkspaceBookingRow[] | null;
+  /** Phase 9 — pitch history rows for the Pitches surface. */
+  pitches: WorkspacePitchRow[] | null;
   /** Team members for the Settings > Team surface. */
   teamMembers: WorkspaceTeamMember[] | null;
   /** Unread message count for the nav badge. */
@@ -190,6 +195,7 @@ export function createBridgeDataFromRoster(
     calendarEvents: null,
     overviewMetrics: null,
     bookings: null,
+    pitches: null,
     teamMembers: null,
     totalUnread: 0,
     talentSelfProfile: null,

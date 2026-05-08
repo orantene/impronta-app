@@ -149,11 +149,12 @@ export default async function PitchTokenPage({ params }: PageProps) {
   // Agency name + optional brand mark SVG.
   const { data: agencyRow } = await admin
     .from("agencies")
-    .select("name")
+    .select("display_name")
     .eq("id", pitch.tenant_id)
     .maybeSingle();
   const agencyName =
-    (agencyRow as { name?: string } | null)?.name?.trim() || "your agency";
+    (agencyRow as { display_name?: string } | null)?.display_name?.trim() ||
+    "your agency";
 
   const { data: brandingRow } = await admin
     .from("agency_business_identity")

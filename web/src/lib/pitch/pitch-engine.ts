@@ -457,10 +457,10 @@ async function loadAgencyName(
 ): Promise<string> {
   const { data } = await supabase
     .from("agencies")
-    .select("name")
+    .select("display_name")
     .eq("id", tenantId)
     .maybeSingle();
-  const name = (data as { name?: string } | null)?.name?.trim();
+  const name = (data as { display_name?: string } | null)?.display_name?.trim();
   return name && name.length > 0 ? name : "your agency";
 }
 

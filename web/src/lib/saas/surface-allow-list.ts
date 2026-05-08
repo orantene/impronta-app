@@ -126,6 +126,11 @@ const APP_WORKSPACE_PREFIXES = [
   // Lives at /platform/admin/* on the app host (no tenant slug).
   // Gated inside layout.tsx to app_role === 'super_admin'.
   "/platform",
+  // Phase 9 — operator-issued share links (CMS revisions + Pitch landings).
+  // Allowed on app/hub hosts too so links sent via WhatsApp resolve when the
+  // recipient lands on app.tulala.digital or a localhost dev mirror. Tenant
+  // scope is enforced inside the route handler via the signed JWT claims.
+  "/share",
 ] as const;
 
 /**

@@ -91,6 +91,7 @@ export default async function TalentLayout({
         calendarEvents: null,
         overviewMetrics: null,
         bookings: null,
+        pitches: null,
         teamMembers: null,
         totalUnread: 0,
         // Talent self-surface fields

@@ -79,6 +79,12 @@ export {
   loadClientBookings,
 } from "./_data-bridge/bookings";
 
+// ─── Pitches — Phase 9, ./_data-bridge/pitches.ts (rev 14)
+export {
+  type WorkspacePitchRow,
+  loadWorkspacePitches,
+} from "./_data-bridge/pitches";
+
 // ─── Agency / Domain / Plan — moved to ./_data-bridge/workspace-config.ts (rev 13)
 export {
   type WorkspacePlan,
