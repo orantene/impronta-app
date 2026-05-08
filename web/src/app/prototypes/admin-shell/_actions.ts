@@ -186,8 +186,10 @@ export async function addTalentToRoster(
     }
   }
 
-  revalidatePath(`/${d.tenantSlug}/admin`);
-  revalidatePath(`/${d.tenantSlug}/admin/roster`);
+  // Bust the layout-level Router Cache so the top-bar roster counter
+  // ("N talent · M open inquiries") reflects the new row immediately
+  // when router.refresh() runs on the client.
+  revalidatePath("/", "layout");
 
   return { ok: true, talentProfileId };
 }

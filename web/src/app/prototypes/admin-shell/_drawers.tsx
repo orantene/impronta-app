@@ -8,6 +8,13 @@ import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
 import { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
 import { actionUploadAgencyLogo } from "@/lib/server-actions/admin-agency-logo-upload";
+import { createManualBooking, duplicateBooking } from "@/lib/server-actions/admin-bookings";
+import { createClientAccount } from "@/lib/server-actions/admin-inquiries";
+import { updateAdminClientProfile } from "@/lib/server-actions/admin-clients";
+import {
+  patchAgencySettingsNamespace,
+  loadAgencySettingsNamespace,
+} from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import {
   getEnabledTaxonomyTree,
   getCategoryDetail,
@@ -912,10 +919,14 @@ function StandardFooter({
   onSave,
   saveLabel = "Save",
   destructive,
+  disabled = false,
 }: {
   onSave?: () => void;
   saveLabel?: string;
   destructive?: { label: string; onClick: () => void };
+  /** When true, the primary save button is disabled. Used by drawers that
+   *  gate save on a pending mutation or "not yet loaded" state. */
+  disabled?: boolean;
 }) {
   const { closeDrawer } = useProto();
   return (
@@ -938,7 +949,11 @@ function StandardFooter({
         </button>
       )}
       <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-      {onSave && <PrimaryButton onClick={onSave}>{saveLabel}</PrimaryButton>}
+      {onSave && (
+        <PrimaryButton onClick={onSave} disabled={disabled}>
+          {saveLabel}
+        </PrimaryButton>
+      )}
     </>
   );
 }
@@ -1367,13 +1382,42 @@ function SiteSetupDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function ThemeFoundationsDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Theme saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
   const [theme, setTheme] = useState<"editorial-noir" | "modern-mono" | "warm-light">("editorial-noir");
   const [headingFont, setHeadingFont] = useState("Cormorant Garamond");
   const [bodyFont, setBodyFont] = useState("Inter");
   const [accent, setAccent] = useState("#B8860B");
   const [density, setDensity] = useState<"compact" | "comfortable" | "spacious">("comfortable");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "theme").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (typeof v.theme === "string") setTheme(v.theme as typeof theme);
+        if (typeof v.headingFont === "string") setHeadingFont(v.headingFont);
+        if (typeof v.bodyFont === "string") setBodyFont(v.bodyFont);
+        if (typeof v.accent === "string") setAccent(v.accent);
+        if (typeof v.density === "string") setDensity(v.density as typeof density);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "theme", {
+        theme, headingFont, bodyFont, accent, density,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Theme saved"); router.refresh(); closeDrawer(); }
+    });
+  };
 
   return (
     <DrawerShell
@@ -1382,7 +1426,7 @@ function ThemeFoundationsDrawer() {
       title="Theme & foundations"
       description="Typography, color, and density — applied across your site."
       width={580}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Theme preset" description="Three starting points. Customize anything below.">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -12085,12 +12129,41 @@ function WatermarkEditorDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function DomainDrawer() {
+  const router = useRouter();
   const { state, closeDrawer, toast } = useProto();
-  const onSave = useSaveAndClose("Domain settings saved");
+  const [pending, startTransition] = useTransition();
   const isLive = meetsPlan(state.plan, "studio");
   // I3 — read live domain status from the Website page's source of
   // truth so the drawer stays in sync with WebsiteDomainPanel.
   const domain = WEBSITE_STATE.domain;
+  const [customDomain, setCustomDomain] = useState(isLive ? domain.primaryDomain : "");
+  const [redirectToWww, setRedirectToWww] = useState(domain.redirectsToWww);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "domain").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (typeof v.customDomain === "string") setCustomDomain(v.customDomain);
+        if (typeof v.redirectToWww === "boolean") setRedirectToWww(v.redirectToWww);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "domain", {
+        customDomain: customDomain.trim(),
+        redirectToWww,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Domain settings saved"); router.refresh(); closeDrawer(); }
+    });
+  };
   const sslDaysLeft = domain.sslExpiresOn
     ? Math.round((new Date(domain.sslExpiresOn).getTime() - Date.now()) / 86400e3)
     : null;
@@ -12111,18 +12184,23 @@ function DomainDrawer() {
       title="Custom domain"
       description={isLive ? `Your storefront runs on ${domain.primaryDomain}.` : "Your storefront runs on Tulala's subdomain."}
       width={580}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Public URL">
         <FieldRow label="Tulala subdomain" hint="Always available. Used as fallback.">
           <TextInput defaultValue={TENANT.domain} prefix="https://" />
         </FieldRow>
         <FieldRow label="Custom domain" optional>
-          <TextInput defaultValue={isLive ? domain.primaryDomain : ""} placeholder="acme-models.com" prefix="https://" />
+          <TextInput
+            value={customDomain}
+            onChange={(e) => setCustomDomain((e.target as HTMLInputElement).value)}
+            placeholder="acme-models.com"
+            prefix="https://"
+          />
         </FieldRow>
         {isLive && (
           <FieldRow label="Redirect bare → www" optional hint="When on, atelier-roma.com is rewritten to www.atelier-roma.com at the edge.">
-            <ToggleControl value={domain.redirectsToWww} label="" onChange={() => toast("Redirect-to-www toggle — wires to edge config in production")} />
+            <ToggleControl value={redirectToWww} label="" onChange={(v) => setRedirectToWww(v)} />
           </FieldRow>
         )}
       </Section>
@@ -12522,11 +12600,29 @@ function SelectInput({
 // ════════════════════════════════════════════════════════════════════
 
 function TalentProfileDrawer() {
-  const { state, closeDrawer, openDrawer, effectiveRoster } = useProto();
+  const router = useRouter();
+  const { state, closeDrawer, openDrawer, toast, effectiveRoster } = useProto();
   const id = state.drawer.payload?.id as string | undefined;
   const profile = effectiveRoster.find((p) => p.id === id) ?? effectiveRoster[0];
   const canEdit = meetsRole(state.role, "editor");
-  const onSave = useSaveAndClose("Profile saved");
+  const fallbackToast = useSaveAndClose("Profile saved");
+  const [pending, startTransition] = useTransition();
+  const [stageName, setStageName] = useState(profile.name);
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profile.id);
+
+  const onSave = () => {
+    // Synthetic mock ids → fall through to the toast stub. Real profile
+    // UUIDs from the bridge get the canonical updateTalentIdentity write.
+    if (!isUuid) { fallbackToast(); return; }
+    startTransition(async () => {
+      const result = await updateTalentIdentity({
+        talent_profile_id: profile.id,
+        stage_name: stageName.trim() || profile.name,
+      });
+      if (!result.ok) toast(`Save failed: ${result.error}`);
+      else { toast("Profile published"); router.refresh(); closeDrawer(); }
+    });
+  };
 
   return (
     <DrawerShell
@@ -12563,7 +12659,9 @@ function TalentProfileDrawer() {
               Archive
             </button>
             <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-            <PrimaryButton onClick={onSave}>Publish</PrimaryButton>
+            <PrimaryButton onClick={onSave} disabled={pending}>
+              {pending ? "Publishing…" : "Publish"}
+            </PrimaryButton>
           </>
         ) : (
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
@@ -12636,7 +12734,10 @@ function TalentProfileDrawer() {
 
       <Section title="Basics" framed>
         <FieldRow label="Stage name">
-          <TextInput defaultValue={profile.name} />
+          <TextInput
+            value={stageName}
+            onChange={(e) => setStageName((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
         <FieldRow label="Height">
           <TextInput defaultValue={profile.height ?? ""} />
@@ -12775,11 +12876,20 @@ function RepresentationCard({
   );
 }
 
-function ToggleRow({ label, defaultOn = false }: { label: string; defaultOn?: boolean }) {
+function ToggleRow({
+  label, defaultOn = false, onChange,
+}: { label: string; defaultOn?: boolean; onChange?: (v: boolean) => void }) {
   const [on, setOn] = useState(defaultOn);
+  // Sync to defaultOn when the parent changes it (controlled-ish pattern
+  // so callers can drive state without passing a value prop everywhere).
+  useEffect(() => { setOn(defaultOn); }, [defaultOn]);
+  const handle = (v: boolean) => {
+    setOn(v);
+    onChange?.(v);
+  };
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
-      <Toggle on={on} onChange={setOn} label={label} />
+      <Toggle on={on} onChange={handle} label={label} />
       <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>{label}</span>
     </div>
   );
@@ -13027,7 +13137,17 @@ function NewTalentDrawer() {
           {method !== "invited" && method !== "agency" && (
             <SecondaryButton onClick={continueEditing}>Continue editing</SecondaryButton>
           )}
-          <PrimaryButton onClick={primaryAction.run}>{primaryAction.label}</PrimaryButton>
+          <span
+            title={!primaryAction.enabled && !isPending ? "Pick a primary type and home base to continue" : undefined}
+            style={{ display: "inline-flex" }}
+          >
+            <PrimaryButton
+              onClick={primaryAction.run}
+              disabled={!primaryAction.enabled}
+            >
+              {primaryAction.label}
+            </PrimaryButton>
+          </span>
         </>
       }
     >
@@ -13221,6 +13341,28 @@ function NewTalentDrawer() {
 
       {/* Talent Type */}
       <Section title="Primary Talent Type" framed>
+        {/* Sticky confirmation — shows immediately after picking so the
+            operator knows the selection registered without needing to scroll */}
+        {primaryType && (() => {
+          const match = allowedParents.flatMap(p => p.children.map(c => ({ parent: p, child: c }))).find(x => x.child.id === primaryType);
+          return match ? (
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "5px 10px 5px 7px", borderRadius: 999,
+              background: "rgba(11,11,13,0.06)", border: `1px solid ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: COLORS.ink,
+              marginBottom: 10,
+            }}>
+              <span style={{ color: COLORS.green, fontSize: 11 }}>✓</span>
+              <span>{match.child.label}</span>
+              <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>under {match.parent.label}</span>
+              <button type="button" onClick={() => setPrimaryType(null)} style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: COLORS.inkMuted, fontSize: 13, padding: 0, lineHeight: 1,
+              }} title="Clear selection">×</button>
+            </div>
+          ) : null;
+        })()}
         <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
           What clients book this person as. Add secondary roles below — this matches what registration collects.
         </div>
@@ -13427,6 +13569,26 @@ function NewTalentDrawer() {
         </div>
       </Section>
         </>
+      )}
+
+      {/* Inline hint when required fields aren't filled yet */}
+      {addMode === "single" && !minimumValid && (firstName.trim() || lastName.trim()) && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "10px 14px", borderRadius: 8,
+          background: "rgba(11,11,13,0.04)",
+          fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
+          marginTop: 4,
+        }}>
+          <span style={{ flexShrink: 0 }}>ℹ</span>
+          <span>
+            {!primaryType && !homeBase.trim()
+              ? "Pick a primary type and home base to continue"
+              : !primaryType
+                ? "Pick a primary type to continue"
+                : "Enter a home base to continue"}
+          </span>
+        </div>
       )}
 
       {/* #11 — Paste-anywhere fallback when clipboard.readText is denied */}
@@ -14683,30 +14845,7 @@ function ConversationBubble({
 }
 
 function NewInquiryDrawer() {
-  const { state, closeDrawer, effectiveRoster } = useProto();
-  const onSave = useSaveAndClose("Inquiry created");
-  const roster = effectiveRoster;
-  // Wave 2 — let the user start from a similar past brief, and warn
-  // immediately if a chosen talent is double-booked.
-  const [client, setClient] = useState("");
-  const [brief, setBrief] = useState("");
-  const [date, setDate] = useState("");
-  const [conflictTalent, setConflictTalent] = useState<string | null>(null);
-
-  const handlePickTemplate = (t: { title: string; brief: string }) => {
-    setBrief(t.brief);
-  };
-
-  const pickTalent = (name: string) => {
-    // Mock conflict detection — Marta Reyes "is already booked" if the
-    // date string contains "May 14" (matching mock booking data).
-    if (name.toLowerCase().includes("marta") && date.toLowerCase().includes("may 14")) {
-      setConflictTalent(name);
-    } else {
-      setConflictTalent(null);
-    }
-  };
-
+  const { closeDrawer } = useProto();
   return (
     <DrawerShell
       open
@@ -14719,7 +14858,7 @@ function NewInquiryDrawer() {
         mode="admin"
         embedded
         onCancel={closeDrawer}
-        onSubmit={() => { onSave(); }}
+        onSubmit={() => { closeDrawer(); }}
       />
     </DrawerShell>
   );
@@ -14907,41 +15046,109 @@ function DayDetailDrawer() {
 }
 
 function NewBookingDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Booking created");
+  const { closeDrawer, toast } = useProto();
+  const [title, setTitle] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [location, setLocation] = useState("");
+  const [notes, setNotes] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  const canSave = title.trim().length > 0;
+
+  const handleSubmit = () => {
+    if (!canSave) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("title", title.trim() || clientName.trim() || "Booking");
+      fd.set("booking_status", "confirmed");
+      fd.set("currency_code", "EUR");
+      fd.set("client_account_id", "");
+      fd.set("client_contact_id", "");
+      fd.set("owner_staff_id", "");
+      fd.set("starts_at", eventDate ? `${eventDate}T09:00:00` : "");
+      fd.set("ends_at", eventDate ? `${eventDate}T18:00:00` : "");
+      fd.set("event_date", eventDate);
+      fd.set("venue_name", location.trim());
+      fd.set("venue_location_text", location.trim());
+      fd.set("internal_notes", notes.trim());
+      fd.set("redirect_after_create", "list");
+      // createManualBooking calls redirect() on success, which throws an
+      // error with a specific NEXT_REDIRECT digest. Distinguish that from
+      // real failures so genuine errors aren't silently shown as success.
+      try {
+        await createManualBooking(fd);
+        // If we got here without throwing, the action neither redirected
+        // nor errored — treat as success. (Default codepath returns void.)
+        toast("Booking created");
+        closeDrawer();
+      } catch (err) {
+        const digest = (err as { digest?: unknown } | null)?.digest;
+        const isNextRedirect =
+          typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+        if (isNextRedirect) {
+          toast("Booking created");
+          closeDrawer();
+          throw err; // Re-throw so Next.js can perform the redirect.
+        }
+        const message =
+          err instanceof Error && err.message ? err.message : "Could not create booking.";
+        toast(`Create failed: ${message}`);
+      }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="New booking"
       description="Skip the inquiry — log a confirmed job."
-      footer={<StandardFooter onSave={onSave} saveLabel="Create booking" />}
+      footer={
+        <StandardFooter
+          onSave={handleSubmit}
+          saveLabel={pending ? "Creating…" : "Create booking"}
+          disabled={!canSave || pending}
+        />
+      }
     >
-      <Section title="Client & talent" framed>
-        <FieldRow label="Client">
-          <TextInput placeholder="Vogue Italia" />
+      <Section title="Details" framed>
+        <FieldRow label="Job title">
+          <TextInput
+            placeholder="Vogue Italia — editorial"
+            value={title}
+            onChange={(e) => setTitle((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
-        <FieldRow label="Talent">
-          <TextInput placeholder="Marta Reyes" />
+        <FieldRow label="Client" optional>
+          <TextInput
+            placeholder="Vogue Italia"
+            value={clientName}
+            onChange={(e) => setClientName((e.target as HTMLInputElement).value)}
+          />
+        </FieldRow>
+        <FieldRow label="Notes" optional>
+          <TextInput
+            placeholder="Any internal notes…"
+            value={notes}
+            onChange={(e) => setNotes((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
       </Section>
       <Section title="When & where" framed>
-        <FieldRow label="Date">
-          <TextInput placeholder="May 14, 2026" />
+        <FieldRow label="Date" optional>
+          <TextInput
+            type="date"
+            value={eventDate}
+            onChange={(e) => setEventDate((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
-        <FieldRow label="Call time" optional>
-          <TextInput placeholder="08:00" />
-        </FieldRow>
-        <FieldRow label="Location">
-          <TextInput placeholder="Madrid · Studio 5" />
-        </FieldRow>
-      </Section>
-      <Section title="Money" framed>
-        <FieldRow label="Total fee">
-          <TextInput placeholder="€4,200" />
-        </FieldRow>
-        <FieldRow label="Agency commission">
-          <TextInput defaultValue="20%" />
+        <FieldRow label="Location" optional>
+          <TextInput
+            placeholder="Madrid · Studio 5"
+            value={location}
+            onChange={(e) => setLocation((e.target as HTMLInputElement).value)}
+          />
         </FieldRow>
       </Section>
     </DrawerShell>
@@ -14949,13 +15156,15 @@ function NewBookingDrawer() {
 }
 
 function ClientProfileDrawer() {
+  const router = useRouter();
   const { state, closeDrawer, toast, effectiveClients } = useProto();
   const id = state.drawer.payload?.id as string | undefined;
   const isNew = id === "new" || !id;
   const clientPool = effectiveClients.length > 0 ? effectiveClients : getClients(state.plan);
   const client = isNew ? null : clientPool.find((c) => c.id === id) ?? null;
-  const onSave = useSaveAndClose(isNew ? "Client created" : "Client saved");
+  const fallbackToast = useSaveAndClose(isNew ? "Client created" : "Client saved");
   const trust = client?.trust ?? "basic";
+  const [pending, startTransition] = useTransition();
 
   // 2026 redesign — Add Client mirrors Add Talent's hierarchy:
   // Display name → Industry (the "what kind of client") → Home base
@@ -14966,6 +15175,77 @@ function ClientProfileDrawer() {
   const [homeBase, setHomeBase] = useState("");
   const [method, setMethod] = useState<"direct" | "referral" | "import">("direct");
   const [notes, setNotes] = useState("");
+
+  // Map prototype industry chip ids onto the canonical client_account_type
+  // enum values. Anything we don't know about lands in "other" (with the
+  // detail field set to the chip label).
+  const INDUSTRY_TO_ACCOUNT_TYPE: Record<string, string> = {
+    hotel: "hotel",
+    beach_club: "beach_club",
+    restaurant: "restaurant",
+    brand: "brand",
+    agency: "agency",
+    publication: "brand",
+    venue: "event_venue",
+    personal: "private_client",
+  };
+
+  const onSave = () => {
+    if (!name.trim()) {
+      toast("Add a name");
+      return;
+    }
+    startTransition(async () => {
+      if (isNew) {
+        const fd = new FormData();
+        fd.set("name", name.trim());
+        fd.set("account_type", industry ? (INDUSTRY_TO_ACCOUNT_TYPE[industry] ?? "other") : "other");
+        fd.set("account_type_detail", industry && !INDUSTRY_TO_ACCOUNT_TYPE[industry] ? industry : "");
+        fd.set("primary_email", contact.includes("@") ? contact.trim() : "");
+        fd.set("primary_phone", contact.includes("@") ? "" : contact.trim());
+        fd.set("website_url", "");
+        fd.set("location_text", homeBase.trim());
+        fd.set("city", homeBase.trim());
+        fd.set("country", "");
+        fd.set("address_notes", notes.trim());
+        fd.set("google_place_id", "");
+        fd.set("latitude", "");
+        fd.set("longitude", "");
+        const result = await createClientAccount({}, fd);
+        if (result && "error" in result && result.error) {
+          toast(`Save failed: ${result.error}`);
+        } else {
+          toast("Client created");
+          router.refresh();
+          closeDrawer();
+        }
+        return;
+      }
+      // Edit path — client.id is the auth user_id (per WorkspaceClientRow).
+      // Synthetic mock ids fall through to the toast-and-close stub.
+      if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        fallbackToast();
+        return;
+      }
+      const fd = new FormData();
+      fd.set("user_id", id);
+      // Map drawer fields onto client_profiles columns. industry → company
+      // when no explicit company name was entered.
+      fd.set("company_name", name.trim());
+      fd.set("phone", contact.includes("@") ? "" : contact.trim());
+      fd.set("whatsapp_phone", "");
+      fd.set("website_url", "");
+      fd.set("notes", [homeBase.trim(), notes.trim()].filter(Boolean).join(" · "));
+      const result = await updateAdminClientProfile(undefined, fd);
+      if (result && "error" in result && result.error) {
+        toast(`Save failed: ${result.error}`);
+      } else {
+        toast("Client saved");
+        router.refresh();
+        closeDrawer();
+      }
+    });
+  };
 
   // Industry options — the client equivalent of Talent Type. Drives
   // Discover matching ("hotels need …", "beach clubs need…").
@@ -16054,28 +16334,63 @@ function PostsDrawer() {
 }
 
 function NavigationDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Navigation saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+  const [headerItems, setHeaderItems] = useState<string[]>([
+    "Roster", "About", "Editorial", "Press", "Contact",
+  ]);
+  const [col1, setCol1] = useState("Agency");
+  const [col2, setCol2] = useState("Talent");
+  const [col3, setCol3] = useState("Get in touch");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "navigation").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (Array.isArray(v.headerItems)) setHeaderItems((v.headerItems as string[]).map(String));
+        if (typeof v.col1 === "string") setCol1(v.col1);
+        if (typeof v.col2 === "string") setCol2(v.col2);
+        if (typeof v.col3 === "string") setCol3(v.col3);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "navigation", {
+        headerItems, col1, col2, col3,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Navigation saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Navigation & footer"
       description="Header structure and footer columns."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
-      <Section title="Header — 5 items">
-        <ReorderList items={["Roster", "About", "Editorial", "Press", "Contact"]} />
+      <Section title={`Header — ${headerItems.length} items`}>
+        <ReorderList items={headerItems} />
       </Section>
       <Section title="Footer — 3 columns">
         <FieldRow label="Column 1 title">
-          <TextInput defaultValue="Agency" />
+          <TextInput value={col1} onChange={(e) => setCol1((e.target as HTMLInputElement).value)} />
         </FieldRow>
         <FieldRow label="Column 2 title">
-          <TextInput defaultValue="Talent" />
+          <TextInput value={col2} onChange={(e) => setCol2((e.target as HTMLInputElement).value)} />
         </FieldRow>
         <FieldRow label="Column 3 title">
-          <TextInput defaultValue="Get in touch" />
+          <TextInput value={col3} onChange={(e) => setCol3((e.target as HTMLInputElement).value)} />
         </FieldRow>
       </Section>
     </DrawerShell>
@@ -16156,67 +16471,153 @@ function MediaDrawer() {
 }
 
 function TranslationsDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Languages saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+  const ALL = [
+    { code: "EN", name: "English" },
+    { code: "ES", name: "Español" },
+    { code: "IT", name: "Italiano" },
+    { code: "FR", name: "Français" },
+  ];
+  const [enabled, setEnabled] = useState<string[]>(["EN", "ES"]);
+  const [primary, setPrimary] = useState<string>("EN");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "languages").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (Array.isArray(v.enabled)) setEnabled((v.enabled as string[]).map(String));
+        if (typeof v.primary === "string") setPrimary(v.primary);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const toggle = (code: string) => {
+    setEnabled((prev) => {
+      if (prev.includes(code)) return prev.filter((c) => c !== code);
+      return [...prev, code];
+    });
+  };
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "languages", {
+        enabled, primary,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Languages saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Translations"
       description="Run your storefront in multiple languages."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Active languages">
-        {[
-          { code: "EN", name: "English", primary: true },
-          { code: "ES", name: "Español", primary: false },
-          { code: "IT", name: "Italiano", primary: false },
-          { code: "FR", name: "Français", primary: false },
-        ].map((l) => (
-          <div
-            key={l.code}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "10px 12px",
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 8,
-              fontFamily: FONTS.body,
-            }}
-          >
-            <span style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, minWidth: 24 }}>
-              {l.code}
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, flex: 1 }}>
-              {l.name}
-            </span>
-            {l.primary && <StateChipMini label="Primary" tone="green" />}
-          </div>
-        ))}
+        {ALL.map((l) => {
+          const isOn = enabled.includes(l.code);
+          const isPrimary = primary === l.code;
+          return (
+            <div
+              key={l.code}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "10px 12px", background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
+                fontFamily: FONTS.body,
+              }}
+            >
+              <span style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, minWidth: 24 }}>
+                {l.code}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, flex: 1 }}>
+                {l.name}
+              </span>
+              {isPrimary && <StateChipMini label="Primary" tone="green" />}
+              {!isPrimary && isOn && (
+                <button type="button" onClick={() => setPrimary(l.code)} style={{
+                  fontSize: 11, fontFamily: FONTS.body, padding: "3px 8px",
+                  borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                  background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
+                }}>
+                  Make primary
+                </button>
+              )}
+              <button type="button" onClick={() => toggle(l.code)} disabled={isPrimary && isOn} style={{
+                fontSize: 11, fontFamily: FONTS.body, padding: "3px 8px",
+                borderRadius: 999,
+                border: `1px solid ${isOn ? COLORS.coralDeep : COLORS.border}`,
+                background: "transparent",
+                color: isOn ? COLORS.coralDeep : COLORS.ink,
+                cursor: (isPrimary && isOn) ? "not-allowed" : "pointer",
+                opacity: (isPrimary && isOn) ? 0.4 : 1,
+              }}>
+                {isOn ? "Remove" : "Add"}
+              </button>
+            </div>
+          );
+        })}
       </Section>
     </DrawerShell>
   );
 }
 
 function SeoDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("SEO saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+  const [siteTitle, setSiteTitle] = useState(`${TENANT.name} · Talent agency`);
+  const [description, setDescription] = useState(
+    "A boutique agency representing editorial, runway, and commercial talent across Europe.",
+  );
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "seo").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Record<string, unknown>;
+        if (typeof v.siteTitle === "string") setSiteTitle(v.siteTitle);
+        if (typeof v.description === "string") setDescription(v.description);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const onSave = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "seo", { siteTitle, description });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("SEO saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="SEO & defaults"
       description="Meta tags, social previews, sitemap."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={onSave} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Defaults">
         <FieldRow label="Site title">
-          <TextInput defaultValue={`${TENANT.name} · Talent agency`} />
+          <TextInput value={siteTitle} onChange={(e) => setSiteTitle((e.target as HTMLInputElement).value)} />
         </FieldRow>
         <FieldRow label="Description">
-          <TextArea rows={2} defaultValue="A boutique agency representing editorial, runway, and commercial talent across Europe." />
+          <TextArea rows={2} value={description} onChange={(e) => setDescription((e.target as HTMLTextAreaElement).value)} />
         </FieldRow>
       </Section>
       <Section title="Open Graph image">
@@ -19928,25 +20329,65 @@ function SiteHealthDrawer() {
 }
 
 function StorefrontVisibilityDrawer() {
-  const { state, closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Visibility saved");
+  const router = useRouter();
+  const { state, closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+
+  // Defaults derived from the workspace plan — applied when the namespace
+  // hasn't been written yet so the drawer opens with sensible toggle state.
+  const planDefaults = useMemo(() => ({
+    rosterGrid: true,
+    clientLogos: state.plan !== "free",
+    editorialPosts: state.plan === "agency" || state.plan === "network",
+    directInquiries: true,
+    discoveryListed: state.plan === "free",
+    discoveryFeatured: state.plan === "free",
+  }), [state.plan]);
+
+  const [flags, setFlags] = useState(planDefaults);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "visibility").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Partial<typeof planDefaults>;
+        setFlags({ ...planDefaults, ...v } as typeof planDefaults);
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [planDefaults]);
+
+  const set = <K extends keyof typeof flags>(k: K, v: boolean) =>
+    setFlags((prev) => ({ ...prev, [k]: v }));
+
+  const save = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "visibility", flags as unknown as Record<string, unknown>);
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Visibility saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Storefront visibility"
       description="What's public on your storefront — and what shows up in Tulala discovery."
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<StandardFooter onSave={save} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
     >
       <Section title="Public storefront">
-        <ToggleRow label="Show roster grid" defaultOn />
-        <ToggleRow label="Show client logos" defaultOn={state.plan !== "free"} />
-        <ToggleRow label="Show editorial posts" defaultOn={state.plan === "agency" || state.plan === "network"} />
-        <ToggleRow label="Allow direct inquiries" defaultOn />
+        <ToggleRow label="Show roster grid" defaultOn={flags.rosterGrid} onChange={(v) => set("rosterGrid", v)} />
+        <ToggleRow label="Show client logos" defaultOn={flags.clientLogos} onChange={(v) => set("clientLogos", v)} />
+        <ToggleRow label="Show editorial posts" defaultOn={flags.editorialPosts} onChange={(v) => set("editorialPosts", v)} />
+        <ToggleRow label="Allow direct inquiries" defaultOn={flags.directInquiries} onChange={(v) => set("directInquiries", v)} />
       </Section>
       <Section title="Tulala discovery" description="On Free, you appear in our public talent directory. Studio and up are private by default.">
-        <ToggleRow label="Listed in Tulala directory" defaultOn={state.plan === "free"} />
-        <ToggleRow label="Featured rotation eligible" defaultOn={state.plan === "free"} />
+        <ToggleRow label="Listed in Tulala directory" defaultOn={flags.discoveryListed} onChange={(v) => set("discoveryListed", v)} />
+        <ToggleRow label="Featured rotation eligible" defaultOn={flags.discoveryFeatured} onChange={(v) => set("discoveryFeatured", v)} />
       </Section>
     </DrawerShell>
   );
@@ -20007,21 +20448,54 @@ function HubDistributionDrawer() {
 }
 
 function FilterConfigDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Filters saved");
+  const router = useRouter();
+  const { closeDrawer, toast } = useProto();
+  const [pending, startTransition] = useTransition();
+  const [flags, setFlags] = useState({
+    drafts: true,
+    awaitingClient: true,
+    confirmed: true,
+    archived: false,
+  });
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAgencySettingsNamespace("", "filters").then((r) => {
+      if (cancelled) return;
+      if (r.ok && r.data) {
+        const v = r.data as Partial<typeof flags>;
+        setFlags((prev) => ({ ...prev, ...v }));
+      }
+      setLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const set = <K extends keyof typeof flags>(k: K, v: boolean) =>
+    setFlags((prev) => ({ ...prev, [k]: v }));
+
+  const save = () => {
+    startTransition(async () => {
+      const r = await patchAgencySettingsNamespace("", "filters", flags as unknown as Record<string, unknown>);
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Filters saved"); router.refresh(); closeDrawer(); }
+    });
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Filters"
       description="Narrow down what you see."
-      footer={<StandardFooter onSave={onSave} saveLabel="Apply filters" />}
+      footer={<StandardFooter onSave={save} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Apply filters"} />}
     >
       <Section title="Stage" framed>
-        <ToggleRow label="Drafts" defaultOn />
-        <ToggleRow label="Awaiting client" defaultOn />
-        <ToggleRow label="Confirmed" defaultOn />
-        <ToggleRow label="Archived" defaultOn={false} />
+        <ToggleRow label="Drafts" defaultOn={flags.drafts} onChange={(v) => set("drafts", v)} />
+        <ToggleRow label="Awaiting client" defaultOn={flags.awaitingClient} onChange={(v) => set("awaitingClient", v)} />
+        <ToggleRow label="Confirmed" defaultOn={flags.confirmed} onChange={(v) => set("confirmed", v)} />
+        <ToggleRow label="Archived" defaultOn={flags.archived} onChange={(v) => set("archived", v)} />
       </Section>
       <Section title="Talent" framed>
         <SelectInput options={["All talent", "Marta Reyes", "Kai Lin", "Tomás Navarro"]} />

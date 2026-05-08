@@ -199,6 +199,7 @@ type RosterRow = {
           taxonomy_terms: {
             term_type: string | null;
             slug: string | null;
+            name_en: string | null;
           } | null;
         }[]
       | null;
@@ -300,9 +301,12 @@ function deriveProfileState(row: RosterRow): TalentProfile["state"] {
   const profileWorkflow = row.talent_profiles?.workflow_status ?? null;
 
   if (rosterStatus === "pending") return "awaiting-approval";
-  if (rosterStatus === "active" && profileWorkflow === "published") {
+  // DB uses 'approved' (not 'published') — both map to the "published" UI
+  // state which means the talent is live and visible to clients.
+  if (rosterStatus === "active" && (profileWorkflow === "approved" || profileWorkflow === "published")) {
     return "published";
   }
+  if (profileWorkflow === "submitted" || profileWorkflow === "under_review") return "awaiting-approval";
   if (profileWorkflow === "draft") return "draft";
   if (profileWorkflow === "invited") return "invited";
   return "draft";
@@ -327,7 +331,9 @@ function deriveDisplayName(
  * (up to 9 total skills). The "featured" skill = lowest display_order among
  * primary_role rows. Falls back to first secondary_role if no primary set.
  *
- * Returns the canonical slug — UI resolves to display name via TAXONOMY.
+ * Returns the canonical slug. When the slug doesn't appear in TAXONOMY (DB
+ * taxonomy was seeded independently, so slugs may diverge), the caller can
+ * use this string directly as a display fallback via name_en.
  */
 function derivePrimaryType(
   profile: NonNullable<RosterRow["talent_profiles"]>,
@@ -350,7 +356,10 @@ function derivePrimaryType(
       return (a.display_order ?? 0) - (b.display_order ?? 0);
     });
 
-  return ranked[0]?.taxonomy_terms?.slug ?? undefined;
+  const top = ranked[0]?.taxonomy_terms;
+  // Fall back to name_en when slug is absent — card renderer shows it
+  // directly when TAXONOMY.children.find(c => c.id === slug) returns null.
+  return top?.slug ?? top?.name_en ?? undefined;
 }
 
 /**
@@ -424,7 +433,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
           talent_profile_taxonomy (
             relationship_type,
             display_order,
-            taxonomy_terms ( term_type, slug )
+            taxonomy_terms ( term_type, slug, name_en )
           ),
           talent_service_areas (
             service_kind,

@@ -5011,7 +5011,7 @@ export function TextInput({
   placeholder?: string;
   prefix?: ReactNode;
   suffix?: ReactNode;
-  type?: "text" | "email" | "url";
+  type?: "text" | "email" | "url" | "date";
   autoFocus?: boolean;
   readOnly?: boolean;
   /** Marks the input invalid — red border + background tint. Pair with FieldRow `error` for the message. */

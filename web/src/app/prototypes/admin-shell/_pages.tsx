@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { SkillDiscoveryPanel } from "./_skill-discovery-panel";
 import {
   CLIENT_PAGES,
@@ -497,10 +499,15 @@ const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "team" | "user" |
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
-  const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests } = useProto();
+  const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests, overviewMetrics } = useProto();
   const pendingVerifications = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
   ).length;
+  // When bridge data is available use its authoritative pending count so the nav
+  // badge doesn't echo the mock PENDING_TALENT array (which has 3 fake items).
+  const effectivePendingTalentCount = overviewMetrics !== null
+    ? (overviewMetrics.pendingApprovals ?? 0)
+    : pendingTalent.length;
   // WS-3.2 — "workspace" is now "settings"; check both for backward compat
   const isSettingsActive = state.page === "settings" || state.page === "workspace";
   const canCreate = meetsRole(state.role, "editor");
@@ -556,8 +563,8 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
             // signal: pending self-registrations (amber) and pending IG/
             // Tulala verifications (indigo) render as separate sub-dots so
             // admins can tell at a glance which queue needs attention.
-            const showRosterBadges = p === "roster" && (pendingTalent.length + pendingVerifications) > 0;
-            const pageBadge = p === "roster" ? (pendingTalent.length + pendingVerifications) : 0;
+            const showRosterBadges = p === "roster" && (effectivePendingTalentCount + pendingVerifications) > 0;
+            const pageBadge = p === "roster" ? (effectivePendingTalentCount + pendingVerifications) : 0;
             return (
               <button
                 key={p}
@@ -591,25 +598,24 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
                 {/* WS-3.2 — "roster" inherits the entity-type label (Talent/Models/Artists) */}
                 {p === "roster" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
                 {showRosterBadges ? (
-                  <span aria-label={`${pendingTalent.length} pending approvals · ${pendingVerifications} pending verifications`}
-                    title={`${pendingTalent.length} pending approval${pendingTalent.length === 1 ? "" : "s"} · ${pendingVerifications} pending verification${pendingVerifications === 1 ? "" : "s"}`}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                    {pendingTalent.length > 0 && (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
-                        background: COLORS.amber, color: "#fff",
-                        fontSize: 10, fontWeight: 700, lineHeight: 1,
-                      }}>{pendingTalent.length}</span>
-                    )}
-                    {pendingVerifications > 0 && (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
-                        background: COLORS.indigo, color: "#fff",
-                        fontSize: 10, fontWeight: 700, lineHeight: 1,
-                      }}>{pendingVerifications}</span>
-                    )}
+                  // Single combined badge — total pending actions. Tooltip
+                  // breaks down approvals vs. verifications on hover.
+                  <span
+                    aria-label={`${effectivePendingTalentCount + pendingVerifications} items need attention`}
+                    title={(() => {
+                      const parts: string[] = [];
+                      if (effectivePendingTalentCount > 0) parts.push(`${effectivePendingTalentCount} self-registration${effectivePendingTalentCount === 1 ? "" : "s"} awaiting review`);
+                      if (pendingVerifications > 0) parts.push(`${pendingVerifications} verification${pendingVerifications === 1 ? "" : "s"} pending`);
+                      return parts.join(" · ");
+                    })()}
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
+                      background: COLORS.amber, color: "#fff",
+                      fontSize: 10, fontWeight: 700, lineHeight: 1,
+                    }}
+                  >
+                    {effectivePendingTalentCount + pendingVerifications}
                   </span>
                 ) : pageBadge > 0 && (
                   <span
@@ -1313,7 +1319,7 @@ export function TulalaIdentityBar() {
               alignItems: "flex-start",
               minWidth: 0,
               overflow: "hidden",
-              maxWidth: 180,
+              maxWidth: 220,
             }}
           >
             <span style={{
@@ -3959,7 +3965,9 @@ function parseInquiryDays(dateStr: string, displayMonth: number): number[] {
 }
 
 function CalendarPage() {
-  const { openDrawer, setPage, effectiveCalendarEvents } = useProto();
+  const { openDrawer, setPage, effectiveCalendarEvents, toast } = useProto();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const today = new Date();
   const [displayYear, setDisplayYear] = useState(today.getFullYear());
   const [displayMonth, setDisplayMonth] = useState(today.getMonth());
@@ -4139,6 +4147,33 @@ function CalendarPage() {
                 tabIndex={0}
                 onClick={() => openDrawer("day-detail", { date: isoDate })}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrawer("day-detail", { date: isoDate }); } }}
+                onDragOver={(e) => {
+                  // Accept drops carrying our event payload.
+                  if (e.dataTransfer.types.includes("text/x-tulala-inquiry-id")) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    (e.currentTarget as HTMLDivElement).style.background = "rgba(46,125,91,0.10)";
+                  }
+                }}
+                onDragLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                  const inquiryId = e.dataTransfer.getData("text/x-tulala-inquiry-id");
+                  const fromDate = e.dataTransfer.getData("text/x-tulala-from-date");
+                  if (!inquiryId || isoDate === fromDate) return;
+                  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId)) {
+                    toast("Demo events can't be rescheduled — only real inquiries.");
+                    return;
+                  }
+                  startTransition(async () => {
+                    const r = await rescheduleInquiry(TENANT.slug, inquiryId, isoDate);
+                    if (!r.ok) toast(`Reschedule failed: ${r.error}`);
+                    else { toast(`Moved to ${isoDate}`); router.refresh(); }
+                  });
+                }}
                 style={{
                   padding: "8px 10px",
                   borderTop: `1px solid ${COLORS.borderSoft}`,
@@ -4146,7 +4181,7 @@ function CalendarPage() {
                   display: "flex",
                   flexDirection: "column",
                   gap: 4,
-                  cursor: "pointer",
+                  cursor: pending ? "wait" : "pointer",
                   transition: `background ${TRANSITION.micro}`,
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
@@ -4173,7 +4208,15 @@ function CalendarPage() {
                   <button
                     key={idx}
                     type="button"
+                    draggable
+                    onDragStart={(ev) => {
+                      ev.stopPropagation();
+                      ev.dataTransfer.setData("text/x-tulala-inquiry-id", e.id);
+                      ev.dataTransfer.setData("text/x-tulala-from-date", isoDate);
+                      ev.dataTransfer.effectAllowed = "move";
+                    }}
                     onClick={(ev) => { ev.stopPropagation(); pinNextConversationP(e.id); setPage("messages"); }}
+                    title="Click to open · drag to another day to reschedule"
                     style={{
                       fontSize: 10.5,
                       color: e.tone === "green" ? COLORS.green : e.tone === "amber" ? COLORS.amber : e.tone === "red" ? "#c0392b" : COLORS.ink,
@@ -4189,7 +4232,7 @@ function CalendarPage() {
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      cursor: "pointer",
+                      cursor: "grab",
                       fontFamily: FONTS.body,
                       textAlign: "left",
                       width: "100%",
@@ -4260,27 +4303,36 @@ function CalendarNavBtn({ label, onClick, disabled }: { label: string; onClick?:
 // ════════════════════════════════════════════════════════════════════
 
 function WorkPage() {
-  const { state, openDrawer, setPage, openUpgrade, toast } = useProto();
-  const inquiries = getInquiries(state.plan);
+  const { state, openDrawer, setPage, openUpgrade, toast, effectiveMessagesInquiries, effectiveBookings } = useProto();
   const canEdit = meetsRole(state.role, "coordinator");
   const isFree = state.plan === "free";
 
-  /**
-   * Pipeline list source filter. Mirrors RichInquiry.source.kind — "all"
-   * passes through, anything else narrows to that origin kind.
-   */
+  // Normalise real RichInquiry rows to the flat shape the list rows need.
+  // Falls back to mock getInquiries only when the bridge hasn't loaded any data.
+  const bridgeInquiries = effectiveMessagesInquiries.length > 0
+    ? effectiveMessagesInquiries.map((r) => ({
+        id: r.id,
+        client: r.clientName,
+        brief: r.brief,
+        talent: r.requirementGroups.flatMap((g) => g.talents.map((t) => t.name)),
+        stage: r.stage,
+        amount: r.offer?.total ?? null,
+        source: r.source,
+        richRef: r,
+      }))
+    : getInquiries(state.plan).map((iq) => ({
+        ...iq,
+        source: RICH_INQUIRIES.find((r) => r.clientName === iq.client)?.source ?? null,
+        richRef: RICH_INQUIRIES.find((r) => r.clientName === iq.client) ?? null,
+      }));
+
   type SourceKind = "all" | "direct" | "hub" | "manual" | "marketplace";
   const [sourceFilter, setSourceFilter] = useState<SourceKind>("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "client" | "amount">("newest");
 
-  const matchRich = (iq: { client: string; brief: string }) =>
-    RICH_INQUIRIES.find(
-      (r) => r.clientName === iq.client && r.brief === iq.brief,
-    ) ?? RICH_INQUIRIES.find((r) => r.clientName === iq.client);
-
-  const filteredInquiries = inquiries
-    .filter((iq) => sourceFilter === "all" || matchRich(iq)?.source.kind === sourceFilter)
+  const filteredInquiries = bridgeInquiries
+    .filter((iq) => sourceFilter === "all" || iq.source?.kind === sourceFilter)
     .filter((iq) => {
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
@@ -4289,11 +4341,10 @@ function WorkPage() {
     .sort((a, b) => {
       if (sort === "client") return a.client.localeCompare(b.client);
       if (sort === "amount") {
-        const an = parseInt((a.amount ?? "0").replace(/[^\d]/g, "")) || 0;
-        const bn = parseInt((b.amount ?? "0").replace(/[^\d]/g, "")) || 0;
+        const an = parseInt(((a.amount as string | null) ?? "0").replace(/[^\d]/g, "")) || 0;
+        const bn = parseInt(((b.amount as string | null) ?? "0").replace(/[^\d]/g, "")) || 0;
         return bn - an;
       }
-      // mock: stable order; "oldest" reverses insertion order
       return sort === "oldest" ? 1 : -1;
     });
 
@@ -4303,18 +4354,18 @@ function WorkPage() {
       filteredInquiries.map((iq) => ({
         client: iq.client,
         brief: iq.brief,
-        talent: iq.talent ?? "",
+        talent: Array.isArray(iq.talent) ? (iq.talent as string[]).join(", ") : "",
         stage: iq.stage,
-        amount: iq.amount ?? "",
-        source: matchRich(iq)?.source.kind ?? "",
+        amount: (iq.amount as string | null) ?? "",
+        source: iq.source?.kind ?? "",
       })),
     );
     toast(`Exported ${filteredInquiries.length} rows to CSV`);
   };
 
-  const drafts = inquiries.filter((i) => i.stage === "draft" || i.stage === "hold");
-  const awaiting = inquiries.filter((i) => i.stage === "awaiting-client");
-  const confirmed = inquiries.filter((i) => i.stage === "confirmed");
+  const drafts = bridgeInquiries.filter((i) => i.stage === "draft" || i.stage === "hold" || i.stage === "submitted");
+  const awaiting = bridgeInquiries.filter((i) => i.stage === "offer_pending" || i.stage === "awaiting-client");
+  const confirmed = effectiveBookings.length > 0 ? effectiveBookings : bridgeInquiries.filter((i) => i.stage === "confirmed" || i.stage === "booked" || i.stage === "approved");
 
   return (
     <>
@@ -4339,7 +4390,7 @@ function WorkPage() {
         items={[
           { id: "drafts",    label: "Drafts & holds", value: drafts.length,    tone: "amber",  onClick: () => openDrawer("drafts-holds") },
           { id: "awaiting",  label: "Awaiting client", value: awaiting.length, tone: "amber",  onClick: () => openDrawer("awaiting-client") },
-          { id: "confirmed", label: "Confirmed",      value: confirmed.length, tone: "green",  onClick: () => openDrawer("confirmed-bookings") },
+          { id: "confirmed", label: "Confirmed",       value: Array.isArray(confirmed) ? confirmed.length : 0, tone: "green",  onClick: () => openDrawer("confirmed-bookings") },
         ]}
       />
 
@@ -4485,7 +4536,8 @@ function WorkPage() {
             </div>
           )}
           {filteredInquiries.map((iq, idx) => {
-            const rich = matchRich(iq);
+            const rich = iq.richRef as RichInquiry | null;
+            const talentList = (iq.talent as string[]).join(", ");
             return (
             <button
               key={iq.id}
@@ -4516,39 +4568,25 @@ function WorkPage() {
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      color: COLORS.ink,
-                      letterSpacing: -0.05,
-                    }}
-                  >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.05 }}>
                     {iq.client}
                   </span>
                   {rich && <ClientTrustChip level={rich.clientTrust} compact />}
-                  {rich && <SourceChip source={rich.source} />}
+                  {iq.source && <SourceChip source={iq.source as RichInquiry["source"]} />}
                 </div>
                 <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
                   {iq.brief}
                 </div>
               </div>
               <div style={{ fontSize: 12, color: COLORS.inkMuted, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {iq.talent.join(", ")}
+                {talentList || "—"}
               </div>
               <div>
                 <StageBadge stage={iq.stage} />
               </div>
               <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-                {iq.amount ?? "—"}
+                {(iq.amount as string | null) ?? "—"}
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
@@ -4873,7 +4911,7 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster } = useProto();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics } = useProto();
   // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
   // the server pre-fetches Impronta's roster and `effectiveRoster` is
   // those rows. When absent, this falls back to `getRoster(plan)` per
@@ -4937,7 +4975,9 @@ function TalentPage() {
       .filter((x): x is TaxonomyParentId => x !== null)
   ));
 
-  const pendingCount = pendingTalent.length;
+  const pendingCount = overviewMetrics !== null
+    ? (overviewMetrics.pendingApprovals ?? 0)
+    : pendingTalent.length;
 
   const exportCsv = () => {
     downloadCsv(
@@ -6072,7 +6112,7 @@ function RosterCard({
             </span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-            {typeMeta?.label ?? "No type set"}
+            {typeMeta?.label ?? profile.primaryType ?? "No type set"}
             {typeMeta?.specialty && (
               <span style={{ color: COLORS.inkMuted, fontWeight: 500 }}>
                 {" · "}{typeMeta.specialty}
@@ -6346,7 +6386,7 @@ function RosterRow({
             </span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-            {typeMeta?.label ?? "No type"}
+            {typeMeta?.label ?? profile.primaryType ?? "No type"}
             {typeMeta?.specialty && <span style={{ color: COLORS.inkDim }}>{" · "}{typeMeta.specialty}</span>}
             {profile.city && <span style={{ color: COLORS.inkDim }}>{" · "}{profile.city}</span>}
           </span>

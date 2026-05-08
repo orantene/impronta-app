@@ -39,9 +39,65 @@
 
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { createAgencyInquiry } from "@/lib/server-actions/admin-inquiries";
+import { createAgencyInquiry, quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
+import { sendMessage as sendMessageAction, markThreadRead } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
+import {
+  acceptInquiryInvitation,
+  declineInquiryInvitation,
+  submitMyRateForInquiry,
+  sendInquiryMessageAsTalent,
+  uploadInquiryAttachmentAsTalent,
+} from "@/lib/server-actions/talent-pipeline";
+import {
+  clientApproveCurrentOffer,
+  clientRejectCurrentOffer,
+  sendInquiryMessageAsClient,
+  startInquiryCheckout,
+} from "@/lib/server-actions/client-pipeline";
+import {
+  convertInquiryToBookingAction,
+  loadInquiryPaymentState,
+  markInquiryPaymentReceived,
+  markInquiryPaymentPending,
+  markInquiryPaymentDisputed,
+  markInquiryPaymentFailed,
+  cancelInquiryTransaction,
+  approveOfferAction,
+  rejectOfferAction,
+  sendOfferAction,
+  createOfferAction,
+  counterOfferAction,
+  loadInquiryAttachments,
+  deleteInquiryAttachment,
+  uploadInquiryAttachment,
+  loadOfferDraft,
+  saveOfferDraft,
+  loadInquiryPayoutReceiverCandidates,
+  setInquiryPayoutReceiver,
+  reorderInquiryLineup,
+  type OfferDraftSnapshot,
+  type PayoutReceiverOption,
+  createInquiryTransactionDraft,
+  requestInquiryPayment,
+  initiateInquiryPayout,
+  markInquiryPayoutSent,
+  loadInquiryLineup,
+  removeInquiryLineupParticipant,
+  addInquiryLineupTalent,
+  setInquiryPinned,
+  setInquiryArchived,
+  setInquiryManuallyUnread,
+  bulkSetInquiryArchived,
+  bulkReassignInquiriesToMe,
+  bulkNudgeInquiries,
+  duplicateInquiryBooking,
+  type InquiryPaymentState,
+  type InquiryAttachment,
+  type InquiryParticipant,
+} from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import type { ThreadType } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import {
   COLORS, FONTS, RADIUS, TRANSITION,
   MY_TALENT_PROFILE,
@@ -425,7 +481,7 @@ function InboxRowHoverActions({
           <rect x="1.5" y="3" width="11" height="2.5" rx="0.5" stroke="currentColor" strokeWidth="1.3"/>
           <path d="M2.5 5.5v6.5h9V5.5M5.5 8h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
         </svg>
-      ), () => toast(`Archived · ${label}`))}
+      ), () => { archiveInquiry(rowId); toast(`Archived · ${label}`); })}
     </div>
   );
 }
@@ -1092,7 +1148,7 @@ function useMessageStashSubscription() {
 // state back to unseen so the user can come back to it later. Both
 // signals live in one store keyed by conv id, persisted to
 // localStorage so they survive refresh.
-type ConvFlags = { pinned?: boolean; manualUnread?: boolean };
+type ConvFlags = { pinned?: boolean; manualUnread?: boolean; archived?: boolean };
 const __FLAGS_STORAGE_KEY = "tulala.proto.convFlags.v1";
 const __convFlags: Record<string, ConvFlags> = (() => {
   if (typeof window === "undefined") return {};
@@ -1117,23 +1173,45 @@ export function isManualUnread(id: string): boolean {
 }
 export function togglePin(id: string) {
   const cur = __convFlags[id] ?? {};
-  __convFlags[id] = { ...cur, pinned: !cur.pinned };
+  const next = !cur.pinned;
+  __convFlags[id] = { ...cur, pinned: next };
   __persistFlags();
   __flagsSubscribers.forEach(fn => fn());
+  // Persist to DB for real inquiry UUIDs. Synthetic mock ids stay
+  // local-only so the demo continues to work.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    void setInquiryPinned(TENANT.slug, id, next);
+  }
 }
 export function toggleManualUnread(id: string) {
   const cur = __convFlags[id] ?? {};
-  __convFlags[id] = { ...cur, manualUnread: !cur.manualUnread };
+  const next = !cur.manualUnread;
+  __convFlags[id] = { ...cur, manualUnread: next };
   // When marking manual-unread, also remove from the locally-seen
   // set so the NEW pill / coral wash returns. When clearing, leave
   // locally-seen alone (the user already saw it once).
-  if (__convFlags[id]?.manualUnread) {
+  if (next) {
     __locallySeenConvs.delete(id);
     __persistSeen();
     __seenSubscribers.forEach(fn => fn());
   }
   __persistFlags();
   __flagsSubscribers.forEach(fn => fn());
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    void setInquiryManuallyUnread(TENANT.slug, id, next);
+  }
+}
+export function archiveInquiry(id: string) {
+  // Local archive flag (drives the inbox filter chip "Archived"). Persists
+  // to DB for real inquiry UUIDs.
+  const cur = __convFlags[id] ?? {};
+  const next = !cur.archived;
+  __convFlags[id] = { ...cur, archived: next };
+  __persistFlags();
+  __flagsSubscribers.forEach(fn => fn());
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    void setInquiryArchived(TENANT.slug, id, next);
+  }
 }
 function useFlagsSubscription(): void {
   const [, force] = useState(0);
@@ -1313,7 +1391,7 @@ export function MessagesShell({ pov }: { pov: MessagesPov }) {
 // need. The admin's job: flip between Client thread / Talent group /
 // Files (the existing tabs) and use the rail to drive the deal forward.
 
-type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past";
+type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past" | "archived";
 
 function AdminOperationsShell() {
   const { effectiveMessagesInquiries } = useProto();
@@ -1363,11 +1441,16 @@ function AdminOperationsShell() {
   const handoffIds = new Set(getIncomingHandoffs("Marta Reyes").map(h => h.inquiryId));
   const filtered = inquiries.filter(i => {
     const bucket = stageBucket(i.stage);
+    const isArchived = !!__convFlags[i.id]?.archived;
+    // Hide archived from every other view; only the "archived" filter
+    // shows them. Mirrors how Gmail / iMessage hide archived threads.
+    if (filter !== "archived" && isArchived) return false;
+    if (filter === "archived" && !isArchived) return false;
     if (filter === "needs-me" && i.nextActionBy !== "coordinator") return false;
     if (filter === "unread" && i.unreadGroup === 0 && i.unreadPrivate === 0) return false;
     if (filter === "coordinating" && !isCoordOnInquiry(i)) return false;
     if (filter === "handoffs" && !handoffIds.has(i.id)) return false;
-    if (filter !== "all" && filter !== "needs-me" && filter !== "unread" && filter !== "coordinating" && filter !== "handoffs" && bucket !== filter) return false;
+    if (filter !== "all" && filter !== "needs-me" && filter !== "unread" && filter !== "coordinating" && filter !== "handoffs" && filter !== "archived" && bucket !== filter) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       // Search across all the things an admin would scan for: client
@@ -1788,6 +1871,7 @@ function AdminInboxList({
   // and pin their own (filter + search + sort). They appear at the
   // start of the chip row with a star pin so they read as
   // first-class user-curated entry points, not just filters.
+  const archivedCount = inquiries.filter(i => !!__convFlags[i.id]?.archived).length;
   const chips: { id: AdminFilter; label: string; count?: number; pin?: boolean }[] = [
     { id: "all", label: "All" },
     { id: "needs-me", label: `Needs me${needsMe > 0 ? ` (${needsMe})` : ""}` },
@@ -1798,6 +1882,7 @@ function AdminInboxList({
     { id: "hold", label: "Offer pending" },
     { id: "booked", label: "Booked" },
     { id: "past", label: "Past" },
+    ...(archivedCount > 0 ? [{ id: "archived" as const, label: `Archived${archivedCount > 0 ? ` (${archivedCount})` : ""}` }] : []),
   ];
 
   // Bulk-select state — flipping into bulk mode reveals row checkboxes
@@ -1980,7 +2065,21 @@ function AdminInboxList({
           </span>
           <span style={{ flex: 1 }} />
           <button type="button"
-            onClick={() => { toastBulk(`Nudged ${selectedIds.size} thread${selectedIds.size === 1 ? "" : "s"}`); exitBulk(); }}
+            onClick={() => {
+              const count = selectedIds.size;
+              const ids = Array.from(selectedIds);
+              const realIds = ids.filter((id) =>
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+              );
+              if (realIds.length > 0) {
+                void bulkNudgeInquiries(TENANT.slug, realIds).then((r) => {
+                  if (!r.ok) toastBulk(`Bulk nudge failed: ${r.error}`);
+                  else if (r.data?.failed) toastBulk(`Nudged ${r.data.ok} (${r.data.failed} failed)`);
+                });
+              }
+              toastBulk(`Nudged ${count} thread${count === 1 ? "" : "s"}`);
+              exitBulk();
+            }}
             style={{
               padding: "5px 10px", borderRadius: 999,
               border: "1px solid rgba(255,255,255,0.25)",
@@ -1991,7 +2090,26 @@ function AdminInboxList({
             Nudge
           </button>
           <button type="button"
-            onClick={() => { toastBulk(`Archived ${selectedIds.size} thread${selectedIds.size === 1 ? "" : "s"}`); exitBulk(); }}
+            onClick={() => {
+              const count = selectedIds.size;
+              const ids = Array.from(selectedIds);
+              const restoring = filter === "archived";
+              // Always toggle the local flag so the inbox refreshes
+              // immediately (matches how single-row Archive works).
+              ids.forEach((id) => archiveInquiry(id));
+              // Persist the real ones in one bulk round-trip — direction
+              // is restore when we're in the archived view, archive otherwise.
+              const realIds = ids.filter((id) =>
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+              );
+              if (realIds.length > 0) {
+                void bulkSetInquiryArchived(TENANT.slug, realIds, !restoring).then((r) => {
+                  if (!r.ok) toastBulk(`Bulk ${restoring ? "restore" : "archive"} failed: ${r.error}`);
+                });
+              }
+              toastBulk(`${restoring ? "Restored" : "Archived"} ${count} thread${count === 1 ? "" : "s"}`);
+              exitBulk();
+            }}
             style={{
               padding: "5px 10px", borderRadius: 999,
               border: "1px solid rgba(255,255,255,0.25)",
@@ -1999,10 +2117,24 @@ function AdminInboxList({
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               fontFamily: FONTS.body,
             }}>
-            Archive
+            {filter === "archived" ? "Restore" : "Archive"}
           </button>
           <button type="button"
-            onClick={() => { toastBulk(`Reassign ${selectedIds.size} thread${selectedIds.size === 1 ? "" : "s"}`); exitBulk(); }}
+            onClick={() => {
+              const count = selectedIds.size;
+              const ids = Array.from(selectedIds);
+              const realIds = ids.filter((id) =>
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+              );
+              if (realIds.length > 0) {
+                void bulkReassignInquiriesToMe(TENANT.slug, realIds).then((r) => {
+                  if (!r.ok) toastBulk(`Bulk reassign failed: ${r.error}`);
+                  else if (r.data?.failed) toastBulk(`Reassigned ${r.data.ok} (${r.data.failed} failed)`);
+                });
+              }
+              toastBulk(`Reassigned ${count} thread${count === 1 ? "" : "s"} to you`);
+              exitBulk();
+            }}
             style={{
               padding: "5px 12px", borderRadius: 999,
               border: "none",
@@ -2020,6 +2152,108 @@ function AdminInboxList({
 
 // ── Admin thread header (slim — most context is in WorkspaceBody) ──
 // ── Admin INQUIRY DETAIL — same shell as talent/client, ops-flavored hero ──
+// ── Stage transition menu ─────────────────────────────────────────────────
+// Compact dropdown in the AdminInquiryDetail header that lets coordinators
+// advance an inquiry through the pipeline. Calls quickPatchInquiryStatus
+// server action and optimistically updates the UI via router.refresh().
+type InquiryStage = RichInquiry["stage"];
+const NEXT_STAGES: Record<string, { label: string; value: string }[]> = {
+  submitted:    [{ label: "Start review", value: "reviewing" }, { label: "Mark lost", value: "closed_lost" }],
+  reviewing:    [{ label: "Send offer", value: "offer_pending" }, { label: "Mark lost", value: "closed_lost" }],
+  offer_pending:[{ label: "Mark approved", value: "approved" }, { label: "Mark rejected", value: "rejected" }],
+  approved:     [{ label: "Convert to booking", value: "booked" }],
+  coordination: [{ label: "Start review", value: "reviewing" }, { label: "Mark lost", value: "closed_lost" }],
+  draft:        [{ label: "Submit", value: "submitted" }],
+};
+
+function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: InquiryStage }) {
+  const { toast } = useProto();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const options = NEXT_STAGES[stage as string] ?? [];
+  if (options.length === 0) return null;
+
+  const move = (nextStatus: string) => {
+    setOpen(false);
+    startTransition(async () => {
+      // approved → booked goes through the atomic engine_convert_to_booking RPC
+      // (creates the agency_bookings row + booking_talent in a single transaction)
+      // rather than just patching status. Other transitions are status-only.
+      if (nextStatus === "booked") {
+        const result = await convertInquiryToBookingAction(TENANT.slug, inquiryId);
+        if (!result.ok) {
+          toast(`Convert failed: ${result.error}`);
+        } else {
+          toast("Inquiry booked");
+          router.refresh();
+        }
+        return;
+      }
+
+      const fd = new FormData();
+      fd.set("inquiry_id", inquiryId);
+      fd.set("status", nextStatus);
+      const result = await quickPatchInquiryStatus(fd);
+      if (result && "error" in result) {
+        toast(`Stage update failed: ${result.error}`);
+      } else {
+        router.refresh();
+      }
+    });
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "5px 10px", borderRadius: 6,
+          background: COLORS.fill, color: "#fff",
+          border: "none", cursor: pending ? "wait" : "pointer",
+          fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+          opacity: pending ? 0.7 : 1,
+        }}
+      >
+        {pending ? "Moving…" : "Move to"}
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden>
+          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 50,
+          background: "#fff", borderRadius: 8,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+          border: `1px solid ${COLORS.borderSoft}`,
+          minWidth: 160, overflow: "hidden",
+        }}>
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => move(opt.value)}
+              style={{
+                display: "block", width: "100%", textAlign: "left",
+                padding: "9px 14px",
+                fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+                background: "none", border: "none", cursor: "pointer",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Hero: status pill + project + brief + funnel
 // Operational block: lineup status + offer state + needs-me action card
 // Tab bar: Client thread · Talent group · Files · Details (admin sees ALL — no locks)
@@ -2044,6 +2278,19 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
   const lineupTotal = allTalents.length;
   const lineupAccepted = allTalents.filter(t => t.status === "accepted").length;
   const lineupPending = allTalents.filter(t => t.status === "pending").length;
+
+  // A5 — fire markThreadRead on tab open so the unread badge clears
+  // immediately when the user opens a Client or Talent thread. Skipped
+  // for synthetic mock inquiry ids (the demo data isn't in DB).
+  const inquiryIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiry.id);
+  useEffect(() => {
+    if (!inquiryIsUuid) return;
+    if (activeTab === "client") {
+      void markThreadRead(TENANT.slug, inquiry.id, "private");
+    } else if (activeTab === "talent") {
+      void markThreadRead(TENANT.slug, inquiry.id, "group");
+    }
+  }, [activeTab, inquiry.id, inquiryIsUuid]);
 
   // Offer state
   const offer = inquiry.offer;
@@ -2108,18 +2355,20 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
         onBack={onBack}
         backLabel="Inbox"
         showCoordPill={false}
-        rightSlot={(() => {
-          if (!offerLabel) return null;
-          return (
-            <span title={offerLabel} style={{
-              padding: "3px 9px", borderRadius: 999,
-              background: COLORS.surfaceAlt, color: COLORS.inkMuted,
-              fontSize: 11, fontWeight: 600,
-              fontFamily: FONTS.body, fontVariantNumeric: "tabular-nums",
-              maxWidth: 220, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            }}>{offerLabel}</span>
-          );
-        })()}
+        rightSlot={(
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {offerLabel && (
+              <span title={offerLabel} style={{
+                padding: "3px 9px", borderRadius: 999,
+                background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+                fontSize: 11, fontWeight: 600,
+                fontFamily: FONTS.body, fontVariantNumeric: "tabular-nums",
+                maxWidth: 180, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              }}>{offerLabel}</span>
+            )}
+            <StageTransitionMenu inquiryId={inquiry.id} stage={inquiry.stage} />
+          </div>
+        )}
         // Admin's lineup + coord signals — folded into the header instead
         // of a separate floating strip below, so the workspace detail
         // matches the client/talent header silhouette (single card).
@@ -2159,6 +2408,10 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
           </>
         ) : undefined}
       />
+
+      {/* Live lineup panel — DB-backed roster manager. Renders nothing for
+          synthetic/mock inquiries, so the demo experience stays clean. */}
+      <LiveLineupPanel inquiryId={inquiry.id} />
 
       {/* TAB BAR — admin sees all 4 tabs unlocked. Lineup + Offer summaries
           live inside the Offer tab now (single source of truth). The hero
@@ -2201,6 +2454,9 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                   closedNotice={inquiry.stage === "rejected"
                     ? "Closed · the client passed on this offer."
                     : "Closed · auto-expired (no client response in the window)."}
+                  inquiryId={inquiry.id}
+                  tenantSlug={TENANT.slug}
+                  threadType="private"
                 />
               )}
               {activeTab === "talent" && (
@@ -2213,6 +2469,9 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                   closedNotice={inquiry.stage === "rejected"
                     ? "Closed · the client passed on this project."
                     : "Closed · auto-expired."}
+                  inquiryId={inquiry.id}
+                  tenantSlug={TENANT.slug}
+                  threadType="group"
                 />
               )}
             </>
@@ -2244,8 +2503,9 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
             kept as a fallback for any external callers that still pin
             it (e.g. notification deep-links) until they migrate. */}
         {(activeTab === "booking" || activeTab === "details") && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
             <AdminBookingTab inquiry={toInquiry(inquiry)} planTier={planTier} />
+            <LiveBookingActions inquiryId={inquiry.id} />
           </div>
         )}
       </div>
@@ -2262,7 +2522,7 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
 // when the inquiry is past / cancelled / rejected / expired.
 function AdminMessageStream({
   messages, placeholder, closed, closedNotice, threadKey, smartReplyContext = "default",
-  firstTimeClientName,
+  firstTimeClientName, inquiryId, tenantSlug, threadType,
 }: {
   messages: RichInquiry["messages"];
   placeholder: string;
@@ -2283,8 +2543,15 @@ function AdminMessageStream({
    *  top of the stream. Caller computes the first-time signal so the
    *  stream stays presentation-only. */
   firstTimeClientName?: string;
+  /** Real inquiry UUID — used to persist messages to DB. */
+  inquiryId: string;
+  /** Workspace slug — passed to sendMessage server action. */
+  tenantSlug: string;
+  /** DB thread type for this stream: "private" = client, "group" = talent. */
+  threadType: ThreadType;
 }) {
   const { toast, state } = useProto();
+  const [, startTransition] = useTransition();
   // Subscribe so locally-sent messages re-render the stream.
   useMessageStashSubscription();
   const localMessages = readLocalMessages(threadKey);
@@ -2443,13 +2710,19 @@ function AdminMessageStream({
             smartReplyContext={smartReplyContext}
             onSend={(text) => {
               appendLocalMessage(threadKey, text);
-              toast("Message sent");
+              startTransition(async () => {
+                const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text);
+                if ("error" in result) toast(`Send failed: ${result.error}`);
+              });
             }}
             workspaceName={wsName}
             canSendAsWorkspace={canSendAsWs}
             onSendAsWorkspace={(text) => {
               appendLocalMessage(threadKey, text, "workspace");
-              toast(`Sent as ${wsName}`);
+              startTransition(async () => {
+                const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text);
+                if ("error" in result) toast(`Send failed: ${result.error}`);
+              });
             }}
           />
         )}
@@ -3886,6 +4159,8 @@ function funnelIndexFor(stage: string): number {
 // Layout (top-down): unified header → tabs → conversation
 function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
   const { toast } = useProto();
+  const router = useRouter();
+  const [, startTalentInviteTransition] = useTransition();
   const yourRate = TALENT_RATE_FOR_CONV[conv.id] ?? "—";
 
   // Talent permission model:
@@ -4003,7 +4278,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
         )}
         {activeTab === "files" && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            <FilesTab conv={conv} povCanSeeTalentFiles={true} />
+            <FilesTab conv={conv} povCanSeeTalentFiles={true} pov="talent" />
           </div>
         )}
         {activeTab === "payment" && (
@@ -4038,7 +4313,41 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           Was previously suppressed when an in-thread pin showed the
           same prompt; pins are gone now (replaced by TeamStrip), so
           the bar is the canonical action surface across all tabs. */}
-      <ShellNextActionBar {...resolveShellAction(conv, isCoordinator ? "talent_coord" : "talent", toast)} />
+      <ShellNextActionBar {...(() => {
+        // Wrap resolveShellAction to route the talent invite-stage Accept/
+        // Decline path through real engine actions for real-UUID inquiries.
+        // Mock conv ids fall through to the default toast behavior so the
+        // demo flow keeps working unchanged.
+        const baseAction = resolveShellAction(conv, isCoordinator ? "talent_coord" : "talent", toast);
+        const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+        const inviteStage = !isCoordinator
+          && (conv.stage === "inquiry" || conv.stage === "hold")
+          && !MOCK_OFFER_FOR_CONV[conv.id];
+        if (!isRealUuid || !inviteStage) return baseAction;
+        return {
+          ...baseAction,
+          primary: baseAction.primary ? {
+            ...baseAction.primary,
+            onClick: () => {
+              startTalentInviteTransition(async () => {
+                const r = await acceptInquiryInvitation(conv.id);
+                if (!r.ok) toast(`Accept failed: ${r.error}`);
+                else { toast("Inquiry accepted"); router.refresh(); }
+              });
+            },
+          } : baseAction.primary,
+          secondary: baseAction.secondary ? {
+            ...baseAction.secondary,
+            onClick: () => {
+              startTalentInviteTransition(async () => {
+                const r = await declineInquiryInvitation(conv.id);
+                if (!r.ok) toast(`Decline failed: ${r.error}`);
+                else { toast("Inquiry declined"); router.refresh(); }
+              });
+            },
+          } : baseAction.secondary,
+        };
+      })()} />
       {/* Lineup drawer — rendered at the TalentJobDetail level (not
           inside the booking tab) so the same drawer state survives
           tab-switches and so the conversation tab's TeamStrip and the
@@ -4630,6 +4939,47 @@ function ClientProjectInbox({
 // ── Client PROJECT DETAIL — calm, status-focused ──
 function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
   const { toast } = useProto();
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+
+  // G-pass — when conv.id is a real inquiry UUID, the client-side header
+  // CTA routes through clientApproveCurrentOffer / clientRejectCurrentOffer
+  // depending on which action the inquiry calls for. Synthetic mock conv
+  // ids (c1..c12, m1..m8, g1..g4) keep the toast-only stub.
+  const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+  const handleClientCtaClick = (label: string) => {
+    if (!isRealInquiry) { toast(label); return; }
+    // Heuristic: "Approve" or "Sign" → approve; otherwise just toast.
+    // A future iteration can route Sign → Stripe checkout etc.
+    if (/approve|sign/i.test(label)) {
+      startTransition(async () => {
+        const r = await clientApproveCurrentOffer(conv.id);
+        if (!r.ok) toast(`Approve failed: ${r.error}`);
+        else { toast("Offer approved"); router.refresh(); }
+      });
+      return;
+    }
+    if (/reject|decline|pass/i.test(label)) {
+      startTransition(async () => {
+        const r = await clientRejectCurrentOffer(conv.id);
+        if (!r.ok) toast(`Reject failed: ${r.error}`);
+        else { toast("Offer rejected"); router.refresh(); }
+      });
+      return;
+    }
+    if (/pay|invoice|verify card/i.test(label)) {
+      startTransition(async () => {
+        const r = await startInquiryCheckout(conv.id);
+        if (!r.ok) { toast(`Checkout failed: ${r.error}`); return; }
+        if (r.url) {
+          if (r.mock) toast("Stripe not configured — opening mock success page");
+          window.location.href = r.url;
+        }
+      });
+      return;
+    }
+    toast(label);
+  };
 
   // Mock talent lineup for client view (would come from inquiry record)
   const lineup = (conv.participants ?? []).filter(p => p.isTalent).slice(0, 4);
@@ -4666,7 +5016,7 @@ function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () 
           const action = CLIENT_NEXT_ACTION_FOR_CONV[conv.id];
           if (!action) return null;
           return (
-            <button type="button" onClick={() => toast(action.label)} style={{
+            <button type="button" onClick={() => handleClientCtaClick(action.label)} style={{
               padding: "5px 11px", borderRadius: 999,
               border: action.primary ? "none" : `1px solid ${COLORS.border}`,
               background: action.primary ? COLORS.success : "transparent",
@@ -7381,7 +7731,6 @@ function PaymentStep({ done, label, detail }: { done?: boolean; label: string; d
 }
 
 export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
-  const { toast } = useProto();
   const isClient = pov === "client";
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
@@ -7389,54 +7738,286 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
         <DetailField label="Date" value={inquiry.schedule.start} />
         {inquiry.schedule.callTime && <DetailField label="Call time" value={inquiry.schedule.callTime} />}
         {inquiry.schedule.wrapTime && <DetailField label="Wrap" value={inquiry.schedule.wrapTime} />}
-        <div style={{ marginTop: 10 }}>
-          <button type="button" onClick={() => toast(isClient ? "Opening call sheet…" : "Edit call sheet")} style={primaryBtn(COLORS.accent)}>
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+          <button type="button" disabled style={{ ...primaryBtn(COLORS.accent), opacity: 0.45, cursor: "default" }}>
             {isClient ? "View call sheet" : "Edit call sheet"}
           </button>
+          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Coming soon</span>
         </div>
       </DetailSection>
       <DetailSection title="Location">
         {inquiry.location.venue && <DetailField label="Venue" value={inquiry.location.venue} />}
         {inquiry.location.address && <DetailField label="Address" value={inquiry.location.address} />}
         {inquiry.location.mapUrl && (
-          <button type="button" onClick={() => toast("Open map")} style={ghostBtn()}>Open map</button>
+          <a
+            href={inquiry.location.mapUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ ...ghostBtn(), textDecoration: "none", display: "inline-block" }}
+          >
+            Open map
+          </a>
         )}
       </DetailSection>
       <DetailSection title="Transport">
         <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "6px 0" }}>
           Add transport, parking, or accommodation as needed.
         </div>
-        <button type="button" onClick={() => toast("Add transport")} style={ghostBtn()}>+ Add transport</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button type="button" disabled style={{ ...ghostBtn(), opacity: 0.45, cursor: "default" }}>+ Add transport</button>
+          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Coming soon</span>
+        </div>
       </DetailSection>
     </div>
   );
 }
 
+/**
+ * PayoutReceiverPicker — surfaces eligible payout accounts for the
+ * booking and lets the admin select / change one. Wraps
+ * `setInquiryPayoutReceiver` (which writes to the active transaction).
+ */
+function PayoutReceiverPicker({
+  inquiryId,
+  currentPayoutAccountId,
+  currentDisplayName,
+  onChanged,
+}: {
+  inquiryId: string;
+  currentPayoutAccountId: string | null;
+  currentDisplayName: string | null;
+  onChanged: () => void;
+}) {
+  const { toast } = useProto();
+  const [candidates, setCandidates] = useState<PayoutReceiverOption[] | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [selected, setSelected] = useState<string>(currentPayoutAccountId ?? "");
+
+  useEffect(() => {
+    setSelected(currentPayoutAccountId ?? "");
+  }, [currentPayoutAccountId]);
+
+  useEffect(() => {
+    loadInquiryPayoutReceiverCandidates(TENANT.slug, inquiryId)
+      .then((r) => { if (r.ok) setCandidates(r.data ?? []); });
+  }, [inquiryId]);
+
+  const apply = () => {
+    if (!selected) { toast("Choose a payout receiver."); return; }
+    startTransition(async () => {
+      const r = await setInquiryPayoutReceiver(TENANT.slug, inquiryId, selected);
+      if (!r.ok) toast(`Set receiver failed: ${r.error}`);
+      else { toast("Payout receiver set"); onChanged(); }
+    });
+  };
+
+  return (
+    <div style={{
+      marginTop: 8, padding: "8px 10px",
+      background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: 8,
+      display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <span style={{ fontWeight: 700, color: COLORS.ink }}>Payout receiver</span>
+      {currentDisplayName && (
+        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>currently · {currentDisplayName}</span>
+      )}
+      <span style={{ flex: 1 }} />
+      <select
+        value={selected}
+        onChange={(e) => setSelected(e.target.value)}
+        disabled={pending || candidates == null}
+        style={{
+          padding: "5px 8px", fontSize: 12, fontFamily: FONTS.body,
+          border: `1px solid ${COLORS.border}`, borderRadius: 6,
+          minWidth: 180,
+        }}
+      >
+        <option value="">— choose —</option>
+        {(candidates ?? []).map((c) => (
+          <option key={c.payoutAccountId} value={c.payoutAccountId}>
+            {c.displayName} ({c.receiverKind})
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={pending || !selected || selected === currentPayoutAccountId}
+        onClick={apply}
+        style={primaryBtn(COLORS.accent)}
+      >
+        {pending ? "Saving…" : currentPayoutAccountId ? "Change" : "Set"}
+      </button>
+      {candidates != null && candidates.length === 0 && (
+        <div style={{ flexBasis: "100%", fontSize: 11, color: COLORS.coralDeep }}>
+          No eligible payout accounts. Configure agency or talent payout accounts first.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Friendly labels for booking_transactions.status enum
+const TRANSACTION_STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  payment_requested: "Payment requested",
+  pending: "Pending",
+  paid: "Paid",
+  payout_pending: "Payout pending",
+  payout_sent: "Payout sent",
+  cancelled: "Cancelled",
+  failed: "Failed",
+  disputed: "Disputed",
+  refunded: "Refunded",
+};
+
+function formatCents(cents: number | null, currency: string): string {
+  if (cents == null) return "—";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 })
+      .format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency}`;
+  }
+}
+
 export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
   const { toast } = useProto();
   const isClient = pov === "client";
-  const total = inquiry.budget?.amount ?? 0;
-  const currency = inquiry.budget?.currency ?? "EUR";
+  const isAdmin = pov === "admin";
+  const fallbackTotal = inquiry.budget?.amount ?? 0;
+  const fallbackCurrency = inquiry.budget?.currency ?? "EUR";
+
+  const [state, setState] = useState<InquiryPaymentState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pending, startTransition] = useTransition();
+
+  const reload = React.useCallback(() => {
+    setLoading(true);
+    loadInquiryPaymentState(TENANT.slug, inquiry.id)
+      .then((r) => { if (r.ok) setState(r.data ?? null); })
+      .finally(() => setLoading(false));
+  }, [inquiry.id]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const txn = state?.transaction;
+  const txStatus = txn?.status ?? null;
+  const totalCents = state?.totalRevenueCents ?? (fallbackTotal ? fallbackTotal * 100 : null);
+  const currency = state?.currency ?? fallbackCurrency;
+
+  const run = (label: string, fn: () => Promise<{ ok: boolean; error?: string } | undefined | void>) => {
+    startTransition(async () => {
+      const r = await fn();
+      if (r && "ok" in r && !r.ok) {
+        toast(`${label} failed: ${(r as { error?: string }).error ?? "Unknown error"}`);
+      } else {
+        toast(`${label} ✓`);
+        reload();
+      }
+    });
+  };
+
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       <DetailSection title={isClient ? "Invoice" : "Billing"}>
-        <DetailField label="Total" value={total ? new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(total) : "—"} />
-        <DetailField label="Status" value={isClient ? "Awaiting payment" : "Issued · awaiting client"} />
-        <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-          {isClient ? (
-            <button type="button" onClick={() => toast("Pay invoice flow")} style={primaryBtn(COLORS.success)}>
-              Pay invoice
+        <DetailField label="Total" value={formatCents(totalCents, currency)} />
+        <DetailField
+          label="Status"
+          value={
+            loading ? "Loading…"
+              : txStatus ? TRANSACTION_STATUS_LABEL[txStatus] ?? txStatus
+              : state?.bookingId ? "No transaction yet"
+              : "No booking yet"
+          }
+        />
+        {txn && (
+          <>
+            <DetailField label="Net amount" value={formatCents(txn.netAmountCents, txn.currency)} />
+            {txn.paidAt && <DetailField label="Paid at" value={new Date(txn.paidAt).toLocaleString()} />}
+            {txn.failureReason && <DetailField label="Failure reason" value={txn.failureReason} />}
+          </>
+        )}
+        {isAdmin && txn && (
+          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(txStatus === "draft") && (
+              <button type="button" disabled={pending} onClick={() => run("Request payment", () => requestInquiryPayment(TENANT.slug, inquiry.id))} style={primaryBtn(COLORS.accent)}>
+                Request payment
+              </button>
+            )}
+            {(txStatus === "payment_requested") && (
+              <button type="button" disabled={pending} onClick={() => run("Mark pending", () => markInquiryPaymentPending(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+                Mark pending
+              </button>
+            )}
+            {(txStatus === "payment_requested" || txStatus === "pending" || txStatus === "disputed") && (
+              <button type="button" disabled={pending} onClick={() => run("Mark received", () => markInquiryPaymentReceived(TENANT.slug, inquiry.id))} style={primaryBtn(COLORS.success)}>
+                Mark received
+              </button>
+            )}
+            {(txStatus === "paid") && (
+              <>
+                <button type="button" disabled={pending} onClick={() => run("Initiate payout", () => initiateInquiryPayout(TENANT.slug, inquiry.id))} style={primaryBtn(COLORS.accent)}>
+                  Initiate payout
+                </button>
+                <button type="button" disabled={pending} onClick={() => run("Mark disputed", () => markInquiryPaymentDisputed(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+                  Mark disputed
+                </button>
+              </>
+            )}
+            {(txStatus === "payout_pending") && (
+              <button type="button" disabled={pending} onClick={() => run("Mark payout sent", () => markInquiryPayoutSent(TENANT.slug, inquiry.id, null))} style={primaryBtn(COLORS.success)}>
+                Mark payout sent
+              </button>
+            )}
+            {(txStatus === "payment_requested" || txStatus === "pending" || txStatus === "payout_pending") && (
+              <button type="button" disabled={pending} onClick={() => run("Mark failed", () => markInquiryPaymentFailed(TENANT.slug, inquiry.id, "manual_marked_failed"))} style={ghostBtn()}>
+                Mark failed
+              </button>
+            )}
+            {(txStatus === "draft" || txStatus === "payment_requested" || txStatus === "failed") && (
+              <button type="button" disabled={pending} onClick={() => run("Cancel transaction", () => cancelInquiryTransaction(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
+        {isAdmin && !txn && state?.bookingId && (
+          <div style={{ marginTop: 10 }}>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run("Create transaction draft", () => createInquiryTransactionDraft(TENANT.slug, inquiry.id))}
+              style={primaryBtn(COLORS.accent)}
+            >
+              {pending ? "Creating…" : "Create transaction draft"}
             </button>
-          ) : (
-            <button type="button" onClick={() => toast("Send reminder")} style={ghostBtn()}>Send reminder</button>
-          )}
-        </div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+              Drafts the booking transaction with platform fee from the workspace plan.
+            </div>
+          </div>
+        )}
       </DetailSection>
       {!isClient && (
         <DetailSection title="Payouts">
           <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "6px 0" }}>
-            Released to talent once invoice clears.
+            {txStatus === "payout_sent"
+              ? `Payout sent ${txn?.payoutCompletedAt ? `at ${new Date(txn.payoutCompletedAt).toLocaleString()}` : ""}`
+              : txStatus === "payout_pending"
+              ? `Payout pending ${txn?.payoutInitiatedAt ? `since ${new Date(txn.payoutInitiatedAt).toLocaleString()}` : ""}`
+              : txStatus === "paid"
+              ? "Funds received — pick a payout receiver below, then initiate the payout."
+              : "Released to talent once invoice clears."}
           </div>
+          {isAdmin && txn && (txStatus === "paid" || txStatus === "payout_pending") && (
+            <PayoutReceiverPicker
+              inquiryId={inquiry.id}
+              currentPayoutAccountId={txn.payoutReceiverId}
+              currentDisplayName={txn.payoutReceiverDisplayName}
+              onChanged={reload}
+            />
+          )}
         </DetailSection>
       )}
     </div>
@@ -9959,8 +10540,535 @@ function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta?: stri
   return { label: "—", subtle: true };
 }
 
+/**
+ * LiveLineupPanel — DB-backed roster manager for an inquiry. Lists active
+ * `inquiry_participants.role='talent'` rows and exposes an inline Remove
+ * for each (wraps `rosterRemoveParticipant`). An "Add talent by id" input
+ * accepts a roster talent UUID and calls `rosterAddTalent` — full picker
+ * UI is deferred but this unblocks staff-side workflow today.
+ *
+ * Renders nothing while loading or when no live lineup exists (mock UI
+ * still renders the demo lineup chips).
+ */
+function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
+  const { toast, effectiveRoster } = useProto();
+  const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pending, startTransition] = useTransition();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+
+  // Skip the DB roundtrip entirely for synthetic mock inquiry ids — the
+  // demo conversations use "RI-XXX" / "c1" style ids that won't resolve.
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
+
+  const reload = React.useCallback(() => {
+    if (!isUuid) { setLoading(false); return; }
+    setLoading(true);
+    loadInquiryLineup(TENANT.slug, inquiryId)
+      .then((r) => { if (r.ok) setLineup(r.data ?? []); })
+      .finally(() => setLoading(false));
+  }, [inquiryId, isUuid]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  if (!isUuid) return null;
+  if (loading || lineup == null) return null;
+
+  const onLineupTalentIds = new Set(lineup.map((p) => p.talentProfileId).filter((x): x is string => !!x));
+  // Roster talent ids are real UUIDs (synthetic mock roster won't match
+  // anything in DB — those rows are filtered out so the picker only
+  // surfaces real talent the action will accept).
+  const pickerCandidates = effectiveRoster.filter((p) => {
+    const id = p.id;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return false;
+    if (onLineupTalentIds.has(id)) return false;
+    if (!pickerSearch.trim()) return true;
+    const q = pickerSearch.trim().toLowerCase();
+    return p.name.toLowerCase().includes(q) || (p.city ?? "").toLowerCase().includes(q);
+  });
+
+  const remove = (participantId: string, name: string | null) => {
+    if (!confirm(`Remove ${name ?? "this talent"} from the lineup?`)) return;
+    startTransition(async () => {
+      const r = await removeInquiryLineupParticipant(TENANT.slug, inquiryId, participantId);
+      if (!r.ok) toast(`Remove failed: ${r.error}`);
+      else { toast("Removed from lineup"); reload(); }
+    });
+  };
+
+  const add = (talentProfileId: string, name: string) => {
+    startTransition(async () => {
+      const r = await addInquiryLineupTalent(TENANT.slug, inquiryId, talentProfileId);
+      if (!r.ok) toast(`Add failed: ${r.error}`);
+      else {
+        toast(`${name} added to lineup`);
+        setPickerOpen(false);
+        setPickerSearch("");
+        reload();
+      }
+    });
+  };
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: 12, marginBottom: 10,
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontWeight: 700, color: COLORS.ink }}>
+          Live lineup ({lineup.length})
+        </span>
+        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
+          inquiry_participants
+        </span>
+        <span style={{ flex: 1 }} />
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => setPickerOpen((o) => !o)}
+          style={primaryBtn(COLORS.accent)}
+        >
+          {pickerOpen ? "Close picker" : "Add talent"}
+        </button>
+      </div>
+      {lineup.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+          {lineup.map((p, idx) => (
+            <div
+              key={p.id}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/x-participant-id", p.id);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const fromId = e.dataTransfer.getData("text/x-participant-id");
+                if (!fromId || fromId === p.id) return;
+                const fromIdx = lineup.findIndex((x) => x.id === fromId);
+                if (fromIdx < 0) return;
+                const next = [...lineup];
+                const [moved] = next.splice(fromIdx, 1);
+                next.splice(idx, 0, moved);
+                // Optimistic update + persist.
+                setLineup(next);
+                startTransition(async () => {
+                  const r = await reorderInquiryLineup(TENANT.slug, inquiryId, next.map((x) => x.id));
+                  if (!r.ok) { toast(`Reorder failed: ${r.error}`); reload(); }
+                });
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "6px 10px", background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
+                cursor: "grab",
+              }}
+            >
+              <span aria-hidden style={{
+                color: COLORS.inkDim, fontSize: 12, fontWeight: 700,
+                cursor: "grab", userSelect: "none",
+              }}>⋮⋮</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, color: COLORS.ink }}>
+                  {p.talentDisplayName ?? "(unnamed talent)"}
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
+                  {p.status}{p.invitedAt ? ` · invited ${new Date(p.invitedAt).toLocaleDateString()}` : ""}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => remove(p.id, p.talentDisplayName)}
+                style={{
+                  padding: "4px 8px", borderRadius: 6,
+                  background: "transparent", border: `1px solid ${COLORS.border}`,
+                  color: COLORS.coralDeep, cursor: pending ? "wait" : "pointer",
+                  fontSize: 11, fontWeight: 600,
+                }}
+              >Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {pickerOpen && (
+        <div style={{
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 8, padding: 8,
+          display: "flex", flexDirection: "column", gap: 6,
+        }}>
+          <input
+            type="text"
+            value={pickerSearch}
+            onChange={(e) => setPickerSearch(e.target.value)}
+            placeholder="Search roster…"
+            autoFocus
+            style={{
+              padding: "6px 10px",
+              border: `1px solid ${COLORS.border}`, borderRadius: 6,
+              fontSize: 12, fontFamily: FONTS.body,
+            }}
+          />
+          <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+            {pickerCandidates.length === 0 && (
+              <div style={{ fontSize: 11, color: COLORS.inkMuted, padding: "6px 4px" }}>
+                {pickerSearch.trim() ? "No matches in roster." : "All roster talent are already on this lineup."}
+              </div>
+            )}
+            {pickerCandidates.slice(0, 50).map((cand) => (
+              <button
+                key={cand.id}
+                type="button"
+                disabled={pending}
+                onClick={() => add(cand.id, cand.name)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "6px 8px", textAlign: "left",
+                  background: "transparent",
+                  border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6,
+                  cursor: pending ? "wait" : "pointer",
+                  fontSize: 12, fontFamily: FONTS.body, color: COLORS.ink,
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+              >
+                <span style={{ flex: 1, fontWeight: 600 }}>{cand.name}</span>
+                <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>{cand.city ?? ""}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * OfferDraftEditor — coordinator UI for adding/editing/removing offer
+ * line items + setting the offer total/fee. Renders only when:
+ *   • the inquiry has a real offer (offerId is a UUID)
+ *   • the offer is in "draft" status
+ *   • the actor is an admin
+ *
+ * Saves via `saveOfferDraft` which delegates to the engine
+ * `updateOfferDraft`. Each save replaces the line items wholesale —
+ * matches the engine contract.
+ */
+function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; offerId: string; isAdmin: boolean }) {
+  const { toast, effectiveRoster } = useProto();
+  const [snapshot, setSnapshot] = useState<OfferDraftSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pending, startTransition] = useTransition();
+  const [collapsed, setCollapsed] = useState(true);
+
+  const reload = React.useCallback(() => {
+    setLoading(true);
+    loadOfferDraft(TENANT.slug, offerId)
+      .then((r) => { if (r.ok && r.data) setSnapshot(r.data); })
+      .finally(() => setLoading(false));
+  }, [offerId]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  if (!isAdmin) return null;
+  if (loading) return null;
+  if (!snapshot) return null;
+
+  const addLineItem = () => {
+    setSnapshot((s) => s == null ? s : {
+      ...s,
+      lineItems: [
+        ...s.lineItems,
+        {
+          id: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          talentProfileId: null,
+          talentDisplayName: null,
+          label: "Talent",
+          pricingUnit: "day",
+          units: 1,
+          unitPrice: 0,
+          totalPrice: 0,
+          talentCost: 0,
+          notes: null,
+          sortOrder: s.lineItems.length,
+        },
+      ],
+    });
+  };
+
+  const updateLine = (id: string, patch: Partial<OfferDraftSnapshot["lineItems"][number]>) => {
+    setSnapshot((s) => s == null ? s : {
+      ...s,
+      lineItems: s.lineItems.map((li) => {
+        if (li.id !== id) return li;
+        const next = { ...li, ...patch };
+        // Auto-recompute total when units / unit_price change.
+        if (patch.units !== undefined || patch.unitPrice !== undefined) {
+          next.totalPrice = next.units * next.unitPrice;
+        }
+        return next;
+      }),
+    });
+  };
+
+  const removeLine = (id: string) => {
+    setSnapshot((s) => s == null ? s : { ...s, lineItems: s.lineItems.filter((li) => li.id !== id) });
+  };
+
+  const save = () => {
+    if (!snapshot) return;
+    startTransition(async () => {
+      const lineItems = snapshot.lineItems.map((li, idx) => ({
+        talent_profile_id: li.talentProfileId,
+        label: li.label,
+        pricing_unit: li.pricingUnit,
+        units: li.units,
+        unit_price: li.unitPrice,
+        total_price: li.totalPrice,
+        talent_cost: li.talentCost,
+        notes: li.notes,
+        sort_order: idx,
+      }));
+      const r = await saveOfferDraft(TENANT.slug, offerId, {
+        inquiryExpectedVersion: snapshot.inquiryVersion,
+        offerExpectedVersion: snapshot.offerVersion,
+        totalClientPrice: snapshot.totalClientPrice,
+        coordinatorFee: snapshot.coordinatorFee,
+        currencyCode: snapshot.currencyCode,
+        notes: snapshot.notes,
+        lineItems,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Offer draft saved"); reload(); }
+    });
+  };
+
+  // Roster talent options for the per-line dropdown — only real UUIDs
+  // (synthetic mock roster won't resolve at the DB).
+  const rosterOptions = effectiveRoster.filter((p) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id),
+  );
+
+  void inquiryId; // referenced for potential future use (revalidate scoping)
+
+  if (collapsed) {
+    return (
+      <div style={{
+        background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: RADIUS.md, padding: "8px 12px",
+        display: "flex", alignItems: "center", gap: 10,
+        fontFamily: FONTS.body, fontSize: 12,
+      }}>
+        <span style={{ fontWeight: 700, color: COLORS.ink }}>Draft editor</span>
+        <span style={{ color: COLORS.inkMuted }}>
+          {snapshot.lineItems.length} line item{snapshot.lineItems.length === 1 ? "" : "s"}
+          {" · "}
+          total {new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(snapshot.totalClientPrice)}
+        </span>
+        <span style={{ flex: 1 }} />
+        <button type="button" onClick={() => setCollapsed(false)} style={ghostBtn()}>Edit</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: 12,
+      display: "flex", flexDirection: "column", gap: 8,
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontWeight: 700, color: COLORS.ink }}>Draft editor</span>
+        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>inquiry_offer_line_items</span>
+        <span style={{ flex: 1 }} />
+        <button type="button" onClick={() => setCollapsed(true)} style={ghostBtn()}>Collapse</button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {snapshot.lineItems.map((li) => (
+          <div key={li.id} style={{
+            background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 8, padding: "8px 10px",
+            display: "grid", gridTemplateColumns: "1.6fr 0.8fr 0.6fr 0.8fr 0.8fr 28px",
+            gap: 6, alignItems: "center",
+          }}>
+            <select
+              value={li.talentProfileId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value || null;
+                const match = rosterOptions.find((p) => p.id === id);
+                updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: match?.name ?? li.label });
+              }}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+            >
+              <option value="">— choose talent —</option>
+              {rosterOptions.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <select
+              value={li.pricingUnit}
+              onChange={(e) => updateLine(li.id, { pricingUnit: e.target.value as "hour" | "day" | "week" | "event" })}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+            >
+              <option value="hour">/hr</option>
+              <option value="day">/day</option>
+              <option value="week">/wk</option>
+              <option value="event">flat</option>
+            </select>
+            <input type="number" min={0} step="0.5" value={li.units}
+              onChange={(e) => updateLine(li.id, { units: parseFloat(e.target.value) || 0 })}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+              placeholder="units"
+            />
+            <input type="number" min={0} step="100" value={li.unitPrice}
+              onChange={(e) => updateLine(li.id, { unitPrice: parseFloat(e.target.value) || 0 })}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+              placeholder="rate"
+            />
+            <input type="number" min={0} step="100" value={li.talentCost}
+              onChange={(e) => updateLine(li.id, { talentCost: parseFloat(e.target.value) || 0 })}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+              placeholder="talent cost"
+            />
+            <button type="button" onClick={() => removeLine(li.id)} style={{
+              background: "transparent", border: "none",
+              color: COLORS.coralDeep, cursor: "pointer", fontSize: 14, lineHeight: 1,
+            }}>×</button>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button type="button" disabled={pending} onClick={addLineItem} style={ghostBtn()}>+ Add line item</button>
+        <span style={{ flex: 1 }} />
+        <label style={{ fontSize: 11, color: COLORS.inkMuted }}>Total</label>
+        <input type="number" min={0} step="100" value={snapshot.totalClientPrice}
+          onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, totalClientPrice: parseFloat(e.target.value) || 0 })}
+          style={{ width: 90, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+        />
+        <label style={{ fontSize: 11, color: COLORS.inkMuted }}>Fee</label>
+        <input type="number" min={0} step="100" value={snapshot.coordinatorFee}
+          onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, coordinatorFee: parseFloat(e.target.value) || 0 })}
+          style={{ width: 80, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+        />
+        <button type="button" disabled={pending} onClick={save} style={primaryBtn(COLORS.accent)}>
+          {pending ? "Saving…" : "Save draft"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Start drafting offer" button shown in the OfferTab empty state. Calls
+ * the real createOffer engine action and refreshes router state.
+ */
+function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
+  const { toast } = useProto();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  return (
+    <div style={{ marginTop: 12 }}>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => startTransition(async () => {
+          const r = await createOfferAction(TENANT.slug, inquiryId);
+          if (!r.ok) toast(`Couldn't start offer: ${r.error}`);
+          else { toast("Offer draft created"); router.refresh(); }
+        })}
+        style={primaryBtn(COLORS.accent)}
+      >
+        {pending ? "Starting…" : "Start drafting offer"}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Live status banner shown above the (mock) OfferTab body when a real
+ * inquiry_offers row exists for this inquiry. Hosts the truly-wired CTAs
+ * (Send · Approve · Reject) that mutate the DB via engine actions.
+ *
+ * Shows nothing when there's no real offer (e.g. demo / pure-mock convs).
+ */
+function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }) {
+  const { toast, effectiveMessagesInquiries } = useProto();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const real = effectiveMessagesInquiries.find((r) => r.id === inquiryId);
+  const offer = real?.offer ?? null;
+  const offerId = offer?.id;
+  const isAdmin = pov.kind === "admin";
+
+  // Render nothing for synthetic mock-only inquiries — keeps demo data clean.
+  if (!offer || !offerId || offerId.endsWith("-offer")) return null;
+
+  const status = offer.status;
+
+  const run = (label: string, fn: () => Promise<{ ok: boolean; error?: string }>) =>
+    startTransition(async () => {
+      const r = await fn();
+      if (!r.ok) {
+        toast(`${label} failed: ${r.error ?? "Unknown error"}`);
+      } else {
+        toast(`${label} ✓`);
+        router.refresh();
+      }
+    });
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: "10px 12px",
+      display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <span style={{ fontWeight: 700, color: COLORS.ink }}>Live · DB-backed</span>
+      <span style={{ color: COLORS.inkMuted }}>Offer status: <strong>{status}</strong></span>
+      <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>{offerId.slice(0, 8)}…</span>
+      <span style={{ flex: 1 }} />
+      {isAdmin && status === "draft" && (
+        <button type="button" disabled={pending}
+          onClick={() => run("Send offer", () => sendOfferAction(TENANT.slug, inquiryId, offerId))}
+          style={primaryBtn(COLORS.accent)}
+        >Send to client</button>
+      )}
+      {isAdmin && status === "sent" && (
+        <>
+          <button type="button" disabled={pending}
+            onClick={() => run("Approve offer", () => approveOfferAction(TENANT.slug, inquiryId, offerId))}
+            style={primaryBtn(COLORS.success)}
+          >Approve (as client)</button>
+          <button type="button" disabled={pending}
+            onClick={() => run("Reject offer", () => rejectOfferAction(TENANT.slug, inquiryId, offerId, null))}
+            style={ghostBtn()}
+          >Reject</button>
+        </>
+      )}
+      {isAdmin && status === "rejected" && (
+        <button type="button" disabled={pending}
+          onClick={() => run("Counter offer", () => counterOfferAction(TENANT.slug, inquiryId, offerId))}
+          style={primaryBtn(COLORS.accent)}
+        >Counter offer</button>
+      )}
+      {/* Inline draft editor — only when the offer is editable. */}
+      {status === "draft" && (
+        <div style={{ flexBasis: "100%", marginTop: 8 }}>
+          <OfferDraftEditor inquiryId={inquiryId} offerId={offerId} isAdmin={isAdmin} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const { toast } = useProto();
+  const router = useRouter();
+  const [, startClientOfferTransition] = useTransition();
   const baseOffer = getOffer(conv.id);
   const isClient = pov.kind === "client";
   const isAdmin = pov.kind === "admin";
@@ -10009,13 +11117,7 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
     return (
       <div style={{ padding: 24, textAlign: "center", color: COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13 }}>
         No offer yet for this inquiry.
-        {isAdmin && (
-          <div style={{ marginTop: 12 }}>
-            <button type="button" onClick={() => toast("Offer drafting…")} style={primaryBtn(COLORS.accent)}>
-              Start drafting offer
-            </button>
-          </div>
-        )}
+        {isAdmin && <CreateOfferButton inquiryId={conv.id} />}
       </div>
     );
   }
@@ -10033,8 +11135,10 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const next = nextActionFor(offer, pov);
   const currency = offer.clientBudget?.currency ?? "EUR";
 
+
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+      <LiveOfferPanel inquiryId={conv.id} pov={pov} />
       {/* ── Sticky action bar — "what do I do now" ──────────────── */}
       <div style={{
         position: "sticky", top: 0, zIndex: 4,
@@ -10067,6 +11171,26 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               if (isTalent && (next.cta === "Submit my rate" || next.cta === "Review counter")) {
                 setRateSheetMode(next.cta === "Review counter" ? "edit" : "submit");
                 setRateSheetOpen(true);
+                return;
+              }
+              // Client-side: route Approve / Reject / Decline through the
+              // engine for real-UUID inquiries. Mock conv ids keep the
+              // legacy toast so the demo flow stays put.
+              const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+              if (isClient && isRealUuid && next.cta === "Approve") {
+                startClientOfferTransition(async () => {
+                  const r = await clientApproveCurrentOffer(conv.id);
+                  if (!r.ok) toast(`Approve failed: ${r.error}`);
+                  else { toast("Offer approved"); router.refresh(); }
+                });
+                return;
+              }
+              if (isClient && isRealUuid && (next.cta === "Reject" || next.cta === "Decline")) {
+                startClientOfferTransition(async () => {
+                  const r = await clientRejectCurrentOffer(conv.id);
+                  if (!r.ok) toast(`Reject failed: ${r.error}`);
+                  else { toast("Offer declined"); router.refresh(); }
+                });
                 return;
               }
               toast(`${next.cta}`);
@@ -10254,16 +11378,27 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           onSubmit={(data) => {
             // Write to the module-level override store so the rate
             // shows up everywhere — header pill, inbox row, Today
-            // tile, and the offer tab itself. Survives tab switches.
+            // tile, and the offer tab itself. Survives tab switches
+            // and acts as optimistic UI while the DB write resolves.
             const myRow = offer.rows.find(r => r.talentId === pov.talentId);
-            if (!myRow) return;
-            setRowOverride(conv.id, myRow.id, {
-              costRate: data.amount,
-              units: data.units,
-              unitType: data.unitType,
-              notes: data.notes || myRow.notes,
-              status: "submitted",
-            });
+            if (myRow) {
+              setRowOverride(conv.id, myRow.id, {
+                costRate: data.amount,
+                units: data.units,
+                unitType: data.unitType,
+                notes: data.notes || myRow.notes,
+                status: "submitted",
+              });
+            }
+            // F-pass — when the conv id is a real inquiry UUID, also
+            // hit the DB. submitMyRateForInquiry resolves the offer +
+            // line item internally, so the local-only mock UI doesn't
+            // need to know either id.
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id)) {
+              void submitMyRateForInquiry(conv.id, data.amount).then((r) => {
+                if (!r.ok) toast(`Rate not saved: ${r.error}`);
+              });
+            }
           }}
         />
       )}
@@ -11554,8 +12689,188 @@ function resolveFileKey(id: string): string {
   return RI_TO_CONV_ALIAS[id] ?? id;
 }
 
-function FilesTab({ conv, povCanSeeTalentFiles }: { conv: Conversation; povCanSeeTalentFiles: boolean }) {
+/**
+ * Live files panel — lists real `inquiry_attachments` rows from DB at the
+ * top of FilesTab when an inquiry has any. Soft-delete via the bin button.
+ * Renders nothing when there are no real attachments (mock list still shows).
+ */
+function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   const { toast } = useProto();
+  const [files, setFiles] = useState<InquiryAttachment[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pending, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
+
+  const reload = React.useCallback(() => {
+    if (!isUuid) { setLoading(false); return; }
+    setLoading(true);
+    loadInquiryAttachments(TENANT.slug, inquiryId)
+      .then((r) => { if (r.ok) setFiles(r.data ?? []); })
+      .finally(() => setLoading(false));
+  }, [inquiryId, isUuid]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  if (!isUuid) return null;
+  if (loading || !files) return null;
+  // Even with zero files, render so the upload affordance is reachable.
+
+  const remove = (id: string, name: string) => {
+    if (!confirm(`Delete ${name}? This can't be undone from the prototype shell.`)) return;
+    startTransition(async () => {
+      const r = await deleteInquiryAttachment(TENANT.slug, id);
+      if (!r.ok) toast(`Delete failed: ${r.error}`);
+      else { toast("File deleted"); reload(); }
+    });
+  };
+
+  const onPickFile = (file: File) => {
+    if (file.size > 100 * 1024 * 1024) { toast("File exceeds 100 MB cap"); return; }
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("inquiryId", inquiryId);
+      fd.set("file", file);
+      const r = await uploadInquiryAttachment(fd);
+      if (!r.ok) toast(`Upload failed: ${r.error}`);
+      else { toast("File uploaded"); reload(); }
+    });
+  };
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: 12, marginBottom: 12,
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontWeight: 700, color: COLORS.ink }}>
+          Live · DB-backed ({files.length})
+        </span>
+        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
+          inquiry_attachments
+        </span>
+        <span style={{ flex: 1 }} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onPickFile(f);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => fileInputRef.current?.click()}
+          style={primaryBtn(COLORS.accent)}
+        >
+          {pending ? "Uploading…" : "Upload file"}
+        </button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {files.length === 0 && (
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, padding: "4px 0" }}>
+            No files yet — drop a brief, contract, polaroid, or call sheet.
+          </div>
+        )}
+        {files.map((f) => (
+          <div key={f.id} style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "8px 10px", background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {f.filename}
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
+                {f.byteSize != null ? `${Math.round(f.byteSize / 1024)} KB · ` : ""}
+                {f.visibility}
+                {f.description ? ` · ${f.description}` : ""}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => remove(f.id, f.filename)}
+              style={{
+                padding: "5px 10px", borderRadius: 6,
+                background: "transparent", border: `1px solid ${COLORS.border}`,
+                color: COLORS.coralDeep, cursor: pending ? "wait" : "pointer",
+                fontSize: 11, fontWeight: 600,
+              }}
+            >Delete</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * LiveBookingActions — bookings-related real DB actions exposed in the
+ * Booking/Project tab. Currently: Duplicate booking. Renders nothing for
+ * synthetic mock inquiry ids.
+ */
+function LiveBookingActions({ inquiryId }: { inquiryId: string }) {
+  const { toast } = useProto();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
+  if (!isUuid) return null;
+
+  const dup = () => {
+    if (!confirm("Duplicate this booking?")) return;
+    startTransition(async () => {
+      const r = await duplicateInquiryBooking(TENANT.slug, inquiryId);
+      if (!r.ok) toast(`Duplicate failed: ${r.error}`);
+      else { toast("Booking duplicated"); router.refresh(); }
+    });
+  };
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: 10, marginTop: 12,
+      display: "flex", alignItems: "center", gap: 10,
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <span style={{ fontWeight: 700, color: COLORS.ink }}>Booking actions</span>
+      <span style={{ flex: 1 }} />
+      <button
+        type="button"
+        disabled={pending}
+        onClick={dup}
+        style={ghostBtn()}
+      >
+        {pending ? "Duplicating…" : "Duplicate booking"}
+      </button>
+    </div>
+  );
+}
+
+function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversation; povCanSeeTalentFiles: boolean; pov?: "talent" }) {
+  const { toast } = useProto();
+  const [talentUploadPending, startTalentUploadTransition] = useTransition();
+  const talentFileInputRef = useRef<HTMLInputElement | null>(null);
+  const isUuidConv = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+  const isTalentUpload = pov === "talent" && isUuidConv;
+
+  const onTalentPickFile = (file: File) => {
+    if (file.size > 100 * 1024 * 1024) { toast("File exceeds 100 MB cap"); return; }
+    startTalentUploadTransition(async () => {
+      const fd = new FormData();
+      fd.set("inquiryId", conv.id);
+      fd.set("file", file);
+      const r = await uploadInquiryAttachmentAsTalent(fd);
+      if (!r.ok) toast(`Upload failed: ${r.error}`);
+      else toast("File uploaded");
+    });
+  };
+
   const all = MOCK_FILES_FOR_CONV[resolveFileKey(conv.id)] ?? [];
   // Per-thread visibility: client only sees client-thread files (call
   // sheets, briefs, contract). Coordinator + talent see both client
@@ -11686,26 +13001,44 @@ function FilesTab({ conv, povCanSeeTalentFiles }: { conv: Conversation; povCanSe
 
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+      <LiveFilesPanel inquiryId={conv.id} />
       {/* Add-file affordance — at top so the talent can upload polaroids,
           signed contracts, references without leaving this tab. */}
+      {isTalentUpload && (
+        <input
+          ref={talentFileInputRef}
+          type="file"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onTalentPickFile(f);
+            e.target.value = "";
+          }}
+        />
+      )}
       <button
         type="button"
-        onClick={() => toast("Choose a file to upload")}
+        disabled={talentUploadPending}
+        onClick={() => {
+          if (isTalentUpload) talentFileInputRef.current?.click();
+          else toast("Choose a file to upload");
+        }}
         style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           padding: "10px 12px", marginBottom: 4,
           background: "transparent",
           border: `1.5px dashed ${COLORS.border}`, borderRadius: 10,
-          color: COLORS.ink, cursor: "pointer",
+          color: COLORS.ink, cursor: talentUploadPending ? "wait" : "pointer",
           fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+          opacity: talentUploadPending ? 0.6 : 1,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.accent; e.currentTarget.style.color = COLORS.accentDeep; }}
+        onMouseEnter={(e) => { if (!talentUploadPending) { e.currentTarget.style.borderColor = COLORS.accent; e.currentTarget.style.color = COLORS.accentDeep; } }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }}
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
         </svg>
-        Add file
+        {talentUploadPending ? "Uploading…" : "Add file"}
         <span style={{ marginLeft: 8, color: COLORS.inkMuted, fontWeight: 400, fontSize: 11 }}>
           polaroids, signed contracts, references
         </span>
@@ -12418,6 +13751,8 @@ function AddTalentPicker({ onCancel, onAdd, pov = "talent_coord", planTier }: {
 
 function ConversationActionPin({ conv }: { conv: Conversation }) {
   const { toast } = useProto();
+  const router = useRouter();
+  const [, startTransition] = useTransition();
   // Look at the most recent action message in the thread to figure out
   // what's actually being asked. Beats stage-based heuristics — the
   // pin reflects the conversation, not just the funnel position.
@@ -12426,6 +13761,36 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
     (m.kind === "action-rate" || m.kind === "action-confirm" || m.kind === "action-transport" || m.kind === "polaroid-request" || m.kind === "contract-sign") &&
     !("resolved" in m && m.resolved)
   );
+
+  // F-pass — when the conv id is a real inquiry UUID, route the talent
+  // CTAs through the engine. Synthetic mock conv ids (c1..c12) keep the
+  // toast-only stub behavior so the demo flow continues to work.
+  const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+  const realAccept = isRealInquiry ? () => {
+    startTransition(async () => {
+      const r = await acceptInquiryInvitation(conv.id);
+      if (!r.ok) toast(`Accept failed: ${r.error}`);
+      else { toast("Inquiry accepted"); router.refresh(); }
+    });
+  } : null;
+  const realDecline = isRealInquiry ? () => {
+    startTransition(async () => {
+      const r = await declineInquiryInvitation(conv.id);
+      if (!r.ok) toast(`Decline failed: ${r.error}`);
+      else { toast("Inquiry declined"); router.refresh(); }
+    });
+  } : null;
+  const realSubmitRate = isRealInquiry ? () => {
+    const raw = window.prompt("Your rate (cost the agency pays you, in offer currency):");
+    if (raw == null) return;
+    const num = parseFloat(raw.replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(num) || num < 0) { toast("Invalid rate"); return; }
+    startTransition(async () => {
+      const r = await submitMyRateForInquiry(conv.id, num);
+      if (!r.ok) toast(`Submit rate failed: ${r.error}`);
+      else { toast("Rate submitted"); router.refresh(); }
+    });
+  } : null;
 
   // COORD-SIDE — Marta is the coordinator and there's an outstanding
   // ask from the client that needs to be dispatched to the team. Used
@@ -12446,25 +13811,46 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
     }
   }
 
+  // F-remainder — quick post-message helper for action-confirm style CTAs
+  // that don't have a dedicated engine action. The talent's confirmation
+  // gets sent as a message into the group thread so the coordinator sees
+  // the explicit acknowledgement in audit + activity.
+  const realPostConfirm = isRealInquiry ? (label: string) => {
+    startTransition(async () => {
+      const r = await sendInquiryMessageAsTalent(conv.id, `✓ Confirmed: ${label}`);
+      if (!r.ok) toast(`Confirm failed: ${r.error}`);
+      else { toast("Confirmed"); router.refresh(); }
+    });
+  } : null;
+
   // HOLD — deadline countdown takes priority over generic actions.
+  // "Confirm hold" maps to acceptTalentInvitation (the talent commits);
+  // "Release" maps to declineTalentInvitation. Both via the same engine
+  // path as the inquiry-stage Accept/Decline.
   if (conv.stage === "hold") {
     return (
       <ActionPinShell tone="amber" icon="⏰"
         title="Hold expires in 4h"
         body="Confirm now to keep this slot, or release it for the next talent."
-        primary={{ label: "Confirm hold", onClick: () => toast("Hold confirmed") }}
-        secondary={{ label: "Release", onClick: () => toast("Hold released") }}
+        primary={{ label: "Confirm hold", onClick: realAccept ?? (() => toast("Hold confirmed")) }}
+        secondary={{ label: "Release", onClick: realDecline ?? (() => toast("Hold released")) }}
       />
     );
   }
 
   // BOOKED — surface unresolved action-confirm (e.g. call sheet).
   if (conv.stage === "booked" && lastAction?.kind === "action-confirm") {
+    const label = lastAction.label || "Action";
     return (
       <ActionPinShell tone="indigo" icon="📋"
-        title={lastAction.label || "Action needed"}
+        title={label}
         body="Coordinator is waiting for your sign-off before set day."
-        primary={{ label: "Confirm", onClick: () => toast(`${lastAction.label || "Action"} confirmed`) }}
+        primary={{
+          label: "Confirm",
+          onClick: realPostConfirm
+            ? () => realPostConfirm(label)
+            : () => toast(`${label} confirmed`),
+        }}
         secondary={{ label: "Question", onClick: () => toast("Reply to coordinator") }}
       />
     );
@@ -12477,7 +13863,7 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
         <ActionPinShell tone="indigo" icon="💸"
           title="Submit your rate"
           body={`${conv.leader?.name?.split(" ")[0] ?? "The coordinator"} is waiting on your number to send the offer to the client.`}
-          primary={{ label: "Submit rate", onClick: () => toast("Rate submitted") }}
+          primary={{ label: "Submit rate", onClick: realSubmitRate ?? (() => toast("Rate submitted")) }}
           secondary={{ label: "Ask coordinator to set", onClick: () => toast("Quote requested") }}
         />
       );
@@ -12495,8 +13881,8 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
       <ActionPinShell tone="indigo" icon="✋"
         title="Coordinator invited you"
         body={`Reply to ${conv.leader?.name ?? "the coordinator"} or accept the inquiry to lock your spot.`}
-        primary={{ label: "Accept", onClick: () => toast("Inquiry accepted") }}
-        secondary={{ label: "Decline", onClick: () => toast("Inquiry declined") }}
+        primary={{ label: "Accept", onClick: realAccept ?? (() => toast("Inquiry accepted")) }}
+        secondary={{ label: "Decline", onClick: realDecline ?? (() => toast("Inquiry declined")) }}
       />
     );
   }
@@ -12915,7 +14301,20 @@ function ConversationTab({
             placeholder={placeholder}
             onSend={(text) => {
               appendLocalMessage(stashKey, text);
-              toast("Message sent");
+              // Dispatch by threadKey suffix:
+              //   ":client" → client thread — sendInquiryMessageAsClient (G-pass)
+              //   ":talent" → talent group thread — sendInquiryMessageAsTalent (F-pass)
+              // Synthetic mock conv ids stay local-only for the demo.
+              const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+              if (isRealInquiry) {
+                const isClientThread = /:client$/.test(threadKey);
+                const send = isClientThread
+                  ? sendInquiryMessageAsClient(conv.id, text)
+                  : sendInquiryMessageAsTalent(conv.id, text);
+                void send.then((r) => { if (!r.ok) toast(`Send failed: ${r.error}`); });
+              } else {
+                toast("Message sent");
+              }
             }}
             workspaceName={conv.agency}
             canSendAsWorkspace={povCanSeeOffers}

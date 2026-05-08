@@ -458,3 +458,152 @@ export async function clientRejectOffer(
     return { success: true };
   });
 }
+
+/**
+ * Talent submits (or updates) their own quoted cost on a single offer line
+ * item. Writes `talent_cost` (and recomputes `total_price = unit_price *
+ * units` since the talent rate IS the unit price for the line) on the row.
+ *
+ * Permission model:
+ *   - Staff (any tenant member) can override any line item.
+ *   - Otherwise, the actor must be a `talent` participant on the inquiry
+ *     whose `talent_profile_id` matches the line item.
+ *
+ * Emits OFFER_DRAFT_UPDATED so the OfferTab + activity feed pick up the
+ * change without refetching the whole offer. Logs an inquiry activity
+ * row for audit trail.
+ */
+export async function submitTalentRate(
+  supabase: SupabaseClient,
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    offerId: string;
+    lineItemId: string;
+    actorUserId: string;
+    talentCost: number;
+  },
+): Promise<EngineResult> {
+  return runWithEngineLog("submitTalentRate", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!Number.isFinite(ctx.talentCost) || ctx.talentCost < 0) {
+      return { success: false, error: "invalid_rate" };
+    }
+    const rl = await rateLimiter.check(engineRateKey("submitTalentRate", ctx.actorUserId), 20, 60_000);
+    if (!rl.ok) return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
+
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, app_role")
+      .eq("id", ctx.actorUserId)
+      .maybeSingle();
+    const isStaff = profile?.app_role === "agency_staff" || profile?.app_role === "super_admin";
+
+    const { data: line } = await supabase
+      .from("inquiry_offer_line_items")
+      .select("id, offer_id, talent_profile_id, units")
+      .eq("id", ctx.lineItemId)
+      .maybeSingle();
+    if (!line || line.offer_id !== ctx.offerId) {
+      return { success: false, error: "line_item_not_found" };
+    }
+
+    if (!isStaff) {
+      const { data: talentProfile } = await supabase
+        .from("talent_profiles")
+        .select("id")
+        .eq("user_id", ctx.actorUserId)
+        .maybeSingle();
+      const myTalentProfileId = (talentProfile?.id as string | null) ?? null;
+      if (!myTalentProfileId || myTalentProfileId !== line.talent_profile_id) {
+        return { success: false, forbidden: true, reason: "forbidden" };
+      }
+    }
+
+    const { data: offer } = await supabase
+      .from("inquiry_offers")
+      .select("id, status, inquiry_id")
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (!offer || offer.inquiry_id !== ctx.inquiryId) {
+      return { success: false, error: "offer_not_found" };
+    }
+    if (offer.status !== "draft") {
+      return { success: false, error: "offer_not_editable" };
+    }
+
+    const units = (line.units as number | null) ?? 1;
+    const totalPrice = ctx.talentCost * units;
+
+    const { error: upErr } = await supabase
+      .from("inquiry_offer_line_items")
+      .update({
+        talent_cost: ctx.talentCost,
+        unit_price: ctx.talentCost,
+        total_price: totalPrice,
+      })
+      .eq("id", ctx.lineItemId);
+
+    if (upErr) {
+      return { success: false, error: upErr.message || "rate_update_failed" };
+    }
+
+    await logInquiryActivity(supabase, {
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      eventType: "talent_rate_submitted",
+      payload: { offer_id: ctx.offerId, line_item_id: ctx.lineItemId, talent_cost: ctx.talentCost },
+    });
+
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.OFFER_DRAFT_UPDATED,
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      data: { offerId: ctx.offerId, lineItemId: ctx.lineItemId },
+    });
+
+    return { success: true };
+  });
+}
+
+/**
+ * Coordinator counter-offer helper. When a sent offer is rejected, the
+ * inquiry returns to `coordination` and the offer is marked `rejected`.
+ * `counterOffer` then creates a fresh draft offer (via `createOffer`)
+ * pre-filled with the previous offer's currency. Caller still needs to
+ * populate line items via `updateOfferDraft` and finally `sendOffer` —
+ * this helper just cleanly opens v2.
+ */
+export async function counterOffer(
+  supabase: SupabaseClient,
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    actorUserId: string;
+    expectedVersion: number;
+    currencyCode?: string;
+    previousOfferId?: string | null;
+  },
+): Promise<EngineResult<{ offerId: string }>> {
+  let currency = ctx.currencyCode;
+  if (!currency && ctx.previousOfferId) {
+    const { data: prev } = await supabase
+      .from("inquiry_offers")
+      .select("currency_code")
+      .eq("id", ctx.previousOfferId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    currency = (prev?.currency_code as string | null) ?? undefined;
+  }
+  return createOffer(supabase, {
+    inquiryId: ctx.inquiryId,
+    tenantId: ctx.tenantId,
+    actorUserId: ctx.actorUserId,
+    expectedVersion: ctx.expectedVersion,
+    currencyCode: currency ?? "MXN",
+  });
+}

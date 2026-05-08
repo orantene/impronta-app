@@ -6968,7 +6968,11 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
 
   const offer: Offer | null = w.currentOfferStatus
     ? {
-        id: w.id + "-offer",
+        // Use the real offer UUID from the bridge so engine actions
+        // (sendOffer, clientAcceptOffer, clientRejectOffer) can target the
+        // correct row. Falls back to a synthetic id only when the bridge
+        // didn't populate one (shouldn't happen when status is set).
+        id: w.currentOfferId ?? (w.id + "-offer"),
         version: 1,
         status: w.currentOfferStatus,
         total: w.currentOfferTotal ?? "—",

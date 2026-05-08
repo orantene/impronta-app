@@ -219,6 +219,7 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
       .limit(1)
       .maybeSingle();
     let sortBase = (maxSort?.sort_order ?? -1) + 1;
+    let talentInsertFailed = false;
 
     for (const tid of talentIds) {
       const { data: tp } = await supabase
@@ -244,8 +245,25 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
       });
       if (lineErr) {
         logServerError("admin/convertInquiry/bookingTalent", lineErr);
-        redirect(`/admin/inquiries/${inquiry_id}?convert_error=${encodeURIComponent(CLIENT_ERROR.update)}`);
+        talentInsertFailed = true;
+        break;
       }
+    }
+
+    if (talentInsertFailed) {
+      // Compensating delete — remove the orphaned booking so the inquiry
+      // stays clean for a retry. Only applies to "new" mode; "attach" mode
+      // uses a pre-existing booking that must not be deleted on failure.
+      if (convert_mode === "new") {
+        await supabase
+          .from("agency_bookings")
+          .delete()
+          .eq("id", bookingId)
+          .eq("tenant_id", tenantId);
+      }
+      redirect(
+        `/admin/inquiries/${inquiry_id}?convert_error=${encodeURIComponent(CLIENT_ERROR.update)}`,
+      );
     }
   }
 
