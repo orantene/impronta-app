@@ -68,6 +68,9 @@ export type ResolvedSkill = {
   verified_by_tenant_id: string | null;
   verification_note: string | null;
   created_at: string;
+  // Phase 5.1 — booking-driven aggregates (LEFT JOIN to talent_skill_metrics).
+  booking_count: number;
+  last_booked_at: string | null;
 };
 
 export const MAX_TOTAL_SKILLS = 9;

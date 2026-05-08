@@ -9,8 +9,14 @@
     "src/app/api/cron/inquiry-engine/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/skill-metrics-refresh/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/stripe/webhook/route.ts": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    { "path": "/api/cron/skill-metrics-refresh", "schedule": "0 4 * * *" }
+  ]
 }
