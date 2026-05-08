@@ -1122,6 +1122,16 @@ test.describe("smoke: login → builder → publish → share", () => {
       "data-section-template-compatible",
       "true",
     );
+    const capabilityFilter = picker.locator(
+      "[data-section-template-capability-filter]",
+    );
+    await expect(capabilityFilter).toBeVisible();
+    await capabilityFilter.selectOption("data");
+    await expect(featuredTalentStarter).toBeVisible();
+    await capabilityFilter.selectOption("media");
+    await expect(featuredTalentStarter).toBeHidden();
+    await capabilityFilter.selectOption("all");
+    await expect(featuredTalentStarter).toBeVisible();
     await expect(featuredTalentStarter).toContainText("Roster talent");
     await expect(featuredTalentStarter).toContainText("Recipe");
     const headerSection = page

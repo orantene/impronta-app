@@ -97,11 +97,24 @@ const CATEGORY_LABEL: Record<string, string> = {
   navigation: "Navigation",
 };
 
+const EDITABLE_CAPABILITY_OPTIONS = [
+  "content",
+  "style",
+  "layout",
+  "data",
+  "navigation",
+  "media",
+  "action",
+] as const satisfies ReadonlyArray<SectionTemplateStarter["editableCapabilities"][number]>;
+
 type ActiveTab = "all" | (typeof CATEGORY_ORDER)[number];
 type StarterKindFilter = "all" | SectionTemplateStarterKind;
 type StarterSourceFilter = "all" | SectionTemplateStarterSourceKind;
 type StarterReadinessFilter = "all" | SectionTemplateStarterReadiness;
 type StarterDataBindingFilter = "all" | BuilderDataSourceKey;
+type StarterCapabilityFilter =
+  | "all"
+  | SectionTemplateStarter["editableCapabilities"][number];
 type StarterPlanFilter = "all" | BuilderDataSourceDefinition["requiredPlan"];
 
 // Phase D responsive — three-state viewport mode driven by matchMedia.
@@ -178,12 +191,19 @@ function starterMatchesFacetFilters(
   sourceFilter: StarterSourceFilter,
   readinessFilter: StarterReadinessFilter,
   dataBindingFilter: StarterDataBindingFilter,
+  capabilityFilter: StarterCapabilityFilter,
   planFilter: StarterPlanFilter,
 ): boolean {
   if (kindFilter !== "all" && starter.kind !== kindFilter) return false;
   if (sourceFilter !== "all" && starter.sourceKind !== sourceFilter) return false;
   if (readinessFilter !== "all" && starter.readiness !== readinessFilter) return false;
   if (dataBindingFilter !== "all" && starter.dataBindingKey !== dataBindingFilter) {
+    return false;
+  }
+  if (
+    capabilityFilter !== "all" &&
+    !starter.editableCapabilities.includes(capabilityFilter)
+  ) {
     return false;
   }
   if (
@@ -217,6 +237,8 @@ export function CompositionLibraryOverlay() {
     useState<StarterReadinessFilter>("all");
   const [starterDataBindingFilter, setStarterDataBindingFilter] =
     useState<StarterDataBindingFilter>("all");
+  const [starterCapabilityFilter, setStarterCapabilityFilter] =
+    useState<StarterCapabilityFilter>("all");
   const [starterPlanFilter, setStarterPlanFilter] =
     useState<StarterPlanFilter>("all");
   const [dragSource, setDragSource] = useState<TemplateDragSource | null>(null);
@@ -462,6 +484,27 @@ export function CompositionLibraryOverlay() {
     return counts;
   }, [templateStarterFacetBase]);
 
+  const starterCapabilityCounts = useMemo(() => {
+    const counts: Record<
+      SectionTemplateStarter["editableCapabilities"][number],
+      number
+    > = {
+      content: 0,
+      style: 0,
+      layout: 0,
+      data: 0,
+      navigation: 0,
+      media: 0,
+      action: 0,
+    };
+    for (const starter of templateStarterFacetBase) {
+      for (const capability of starter.editableCapabilities) {
+        counts[capability] += 1;
+      }
+    }
+    return counts;
+  }, [templateStarterFacetBase]);
+
   const starterPlanCounts = useMemo(() => {
     const counts: Record<BuilderDataSourceDefinition["requiredPlan"], number> = {
       free: 0,
@@ -484,6 +527,7 @@ export function CompositionLibraryOverlay() {
           starterSourceFilter,
           starterReadinessFilter,
           starterDataBindingFilter,
+          starterCapabilityFilter,
           starterPlanFilter,
         )
       ) {
@@ -512,6 +556,7 @@ export function CompositionLibraryOverlay() {
       return true;
     });
   }, [
+    starterCapabilityFilter,
     isSearching,
     starterDataBindingFilter,
     starterKindFilter,
@@ -667,6 +712,7 @@ export function CompositionLibraryOverlay() {
           starterSourceFilter,
           starterReadinessFilter,
           starterDataBindingFilter,
+          starterCapabilityFilter,
           starterPlanFilter,
         ),
       );
@@ -702,6 +748,7 @@ export function CompositionLibraryOverlay() {
     activeTab,
     isSearching,
     libraryTarget,
+    starterCapabilityFilter,
     starterDataBindingFilter,
     starterKindFilter,
     starterPlanFilter,
@@ -1101,7 +1148,7 @@ export function CompositionLibraryOverlay() {
         ) : null}
 
         {templateStarterFacetBase.length > 0 ? (
-          <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
             <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
               <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
                 Kind
@@ -1202,6 +1249,30 @@ export function CompositionLibraryOverlay() {
             </label>
             <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
               <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
+                Control
+              </span>
+              <select
+                data-section-template-capability-filter
+                aria-label="Filter starter templates by editable control"
+                value={starterCapabilityFilter}
+                onChange={(event) =>
+                  setStarterCapabilityFilter(
+                    event.target.value as StarterCapabilityFilter,
+                  )
+                }
+                className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-zinc-700 outline-none"
+              >
+                <option value="all">All ({templateStarterFacetBase.length})</option>
+                {EDITABLE_CAPABILITY_OPTIONS.map((capability) => (
+                  <option key={capability} value={capability}>
+                    {editableCapabilityLabel(capability)} (
+                    {starterCapabilityCounts[capability]})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
+              <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
                 Plan
               </span>
               <select
@@ -1228,6 +1299,7 @@ export function CompositionLibraryOverlay() {
                 setStarterSourceFilter("all");
                 setStarterReadinessFilter("all");
                 setStarterDataBindingFilter("all");
+                setStarterCapabilityFilter("all");
                 setStarterPlanFilter("all");
               }}
               disabled={
@@ -1235,6 +1307,7 @@ export function CompositionLibraryOverlay() {
                 starterSourceFilter === "all" &&
                 starterReadinessFilter === "all" &&
                 starterDataBindingFilter === "all" &&
+                starterCapabilityFilter === "all" &&
                 starterPlanFilter === "all"
               }
               className="inline-flex h-full items-center justify-center rounded-md border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition hover:border-[#3d4f7c]/30 hover:text-[#3d4f7c] disabled:cursor-not-allowed disabled:opacity-45"
