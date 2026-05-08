@@ -10450,19 +10450,33 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           hint="Surfaces on Discover as a chip."
           visibility={["public", "agency"]}
         >
-          <ChipPicker
-            options={[
-              { id: "1h",  label: "Within 1h" },
-              { id: "4h",  label: "Within 4h" },
-              { id: "24h", label: "Within 24h" },
-              { id: "48h", label: "48h+" },
-            ]}
-            active={identity.responseTime ?? null}
-            onPick={(id) => onChange({
-              ...identity,
-              responseTime: identity.responseTime === id ? undefined : id as "1h" | "4h" | "24h" | "48h",
-            })}
-          />
+          <select
+            value={identity.responseTime ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              onChange({
+                ...identity,
+                responseTime: v === ""
+                  ? undefined
+                  : (v as "1h" | "4h" | "24h" | "48h"),
+              });
+            }}
+            style={{
+              padding: "9px 12px",
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 8,
+              background: "#fff",
+              color: COLORS.ink,
+            }}
+          >
+            <option value="">— select —</option>
+            <option value="1h">Within 1h</option>
+            <option value="4h">Within 4h</option>
+            <option value="24h">Within 24h</option>
+            <option value="48h">48h+</option>
+          </select>
         </FieldRow>
       </div>
     </div>
