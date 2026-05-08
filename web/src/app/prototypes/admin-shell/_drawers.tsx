@@ -10153,11 +10153,48 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
     borderRadius: 10, border: `1px solid ${COLORS.border}`,
     fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
   };
+  // Subsection title — small uppercase header that visually divides
+  // the editor into intent-blocks instead of one long field list.
+  const SubLabel = ({ children }: { children: React.ReactNode }) => (
+    <div style={{
+      gridColumn: "1 / -1",
+      paddingTop: 4,
+      fontSize: 10.5, fontWeight: 700,
+      letterSpacing: 0.7, textTransform: "uppercase",
+      color: "rgba(11,11,13,0.42)",
+      fontFamily: FONTS.body,
+    }}>{children}</div>
+  );
+  // Render a chip-style segmented selector. Used for Pronouns / Gender /
+  // Reply-time — all the same shape, was open-coded three times before.
+  const ChipPicker = ({
+    options, active, onPick,
+  }: {
+    options: { id: string; label: string }[];
+    active: string | null | undefined;
+    onPick: (id: string) => void;
+  }) => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {options.map(opt => {
+        const on = active === opt.id;
+        return (
+          <button key={opt.id} type="button" onClick={() => onPick(opt.id)} style={{
+            padding: "6px 12px", borderRadius: 999,
+            border: `1px solid ${on ? COLORS.accent : COLORS.borderSoft}`,
+            background: on ? "rgba(15,79,62,0.08)" : "#fff",
+            color: on ? COLORS.accentDeep : COLORS.ink,
+            fontSize: 12, fontWeight: on ? 600 : 500, cursor: "pointer",
+            fontFamily: FONTS.body, letterSpacing: 0.1,
+          }}>{opt.label}</button>
+        );
+      })}
+    </div>
+  );
   return (
     <div data-pshell-identity-grid style={{
       display: "grid",
       gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-      gap: "14px 16px",
+      gap: "16px 18px",
       fontFamily: FONTS.body,
     }}>
       <style>{`
@@ -10168,17 +10205,24 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           grid-column: 1 / -1;
         }
       `}</style>
-      <FieldRow label="Stage / professional name" hint="What clients see on the public profile.">
-        <input data-pshell-field="stageName"
-          placeholder="First Last"
-          value={identity.stageName}
-          onChange={(e) => onChange({ ...identity, stageName: e.target.value })}
-          disabled={isFieldLocked("identity.stageName")}
-          style={{ ...inputStyle, opacity: isFieldLocked("identity.stageName") ? 0.55 : 1 }}
-        />
-        {/* Audit fix #3 — LockedHint with reason on stageName too. */}
-        {isFieldLocked("identity.stageName") && <LockedHint reason={lockReasons?.["identity.stageName"]} />}
-      </FieldRow>
+
+      {/* ── Profile name ────────────────────────────────────────────── */}
+      <div data-pshell-identity-full>
+        <FieldRow label="Stage / professional name" hint="What clients see on the public profile.">
+          <input data-pshell-field="stageName"
+            placeholder="First Last"
+            value={identity.stageName}
+            onChange={(e) => onChange({ ...identity, stageName: e.target.value })}
+            disabled={isFieldLocked("identity.stageName")}
+            style={{
+              ...inputStyle,
+              padding: "12px 14px", fontSize: 16, fontWeight: 500,
+              opacity: isFieldLocked("identity.stageName") ? 0.55 : 1,
+            }}
+          />
+          {isFieldLocked("identity.stageName") && <LockedHint reason={lockReasons?.["identity.stageName"]} />}
+        </FieldRow>
+      </div>
 
       <FieldRow
         label="Legal name"
@@ -10201,7 +10245,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         {isFieldLocked("identity.legalName") && <LockedHint reason={lockReasons?.["identity.legalName"]} />}
       </FieldRow>
 
-      <FieldRow label="Pronunciation" optional hint={`Phonetic — e.g. "soh-FEE-ah loo-PO".`}>
+      <FieldRow label="Pronunciation" optional hint={`e.g. "soh-FEE-ah loo-PO".`}>
         <input
           placeholder="soh-FEE-ah loo-PO"
           value={identity.pronunciation}
@@ -10210,75 +10254,62 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         />
       </FieldRow>
 
-      <FieldRow
-        label="Pronouns"
-        optional
-        visibility={identity.visibility?.pronouns ?? ["public", "agency"]}
-        onVisibilityChange={(next) => onChange({
-          ...identity,
-          visibility: { ...(identity.visibility ?? {}), pronouns: next },
-        })}
-      >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {PRONOUNS_OPTIONS.map(opt => {
-            const active = identity.pronouns === opt.id;
-            return (
-              <button key={opt.id} type="button" onClick={() => onChange({ ...identity, pronouns: active ? null : opt.id })} style={{
-                padding: "6px 11px", borderRadius: 999,
-                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                color: active ? COLORS.accentDeep : COLORS.ink,
-                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                fontFamily: FONTS.body,
-              }}>{opt.label}</button>
-            );
-          })}
-        </div>
-        {identity.pronouns === "custom" && (
-          <input
-            placeholder="e.g. xe / xem"
-            value={identity.pronounsCustom ?? ""}
-            onChange={(e) => onChange({ ...identity, pronounsCustom: e.target.value })}
-            style={{
-              marginTop: 6, width: "100%", boxSizing: "border-box", padding: "8px 12px",
-              borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
-              fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
-            }}
-          />
-        )}
-      </FieldRow>
+      {/* ── Demographics ────────────────────────────────────────────── */}
+      <SubLabel>Demographics</SubLabel>
 
-      <FieldRow
-        label="Gender"
-        optional
-        visibility={identity.visibility?.gender ?? ["agency"]}
-        onVisibilityChange={(next) => onChange({
-          ...identity,
-          visibility: { ...(identity.visibility ?? {}), gender: next },
-        })}
-      >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {GENDER_OPTIONS.map(opt => {
-            const active = identity.gender === opt.id;
-            return (
-              <button key={opt.id} type="button" onClick={() => onChange({ ...identity, gender: active ? null : opt.id })} style={{
-                padding: "6px 11px", borderRadius: 999,
-                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                color: active ? COLORS.accentDeep : COLORS.ink,
-                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                fontFamily: FONTS.body,
-              }}>{opt.label}</button>
-            );
+      <div data-pshell-identity-full>
+        <FieldRow
+          label="Pronouns"
+          optional
+          visibility={identity.visibility?.pronouns ?? ["public", "agency"]}
+          onVisibilityChange={(next) => onChange({
+            ...identity,
+            visibility: { ...(identity.visibility ?? {}), pronouns: next },
           })}
-        </div>
-      </FieldRow>
+        >
+          <ChipPicker
+            options={PRONOUNS_OPTIONS}
+            active={identity.pronouns}
+            onPick={(id) => onChange({ ...identity, pronouns: identity.pronouns === id ? null : (id as typeof identity.pronouns) })}
+          />
+          {identity.pronouns === "custom" && (
+            <input
+              placeholder="e.g. xe / xem"
+              value={identity.pronounsCustom ?? ""}
+              onChange={(e) => onChange({ ...identity, pronounsCustom: e.target.value })}
+              style={{
+                marginTop: 8, width: "100%", boxSizing: "border-box", padding: "8px 12px",
+                borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
+                fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
+              }}
+            />
+          )}
+        </FieldRow>
+      </div>
+
+      <div data-pshell-identity-full>
+        <FieldRow
+          label="Gender"
+          optional
+          visibility={identity.visibility?.gender ?? ["agency"]}
+          onVisibilityChange={(next) => onChange({
+            ...identity,
+            visibility: { ...(identity.visibility ?? {}), gender: next },
+          })}
+        >
+          <ChipPicker
+            options={GENDER_OPTIONS}
+            active={identity.gender}
+            onPick={(id) => onChange({ ...identity, gender: identity.gender === id ? null : (id as typeof identity.gender) })}
+          />
+        </FieldRow>
+      </div>
 
       <FieldRow
         label="Date of birth"
         catalogId="identity.dob"
         optional
-        hint="Used to compute age. You control how it shows."
+        hint="Used to compute age."
         visibility={identity.visibility?.dob ?? ["private"]}
         onVisibilityChange={(next) => onChange({
           ...identity,
@@ -10291,57 +10322,40 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           onChange={(e) => onChange({ ...identity, dob: e.target.value || null })}
           style={{ ...inputStyle, background: "#fff" }}
         />
-        {age != null && (
-          <div style={{
-            marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
-          }}>
-            <span style={{ fontSize: 11, color: COLORS.inkMuted, marginRight: 4 }}>Show on profile as:</span>
+      </FieldRow>
+
+      {age != null && (
+        <FieldRow label="Show age as" optional>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {([
               { id: "exact" as const,  label: `Exact (${age})` },
               { id: "range" as const,  label: ageRange ? `Range (${ageRange})` : "Range" },
               { id: "hidden" as const, label: "Hidden" },
             ]).map(opt => {
-              const active = identity.ageDisplay === opt.id;
+              const on = identity.ageDisplay === opt.id;
               return (
                 <button key={opt.id} type="button" onClick={() => onChange({ ...identity, ageDisplay: opt.id })} style={{
-                  padding: "5px 10px", borderRadius: 999,
-                  border: `1px solid ${active ? COLORS.indigo : COLORS.borderSoft}`,
-                  background: active ? COLORS.indigoSoft : "#fff",
-                  color: active ? COLORS.indigoDeep : COLORS.ink,
-                  fontSize: 11, fontWeight: 500, cursor: "pointer",
+                  padding: "6px 12px", borderRadius: 999,
+                  border: `1px solid ${on ? COLORS.indigo : COLORS.borderSoft}`,
+                  background: on ? COLORS.indigoSoft : "#fff",
+                  color: on ? COLORS.indigoDeep : COLORS.ink,
+                  fontSize: 12, fontWeight: on ? 600 : 500, cursor: "pointer",
                   fontFamily: FONTS.body,
                 }}>{opt.label}</button>
               );
             })}
           </div>
-        )}
-      </FieldRow>
+        </FieldRow>
+      )}
 
-      {/* Audit fix #8 — pointer to where the rest of the travel/legal
-          fields live (passport, work-eligibility, driver's license).
-          Same person, same shoot logistics — splitting them across
-          Identity + Location was structurally awkward; this hint at
-          least bridges the two so the talent isn't hunting. */}
-      <div data-pshell-identity-full style={{
-        padding: "6px 10px",
-        borderRadius: 8,
-        background: "rgba(11,11,13,0.025)",
-        fontSize: 11.5,
-        color: COLORS.inkMuted,
-        fontFamily: FONTS.body,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        width: "fit-content",
-      }}>
-        <span aria-hidden>ℹ️</span>
-        <span>Passport, work eligibility &amp; license live in <strong>Location &amp; travel</strong>.</span>
-      </div>
+      {/* ── Origin & residence ──────────────────────────────────────── */}
+      <SubLabel>Origin &amp; residence</SubLabel>
+
       <FieldRow
         label="Nationality"
         catalogId="identity.nationality"
         optional
-        hint="Country of citizenship — drives international booking pre-checks."
+        hint="Citizenship country."
         visibility={["agency"]}
       >
         <input
@@ -10356,7 +10370,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         label="Country of residence"
         catalogId="identity.homeCountry"
         optional
-        hint="Tax + payout routing reads this. Separate from your home base city."
+        hint="Tax + payout routing."
         visibility={["agency"]}
       >
         <input
@@ -10367,37 +10381,46 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         />
       </FieldRow>
 
+      <div data-pshell-identity-full style={{
+        padding: "8px 12px",
+        borderRadius: 8,
+        background: "rgba(11,11,13,0.025)",
+        fontSize: 11.5,
+        color: COLORS.inkMuted,
+        fontFamily: FONTS.body,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        width: "fit-content",
+      }}>
+        <span aria-hidden>ℹ️</span>
+        <span>Passport, work eligibility &amp; license live in <strong>Location &amp; travel</strong>.</span>
+      </div>
+
+      {/* ── Service commitment ──────────────────────────────────────── */}
+      <SubLabel>Service commitment</SubLabel>
+
       <div data-pshell-identity-full>
         <FieldRow
-          label="Reply-time commitment"
+          label="Reply time"
           catalogId="identity.responseTime"
           optional
-          hint="Surfaces on Discover as a chip — sets client expectations."
+          hint="Surfaces on Discover as a chip."
           visibility={["public", "agency"]}
         >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {[
+          <ChipPicker
+            options={[
               { id: "1h",  label: "Within 1h" },
               { id: "4h",  label: "Within 4h" },
               { id: "24h", label: "Within 24h" },
               { id: "48h", label: "48h+" },
-            ].map(opt => {
-              const active = identity.responseTime === opt.id;
-              return (
-                <button key={opt.id} type="button" onClick={() => onChange({
-                  ...identity,
-                  responseTime: active ? undefined : opt.id as "1h" | "4h" | "24h" | "48h",
-                })} style={{
-                  padding: "6px 11px", borderRadius: 999,
-                  border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
-                  background: active ? "rgba(15,79,62,0.08)" : "#fff",
-                  color: active ? COLORS.accentDeep : COLORS.ink,
-                  fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                  fontFamily: FONTS.body,
-                }}>{opt.label}</button>
-              );
+            ]}
+            active={identity.responseTime ?? null}
+            onPick={(id) => onChange({
+              ...identity,
+              responseTime: identity.responseTime === id ? undefined : id as "1h" | "4h" | "24h" | "48h",
             })}
-          </div>
+          />
         </FieldRow>
       </div>
     </div>
