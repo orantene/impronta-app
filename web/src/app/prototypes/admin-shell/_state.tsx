@@ -114,7 +114,7 @@ export const ROLES: Role[] = ["viewer", "editor", "coordinator", "admin", "owner
 export const ENTITY_TYPES: EntityType[] = ["agency", "hub"];
 export const CLIENT_PLANS: ClientPlan[] = ["free", "pro", "enterprise"];
 export const HQ_ROLES: HqRole[] = ["support", "ops", "billing", "exec"];
-// WS-3.1 — The 6 canonical nav pages. Legacy aliases excluded.
+// WS-3.1 — The canonical nav pages. Legacy aliases excluded.
 export const WORKSPACE_PAGES: WorkspacePage[] = [
   "overview",
   "messages",
@@ -344,7 +344,7 @@ export const SURFACE_META: Record<
 // WS-3.2 — canonical page metadata.  Legacy aliases included so code that
 // still references them doesn't throw; they redirect immediately in nav.
 export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; description?: string }> = {
-  // ── canonical 6 ──
+  // ── canonical pages ──
   overview:  { label: "Overview",  icon: "home",     description: "Today's snapshot: unread, pending actions, recent activity" },
   messages:  { label: "Messages",  icon: "mail",     description: "All threads across active inquiries and bookings" },
   calendar:  { label: "Calendar",  icon: "calendar", description: "Scheduled shoots, holds, and deadlines" },

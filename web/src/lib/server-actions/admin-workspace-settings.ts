@@ -44,8 +44,6 @@ const watermarkPresetSchema = z.object({
   variant:     z.enum(["light", "dark"]),
 }).optional();
 
-export type WatermarkPreset = NonNullable<z.infer<typeof watermarkPresetSchema>>;
-
 const updateBrandingSchema = z
   .object({
     tagline:          z.string().max(120).optional(),
@@ -57,6 +55,16 @@ const updateBrandingSchema = z
     watermark_preset: watermarkPresetSchema,
   })
   .strict();
+
+export type WatermarkPreset = NonNullable<z.infer<typeof watermarkPresetSchema>>;
+export const DEFAULT_WATERMARK_PRESET: WatermarkPreset = {
+  enabled: false,
+  position: "br",
+  size_pct: 12,
+  opacity: 0.6,
+  padding_pct: 4,
+  variant: "light",
+};
 
 export type UpdateBrandingInput = z.infer<typeof updateBrandingSchema>;
 
