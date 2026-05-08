@@ -189,6 +189,7 @@ import {
   RiskScorePill,
 } from "./_primitives";
 import { InquiryWorkspaceDrawer } from "./_workspace";
+import SkillOverridesPanel from "./_skill-overrides-panel";
 import dynamic from "next/dynamic";
 const InquiryComposerLazyD = dynamic(
   () => import("./_messages").then((m) => m.InquiryComposer),
@@ -5386,6 +5387,27 @@ function TalentProfileShellDrawer() {
                 </div>
               )}
             </ProfileAccordionSection>
+
+            {/* PER-AGENCY SKILL OVERRIDES (admin only) — Phase 7.1
+                Renders just after the talent's own skills section so
+                admin operators can see the canonical skill list and
+                immediately control how each skill appears on their site. */}
+            {adminVisible && payload.talentId && (
+              <div style={{ marginTop: 4 }}>
+                <div style={{
+                  fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
+                  textTransform: "uppercase", color: COLORS.inkMuted,
+                  marginBottom: 8,
+                  fontFamily: FONTS.body,
+                }}>
+                  Per-agency overrides
+                </div>
+                <SkillOverridesPanel
+                  talentProfileId={payload.talentId}
+                  viewMode="admin"
+                />
+              </div>
+            )}
 
             {/* CREDITS — past work / campaigns / editorials */}
             <ProfileAccordionSection
