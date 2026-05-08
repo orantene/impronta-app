@@ -578,6 +578,14 @@ export const CAPABILITIES = {
     scope: "tenant",
     deprecated: false,
   }),
+  "agency.pitch.manage": define({
+    key: "agency.pitch.manage",
+    displayName: "Create and send pitches",
+    description: "Curate a talent suggestion, attach a brief and files, and send the public link to a client.",
+    category: "talent",
+    scope: "tenant",
+    deprecated: false,
+  }),
 
   // ── Talent-self capabilities (relationship-gated) ────────────────────
   "talent.visibility.manage_self": define({

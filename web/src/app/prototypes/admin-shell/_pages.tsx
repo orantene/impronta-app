@@ -152,6 +152,8 @@ import { ParticipantsStack, type Participant } from "./_talent";
 // react-virtuoso — not SSR-safe. Lazy import keeps the prototype
 // SSR-renderable while the messages shell is client-only.
 const MessagesShell = dynamic(() => import("./_messages").then(m => m.MessagesShell), { ssr: false });
+import { bulkSetWorkflowStatus } from "@/app/(workspace)/[tenantSlug]/admin/roster/bulk-actions";
+import { PitchComposeDrawer } from "./_pitch-compose";
 
 // ════════════════════════════════════════════════════════════════════
 // Prototype control bar
@@ -4911,7 +4913,7 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics } = useProto();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug } = useProto();
   // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
   // the server pre-fetches Impronta's roster and `effectiveRoster` is
   // those rows. When absent, this falls back to `getRoster(plan)` per
@@ -4928,6 +4930,8 @@ function TalentPage() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
+  const [isBulkLoading, setIsBulkLoading] = useState(false);
+  const [pitchComposeOpen, setPitchComposeOpen] = useState(false);
 
   // Resolve a parent-type filter to its children (for filtering by primaryType id).
   const typeFilterChildren = typeFilter === "all"
@@ -5015,6 +5019,23 @@ function TalentPage() {
     });
   const clearSelected = () => setSelected(new Set());
   const selectAll = () => setSelected(new Set(filteredRoster.map((p) => p.id)));
+
+  const handleBulkAction = async (status: "publish" | "archive") => {
+    if (!tenantSlug) {
+      toast("Bulk actions require a live workspace connection.");
+      return;
+    }
+    setIsBulkLoading(true);
+    const result = await bulkSetWorkflowStatus(tenantSlug, Array.from(selected), status);
+    setIsBulkLoading(false);
+    if (result.ok) {
+      const label = status === "publish" ? "Published" : "Archived";
+      toast(`${label} ${result.updatedCount} profile${result.updatedCount === 1 ? "" : "s"}`);
+      clearSelected();
+    } else {
+      toast(`Error: ${result.error}`);
+    }
+  };
 
   // Card click → open the rich profile shell with the canonical talent id
   // so the drawer's Remove button + Identity autosave both work against
@@ -5188,9 +5209,26 @@ function TalentPage() {
         <RosterBulkActionBar
           count={selected.size}
           onClear={clearSelected}
-          onPublish={() => { toast(`Published ${selected.size} profiles`); clearSelected(); }}
-          onArchive={() => { toast(`Archived ${selected.size} profiles`); clearSelected(); }}
-          onMessage={() => toast("Opening message thread for selection")}
+          onPublish={() => handleBulkAction("publish")}
+          onArchive={() => handleBulkAction("archive")}
+          isLoading={isBulkLoading}
+          onSendPitch={() => setPitchComposeOpen(true)}
+        />
+      )}
+
+      {/* Pitch compose drawer */}
+      {pitchComposeOpen && (
+        <PitchComposeDrawer
+          open={pitchComposeOpen}
+          onOpenChange={setPitchComposeOpen}
+          selectedTalents={roster.filter((t) => selected.has(t.id))}
+          clients={getClients(state.plan)}
+          tenantSlug={tenantSlug ?? ""}
+          agencyName={TENANT.name}
+          onPitchSent={() => {
+            clearSelected();
+            toast("Pitch sent!");
+          }}
         />
       )}
 
@@ -6582,14 +6620,17 @@ function RosterBulkActionBar({
   onClear,
   onPublish,
   onArchive,
-  onMessage,
+  isLoading = false,
+  onSendPitch,
 }: {
   count: number;
   onClear: () => void;
   onPublish: () => void;
   onArchive: () => void;
-  onMessage: () => void;
+  isLoading?: boolean;
+  onSendPitch?: () => void;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
   return (
     <div
       style={{
@@ -6622,15 +6663,88 @@ function RosterBulkActionBar({
       >
         <span>{count} selected</span>
         <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.18)" }} />
-        <button type="button" onClick={onMessage} style={bulkBtnStyle}>
-          Message
+        <button
+          type="button"
+          onClick={onPublish}
+          disabled={isLoading}
+          style={{ ...bulkBtnStyle, opacity: isLoading ? 0.5 : 1 }}
+        >
+          {isLoading ? "…" : "Publish"}
         </button>
-        <button type="button" onClick={onPublish} style={bulkBtnStyle}>
-          Publish
+        <button
+          type="button"
+          onClick={onArchive}
+          disabled={isLoading}
+          style={{ ...bulkBtnStyle, opacity: isLoading ? 0.5 : 1 }}
+        >
+          {isLoading ? "…" : "Archive"}
         </button>
-        <button type="button" onClick={onArchive} style={bulkBtnStyle}>
-          Archive
-        </button>
+
+        {/* ⋯ overflow — entry point for pitch (Phase C) + future actions */}
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => setMoreOpen((o) => !o)}
+            aria-label="More actions"
+            style={{
+              ...bulkBtnStyle,
+              padding: "6px 10px",
+              letterSpacing: 1,
+            }}
+          >
+            ⋯
+          </button>
+          {moreOpen && (
+            <>
+              <div
+                onClick={() => setMoreOpen(false)}
+                style={{ position: "fixed", inset: 0, zIndex: 50 }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "calc(100% + 8px)",
+                  right: 0,
+                  zIndex: 51,
+                  background: "#fff",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 10,
+                  boxShadow: "0 12px 36px -8px rgba(11,11,13,0.20)",
+                  minWidth: 190,
+                  padding: 4,
+                  fontFamily: FONTS.body,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    onSendPitch?.();
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    padding: "8px 12px",
+                    background: "none",
+                    border: "none",
+                    borderRadius: 7,
+                    fontSize: 13,
+                    fontFamily: "inherit",
+                    color: COLORS.ink,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    gap: 8,
+                  }}
+                >
+                  <span>Send as pitch…</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
         <button
           type="button"
           onClick={onClear}

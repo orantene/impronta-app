@@ -183,6 +183,30 @@ function InquiryTable({
                       {inq.unreadCount} new
                     </span>
                   )}
+                  {inq.source_pitch_id && (
+                    <span
+                      title="Originated from a curated pitch sent by your agency"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "1px 7px",
+                        borderRadius: 999,
+                        background: "rgba(15,79,62,0.08)",
+                        color: "#0F4F3E",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: 0.3,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                      From a pitch
+                    </span>
+                  )}
                 </div>
 
                 {/* Primary line */}
