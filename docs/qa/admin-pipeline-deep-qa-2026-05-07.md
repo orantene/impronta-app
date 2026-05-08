@@ -416,7 +416,28 @@ No Vercel push until the marathon completes its full run and the user gives go.
   TalentProfileDrawer → updateTalentIdentity. New `_pipeline-actions.ts`
   module hosts the engine wrappers. D3 root cause identified
   (architectural fix deferred). B8 lineup wiring deferred (UI rewrite scope).
-- **rev 7 (this commit)** — finishing pass:
+- **rev 8 (this commit)** — closing the in-scope items:
+  - **Offer line-item editor** — new `OfferDraftEditor` component
+    inside `LiveOfferPanel` (rendered when offer.status==="draft").
+    Per-line dropdown picks roster talent, edits units / unit_price /
+    talent_cost / pricing_unit. Header inputs for total + fee. Saves
+    via `saveOfferDraft` → engine `updateOfferDraft`. Auto-recomputes
+    line totals on units/price change. Loads via `loadOfferDraft`.
+  - **Per-transaction payout receiver picker** — new
+    `PayoutReceiverPicker` inside the Payouts section of PaymentTab.
+    Loads candidates via `loadInquiryPayoutReceiverCandidates`, sets
+    via `setInquiryPayoutReceiver` (wraps
+    `setTransactionPayoutReceiver`). Renders only when transaction is
+    `paid` or `payout_pending` and only for admin pov.
+  - **Lineup drag-to-reorder** — LiveLineupPanel rows are now
+    HTML5-draggable. Reorders are optimistic; persisted via
+    `reorderInquiryLineup` → engine `reorderRoster`. On failure, the
+    panel reloads from DB so local state matches server.
+  - **Bulk inquiry archive** — the existing `AdminInboxList` bulk
+    Archive button now persists to `inquiry_user_flags` for selected
+    real-UUID rows in one bulk round-trip via `bulkSetInquiryArchived`.
+    Synthetic mock rows still toggle local-only.
+- **rev 7 (14bb9090)** — finishing pass:
   - **G-pass (client surface)** — `clientApproveCurrentOffer` /
     `clientRejectCurrentOffer` / `sendInquiryMessageAsClient` in new
     `lib/server-actions/client-pipeline.ts`. ClientProjectDetail header
@@ -515,31 +536,38 @@ No Vercel push until the marathon completes its full run and the user gives go.
 | 9674de4a | F2  | `ConversationActionPin` calls real engine for Accept / Decline / Submit rate |
 | 9674de4a | F3  | `SubmitRateSheet.onSubmit` persists to DB via `submitMyRateForInquiry` |
 | 9674de4a | F4  | `DraftComposer` (talent pov) writes to inquiry_messages.group |
-| (this)   | G1  | `client-pipeline.ts` — approve / reject / send-message wrappers (client pov) |
-| (this)   | G2  | `ClientProjectDetail` CTA dispatches Approve/Reject for real inquiries |
-| (this)   | G3  | `ConversationTab` shared composer routes by threadKey suffix |
-| (this)   | F-r | Hold/Confirm reuse engine Accept/Decline; action-confirm posts ack message |
-| (this)   | B4u | `uploadInquiryAttachment` server action + LiveFilesPanel upload affordance |
-| (this)   | B8p | LiveLineupPanel uses real roster picker (search + filter on-lineup) |
+| 14bb9090 | G1  | `client-pipeline.ts` — approve / reject / send-message wrappers (client pov) |
+| 14bb9090 | G2  | `ClientProjectDetail` CTA dispatches Approve/Reject for real inquiries |
+| 14bb9090 | G3  | `ConversationTab` shared composer routes by threadKey suffix |
+| 14bb9090 | F-r | Hold/Confirm reuse engine Accept/Decline; action-confirm posts ack message |
+| 14bb9090 | B4u | `uploadInquiryAttachment` server action + LiveFilesPanel upload affordance |
+| 14bb9090 | B8p | LiveLineupPanel uses real roster picker (search + filter on-lineup) |
+| (this)   | B3e | `OfferDraftEditor` — coordinator line-item editor wraps `updateOfferDraft` |
+| (this)   | B6r | `PayoutReceiverPicker` — per-transaction receiver wraps `setTransactionPayoutReceiver` |
+| (this)   | B8r | LiveLineupPanel rows are draggable; reorder wraps `reorderRoster` |
+| (this)   | A6b | Bulk inbox Archive persists to `inquiry_user_flags` via `bulkSetInquiryArchived` |
 
-## What's still open after rev 7
+## What's still open after rev 8
 
-### Backend gaps that remain
+### Genuinely out-of-scope (need new infrastructure)
 
-- **`rosterReorderParticipant` UI** — engine helper exists but no drag
-  handles in the LiveLineupPanel. Order is invited_at ascending.
-- **Per-transaction payout receiver picker** — schema is per-transaction;
-  no workspace default. PaymentTab can mark payout-pending but doesn't
-  let staff pick which payout account receives the funds.
-- **Bulk inquiry/booking ops** — archive / restore from list views isn't
-  wired.
-- **Counter-offer line-item editor** — `counterOffer` opens v2 but no
-  UI for populating line items (the offer stays empty until
-  `updateOfferDraft` is called separately).
+- **Pay invoice → Stripe checkout** — the client-side "Pay invoice"
+  CTA needs a payment-provider integration (Stripe Checkout session,
+  webhook to mark `requested_at` → `paid`). This is genuinely new
+  infrastructure, not pipeline wiring.
+- **Bulk-restore from archived view** — current bulk archive only
+  archives. Restore would need an "Archived" filter chip + bulk
+  restore button. Wrapper supports both directions; UI to surface
+  the restore path isn't built.
+- **Bulk Nudge / Reassign** — the AdminInboxList bulk bar still has
+  Nudge + Reassign buttons that toast-only. Nudge needs a notification
+  system; Reassign needs `assignInquiryToCurrentStaff` per row.
 - **Settings drawers** (theme / SEO / domain / navigation / languages /
   visibility / filters) — no canonical actions exist for any of these
   yet. Building them is a separate phase orthogonal to the inquiry
   pipeline.
+- **Drag-to-reschedule calendar** — would need `event_date` patch +
+  drag-drop infra on the calendar grid.
 
 ### UI polish / small follow-ups
 

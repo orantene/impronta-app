@@ -36,8 +36,10 @@ import {
   sendOffer,
   clientRejectOffer,
   createOffer,
+  updateOfferDraft,
   submitTalentRate as submitTalentRateEngine,
   counterOffer,
+  type OfferLineDraft,
 } from "@/lib/inquiry/inquiry-engine-offers";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 
@@ -1023,6 +1025,362 @@ export async function deleteInquiryAttachment(
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.deleteInquiryAttachment", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── Offer line-item editor ──────────────────────────────────────────────────
+
+export type OfferDraftSnapshot = {
+  offerId: string;
+  offerVersion: number;
+  inquiryVersion: number;
+  totalClientPrice: number;
+  coordinatorFee: number;
+  currencyCode: string;
+  notes: string | null;
+  lineItems: Array<{
+    id: string;
+    talentProfileId: string | null;
+    talentDisplayName: string | null;
+    label: string | null;
+    pricingUnit: "hour" | "day" | "week" | "event";
+    units: number;
+    unitPrice: number;
+    totalPrice: number;
+    talentCost: number;
+    notes: string | null;
+    sortOrder: number;
+  }>;
+};
+
+/**
+ * Load the current draft offer + its line items for editing. Used by the
+ * coordinator's offer line-item editor in the OfferTab.
+ */
+export async function loadOfferDraft(
+  _tenantSlug: string,
+  offerId: string,
+): Promise<PipelineActionResult<OfferDraftSnapshot>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: offer, error: offerErr } = await supabase
+      .from("inquiry_offers")
+      .select("id, inquiry_id, version, total_client_price, coordinator_fee, currency_code, notes, status")
+      .eq("id", offerId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (offerErr || !offer) {
+      return { ok: false, error: "Offer not found in this workspace." };
+    }
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", offer.inquiry_id as string)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found." };
+
+    const { data: lines } = await supabase
+      .from("inquiry_offer_line_items")
+      .select(`
+        id, talent_profile_id, label, pricing_unit, units, unit_price,
+        total_price, talent_cost, notes, sort_order,
+        talent_profiles ( display_name )
+      `)
+      .eq("offer_id", offerId)
+      .order("sort_order", { ascending: true });
+
+    type LineRow = {
+      id: string;
+      talent_profile_id: string | null;
+      label: string | null;
+      pricing_unit: "hour" | "day" | "week" | "event";
+      units: number;
+      unit_price: number;
+      total_price: number;
+      talent_cost: number;
+      notes: string | null;
+      sort_order: number;
+      talent_profiles: { display_name: string | null } | null;
+    };
+    const rows = (lines ?? []) as LineRow[];
+
+    return {
+      ok: true,
+      data: {
+        offerId: offer.id as string,
+        offerVersion: (offer.version as number | null) ?? 1,
+        inquiryVersion: (inq.version as number | null) ?? 1,
+        totalClientPrice: Number(offer.total_client_price ?? 0),
+        coordinatorFee: Number(offer.coordinator_fee ?? 0),
+        currencyCode: (offer.currency_code as string | null) ?? "EUR",
+        notes: (offer.notes as string | null) ?? null,
+        lineItems: rows.map((r) => ({
+          id: r.id,
+          talentProfileId: r.talent_profile_id,
+          talentDisplayName: r.talent_profiles?.display_name ?? null,
+          label: r.label,
+          pricingUnit: r.pricing_unit,
+          units: Number(r.units),
+          unitPrice: Number(r.unit_price),
+          totalPrice: Number(r.total_price),
+          talentCost: Number(r.talent_cost),
+          notes: r.notes,
+          sortOrder: r.sort_order,
+        })),
+      },
+    };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.loadOfferDraft", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Save the offer draft — replaces all line items with the supplied set
+ * and updates the offer header (total/fee/currency/notes). Wraps engine
+ * `updateOfferDraft` which handles permissions, version safety, and
+ * the OFFER_DRAFT_UPDATED event.
+ *
+ * Caller passes the offer + inquiry expected versions so the engine can
+ * reject conflicting writes.
+ */
+export async function saveOfferDraft(
+  _tenantSlug: string,
+  offerId: string,
+  patch: {
+    inquiryExpectedVersion: number;
+    offerExpectedVersion: number;
+    totalClientPrice: number;
+    coordinatorFee: number;
+    currencyCode: string;
+    notes: string | null;
+    lineItems: OfferLineDraft[];
+  },
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    const { data: offer } = await supabase
+      .from("inquiry_offers")
+      .select("inquiry_id")
+      .eq("id", offerId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!offer) return { ok: false, error: "Offer not found in this workspace." };
+
+    const result = await updateOfferDraft(supabase, {
+      inquiryId: offer.inquiry_id as string,
+      tenantId,
+      offerId,
+      actorUserId: user.id,
+      inquiryExpectedVersion: patch.inquiryExpectedVersion,
+      offerExpectedVersion: patch.offerExpectedVersion,
+      total_client_price: patch.totalClientPrice,
+      coordinator_fee: patch.coordinatorFee,
+      currency_code: patch.currencyCode,
+      notes: patch.notes,
+      lineItems: patch.lineItems,
+    });
+
+    if (!result.success) {
+      const reason = (result as { reason?: string; error?: string }).reason
+        ?? (result as { error?: string }).error
+        ?? "Could not save offer.";
+      const friendly =
+        reason === "version_conflict" ? "Offer was updated elsewhere — refresh and retry."
+        : reason === "offer_not_editable" ? "This offer is locked (already sent / accepted)."
+        : reason === "post_booking_immutable" ? "Inquiry is past its mutable phase."
+        : reason === "inquiry_frozen" ? "Inquiry is frozen."
+        : reason === "rate_limited" ? "Too many save attempts — try again shortly."
+        : reason;
+      return { ok: false, error: friendly };
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.saveOfferDraft", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── Payout receiver picker ─────────────────────────────────────────────────
+
+export type PayoutReceiverOption = {
+  payoutAccountId: string;
+  ownerType: "agency" | "profile" | "talent";
+  ownerId: string;
+  displayName: string;
+  receiverKind: string;
+};
+
+/**
+ * Load the eligible payout receivers for an inquiry's booking. Used by
+ * the per-transaction picker UI. Empty array if no booking exists yet
+ * or no eligible receivers are configured.
+ */
+export async function loadInquiryPayoutReceiverCandidates(
+  _tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult<PayoutReceiverOption[]>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    const { data: booking } = await supabase
+      .from("agency_bookings")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("source_inquiry_id", inquiryId)
+      .maybeSingle();
+    if (!booking) return { ok: true, data: [] };
+
+    const { loadPayoutReceiverCandidatesForBooking } = await import("@/lib/bookings/transactions");
+    const candidates = await loadPayoutReceiverCandidatesForBooking({
+      tenantId,
+      bookingId: booking.id as string,
+      supabase,
+    });
+
+    return {
+      ok: true,
+      data: candidates.map((c) => ({
+        payoutAccountId: c.payoutAccountId,
+        ownerType: c.ownerType,
+        ownerId: c.ownerId,
+        displayName: c.displayName,
+        receiverKind: c.receiverKind,
+      })),
+    };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.loadInquiryPayoutReceiverCandidates", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Set the payout receiver on the active transaction for an inquiry.
+ * Wraps `setTransactionPayoutReceiver` from lib/bookings/transactions.
+ */
+export async function setInquiryPayoutReceiver(
+  _tenantSlug: string,
+  inquiryId: string,
+  payoutAccountId: string,
+): Promise<PipelineActionResult> {
+  try {
+    if (!payoutAccountId.trim()) {
+      return { ok: false, error: "Choose a payout receiver." };
+    }
+    const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
+      const txn = await loadActiveBookingTransaction(bookingId, supabase);
+      if (!txn) throw new Error("No active transaction for this booking.");
+      const { setTransactionPayoutReceiver } = await import("@/lib/bookings/transactions");
+      const result = await setTransactionPayoutReceiver(txn.id, payoutAccountId);
+      if (!result.ok) throw new Error(result.error);
+    });
+    return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.setInquiryPayoutReceiver", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── Lineup reorder ──────────────────────────────────────────────────────────
+
+/**
+ * Reorder the lineup. Accepts an array of participant ids in the new
+ * order. Wraps `rosterMoveParticipant` (called once per moved participant
+ * via the underlying engine helper).
+ *
+ * The engine's `reorderRoster` does the bulk update in one call.
+ */
+export async function reorderInquiryLineup(
+  _tenantSlug: string,
+  inquiryId: string,
+  participantIdsInOrder: string[],
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found." };
+
+    const { reorderRoster } = await import("@/lib/inquiry/inquiry-engine-roster");
+    const result = await reorderRoster(supabase, {
+      inquiryId,
+      tenantId,
+      actorUserId: user.id,
+      expectedVersion: (inq.version as number | null) ?? 1,
+      orderedParticipantIds: participantIdsInOrder,
+    });
+    if (!result.success) {
+      const reason = (result as { reason?: string; error?: string }).reason
+        ?? (result as { error?: string }).error
+        ?? "Could not reorder.";
+      return { ok: false, error: reason };
+    }
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.reorderInquiryLineup", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── Bulk inquiry archive ────────────────────────────────────────────────────
+
+/**
+ * Archive multiple inquiries in a single round-trip per inquiry. Skips
+ * any that fail individually and returns a summary so the caller can
+ * surface partial-success.
+ */
+export async function bulkSetInquiryArchived(
+  _tenantSlug: string,
+  inquiryIds: string[],
+  archived: boolean,
+): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    let okCount = 0;
+    let failed = 0;
+    const now = new Date().toISOString();
+    for (const id of inquiryIds) {
+      const { error } = await supabase
+        .from("inquiry_user_flags")
+        .upsert({
+          tenant_id: tenantId,
+          inquiry_id: id,
+          profile_id: user.id,
+          archived,
+          archived_at: archived ? now : null,
+        }, { onConflict: "tenant_id,inquiry_id,profile_id" });
+      if (error) failed++;
+      else okCount++;
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true, data: { ok: okCount, failed } };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.bulkSetInquiryArchived", err);
     return { ok: false, error: "Unexpected error." };
   }
 }

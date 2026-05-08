@@ -70,6 +70,13 @@ import {
   loadInquiryAttachments,
   deleteInquiryAttachment,
   uploadInquiryAttachment,
+  loadOfferDraft,
+  saveOfferDraft,
+  loadInquiryPayoutReceiverCandidates,
+  setInquiryPayoutReceiver,
+  reorderInquiryLineup,
+  type OfferDraftSnapshot,
+  type PayoutReceiverOption,
   createInquiryTransactionDraft,
   requestInquiryPayment,
   initiateInquiryPayout,
@@ -80,6 +87,7 @@ import {
   setInquiryPinned,
   setInquiryArchived,
   setInquiryManuallyUnread,
+  bulkSetInquiryArchived,
   duplicateInquiryBooking,
   type InquiryPaymentState,
   type InquiryAttachment,
@@ -2057,7 +2065,24 @@ function AdminInboxList({
             Nudge
           </button>
           <button type="button"
-            onClick={() => { toastBulk(`Archived ${selectedIds.size} thread${selectedIds.size === 1 ? "" : "s"}`); exitBulk(); }}
+            onClick={() => {
+              const count = selectedIds.size;
+              const ids = Array.from(selectedIds);
+              // Always toggle the local archive flag so the inbox refreshes
+              // immediately (matches how single-row Archive works).
+              ids.forEach((id) => archiveInquiry(id));
+              // Persist the real ones in one bulk round-trip.
+              const realIds = ids.filter((id) =>
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+              );
+              if (realIds.length > 0) {
+                void bulkSetInquiryArchived(TENANT.slug, realIds, true).then((r) => {
+                  if (!r.ok) toastBulk(`Bulk archive failed: ${r.error}`);
+                });
+              }
+              toastBulk(`Archived ${count} thread${count === 1 ? "" : "s"}`);
+              exitBulk();
+            }}
             style={{
               padding: "5px 10px", borderRadius: 999,
               border: "1px solid rgba(255,255,255,0.25)",
@@ -7649,6 +7674,92 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
   );
 }
 
+/**
+ * PayoutReceiverPicker — surfaces eligible payout accounts for the
+ * booking and lets the admin select / change one. Wraps
+ * `setInquiryPayoutReceiver` (which writes to the active transaction).
+ */
+function PayoutReceiverPicker({
+  inquiryId,
+  currentPayoutAccountId,
+  currentDisplayName,
+  onChanged,
+}: {
+  inquiryId: string;
+  currentPayoutAccountId: string | null;
+  currentDisplayName: string | null;
+  onChanged: () => void;
+}) {
+  const { toast } = useProto();
+  const [candidates, setCandidates] = useState<PayoutReceiverOption[] | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [selected, setSelected] = useState<string>(currentPayoutAccountId ?? "");
+
+  useEffect(() => {
+    setSelected(currentPayoutAccountId ?? "");
+  }, [currentPayoutAccountId]);
+
+  useEffect(() => {
+    loadInquiryPayoutReceiverCandidates(TENANT.slug, inquiryId)
+      .then((r) => { if (r.ok) setCandidates(r.data ?? []); });
+  }, [inquiryId]);
+
+  const apply = () => {
+    if (!selected) { toast("Choose a payout receiver."); return; }
+    startTransition(async () => {
+      const r = await setInquiryPayoutReceiver(TENANT.slug, inquiryId, selected);
+      if (!r.ok) toast(`Set receiver failed: ${r.error}`);
+      else { toast("Payout receiver set"); onChanged(); }
+    });
+  };
+
+  return (
+    <div style={{
+      marginTop: 8, padding: "8px 10px",
+      background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: 8,
+      display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <span style={{ fontWeight: 700, color: COLORS.ink }}>Payout receiver</span>
+      {currentDisplayName && (
+        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>currently · {currentDisplayName}</span>
+      )}
+      <span style={{ flex: 1 }} />
+      <select
+        value={selected}
+        onChange={(e) => setSelected(e.target.value)}
+        disabled={pending || candidates == null}
+        style={{
+          padding: "5px 8px", fontSize: 12, fontFamily: FONTS.body,
+          border: `1px solid ${COLORS.border}`, borderRadius: 6,
+          minWidth: 180,
+        }}
+      >
+        <option value="">— choose —</option>
+        {(candidates ?? []).map((c) => (
+          <option key={c.payoutAccountId} value={c.payoutAccountId}>
+            {c.displayName} ({c.receiverKind})
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={pending || !selected || selected === currentPayoutAccountId}
+        onClick={apply}
+        style={primaryBtn(COLORS.accent)}
+      >
+        {pending ? "Saving…" : currentPayoutAccountId ? "Change" : "Set"}
+      </button>
+      {candidates != null && candidates.length === 0 && (
+        <div style={{ flexBasis: "100%", fontSize: 11, color: COLORS.coralDeep }}>
+          No eligible payout accounts. Configure agency or talent payout accounts first.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Friendly labels for booking_transactions.status enum
 const TRANSACTION_STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
@@ -7798,9 +7909,17 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
               : txStatus === "payout_pending"
               ? `Payout pending ${txn?.payoutInitiatedAt ? `since ${new Date(txn.payoutInitiatedAt).toLocaleString()}` : ""}`
               : txStatus === "paid"
-              ? "Funds received — initiate payout to talent above."
+              ? "Funds received — pick a payout receiver below, then initiate the payout."
               : "Released to talent once invoice clears."}
           </div>
+          {isAdmin && txn && (txStatus === "paid" || txStatus === "payout_pending") && (
+            <PayoutReceiverPicker
+              inquiryId={inquiry.id}
+              currentPayoutAccountId={txn.payoutReceiverId}
+              currentDisplayName={txn.payoutReceiverDisplayName}
+              onChanged={reload}
+            />
+          )}
         </DetailSection>
       )}
     </div>
@@ -10418,12 +10537,42 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
       </div>
       {lineup.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
-          {lineup.map((p) => (
-            <div key={p.id} style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "6px 10px", background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
-            }}>
+          {lineup.map((p, idx) => (
+            <div
+              key={p.id}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/x-participant-id", p.id);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const fromId = e.dataTransfer.getData("text/x-participant-id");
+                if (!fromId || fromId === p.id) return;
+                const fromIdx = lineup.findIndex((x) => x.id === fromId);
+                if (fromIdx < 0) return;
+                const next = [...lineup];
+                const [moved] = next.splice(fromIdx, 1);
+                next.splice(idx, 0, moved);
+                // Optimistic update + persist.
+                setLineup(next);
+                startTransition(async () => {
+                  const r = await reorderInquiryLineup(TENANT.slug, inquiryId, next.map((x) => x.id));
+                  if (!r.ok) { toast(`Reorder failed: ${r.error}`); reload(); }
+                });
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "6px 10px", background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
+                cursor: "grab",
+              }}
+            >
+              <span aria-hidden style={{
+                color: COLORS.inkDim, fontSize: 12, fontWeight: 700,
+                cursor: "grab", userSelect: "none",
+              }}>⋮⋮</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, color: COLORS.ink }}>
                   {p.talentDisplayName ?? "(unnamed talent)"}
@@ -10495,6 +10644,222 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * OfferDraftEditor — coordinator UI for adding/editing/removing offer
+ * line items + setting the offer total/fee. Renders only when:
+ *   • the inquiry has a real offer (offerId is a UUID)
+ *   • the offer is in "draft" status
+ *   • the actor is an admin
+ *
+ * Saves via `saveOfferDraft` which delegates to the engine
+ * `updateOfferDraft`. Each save replaces the line items wholesale —
+ * matches the engine contract.
+ */
+function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; offerId: string; isAdmin: boolean }) {
+  const { toast, effectiveRoster } = useProto();
+  const [snapshot, setSnapshot] = useState<OfferDraftSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pending, startTransition] = useTransition();
+  const [collapsed, setCollapsed] = useState(true);
+
+  const reload = React.useCallback(() => {
+    setLoading(true);
+    loadOfferDraft(TENANT.slug, offerId)
+      .then((r) => { if (r.ok && r.data) setSnapshot(r.data); })
+      .finally(() => setLoading(false));
+  }, [offerId]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  if (!isAdmin) return null;
+  if (loading) return null;
+  if (!snapshot) return null;
+
+  const addLineItem = () => {
+    setSnapshot((s) => s == null ? s : {
+      ...s,
+      lineItems: [
+        ...s.lineItems,
+        {
+          id: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          talentProfileId: null,
+          talentDisplayName: null,
+          label: "Talent",
+          pricingUnit: "day",
+          units: 1,
+          unitPrice: 0,
+          totalPrice: 0,
+          talentCost: 0,
+          notes: null,
+          sortOrder: s.lineItems.length,
+        },
+      ],
+    });
+  };
+
+  const updateLine = (id: string, patch: Partial<OfferDraftSnapshot["lineItems"][number]>) => {
+    setSnapshot((s) => s == null ? s : {
+      ...s,
+      lineItems: s.lineItems.map((li) => {
+        if (li.id !== id) return li;
+        const next = { ...li, ...patch };
+        // Auto-recompute total when units / unit_price change.
+        if (patch.units !== undefined || patch.unitPrice !== undefined) {
+          next.totalPrice = next.units * next.unitPrice;
+        }
+        return next;
+      }),
+    });
+  };
+
+  const removeLine = (id: string) => {
+    setSnapshot((s) => s == null ? s : { ...s, lineItems: s.lineItems.filter((li) => li.id !== id) });
+  };
+
+  const save = () => {
+    if (!snapshot) return;
+    startTransition(async () => {
+      const lineItems = snapshot.lineItems.map((li, idx) => ({
+        talent_profile_id: li.talentProfileId,
+        label: li.label,
+        pricing_unit: li.pricingUnit,
+        units: li.units,
+        unit_price: li.unitPrice,
+        total_price: li.totalPrice,
+        talent_cost: li.talentCost,
+        notes: li.notes,
+        sort_order: idx,
+      }));
+      const r = await saveOfferDraft(TENANT.slug, offerId, {
+        inquiryExpectedVersion: snapshot.inquiryVersion,
+        offerExpectedVersion: snapshot.offerVersion,
+        totalClientPrice: snapshot.totalClientPrice,
+        coordinatorFee: snapshot.coordinatorFee,
+        currencyCode: snapshot.currencyCode,
+        notes: snapshot.notes,
+        lineItems,
+      });
+      if (!r.ok) toast(`Save failed: ${r.error}`);
+      else { toast("Offer draft saved"); reload(); }
+    });
+  };
+
+  // Roster talent options for the per-line dropdown — only real UUIDs
+  // (synthetic mock roster won't resolve at the DB).
+  const rosterOptions = effectiveRoster.filter((p) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id),
+  );
+
+  void inquiryId; // referenced for potential future use (revalidate scoping)
+
+  if (collapsed) {
+    return (
+      <div style={{
+        background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: RADIUS.md, padding: "8px 12px",
+        display: "flex", alignItems: "center", gap: 10,
+        fontFamily: FONTS.body, fontSize: 12,
+      }}>
+        <span style={{ fontWeight: 700, color: COLORS.ink }}>Draft editor</span>
+        <span style={{ color: COLORS.inkMuted }}>
+          {snapshot.lineItems.length} line item{snapshot.lineItems.length === 1 ? "" : "s"}
+          {" · "}
+          total {new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(snapshot.totalClientPrice)}
+        </span>
+        <span style={{ flex: 1 }} />
+        <button type="button" onClick={() => setCollapsed(false)} style={ghostBtn()}>Edit</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: RADIUS.md, padding: 12,
+      display: "flex", flexDirection: "column", gap: 8,
+      fontFamily: FONTS.body, fontSize: 12,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontWeight: 700, color: COLORS.ink }}>Draft editor</span>
+        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>inquiry_offer_line_items</span>
+        <span style={{ flex: 1 }} />
+        <button type="button" onClick={() => setCollapsed(true)} style={ghostBtn()}>Collapse</button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {snapshot.lineItems.map((li) => (
+          <div key={li.id} style={{
+            background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 8, padding: "8px 10px",
+            display: "grid", gridTemplateColumns: "1.6fr 0.8fr 0.6fr 0.8fr 0.8fr 28px",
+            gap: 6, alignItems: "center",
+          }}>
+            <select
+              value={li.talentProfileId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value || null;
+                const match = rosterOptions.find((p) => p.id === id);
+                updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: match?.name ?? li.label });
+              }}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+            >
+              <option value="">— choose talent —</option>
+              {rosterOptions.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <select
+              value={li.pricingUnit}
+              onChange={(e) => updateLine(li.id, { pricingUnit: e.target.value as "hour" | "day" | "week" | "event" })}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+            >
+              <option value="hour">/hr</option>
+              <option value="day">/day</option>
+              <option value="week">/wk</option>
+              <option value="event">flat</option>
+            </select>
+            <input type="number" min={0} step="0.5" value={li.units}
+              onChange={(e) => updateLine(li.id, { units: parseFloat(e.target.value) || 0 })}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+              placeholder="units"
+            />
+            <input type="number" min={0} step="100" value={li.unitPrice}
+              onChange={(e) => updateLine(li.id, { unitPrice: parseFloat(e.target.value) || 0 })}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+              placeholder="rate"
+            />
+            <input type="number" min={0} step="100" value={li.talentCost}
+              onChange={(e) => updateLine(li.id, { talentCost: parseFloat(e.target.value) || 0 })}
+              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+              placeholder="talent cost"
+            />
+            <button type="button" onClick={() => removeLine(li.id)} style={{
+              background: "transparent", border: "none",
+              color: COLORS.coralDeep, cursor: "pointer", fontSize: 14, lineHeight: 1,
+            }}>×</button>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button type="button" disabled={pending} onClick={addLineItem} style={ghostBtn()}>+ Add line item</button>
+        <span style={{ flex: 1 }} />
+        <label style={{ fontSize: 11, color: COLORS.inkMuted }}>Total</label>
+        <input type="number" min={0} step="100" value={snapshot.totalClientPrice}
+          onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, totalClientPrice: parseFloat(e.target.value) || 0 })}
+          style={{ width: 90, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+        />
+        <label style={{ fontSize: 11, color: COLORS.inkMuted }}>Fee</label>
+        <input type="number" min={0} step="100" value={snapshot.coordinatorFee}
+          onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, coordinatorFee: parseFloat(e.target.value) || 0 })}
+          style={{ width: 80, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
+        />
+        <button type="button" disabled={pending} onClick={save} style={primaryBtn(COLORS.accent)}>
+          {pending ? "Saving…" : "Save draft"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -10591,6 +10956,12 @@ function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }
           onClick={() => run("Counter offer", () => counterOfferAction(TENANT.slug, inquiryId, offerId))}
           style={primaryBtn(COLORS.accent)}
         >Counter offer</button>
+      )}
+      {/* Inline draft editor — only when the offer is editable. */}
+      {status === "draft" && (
+        <div style={{ flexBasis: "100%", marginTop: 8 }}>
+          <OfferDraftEditor inquiryId={inquiryId} offerId={offerId} isAdmin={isAdmin} />
+        </div>
       )}
     </div>
   );
