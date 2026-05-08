@@ -16,10 +16,14 @@ import { BUILDER_DATA_SOURCE_REGISTRY } from "../../builder-node/data-bindings";
 import {
   SECTION_TEMPLATE_KITS,
   SECTION_TEMPLATE_STARTERS,
+  getSectionTemplateKitRequiredPlan,
   getSectionTemplateStarter,
   getSectionTemplateStarterDefault,
+  getSectionTemplateStarterRequiredPlan,
   listSectionTemplateStartersByDataBinding,
   listSectionTemplateStartersByEditModel,
+  sectionTemplatePlanAllowsDataSource,
+  sectionTemplatePlanLabel,
 } from "./section-template-starters";
 
 const STARTER_SECTION_SCHEMAS: Record<string, ZodTypeAny> = {
@@ -194,4 +198,31 @@ test("section template starter lookup helpers expose data and edit contracts", (
   );
   assert.ok(assetStarters.includes("editorial-photo-story"));
   assert.ok(assetStarters.includes("visual-story-hero-split"));
+});
+
+test("section template plan helpers centralize starter and kit requirements", () => {
+  const freeStarter = getSectionTemplateStarter("featured-talent-live-grid");
+  const studioStarter = getSectionTemplateStarter("explore-by-location-map");
+  const agencyStarter = getSectionTemplateStarter("agency-metrics-proof");
+  const homeKit = SECTION_TEMPLATE_KITS.find((kit) => kit.id === "directory-home-4");
+  const proofKit = SECTION_TEMPLATE_KITS.find((kit) => kit.id === "proof-stack-4");
+
+  assert.ok(freeStarter);
+  assert.ok(studioStarter);
+  assert.ok(agencyStarter);
+  assert.ok(homeKit);
+  assert.ok(proofKit);
+
+  assert.equal(getSectionTemplateStarterRequiredPlan(freeStarter), "free");
+  assert.equal(getSectionTemplateStarterRequiredPlan(studioStarter), "studio");
+  assert.equal(getSectionTemplateStarterRequiredPlan(agencyStarter), "agency");
+  assert.equal(getSectionTemplateKitRequiredPlan(homeKit), "studio");
+  assert.equal(getSectionTemplateKitRequiredPlan(proofKit), "agency");
+
+  assert.equal(sectionTemplatePlanAllowsDataSource("free", "studio"), false);
+  assert.equal(sectionTemplatePlanAllowsDataSource("studio", "studio"), true);
+  assert.equal(sectionTemplatePlanAllowsDataSource("agency", "studio"), true);
+  assert.equal(sectionTemplatePlanAllowsDataSource("network", "agency"), true);
+  assert.equal(sectionTemplatePlanAllowsDataSource("unknown", "free"), true);
+  assert.equal(sectionTemplatePlanLabel("agency"), "Agency");
 });

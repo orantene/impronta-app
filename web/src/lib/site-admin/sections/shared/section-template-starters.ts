@@ -1,5 +1,9 @@
 import type { SectionTypeKey } from "../registry";
-import type { BuilderDataSourceKey } from "../../builder-node/data-bindings";
+import {
+  getBuilderDataSourceDefinition,
+  type BuilderDataSourceDefinition,
+  type BuilderDataSourceKey,
+} from "../../builder-node/data-bindings";
 
 export type SectionTemplateStarterKind = "data" | "design" | "conversion";
 export type SectionTemplateStarterSourceKind =
@@ -420,6 +424,67 @@ export const SECTION_TEMPLATE_KITS = [
     searchTerms: ["proof", "trust", "metrics", "testimonials", "conversion", "agency"],
   },
 ] as const satisfies ReadonlyArray<SectionTemplateKit>;
+
+export type SectionTemplatePlanKey =
+  | BuilderDataSourceDefinition["requiredPlan"]
+  | "legacy";
+
+export const SECTION_TEMPLATE_PLAN_RANK: Record<SectionTemplatePlanKey, number> = {
+  free: 0,
+  studio: 1,
+  agency: 2,
+  network: 3,
+  legacy: 3,
+};
+
+export function sectionTemplatePlanLabel(plan: SectionTemplatePlanKey): string {
+  switch (plan) {
+    case "free":
+      return "Free";
+    case "studio":
+      return "Studio";
+    case "agency":
+      return "Agency";
+    case "network":
+      return "Network";
+    case "legacy":
+      return "Legacy";
+  }
+}
+
+export function sectionTemplatePlanAllowsDataSource(
+  workspacePlan: string | null | undefined,
+  requiredPlan: BuilderDataSourceDefinition["requiredPlan"],
+): boolean {
+  const currentPlan = workspacePlan as SectionTemplatePlanKey;
+  return (
+    (SECTION_TEMPLATE_PLAN_RANK[currentPlan] ?? SECTION_TEMPLATE_PLAN_RANK.free) >=
+    SECTION_TEMPLATE_PLAN_RANK[requiredPlan]
+  );
+}
+
+export function getSectionTemplateStarterRequiredPlan(
+  starter: SectionTemplateStarter,
+): BuilderDataSourceDefinition["requiredPlan"] {
+  const source = getBuilderDataSourceDefinition(starter.dataBindingKey);
+  return source?.requiredPlan ?? "free";
+}
+
+export function getSectionTemplateKitRequiredPlan(
+  kit: SectionTemplateKit,
+): BuilderDataSourceDefinition["requiredPlan"] {
+  return kit.starterIds.reduce<BuilderDataSourceDefinition["requiredPlan"]>(
+    (highest, starterId) => {
+      const starter = getSectionTemplateStarter(starterId);
+      if (!starter) return highest;
+      const next = getSectionTemplateStarterRequiredPlan(starter);
+      return SECTION_TEMPLATE_PLAN_RANK[next] > SECTION_TEMPLATE_PLAN_RANK[highest]
+        ? next
+        : highest;
+    },
+    "free",
+  );
+}
 
 const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterDefault> = {
   "directory-search-hero": {

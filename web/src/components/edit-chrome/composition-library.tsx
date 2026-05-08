@@ -55,6 +55,10 @@ import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type
 import {
   SECTION_TEMPLATE_KITS,
   SECTION_TEMPLATE_STARTERS,
+  getSectionTemplateKitRequiredPlan,
+  getSectionTemplateStarterRequiredPlan,
+  sectionTemplatePlanAllowsDataSource,
+  sectionTemplatePlanLabel,
   type SectionTemplateKit,
   type SectionTemplateStarter,
   type SectionTemplateStarterId,
@@ -99,7 +103,6 @@ type StarterKindFilter = "all" | SectionTemplateStarterKind;
 type StarterSourceFilter = "all" | SectionTemplateStarterSourceKind;
 type StarterReadinessFilter = "all" | SectionTemplateStarterReadiness;
 type StarterDataBindingFilter = "all" | BuilderDataSourceKey;
-type TemplatePlanKey = BuilderDataSourceDefinition["requiredPlan"] | "network" | "legacy";
 type StarterPlanFilter = "all" | BuilderDataSourceDefinition["requiredPlan"];
 
 // Phase D responsive — three-state viewport mode driven by matchMedia.
@@ -184,65 +187,13 @@ function starterMatchesFacetFilters(
   if (dataBindingFilter !== "all" && starter.dataBindingKey !== dataBindingFilter) {
     return false;
   }
-  if (planFilter !== "all" && getStarterRequiredPlan(starter) !== planFilter) {
+  if (
+    planFilter !== "all" &&
+    getSectionTemplateStarterRequiredPlan(starter) !== planFilter
+  ) {
     return false;
   }
   return true;
-}
-
-const TEMPLATE_PLAN_RANK: Record<TemplatePlanKey, number> = {
-  free: 0,
-  studio: 1,
-  agency: 2,
-  network: 3,
-  legacy: 3,
-};
-
-function templatePlanLabel(plan: TemplatePlanKey): string {
-  switch (plan) {
-    case "free":
-      return "Free";
-    case "studio":
-      return "Studio";
-    case "agency":
-      return "Agency";
-    case "network":
-      return "Network";
-    case "legacy":
-      return "Legacy";
-  }
-}
-
-function templatePlanAllowsDataSource(
-  workspacePlan: string,
-  requiredPlan: BuilderDataSourceDefinition["requiredPlan"],
-): boolean {
-  const currentPlan = workspacePlan as TemplatePlanKey;
-  return (
-    (TEMPLATE_PLAN_RANK[currentPlan] ?? TEMPLATE_PLAN_RANK.free) >=
-    TEMPLATE_PLAN_RANK[requiredPlan]
-  );
-}
-
-function getStarterRequiredPlan(
-  starter: SectionTemplateStarter,
-): BuilderDataSourceDefinition["requiredPlan"] {
-  const source = getBuilderDataSourceDefinition(starter.dataBindingKey);
-  return source?.requiredPlan ?? "free";
-}
-
-function highestRequiredPlan(
-  starters: readonly SectionTemplateStarter[],
-): BuilderDataSourceDefinition["requiredPlan"] {
-  return starters.reduce<BuilderDataSourceDefinition["requiredPlan"]>(
-    (highest, starter) => {
-      const next = getStarterRequiredPlan(starter);
-      return TEMPLATE_PLAN_RANK[next] > TEMPLATE_PLAN_RANK[highest]
-        ? next
-        : highest;
-    },
-    "free",
-  );
 }
 
 export function CompositionLibraryOverlay() {
@@ -403,11 +354,11 @@ export function CompositionLibraryOverlay() {
       const dataSource = getBuilderDataSourceDefinition(starter.dataBindingKey);
       if (
         dataSource &&
-        !templatePlanAllowsDataSource(workspacePlan, dataSource.requiredPlan)
+        !sectionTemplatePlanAllowsDataSource(workspacePlan, dataSource.requiredPlan)
       ) {
         return {
           ok: false,
-          reason: `${dataSource.label} templates require ${templatePlanLabel(
+          reason: `${dataSource.label} templates require ${sectionTemplatePlanLabel(
             dataSource.requiredPlan,
           )} or higher.`,
         };
@@ -502,7 +453,7 @@ export function CompositionLibraryOverlay() {
       network: 0,
     };
     for (const starter of templateStarterFacetBase) {
-      counts[getStarterRequiredPlan(starter)] += 1;
+      counts[getSectionTemplateStarterRequiredPlan(starter)] += 1;
     }
     return counts;
   }, [templateStarterFacetBase]);
@@ -2510,7 +2461,7 @@ function TemplateKitCard({
     .filter((starter): starter is SectionTemplateStarter => Boolean(starter));
   const sourceSummary = summarizeStarterSources(starters);
   const homeCoreCount = starters.filter((starter) => starter.homeCore).length;
-  const requiredPlan = highestRequiredPlan(starters);
+  const requiredPlan = getSectionTemplateKitRequiredPlan(kit);
   const dataConnectedCount = starters.filter(
     (starter) =>
       starter.sourceKind === "live-data" ||
@@ -2628,7 +2579,7 @@ function TemplateStarterCard({
       data-section-template-home-core={starter.homeCore ? "true" : "false"}
       data-section-template-section-type={starter.sectionTypeKey}
       data-section-template-style-count={starter.stylePresets?.length ?? 0}
-      data-section-template-required-plan={getStarterRequiredPlan(starter)}
+      data-section-template-required-plan={getSectionTemplateStarterRequiredPlan(starter)}
       data-section-template-compatible={compatibility.ok ? "true" : "false"}
       data-section-template-incompatible-reason={compatibility.reason ?? ""}
       draggable={!disabled}
