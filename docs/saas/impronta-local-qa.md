@@ -196,6 +196,10 @@ with explicit data contracts:
 - Template compatibility also checks the workspace plan against the starter's
   data source. Studio-only and Agency-only data blocks stay visible on lower
   tiers, but the card explains the required plan before insertion.
+- The same starter-template plan gate runs inside the server insertion action.
+  The drawer explanation is not the security boundary; `createAndInsertSection`
+  rejects lower-tier workspaces that try to force-insert Studio or Agency data
+  starters.
 
 Fast check:
 
