@@ -12,9 +12,13 @@ type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string
 
 export type RegisterMediaResult = ActionResult<{ id: string; publicUrl: string }>;
 
+export type UploadVariant = "gallery" | "card" | "banner" | "lightbox";
+
 export async function actionUploadAndAssignMedia(
   formData: FormData,
   talentProfileId: string,
+  variantKind: UploadVariant = "gallery",
+  metadata: Record<string, unknown> = {},
 ): Promise<RegisterMediaResult> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -25,8 +29,11 @@ export async function actionUploadAndAssignMedia(
 
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) return { ok: false, error: "No file provided." };
-  if (!file.type.startsWith("image/")) return { ok: false, error: "Images only." };
-  if (file.size > 25 * 1024 * 1024) return { ok: false, error: "File must be under 25 MB." };
+  const isImage = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
+  if (!isImage && !isVideo) return { ok: false, error: "Image or video file only." };
+  const maxBytes = isVideo ? 200 * 1024 * 1024 : 25 * 1024 * 1024;
+  if (file.size > maxBytes) return { ok: false, error: `File must be under ${Math.round(maxBytes / 1024 / 1024)} MB.` };
 
   const { data: rosterRow } = await admin
     .from("agency_talent_roster")
@@ -37,8 +44,8 @@ export async function actionUploadAndAssignMedia(
     .maybeSingle();
   if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
-  const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-  const storagePath = `${talentProfileId}/gallery/${randomUUID()}.${ext}`;
+  const ext = (file.name.split(".").pop() ?? (isVideo ? "mp4" : "jpg")).toLowerCase().replace(/[^a-z0-9]/g, "") || (isVideo ? "mp4" : "jpg");
+  const storagePath = `${talentProfileId}/${variantKind}/${randomUUID()}.${ext}`;
 
   const bytes = await file.arrayBuffer();
   const { error: upErr } = await admin.storage
@@ -50,11 +57,25 @@ export async function actionUploadAndAssignMedia(
     return { ok: false, error: "Upload failed. Try again." };
   }
 
+  // Singletons: card and banner each have one row at a time. Soft-delete
+  // any existing rows for this talent + variant before inserting the new one.
+  const isSingleton = variantKind === "card" || variantKind === "banner";
+  if (isSingleton) {
+    const now = new Date().toISOString();
+    await admin
+      .from("media_assets")
+      .update({ deleted_at: now, updated_at: now })
+      .eq("owner_talent_profile_id", talentProfileId)
+      .eq("variant_kind", variantKind)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null);
+  }
+
   const { data: maxRow } = await admin
     .from("media_assets")
     .select("sort_order")
     .eq("owner_talent_profile_id", talentProfileId)
-    .eq("variant_kind", "gallery")
+    .eq("variant_kind", variantKind)
     .is("deleted_at", null)
     .order("sort_order", { ascending: false })
     .limit(1)
@@ -68,9 +89,10 @@ export async function actionUploadAndAssignMedia(
       owner_talent_profile_id: talentProfileId,
       bucket_id: "media-public",
       storage_path: storagePath,
-      variant_kind: "gallery",
+      variant_kind: variantKind,
       approval_state: "approved",
       sort_order: nextOrder,
+      metadata,
     })
     .select("id")
     .single();
@@ -270,6 +292,230 @@ export async function actionSetMediaWatermarkOverride(
   return { ok: true, data: null };
 }
 
+// ─── Promote a gallery photo to the talent's card (profile) photo ────────────
+//
+// Creates a new `card` variant row pointing to the same storage_path.
+// Soft-deletes any existing card rows for this talent first so there's always
+// exactly one card photo. The gallery row is left untouched.
+
+export async function actionSetAsCardPhoto(
+  mediaAssetId: string,
+  talentProfileId: string,
+): Promise<ActionResult<{ id: string; publicUrl: string }>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // Verify roster membership
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  // Fetch the source gallery photo
+  const { data: source } = await admin
+    .from("media_assets")
+    .select("bucket_id, storage_path")
+    .eq("id", mediaAssetId)
+    .eq("tenant_id", tenantId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!source) return { ok: false, error: "Photo not found." };
+
+  const now = new Date().toISOString();
+
+  // Soft-delete existing card photos for this talent
+  await admin
+    .from("media_assets")
+    .update({ deleted_at: now, updated_at: now })
+    .eq("owner_talent_profile_id", talentProfileId)
+    .eq("variant_kind", "card")
+    .eq("tenant_id", tenantId)
+    .is("deleted_at", null);
+
+  // Insert new card row
+  const { data: inserted, error } = await admin
+    .from("media_assets")
+    .insert({
+      tenant_id: tenantId,
+      owner_talent_profile_id: talentProfileId,
+      bucket_id: (source as { bucket_id: string; storage_path: string }).bucket_id,
+      storage_path: (source as { bucket_id: string; storage_path: string }).storage_path,
+      variant_kind: "card",
+      approval_state: "approved",
+      sort_order: 0,
+    })
+    .select("id")
+    .single();
+
+  if (error || !inserted) {
+    logServerError("media.actions.setCardPhoto", error);
+    return { ok: false, error: "Could not set card photo." };
+  }
+
+  const { data: urlData } = admin.storage
+    .from((source as { bucket_id: string; storage_path: string }).bucket_id)
+    .getPublicUrl((source as { bucket_id: string; storage_path: string }).storage_path);
+
+  revalidatePath("/", "layout");
+  return { ok: true, data: { id: (inserted as { id: string }).id, publicUrl: urlData.publicUrl } };
+}
+
+// ─── Reorder media assets for a talent ───────────────────────────────────────
+//
+// Receives an ordered array of asset IDs and writes sort_order 1…N. Used by
+// the drag-to-reorder UI in the media gallery.
+
+export async function actionReorderMediaAssets(
+  orderedIds: string[],
+): Promise<ActionResult<{ count: number }>> {
+  if (orderedIds.length === 0) return { ok: true, data: { count: 0 } };
+
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const now = new Date().toISOString();
+  const updates = orderedIds.map((id, i) =>
+    admin
+      .from("media_assets")
+      .update({ sort_order: i + 1, updated_at: now })
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null),
+  );
+
+  const results = await Promise.all(updates);
+  const failed = results.filter((r) => r.error).length;
+  if (failed > 0) {
+    logServerError("media.actions.reorder", `${failed} updates failed`);
+    return { ok: false, error: "Some reorder updates failed." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, data: { count: orderedIds.length } };
+}
+
+// ─── Upload file to storage only — no DB row (staging flow) ─────────────────
+//
+// Step 1 of the two-step upload: file lands in storage immediately so the
+// admin can see thumbnails while deciding which talent each photo belongs to.
+// Step 2 is actionBulkAssignStagedMedia which creates all DB rows at once.
+
+export type StagingUploadResult = ActionResult<{ storagePath: string; publicUrl: string }>;
+
+export async function actionUploadToStagingStorage(
+  formData: FormData,
+): Promise<StagingUploadResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { ok: false, error: "No file provided." };
+  if (!file.type.startsWith("image/")) return { ok: false, error: "Images only." };
+  if (file.size > 25 * 1024 * 1024) return { ok: false, error: "File must be under 25 MB." };
+
+  const ext =
+    (file.name.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const storagePath = `${tenantId}/staging/${randomUUID()}.${ext}`;
+
+  const bytes = await file.arrayBuffer();
+  const { error: upErr } = await admin.storage
+    .from("media-public")
+    .upload(storagePath, bytes, { contentType: file.type, upsert: false });
+
+  if (upErr) {
+    logServerError("media.actions.stagingUpload", upErr);
+    return { ok: false, error: "Upload failed. Try again." };
+  }
+
+  const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
+  return { ok: true, data: { storagePath, publicUrl: urlData.publicUrl } };
+}
+
+// ─── Bulk-assign staged storage paths to talents ─────────────────────────────
+//
+// Step 2: receives the full assignment list [{storagePath, talentProfileId}],
+// validates roster membership for every unique talent, then inserts all DB
+// rows in one shot (grouped sort_order per talent).
+
+export async function actionBulkAssignStagedMedia(
+  assignments: Array<{ storagePath: string; talentProfileId: string }>,
+): Promise<ActionResult<{ count: number }>> {
+  if (assignments.length === 0) return { ok: true, data: { count: 0 } };
+
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const uniqueTalentIds = [...new Set(assignments.map((a) => a.talentProfileId))];
+
+  const { data: rosterRows } = await admin
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", tenantId)
+    .in("talent_profile_id", uniqueTalentIds)
+    .neq("status", "removed");
+
+  const validIds = new Set((rosterRows ?? []).map((r) => r.talent_profile_id as string));
+  if (!uniqueTalentIds.every((id) => validIds.has(id))) {
+    return { ok: false, error: "One or more talents not on this roster." };
+  }
+
+  // Compute starting sort_order for each talent in parallel
+  const sortOrders: Record<string, number> = {};
+  await Promise.all(
+    uniqueTalentIds.map(async (talentId) => {
+      const { data: maxRow } = await admin
+        .from("media_assets")
+        .select("sort_order")
+        .eq("owner_talent_profile_id", talentId)
+        .eq("variant_kind", "gallery")
+        .is("deleted_at", null)
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      sortOrders[talentId] = ((maxRow as { sort_order: number } | null)?.sort_order ?? 0) + 1;
+    }),
+  );
+
+  const rows = assignments.map((a) => ({
+    tenant_id: tenantId,
+    owner_talent_profile_id: a.talentProfileId,
+    bucket_id: "media-public",
+    storage_path: a.storagePath,
+    variant_kind: "gallery" as const,
+    approval_state: "approved" as const,
+    sort_order: sortOrders[a.talentProfileId]++,
+  }));
+
+  const { error } = await admin.from("media_assets").insert(rows);
+  if (error) {
+    logServerError("media.actions.bulkAssignStaged", error);
+    return { ok: false, error: "Could not save. Try again." };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, data: { count: rows.length } };
+}
+
 // ─── Load roster talent list for assign/reassign dropdown ────────────────────
 
 export type RosterTalentOption = { id: string; name: string; thumbUrl: string | null };
@@ -324,4 +570,252 @@ export async function actionLoadRosterTalents(): Promise<ActionResult<RosterTale
     }));
 
   return { ok: true, data: talents };
+}
+
+// ─── Talent identity documents (private bucket) ──────────────────────────────
+// Uploads a single file to `media-originals` (private bucket). Returns the
+// storage path so the drawer can persist the metadata list back to the
+// `talent_profiles.documents_data` JSONB column. The file itself is NOT made
+// public — only signed URLs from the admin can read it.
+
+export type DocumentUploadResult = ActionResult<{
+  storagePath: string;
+  bucketId: string;
+  sizeBytes: number;
+  mimeType: string;
+}>;
+
+export async function actionUploadTalentDocument(
+  formData: FormData,
+  talentProfileId: string,
+): Promise<DocumentUploadResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { ok: false, error: "No file provided." };
+  // 50MB cap — generous for PDF contracts but blocks runaway uploads.
+  if (file.size > 50 * 1024 * 1024) return { ok: false, error: "File must be under 50 MB." };
+
+  // Roster guard.
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const ext = (file.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  const storagePath = `${talentProfileId}/documents/${randomUUID()}.${ext}`;
+
+  const bytes = await file.arrayBuffer();
+  const { error: upErr } = await admin.storage
+    .from("media-originals")
+    .upload(storagePath, bytes, { contentType: file.type || "application/octet-stream", upsert: false });
+
+  if (upErr) {
+    logServerError("media.actions.uploadTalentDocument", upErr);
+    return { ok: false, error: "Upload failed. Try again." };
+  }
+
+  return {
+    ok: true,
+    data: {
+      storagePath,
+      bucketId: "media-originals",
+      sizeBytes: file.size,
+      mimeType: file.type || "application/octet-stream",
+    },
+  };
+}
+
+/** Generate a short-lived signed URL for a talent document (5 minutes). */
+export async function actionGetTalentDocumentSignedUrl(
+  bucketId: string,
+  storagePath: string,
+  talentProfileId: string,
+): Promise<ActionResult<{ url: string }>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // Roster guard.
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const { data, error } = await admin.storage.from(bucketId).createSignedUrl(storagePath, 300);
+  if (error || !data) {
+    logServerError("media.actions.getDocumentSignedUrl", error);
+    return { ok: false, error: "Could not generate download link." };
+  }
+  return { ok: true, data: { url: data.signedUrl } };
+}
+
+/** Delete a document: removes from storage AND filters it from
+ *  talent_profiles.documents_data in one call so callers can't orphan
+ *  either side. Pass the documentId that matches the entry in documents_data. */
+export async function actionDeleteTalentDocument(
+  bucketId: string,
+  storagePath: string,
+  talentProfileId: string,
+  documentId?: string,
+): Promise<ActionResult<null>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // Roster guard.
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const { error: storageErr } = await admin.storage.from(bucketId).remove([storagePath]);
+  if (storageErr) {
+    logServerError("media.actions.deleteTalentDocument.storage", storageErr);
+    return { ok: false, error: "Could not delete file from storage." };
+  }
+
+  // Remove the matching entry from documents_data so the DB stays in sync
+  // with storage. If documentId is omitted we fall back to matching by storagePath.
+  if (documentId || storagePath) {
+    const { data: profile } = await admin
+      .from("talent_profiles")
+      .select("documents_data")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    if (profile) {
+      const existing = Array.isArray(profile.documents_data) ? profile.documents_data as Array<Record<string, unknown>> : [];
+      const filtered = existing.filter(d =>
+        documentId ? d.id !== documentId : d.storagePath !== storagePath,
+      );
+      await admin
+        .from("talent_profiles")
+        .update({ documents_data: filtered })
+        .eq("id", talentProfileId);
+    }
+  }
+
+  return { ok: true, data: null };
+}
+
+// ─── Load full media set for a single talent (drawer hydration) ──────────────
+
+export type TalentMediaItem = {
+  id: string;
+  url: string;
+  variantKind: string;
+  sortOrder: number;
+  metadata: Record<string, unknown>;
+};
+
+export type TalentMediaBundle = {
+  /** Gallery photos that AREN'T polaroids — sorted by sort_order. */
+  gallery: TalentMediaItem[];
+  /** Cover banner — at most one (singleton). */
+  cover: TalentMediaItem | null;
+  /** Card / headshot — at most one (singleton). */
+  card: TalentMediaItem | null;
+  /** Polaroids keyed by their slot id (e.g. "front", "side", "smile"). */
+  polaroids: Record<string, TalentMediaItem>;
+};
+
+/** Per-variant gallery loader kept for backwards-compat (the drawer's
+ *  gallery section calls this). For full hydration use actionLoadTalentMediaBundle. */
+export type TalentGalleryItem = { id: string; url: string; sortOrder: number };
+
+export async function actionLoadTalentGallery(
+  talentProfileId: string,
+): Promise<ActionResult<TalentGalleryItem[]>> {
+  const bundle = await actionLoadTalentMediaBundle(talentProfileId);
+  if (!bundle.ok) return bundle;
+  return { ok: true, data: bundle.data.gallery.map((g) => ({ id: g.id, url: g.url, sortOrder: g.sortOrder })) };
+}
+
+export async function actionLoadTalentMediaBundle(
+  talentProfileId: string,
+): Promise<ActionResult<TalentMediaBundle>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const { data, error } = await admin
+    .from("media_assets")
+    .select("id, bucket_id, storage_path, variant_kind, sort_order, metadata, created_at")
+    .eq("owner_talent_profile_id", talentProfileId)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    logServerError("media.actions.loadTalentMediaBundle", error);
+    return { ok: false, error: "Could not load media." };
+  }
+
+  type Row = {
+    id: string;
+    bucket_id: string;
+    storage_path: string;
+    variant_kind: string;
+    sort_order: number | null;
+    metadata: Record<string, unknown> | null;
+    created_at: string;
+  };
+
+  const bundle: TalentMediaBundle = { gallery: [], cover: null, card: null, polaroids: {} };
+
+  for (const r of (data as Row[] | null ?? [])) {
+    const item: TalentMediaItem = {
+      id: r.id,
+      url: admin.storage.from(r.bucket_id).getPublicUrl(r.storage_path).data.publicUrl,
+      variantKind: r.variant_kind,
+      sortOrder: r.sort_order ?? 0,
+      metadata: r.metadata ?? {},
+    };
+    const slot = (item.metadata.polaroidSlot ?? item.metadata.slot) as string | undefined;
+    if (slot) {
+      bundle.polaroids[slot] = item;
+    } else if (r.variant_kind === "banner") {
+      if (!bundle.cover) bundle.cover = item;
+    } else if (r.variant_kind === "card") {
+      if (!bundle.card) bundle.card = item;
+    } else if (r.variant_kind === "gallery") {
+      bundle.gallery.push(item);
+    }
+  }
+
+  return { ok: true, data: bundle };
 }

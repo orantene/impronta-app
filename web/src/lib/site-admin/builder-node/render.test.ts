@@ -61,7 +61,7 @@ describe("renderBuilderNodes", () => {
           gap: "s",
           dataBinding: {
             sourceKey: "featured_talent_profiles",
-            mode: "auto",
+            mode: "bound",
             maxItems: 4,
           },
         },
@@ -77,7 +77,7 @@ describe("renderBuilderNodes", () => {
 
     assert.match(html, /data-builder-node-id="free:container"/);
     assert.match(html, /data-builder-data-source="featured_talent_profiles"/);
-    assert.match(html, /data-builder-data-mode="auto"/);
+    assert.match(html, /data-builder-data-mode="bound"/);
     assert.match(html, /data-builder-data-max-items="4"/);
     assert.match(html, /data-builder-node-id="free:cta"/);
     assert.match(html, /href="\/impronta\/contact"/);
@@ -98,7 +98,7 @@ describe("renderBuilderNodes", () => {
                 gap: "m",
                 dataBinding: {
                   sourceKey: "featured_talent_profiles",
-                  mode: "auto",
+                  mode: "bound",
                   maxItems: 2,
                 },
               },
@@ -182,7 +182,7 @@ describe("renderBuilderNodes", () => {
                 gap: "m",
                 dataBinding: {
                   sourceKey: "talent_locations",
-                  mode: "auto",
+                  mode: "bound",
                   maxItems: 2,
                 },
               },
@@ -251,7 +251,7 @@ describe("renderBuilderNodes", () => {
                 gap: "m",
                 dataBinding: {
                   sourceKey: "tenant_directory_search",
-                  mode: "auto",
+                  mode: "bound",
                   maxItems: 6,
                 },
               },

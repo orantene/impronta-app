@@ -92,6 +92,16 @@ test("normalizes persisted binding payloads", () => {
       maxItems: 100,
     },
   );
+  assert.deepEqual(
+    normalizeBuilderDataBinding({
+      sourceKey: "featured_talent_profiles",
+      mode: "auto",
+    }),
+    {
+      sourceKey: "featured_talent_profiles",
+      mode: "bound",
+    },
+  );
 });
 
 test("default binding follows source capabilities", () => {
@@ -102,7 +112,7 @@ test("default binding follows source capabilities", () => {
   });
   assert.deepEqual(getDefaultBuilderDataBinding("featured_talent_profiles"), {
     sourceKey: "featured_talent_profiles",
-    mode: "auto",
+    mode: "bound",
     maxItems: 5,
   });
 });
@@ -147,4 +157,49 @@ test("reports actionable binding findings", () => {
     sourceKey: "featured_talent_profiles",
     maxItems: 12,
   });
+});
+
+test("flags plan-restricted binding sources when workspace plan is lower", () => {
+  const locationBinding: BuilderNode = {
+    id: "node-plan",
+    kind: "container",
+    props: {
+      layout: "stack",
+      dataBinding: { sourceKey: "talent_locations", mode: "bound", maxItems: 4 },
+    },
+    children: [],
+  };
+
+  assert.ok(
+    getBuilderDataBindingFindings(locationBinding, { workspacePlan: "free" }).some(
+      (finding) => finding.id === "source-plan-restricted",
+    ),
+  );
+  assert.equal(
+    getBuilderDataBindingFindings(locationBinding, { workspacePlan: "agency" }).some(
+      (finding) => finding.id === "source-plan-restricted",
+    ),
+    false,
+  );
+});
+
+test("flags hybrid mode without filter intent", () => {
+  const hybridBinding: BuilderNode = {
+    id: "node-hybrid",
+    kind: "container",
+    props: {
+      layout: "grid",
+      dataBinding: {
+        sourceKey: "featured_talent_profiles",
+        mode: "hybrid",
+      },
+    },
+    children: [],
+  };
+
+  assert.ok(
+    getBuilderDataBindingFindings(hybridBinding).some(
+      (finding) => finding.id === "hybrid-missing-filter-intent",
+    ),
+  );
 });

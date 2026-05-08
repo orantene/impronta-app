@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { collectLayoutOverflowRisks } from "./publish-preflight-layout-rules";
+import {
+  collectBreakpointCascadeRisks,
+  collectBreakpointOrderRisks,
+  collectBreakpointVisibilityRisks,
+  collectLayoutOverflowRisks,
+} from "./publish-preflight-layout-rules";
 
 test("collectLayoutOverflowRisks detects long unbroken copy tokens", () => {
   const risks = collectLayoutOverflowRisks({
@@ -35,4 +40,55 @@ test("collectLayoutOverflowRisks scans nested arrays and objects", () => {
   });
   assert.equal(risks.length, 1);
   assert.equal(risks[0]?.path, "props.cards[1].title");
+});
+
+test("collectBreakpointVisibilityRisks detects hidden breakpoint declarations", () => {
+  const risks = collectBreakpointVisibilityRisks({
+    nodePresentation: {
+      breakpoints: {
+        mobile: { visibility: "hidden" },
+      },
+    },
+  });
+  assert.equal(risks.length, 1);
+  assert.equal(
+    risks[0]?.path,
+    "props.nodePresentation.breakpoints.mobile.visibility",
+  );
+});
+
+test("collectBreakpointCascadeRisks warns when mobile overrides skip tablet", () => {
+  const risks = collectBreakpointCascadeRisks({
+    nodePresentation: {
+      breakpoints: {
+        mobile: { paddingInlinePx: 80, visibility: "visible" },
+      },
+    },
+  });
+  assert.ok(risks.length >= 1);
+  assert.equal(risks[0]?.reason, "missing-tablet-override");
+  assert.ok(
+    risks.some(
+      (risk) =>
+        risk.path ===
+        "props.nodePresentation.breakpoints.mobile.paddingInlinePx",
+    ),
+  );
+});
+
+test("collectBreakpointOrderRisks detects mobile values larger than tablet", () => {
+  const risks = collectBreakpointOrderRisks({
+    presentation: {
+      breakpoints: {
+        tablet: { paddingInlinePx: 24 },
+        mobile: { paddingInlinePx: 40 },
+      },
+    },
+  });
+  assert.equal(risks.length, 1);
+  assert.equal(
+    risks[0]?.path,
+    "props.presentation.breakpoints.mobile.paddingInlinePx",
+  );
+  assert.equal(risks[0]?.reason, "mobile-exceeds-tablet");
 });

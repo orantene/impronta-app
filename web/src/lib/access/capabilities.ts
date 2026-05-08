@@ -642,6 +642,16 @@ export const CAPABILITIES = {
     gating: "relationship",
     deprecated: false,
   }),
+  "talent.profile.edit_self": define({
+    key: "talent.profile.edit_self",
+    displayName: "Edit your own talent profile",
+    description:
+      "Edit the bio, photos, skills, languages, contact details, and other content on your own talent profile. Granted by the relationship evaluator when the signed-in user owns the talent profile being edited.",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
 
   // ── Platform / hub administration ────────────────────────────────────
   "platform.hub.create": define({

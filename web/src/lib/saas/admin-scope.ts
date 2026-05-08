@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaff, requireTalent } from "@/lib/server/action-guards";
 import { getTenantScope, type TenantScope } from "./scope";
 
 /**
@@ -72,6 +72,7 @@ export type StaffTenantActionGuard = {
   supabase: SupabaseClient;
   user: User;
   tenantId: string;
+  tenantSlug: string;
 };
 
 export type StaffTenantActionGuardFail = { ok: false; error: string };
@@ -79,9 +80,8 @@ export type StaffTenantActionGuardFail = { ok: false; error: string };
 export async function requireStaffTenantAction(): Promise<
   StaffTenantActionGuard | StaffTenantActionGuardFail
 > {
-  const auth = await requireStaff();
+  const [auth, scope] = await Promise.all([requireStaff(), getTenantScope()]);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await getTenantScope();
   if (!scope) {
     return { ok: false, error: "No active tenant for this request." };
   }
@@ -90,7 +90,47 @@ export async function requireStaffTenantAction(): Promise<
     supabase: auth.supabase,
     user: auth.user,
     tenantId: scope.tenantId,
+    tenantSlug: scope.membership.slug,
   };
+}
+
+/**
+ * Server-action guard for talent self-editing their own profile.
+ * Verifies the caller is a talent user who owns the given talent_profile_id,
+ * then resolves the active tenant via the request's host context.
+ *
+ * Use this instead of requireStaffTenantAction in any action a talent can
+ * invoke on their own profile (bio, languages, rates, etc.).
+ */
+export type TalentSelfActionGuard = {
+  ok: true;
+  supabase: SupabaseClient;
+  user: User;
+  tenantId: string;
+  /** URL-safe profile code for scoping revalidatePath to /t/[profileCode]. */
+  profileCode: string;
+};
+
+export async function requireTalentSelfAction(
+  talent_profile_id: string,
+): Promise<TalentSelfActionGuard | StaffTenantActionGuardFail> {
+  const [auth, scope] = await Promise.all([requireTalent(), getTenantScope()]);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!scope) return { ok: false, error: "No active tenant for this request." };
+
+  const { supabase, user } = auth;
+
+  // Ownership check: verify the authenticated user owns this profile.
+  // profile_code is fetched at no extra cost for scoped revalidatePath calls.
+  const { data: tp, error } = await supabase
+    .from("talent_profiles")
+    .select("id, profile_code")
+    .eq("id", talent_profile_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error || !tp) return { ok: false, error: "Not your profile." };
+
+  return { ok: true, supabase, user, tenantId: scope.tenantId, profileCode: (tp as { id: string; profile_code: string }).profile_code };
 }
 
 /**

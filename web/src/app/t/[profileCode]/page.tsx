@@ -800,6 +800,23 @@ export default async function PublicTalentProfilePage({
     .filter((m): m is { id: string; url: string; width: number | null; height: number | null } =>
       Boolean(m.url),
     );
+
+  // Extract watermark preset + logo from agency_branding.theme_json (publicly readable).
+  // Stored there by updateAgencyBranding / actionUploadAgencyLogo server actions.
+  const brandingTheme = (typeof tenantBranding?.theme_json === "object" && tenantBranding.theme_json !== null
+    ? tenantBranding.theme_json as Record<string, unknown>
+    : {});
+  const watermarkPreset = (brandingTheme.watermark_preset && typeof brandingTheme.watermark_preset === "object"
+    ? brandingTheme.watermark_preset as {
+        enabled: boolean;
+        position: string;
+        size_pct: number;
+        opacity: number;
+        padding_pct: number;
+        variant: string;
+      }
+    : null);
+  const watermarkLogoUrl = typeof brandingTheme.logo_url === "string" ? brandingTheme.logo_url : null;
   const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
 
@@ -1173,6 +1190,8 @@ export default async function PublicTalentProfilePage({
                     items={galleryItems}
                     lightbox={ui.lightbox}
                     closeLabel={ui.preview.close}
+                    watermarkPreset={watermarkPreset}
+                    watermarkLogoUrl={watermarkLogoUrl}
                   />
                 ) : (
                   <EmptyState

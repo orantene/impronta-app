@@ -417,7 +417,7 @@ export async function registerPortfolioPhoto(
       .from("media_assets")
       .select("sort_order")
       .eq("owner_talent_profile_id", talentId)
-      .eq("variant_kind", "portfolio")
+      .eq("variant_kind", "gallery")
       .is("deleted_at", null)
       .order("sort_order", { ascending: false })
       .limit(1)
@@ -432,14 +432,18 @@ export async function registerPortfolioPhoto(
         uploaded_by_user_id: me,
         bucket_id: "media-public",
         storage_path: input.storagePath,
-        variant_kind: "portfolio",
+        variant_kind: "gallery",
         approval_state: "approved",
         width: input.width ?? null,
         height: input.height ?? null,
         file_size: input.fileSize ?? null,
         sort_order: nextOrder,
-        purpose: "portfolio_photo",
-        metadata: { mime_type: input.mimeType ?? null },
+        // `purpose` is a media_purpose enum: ('talent' | 'branding' | 'cms' |
+        // 'starter_kit'). Talent portfolio photos are 'talent'. Writing
+        // 'portfolio_photo' (the original literal here) failed the enum
+        // check and bubbled up as "Could not save photo." in the UI.
+        purpose: "talent",
+        metadata: { mime_type: input.mimeType ?? null, role: "portfolio" },
       })
       .select("id")
       .single();
@@ -536,6 +540,92 @@ export async function removeTalentFromRoster(
 
   // Redirect outside try/catch so Next's NEXT_REDIRECT throw isn't swallowed.
   redirect(`/${tenantSlug}/admin/roster`);
+}
+
+// ─── Avatar / Hero assignment ─────────────────────────────────────────────────
+
+/** Set a media_assets row as the talent's primary avatar (variant_kind='card'). */
+export async function setTalentAvatar(
+  tenantSlug: string,
+  talentId: string,
+  mediaAssetId: string,
+): Promise<Result<null>> {
+  try {
+    const r = await gate(tenantSlug);
+    if (!r.ok) return r;
+    if (!(await rosterMatch(r.admin, r.scope.tenantId, talentId))) {
+      return { ok: false, error: "Talent not on this roster." };
+    }
+
+    const now = new Date().toISOString();
+
+    await r.admin
+      .from("media_assets")
+      .update({ deleted_at: now, updated_at: now })
+      .eq("owner_talent_profile_id", talentId)
+      .eq("variant_kind", "card")
+      .neq("id", mediaAssetId)
+      .is("deleted_at", null);
+
+    const { error } = await r.admin
+      .from("media_assets")
+      .update({ variant_kind: "card", sort_order: 0, updated_at: now })
+      .eq("id", mediaAssetId)
+      .eq("owner_talent_profile_id", talentId);
+
+    if (error) {
+      logServerError("roster.setTalentAvatar", error);
+      return { ok: false, error: "Could not set avatar." };
+    }
+
+    refresh(tenantSlug, talentId);
+    return { ok: true };
+  } catch (err) {
+    logServerError("roster.setTalentAvatar", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/** Set a media_assets row as the talent's primary hero (variant_kind='hero'). */
+export async function setTalentHero(
+  tenantSlug: string,
+  talentId: string,
+  mediaAssetId: string,
+): Promise<Result<null>> {
+  try {
+    const r = await gate(tenantSlug);
+    if (!r.ok) return r;
+    if (!(await rosterMatch(r.admin, r.scope.tenantId, talentId))) {
+      return { ok: false, error: "Talent not on this roster." };
+    }
+
+    const now = new Date().toISOString();
+
+    await r.admin
+      .from("media_assets")
+      .update({ deleted_at: now, updated_at: now })
+      .eq("owner_talent_profile_id", talentId)
+      .eq("variant_kind", "hero")
+      .neq("id", mediaAssetId)
+      .is("deleted_at", null);
+
+    const { error } = await r.admin
+      .from("media_assets")
+      .update({ variant_kind: "hero", sort_order: 0, updated_at: now })
+      .eq("id", mediaAssetId)
+      .eq("owner_talent_profile_id", talentId);
+
+    if (error) {
+      logServerError("roster.setTalentHero", error);
+      return { ok: false, error: "Could not set hero photo." };
+    }
+
+    refresh(tenantSlug, talentId);
+    return { ok: true };
+  } catch (err) {
+    logServerError("roster.setTalentHero", err);
+    return { ok: false, error: "Unexpected error." };
+  }
 }
 
 /**

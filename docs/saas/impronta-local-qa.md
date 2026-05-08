@@ -48,6 +48,12 @@ The Layout inspector now shows `Layout checks` for selected parent builder
 nodes. These checks stay inside the current builder foundation and are covered
 by `npm --prefix web run test:builder-node-bindings`.
 
+Recent operator UX upgrades:
+
+- Findings are deterministically sorted as `blockers → warnings → recommendations`.
+- The card header now shows explicit counts by severity instead of a single total.
+- Blocking findings are visually isolated so publish-stopper issues read first.
+
 Manual checks on `http://localhost:3000/impronta?edit=1`:
 
 1. Insert or select a grid container with 2+ columns.
@@ -64,6 +70,43 @@ Current rule coverage:
 - split layouts that refuse mobile collapse
 - autoplay carousel without arrows/dots
 - dense carousel/masonry patterns that may need operator review
+
+## Publish preflight focus flow
+
+The Publish drawer preflight list now groups issues by severity and category.
+Each issue with a linked section exposes a `Focus section` action.
+
+Manual checks:
+
+1. Open `http://localhost:3000/impronta?edit=1`.
+2. Open Publish.
+3. Confirm issues are grouped as `Publish blockers` and `Warnings`.
+4. Click `Focus section` on an issue with section context.
+5. Confirm the selected section in edit state changes to that section.
+
+## Undo/redo history safety
+
+Undo/redo now has rollback-safe guards for failed persistence:
+
+- If a history replay save fails, the consumed history entry is restored.
+- Undo/redo is ignored while a save is in progress (`saving` guard).
+- Composition restore uses the latest builder-tree ref when reconciling slots.
+
+This prevents history drift when network/CAS failures happen during undo/redo
+replay.
+
+## Builder operation error diagnostics
+
+Builder-node mutations now return operation-aware failure copy with targeted
+causes (`invalid target`, `schema mismatch`, `guarded shell node`,
+`version conflict`) and include validation issue snippets when available.
+
+Manual checks:
+
+1. Try moving a block into a disallowed parent and confirm the toast says
+   `Move blocked` with invalid-target guidance.
+2. Trigger a validation failure via invalid layout payload and confirm the toast
+   includes `Schema mismatch` plus detail snippets.
 
 ## Data binding QA
 
@@ -168,6 +211,23 @@ The navigator Add section button should target the required hero slot only
 while hero is missing. Once hero exists, it should open the flexible body slot
 so operators can keep building section by section without hitting hero-only
 library results.
+
+## Navigator keyboard/density QA
+
+The layered navigator now keeps row height stable and hides dense action chrome
+until a row is selected, hovered, or keyboard-focused.
+
+Keyboard checks:
+
+1. Tab into the navigator section list.
+2. On a section with child layers, press `ArrowRight` to expand.
+3. Press `ArrowLeft` to collapse.
+4. Tab forward and confirm only currently visible action controls receive focus
+   (hidden action rows should not enter tab order).
+
+Automated smoke coverage:
+
+- `npm --prefix web run test:e2e:impronta-navigator-keyboard`
 
 ## Template gallery foundation
 

@@ -58,6 +58,7 @@ import type {
   InsertTarget,
 } from "@/lib/site-admin/edit-mode/editor-mutations";
 import {
+  applyBuilderNodeOperation,
   builderSectionNodeAddressKey,
   buildLegacySectionBuilderTree,
   BUILDER_NODE_REGISTRY,
@@ -65,16 +66,14 @@ import {
   builderNodeKindAllowedAtRoot,
   createBuilderNode,
   deriveLegacySectionChildNodes,
-  duplicateBuilderNode as duplicateBuilderNodeOp,
-  insertBuilderNode as insertBuilderNodeOp,
-  moveBuilderNode,
-  pasteBuilderNode as pasteBuilderNodeOp,
-  patchBuilderNodeProps as patchBuilderNodePropsOp,
+  formatBuilderNodeMutationError,
+  summarizeBuilderNodeIssues,
   reconcileBuilderTreeWithLegacySlots,
-  removeBuilderNode as removeBuilderNodeOp,
   validateBuilderNodeTree,
   type BuilderNode,
+  type BuilderNodeMutationCode,
   type BuilderNodeCompositionPresetId,
+  type BuilderNodeOperationKind,
   type BuilderNodeTree,
   type LegacySnapshotSlot,
 } from "@/lib/site-admin/builder-node";
@@ -83,6 +82,7 @@ import {
   normalizeBuilderWorkspacePlan,
 } from "@/lib/site-admin/builder-capabilities";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
+import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
 
@@ -93,6 +93,13 @@ export interface LoadedSection {
   version: number;
   name: string;
   props: Record<string, unknown>;
+}
+
+export interface EditMutationError {
+  message: string;
+  operation?: BuilderNodeOperationKind;
+  code?: BuilderNodeMutationCode;
+  details?: ReadonlyArray<string>;
 }
 
 export interface PageMetadata {
@@ -527,6 +534,8 @@ export interface EditContextValue {
   navigatorOpen: boolean;
   setNavigatorOpen: (open: boolean) => void;
   toggleNavigator: () => void;
+  navigatorWidth: number;
+  setNavigatorWidth: (width: number) => void;
 
   /**
    * Set a section's `presentation.visibility`. Used by the Navigator
@@ -565,7 +574,7 @@ export interface EditContextValue {
 
   // ── transient toast for mutation errors ──
   /** Most recent mutation error that's still on screen; null when clear. */
-  mutationError: string | null;
+  mutationError: EditMutationError | null;
   clearMutationError: () => void;
   /**
    * Surface a one-off mutation error to the toast. Used by chrome
@@ -573,7 +582,7 @@ export interface EditContextValue {
    * generation, future scheduled-publish, etc.) — they reuse the same
    * presentation surface internal mutations use.
    */
-  reportMutationError: (message: string) => void;
+  reportMutationError: (message: string | EditMutationError) => void;
 }
 
 const EditContext = createContext<EditContextValue | null>(null);
@@ -592,6 +601,34 @@ const DEFAULT_METADATA: PageMetadata = {
 const BUILDER_NODE_CLIPBOARD_STORAGE_KEY = "impronta.builderNodeClipboard.v1";
 const BUILDER_BLOCK_PRESETS_STORAGE_KEY = "impronta.builderBlockPresets.v1";
 const BUILDER_BLOCK_PRESET_LIMIT = 24;
+const NAVIGATOR_WIDTH_STORAGE_KEY = "impronta.editChrome.navigator.width.v1";
+const NAVIGATOR_WIDTH_MIN = 280;
+const NAVIGATOR_WIDTH_MAX = 520;
+const NAVIGATOR_WIDTH_DEFAULT = 320;
+
+type BuilderNodeMutationResult =
+  | { ok: true; tree: BuilderNodeTree; nodeId?: string }
+  | {
+      ok: false;
+      code: BuilderNodeMutationCode;
+      error: string;
+      details?: ReadonlyArray<string>;
+    };
+
+function normalizeMutationError(
+  input: string | EditMutationError,
+): EditMutationError {
+  if (typeof input === "string") {
+    return { message: input };
+  }
+  return {
+    message: input.message,
+    operation: input.operation,
+    code: input.code,
+    details:
+      input.details && input.details.length > 0 ? input.details : undefined,
+  };
+}
 
 /**
  * Unified undo/redo stack entry. Composition entries capture slots +
@@ -941,6 +978,74 @@ function findOwnerSectionIdForBuilderNode(
     return null;
   }
   return walk(tree, null);
+}
+
+function findSiteShellSlotForBuilderNode(
+  tree: ReadonlyArray<BuilderNode>,
+  nodeId: string,
+): "header" | "footer" | null {
+  function walk(
+    nodes: ReadonlyArray<BuilderNode>,
+    currentShellSlot: "header" | "footer" | null,
+  ): "header" | "footer" | null {
+    for (const node of nodes) {
+      const nextShellSlot =
+        node.kind === "section"
+          ? node.props.slotKey === "header" || node.props.slotKey === "footer"
+            ? node.props.slotKey
+            : null
+          : currentShellSlot;
+      if (node.id === nodeId) {
+        return nextShellSlot;
+      }
+      if ("children" in node && Array.isArray(node.children)) {
+        const nested = walk(node.children, nextShellSlot);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  }
+  return walk(tree, null);
+}
+
+function guardBuilderNodeMutation(input: {
+  tree: BuilderNodeTree;
+  operation: BuilderNodeOperationKind;
+  canEditSiteShell: boolean;
+  nodeId?: string;
+  parentId?: string | null;
+}): Extract<BuilderNodeMutationResult, { ok: false }> | null {
+  if (input.canEditSiteShell) return null;
+
+  const guardedMessage =
+    "Your current plan cannot edit site shell blocks (header/footer). Upgrade to edit shell structure.";
+
+  if (input.nodeId) {
+    const sourceShellSlot = findSiteShellSlotForBuilderNode(input.tree, input.nodeId);
+    if (sourceShellSlot) {
+      return {
+        ok: false,
+        code: "GUARDED_NODE",
+        error: guardedMessage,
+      };
+    }
+  }
+
+  if (typeof input.parentId === "string") {
+    const targetShellSlot = findSiteShellSlotForBuilderNode(
+      input.tree,
+      input.parentId,
+    );
+    if (targetShellSlot) {
+      return {
+        ok: false,
+        code: "GUARDED_NODE",
+        error: guardedMessage,
+      };
+    }
+  }
+
+  return null;
 }
 
 function builderNodeAllowsChild(
@@ -1415,6 +1520,39 @@ export function EditProvider({
 
   // structure navigator (left rail) — open by default; ⌘\ toggles
   const [navigatorOpen, setNavigatorOpen] = useState(true);
+  const [navigatorWidth, setNavigatorWidthState] = useState(
+    NAVIGATOR_WIDTH_DEFAULT,
+  );
+  const setNavigatorWidth = useCallback((width: number) => {
+    if (!Number.isFinite(width)) return;
+    const rounded = Math.round(width);
+    const clamped = Math.min(
+      NAVIGATOR_WIDTH_MAX,
+      Math.max(NAVIGATOR_WIDTH_MIN, rounded),
+    );
+    setNavigatorWidthState(clamped);
+  }, []);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(NAVIGATOR_WIDTH_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = Number.parseInt(raw, 10);
+      if (!Number.isFinite(parsed)) return;
+      setNavigatorWidth(parsed);
+    } catch {
+      // Local preference is best-effort only.
+    }
+  }, [setNavigatorWidth]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        NAVIGATOR_WIDTH_STORAGE_KEY,
+        String(navigatorWidth),
+      );
+    } catch {
+      // Ignore localStorage failures.
+    }
+  }, [navigatorWidth]);
   const toggleNavigator = useCallback(
     () => setNavigatorOpen((prev) => !prev),
     [],
@@ -1423,7 +1561,15 @@ export function EditProvider({
   // Most recent mutation error. Auto-clears after 5s — the operator
   // probably already undid or retried, and we'd rather err toward quiet
   // than keep a stale error chip up.
-  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<EditMutationError | null>(
+    null,
+  );
+  const reportMutationError = useCallback(
+    (message: string | EditMutationError) => {
+      setMutationError(normalizeMutationError(message));
+    },
+    [],
+  );
   const clearMutationError = useCallback(() => setMutationError(null), []);
   useEffect(() => {
     if (!mutationError) return;
@@ -1522,12 +1668,46 @@ export function EditProvider({
     builderTree.forEach((node) => walk(node, null));
     return out;
   }, [builderTree]);
+  const liveSectionIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const entries of Object.values(slots)) {
+      for (const entry of entries) {
+        ids.add(entry.sectionId);
+      }
+    }
+    return ids;
+  }, [slots]);
+  useEffect(() => {
+    if (!selectedSectionId) return;
+    if (selectedSectionId === SITE_HEADER_SELECTION_ID) return;
+    if (liveSectionIds.has(selectedSectionId)) return;
+    // Selection-sync hardening: if a section disappears (remove, restore,
+    // locale/content swap), clear stale selection and child-node override.
+    setSelectedSectionIdRaw(null);
+    setSelectedBuilderNodeIdOverride(null);
+    setAdditionalSelectedIds(new Set());
+  }, [liveSectionIds, selectedSectionId]);
+  useEffect(() => {
+    setAdditionalSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (id === selectedSectionId) continue;
+        if (id === SITE_HEADER_SELECTION_ID || liveSectionIds.has(id)) {
+          next.add(id);
+        }
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [liveSectionIds, selectedSectionId]);
   useEffect(() => {
     if (!selectedBuilderNodeIdOverride) return;
     const ownerSectionId =
       sectionIdByBuilderNodeId.get(selectedBuilderNodeIdOverride) ?? null;
-    if (!ownerSectionId) return;
-    if (ownerSectionId !== selectedSectionId) {
+    // Selection-sync hardening: if the selected child node disappeared from
+    // the tree (delete/move/refresh) or now belongs to another section, clear
+    // the override so inspector/navigator fall back to the section root.
+    if (!ownerSectionId || ownerSectionId !== selectedSectionId) {
       setSelectedBuilderNodeIdOverride(null);
     }
   }, [
@@ -1750,7 +1930,7 @@ export function EditProvider({
                 return next;
               });
             }
-            setMutationError(result.error);
+            reportMutationError(result.error);
             return { ok: false, error: result.error };
           }
           // Storefront DOM cache bust — fire-and-forget.
@@ -1804,7 +1984,7 @@ export function EditProvider({
           });
           setSaving(false);
           if (!save.ok) {
-            setMutationError(save.error);
+            reportMutationError(save.error);
             return { ok: false, error: save.error, code: save.code };
           }
           if (
@@ -1923,7 +2103,7 @@ export function EditProvider({
             if (previousLoadedAtStart !== null) {
               setLoadedSection(previousLoadedAtStart);
             }
-            setMutationError(save.error);
+            reportMutationError(save.error);
             return { ok: false, error: save.error, code: save.code };
           }
           // Reconcile version on the loaded record. Slots already
@@ -2039,6 +2219,7 @@ export function EditProvider({
       selectedSectionId,
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
+      reportMutationError,
     ],
   );
 
@@ -2089,7 +2270,7 @@ export function EditProvider({
         if (save.code === "VERSION_CONFLICT") {
           await refreshComposition();
         }
-        setMutationError(save.error);
+        reportMutationError(save.error);
         return { ok: false, error: save.error };
       }
       setPageVersion(save.pageVersion);
@@ -2106,6 +2287,7 @@ export function EditProvider({
       builderTree,
       capHistory,
       setSlotsAndBuilderTree,
+      reportMutationError,
     ],
   );
 
@@ -2151,7 +2333,7 @@ export function EditProvider({
         if (res.code === "VERSION_CONFLICT") {
           await refreshComposition();
         }
-        setMutationError(res.error);
+        reportMutationError(res.error);
         return { ok: false, error: res.error };
       }
       // Splice the new section into local slots using the response payload
@@ -2198,6 +2380,7 @@ export function EditProvider({
       capHistory,
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
+      reportMutationError,
     ],
   );
 
@@ -2244,7 +2427,7 @@ export function EditProvider({
         if (res.code === "VERSION_CONFLICT") {
           await refreshComposition();
         }
-        setMutationError(res.error);
+        reportMutationError(res.error);
         return { ok: false, error: res.error };
       }
       // Optimistically splice the duplicate right after the source so the
@@ -2299,6 +2482,7 @@ export function EditProvider({
       builderTree,
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
+      reportMutationError,
     ],
   );
 
@@ -2327,7 +2511,7 @@ export function EditProvider({
           sectionTypeKey: sourceRef.sectionTypeKey,
         });
         if (!compatibility.ok) {
-          setMutationError(compatibility.message);
+          reportMutationError(compatibility.message);
           return { ok: false, error: compatibility.message };
         }
       }
@@ -2397,7 +2581,7 @@ export function EditProvider({
         return { slots: nextSlots, metadata: prev.metadata };
       });
     },
-    [dispatchMutation, slotDefs, slots],
+    [dispatchMutation, slotDefs, slots, reportMutationError],
   );
 
   moveSectionToRef.current = moveSectionTo;
@@ -2438,7 +2622,11 @@ export function EditProvider({
     async (nextTree: BuilderNodeTree) => {
       const activePageVersion = pageVersionRef.current;
       if (activePageVersion === null) {
-        return { ok: false as const, error: "Composition not loaded yet." };
+        return {
+          ok: false as const,
+          code: "SAVE_FAILED" as const,
+          error: "Composition not loaded yet.",
+        };
       }
       const prevTree = builderTreeRef.current;
       builderTreeRef.current = nextTree;
@@ -2459,9 +2647,37 @@ export function EditProvider({
         setBuilderTree(prevTree);
         if (save.code === "VERSION_CONFLICT") {
           await refreshComposition();
+          const error = formatBuilderNodeMutationError({
+            operation: "patch",
+            code: "VERSION_CONFLICT",
+            message: save.error,
+          });
+          reportMutationError({
+            message: error,
+            operation: "patch",
+            code: "VERSION_CONFLICT",
+          });
+          return {
+            ok: false as const,
+            code: "VERSION_CONFLICT" as const,
+            error,
+          };
         }
-        setMutationError(save.error);
-        return { ok: false as const, error: save.error };
+        const error = formatBuilderNodeMutationError({
+          operation: "patch",
+          code: "SAVE_FAILED",
+          message: save.error,
+        });
+        reportMutationError({
+          message: error,
+          operation: "patch",
+          code: "SAVE_FAILED",
+        });
+        return {
+          ok: false as const,
+          code: "SAVE_FAILED" as const,
+          error,
+        };
       }
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
@@ -2474,6 +2690,7 @@ export function EditProvider({
       pageId,
       refreshComposition,
       router,
+      reportMutationError,
     ],
   );
 
@@ -2507,15 +2724,97 @@ export function EditProvider({
     [capHistory, persistBuilderTree],
   );
 
+  const executeBuilderNodeOperation = useCallback(
+    async (input: {
+      operation: BuilderNodeOperationKind;
+      nodeId?: string;
+      parentId?: string | null;
+      run: (tree: BuilderNodeTree) => BuilderNodeMutationResult;
+    }): Promise<BuilderNodeMutationResult> => {
+      if (pageVersionRef.current === null) {
+        return {
+          ok: false,
+          code: "SAVE_FAILED",
+          error: "Composition not loaded yet.",
+        };
+      }
+
+      const guarded = guardBuilderNodeMutation({
+        tree: builderTreeRef.current,
+        canEditSiteShell,
+        operation: input.operation,
+        nodeId: input.nodeId,
+        parentId: input.parentId,
+      });
+      if (guarded) {
+        reportMutationError({
+          message: guarded.error,
+          operation: input.operation,
+          code: guarded.code,
+          details: guarded.details,
+        });
+        return guarded;
+      }
+
+      const operationResult = input.run(builderTreeRef.current);
+      if (!operationResult.ok) {
+        const error = formatBuilderNodeMutationError({
+          operation: input.operation,
+          code: operationResult.code,
+          message: operationResult.error,
+          details: operationResult.details,
+        });
+        reportMutationError({
+          message: error,
+          operation: input.operation,
+          code: operationResult.code,
+          details: operationResult.details,
+        });
+        return { ...operationResult, error };
+      }
+
+      const persisted = await commitBuilderTreeMutation(operationResult.tree);
+      if (!persisted.ok) {
+        return {
+          ok: false,
+          code: persisted.code ?? "SAVE_FAILED",
+          error: persisted.error,
+        };
+      }
+      return {
+        ok: true,
+        tree: operationResult.tree,
+        nodeId: operationResult.nodeId,
+      };
+    },
+    [canEditSiteShell, commitBuilderTreeMutation, reportMutationError],
+  );
+  const runBuilderNodeOp = useCallback(
+    (input: Parameters<typeof applyBuilderNodeOperation>[0]): BuilderNodeMutationResult => {
+      const result = applyBuilderNodeOperation(input);
+      if (!result.ok) {
+        return {
+          ok: false,
+          code: result.code,
+          error: result.message,
+          details: summarizeBuilderNodeIssues(result.issues),
+        };
+      }
+      return {
+        ok: true,
+        tree: result.tree,
+        nodeId: result.nodeId,
+      };
+    },
+    [],
+  );
+
   // ── builder-node reorder within current parent ────────────────────
   const moveBuilderNodeToIndex = useCallback<
     EditContextValue["moveBuilderNodeToIndex"]
   >(
     async (nodeId, targetIndex) => {
-      if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
-      }
-      const location = findBuilderNodeLocation(builderTree, nodeId);
+      const location = findBuilderNodeLocation(builderTreeRef.current, nodeId);
       if (!location) {
         return { ok: false, error: "Builder node not found." };
       }
@@ -2525,84 +2824,83 @@ export function EditProvider({
       if (targetIndex === location.index) {
         return { ok: true };
       }
-      const moved = moveBuilderNode({
-        tree: builderTree,
+      const moved = await executeBuilderNodeOperation({
+        operation: "move",
         nodeId,
         parentId: location.parentId,
-        index: targetIndex,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "move",
+            tree,
+            nodeId,
+            parentId: location.parentId,
+            index: targetIndex,
+          }),
       });
       if (!moved.ok) {
-        return { ok: false, error: moved.message };
+        return { ok: false, error: moved.error };
       }
-
-      return commitBuilderTreeMutation(moved.tree);
+      return { ok: true };
     },
-    [
-      pageVersion,
-      builderTree,
-      commitBuilderTreeMutation,
-    ],
+    [executeBuilderNodeOperation, runBuilderNodeOp],
   );
   const moveBuilderNodeToParentIndex = useCallback<
     EditContextValue["moveBuilderNodeToParentIndex"]
   >(
     async (nodeId, targetParentId, targetIndex) => {
-      if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
-      }
-      const location = findBuilderNodeLocation(builderTree, nodeId);
+      const location = findBuilderNodeLocation(builderTreeRef.current, nodeId);
       if (!location) {
         return { ok: false, error: "Builder node not found." };
       }
-      const siblingCount =
-        location.parentId === targetParentId
-          ? location.siblingCount
-          : Math.max(0, location.siblingCount);
       if (targetIndex < 0) {
         return { ok: false, error: "Invalid builder-node target index." };
       }
-      if (location.parentId === targetParentId && targetIndex >= siblingCount) {
+      if (
+        location.parentId === targetParentId &&
+        targetIndex >= location.siblingCount
+      ) {
         return { ok: false, error: "Invalid builder-node target index." };
       }
-
-      const moved = moveBuilderNode({
-        tree: builderTree,
+      const moved = await executeBuilderNodeOperation({
+        operation: "move",
         nodeId,
         parentId: targetParentId,
-        index: targetIndex,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "move",
+            tree,
+            nodeId,
+            parentId: targetParentId,
+            index: targetIndex,
+          }),
       });
       if (!moved.ok) {
-        return { ok: false, error: moved.message };
+        return { ok: false, error: moved.error };
       }
-
-      return commitBuilderTreeMutation(moved.tree);
+      return { ok: true };
     },
-    [
-      pageVersion,
-      builderTree,
-      commitBuilderTreeMutation,
-    ],
+    [executeBuilderNodeOperation, runBuilderNodeOp],
   );
   const insertBuilderNode = useCallback<
     EditContextValue["insertBuilderNode"]
   >(
     async (parentId, kind, index) => {
-      if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
-      }
       const node = createBuilderNode(kind);
-      const inserted = insertBuilderNodeOp({
-        tree: builderTree,
-        node,
+      const inserted = await executeBuilderNodeOperation({
+        operation: "insert",
+        nodeId: node.id,
         parentId,
-        index,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "insert",
+            tree,
+            node,
+            parentId,
+            index,
+          }),
       });
       if (!inserted.ok) {
-        return { ok: false, error: inserted.message };
-      }
-      const result = await commitBuilderTreeMutation(inserted.tree);
-      if (!result.ok) {
-        return result;
+        return { ok: false, error: inserted.error };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         inserted.tree,
@@ -2614,28 +2912,28 @@ export function EditProvider({
       }
       return { ok: true, nodeId: node.id };
     },
-    [pageVersion, builderTree, commitBuilderTreeMutation, setSelectedSectionId],
+    [executeBuilderNodeOperation, runBuilderNodeOp, setSelectedSectionId],
   );
   const insertBuilderNodeCompositionPreset = useCallback<
     EditContextValue["insertBuilderNodeCompositionPreset"]
   >(
     async (parentId, presetId, index) => {
-      if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
-      }
       const node = createBuilderNodeCompositionPreset(presetId);
-      const inserted = insertBuilderNodeOp({
-        tree: builderTree,
-        node,
+      const inserted = await executeBuilderNodeOperation({
+        operation: "insert",
+        nodeId: node.id,
         parentId,
-        index,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "insert",
+            tree,
+            node,
+            parentId,
+            index,
+          }),
       });
       if (!inserted.ok) {
-        return { ok: false, error: inserted.message };
-      }
-      const result = await commitBuilderTreeMutation(inserted.tree);
-      if (!result.ok) {
-        return result;
+        return { ok: false, error: inserted.error };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         inserted.tree,
@@ -2647,55 +2945,61 @@ export function EditProvider({
       }
       return { ok: true, nodeId: node.id };
     },
-    [pageVersion, builderTree, commitBuilderTreeMutation, setSelectedSectionId],
+    [executeBuilderNodeOperation, runBuilderNodeOp, setSelectedSectionId],
   );
   const removeBuilderNode = useCallback<
     EditContextValue["removeBuilderNode"]
   >(
     async (nodeId) => {
-      if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
-      }
-      const removed = removeBuilderNodeOp({
-        tree: builderTree,
+      const removed = await executeBuilderNodeOperation({
+        operation: "remove",
         nodeId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "remove",
+            tree,
+            nodeId,
+          }),
       });
       if (!removed.ok) {
-        return { ok: false, error: removed.message };
+        return { ok: false, error: removed.error };
       }
-      return commitBuilderTreeMutation(removed.tree);
+      return { ok: true };
     },
-    [pageVersion, builderTree, commitBuilderTreeMutation],
+    [executeBuilderNodeOperation, runBuilderNodeOp],
   );
   const duplicateBuilderNode = useCallback<
     EditContextValue["duplicateBuilderNode"]
   >(
     async (nodeId) => {
-      if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
-      }
-      const duplicated = duplicateBuilderNodeOp({
-        tree: builderTree,
+      const duplicated = await executeBuilderNodeOperation({
+        operation: "duplicate",
         nodeId,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "duplicate",
+            tree,
+            nodeId,
+          }),
       });
       if (!duplicated.ok) {
-        return { ok: false, error: duplicated.message };
+        return { ok: false, error: duplicated.error };
       }
-      const result = await commitBuilderTreeMutation(duplicated.tree);
-      if (!result.ok) {
-        return result;
+      const duplicatedNodeId = duplicated.nodeId ?? null;
+      if (!duplicatedNodeId) {
+        return { ok: false, error: "Duplicate failed to return a new node id." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         duplicated.tree,
-        duplicated.nodeId,
+        duplicatedNodeId,
       );
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
-        setSelectedBuilderNodeIdOverride(duplicated.nodeId);
+        setSelectedBuilderNodeIdOverride(duplicatedNodeId);
       }
-      return { ok: true, nodeId: duplicated.nodeId };
+      return { ok: true, nodeId: duplicatedNodeId };
     },
-    [pageVersion, builderTree, commitBuilderTreeMutation, setSelectedSectionId],
+    [executeBuilderNodeOperation, runBuilderNodeOp, setSelectedSectionId],
   );
   const copyBuilderNode = useCallback<EditContextValue["copyBuilderNode"]>(
     (nodeId) => {
@@ -2719,13 +3023,28 @@ export function EditProvider({
   >(
     (targetNodeId) => {
       if (!copiedBuilderNode) return null;
-      return resolveCopiedBuilderNodePasteTarget({
+      const preview = resolveCopiedBuilderNodePasteTarget({
         tree: builderTree,
         copiedNode: copiedBuilderNode,
         targetNodeId,
       }).preview;
+      if (!canEditSiteShell) {
+        const targetId = targetNodeId ?? selectedBuilderNodeId;
+        if (targetId) {
+          const shellSlot = findSiteShellSlotForBuilderNode(builderTree, targetId);
+          if (shellSlot) {
+            return {
+              ...preview,
+              mode: "blocked" as const,
+              message:
+                "Shell blocks are locked on your current plan. Upgrade to edit header/footer structure.",
+            };
+          }
+        }
+      }
+      return preview;
     },
-    [builderTree, copiedBuilderNode],
+    [builderTree, canEditSiteShell, copiedBuilderNode, selectedBuilderNodeId],
   );
   const saveCopiedBuilderNodeAsPreset = useCallback<
     EditContextValue["saveCopiedBuilderNodeAsPreset"]
@@ -2764,47 +3083,51 @@ export function EditProvider({
     EditContextValue["pasteBuilderBlockPreset"]
   >(
     async (presetId, targetNodeId) => {
-      if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
-      }
       const preset = builderBlockPresets.find((item) => item.id === presetId);
       if (!preset) {
         return { ok: false, error: "Block preset not found." };
       }
       const pasteTarget = resolveCopiedBuilderNodePasteTarget({
-        tree: builderTree,
+        tree: builderTreeRef.current,
         copiedNode: preset.node,
         targetNodeId,
       });
       if (!pasteTarget.ok) {
         return { ok: false, error: pasteTarget.preview.message };
       }
-      const pasted = pasteBuilderNodeOp({
-        tree: builderTree,
-        node: preset.node,
+      const pasted = await executeBuilderNodeOperation({
+        operation: "paste",
         parentId: pasteTarget.parentId,
-        index: pasteTarget.index,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "paste",
+            tree,
+            node: preset.node,
+            parentId: pasteTarget.parentId,
+            index: pasteTarget.index,
+          }),
       });
       if (!pasted.ok) {
-        return { ok: false, error: pasted.message };
+        return { ok: false, error: pasted.error };
       }
-      const result = await commitBuilderTreeMutation(pasted.tree);
-      if (!result.ok) return result;
+      const pastedNodeId = pasted.nodeId ?? null;
+      if (!pastedNodeId) {
+        return { ok: false, error: "Paste failed to return a new node id." };
+      }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         pasted.tree,
-        pasted.nodeId,
+        pastedNodeId,
       );
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
-        setSelectedBuilderNodeIdOverride(pasted.nodeId);
+        setSelectedBuilderNodeIdOverride(pastedNodeId);
       }
-      return { ok: true, nodeId: pasted.nodeId };
+      return { ok: true, nodeId: pastedNodeId };
     },
     [
-      pageVersion,
       builderBlockPresets,
-      builderTree,
-      commitBuilderTreeMutation,
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
       setSelectedSectionId,
     ],
   );
@@ -2812,15 +3135,12 @@ export function EditProvider({
     EditContextValue["pasteCopiedBuilderNode"]
   >(
     async (targetNodeId) => {
-      if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
-      }
       if (!copiedBuilderNode) {
         return { ok: false, error: "Copy a block before pasting." };
       }
 
       const pasteTarget = resolveCopiedBuilderNodePasteTarget({
-        tree: builderTree,
+        tree: builderTreeRef.current,
         copiedNode: copiedBuilderNode,
         targetNodeId,
       });
@@ -2828,34 +3148,39 @@ export function EditProvider({
         return { ok: false, error: pasteTarget.preview.message };
       }
 
-      const pasted = pasteBuilderNodeOp({
-        tree: builderTree,
-        node: copiedBuilderNode,
+      const pasted = await executeBuilderNodeOperation({
+        operation: "paste",
         parentId: pasteTarget.parentId,
-        index: pasteTarget.index,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "paste",
+            tree,
+            node: copiedBuilderNode,
+            parentId: pasteTarget.parentId,
+            index: pasteTarget.index,
+          }),
       });
       if (!pasted.ok) {
-        return { ok: false, error: pasted.message };
+        return { ok: false, error: pasted.error };
       }
-      const result = await commitBuilderTreeMutation(pasted.tree);
-      if (!result.ok) {
-        return result;
+      const pastedNodeId = pasted.nodeId ?? null;
+      if (!pastedNodeId) {
+        return { ok: false, error: "Paste failed to return a new node id." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         pasted.tree,
-        pasted.nodeId,
+        pastedNodeId,
       );
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
-        setSelectedBuilderNodeIdOverride(pasted.nodeId);
+        setSelectedBuilderNodeIdOverride(pastedNodeId);
       }
-      return { ok: true, nodeId: pasted.nodeId };
+      return { ok: true, nodeId: pastedNodeId };
     },
     [
-      pageVersion,
       copiedBuilderNode,
-      builderTree,
-      commitBuilderTreeMutation,
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
       setSelectedSectionId,
     ],
   );
@@ -2863,20 +3188,23 @@ export function EditProvider({
     EditContextValue["patchBuilderNodeProps"]
   >(
     async (nodeId, patch) => {
-      if (pageVersionRef.current === null) {
-        return { ok: false, error: "Composition not loaded yet." };
-      }
-      const patched = patchBuilderNodePropsOp({
-        tree: builderTreeRef.current,
+      const patched = await executeBuilderNodeOperation({
+        operation: "patch",
         nodeId,
-        patch,
+        run: (tree) =>
+          runBuilderNodeOp({
+            operation: "patch",
+            tree,
+            nodeId,
+            patch,
+          }),
       });
       if (!patched.ok) {
-        return { ok: false, error: patched.message };
+        return { ok: false, error: patched.error };
       }
-      return commitBuilderTreeMutation(patched.tree);
+      return { ok: true };
     },
-    [commitBuilderTreeMutation],
+    [executeBuilderNodeOperation, runBuilderNodeOp],
   );
   const moveBuilderNodeWithinParent = useCallback<
     EditContextValue["moveBuilderNodeWithinParent"]
@@ -2899,13 +3227,13 @@ export function EditProvider({
 
   // ── undo / redo ────────────────────────────────────────────────────
   const restoreSnapshot = useCallback(
-    async (target: CompositionSnapshot) => {
-      if (pageVersion === null) return;
+    async (target: CompositionSnapshot): Promise<boolean> => {
+      if (pageVersion === null) return false;
       setSaving(true);
       setSlotsAndBuilderTree(target.slots);
       setPageMetadata(target.metadata);
       const builderTreeForSave = reconcileBuilderTreeFromSlots(
-        builderTree,
+        builderTreeRef.current,
         target.slots,
       );
       const save = await saveHomepageCompositionAction({
@@ -2920,10 +3248,11 @@ export function EditProvider({
         if (save.code === "VERSION_CONFLICT") {
           await refreshComposition();
         }
-        return;
+        return false;
       }
       setPageVersion(save.pageVersion);
       router.refresh();
+      return true;
     },
     [
       pageVersion,
@@ -2931,7 +3260,6 @@ export function EditProvider({
       pageId,
       refreshComposition,
       router,
-      builderTree,
       setSlotsAndBuilderTree,
     ],
   );
@@ -2948,8 +3276,16 @@ export function EditProvider({
   // lives in dispatch's section.applyFieldEdit branch. Caller signature
   // (sectionId + props, void return) is unchanged.
   const applyFieldEdit = useCallback(
-    async (sectionId: string, props: Record<string, unknown>) => {
-      await dispatch({ kind: "section.applyFieldEdit", sectionId, props });
+    async (
+      sectionId: string,
+      props: Record<string, unknown>,
+    ): Promise<boolean> => {
+      const result = await dispatch({
+        kind: "section.applyFieldEdit",
+        sectionId,
+        props,
+      });
+      return result.ok;
     },
     [dispatch],
   );
@@ -2974,6 +3310,7 @@ export function EditProvider({
   );
 
   const undo = useCallback(async () => {
+    if (saving) return;
     if (past.length === 0) return;
     const entry = past[past.length - 1]!;
     setPast((p) => p.slice(0, -1));
@@ -2985,16 +3322,29 @@ export function EditProvider({
           { kind: "composition", snapshot: cloneSnapshot(presentSnap) },
         ]),
       );
-      await restoreSnapshot(entry.snapshot);
+      const restored = await restoreSnapshot(entry.snapshot);
+      if (!restored) {
+        setFuture((f) => f.slice(0, -1));
+        setPast((p) => capHistory([...p, entry]));
+      }
     } else if (entry.kind === "builderTree") {
       setFuture((f) => capHistory([...f, entry]));
-      await persistBuilderTree(entry.pre);
+      const saved = await persistBuilderTree(entry.pre);
+      if (!saved.ok) {
+        setFuture((f) => f.slice(0, -1));
+        setPast((p) => capHistory([...p, entry]));
+      }
     } else {
       setFuture((f) => capHistory([...f, entry]));
-      await applyFieldEdit(entry.sectionId, entry.pre);
+      const applied = await applyFieldEdit(entry.sectionId, entry.pre);
+      if (!applied) {
+        setFuture((f) => f.slice(0, -1));
+        setPast((p) => capHistory([...p, entry]));
+      }
     }
   }, [
     past,
+    saving,
     currentSnapshot,
     restoreSnapshot,
     persistBuilderTree,
@@ -3003,6 +3353,7 @@ export function EditProvider({
   ]);
 
   const redo = useCallback(async () => {
+    if (saving) return;
     if (future.length === 0) return;
     const entry = future[future.length - 1]!;
     setFuture((f) => f.slice(0, -1));
@@ -3014,16 +3365,29 @@ export function EditProvider({
           { kind: "composition", snapshot: cloneSnapshot(presentSnap) },
         ]),
       );
-      await restoreSnapshot(entry.snapshot);
+      const restored = await restoreSnapshot(entry.snapshot);
+      if (!restored) {
+        setPast((p) => p.slice(0, -1));
+        setFuture((f) => capHistory([...f, entry]));
+      }
     } else if (entry.kind === "builderTree") {
       setPast((p) => capHistory([...p, entry]));
-      await persistBuilderTree(entry.post);
+      const saved = await persistBuilderTree(entry.post);
+      if (!saved.ok) {
+        setPast((p) => p.slice(0, -1));
+        setFuture((f) => capHistory([...f, entry]));
+      }
     } else {
       setPast((p) => capHistory([...p, entry]));
-      await applyFieldEdit(entry.sectionId, entry.post);
+      const applied = await applyFieldEdit(entry.sectionId, entry.post);
+      if (!applied) {
+        setPast((p) => p.slice(0, -1));
+        setFuture((f) => capHistory([...f, entry]));
+      }
     }
   }, [
     future,
+    saving,
     currentSnapshot,
     restoreSnapshot,
     persistBuilderTree,
@@ -3201,7 +3565,7 @@ export function EditProvider({
         if (res.code === "VERSION_CONFLICT") {
           await refreshComposition();
         }
-        setMutationError(res.error);
+        reportMutationError(res.error);
         return { ok: false, error: res.error };
       }
       // Restored composition lands as is_draft=TRUE — pull the
@@ -3212,7 +3576,7 @@ export function EditProvider({
       router.refresh();
       return { ok: true };
     },
-    [pageVersion, locale, refreshComposition, router],
+    [pageVersion, locale, refreshComposition, router, reportMutationError],
   );
 
   // Sprint 5 — public setSectionVisibility now routes through the
@@ -3279,7 +3643,7 @@ export function EditProvider({
       if (res.code === "VERSION_CONFLICT") {
         await refreshComposition();
       }
-      setMutationError(res.error);
+      reportMutationError(res.error);
       return { ok: false, error: res.error };
     }
     setPageVersion(res.pageVersion);
@@ -3292,6 +3656,7 @@ export function EditProvider({
     pageId,
     refreshComposition,
     builderTree,
+    reportMutationError,
   ]);
 
   const value = useMemo<EditContextValue>(
@@ -3424,6 +3789,8 @@ export function EditProvider({
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
+      navigatorWidth,
+      setNavigatorWidth,
       setSectionVisibility,
 
       saveDraft,
@@ -3432,7 +3799,7 @@ export function EditProvider({
 
       mutationError,
       clearMutationError,
-      reportMutationError: setMutationError,
+      reportMutationError,
     }),
     [
       tenantId,
@@ -3543,13 +3910,15 @@ export function EditProvider({
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
+      navigatorWidth,
+      setNavigatorWidth,
       setSectionVisibility,
       saveDraft,
       lastDraftSavedAt,
       clearDraftSavedToast,
       mutationError,
       clearMutationError,
-      setMutationError,
+      reportMutationError,
     ],
   );
 

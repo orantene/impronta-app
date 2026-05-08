@@ -307,7 +307,7 @@ export async function updateRosterTalentProfile(
 // ─── Register roster photo after client-side storage upload ──────────────────
 
 export type RegisterPhotoResult =
-  | { ok: true; publicUrl: string }
+  | { ok: true; publicUrl: string; mediaId: string }
   | { ok: false; error: string };
 
 /**
@@ -344,6 +344,7 @@ export async function registerRosterTalentPhoto(
   const { data: inserted, error: insErr } = await admin
     .from("media_assets")
     .insert({
+      tenant_id: ctx.tenantId,
       owner_talent_profile_id: talentId,
       uploaded_by_user_id: ctx.userId,
       bucket_id: BUCKET,
@@ -360,14 +361,27 @@ export async function registerRosterTalentPhoto(
 
   if (insErr || !inserted) {
     logServerError("roster/[id].registerRosterTalentPhoto/insert", insErr);
-    return { ok: false, error: "Could not save photo. Try again." };
+    return { ok: false, error: insErr?.message ?? "Could not save photo. Try again." };
+  }
+
+  // Verify the row is actually readable back (catches RLS-after-insert and silent rollback).
+  const { data: verify, error: verifyErr } = await admin
+    .from("media_assets")
+    .select("id, storage_path, tenant_id")
+    .eq("id", inserted.id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (verifyErr || !verify) {
+    logServerError("roster/[id].registerRosterTalentPhoto/verify", verifyErr);
+    return { ok: false, error: verifyErr?.message ?? "Saved, but could not verify the row." };
   }
 
   const publicUrl = admin.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);
-  return { ok: true, publicUrl };
+  return { ok: true, publicUrl, mediaId: verify.id };
 }
 
 // ─── Quick workflow toggle (sidebar) ─────────────────────────────────────────

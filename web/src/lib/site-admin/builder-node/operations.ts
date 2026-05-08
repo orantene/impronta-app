@@ -33,6 +33,68 @@ export type BuilderNodeDuplicateResult =
 
 export type BuilderNodePasteResult = BuilderNodeDuplicateResult;
 
+export type BuilderNodeOperationKind =
+  | "insert"
+  | "move"
+  | "remove"
+  | "duplicate"
+  | "paste"
+  | "patch";
+
+export type BuilderNodeOperationInput =
+  | {
+      operation: "insert";
+      tree: BuilderNodeTree;
+      node: BuilderNode;
+      parentId: string | null;
+      index?: number;
+    }
+  | {
+      operation: "move";
+      tree: BuilderNodeTree;
+      nodeId: string;
+      parentId: string | null;
+      index: number;
+    }
+  | {
+      operation: "remove";
+      tree: BuilderNodeTree;
+      nodeId: string;
+    }
+  | {
+      operation: "duplicate";
+      tree: BuilderNodeTree;
+      nodeId: string;
+    }
+  | {
+      operation: "paste";
+      tree: BuilderNodeTree;
+      node: BuilderNode;
+      parentId: string | null;
+      index?: number;
+    }
+  | {
+      operation: "patch";
+      tree: BuilderNodeTree;
+      nodeId: string;
+      patch: Record<string, unknown>;
+    };
+
+export type BuilderNodeOperationResult =
+  | {
+      ok: true;
+      operation: BuilderNodeOperationKind;
+      tree: BuilderNodeTree;
+      nodeId?: string;
+    }
+  | {
+      ok: false;
+      operation: BuilderNodeOperationKind;
+      code: BuilderNodeOpCode;
+      message: string;
+      issues?: ReadonlyArray<{ path: string; message: string }>;
+    };
+
 interface NodeLocation {
   node: BuilderNode;
   index: number;
@@ -537,4 +599,111 @@ export function patchBuilderNodeProps(input: {
   };
   (target as unknown as { props: unknown }).props = mergedProps;
   return validateTreeOrFail(nextTree);
+}
+
+/**
+ * Unified builder-node operation entrypoint used by UI mutation pipelines.
+ * Keeps insert/move/remove/duplicate/paste/patch envelopes consistent so
+ * callers can handle optimistic state + errors in one place.
+ */
+export function applyBuilderNodeOperation(
+  input: BuilderNodeOperationInput,
+): BuilderNodeOperationResult {
+  switch (input.operation) {
+    case "insert": {
+      const result = insertBuilderNode(input);
+      if (!result.ok) {
+        return {
+          ok: false,
+          operation: input.operation,
+          code: result.code,
+          message: result.message,
+          issues: result.issues,
+        };
+      }
+      return { ok: true, operation: input.operation, tree: result.tree };
+    }
+    case "move": {
+      const result = moveBuilderNode(input);
+      if (!result.ok) {
+        return {
+          ok: false,
+          operation: input.operation,
+          code: result.code,
+          message: result.message,
+          issues: result.issues,
+        };
+      }
+      return { ok: true, operation: input.operation, tree: result.tree };
+    }
+    case "remove": {
+      const result = removeBuilderNode(input);
+      if (!result.ok) {
+        return {
+          ok: false,
+          operation: input.operation,
+          code: result.code,
+          message: result.message,
+          issues: result.issues,
+        };
+      }
+      return { ok: true, operation: input.operation, tree: result.tree };
+    }
+    case "duplicate": {
+      const result = duplicateBuilderNode(input);
+      if (!result.ok) {
+        return {
+          ok: false,
+          operation: input.operation,
+          code: result.code,
+          message: result.message,
+          issues: result.issues,
+        };
+      }
+      return {
+        ok: true,
+        operation: input.operation,
+        tree: result.tree,
+        nodeId: result.nodeId,
+      };
+    }
+    case "paste": {
+      const result = pasteBuilderNode(input);
+      if (!result.ok) {
+        return {
+          ok: false,
+          operation: input.operation,
+          code: result.code,
+          message: result.message,
+          issues: result.issues,
+        };
+      }
+      return {
+        ok: true,
+        operation: input.operation,
+        tree: result.tree,
+        nodeId: result.nodeId,
+      };
+    }
+    case "patch": {
+      const result = patchBuilderNodeProps(input);
+      if (!result.ok) {
+        return {
+          ok: false,
+          operation: input.operation,
+          code: result.code,
+          message: result.message,
+          issues: result.issues,
+        };
+      }
+      return { ok: true, operation: input.operation, tree: result.tree };
+    }
+    default:
+      return {
+        ok: false,
+        operation: "patch",
+        code: "VALIDATION_FAILED",
+        message: "Unknown builder-node operation.",
+      };
+  }
 }

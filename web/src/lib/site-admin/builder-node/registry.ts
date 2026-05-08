@@ -16,7 +16,7 @@ export interface BuilderNodeRegistryEntry {
 
 const dataBindingPropsSchema = z.object({
   sourceKey: z.string().min(1),
-  mode: z.enum(["auto", "manual"]).optional(),
+  mode: z.enum(["auto", "manual", "bound", "hybrid"]).optional(),
   filterQuery: z.string().max(500).optional(),
   maxItems: z.number().int().min(1).max(100).optional(),
 });
@@ -96,38 +96,82 @@ const masonryPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
-const containerPropsSchema = z.object({
-  layout: z.enum(["stack", "row", "grid"]),
+const containerResponsiveSchema = z.object({
+  layout: z.enum(["stack", "row", "grid"]).optional(),
   gap: z.enum(["s", "m", "l"]).optional(),
-  columns: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
-  align: z.enum(["start", "center", "end", "stretch"]).optional(),
-  responsive: z
-    .object({
-      tablet: z
-        .object({
-          layout: z.enum(["stack", "row", "grid"]).optional(),
-          gap: z.enum(["s", "m", "l"]).optional(),
-          columns: z
-            .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
-            .optional(),
-          align: z.enum(["start", "center", "end", "stretch"]).optional(),
-        })
-        .optional(),
-      mobile: z
-        .object({
-          layout: z.enum(["stack", "row", "grid"]).optional(),
-          gap: z.enum(["s", "m", "l"]).optional(),
-          columns: z
-            .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
-            .optional(),
-          align: z.enum(["start", "center", "end", "stretch"]).optional(),
-        })
-        .optional(),
-    })
+  columns: z
+    .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
     .optional(),
-  dataBinding: dataBindingPropsSchema.optional(),
-  style: builderNodeStyleSchema,
+  align: z.enum(["start", "center", "end", "stretch"]).optional(),
 });
+
+const containerPropsSchema = z
+  .object({
+    layout: z.enum(["stack", "row", "grid"]),
+    gap: z.enum(["s", "m", "l"]).optional(),
+    columns: z
+      .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
+      .optional(),
+    align: z.enum(["start", "center", "end", "stretch"]).optional(),
+    responsive: z
+      .object({
+        tablet: containerResponsiveSchema.optional(),
+        mobile: containerResponsiveSchema.optional(),
+      })
+      .optional(),
+    dataBinding: dataBindingPropsSchema.optional(),
+    style: builderNodeStyleSchema,
+  })
+  .superRefine((value, ctx) => {
+    const baseLayout = value.layout;
+    const baseColumns = value.columns;
+    const tablet = value.responsive?.tablet;
+    const mobile = value.responsive?.mobile;
+
+    if (baseLayout !== "grid" && typeof baseColumns === "number" && baseColumns > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["columns"],
+        message:
+          'columns > 1 is only valid when layout is "grid".',
+      });
+    }
+
+    const checkResponsive = (
+      key: "tablet" | "mobile",
+      bucket: z.infer<typeof containerResponsiveSchema> | undefined,
+    ) => {
+      if (!bucket) return;
+      const effectiveLayout = bucket.layout ?? baseLayout;
+      if (effectiveLayout !== "grid" && typeof bucket.columns === "number" && bucket.columns > 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["responsive", key, "columns"],
+          message:
+            'columns > 1 is only valid when effective layout is "grid".',
+        });
+      }
+      if (effectiveLayout === "stack" && typeof bucket.columns === "number" && bucket.columns !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["responsive", key, "columns"],
+          message: 'stack layout must use exactly 1 column.',
+        });
+      }
+    };
+
+    checkResponsive("tablet", tablet);
+    checkResponsive("mobile", mobile);
+
+    if (mobile?.columns != null && tablet?.columns == null && baseColumns == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["responsive", "mobile", "columns"],
+        message:
+          "mobile columns override requires base or tablet columns to preserve cascade intent.",
+      });
+    }
+  });
 
 const splitPropsSchema = z.object({
   ratio: z.enum(["50-50", "40-60", "60-40", "30-70", "70-30"]).optional(),

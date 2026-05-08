@@ -51,7 +51,7 @@ export interface BuilderSectionNode extends BuilderNodeBase {
     sortOrder?: number;
     dataBinding?: {
       sourceKey: string;
-      mode?: "auto" | "manual";
+      mode?: "manual" | "bound" | "hybrid";
       filterQuery?: string;
       maxItems?: number;
     };
@@ -82,7 +82,7 @@ export interface BuilderContainerNode extends BuilderNodeBase {
     };
     dataBinding?: {
       sourceKey: string;
-      mode?: "auto" | "manual";
+      mode?: "manual" | "bound" | "hybrid";
       filterQuery?: string;
       maxItems?: number;
     };

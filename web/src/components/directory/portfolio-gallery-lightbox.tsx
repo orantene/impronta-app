@@ -11,9 +11,67 @@ type PortfolioItem = {
   height: number | null;
 };
 
+type WatermarkPreset = {
+  enabled: boolean;
+  position: string;
+  size_pct: number;
+  opacity: number;
+  padding_pct: number;
+  variant: string;
+};
+
 function clampIndex(i: number, len: number) {
   if (len <= 0) return 0;
   return ((i % len) + len) % len;
+}
+
+function WatermarkOverlay({
+  logoUrl,
+  preset,
+}: {
+  logoUrl: string;
+  preset: WatermarkPreset;
+}) {
+  const pad = `${preset.padding_pct}%`;
+  const size = `${preset.size_pct}%`;
+
+  const posStyle: React.CSSProperties = (() => {
+    const p = preset.position;
+    const top = p.startsWith("t") ? pad : undefined;
+    const bottom = p.startsWith("b") ? pad : undefined;
+    const left = p.endsWith("l") ? pad : undefined;
+    const right = p.endsWith("r") ? pad : undefined;
+    const isMiddleV = p.startsWith("m");
+    const isCenterH = p.endsWith("c");
+    return {
+      top: isMiddleV ? "50%" : top,
+      bottom: isMiddleV ? undefined : bottom,
+      left: isCenterH ? "50%" : left,
+      right: isCenterH ? undefined : right,
+      transform: [
+        isMiddleV ? "translateY(-50%)" : "",
+        isCenterH ? "translateX(-50%)" : "",
+      ]
+        .filter(Boolean)
+        .join(" ") || undefined,
+    };
+  })();
+
+  return (
+    <div
+      className="pointer-events-none absolute"
+      style={{ ...posStyle, width: size, opacity: preset.opacity }}
+    >
+      <Image
+        src={logoUrl}
+        alt=""
+        width={200}
+        height={80}
+        className={`h-auto w-full object-contain ${preset.variant === "dark" ? "brightness-0" : "brightness-0 invert"}`}
+        unoptimized
+      />
+    </div>
+  );
 }
 
 export function PortfolioGalleryLightbox({
@@ -21,11 +79,15 @@ export function PortfolioGalleryLightbox({
   items,
   lightbox,
   closeLabel,
+  watermarkPreset,
+  watermarkLogoUrl,
 }: {
   name: string;
   items: PortfolioItem[];
   lightbox: DirectoryUiCopy["lightbox"];
   closeLabel: string;
+  watermarkPreset?: WatermarkPreset | null;
+  watermarkLogoUrl?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -99,6 +161,9 @@ export function PortfolioGalleryLightbox({
                   priority={i < 3}
                 />
                 <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/20" />
+                {watermarkPreset?.enabled && watermarkLogoUrl ? (
+                  <WatermarkOverlay logoUrl={watermarkLogoUrl} preset={watermarkPreset} />
+                ) : null}
               </button>
             </li>
           );

@@ -24,6 +24,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
+  getAspirations,
   getResolvedSkills,
   removeSkill,
   setFeaturedSkill,
@@ -31,6 +32,20 @@ import {
   updateSkill,
   verifySkill,
 } from "@/lib/server-actions/admin-talent-skills";
+
+// ─── Module-level skills cache ─────────────────────────────────────────────
+// Keyed by talentProfileId. Survives drawer open/close within the same session
+// so re-opening the same talent is instant. Mutations always bypass it.
+type CacheEntry = {
+  skills: ResolvedSkill[];
+  aspirations: Array<{ term_id: string; slug: string; name_en: string }>;
+  ts: number;
+};
+const CACHE_TTL = 60_000;
+const _skillsCache = new Map<string, CacheEntry>();
+// In-flight dedup — prevents React Strict Mode's double-invoke from firing two
+// simultaneous server action calls for the same talentProfileId.
+const _inflight = new Map<string, Promise<void>>();
 import {
   MAX_TOTAL_SKILLS,
   type ProficiencyLevel,
@@ -54,6 +69,30 @@ export {
   ProficiencyLabel,
 } from "./_skill-proficiency";
 
+/**
+ * Fire-and-forget prefetch — call when a talent drawer opens so skills data
+ * is in the module cache before the user clicks the Services tab.
+ * Safe to call multiple times; deduplicates against in-flight and cached entries.
+ */
+export function prefetchSkillsData(talentProfileId: string): void {
+  const hit = _skillsCache.get(talentProfileId);
+  if (hit && Date.now() - hit.ts < CACHE_TTL) return;
+  if (_inflight.has(talentProfileId)) return;
+
+  const promise = (async () => {
+    const [skillsRes, aspirationsRes] = await Promise.all([
+      getResolvedSkills({ talent_profile_id: talentProfileId }),
+      getAspirations({ talent_profile_id: talentProfileId }),
+    ]);
+    if (skillsRes.ok) {
+      const asp = aspirationsRes.ok ? aspirationsRes.aspirations : [];
+      _skillsCache.set(talentProfileId, { skills: skillsRes.skills, aspirations: asp, ts: Date.now() });
+    }
+  })();
+  _inflight.set(talentProfileId, promise);
+  promise.finally(() => _inflight.delete(talentProfileId));
+}
+
 export function SkillSlotPanel({
   talentProfileId,
   isAdmin = true,
@@ -70,6 +109,9 @@ export function SkillSlotPanel({
   canChooseVerificationScope?: boolean;
 }) {
   const [skills, setSkills] = useState<ResolvedSkill[] | null>(null);
+  const [aspirations, setAspirations] = useState<
+    Array<{ term_id: string; slug: string; name_en: string }>
+  >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savingTermIds, setSavingTermIds] = useState<Set<string>>(new Set());
@@ -78,19 +120,58 @@ export function SkillSlotPanel({
   // controls (Verify, scope toggle) regardless of caller's isAdmin.
   const adminControls = isAdmin && viewMode === "admin";
 
-  const reload = async () => {
+  const fetchData = async (useCache: boolean) => {
+    if (useCache) {
+      const hit = _skillsCache.get(talentProfileId);
+      if (hit && Date.now() - hit.ts < CACHE_TTL) {
+        setSkills(hit.skills);
+        setAspirations(hit.aspirations);
+        return;
+      }
+      // Deduplicate concurrent calls (React Strict Mode fires effects twice).
+      const existing = _inflight.get(talentProfileId);
+      if (existing) {
+        await existing;
+        const fresh = _skillsCache.get(talentProfileId);
+        if (fresh) { setSkills(fresh.skills); setAspirations(fresh.aspirations); }
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
-    const res = await getResolvedSkills({
-      talent_profile_id: talentProfileId,
-    });
-    if (res.ok) setSkills(res.skills);
-    else setError(res.error);
-    setLoading(false);
+
+    const promise = (async () => {
+      const [skillsRes, aspirationsRes] = await Promise.all([
+        getResolvedSkills({ talent_profile_id: talentProfileId }),
+        getAspirations({ talent_profile_id: talentProfileId }),
+      ]);
+      setLoading(false);
+      if (skillsRes.ok) {
+        const asp = aspirationsRes.ok ? aspirationsRes.aspirations : [];
+        _skillsCache.set(talentProfileId, {
+          skills: skillsRes.skills,
+          aspirations: asp,
+          ts: Date.now(),
+        });
+        setSkills(skillsRes.skills);
+        setAspirations(asp);
+      } else {
+        setError(skillsRes.error);
+      }
+    })();
+
+    if (useCache) {
+      _inflight.set(talentProfileId, promise);
+      promise.finally(() => _inflight.delete(talentProfileId));
+    }
+    await promise;
   };
 
+  const reload = () => fetchData(false);
+
   useEffect(() => {
-    reload();
+    fetchData(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [talentProfileId]);
 
@@ -410,9 +491,8 @@ export function SkillSlotPanel({
           relationship_type='aspiration' (added via 20260907220000). */}
       <CareerInterestsSection
         talentProfileId={talentProfileId}
-        existingSkillIds={
-          new Set((skills ?? []).map((s) => s.skill_term_id))
-        }
+        existingSkillIds={new Set((skills ?? []).map((s) => s.skill_term_id))}
+        initialAspirations={aspirations}
       />
 
       {/* Add-skill drawer */}

@@ -31,13 +31,20 @@ import {
   classifyHrefIssue,
   collectLinkCandidates,
 } from "./publish-preflight-link-rules";
-import { collectLayoutOverflowRisks } from "./publish-preflight-layout-rules";
+import {
+  collectBreakpointCascadeRisks,
+  collectBreakpointOrderRisks,
+  collectBreakpointVisibilityRisks,
+  collectLayoutOverflowRisks,
+} from "./publish-preflight-layout-rules";
 import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talent/schema";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
 import {
+  collectBuilderTreeLayoutFindings,
   collectBuilderDataBindingTreeFindings,
+  isBlockingLayoutFindingId,
   validateBuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
@@ -265,6 +272,30 @@ export async function runPublishPreflight(input?: {
         message: `${sectionName}: possible mobile overflow from long unbroken text in ${risk.path} (${risk.length} chars: "${preview}").`,
       });
     }
+    for (const risk of collectBreakpointVisibilityRisks(props).slice(0, 1)) {
+      issues.push({
+        severity: "warn",
+        category: "layout",
+        sectionId: r.id,
+        message: `${sectionName}: content is hidden on ${risk.breakpoint} (${risk.path}). Confirm this is intentional.`,
+      });
+    }
+    for (const risk of collectBreakpointCascadeRisks(props).slice(0, 1)) {
+      issues.push({
+        severity: "warn",
+        category: "layout",
+        sectionId: r.id,
+        message: `${sectionName}: mobile override "${risk.field}" skips tablet (${risk.path}). Add tablet intent or an explicit mobile reset.`,
+      });
+    }
+    for (const risk of collectBreakpointOrderRisks(props).slice(0, 1)) {
+      issues.push({
+        severity: "warn",
+        category: "layout",
+        sectionId: r.id,
+        message: `${sectionName}: mobile "${risk.field}" (${risk.mobileValue}) is larger than tablet (${risk.tabletValue}) at ${risk.path}. Confirm breakpoint order intent.`,
+      });
+    }
 
     // Featured-talent publish guardrail — if a visible block resolves zero
     // cards, surface an actionable warning before publish.
@@ -335,12 +366,25 @@ export async function runPublishPreflight(input?: {
             .join("; ")}`,
         });
       } else {
-        for (const finding of collectBuilderDataBindingTreeFindings(validation.tree)) {
+        for (const finding of collectBuilderDataBindingTreeFindings(validation.tree, {
+          workspacePlan,
+        })) {
           if (finding.severity === "info") continue;
           issues.push({
             severity: finding.severity === "error" ? "error" : "warn",
             category: "data_binding",
             message: `${finding.nodeKind} ${finding.nodeId}: ${finding.message}`,
+          });
+        }
+        for (const finding of collectBuilderTreeLayoutFindings(validation.tree)) {
+          const blocking = isBlockingLayoutFindingId(finding.id);
+          issues.push({
+            severity: blocking ? "error" : "warn",
+            category: "layout",
+            sectionId: finding.ownerSectionId ?? undefined,
+            message: blocking
+              ? `${finding.nodeKind} ${finding.nodeId}: ${finding.message} Resolve this layout issue before publish.`
+              : `${finding.nodeKind} ${finding.nodeId}: ${finding.message}`,
           });
         }
       }

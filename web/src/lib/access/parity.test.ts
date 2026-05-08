@@ -82,7 +82,11 @@ test("registry contains all expected capability sets", () => {
   // Taxonomy + adaptive registration (docs/taxonomy-and-registration.md): 4 keys.
   // Phase 3 workspace + roster route surface: 5 keys.
   // Phase 4 custom-domain management: 1 key.
-  // Total: 94.
+  // Pitch feature (docs/plans/pitch-feature-execution-plan-2026-05-07.md): 1 key.
+  // Media + watermark (docs/plans/media-watermark-execution-plan-2026-05-07.md): 3 keys.
+  // Phase 0 talent-surface launch readiness
+  //   (docs/plans/talent-surface-and-photo-execution-plan-2026-05-08.md): 1 key.
+  // Total: 99.
   const TALENT_RELATIONSHIP_KEYS: readonly CapabilityKey[] = [
     "agency.settings.edit_join_mode",
     "agency.talent.create",
@@ -166,6 +170,32 @@ test("registry contains all expected capability sets", () => {
   for (const key of PHASE_4_KEYS) {
     assert.ok(isKnownCapability(key), `capability "${key}" missing`);
   }
+  // Pitch feature.
+  // See docs/plans/pitch-feature-execution-plan-2026-05-07.md.
+  const PITCH_KEYS: readonly CapabilityKey[] = [
+    "agency.pitch.manage",
+  ];
+  for (const key of PITCH_KEYS) {
+    assert.ok(isKnownCapability(key), `capability "${key}" missing`);
+  }
+  // Media gallery + watermark (Studio/Agency tiers).
+  // See docs/plans/media-watermark-execution-plan-2026-05-07.md.
+  const MEDIA_WATERMARK_KEYS: readonly CapabilityKey[] = [
+    "agency.workspace.media.watermark",
+    "agency.workspace.media.gallery",
+    "agency.workspace.media.bulk_watermark",
+  ];
+  for (const key of MEDIA_WATERMARK_KEYS) {
+    assert.ok(isKnownCapability(key), `capability "${key}" missing`);
+  }
+  // Phase 0 (talent-surface launch readiness) — talent self-edit gate.
+  // See docs/plans/talent-surface-and-photo-execution-plan-2026-05-08.md.
+  const PHASE_0_TALENT_SELF_KEYS: readonly CapabilityKey[] = [
+    "talent.profile.edit_self",
+  ];
+  for (const key of PHASE_0_TALENT_SELF_KEYS) {
+    assert.ok(isKnownCapability(key), `capability "${key}" missing`);
+  }
   const expected =
     LEGACY_CAPABILITIES.length +
     PHASE_5_CAPABILITIES.length +
@@ -175,7 +205,10 @@ test("registry contains all expected capability sets", () => {
     CLIENT_TRUST_KEYS.length +
     TAXONOMY_REGISTRATION_KEYS.length +
     PHASE_3_KEYS.length +
-    PHASE_4_KEYS.length;
+    PHASE_4_KEYS.length +
+    PITCH_KEYS.length +
+    MEDIA_WATERMARK_KEYS.length +
+    PHASE_0_TALENT_SELF_KEYS.length;
   assert.equal(CAPABILITY_KEYS.length, expected, `expected ${expected} capability keys`);
 });
 

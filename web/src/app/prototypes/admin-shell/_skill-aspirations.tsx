@@ -26,16 +26,27 @@ import { F_BODY, PARENT_EMOJI, T } from "./_skill-tokens";
 export function CareerInterestsSection({
   talentProfileId,
   existingSkillIds,
+  initialAspirations,
 }: {
   talentProfileId: string;
   existingSkillIds: Set<string>;
+  /** Pre-loaded by parent. When provided, skips the initial fetch. */
+  initialAspirations?: Array<{ term_id: string; slug: string; name_en: string }>;
 }) {
   const [aspirations, setAspirations] = useState<
     Array<{ term_id: string; slug: string; name_en: string }>
-  >([]);
-  const [loaded, setLoaded] = useState(false);
+  >(initialAspirations ?? []);
+  const [loaded, setLoaded] = useState(initialAspirations !== undefined);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync when parent fetches fresh data (cache hit or post-mutation reload).
+  useEffect(() => {
+    if (initialAspirations !== undefined) {
+      setAspirations(initialAspirations);
+      setLoaded(true);
+    }
+  }, [initialAspirations]);
 
   const reload = async () => {
     const res = await getAspirations({ talent_profile_id: talentProfileId });
@@ -43,7 +54,9 @@ export function CareerInterestsSection({
     setLoaded(true);
   };
 
+  // Only fetch independently when no parent-supplied data exists.
   useEffect(() => {
+    if (initialAspirations !== undefined) return;
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [talentProfileId]);

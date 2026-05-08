@@ -24,10 +24,9 @@ export type WorkspaceMediaPhoto = {
   thumbUrl: string;
   variantKind: string;
   approvalState: "approved" | "pending" | "rejected";
-  hasWatermark: boolean;
+  /** True when a per-image override exists (distinct from workspace-default WM). */
+  hasOverride: boolean;
   watermarkOverride: unknown | null;
-  bakedVariants: number;
-  usedIn: string[];
   createdAt: string;
 };
 
@@ -58,9 +57,8 @@ export async function loadWorkspaceMediaPhotos(
     if (!supabase) return [];
 
     // Join media_assets -> talent_profiles, filter to current tenant via
-    // agency_talent_roster membership. We pull originals only (the baked
-    // 'watermarked' variants live as separate rows pointing back via
-    // source_media_asset_id and are summarized as a count).
+    // agency_talent_roster membership. We pull card + gallery variants
+    // (the canonical taxonomy after the portfolio→gallery migration).
     const { data, error } = await supabase
       .from("media_assets")
       .select(`
@@ -84,11 +82,11 @@ export async function loadWorkspaceMediaPhotos(
           )
         )
       `)
-      .eq("variant_kind", "original")
+      .in("variant_kind", ["card", "gallery"])
       .is("deleted_at", null)
       .eq("talent_profiles.agency_talent_roster.tenant_id", tenantId)
       .order("created_at", { ascending: false })
-      .limit(200);
+      .limit(500);
 
     if (error) {
       logServerError("data-bridge.media.list", error);
@@ -123,12 +121,8 @@ export async function loadWorkspaceMediaPhotos(
           thumbUrl: publicUrl,
           variantKind: r.variant_kind,
           approvalState: r.approval_state as WorkspaceMediaPhoto["approvalState"],
-          hasWatermark:
-            r.watermark_override_json !== null ||
-            r.variant_kind === "watermarked",
+          hasOverride: r.watermark_override_json !== null,
           watermarkOverride: r.watermark_override_json,
-          bakedVariants: 0, // resolved separately if needed
-          usedIn: [],
           createdAt: r.created_at,
         };
       });

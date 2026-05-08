@@ -39,24 +39,24 @@ export async function getResolvedSkills(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  // Verify roster access.
-  const { data: rosterRow } = await supabase
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", input.talent_profile_id)
-    .maybeSingle();
+  const [{ data: rosterRow }, { data, error }] = await Promise.all([
+    supabase
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", input.talent_profile_id)
+      .maybeSingle(),
+    supabase
+      .from("talent_skills_resolved")
+      .select("*")
+      .eq("talent_profile_id", input.talent_profile_id)
+      .order("relationship_type", { ascending: true })
+      .order("display_order", { ascending: true }),
+  ]);
+
   if (!rosterRow) {
     return { ok: false, error: "Talent is not on this tenant's roster." };
   }
-
-  const { data, error } = await supabase
-    .from("talent_skills_resolved")
-    .select("*")
-    .eq("talent_profile_id", input.talent_profile_id)
-    .order("relationship_type", { ascending: true })
-    .order("display_order", { ascending: true });
-
   if (error) {
     logServerError("getResolvedSkills", error);
     return { ok: false, error: CLIENT_ERROR.generic };

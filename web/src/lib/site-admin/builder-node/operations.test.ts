@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import type { BuilderNodeTree } from "./types";
 import {
+  applyBuilderNodeOperation,
   duplicateBuilderNode,
   insertBuilderNode,
   moveBuilderNode,
@@ -10,6 +11,7 @@ import {
   patchBuilderNodeProps,
   removeBuilderNode,
 } from "./operations";
+import { validateBuilderNodeTree } from "./validate";
 
 function fixtureTree(): BuilderNodeTree {
   return [
@@ -539,4 +541,172 @@ test("pasteBuilderNode rejects copied section nodes", () => {
   assert.equal(pasted.ok, false);
   if (pasted.ok) return;
   assert.equal(pasted.code, "NODE_KIND_NOT_DUPLICABLE");
+});
+
+test("applyBuilderNodeOperation returns a typed operation envelope", () => {
+  const inserted = applyBuilderNodeOperation({
+    operation: "insert",
+    tree: fixtureTree(),
+    parentId: "container-1",
+    index: 1,
+    node: {
+      id: "inserted-paragraph",
+      kind: "paragraph",
+      props: { text: "Inserted" },
+    },
+  });
+  assert.equal(inserted.ok, true);
+  if (!inserted.ok) return;
+  assert.equal(inserted.operation, "insert");
+  const container = inserted.tree.find((node) => node.id === "container-1");
+  assert.equal(container?.kind, "container");
+  if (!container || container.kind !== "container") return;
+  assert.equal(container.children[1]?.id, "inserted-paragraph");
+});
+
+test("applyBuilderNodeOperation preserves tree integrity after chained operations", () => {
+  const base = fixtureTree();
+
+  const inserted = applyBuilderNodeOperation({
+    operation: "insert",
+    tree: base,
+    parentId: "container-1",
+    node: {
+      id: "flow-button",
+      kind: "button",
+      props: { label: "See roster", href: "/directory" },
+    },
+  });
+  assert.equal(inserted.ok, true);
+  if (!inserted.ok) return;
+
+  const duplicated = applyBuilderNodeOperation({
+    operation: "duplicate",
+    tree: inserted.tree,
+    nodeId: "flow-button",
+  });
+  assert.equal(duplicated.ok, true);
+  if (!duplicated.ok) return;
+  assert.ok(duplicated.nodeId);
+
+  const moved = applyBuilderNodeOperation({
+    operation: "move",
+    tree: duplicated.tree,
+    nodeId: duplicated.nodeId!,
+    parentId: "section-1",
+    index: 2,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+
+  const patched = applyBuilderNodeOperation({
+    operation: "patch",
+    tree: moved.tree,
+    nodeId: duplicated.nodeId!,
+    patch: { label: "Book now" },
+  });
+  assert.equal(patched.ok, true);
+  if (!patched.ok) return;
+
+  const removed = applyBuilderNodeOperation({
+    operation: "remove",
+    tree: patched.tree,
+    nodeId: "flow-button",
+  });
+  assert.equal(removed.ok, true);
+  if (!removed.ok) return;
+
+  const validation = validateBuilderNodeTree(removed.tree);
+  assert.equal(validation.ok, true);
+  if (!validation.ok) return;
+
+  const section = removed.tree.find((node) => node.id === "section-1");
+  assert.equal(section?.kind, "section");
+  if (!section || section.kind !== "section") return;
+  const movedNode = section.children?.find((node) => node.id === duplicated.nodeId);
+  assert.equal(movedNode?.kind, "button");
+  if (!movedNode || movedNode.kind !== "button") return;
+  assert.equal(movedNode.props.label, "Book now");
+});
+
+test("applyBuilderNodeOperation returns typed error envelopes without mutating source tree", () => {
+  const base = fixtureTree();
+  const snapshot = JSON.parse(JSON.stringify(base));
+
+  const failedMove = applyBuilderNodeOperation({
+    operation: "move",
+    tree: base,
+    nodeId: "section-1:heading:headline",
+    parentId: "section-1:heading:headline",
+    index: 0,
+  });
+  assert.equal(failedMove.ok, false);
+  if (failedMove.ok) return;
+  assert.equal(failedMove.operation, "move");
+  assert.equal(failedMove.code, "INVALID_MOVE_TARGET");
+  assert.match(failedMove.message, /cannot be moved into itself/i);
+  assert.deepEqual(base, snapshot);
+
+  const failedRemove = applyBuilderNodeOperation({
+    operation: "remove",
+    tree: base,
+    nodeId: "missing-node",
+  });
+  assert.equal(failedRemove.ok, false);
+  if (failedRemove.ok) return;
+  assert.equal(failedRemove.operation, "remove");
+  assert.equal(failedRemove.code, "NODE_NOT_FOUND");
+  assert.match(failedRemove.message, /was not found/i);
+  assert.deepEqual(base, snapshot);
+});
+
+test("chained operation flow keeps duplicated id stable across move + patch + remove", () => {
+  const base = fixtureTree();
+  const duplicate = applyBuilderNodeOperation({
+    operation: "duplicate",
+    tree: base,
+    nodeId: "container-1:heading",
+  });
+  assert.equal(duplicate.ok, true);
+  if (!duplicate.ok) return;
+  assert.ok(duplicate.nodeId);
+  const duplicatedNodeId = duplicate.nodeId!;
+
+  const moved = applyBuilderNodeOperation({
+    operation: "move",
+    tree: duplicate.tree,
+    nodeId: duplicatedNodeId,
+    parentId: "section-1",
+    index: 2,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+
+  const patched = applyBuilderNodeOperation({
+    operation: "patch",
+    tree: moved.tree,
+    nodeId: duplicatedNodeId,
+    patch: { text: "Promoted nested heading" },
+  });
+  assert.equal(patched.ok, true);
+  if (!patched.ok) return;
+
+  const removed = applyBuilderNodeOperation({
+    operation: "remove",
+    tree: patched.tree,
+    nodeId: duplicatedNodeId,
+  });
+  assert.equal(removed.ok, true);
+  if (!removed.ok) return;
+
+  const section = removed.tree.find((node) => node.id === "section-1");
+  assert.equal(section?.kind, "section");
+  if (!section || section.kind !== "section") return;
+  assert.equal(
+    section.children?.some((node) => node.id === duplicatedNodeId),
+    false,
+  );
+
+  const validation = validateBuilderNodeTree(removed.tree);
+  assert.equal(validation.ok, true);
 });

@@ -40,7 +40,10 @@ import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-edit
 import type { LoadedSection } from "./edit-context";
 import { useEditContext } from "./edit-context";
 import { ContentTab } from "./inspectors/content-dispatch";
-import { resolveStandaloneBuilderNodeForContent } from "./inspectors/builder-node-content-utils";
+import {
+  findBuilderNodeById,
+  resolveStandaloneBuilderNodeForContent,
+} from "./inspectors/builder-node-content-utils";
 import { SiteHeaderInspector } from "./inspectors/site-header/SiteHeaderInspector";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { LayoutPanel } from "./inspectors/layout-panel";
@@ -154,6 +157,28 @@ function builderNodeTitle(node: Exclude<BuilderNode, { kind: "section" }>): stri
   }
 }
 
+function findBuilderNodePath(
+  tree: ReadonlyArray<BuilderNode>,
+  nodeId: string | null,
+): ReadonlyArray<BuilderNode> {
+  if (!nodeId) return [];
+  const walk = (
+    nodes: ReadonlyArray<BuilderNode>,
+    trail: BuilderNode[],
+  ): ReadonlyArray<BuilderNode> => {
+    for (const node of nodes) {
+      const nextTrail = [...trail, node];
+      if (node.id === nodeId) return nextTrail;
+      if ("children" in node && Array.isArray(node.children)) {
+        const nested = walk(node.children, nextTrail);
+        if (nested.length > 0) return nested;
+      }
+    }
+    return [];
+  };
+  return walk(tree, []);
+}
+
 function nodeUsesLayoutInspector(
   node: Exclude<BuilderNode, { kind: "section" }>,
 ): boolean {
@@ -206,6 +231,14 @@ export function InspectorDock() {
         builderTree,
         selectedBuilderNodeId,
       ),
+    [builderTree, selectedBuilderNodeId],
+  );
+  const selectedBuilderNode = useMemo(
+    () => findBuilderNodeById(builderTree, selectedBuilderNodeId),
+    [builderTree, selectedBuilderNodeId],
+  );
+  const selectedBuilderNodePath = useMemo(
+    () => findBuilderNodePath(builderTree, selectedBuilderNodeId),
     [builderTree, selectedBuilderNodeId],
   );
 
@@ -651,6 +684,45 @@ export function InspectorDock() {
         : selectedSectionId && loadingId
           ? "Loading…"
           : "Inspector";
+  const sectionMeta = isSiteHeaderSelected
+    ? "Site shell"
+    : selectedStandaloneBuilderNode
+      ? `Builder block · ${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label}`
+      : loadedSection
+        ? humanizeTypeKey(loadedSection.sectionTypeKey)
+        : skeletonHint
+          ? humanizeTypeKey(skeletonHint.typeKey)
+          : undefined;
+  const inspectorBreadcrumb = useMemo(() => {
+    if (!selectedSectionId) return undefined;
+    const crumbs: string[] = ["Page"];
+    const rootLabel =
+      isSiteHeaderSelected
+        ? "Site header"
+        : sectionTitle && sectionTitle !== "Inspector" && sectionTitle !== "Loading…"
+          ? sectionTitle
+          : null;
+    if (rootLabel) {
+      crumbs.push(rootLabel);
+    }
+    if (selectedBuilderNodePath.length > 1 && selectedBuilderNode) {
+      for (const node of selectedBuilderNodePath) {
+        if (node.kind === "section") continue;
+        crumbs.push(builderNodeTitle(node));
+      }
+    }
+    return crumbs.join(" > ");
+  }, [
+    isSiteHeaderSelected,
+    sectionTitle,
+    selectedBuilderNode,
+    selectedBuilderNodePath,
+    selectedSectionId,
+  ]);
+  const headerMeta =
+    sectionMeta && inspectorBreadcrumb
+      ? `${sectionMeta} · ${inspectorBreadcrumb}`
+      : sectionMeta ?? inspectorBreadcrumb;
 
   // 2026-04-28 — Tab strip is now adaptive per section type. Sections
   // declare which tabs they meaningfully use; the strip only renders
@@ -700,17 +772,7 @@ export function InspectorDock() {
     >
       <DrawerHead
         title={isSiteHeaderSelected ? "Site header" : sectionTitle}
-        meta={
-          isSiteHeaderSelected
-            ? undefined
-            : selectedStandaloneBuilderNode
-              ? `Builder block · ${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label}`
-            : loadedSection
-              ? humanizeTypeKey(loadedSection.sectionTypeKey)
-              : skeletonHint
-                ? humanizeTypeKey(skeletonHint.typeKey)
-                : undefined
-        }
+        meta={headerMeta}
         icon={
           isSiteHeaderSelected ? (
             <SiteHeaderHeadIcon />

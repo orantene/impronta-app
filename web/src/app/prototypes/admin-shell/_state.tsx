@@ -2049,6 +2049,13 @@ export type TalentProfile = {
   primaryType?: string;
   /** Profile completeness 0–100. Surfaced on cards in non-published states. */
   completeness?: number;
+  /** ISO timestamp of when this talent was added to the roster
+   *  (`agency_talent_roster.created_at`). Drives the "Newest" sort.
+   *  Optional so mock fixtures can omit it — sort falls back to source order. */
+  createdAt?: string;
+  /** Number of non-deleted portfolio/gallery media assets owned by this talent.
+   *  Surfaced on the roster card so admins see which talents still need photos. */
+  portfolioCount?: number;
   /** "available" | "busy" | "offline". Drives dot on the card. */
   availability?: "available" | "busy" | "offline";
   /** Short last-active string ("2h", "1d", "3d"). */
@@ -5046,18 +5053,19 @@ export const PHOTO_TAG_META: Record<PhotoTag, { label: string; emoji: string }> 
 };
 export type PhotoMeta = {
   url: string;
+  /** DB row id for this asset in `media_assets`. Set after a real upload
+   *  completes. Absent for unsaved/blob entries. Used for delete + reorder. */
+  mediaAssetId?: string;
+  /** True while the file is uploading to storage. UI can show a spinner. */
+  uploading?: boolean;
+  /** Human-readable error message if upload failed. UI shows red overlay. */
+  uploadError?: string;
   tag?: PhotoTag;
   altText?: string;
   caption?: string;
   // ── Video media (Phase B portfolio drawer) ───────────────────────────
-  /** When set, this tile represents a video rather than a still image.
-   *  The thumbnail in `url` is displayed as the tile; videoUrl is the
-   *  actual playback source. */
   videoUrl?: string;
-  /** Video duration in seconds — shown as "0:42" chip on the tile. */
   videoDurationSec?: number;
-  /** Provider detected from videoUrl — drives the coloured chip.
-   *  "youtube" → red, "vimeo" → cyan, "mp4" → dark. */
   videoProvider?: "youtube" | "vimeo" | "mp4";
 };
 
@@ -6652,6 +6660,12 @@ type Ctx = {
   effectiveTeamMembers: TeamMember[];
   /** Live total unread count for the nav badge. Falls back to 0 in mock mode. */
   totalUnread: number;
+  /** Phase 5 — unread count for the talent's personal inbox (cross-mode pill). undefined = prototype/mock mode. */
+  bridgeTalentUnread: number | undefined;
+  /** Phase 5 — unread count for the workspace inbox (cross-mode pill). undefined = prototype/mock mode. */
+  bridgeWorkspaceUnread: number | undefined;
+  /** Phase 5 — whether the first-run toggle tip has been seen. undefined = prototype/mock mode. */
+  bridgeFirstRunToggleTipSeen: boolean | undefined;
 
   // ── Phase 3.12.2 talent self-surface bridge fields ─────────────────────────
   /**
@@ -6684,6 +6698,8 @@ type Ctx = {
     displayName: string;
     planTier: string;
     kind: string;
+    /** Brand logo URL — replaces the TULALA wordmark when present. */
+    logoUrl?: string | null;
   } | null;
   /**
    * Real signed-in user identity. null = standalone demo mode; chrome falls
@@ -7155,7 +7171,18 @@ export function ProtoProvider({
   const tenantSlugRef = useRef(tenantSlug);
   useEffect(() => { tenantSlugRef.current = tenantSlug; }, [tenantSlug]);
 
-  const [surface, setSurface] = useState<Surface>(initialSurface ?? "workspace");
+  // Phase 5 — preferred surface from DB user prefs. Priority order:
+  //   1. preferredSurface from bridge (DB pref) — if the user has a stored pref
+  //   2. initialSurface from the route (admin vs talent layout)
+  //   3. default "workspace"
+  // In standalone prototype mode (no bridge), initialSurface drives it.
+  const [surface, setSurface] = useState<Surface>(
+    (() => {
+      const pref = initialBridgeData?.preferredSurface;
+      if (pref === "talent" || pref === "workspace") return pref;
+      return initialSurface ?? "workspace";
+    })(),
+  );
 
   // Phase 1 (master plan) — when the workspace admin layout supplies
   // bridge identity, prime the prototype's plan + role from real data so
@@ -7202,7 +7229,15 @@ export function ProtoProvider({
   const [plan, setPlan] = useState<Plan>(initialPlan);
   const [role, setRole] = useState<Role>(initialRole);
   const [entityType, setEntityType] = useState<EntityType>(TENANT.entityType);
-  const [alsoTalent, setAlsoTalent] = useState<boolean>(true);
+  // Phase 0 (talent-surface launch readiness) — derive hybrid signal from the
+  // bridge instead of hardcoding `true`. The bridge sets `isHybrid` to true
+  // only when the signed-in user has BOTH a talent profile AND a workspace
+  // membership in this tenant; the toggle is hidden otherwise. Standalone
+  // prototype mode (no bridge) defaults to `true` to preserve design-QA
+  // visibility of the toggle.
+  const [alsoTalent, setAlsoTalent] = useState<boolean>(
+    initialBridgeData ? Boolean(initialBridgeData.isHybrid) : true,
+  );
   const [page, setPageRaw] = useState<WorkspacePage>(initialPage ?? "overview");
 
   // In production (cutover) mode the browser URL is the source of truth
@@ -7881,14 +7916,28 @@ export function ProtoProvider({
   // workspace owner. Flips between the two surfaces, preserving the rest of
   // the state shape. The reset-to-default-page rule from handleSetSurface
   // is intentional — switching modes implies switching context.
+  //
+  // Phase 5 — fire-and-forget setPreferredSurface to persist the choice.
+  // Only runs when there's a real bridge (not standalone prototype mode).
   const flipMode = useCallback(() => {
     if (!alsoTalent) return; // gated to hybrid users only
+    let nextSurface: Surface | null = null;
     if (surface === "talent") {
-      handleSetSurface("workspace");
+      nextSurface = "workspace";
     } else if (surface === "workspace") {
-      handleSetSurface("talent");
+      nextSurface = "talent";
     }
-  }, [alsoTalent, surface, handleSetSurface]);
+    if (!nextSurface) return;
+    handleSetSurface(nextSurface);
+    // Persist preference when in production (bridge) mode.
+    if (initialBridgeData != null) {
+      const target = nextSurface as "talent" | "workspace";
+      // Dynamic import keeps the server action out of the standalone bundle.
+      import("@/lib/server-actions/user-prefs")
+        .then(({ setPreferredSurface }) => setPreferredSurface(target))
+        .catch((err: unknown) => console.error("[flipMode] pref persist failed", err));
+    }
+  }, [alsoTalent, surface, handleSetSurface, initialBridgeData]);
 
   // Impersonation: HQ user starts viewing a tenant's workspace. We jump to
   // the workspace surface in read-only mode, with a banner overlay (rendered
@@ -7969,6 +8018,14 @@ export function ProtoProvider({
   );
 
   const totalUnread = initialBridgeData?.totalUnread ?? 0;
+
+  // Phase 5 — cross-mode unread counts for the toggle pill.
+  // When no bridge data (standalone prototype), both are undefined so the
+  // pill falls back to mock constants (preserves design-QA behaviour).
+  const bridgeTalentUnread: number | undefined = initialBridgeData?.talentUnread;
+  const bridgeWorkspaceUnread: number | undefined = initialBridgeData?.workspaceUnread;
+  // First-run tooltip flag. undefined in prototype mode → tooltip hidden.
+  const bridgeFirstRunToggleTipSeen: boolean | undefined = initialBridgeData?.firstRunToggleTipSeen;
 
   // Phase 1 (master plan) — chrome identity bridge.
   // When provided by the workspace admin layout, the prototype's chrome
@@ -8097,6 +8154,10 @@ export function ProtoProvider({
       bridgeMediaPhotos,
       bridgeTenantIdentity,
       bridgeSessionIdentity,
+      // Phase 5
+      bridgeTalentUnread,
+      bridgeWorkspaceUnread,
+      bridgeFirstRunToggleTipSeen,
     }),
     [
       surface,
@@ -8183,6 +8244,10 @@ export function ProtoProvider({
       bridgeMediaPhotos,
       bridgeTenantIdentity,
       bridgeSessionIdentity,
+      // Phase 5
+      bridgeTalentUnread,
+      bridgeWorkspaceUnread,
+      bridgeFirstRunToggleTipSeen,
     ],
   );
 
@@ -8553,6 +8618,137 @@ export const TALENT_PROFILES_BY_ID: Record<string, MyTalentProfile> = {
  *  prototype while the live bridge is still being wired. */
 export function getProfileById(id: string): MyTalentProfile {
   return TALENT_PROFILES_BY_ID[id] ?? MY_TALENT_PROFILE;
+}
+
+/**
+ * Build a fresh MyTalentProfile shape from real bridge data — used for
+ * talents who exist in the DB but aren't in the prototype's mock index.
+ * Without this helper, `getProfileById(<real uuid>)` returns Marta's
+ * fixture data, so a freshly-provisioned talent sees Marta's bio +
+ * credits + measurements on their dashboard. This factory returns the
+ * Marta scaffold (so every required nested field is type-safe) with all
+ * narrative content emptied AND the talent's real name / city / photo
+ * patched in.
+ */
+export function buildFreshTalentProfile(bridge: {
+  displayName: string;
+  primaryTypeLabel: string | null;
+  homeCity: string | null;
+  headshotUrl: string | null;
+}): MyTalentProfile {
+  const initials =
+    bridge.displayName
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((s) => s[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "?";
+  return {
+    // We deliberately do NOT spread MY_TALENT_PROFILE here — every field
+    // not provided by the bridge must be empty so completeness math
+    // reflects an actual fresh-talent state instead of leaking Marta's
+    // measurements / rate card / travel docs through the cracks.
+    name: bridge.displayName,
+    legalName: bridge.displayName,
+    initials,
+    pronouns: "any",
+    age: 0,
+    city: bridge.homeCity || "",
+    currentLocation: bridge.homeCity || "",
+    availableForWork: false,
+    availableToTravel: false,
+    coverPhoto: "",
+    profilePhoto: bridge.headshotUrl || "",
+    showreelThumb: undefined,
+    showreelDuration: undefined,
+    measurements: {
+      heightImperial: "",
+      heightMetric: "",
+      weight: "",
+      bust: "",
+      waist: "",
+      hips: "",
+      inseam: "",
+      shoeEU: "",
+      shoeUS: "",
+      shoeUK: "",
+      dress: "",
+      suit: "",
+      hairColor: "",
+      hairLength: "medium",
+      eyeColor: "",
+      skinTone: "",
+      hasTattoos: false,
+      tattoosNote: "",
+      hasPiercings: false,
+      piercingsNote: "",
+      scarsNote: "",
+    },
+    measurementsSummary: "",
+    specialties: [],
+    languages: [],
+    skills: [],
+    limits: [],
+    credits: [],
+    reviews: [],
+    bookingStats: {
+      completedBookings: 0,
+      onTimeRate: 0,
+      repeatClients: 0,
+      yearsActive: 0,
+    },
+    badges: [],
+    documents: [],
+    rateCard: {
+      visibility: "agency-only",
+      lines: [],
+      usagePolicy: "",
+    },
+    travel: {
+      basedIn: bridge.homeCity || "",
+      willingTravel: "city",
+      homeRadius: "",
+      passports: [],
+      workAuth: [],
+      lastTrip: "",
+      preferredClass: "economy",
+    },
+    links: [],
+    emergencyContact: {
+      name: "",
+      relation: "",
+      phone: "",
+    },
+    primaryAgency: "",
+    representation: { kind: "freelance" },
+    contactPolicy: { ...DEFAULT_CONTACT_POLICY },
+    publishedAt: "",
+    profileViews7d: 0,
+    inquiries7d: 0,
+    discoverRank: 0,
+    viewsTrend: 0,
+    completeness: 0,
+    missing: [],
+    publicUrl: "",
+    primaryType: "models" as TaxonomyParentId,
+    secondaryTypes: [],
+    portfolioVideos: [],
+    showreelUrl: undefined,
+    subscription: {
+      tier: "basic",
+      template: "roster",
+      personalPageEnabled: false,
+      customDomain: undefined,
+      customDomainStatus: "not-set",
+      personalPageUrl: "",
+      embeds: [],
+      press: [],
+      mediaKit: undefined,
+      renewsOn: "",
+      inTrial: false,
+    },
+  };
 }
 
 const __profileOverrides: Record<string, Partial<MyTalentProfile>> = {};

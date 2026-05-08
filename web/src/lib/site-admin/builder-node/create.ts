@@ -315,7 +315,7 @@ function createAgencySearchHeroPreset(): Exclude<BuilderNode, { kind: "section" 
       gap: "m",
       dataBinding: {
         sourceKey: "tenant_directory_search",
-        mode: "auto",
+        mode: "bound",
         maxItems: 8,
       },
       style: {
@@ -396,7 +396,7 @@ function createAgencySearchHeroPreset(): Exclude<BuilderNode, { kind: "section" 
           gap: "s",
           align: "center",
           responsive: {
-            tablet: { layout: "row", columns: 3 },
+            tablet: { layout: "grid", columns: 3 },
             mobile: { layout: "grid", columns: 2 },
           },
           style: {
@@ -436,7 +436,7 @@ function createFeaturedTalentGridPreset(): Exclude<BuilderNode, { kind: "section
       gap: "m",
       dataBinding: {
         sourceKey: "featured_talent_profiles",
-        mode: "auto",
+        mode: "bound",
         maxItems: 4,
       },
       style: {
@@ -578,7 +578,7 @@ function createLocationProofBandPreset(): Exclude<BuilderNode, { kind: "section"
       gap: "m",
       dataBinding: {
         sourceKey: "talent_locations",
-        mode: "auto",
+        mode: "bound",
         maxItems: 6,
       },
       style: {
@@ -608,6 +608,7 @@ function createLocationProofBandPreset(): Exclude<BuilderNode, { kind: "section"
           gap: "s",
           align: "center",
           responsive: {
+            tablet: { layout: "grid", columns: 2 },
             mobile: { layout: "grid", columns: 2 },
           },
         },

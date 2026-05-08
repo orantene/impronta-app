@@ -9,9 +9,10 @@
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantScopeBySlug, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { WorkspaceNotAvailableScreen } from "@/components/talent/workspace-not-available-screen";
 import {
   loadWorkspaceRosterForCurrentTenant,
   loadInquiriesForMessages,
@@ -23,7 +24,11 @@ import {
   loadWorkspaceTeamMembers,
   loadTotalUnreadMessages,
   loadWorkspaceMediaPhotos,
+  loadTalentSelfProfile,
+  loadTalentInquiries,
 } from "@/app/prototypes/admin-shell/_data-bridge";
+import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
+import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { AdminShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
 import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
@@ -41,24 +46,32 @@ async function loadTenantIdentity(tenantId: string): Promise<{
   displayName: string;
   planTier: string;
   kind: string;
+  /** Brand logo URL — when set, replaces the "TULALA" wordmark in the
+   *  identity bar. Stored in agency_branding.theme_json.logo_url for
+   *  parity with the public storefront's branded chrome. */
+  logoUrl: string | null;
 } | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const { data, error } = await admin
-    .from("agencies")
-    .select("id, slug, display_name, plan_tier, kind")
-    .eq("id", tenantId)
-    .maybeSingle();
-  if (error || !data) {
-    if (error) logServerError("admin-layout.loadTenantIdentity", error);
+  // Run agency + branding lookups in parallel; branding is optional.
+  const [agencyRes, brandingRes] = await Promise.all([
+    admin.from("agencies").select("id, slug, display_name, plan_tier, kind").eq("id", tenantId).maybeSingle(),
+    admin.from("agency_branding").select("theme_json").eq("tenant_id", tenantId).maybeSingle(),
+  ]);
+  if (agencyRes.error || !agencyRes.data) {
+    if (agencyRes.error) logServerError("admin-layout.loadTenantIdentity", agencyRes.error);
     return null;
   }
+  const data = agencyRes.data;
+  const themeJson = brandingRes.data?.theme_json as { logo_url?: string } | null | undefined;
+  const logoUrl = (themeJson?.logo_url && typeof themeJson.logo_url === "string") ? themeJson.logo_url : null;
   return {
     tenantId: data.id,
     slug: data.slug ?? "",
     displayName: data.display_name ?? "Workspace",
     planTier: data.plan_tier ?? "free",
     kind: data.kind ?? "agency",
+    logoUrl,
   };
 }
 
@@ -107,7 +120,25 @@ export default async function WorkspaceAdminLayout({
 
   // ── Tenant ─────────────────────────────────────────────────────────────────
   const scope = await getTenantScopeBySlug(tenantSlug);
-  if (!scope) notFound();
+  if (!scope) {
+    // Phase 3 — Pure Talent state: if the user has no workspace membership
+    // but IS rostered as a talent in this tenant, show the "Workspace not
+    // available" screen instead of a 404. Truly unrelated users still 404.
+    const portalScope = await getTenantPortalScopeBySlug(tenantSlug);
+    if (portalScope) {
+      // We have a valid tenant. Check if this user is a talent on its roster.
+      const talentProfile = await loadTalentSelfProfile(session.user.id, portalScope.tenantId);
+      if (talentProfile) {
+        return (
+          <WorkspaceNotAvailableScreen
+            tenantSlug={tenantSlug}
+            talentDisplayName={talentProfile.displayName}
+          />
+        );
+      }
+    }
+    notFound();
+  }
 
   // ── Capability ─────────────────────────────────────────────────────────────
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
@@ -134,6 +165,7 @@ export default async function WorkspaceAdminLayout({
     tenantIdentity,
     profileDisplayName,
     mediaPhotos,
+    talentSelfProfile,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(),
     loadInquiriesForMessages(tenantId),
@@ -147,7 +179,30 @@ export default async function WorkspaceAdminLayout({
     loadTenantIdentity(tenantId),
     loadProfileDisplayName(session.user.id),
     loadWorkspaceMediaPhotos(tenantId),
+    // Phase 0 — hybrid detection. A workspace admin who is ALSO a talent
+    // on this tenant's roster gets the mode toggle; non-hybrid admins
+    // don't. Returns null when the user has no talent profile here.
+    loadTalentSelfProfile(session.user.id, tenantId),
   ]);
+
+  // Pre-fetch hybrid-only data (talent inquiries + cross-mode unread + user
+  // prefs) for users who have a talent profile on this tenant. Combined into
+  // a single Promise.all so all three queries run in one network wave —
+  // previous version did `await loadTalentInquiries` then a second
+  // `await Promise.all([unread, prefs])`, which added a needless round-trip
+  // to every navigation. Pure-workspace users skip these entirely.
+  const isHybrid = talentSelfProfile != null;
+  const [talentInquiries, talentUnread, userPrefs] = isHybrid
+    ? await Promise.all([
+        loadTalentInquiries(talentSelfProfile!.id, tenantId),
+        loadTalentUnreadCount(talentSelfProfile!.id, tenantId),
+        loadUserPrefs(session.user.id),
+      ])
+    : [
+        null as Awaited<ReturnType<typeof loadTalentInquiries>> | null,
+        undefined as number | undefined,
+        null as UserPrefs | null,
+      ];
 
   const sessionIdentity = {
     userId: session.user.id,
@@ -182,6 +237,13 @@ export default async function WorkspaceAdminLayout({
           tenantIdentity,
           sessionIdentity,
           mediaPhotos,
+          talentSelfProfile,
+          talentInquiries,
+          isHybrid,
+          // Phase 5 — cross-mode unread + user prefs
+          talentUnread: talentUnread ?? 0,
+          preferredSurface: userPrefs?.preferredSurface ?? null,
+          firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
         }}
       >
         {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}

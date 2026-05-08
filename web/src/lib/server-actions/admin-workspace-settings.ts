@@ -120,6 +120,28 @@ export async function updateAgencyBranding(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
+  // Also sync watermark preset + logo URL into agency_branding.theme_json so
+  // the public-readable agency_branding table has the latest watermark config.
+  // agency_branding is publicly readable; agencies.settings is staff-only.
+  if (v.watermark_preset !== undefined || v.logo_url !== undefined) {
+    const { data: brandingRow } = await supabase
+      .from("agency_branding")
+      .select("theme_json")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    const currentTheme: Record<string, unknown> =
+      typeof brandingRow?.theme_json === "object" && brandingRow.theme_json !== null
+        ? (brandingRow.theme_json as Record<string, unknown>)
+        : {};
+    const themeUpdate: Record<string, unknown> = { ...currentTheme };
+    if (v.watermark_preset !== undefined) themeUpdate.watermark_preset = v.watermark_preset;
+    if (v.logo_url !== undefined) themeUpdate.logo_url = v.logo_url;
+    // Non-fatal if this fails — settings are still saved
+    await supabase
+      .from("agency_branding")
+      .upsert({ tenant_id: tenantId, theme_json: themeUpdate, updated_at: new Date().toISOString() }, { onConflict: "tenant_id" });
+  }
+
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -308,4 +330,103 @@ export async function updateMediaWatermarkOverride(
 
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+// ─── Load workspace account + fields settings ────────────────────────────────
+
+export type AgencyAccountSettings = {
+  displayName: string | null;
+  contactEmail: string | null;
+  timezone: string | null;
+  primaryLocale: string | null;
+  preferredCurrency: string | null;
+};
+
+export type LoadAccountResult =
+  | { ok: true; data: AgencyAccountSettings }
+  | { ok: false; error: string };
+
+export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const { data: agency, error } = await supabase
+    .from("agencies")
+    .select("display_name, settings, preferred_currency")
+    .eq("id", tenantId)
+    .single();
+
+  if (error) {
+    logServerError("admin-workspace-settings.account.load", error);
+    return { ok: false, error: "Could not load workspace settings." };
+  }
+
+  const settings = (typeof agency?.settings === "object" && agency.settings !== null
+    ? agency.settings
+    : {}) as Record<string, unknown>;
+
+  return {
+    ok: true,
+    data: {
+      displayName:       typeof agency?.display_name === "string" ? agency.display_name : null,
+      contactEmail:      typeof settings.contact_email === "string" ? settings.contact_email : null,
+      timezone:          typeof settings.timezone === "string" ? settings.timezone : null,
+      primaryLocale:     typeof settings.primary_locale === "string" ? settings.primary_locale : null,
+      preferredCurrency: typeof agency?.preferred_currency === "string" ? agency.preferred_currency : null,
+    },
+  };
+}
+
+// ─── Load saved branding settings ────────────────────────────────────────────
+
+export type AgencyBrandingSettings = {
+  logoUrl: string | null;
+  primaryColor: string | null;
+  accentColor: string | null;
+  tagline: string | null;
+  description: string | null;
+  watermarkPreset: WatermarkPreset | null;
+};
+
+export type LoadBrandingResult =
+  | { ok: true; data: AgencyBrandingSettings }
+  | { ok: false; error: string };
+
+export async function loadAgencyBrandingSettings(): Promise<LoadBrandingResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const { data: agency, error } = await supabase
+    .from("agencies")
+    .select("settings")
+    .eq("id", tenantId)
+    .single();
+
+  if (error) {
+    logServerError("admin-workspace-settings.branding.load", error);
+    return { ok: false, error: "Could not load branding settings." };
+  }
+
+  const settings = (typeof agency?.settings === "object" && agency.settings !== null
+    ? agency.settings
+    : {}) as Record<string, unknown>;
+  const branding = (typeof settings.branding === "object" && settings.branding !== null
+    ? settings.branding
+    : {}) as Record<string, unknown>;
+
+  return {
+    ok: true,
+    data: {
+      logoUrl:         typeof branding.logo_url === "string" ? branding.logo_url : null,
+      primaryColor:    typeof branding.primary_color === "string" ? branding.primary_color : null,
+      accentColor:     typeof branding.accent_color === "string" ? branding.accent_color : null,
+      tagline:         typeof branding.tagline === "string" ? branding.tagline : null,
+      description:     typeof branding.description === "string" ? branding.description : null,
+      watermarkPreset: (branding.watermark_preset && typeof branding.watermark_preset === "object"
+        ? branding.watermark_preset as WatermarkPreset
+        : null),
+    },
+  };
 }

@@ -11,6 +11,10 @@ import {
   updateRosterTalentWorkflow,
   registerRosterTalentPhoto,
 } from "./actions";
+import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
+import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
+import { setTalentAvatar, setTalentHero } from "./extended-actions";
+import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 
 // ─── Design tokens (match workspace shell) ────────────────────────────────────
 
@@ -150,11 +154,20 @@ function PhotoUploader({
   initialUrl: string | null;
   displayName: string;
 }) {
+  type Stage =
+    | { kind: "idle" }
+    | { kind: "preparing" }
+    | { kind: "uploading" }
+    | { kind: "registering" }
+    | { kind: "saved"; mediaId: string }
+    | { kind: "error"; message: string };
+
   const [photoUrl, setPhotoUrl] = useState<string | null>(initialUrl);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const fileRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+  const uploading =
+    stage.kind === "preparing" || stage.kind === "uploading" || stage.kind === "registering";
 
   const initials = displayName
     .split(/\s+/)
@@ -168,27 +181,28 @@ function PhotoUploader({
     e.target.value = "";
     if (!file) return;
     if (file.size > 20 * 1024 * 1024) {
-      setError("Image must be under 20 MB.");
+      setStage({ kind: "error", message: "Image must be under 20 MB." });
       return;
     }
-    setUploading(true);
-    setError(null);
     try {
+      setStage({ kind: "preparing" });
       const { blob, width, height } = await prepareAvatarFile(file);
       const storagePath = `${talentId}/public/${crypto.randomUUID()}.webp`;
       if (!supabase) throw new Error("Storage client unavailable.");
+
+      setStage({ kind: "uploading" });
       const { error: upErr } = await supabase.storage
         .from("media-public")
         .upload(storagePath, blob, { contentType: "image/webp", upsert: false });
-      if (upErr) throw new Error(upErr.message);
+      if (upErr) throw new Error(`Storage upload failed: ${upErr.message}`);
 
+      setStage({ kind: "registering" });
       const result: RegisterPhotoResult = await registerRosterTalentPhoto(tenantSlug, talentId, storagePath, width, height);
-      if (!result.ok) throw new Error(result.error);
+      if (!result.ok) throw new Error(`DB save failed: ${result.error}`);
       setPhotoUrl(result.publicUrl);
+      setStage({ kind: "saved", mediaId: result.mediaId });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed.");
-    } finally {
-      setUploading(false);
+      setStage({ kind: "error", message: err instanceof Error ? err.message : "Upload failed." });
     }
   }, [talentId, tenantSlug, supabase]);
 
@@ -284,13 +298,92 @@ function PhotoUploader({
           opacity: uploading ? 0.5 : 1,
         }}
       >
-        {uploading ? "Uploading…" : photoUrl ? "Change photo" : "Add photo"}
+        {uploading ? "Working…" : photoUrl ? "Change photo" : "Add photo"}
       </button>
 
-      {error && (
-        <p style={{ fontFamily: F, fontSize: 11.5, color: C.error, margin: 0, textAlign: "center" }}>
-          {error}
-        </p>
+      <UploadStatus stage={stage} />
+    </div>
+  );
+}
+
+function UploadStatus({
+  stage,
+}: {
+  stage:
+    | { kind: "idle" }
+    | { kind: "preparing" }
+    | { kind: "uploading" }
+    | { kind: "registering" }
+    | { kind: "saved"; mediaId: string }
+    | { kind: "error"; message: string };
+}) {
+  if (stage.kind === "idle") return null;
+
+  const steps: Array<{ key: "preparing" | "uploading" | "registering"; label: string }> = [
+    { key: "preparing",   label: "Prepare image" },
+    { key: "uploading",   label: "Upload to storage" },
+    { key: "registering", label: "Save to database" },
+  ];
+
+  // Determine each step's state.
+  const order = ["preparing", "uploading", "registering"] as const;
+  const activeIdx = stage.kind === "preparing" ? 0
+    : stage.kind === "uploading" ? 1
+    : stage.kind === "registering" ? 2
+    : stage.kind === "saved" ? 3
+    : -1; // error: mark active = unknown
+
+  const errorAt =
+    stage.kind === "error"
+      ? /storage upload failed/i.test(stage.message) ? 1
+      : /db save failed|could not save|verify/i.test(stage.message) ? 2
+      : 0
+      : -1;
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 240,
+        marginTop: 4,
+        padding: "8px 10px",
+        border: `1px solid ${C.border}`,
+        borderRadius: 8,
+        background: stage.kind === "saved" ? "rgba(34,140,80,0.06)"
+                  : stage.kind === "error" ? "rgba(200,55,55,0.06)"
+                  : C.accentSoft,
+        fontFamily: F,
+        fontSize: 11.5,
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+      }}
+    >
+      {steps.map((s, i) => {
+        const isError = errorAt === i;
+        const isDone = stage.kind === "saved" || (activeIdx > i && !isError);
+        const isActive = activeIdx === i && stage.kind !== "saved";
+        const icon = isError ? "✕" : isDone ? "✓" : isActive ? "…" : "·";
+        const color = isError ? C.error
+                    : isDone ? "#228c50"
+                    : isActive ? C.ink
+                    : C.inkDim;
+        return (
+          <div key={s.key} style={{ display: "flex", gap: 6, color }}>
+            <span style={{ width: 12, textAlign: "center", fontWeight: 700 }}>{icon}</span>
+            <span>{s.label}</span>
+          </div>
+        );
+      })}
+      {stage.kind === "saved" && (
+        <div style={{ marginTop: 4, color: "#228c50", fontWeight: 600 }}>
+          Saved ✓ <span style={{ color: C.inkDim, fontWeight: 400 }}>(id {stage.mediaId.slice(0, 8)}…)</span>
+        </div>
+      )}
+      {stage.kind === "error" && (
+        <div style={{ marginTop: 4, color: C.error, wordBreak: "break-word" }}>
+          {stage.message}
+        </div>
       )}
     </div>
   );
@@ -326,6 +419,179 @@ function WorkflowBadge({ status }: { status: string }) {
       <span style={{ width: 5, height: 5, borderRadius: "50%", background: m.dot }} />
       {m.label}
     </span>
+  );
+}
+
+// ─── Three-slot photo panel for standalone form ───────────────────────────────
+
+function ThreeSlotPhotoPanel({
+  talentId,
+  tenantSlug,
+  initialPhotoUrl,
+}: {
+  talentId: string;
+  tenantSlug: string;
+  initialPhotoUrl: string | null;
+}) {
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(initialPhotoUrl);
+  const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [focusSlot, setFocusSlot] = useState<"avatar" | "hero" | "gallery">("gallery");
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    void actionLoadTalentMediaBundle(talentId).then((res) => {
+      if (!res.ok) return;
+      const all: MediaAsset[] = [];
+      const { card, cover, gallery } = res.data;
+      if (card) { all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 }); setAvatarUrl(card.url); }
+      if (cover) all.push({ id: cover.id, url: cover.url, variantKind: "banner", sortOrder: 0 });
+      for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder });
+      setAssets(all);
+    });
+  }, [talentId]);
+
+  return (
+    <>
+      <div style={{
+        background: C.card, border: `1px solid ${C.border}`,
+        borderRadius: 14, padding: "16px 14px",
+        display: "flex", flexDirection: "column", gap: 10,
+      }}>
+        <p style={{ fontFamily: F, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.4, textTransform: "uppercase", margin: 0 }}>
+          Photos
+        </p>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+          {/* Avatar slot */}
+          <SlotButton
+            label="Avatar" hint="1:1"
+            imageUrl={avatarUrl}
+            squareSize={72}
+            onClick={() => { setFocusSlot("avatar"); setGalleryOpen(true); }}
+          />
+          {/* Hero slot */}
+          <SlotButton
+            label="Hero" hint="4:5"
+            imageUrl={heroUrl}
+            squareSize={58}
+            heightPx={72}
+            onClick={() => { setFocusSlot("hero"); setGalleryOpen(true); }}
+          />
+          {/* Gallery */}
+          <button
+            type="button"
+            onClick={() => { setFocusSlot("gallery"); setGalleryOpen(true); }}
+            style={{
+              flex: 1, height: 72,
+              background: C.accentSoft,
+              border: `1.5px dashed rgba(15,79,62,0.3)`,
+              borderRadius: 8, cursor: "pointer",
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", gap: 2,
+            }}
+          >
+            <span style={{ fontSize: 18 }}>＋</span>
+            <span style={{ fontFamily: F, fontSize: 10, fontWeight: 600, color: C.accent }}>Gallery</span>
+          </button>
+        </div>
+      </div>
+
+      {galleryOpen && (
+        <MediaGalleryDrawer
+          open={galleryOpen}
+          onOpenChange={setGalleryOpen}
+          talentId={talentId}
+          tenantSlug={tenantSlug}
+          assets={assets}
+          onAssetsChange={setAssets}
+          focusSlot={focusSlot}
+          onSetAvatar={async (mediaAssetId) => {
+            const res = await setTalentAvatar(tenantSlug, talentId, mediaAssetId);
+            if (res.ok) {
+              const hit = assets.find(a => a.id === mediaAssetId);
+              if (hit) setAvatarUrl(hit.url);
+            }
+            return res;
+          }}
+          onSetHero={async (mediaAssetId) => {
+            const res = await setTalentHero(tenantSlug, talentId, mediaAssetId);
+            if (res.ok) {
+              const hit = assets.find(a => a.id === mediaAssetId);
+              if (hit) setHeroUrl(hit.url);
+            }
+            return res;
+          }}
+          onAddToPortfolio={async (storagePath) => {
+            const { registerPortfolioPhoto } = await import("./extended-actions");
+            const res = await registerPortfolioPhoto(tenantSlug, talentId, { storagePath });
+            if (res.ok) return { ok: true, id: res.data?.id };
+            return { ok: false, error: res.error };
+          }}
+          onDeleteAsset={async (mediaAssetId) => {
+            const res = await actionDeleteMediaAssets([mediaAssetId]);
+            if (res.ok) setAssets(prev => prev.filter(a => a.id !== mediaAssetId));
+            return res;
+          }}
+          onUploadFile={async (file, variantKind) => {
+            const fd = new FormData();
+            fd.append("file", file);
+            const allowed = ["gallery", "card", "banner", "lightbox"] as const;
+            const kind = allowed.includes(variantKind as typeof allowed[number])
+              ? (variantKind as typeof allowed[number])
+              : "gallery";
+            const res = await actionUploadAndAssignMedia(fd, talentId, kind);
+            if (!res.ok) return { ok: false, error: res.error };
+            return {
+              ok: true,
+              asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0 },
+            };
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function SlotButton({
+  label, hint, imageUrl, squareSize, heightPx, onClick,
+}: {
+  label: string;
+  hint: string;
+  imageUrl: string | null;
+  squareSize: number;
+  heightPx?: number;
+  onClick: () => void;
+}) {
+  const h = heightPx ?? squareSize;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          width: squareSize, height: h,
+          borderRadius: 8, overflow: "hidden",
+          border: imageUrl ? `2px solid rgba(15,79,62,0.25)` : `1.5px dashed rgba(15,79,62,0.3)`,
+          background: imageUrl ? "transparent" : C.accentSoft,
+          cursor: "pointer", padding: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <span style={{ fontSize: 20, opacity: 0.35 }}>📷</span>
+        )}
+      </button>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontFamily: F, fontSize: 10, fontWeight: 600, color: C.ink }}>{label}</div>
+        <div style={{ fontFamily: F, fontSize: 9, color: C.inkMuted }}>{hint}</div>
+      </div>
+    </div>
   );
 }
 
@@ -732,27 +998,12 @@ export function TalentEditForm({
 
       {/* ── Right: photo + status sidebar ── */}
       <div style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Photo uploader */}
-        <div style={{
-          background: C.card,
-          border: `1px solid ${C.border}`,
-          borderRadius: 14,
-          padding: "20px 16px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 2,
-        }}>
-          <p style={{ fontFamily: F, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.4, textTransform: "uppercase", margin: "0 0 12px" }}>
-            Profile photo
-          </p>
-          <PhotoUploader
-            talentId={talentId}
-            tenantSlug={tenantSlug}
-            initialUrl={initial.photo_url}
-            displayName={initial.display_name}
-          />
-        </div>
+        {/* Three-slot photo block */}
+        <ThreeSlotPhotoPanel
+          talentId={talentId}
+          tenantSlug={tenantSlug}
+          initialPhotoUrl={initial.photo_url}
+        />
 
         <WorkflowSidebar
           tenantSlug={tenantSlug}

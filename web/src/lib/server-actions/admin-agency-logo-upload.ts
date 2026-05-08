@@ -1,15 +1,9 @@
 "use server";
 
-// ============================================================================
-// admin-agency-logo-upload.ts — upload agency logo to media-public storage
-// and persist the URL into agencies.settings.branding.logo_url
-//
-// Stored at: media-public/agency-logos/{tenantId}/logo.{ext}
-// Uses upsert so replacing a logo doesn't orphan the old file.
-// ============================================================================
-
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 
 const ALLOWED_TYPES = ["image/png", "image/svg+xml", "image/jpeg", "image/webp"];
@@ -38,27 +32,34 @@ export async function actionUploadAgencyLogo(
   const ext = file.type === "image/svg+xml"
     ? "svg"
     : file.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
-  const storagePath = `agency-logos/${tenantId}/logo.${ext}`;
+  // UUID in path busts CDN cache on re-upload
+  const storagePath = `agency-logos/${tenantId}/${randomUUID()}.${ext}`;
 
   const bytes = await file.arrayBuffer();
 
-  const { error: uploadError } = await supabase.storage
+  // Use service role for storage so the path doesn't require RLS matching
+  const admin = createServiceRoleClient();
+  const storageClient = admin ?? supabase;
+
+  const { error: uploadError } = await storageClient.storage
     .from("media-public")
-    .upload(storagePath, bytes, { contentType: file.type, upsert: true });
+    .upload(storagePath, bytes, { contentType: file.type, upsert: false });
 
   if (uploadError) {
     logServerError("admin-agency-logo-upload.storage", uploadError);
     return { ok: false, error: "Upload failed. Try again." };
   }
 
-  const { data: urlData } = supabase.storage
+  const { data: urlData } = storageClient.storage
     .from("media-public")
     .getPublicUrl(storagePath);
 
   const logoUrl = urlData.publicUrl;
 
-  // Merge logo_url into agencies.settings.branding
-  const { data: agency } = await supabase
+  // Use service role for DB write (agencies table may have strict RLS in some envs)
+  const dbClient = admin ?? supabase;
+
+  const { data: agency } = await dbClient
     .from("agencies")
     .select("settings")
     .eq("id", tenantId)
@@ -73,7 +74,7 @@ export async function actionUploadAgencyLogo(
       ? (currentSettings.branding as Record<string, unknown>)
       : {};
 
-  const { error: updateErr } = await supabase
+  const { error: updateErr } = await dbClient
     .from("agencies")
     .update({
       settings: {
@@ -88,6 +89,23 @@ export async function actionUploadAgencyLogo(
     logServerError("admin-agency-logo-upload.settings", updateErr);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+
+  // Sync logo_url into agency_branding.theme_json for public-readable access
+  const { data: brandingRow } = await dbClient
+    .from("agency_branding")
+    .select("theme_json")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  const currentTheme: Record<string, unknown> =
+    typeof brandingRow?.theme_json === "object" && brandingRow.theme_json !== null
+      ? (brandingRow.theme_json as Record<string, unknown>)
+      : {};
+  await dbClient
+    .from("agency_branding")
+    .upsert(
+      { tenant_id: tenantId, theme_json: { ...currentTheme, logo_url: logoUrl }, updated_at: new Date().toISOString() },
+      { onConflict: "tenant_id" },
+    );
 
   revalidatePath("/", "layout");
   return { ok: true, logoUrl };

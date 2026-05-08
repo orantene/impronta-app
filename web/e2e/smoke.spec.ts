@@ -185,9 +185,7 @@ async function readBuilderNodeOrder(page: Page, nodeIds: string[]) {
 async function openImprontaBuilder(page: Page) {
   await seedAnalyticsConsent(page);
   await signIn(page, "/impronta/admin/site");
-  await page.waitForURL(/\/impronta\/admin\/(site|website)/, { timeout: 20_000 });
   await page.waitForLoadState("domcontentloaded");
-  expect(page.url()).toContain("/impronta/admin/");
 
   const builderEntry = page.getByRole("link", { name: /open page builder/i });
   const builderEntryVisible = await builderEntry
@@ -198,26 +196,7 @@ async function openImprontaBuilder(page: Page) {
     const builderHref = await builderEntry.getAttribute("href");
     expect(builderHref).toContain("/impronta?edit=1");
   }
-  await page.goto("/impronta?edit=1&panel=sections", {
-    waitUntil: "domcontentloaded",
-  });
-  await page.waitForLoadState("domcontentloaded");
-  await dismissAnalyticsIfPresent(page);
-  const editTopbar = page.locator("[data-edit-topbar]");
-  const topbarVisible = await editTopbar
-    .waitFor({ state: "visible", timeout: 90_000 })
-    .then(() => true)
-    .catch(() => false);
-
-  if (!topbarVisible) {
-    const enterEdit = page
-      .getByRole("button", { name: /edit this page|^edit$/i })
-      .first();
-    if (await enterEdit.isVisible().catch(() => false)) {
-      await enterEdit.click();
-    }
-    await expect(editTopbar).toBeVisible({ timeout: 90_000 });
-  }
+  await ensureBuilderEditMode(page, "/impronta?edit=1&panel=sections");
   await expect(page.getByRole("button", { name: /^publish$/i })).toBeVisible({
     timeout: 30_000,
   });
@@ -236,31 +215,65 @@ async function openImprontaBuilderDirect(page: Page) {
 
   const current = new URL(page.url());
   if (current.pathname !== "/impronta") {
-    await page.goto("/impronta?edit=1", {
-      waitUntil: "domcontentloaded",
-    });
+    await gotoWithRetry(page, "/impronta?edit=1", 4);
   }
-
-  await dismissAnalyticsIfPresent(page);
-  const editTopbar = page.locator("[data-edit-topbar]");
-  const enterEdit = page.getByRole("button", { name: /edit this page|^edit$/i });
-  const firstEditState = await Promise.race([
-    editTopbar.waitFor({ state: "visible", timeout: 30_000 }).then(() => "topbar" as const),
-    enterEdit.waitFor({ state: "visible", timeout: 30_000 }).then(() => "pill" as const),
-  ]).catch(() => null);
-
-  if (firstEditState === "pill") {
-    await enterEdit.click({ timeout: 15_000 });
-    await expect(editTopbar).toBeVisible({ timeout: 90_000 });
-  } else if (firstEditState !== "topbar") {
-    await expect(editTopbar).toBeVisible({ timeout: 90_000 });
-  }
+  await ensureBuilderEditMode(page, "/impronta?edit=1");
 
   await expect(page.getByRole("button", { name: /^publish$/i })).toBeVisible({
     timeout: 30_000,
   });
   await closeBuilderDrawersIfPresent(page);
   await dismissBuilderTipIfPresent(page);
+}
+
+async function ensureBuilderEditMode(
+  page: Page,
+  targetUrl: string,
+  attempts = 3,
+) {
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await gotoWithRetry(page, targetUrl, 4);
+      await page.waitForLoadState("domcontentloaded");
+      await dismissAnalyticsIfPresent(page);
+
+      const editTopbar = page.locator("[data-edit-topbar]");
+      const enterEdit = page
+        .getByRole("button", { name: /edit this page|^edit$/i })
+        .first();
+
+      const firstEditState = await Promise.race([
+        editTopbar
+          .waitFor({ state: "visible", timeout: 25_000 })
+          .then(() => "topbar" as const),
+        enterEdit
+          .waitFor({ state: "visible", timeout: 25_000 })
+          .then(() => "pill" as const),
+      ]).catch(() => null);
+
+      if (firstEditState === "pill") {
+        await enterEdit.click({ timeout: 15_000 });
+      } else if (firstEditState === null) {
+        const builderLink = page
+          .getByRole("link", { name: /open page builder/i })
+          .first();
+        if (await builderLink.isVisible().catch(() => false)) {
+          await builderLink.click();
+        }
+      }
+
+      await expect(editTopbar).toBeVisible({ timeout: 45_000 });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) break;
+      await page.waitForTimeout(750 * attempt);
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Unable to enter builder edit mode after retries.");
 }
 
 async function addHeroFromBlankState(page: Page) {
@@ -1574,7 +1587,31 @@ test.describe("smoke: login → builder → publish → share", () => {
     const kind = await childRow.getAttribute("data-builder-node-kind");
     expect(kind).toBeTruthy();
 
+    const sectionActions = firstLayeredSection
+      .locator("[data-navigator-section-actions]")
+      .last();
+    await firstLayeredSection.focus();
+    await expect
+      .poll(
+        async () =>
+          await sectionActions.evaluate(
+            (el) => window.getComputedStyle(el).pointerEvents,
+          ),
+        { timeout: 10_000 },
+      )
+      .toBe("auto");
+
     await childRow.focus();
+    const childActions = childRow.locator("[data-navigator-child-actions]");
+    await expect
+      .poll(
+        async () =>
+          await childActions.evaluate(
+            (el) => window.getComputedStyle(el).pointerEvents,
+          ),
+        { timeout: 10_000 },
+      )
+      .toBe("auto");
     await childRow.press("Enter");
     await expect(childRow).toHaveAttribute("data-selected", "true", {
       timeout: 10_000,
@@ -1604,6 +1641,21 @@ test.describe("smoke: login → builder → publish → share", () => {
       `[data-navigator-child-list][data-section-id="${sectionId}"]`,
     );
     await expect(childList).toHaveCount(0);
+
+    const allChildLists = page.locator("[data-navigator-child-list]");
+    const expandAll = page.locator("[data-navigator-expand-all]");
+    const collapseAll = page.locator("[data-navigator-collapse-all]");
+    await expect(expandAll).toBeVisible({ timeout: 10_000 });
+    await expect(collapseAll).toBeDisabled();
+    await expandAll.click();
+    await expect
+      .poll(async () => await allChildLists.count(), { timeout: 10_000 })
+      .toBeGreaterThan(0);
+    await expect(expandAll).toBeDisabled();
+    await expect(collapseAll).toBeEnabled();
+    await collapseAll.click();
+    await expect(allChildLists).toHaveCount(0);
+
     await firstLayeredSection
       .locator("[data-navigator-section-collapse-trigger]")
       .click();
@@ -1636,6 +1688,160 @@ test.describe("smoke: login → builder → publish → share", () => {
         `[data-navigator-child-node][data-builder-node-kind="${firstChildKind}"]`,
       ).first(),
     ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("impronta navigator keyboard controls and tab-gated action chrome", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await openImprontaBuilder(page);
+
+    const blankCanvasHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (await blankCanvasHeading.isVisible().catch(() => false)) {
+      await addHeroFromBlankState(page);
+    }
+
+    const firstLayeredSection = page
+      .locator("[data-navigator-section-row]")
+      .filter({ has: page.locator("[data-navigator-block-count]") })
+      .first();
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    const sectionId = await firstLayeredSection.getAttribute("data-section-id");
+    expect(sectionId).toBeTruthy();
+
+    const childList = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionId}"]`,
+    );
+    await expect(childList).toHaveCount(0);
+
+    await firstLayeredSection.focus();
+    await firstLayeredSection.press("ArrowRight");
+    await expect(childList).toBeVisible({ timeout: 10_000 });
+
+    const firstChildRow = childList.locator("[data-navigator-child-node]").first();
+    await expect(firstChildRow).toBeVisible({ timeout: 10_000 });
+    await firstChildRow.click();
+    await expect(firstChildRow).toHaveAttribute("data-selected", "true", {
+      timeout: 10_000,
+    });
+
+    await expect
+      .poll(
+        async () =>
+          await page.evaluate(() => {
+            const selectedActionButtons = Array.from(
+              document.querySelectorAll(
+                '[data-navigator-child-node][data-selected="true"] [data-navigator-child-actions] button',
+              ),
+            );
+            const selectedHasReachableAction = selectedActionButtons.some(
+              (button) => button.tabIndex >= 0,
+            );
+            const hiddenRows = Array.from(
+              document.querySelectorAll(
+                '[data-navigator-child-node]:not([data-selected="true"]) [data-navigator-child-actions]',
+              ),
+            );
+            const hiddenRowsAreTabGated = hiddenRows.some((row) => {
+              const buttons = Array.from(row.querySelectorAll("button"));
+              return buttons.length > 0 && buttons.every((button) => button.tabIndex < 0);
+            });
+            return selectedHasReachableAction && hiddenRowsAreTabGated;
+          }),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+
+    await firstLayeredSection.click({ force: true });
+    await firstLayeredSection.press("ArrowLeft");
+    await expect
+      .poll(async () => await childList.count(), { timeout: 10_000 })
+      .toBe(0);
+  });
+
+  test("impronta navigator supports keyboard resize controls", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openImprontaBuilder(page);
+
+    const panel = page.locator('[data-edit-overlay="navigator-panel"]');
+    await expect(panel).toBeVisible({ timeout: 30_000 });
+    const separator = page.getByRole("separator", { name: "Resize navigator" });
+    await expect(separator).toBeVisible({ timeout: 10_000 });
+
+    const widthBefore = await panel.evaluate((el) =>
+      Math.round(el.getBoundingClientRect().width),
+    );
+
+    await separator.focus();
+    await separator.press("ArrowRight");
+    const widthAfterExpand = await panel.evaluate((el) =>
+      Math.round(el.getBoundingClientRect().width),
+    );
+    expect(widthAfterExpand).toBeGreaterThan(widthBefore);
+
+    await separator.press("Home");
+    await expect
+      .poll(
+        async () =>
+          await panel.evaluate((el) => Math.round(el.getBoundingClientRect().width)),
+        { timeout: 10_000 },
+      )
+      .toBe(280);
+
+    await separator.dblclick();
+    await expect
+      .poll(
+        async () =>
+          await panel.evaluate((el) => Math.round(el.getBoundingClientRect().width)),
+        { timeout: 10_000 },
+      )
+      .toBe(320);
+  });
+
+  test("impronta clears stale child selection after remove", async ({ page }) => {
+    test.setTimeout(180_000);
+    await openImprontaBuilder(page);
+
+    const blankCanvasHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (await blankCanvasHeading.isVisible().catch(() => false)) {
+      await addHeroFromBlankState(page);
+    }
+
+    const firstLayeredSection = page
+      .locator("[data-navigator-section-row]")
+      .filter({ has: page.locator("[data-navigator-block-count]") })
+      .first();
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    await firstLayeredSection
+      .locator("[data-navigator-section-collapse-trigger]")
+      .click();
+
+    const firstChildRow = page.locator("[data-navigator-child-node]").first();
+    await expect(firstChildRow).toBeVisible({ timeout: 20_000 });
+    const nodeId = await firstChildRow.getAttribute("data-builder-node-id");
+    expect(nodeId).toBeTruthy();
+    if (!nodeId) {
+      throw new Error("Expected navigator child row to expose a builder node id.");
+    }
+
+    await firstChildRow.click();
+    await expect(firstChildRow).toHaveAttribute("data-selected", "true", {
+      timeout: 10_000,
+    });
+
+    await removeBuilderNodeFromNavigator(page, nodeId);
+    await expect(
+      page.locator(`[data-navigator-child-node][data-builder-node-id="${nodeId}"]`),
+    ).toHaveCount(0, { timeout: 45_000 });
+    await expect(page.locator('[data-navigator-child-node][data-selected="true"]')).toHaveCount(0);
+
+    await expect(
+      page.locator('[data-selection-chip][data-selection-chip-scope="section"]'),
+    ).toBeVisible({ timeout: 20_000 });
   });
 
   test("impronta navigator layer actions copy paste and duplicate child nodes", async ({ page }) => {

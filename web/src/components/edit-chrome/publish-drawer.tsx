@@ -215,6 +215,7 @@ export function PublishDrawer() {
     publishOpen,
     closePublish,
     openPageSettings,
+    setSelectedSectionId,
     slots,
     slotDefs,
     pageMetadata,
@@ -485,6 +486,9 @@ export function PublishDrawer() {
                 refreshKey={publishOpen ? 1 : 0}
                 locale={locale}
                 onStatusChange={handlePreflightStatusChange}
+                onFocusSection={(sectionId) => {
+                  setSelectedSectionId(sectionId);
+                }}
               />
             </div>
             {/* ── Preview thumbnail + stats ───────────────────────── */}

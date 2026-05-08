@@ -4,15 +4,18 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 import {
   BUILDER_DATA_SOURCE_REGISTRY,
+  builderDataSourceAllowedForPlan,
   builderNodeSupportsDataBinding,
   getBuilderDataBindingFindings,
   getBuilderDataSourceDefinition,
   getDefaultBuilderDataBinding,
   normalizeBuilderDataBinding,
   type BuilderDataBinding,
+  type BuilderDataBindingMode,
   type BuilderDataSourceKey,
   type BuilderNode,
 } from "@/lib/site-admin/builder-node";
+import { useEditContext } from "../edit-context";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented } from "../kit";
 import { KIT } from "./kit/tokens";
 
@@ -30,6 +33,7 @@ export function DataPanel({
   onPatchBuilderNodeProps,
   onMutationError,
 }: DataPanelProps) {
+  const { workspacePlan } = useEditContext();
   const persistedBinding = useMemo(
     () =>
       selectedBuilderNode
@@ -64,13 +68,16 @@ export function DataPanel({
   const source =
     getBuilderDataSourceDefinition(binding?.sourceKey) ??
     getBuilderDataSourceDefinition("featured_talent_profiles");
+  const hasSourcePlanAccess = source
+    ? builderDataSourceAllowedForPlan(source.key, workspacePlan)
+    : true;
   const findings = getBuilderDataBindingFindings({
     ...selectedBuilderNode,
     props: {
       ...(selectedBuilderNode.props as Record<string, unknown>),
       dataBinding: binding ?? undefined,
     },
-  } as BuilderNode);
+  } as BuilderNode, { workspacePlan });
 
   async function commitBinding(next: BuilderDataBinding | null) {
     if (!selectedBuilderNode) return;
@@ -129,15 +136,31 @@ export function DataPanel({
                 className={KIT.input}
                 value={binding?.sourceKey ?? ""}
                 onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                  const nextSource = event.currentTarget.value as BuilderDataSourceKey;
-                  void commitBinding(getDefaultBuilderDataBinding(nextSource));
+                  const nextSource = event.currentTarget.value;
+                  if (!nextSource) {
+                    void commitBinding(null);
+                    return;
+                  }
+                  const sourceDef = getBuilderDataSourceDefinition(nextSource);
+                  if (!sourceDef) return;
+                  if (!builderDataSourceAllowedForPlan(sourceDef.key, workspacePlan)) {
+                    return;
+                  }
+                  void commitBinding(getDefaultBuilderDataBinding(sourceDef.key));
                 }}
                 aria-label="Choose builder data source"
               >
                 <option value="">Manual content</option>
                 {BUILDER_DATA_SOURCE_REGISTRY.map((entry) => (
-                  <option key={entry.key} value={entry.key}>
+                  <option
+                    key={entry.key}
+                    value={entry.key}
+                    disabled={!builderDataSourceAllowedForPlan(entry.key, workspacePlan)}
+                  >
                     {entry.label}
+                    {!builderDataSourceAllowedForPlan(entry.key, workspacePlan)
+                      ? ` (${requiredPlanLabel(entry.requiredPlan)})`
+                      : ""}
                   </option>
                 ))}
               </select>
@@ -154,17 +177,34 @@ export function DataPanel({
                 <Segmented
                   fullWidth
                   compact
-                  value={(binding.mode ?? "auto") as "auto" | "manual"}
-                  onChange={(next) => patchBinding({ mode: next as "auto" | "manual" })}
+                  value={(binding.mode ?? "bound") as BuilderDataBindingMode}
+                  onChange={(next) =>
+                    patchBinding({ mode: next as BuilderDataBindingMode })
+                  }
                   options={[
-                    { value: "auto", label: "Auto" },
+                    { value: "bound", label: "Bound" },
                     { value: "manual", label: "Manual" },
+                    { value: "hybrid", label: "Hybrid" },
                   ]}
                 />
                 <Helper>
-                  Auto stays synced. Manual lets the operator curate exact records later.
+                  Bound stays synced to live data. Manual is fully curated. Hybrid mixes live data with operator curation.
                 </Helper>
               </Field>
+            ) : null}
+
+            {binding && source && !hasSourcePlanAccess ? (
+              <div
+                className="rounded-lg border px-3 py-2 text-[11px] leading-snug text-amber-800"
+                style={{
+                  borderColor: "rgba(217, 119, 6, 0.35)",
+                  background: "rgba(251, 191, 36, 0.12)",
+                }}
+                data-builder-data-plan-warning=""
+              >
+                This source requires {requiredPlanLabel(source.requiredPlan)}. Switch to
+                a compatible source or upgrade this workspace plan.
+              </div>
             ) : null}
 
             {binding && source?.recommendedMaxItems ? (
@@ -278,4 +318,17 @@ function cleanBinding(binding: BuilderDataBinding): BuilderDataBinding {
   if (binding.filterQuery?.trim()) next.filterQuery = binding.filterQuery.trim();
   if (binding.maxItems) next.maxItems = Math.max(1, Math.min(100, binding.maxItems));
   return next;
+}
+
+function requiredPlanLabel(plan: string): string {
+  switch (plan) {
+    case "studio":
+      return "Studio+";
+    case "agency":
+      return "Agency+";
+    case "network":
+      return "Network";
+    default:
+      return "Free+";
+  }
 }

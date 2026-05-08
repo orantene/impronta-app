@@ -799,7 +799,7 @@ export function GallerySection({
         }
         const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase().slice(0, 5);
         const safeExt = ext.replace(/[^a-z0-9]/g, "") || "jpg";
-        const storagePath = `talent-portfolio/${talentId}/${crypto.randomUUID()}.${safeExt}`;
+        const storagePath = `${talentId}/gallery/${crypto.randomUUID()}.${safeExt}`;
         const { error: upErr } = await supabase.storage
           .from("media-public")
           .upload(storagePath, file, {

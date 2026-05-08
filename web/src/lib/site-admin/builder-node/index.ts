@@ -10,3 +10,4 @@ export * from "./operations";
 export * from "./drop-policy";
 export * from "./layout-health";
 export * from "./render";
+export * from "./mutation-feedback";

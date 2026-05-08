@@ -2,10 +2,37 @@
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { addTalentToRoster } from "./_actions";
+import { addTalentToRoster, bulkAddTalentToRoster } from "./_actions";
+import { parseTalentCsv } from "./_csv-parser";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
-import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
+import {
+  updateTalentAbout,
+  updateTalentLocation,
+  updateTalentRates,
+  updateTalentAvailability,
+  updateTalentCredits,
+  updateTalentLimits,
+  updateTalentSocialProof,
+  updateTalentMediaAlbums,
+  updateTalentDocuments,
+  updateRosterMeta,
+  getTalentProfileActivity,
+  getTalentProfileEditorData,
+  sendTalentClaimInvite,
+  assignTalentTaxonomyBySlug,
+  removeTalentTaxonomyBySlug,
+  type ProfileActivityEntry,
+} from "@/lib/server-actions/admin-talent-profile-sections";
+import { saveTalentLanguages } from "@/lib/server-actions/admin-talent-languages";
+import {
+  updateSelfAbout, updateSelfLocation, updateSelfRates, updateSelfAvailability,
+  updateSelfCredits, updateSelfLimits, updateSelfSocialProof, saveSelfLanguages, updateSelfIdentity,
+} from "@/lib/server-actions/talent-self-profile-sections";
+import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, loadAgencyBrandingSettings, loadWorkspaceAccountSettings, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
+import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
+import { setTalentAvatar, setTalentHero, registerPortfolioPhoto } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions";
 import { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
 import { actionUploadAgencyLogo } from "@/lib/server-actions/admin-agency-logo-upload";
 import { createManualBooking, duplicateBooking } from "@/lib/server-actions/admin-bookings";
@@ -30,7 +57,7 @@ import {
 } from "@/lib/server-actions/admin-taxonomy";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
-import { SkillSlotPanel } from "./_skill-slot-panel";
+import { prefetchSkillsData, SkillSlotPanel } from "./_skill-slot-panel";
 import { TrustBadgesPanel } from "./_phase7-drawers";
 import { MetricsRibbon } from "./_metrics-ribbon";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
@@ -83,7 +110,6 @@ import {
   PROFICIENCY_META,
   BIO_TONES,
   PHOTO_TAG_META,
-  PROFILE_TEMPLATES,
   TALENT_INVITES,
   deriveAge,
   ageRangeFor,
@@ -153,7 +179,6 @@ import {
   type VacationWindow,
   type PackageRate,
   type PastClient,
-  type ProfileTemplate,
   type FieldLockPath,
   type TalentInvite,
   type InviteStatus,
@@ -4012,12 +4037,13 @@ function ReviewKv({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ChipsInput({ label, placeholder, values, onChange }: {
+type ChipsInputProps = {
   label: string;
   placeholder: string;
   values: string[];
   onChange: (v: string[]) => void;
-}) {
+};
+const ChipsInput = React.memo(({ label, placeholder, values, onChange }: ChipsInputProps) => {
   const [draft, setDraft] = useState("");
   const commit = () => {
     const v = draft.trim();
@@ -4066,7 +4092,7 @@ function ChipsInput({ label, placeholder, values, onChange }: {
       </div>
     </div>
   );
-}
+});
 
 // ════════════════════════════════════════════════════════════════════
 // Phase 4 — Talent Profile Shell
@@ -4229,9 +4255,7 @@ function ageString(d: Date): string {
   const sec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
   if (sec < 5) return "just now";
   if (sec < 60) return `${sec}s ago`;
-  // Q6: after 60 seconds, collapse to bare "Saved" — counting forever
-  // implies stale state and adds anxiety. The save IS persisted.
-  return "saved";
+  return "";
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -4266,6 +4290,7 @@ type ProfileState = {
   /** Wide editorial banner shown at the top of the public profile.
    *  Distinct from the avatar/main photo — this is the storyboard. */
   coverPhotoUrl: string | null;
+  coverPhotoAssetId: string | null;
   /** Albums now carry per-photo metadata (tag, alt, caption). */
   albumsPro: { id: string; name: string; items: PhotoMeta[] }[];
   activeAlbumId: string;
@@ -4275,10 +4300,12 @@ type ProfileState = {
   /** 30-sec hello reel — top-of-profile intro. */
   helloReel: VideoSlot | null;
   /** Industry-standard polaroid set: front / side / back / smile / no makeup. */
-  polaroids: { id: string; angle: string; url: string | null }[];
+  polaroids: { id: string; angle: string; url: string | null; mediaAssetId?: string | null }[];
 
-  // Files — work documents (W-8BEN, NDA, model release, certifications, …)
-  files: { id: string; name: string; kind: string; sizeBytes?: number; uploadedAt: string }[];
+  // Files — work documents (W-8BEN, NDA, model release, certifications, …).
+  // When `storagePath` is set, the file lives in the private media-originals
+  // bucket and can be downloaded via actionGetTalentDocumentSignedUrl.
+  files: { id: string; name: string; kind: string; sizeBytes?: number; uploadedAt: string; storagePath?: string; bucketId?: string; mimeType?: string; uploading?: boolean }[];
 
   // Limits — hard/soft constraints (no nudity, no fur, etc.)
   limits: { id: string; category: string; label: string; enforcement: "hard" | "soft" }[];
@@ -4378,8 +4405,13 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
   // look up the full profile in TALENT_PROFILES_BY_ID. Falls back to
   // MY_TALENT_PROFILE for legacy callers that don't pass talentId
   // (registration wizard, brand-new "create" flow).
-  const canonicalProfile: MyTalentProfile = payload.talentId
-    ? getProfileById(payload.talentId)
+  // For real DB talents (UUID not in the prototype fixture map) we want empty
+  // defaults — DB hydration via getTalentProfileEditorData fills the real values
+  // on open. Falling back to MY_TALENT_PROFILE makes fresh talents display
+  // Marta's measurements / specialties / credits until the user overwrites them.
+  const isFixtureTalent = !!payload.talentId && payload.talentId in TALENT_PROFILES_BY_ID;
+  const canonicalProfile: MyTalentProfile = isFixtureTalent
+    ? getProfileById(payload.talentId!)
     : MY_TALENT_PROFILE;
   // #4 — Hydrate from the shared draft store. QuickAdd writes here on
   // every input; the Shell reads on mount. So first/last/email/phone/
@@ -4438,9 +4470,11 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
   // Marta. Identity by `payload.talentId` (no name matching). Falls
   // back to empty defaults for fresh `create` mode.
   const hasCanonical = !!payload.talentId && payload.mode !== "create";
-  const travelSeedPassports = canonicalProfile.travel?.passports ?? [];
-  const travelSeedAuth = canonicalProfile.travel?.workAuth ?? [];
-  const bridgeFromMyTalent = hasCanonical ? {
+  // Only read travel/passport fixture data from the mock profile if this is
+  // actually a fixture talent — otherwise these values come from the DB.
+  const travelSeedPassports = isFixtureTalent ? (canonicalProfile.travel?.passports ?? []) : [];
+  const travelSeedAuth = isFixtureTalent ? (canonicalProfile.travel?.workAuth ?? []) : [];
+  const bridgeFromMyTalent = isFixtureTalent ? {
     nationality:    seed.nationality    ?? (travelSeedPassports[0] ?? ""),
     homeCountry:    seed.homeCountry    ?? (travelSeedPassports[0] ?? ""),
     responseTime:   seed.responseTime   ?? "4h" as const,
@@ -4491,10 +4525,10 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     // when available. The drawer's dynamic-fields renderer iterates
     // [primaryType, ...secondaryTypes] so multi-role profiles see
     // every relevant section.
-    primaryType: seed.primaryType ?? draft.primaryType ?? (hasCanonical ? canonicalProfile.primaryType : null),
-    secondaryTypes: seed.secondaryTypes ?? (hasCanonical ? [...canonicalProfile.secondaryTypes] : []),
+    primaryType: seed.primaryType ?? draft.primaryType ?? (isFixtureTalent ? canonicalProfile.primaryType : null),
+    secondaryTypes: seed.secondaryTypes ?? (isFixtureTalent ? [...canonicalProfile.secondaryTypes] : []),
     aspirations: [],
-    specialties: seed.specialties ?? (hasCanonical ? [...canonicalProfile.specialties] : []),
+    specialties: seed.specialties ?? (isFixtureTalent ? [...canonicalProfile.specialties] : []),
     serviceArea: {
       homeBase: seed.homeBase ?? draft.homeBase ?? "",
       serviceCities: seed.serviceCities ?? [],
@@ -4511,6 +4545,7 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     },
     seasonalWindows: [],
     coverPhotoUrl: null,
+    coverPhotoAssetId: null,
     albumsPro: [{ id: "main", name: "Main", items }],
     activeAlbumId: "main",
     videoLinks: [],
@@ -4531,7 +4566,7 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     // talent's drawer shows their actual data, not blanks. Maps
     // MyTalentProfile.measurements.* → dynFields keys that match
     // the TAXONOMY_FIELDS["models"] field ids.
-    dynFields: seed.fields ?? (hasCanonical ? {
+    dynFields: seed.fields ?? (isFixtureTalent ? {
       height: canonicalProfile.measurements.heightImperial,
       weight: canonicalProfile.measurements.weight ?? "",
       bust: canonicalProfile.measurements.bust,
@@ -4675,37 +4710,156 @@ function TalentProfileShellDrawer() {
     dispatch({ type: "PATCH", patch: p });
   }, []);
 
-  // ── Phase 3 (deep QA fix) — debounced autosave for the IDENTITY tab ───────
-  //
-  // Until this hook the rich profile editor's "Saved just now" indicator was
-  // a UI lie — every field edit lived in the reducer with no DB persistence.
-  // On close the work was discarded.
-  //
-  // We watch the IdentityEditor's slice of state, debounce 800ms after the
-  // last change, and PATCH talent_profiles via updateTalentIdentity. Skipped
-  // when:
-  //   - drawer is closed (no point firing)
-  //   - mode === "create" (no talent_profile_id yet)
-  //   - payload.talentId is missing
-  //   - identity slice is unchanged from the previous save (cheap deep-eq)
-  //
-  // Other tabs (Services / Location / Media / Albums / Polaroids / About) get
-  // their own autosave effects in subsequent migrations once their schema
-  // gaps are closed.
-  const lastSavedIdentityRef = useRef<string>(JSON.stringify(state.identity));
-  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const autosaveErrorRef = useRef<string | null>(null);
+  // Stable single-field patchers — passed to memoized editors so a keystroke
+  // in one section doesn't re-render every other editor in the active panel.
+  // Each is wrapped in useCallback so its reference is stable across renders.
+  const patchPersonality = React.useCallback((p: Personality) => patch({ personality: p }), [patch]);
+  const patchBios = React.useCallback((bs: LocaleBio[]) => patch({ bios: bs }), [patch]);
+  const patchBioActiveLocale = React.useCallback((l: LocaleCode) => patch({ bioActiveLocale: l }), [patch]);
+  const patchLanguages = React.useCallback((v: ProfileState["languages"]) => patch({ languages: v }), [patch]);
+  const patchPastClients = React.useCallback((c: ProfileState["pastClients"]) => patch({ pastClients: c }), [patch]);
+  const patchVideoLinks = React.useCallback((v: string[]) => patch({ videoLinks: v }), [patch]);
+  const patchCoverUrl = React.useCallback((u: string | null) => patch({ coverPhotoUrl: u }), [patch]);
+  const patchCoverAssetId = React.useCallback((id: string | null) => patch({ coverPhotoAssetId: id }), [patch]);
+  const patchHelloReel = React.useCallback((r: ProfileState["helloReel"]) => patch({ helloReel: r }), [patch]);
+  const patchPolaroids = React.useCallback((p: ProfileState["polaroids"]) => patch({ polaroids: p }), [patch]);
+  const patchRates = React.useCallback((rs: ProfileState["rates"]) => patch({ rates: rs }), [patch]);
+  const patchCredits = React.useCallback((c: ProfileState["credits"]) => patch({ credits: c }), [patch]);
+  const patchLimits = React.useCallback((l: ProfileState["limits"]) => patch({ limits: l }), [patch]);
+  const patchFiles = React.useCallback((f: ProfileState["files"]) => patch({ files: f }), [patch]);
+  // Stable service-area sub-field patchers so memoized ChipsInput children
+  // don't re-render every time an unrelated field changes.
+  const patchServiceCities = React.useCallback((v: string[]) => patch({ serviceArea: { ...state.serviceArea, serviceCities: v } }), [patch, state.serviceArea]);
+  const patchWorkEligibility = React.useCallback((v: string[]) => patch({ serviceArea: { ...state.serviceArea, workEligibility: v } }), [patch, state.serviceArea]);
+  const patchVisaCountries = React.useCallback((v: string[]) => patch({ serviceArea: { ...state.serviceArea, visaCountries: v } }), [patch, state.serviceArea]);
+  // Stable callback for PhotoGalleryPro so it doesn't re-render on every
+  // unrelated field change. Depends only on the album slice it mutates.
+  const patchActiveAlbumItems = React.useCallback((items: ProfileState["albumsPro"][number]["items"]) => patch({
+    albumsPro: state.albumsPro.map(a => a.id === state.activeAlbumId ? { ...a, items } : a),
+  }), [patch, state.albumsPro, state.activeAlbumId]);
+  // Stable callback for BiosEditor's regenerate button — rebuilds the active
+  // locale bio from the type-defaults template.
+  const onBiosRegenerate = React.useCallback(() => {
+    if (!state.primaryType) return;
+    const defaults = getTypeDefaults(state.primaryType);
+    const text = defaults.bioTemplate({
+      stageName: state.stageName,
+      homeBase: state.serviceArea.homeBase,
+      languages: state.languages.map(l => l.language),
+    });
+    patch({
+      bios: state.bios.map(b => b.locale === state.bioActiveLocale ? { ...b, text } : b),
+    });
+  }, [patch, state.primaryType, state.stageName, state.serviceArea.homeBase, state.languages, state.bios, state.bioActiveLocale]);
+
+  // Phase 1 — avatar + hero local state (hydrated from bundle alongside gallery).
+  const [avatarPhotoUrl, setAvatarPhotoUrl] = useState<string | null>(null);
+  const [heroPhotoUrl, setHeroPhotoUrl] = useState<string | null>(null);
+  // All assets for the gallery drawer (populated during bundle hydration).
+  const [galleryDrawerOpen, setGalleryDrawerOpen] = useState(false);
+  const [galleryDrawerFocus, setGalleryDrawerFocus] = useState<"avatar" | "hero" | "gallery">("gallery");
+  const [galleryAssets, setGalleryAssets] = useState<import("@/components/talent/media-gallery-drawer").MediaAsset[]>([]);
+
+  // Media hydration — when the drawer opens for a real talent, load every
+  // media_assets row owned by them and seed the editor state. Runs once per
+  // drawer-open per talentId. Photos are routed to their original album via
+  // metadata.albumId; uploads from older sessions without that field land in
+  // the first album so nothing disappears from the UI.
+  const hydratedGalleryForRef = useRef<string | null>(null);
+  const [hydratingMedia, setHydratingMedia] = useState(false);
   useEffect(() => {
-    if (!drawerOpen) return;
-    if (mode === "create") return;
+    if (!drawerOpen || mode === "create") return;
     const tid = payload.talentId;
     if (!tid) return;
-    const serialized = JSON.stringify(state.identity);
-    if (serialized === lastSavedIdentityRef.current) return;
+    if (hydratedGalleryForRef.current === tid) return;
+    hydratedGalleryForRef.current = tid;
+    setHydratingMedia(true);
+    void actionLoadTalentMediaBundle(tid).then((res) => {
+      setHydratingMedia(false);
+      if (!res.ok) return;
+      const { gallery, cover, polaroids, card } = res.data;
 
-    // Prototype uses "she/her" style; the DB schema (and our action) uses
-    // the underscore form "she_her" so the column-CHECK constraint
-    // matches. Map at the bridge layer.
+      // Populate Phase 1 avatar/hero local state.
+      if (card?.url) setAvatarPhotoUrl(card.url);
+      // Hero is a future enum value — check by variantKind string.
+      const heroItem = (res.data as { hero?: { url: string } | null }).hero;
+      if (heroItem?.url) setHeroPhotoUrl(heroItem.url);
+
+      // Populate gallery assets for MediaGalleryDrawer.
+      const allAssets: import("@/components/talent/media-gallery-drawer").MediaAsset[] = [];
+      if (card) allAssets.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
+      if (cover) allAssets.push({ id: cover.id, url: cover.url, variantKind: "banner", sortOrder: 0 });
+      for (const g of gallery) allAssets.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder });
+      setGalleryAssets(allAssets);
+
+      // Group gallery items by their stored albumId. Items with no albumId
+      // fall back to the first album (typically "main"). Discover any albumIds
+      // not in the current albumsPro and create empty albums for them so
+      // photos uploaded before to a now-deleted album still surface.
+      const fallbackAlbumId = state.albumsPro[0]?.id ?? "main";
+      const byAlbum = new Map<string, PhotoMeta[]>();
+      for (const g of gallery) {
+        const aid = (g.metadata?.albumId as string | undefined) ?? fallbackAlbumId;
+        const item: PhotoMeta = { url: g.url, mediaAssetId: g.id };
+        const list = byAlbum.get(aid) ?? [];
+        list.push(item);
+        byAlbum.set(aid, list);
+      }
+
+      const knownIds = new Set(state.albumsPro.map(a => a.id));
+      const extraAlbums = [...byAlbum.keys()]
+        .filter(id => !knownIds.has(id))
+        .map(id => ({ id, name: id.replace(/-[a-z0-9]{4,}$/, "").replace(/-/g, " ") || "Untitled", items: byAlbum.get(id) ?? [] }));
+
+      const updatedAlbums = state.albumsPro.map(a => byAlbum.has(a.id) ? { ...a, items: byAlbum.get(a.id)! } : { ...a, items: a.id === fallbackAlbumId ? (byAlbum.get(fallbackAlbumId) ?? []) : a.items });
+
+      const polaroidsHydrated = state.polaroids.map(p => {
+        const hit = polaroids[p.id];
+        return hit ? { ...p, url: hit.url, mediaAssetId: hit.id } : p;
+      });
+
+      patch({
+        albumsPro: [...updatedAlbums, ...extraAlbums],
+        coverPhotoUrl: cover?.url ?? null,
+        coverPhotoAssetId: cover?.id ?? null,
+        polaroids: polaroidsHydrated,
+      });
+    }).catch(() => setHydratingMedia(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawerOpen, mode, payload.talentId]);
+
+  // Prefetch skills data as soon as the drawer opens so the Services tab loads
+  // from cache instead of waiting for a live server action call.
+  useEffect(() => {
+    const tid = payload.talentId;
+    if (!tid || !bridgeTenantIdentity?.tenantId) return;
+    prefetchSkillsData(tid);
+  }, [payload.talentId, bridgeTenantIdentity?.tenantId]);
+
+  // ── Save-button architecture ─────────────────────────────────────────────
+  // No autosave. The user explicitly clicks "Save" in the drawer header to
+  // commit text edits to DB. Photo upload + delete + reorder still happen on
+  // pick/click (intent-based). The Save button waits for any in-flight photo
+  // operations to complete before declaring the whole save done.
+  type SaveStatus = "idle" | "saving" | "saved" | "error";
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // Stash the latest state in a ref so saveAll always reads the current value
+  // without forcing the callback's dep array to include `state` (which would
+  // re-create the callback on every keystroke).
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const saveAll = React.useCallback(async () => {
+    const tid = payload.talentId;
+    if (!tid || mode === "create") {
+      setSaveError("No talent context yet — finish creating first.");
+      setSaveStatus("error");
+      return;
+    }
+    setSaveStatus("saving");
+    setSaveError(null);
+
     const PRONOUNS_TO_DB: Record<string, "she_her" | "he_him" | "they_them" | "ze_zir" | "custom"> = {
       "she/her": "she_her",
       "he/him": "he_him",
@@ -4714,61 +4868,279 @@ function TalentProfileShellDrawer() {
       custom: "custom",
     };
 
-    const handle = setTimeout(async () => {
-      setAutosaveStatus("saving");
-      const id = state.identity;
-      const visibilityDraft = id.visibility;
-      const hasVisibilityPatch = Boolean(
-        visibilityDraft &&
-          (visibilityDraft.legalName ||
-            visibilityDraft.pronouns ||
-            visibilityDraft.gender ||
-            visibilityDraft.dob),
-      );
-      const visibilityPatch = hasVisibilityPatch
-        ? {
-            legalName: [...(visibilityDraft?.legalName ?? ["agency"])],
-            pronouns: [...(visibilityDraft?.pronouns ?? ["agency"])],
-            gender: [...(visibilityDraft?.gender ?? ["agency"])],
-            dob: [...(visibilityDraft?.dob ?? ["agency"])],
-          }
-        : undefined;
-      const result = await updateTalentIdentity({
-        talent_profile_id: tid,
-        stage_name: id.stageName,
-        legal_name: id.legalName,
-        pronunciation: id.pronunciation,
-        pronouns: id.pronouns ? PRONOUNS_TO_DB[id.pronouns] ?? null : null,
-        pronouns_custom: id.pronounsCustom ?? "",
-        gender: id.gender ?? "",
-        date_of_birth: id.dob ?? "",
-        age_display_mode:
-          id.ageDisplay === "exact" || id.ageDisplay === "range" || id.ageDisplay === "hidden"
-            ? id.ageDisplay
-            : undefined,
-        nationality: id.nationality ?? "",
-        response_time:
-          id.responseTime === "1h" ||
-          id.responseTime === "4h" ||
-          id.responseTime === "24h" ||
-          id.responseTime === "48h"
-            ? id.responseTime
-            : null,
-        field_visibility: visibilityPatch,
-      });
-      if (result.ok) {
-        lastSavedIdentityRef.current = serialized;
-        autosaveErrorRef.current = null;
-        setAutosaveStatus("saved");
-      } else {
-        autosaveErrorRef.current = result.error;
-        setAutosaveStatus("error");
-        // eslint-disable-next-line no-console
-        console.error("[talent-identity autosave]", result.error);
+    const s = stateRef.current;
+    const id = s.identity;
+    const visibilityDraft = id.visibility;
+    const visibilityPatch = visibilityDraft && (visibilityDraft.legalName || visibilityDraft.pronouns || visibilityDraft.gender || visibilityDraft.dob)
+      ? {
+          legalName: [...(visibilityDraft.legalName ?? ["agency"])],
+          pronouns: [...(visibilityDraft.pronouns ?? ["agency"])],
+          gender: [...(visibilityDraft.gender ?? ["agency"])],
+          dob: [...(visibilityDraft.dob ?? ["agency"])],
+        }
+      : undefined;
+
+    const identityPayload = {
+      talent_profile_id: tid,
+      stage_name: id.stageName,
+      legal_name: id.legalName,
+      pronunciation: id.pronunciation,
+      pronouns: id.pronouns ? PRONOUNS_TO_DB[id.pronouns] ?? null : null,
+      pronouns_custom: id.pronounsCustom ?? "",
+      gender: id.gender ?? "",
+      date_of_birth: id.dob ?? "",
+      age_display_mode:
+        id.ageDisplay === "exact" || id.ageDisplay === "range" || id.ageDisplay === "hidden" ? id.ageDisplay : undefined,
+      nationality: id.nationality ?? "",
+      response_time:
+        id.responseTime === "1h" || id.responseTime === "4h" || id.responseTime === "24h" || id.responseTime === "48h"
+          ? id.responseTime
+          : null,
+      field_visibility: visibilityPatch,
+    };
+
+    const aboutPayload = {
+      talent_profile_id: tid,
+      bios: s.bios.map(b => ({ locale: b.locale, text: b.text })),
+      bio_tone: s.bioTone ?? null,
+      personality_traits: s.personality ?? [],
+      tagline: s.tagline ?? null,
+    };
+
+    const sa = s.serviceArea;
+    const locationPayload = {
+      talent_profile_id: tid,
+      home_base: sa.homeBase || null,
+      travel_radius_km: sa.travelKm ?? null,
+      travel_fee_required: sa.travelFee ?? false,
+      remote_only: sa.remoteOnly ?? false,
+      passport_status: (sa.passport as "valid" | "expired" | "none" | undefined) ?? null,
+      drivers_license: (sa.driversLicense as "none" | "standard" | "international" | "commercial" | undefined) ?? null,
+      work_eligibility: sa.workEligibility ?? [],
+    };
+
+    const ratesPayload = {
+      talent_profile_id: tid,
+      rates_data: s.rates.map(r => ({ typeId: r.typeId, amount: r.amount, currency: r.currency, unit: r.unit })),
+      package_rates_data: s.packageRates.map(p => ({ id: p.id, name: p.name, description: p.description, amount: p.amount, currency: p.currency })),
+      rate_card_visibility: s.rateCardVisibility as "public" | "agency-only" | "on-request",
+      ask_for_quote: s.askForQuote,
+      travel_included: s.travelIncluded,
+      lodging_included: s.lodgingIncluded,
+    };
+
+    const availPayload = {
+      talent_profile_id: tid,
+      availability_data: { cells: s.availability, recurring: s.recurring, vacation: s.vacation },
+    };
+
+    const langsPayload = {
+      talent_profile_id: tid,
+      languages: s.languages.map(l => ({
+        language: l.language,
+        level: l.level,
+        canHost: (l as { canHost?: boolean }).canHost,
+        canSell: (l as { canSell?: boolean }).canSell,
+        canTranslate: (l as { canTranslate?: boolean }).canTranslate,
+        canTeach: (l as { canTeach?: boolean }).canTeach,
+      })),
+    };
+
+    const creditsPayload = {
+      talent_profile_id: tid,
+      credits_data: s.credits.map(c => ({ id: c.id, brand: c.brand, type: c.type, credit: c.credit, role: c.role, year: c.year, pinned: c.pinned })),
+    };
+
+    const limitsPayload = {
+      talent_profile_id: tid,
+      limits_data: {
+        hardLimits: (s.limits as { hardLimits?: string[] }).hardLimits ?? [],
+        softLimits: (s.limits as { softLimits?: string[] }).softLimits ?? [],
+        customNote: (s.limits as { customNote?: string }).customNote,
+      },
+    };
+
+    const socialPayload = {
+      talent_profile_id: tid,
+      social_proof_data: s.pastClients.map(c => ({ id: c.id, name: c.name, testimonial: c.testimonial, testimonialBy: c.testimonialBy, verified: c.verified })),
+    };
+
+    const rosterMetaPayload = {
+      talent_profile_id: tid,
+      internal_notes: s.internalNotes || null,
+      emergency_contact: s.emergencyContact as { name: string; relation: string; phone: string },
+      field_locks_data: { locks: s.fieldLocks as string[], reasons: s.fieldLockReasons as Record<string, string> },
+      feature_in_directory: s.featureInDirectory,
+    };
+
+    // Albums — id + name + ordering only. Photos are tied to albums by
+    // metadata.albumId and persist independently via actionUploadAndAssignMedia.
+    const albumsPayload = {
+      talent_profile_id: tid,
+      albums: s.albumsPro.map((a, i) => ({ id: a.id, name: a.name, sortOrder: i })),
+    };
+
+    // Documents — metadata only. Files themselves are uploaded on pick to
+    // the private media-originals bucket. We persist the list of refs so
+    // the row reappears with download links on next load. Skip rows that
+    // are still mid-upload (no storagePath yet).
+    const documentsPayload = {
+      talent_profile_id: tid,
+      documents: s.files
+        .filter(f => !!f.storagePath && !!f.bucketId && !f.uploading)
+        .map(f => ({
+          id: f.id,
+          name: f.name,
+          kind: f.kind,
+          storagePath: f.storagePath!,
+          bucketId: f.bucketId!,
+          sizeBytes: f.sizeBytes ?? 0,
+          mimeType: f.mimeType,
+          uploadedAt: f.uploadedAt,
+        })),
+    };
+
+    // Fire all section saves in parallel.
+    const ops: Array<Promise<{ ok: true } | { ok: false; error: string }>> = [
+      isSelf ? updateSelfIdentity(identityPayload) : updateTalentIdentity(identityPayload),
+      isSelf ? updateSelfAbout(aboutPayload) : updateTalentAbout(aboutPayload),
+      isSelf ? updateSelfLocation(locationPayload) : updateTalentLocation(locationPayload),
+      isSelf ? updateSelfRates(ratesPayload) : updateTalentRates(ratesPayload),
+      isSelf ? updateSelfAvailability(availPayload) : updateTalentAvailability(availPayload),
+      isSelf ? saveSelfLanguages(langsPayload) : saveTalentLanguages(langsPayload),
+      isSelf ? updateSelfCredits(creditsPayload) : updateTalentCredits(creditsPayload),
+      isSelf ? updateSelfLimits(limitsPayload) : updateTalentLimits(limitsPayload),
+      isSelf ? updateSelfSocialProof(socialPayload) : updateTalentSocialProof(socialPayload),
+      // Album + document list saves are admin-only for now (no self-edit
+      // equivalents yet — talents see read-only views of these).
+      ...(adminVisible ? [updateTalentMediaAlbums(albumsPayload), updateTalentDocuments(documentsPayload)] : []),
+    ];
+    if (adminVisible) ops.push(updateRosterMeta(rosterMetaPayload));
+
+    const labels = adminVisible
+      ? ["Identity", "About", "Location", "Rates", "Availability", "Languages", "Credits", "Limits", "Social proof", "Albums", "Documents", "Admin"]
+      : ["Identity", "About", "Location", "Rates", "Availability", "Languages", "Credits", "Limits", "Social proof"];
+    const results = await Promise.all(ops);
+
+    const failures = results
+      .map((r, i) => (!r.ok ? `${labels[i]}: ${r.error}` : null))
+      .filter((x): x is string => x !== null);
+
+    if (failures.length === 0) {
+      setSaveStatus("saved");
+      setSaveError(null);
+      // Refresh server-rendered data so the roster card behind the drawer
+      // (and any other surface reading the talent's name / city / type)
+      // reflects the saved values without requiring a full page reload.
+      shellRouter.refresh();
+    } else {
+      setSaveStatus("error");
+      setSaveError(failures.join(" · "));
+      // eslint-disable-next-line no-console
+      console.error("[saveAll] failures:", failures);
+    }
+  }, [payload.talentId, mode, isSelf, adminVisible, shellRouter]);
+
+  // ── Profile editor hydration ──────────────────────────────────────────────
+  // Loads the saved bio / tone / location / rates / credits / limits / social
+  // proof / roster meta from the DB and seeds the reducer the first time the
+  // drawer opens for a given talentId. Without this, the drawer always shows
+  // the prototype's mock initial state and the user's saved edits look "lost"
+  // even though they persisted correctly.
+  const hydratedProfileForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!drawerOpen || mode === "create") return;
+    const tid = payload.talentId;
+    if (!tid) return;
+    if (hydratedProfileForRef.current === tid) return;
+    hydratedProfileForRef.current = tid;
+    void getTalentProfileEditorData({ talent_profile_id: tid }).then((res) => {
+      if (!res.ok) return;
+      const d = res.data;
+      const patchPayload: Partial<ProfileState> = {};
+      if (d.bios && d.bios.length > 0) patchPayload.bios = d.bios as LocaleBio[];
+      if (d.bio_tone) patchPayload.bioTone = d.bio_tone as BioTone;
+      if (d.tagline) patchPayload.tagline = d.tagline;
+      if (d.personality_traits && typeof d.personality_traits === "object") {
+        patchPayload.personality = d.personality_traits as Personality;
       }
-    }, 800);
-    return () => clearTimeout(handle);
-  }, [state.identity, drawerOpen, mode, payload.talentId]);
+      if (d.home_city_text) {
+        patchPayload.serviceArea = {
+          ...state.serviceArea,
+          homeBase: d.home_city_text,
+          travelKm: d.travel_radius_km ?? state.serviceArea.travelKm,
+          travelFee: d.travel_fee_required,
+          remoteOnly: d.remote_only,
+          passport: (d.passport_status as ServiceArea["passport"]) ?? state.serviceArea.passport,
+          driversLicense: (d.drivers_license as ServiceArea["driversLicense"]) ?? state.serviceArea.driversLicense,
+          workEligibility: Array.isArray(d.work_eligibility) ? (d.work_eligibility as string[]) : state.serviceArea.workEligibility,
+        };
+      }
+      if (Array.isArray(d.rates_data) && d.rates_data.length > 0) patchPayload.rates = d.rates_data as ProfileState["rates"];
+      if (Array.isArray(d.package_rates_data) && d.package_rates_data.length > 0) patchPayload.packageRates = d.package_rates_data as ProfileState["packageRates"];
+      if (d.rate_card_visibility) patchPayload.rateCardVisibility = d.rate_card_visibility as ProfileState["rateCardVisibility"];
+      patchPayload.askForQuote = d.ask_for_quote;
+      patchPayload.travelIncluded = d.travel_included;
+      patchPayload.lodgingIncluded = d.lodging_included;
+      if (Array.isArray(d.credits_data) && d.credits_data.length > 0) patchPayload.credits = d.credits_data as ProfileState["credits"];
+      if (d.limits_data && typeof d.limits_data === "object" && !Array.isArray(d.limits_data)) {
+        patchPayload.limits = d.limits_data as ProfileState["limits"];
+      }
+      if (Array.isArray(d.social_proof_data) && d.social_proof_data.length > 0) patchPayload.pastClients = d.social_proof_data as ProfileState["pastClients"];
+      if (d.availability_data && typeof d.availability_data === "object") {
+        const av = d.availability_data as { cells?: unknown[]; recurring?: unknown; vacation?: unknown };
+        if (Array.isArray(av.cells)) patchPayload.availability = av.cells as ProfileState["availability"];
+        if (av.recurring) patchPayload.recurring = av.recurring as ProfileState["recurring"];
+        if (av.vacation) patchPayload.vacation = av.vacation as ProfileState["vacation"];
+      }
+      if (d.internal_notes) patchPayload.internalNotes = d.internal_notes;
+      if (d.emergency_contact && typeof d.emergency_contact === "object") {
+        patchPayload.emergencyContact = d.emergency_contact as ProfileState["emergencyContact"];
+      }
+      if (d.field_locks_data && typeof d.field_locks_data === "object") {
+        const fl = d.field_locks_data as { locks?: unknown[]; reasons?: Record<string, string> };
+        if (Array.isArray(fl.locks)) patchPayload.fieldLocks = fl.locks as ProfileState["fieldLocks"];
+        if (fl.reasons) patchPayload.fieldLockReasons = fl.reasons;
+      }
+      patchPayload.featureInDirectory = d.feature_in_directory;
+
+      // Albums — restore saved {id, name, sortOrder} so renames + ordering
+      // survive reloads. Photo items are restored by the media bundle
+      // hydration (above); we only carry the album metadata here.
+      if (Array.isArray(d.media_albums_data) && d.media_albums_data.length > 0) {
+        const saved = (d.media_albums_data as { id: string; name: string; sortOrder?: number }[])
+          .slice()
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+        // Merge with whatever the media-hydration block populated (which
+        // carries the items[]). Saved albums win on name/order; items come
+        // from the live state at the time of this run.
+        const itemsByAlbum = new Map(state.albumsPro.map(a => [a.id, a.items]));
+        patchPayload.albumsPro = saved.map(s => ({
+          id: s.id,
+          name: s.name,
+          items: itemsByAlbum.get(s.id) ?? [],
+        }));
+      }
+
+      // Documents — restore the file list so download buttons reappear.
+      if (Array.isArray(d.documents_data) && d.documents_data.length > 0) {
+        patchPayload.files = d.documents_data.map(doc => ({
+          id: doc.id,
+          name: doc.name,
+          kind: doc.kind,
+          sizeBytes: doc.sizeBytes,
+          uploadedAt: doc.uploadedAt,
+          storagePath: doc.storagePath,
+          bucketId: doc.bucketId,
+          mimeType: doc.mimeType,
+        }));
+      }
+
+      patch(patchPayload);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawerOpen, mode, payload.talentId]);
+
   const toggleSet = (field: "secondaryTypes" | "specialties" | "contexts" | "aspirations") =>
     (value: string) => dispatch({ type: "TOGGLE_SET", field, value });
   const setSkill = (skillId: string, proficiency: SkillProficiency | null) =>
@@ -4922,14 +5294,6 @@ function TalentProfileShellDrawer() {
     if (Object.keys(updates).length > 0) patch(updates);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.primaryType]);
-
-  // Autosave indicator
-  const stateSnap = JSON.stringify(state);
-  useEffect(() => {
-    if (!drawerOpen) return;
-    const t = setTimeout(() => setSavedAt(new Date()), 800);
-    return () => clearTimeout(t);
-  }, [stateSnap, drawerOpen]);
 
   // Computed trust tier
   const trust = computeTrustTier(state.verifications);
@@ -5195,8 +5559,17 @@ function TalentProfileShellDrawer() {
     }
     finalSubmit();
   };
-  const saveAndExit = () => {
-    toast("Draft saved — pick up where you left off");
+  // Save & exit — fire saveAll(), wait for it, then close. Distinct from
+  // the Save button: saveAll alone keeps the drawer open so the user can
+  // keep editing; this one commits and dismisses in one click.
+  const saveAndExit = async () => {
+    if (payload.talentId && mode !== "create") {
+      await saveAll();
+      // saveAll updates saveStatus internally — close regardless so the
+      // user isn't trapped in the drawer. If saveStatus === "error" they
+      // can reopen and see the error pill on the Save button.
+    }
+    toast("Saved — closing drawer");
     closeDrawer();
   };
 
@@ -5316,24 +5689,10 @@ function TalentProfileShellDrawer() {
           @container pshell (max-width: 720px) {
             [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; }
             [data-tulala-pshell] [data-pshell-body] { padding-bottom: 64px; }
-            [data-tulala-pshell] [data-pshell-mobile-save] {
-              position: fixed; bottom: 0; left: 0; right: 0;
-              z-index: 5;
-              padding: 8px 12px max(8px, env(safe-area-inset-bottom)) 12px;
-              background: rgba(255,255,255,0.96);
-              backdrop-filter: blur(8px);
-              border-top: 1px solid ${COLORS.borderSoft};
-              display: flex; gap: 8px; align-items: center;
-            }
-            [data-tulala-pshell] [data-pshell-mobile-save] [data-pshell-saved] {
-              flex: 1; font-size: 11.5px; color: ${COLORS.inkMuted};
-              display: inline-flex; align-items: center; gap: 4px;
-            }
             [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
           }
           /* Hide mobile-only chrome when the container is wider */
           @container pshell (min-width: 721px) {
-            [data-tulala-pshell] [data-pshell-mobile-save] { display: none !important; }
             [data-tulala-pshell] [data-pshell-mobile-menu] { display: none !important; }
           }
           /* Narrow drawer / phone — rail doesn't fit, fall back to the
@@ -5359,7 +5718,6 @@ function TalentProfileShellDrawer() {
               [data-tulala-pshell] [data-pshell-body] { flex-direction: column; }
             }
             @media (min-width: 721px) {
-              [data-tulala-pshell] [data-pshell-mobile-save] { display: none !important; }
               [data-tulala-pshell] [data-pshell-mobile-menu] { display: none !important; }
             }
           }
@@ -5387,7 +5745,7 @@ function TalentProfileShellDrawer() {
             </div>
             <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: savedAt ? COLORS.green : "rgba(11,11,13,0.20)" }} />
-              {savedAt ? `Saved ${ageString(savedAt)}` : "Not saved yet"}
+              {savedAt ? (ageString(savedAt) ? `Saved ${ageString(savedAt)}` : "Saved") : "Not saved yet"}
             </div>
           </div>
 
@@ -5395,6 +5753,56 @@ function TalentProfileShellDrawer() {
               banner. Click opens a popover with the missing items + jump
               actions. Hidden when nothing is missing. */}
           <HeaderPublishCoach missing={missing} onJump={onJumpToMissing} />
+
+          {/* Workflow status — moved here from the bottom mobile-save bar so
+              it's always one click away. Lets the admin flip the talent
+              between Draft / Pending / Published / Archived without scrolling
+              to the footer. */}
+          <StatusPillDropdown status={state.profileStatus} onChange={(s) => patch({ profileStatus: s })} role={isSelf ? "talent" : "admin"} />
+
+          {/* Save button — always visible in the drawer header, even at narrow
+              widths where the secondary toolbar collapses. Single explicit
+              commit for every text edit. Photos persist immediately on pick;
+              this button orchestrates the rest in one Promise.all. */}
+          {payload.talentId && (
+            <button
+              type="button"
+              onClick={() => { void saveAll().then(() => setSavedAt(new Date())); }}
+              disabled={saveStatus === "saving"}
+              title={saveStatus === "error" && saveError ? saveError : undefined}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "7px 14px", borderRadius: 999, border: "none",
+                background:
+                  saveStatus === "saved" ? "rgba(15,79,62,0.10)"
+                  : saveStatus === "error" ? "rgba(200,40,40,0.10)"
+                  : COLORS.fill,
+                color:
+                  saveStatus === "saved" ? COLORS.accentDeep
+                  : saveStatus === "error" ? "#C82828"
+                  : "#fff",
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700,
+                letterSpacing: 0.2,
+                cursor: saveStatus === "saving" ? "wait" : "pointer",
+                opacity: saveStatus === "saving" ? 0.85 : 1,
+                maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis",
+                whiteSpace: "nowrap", flexShrink: 0,
+              }}
+            >
+              {saveStatus === "saving" && (
+                <span aria-hidden style={{
+                  width: 12, height: 12, borderRadius: "50%",
+                  border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff",
+                  animation: "tulala-spin 0.8s linear infinite",
+                }} />
+              )}
+              {saveStatus === "saving" ? "Saving…"
+                : saveStatus === "saved" ? "✓ Saved"
+                : saveStatus === "error" ? `⚠ ${(saveError ?? "Couldn't save").slice(0, 40)}`
+                : "Save"}
+              <style>{`@keyframes tulala-spin { to { transform: rotate(360deg); } }`}</style>
+            </button>
+          )}
 
           {/* Desktop-only toolbar — every secondary action lives here. */}
           <div data-pshell-header-extras style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
@@ -5408,33 +5816,6 @@ function TalentProfileShellDrawer() {
               background: "transparent", color: COLORS.ink,
               cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0,
             }}>↷</button>
-            {adminVisible && (
-              <>
-                <TemplatesPicker onApply={(tpl) => {
-                  patch({
-                    primaryType: tpl.primaryType,
-                    secondaryTypes: tpl.secondaryTypes ?? [],
-                    serviceArea: tpl.serviceArea ?? state.serviceArea,
-                    rates: tpl.defaultRates ?? state.rates,
-                    languages: tpl.defaultLanguages ?? state.languages,
-                    contexts: tpl.contexts ?? state.contexts,
-                    skillEntries: tpl.skills ?? state.skillEntries,
-                  });
-                  toast(`Applied template: ${tpl.name}`);
-                }} />
-                {state.primaryType && (
-                  <button type="button" onClick={() => {
-                    const child = findChild(state.primaryType);
-                    toast(`Saved as template: ${child?.child.label ?? "Template"} · ${state.serviceArea.homeBase || "—"}`);
-                  }} title="Save this profile as a reusable template" style={{
-                    padding: "5px 11px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
-                    background: "#fff", color: COLORS.ink,
-                    fontSize: 11, fontWeight: 600, cursor: "pointer",
-                    fontFamily: FONTS.body,
-                  }}>★ Save as template</button>
-                )}
-              </>
-            )}
             <button type="button" onClick={() => setViewAsClient(true)} title="View as client" aria-label="View as client" style={{
               padding: "5px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
               background: "#fff", color: COLORS.ink,
@@ -5452,47 +5833,6 @@ function TalentProfileShellDrawer() {
                 fontSize: 11, fontWeight: 500, cursor: "pointer",
                 display: "inline-flex", alignItems: "center", gap: 5,
               }}>⇆ Review changes</button>
-            )}
-            <StatusPillDropdown status={state.profileStatus} onChange={(s) => patch({ profileStatus: s })} role={isSelf ? "talent" : "admin"} />
-
-            {/* Phase 3 (deep QA fix) — autosave status pill. Renders only
-                when the rich identity autosave hook is active (admin mode,
-                editing an existing talent). Mirrors the prototype's
-                "Saved just now" promise but tied to the real DB state. */}
-            {adminVisible && payload.talentId && autosaveStatus !== "idle" && (
-              <span
-                aria-live="polite"
-                title={
-                  autosaveStatus === "error" && autosaveErrorRef.current
-                    ? autosaveErrorRef.current
-                    : undefined
-                }
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  padding: "5px 11px", borderRadius: 999,
-                  background:
-                    autosaveStatus === "saved" ? "rgba(15,79,62,0.08)"
-                    : autosaveStatus === "error" ? "rgba(200,40,40,0.08)"
-                    : "rgba(11,11,13,0.05)",
-                  color:
-                    autosaveStatus === "saved" ? COLORS.accentDeep
-                    : autosaveStatus === "error" ? "#C82828"
-                    : COLORS.inkMuted,
-                  fontFamily: FONTS.body, fontSize: 11, fontWeight: 600,
-                  letterSpacing: 0.2, whiteSpace: "nowrap",
-                }}
-              >
-                <span aria-hidden style={{
-                  width: 6, height: 6, borderRadius: "50%",
-                  background:
-                    autosaveStatus === "saved" ? COLORS.accent
-                    : autosaveStatus === "error" ? "#C82828"
-                    : COLORS.inkDim,
-                }} />
-                {autosaveStatus === "saving" ? "Saving…"
-                  : autosaveStatus === "saved" ? "Saved"
-                  : "Couldn't save"}
-              </span>
             )}
 
             {/* Phase 3 (deep QA fix) — escape hatch to the canonical full
@@ -5589,22 +5929,6 @@ function TalentProfileShellDrawer() {
             canRedo={historyIdxRef.current < historyRef.current.length - 1}
             onUndo={undo}
             onRedo={redo}
-            onSaveAsTemplate={() => {
-              const child = findChild(state.primaryType);
-              toast(`Saved as template: ${child?.child.label ?? "Template"} · ${state.serviceArea.homeBase || "—"}`);
-            }}
-            onApplyTemplate={(tpl) => {
-              patch({
-                primaryType: tpl.primaryType,
-                secondaryTypes: tpl.secondaryTypes ?? [],
-                serviceArea: tpl.serviceArea ?? state.serviceArea,
-                rates: tpl.defaultRates ?? state.rates,
-                languages: tpl.defaultLanguages ?? state.languages,
-                contexts: tpl.contexts ?? state.contexts,
-                skillEntries: tpl.skills ?? state.skillEntries,
-              });
-              toast(`Applied template: ${tpl.name}`);
-            }}
             onViewAsClient={() => setViewAsClient(true)}
             onSaveAndExit={saveAndExit}
             onOpenFullEditor={
@@ -5821,6 +6145,16 @@ function TalentProfileShellDrawer() {
                 />
               </div>
             )}
+            {/* THREE-SLOT PHOTO BLOCK */}
+            <ThreeSlotPhotoBlock
+              avatarUrl={avatarPhotoUrl}
+              heroUrl={heroPhotoUrl}
+              onOpenSlot={(slot) => {
+                setGalleryDrawerFocus(slot);
+                setGalleryDrawerOpen(true);
+              }}
+            />
+
             {/* IDENTITY */}
             <ProfileAccordionSection
               id="identity" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Identity"
@@ -5903,10 +6237,20 @@ function TalentProfileShellDrawer() {
                     specialties={state.specialties}
                     primaryRes={primaryRes}
                     specialtyOptions={specialtyOptions}
-                    onPickPrimary={(id) => patch({ primaryType: id })}
-                    onClearPrimary={() => patch({ primaryType: null })}
+                    onPickPrimary={(id) => {
+                      patch({ primaryType: id });
+                      if (payload.talentId) assignTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id, relationship_type: "primary_role" });
+                    }}
+                    onClearPrimary={() => {
+                      if (payload.talentId && state.primaryType) removeTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: state.primaryType });
+                      patch({ primaryType: null });
+                    }}
                     onToggleSecondary={(id) => {
                       if (id === state.primaryType) return;
+                      if (payload.talentId) {
+                        if (state.secondaryTypes.includes(id)) removeTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id });
+                        else assignTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id, relationship_type: "secondary_role" });
+                      }
                       toggleSet("secondaryTypes")(id);
                     }}
                     onToggleSpecialty={(s) => toggleSet("specialties")(s)}
@@ -5985,7 +6329,7 @@ function TalentProfileShellDrawer() {
               <FieldRow label="Service areas" hint="Cities they'll work in without travel logistics.">
                 <ChipsInput label="" placeholder="Add a city or region…"
                   values={state.serviceArea.serviceCities}
-                  onChange={(v) => patch({ serviceArea: { ...state.serviceArea, serviceCities: v } })}
+                  onChange={patchServiceCities}
                 />
               </FieldRow>
               <FieldRow label={`Travel radius — ${state.serviceArea.travelKm === 999 ? "Anywhere" : `${state.serviceArea.travelKm} km`}`}>
@@ -6122,7 +6466,7 @@ function TalentProfileShellDrawer() {
                 >
                   <ChipsInput label="" placeholder="e.g. ES, FR, MX…"
                     values={state.serviceArea.workEligibility ?? []}
-                    onChange={(v) => patch({ serviceArea: { ...state.serviceArea, workEligibility: v } })}
+                    onChange={patchWorkEligibility}
                   />
                 </FieldRow>
                 <div style={{ height: 8 }} />
@@ -6137,7 +6481,7 @@ function TalentProfileShellDrawer() {
                 >
                   <ChipsInput label="" placeholder="e.g. US (B1/B2), GB…"
                     values={state.serviceArea.visaCountries ?? []}
-                    onChange={(v) => patch({ serviceArea: { ...state.serviceArea, visaCountries: v } })}
+                    onChange={patchVisaCountries}
                   />
                 </FieldRow>
               </div>
@@ -6159,22 +6503,43 @@ function TalentProfileShellDrawer() {
               open={activeSection === "media"}
               onToggle={() => setActiveSection(activeSection === "media" ? "" : "media")}
             >
+              {hydratingMedia && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "8px 12px", marginBottom: 10,
+                  borderRadius: 8, background: "rgba(15,79,62,0.06)",
+                  border: `1px solid rgba(15,79,62,0.18)`,
+                  fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, color: COLORS.accentDeep,
+                }}>
+                  <span style={{
+                    width: 12, height: 12, borderRadius: "50%",
+                    border: "2px solid rgba(15,79,62,0.25)", borderTopColor: COLORS.accent,
+                    animation: "tulala-spin 0.8s linear infinite",
+                  }} />
+                  <style>{`@keyframes tulala-spin { to { transform: rotate(360deg); } }`}</style>
+                  Loading your saved photos…
+                </div>
+              )}
               <CoverPhotoEditor
                 url={state.coverPhotoUrl}
-                onChange={(u) => patch({ coverPhotoUrl: u })}
+                onChange={patchCoverUrl}
+                talentProfileId={payload.talentId}
+                mediaAssetId={state.coverPhotoAssetId}
+                onMediaAssetIdChange={patchCoverAssetId}
               />
               <HelloReelEditor
                 reel={state.helloReel}
-                onChange={(r) => patch({ helloReel: r })}
+                onChange={patchHelloReel}
+                talentProfileId={payload.talentId}
               />
               <PhotoGalleryPro
                 items={(state.albumsPro.find(a => a.id === state.activeAlbumId) ?? state.albumsPro[0]).items}
-                onChange={(items) => patch({
-                  albumsPro: state.albumsPro.map(a => a.id === state.activeAlbumId ? { ...a, items } : a),
-                })}
+                onChange={patchActiveAlbumItems}
+                talentProfileId={payload.talentId}
+                albumId={state.activeAlbumId || state.albumsPro[0]?.id || "main"}
               />
               <FieldRow label="Video / social links" optional catalogId="links">
-                <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks} onChange={(v) => patch({ videoLinks: v })} />
+                <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks} onChange={patchVideoLinks} />
               </FieldRow>
             </ProfileAccordionSection>
 
@@ -6204,7 +6569,8 @@ function TalentProfileShellDrawer() {
             >
               <PolaroidsEditor
                 polaroids={state.polaroids}
-                onChange={(p) => patch({ polaroids: p })}
+                onChange={patchPolaroids}
+                talentProfileId={payload.talentId}
               />
             </ProfileAccordionSection>
 
@@ -6225,23 +6591,12 @@ function TalentProfileShellDrawer() {
               <BiosEditor
                 bios={state.bios}
                 activeLocale={state.bioActiveLocale}
-                onActivateLocale={(l) => patch({ bioActiveLocale: l })}
-                onChange={(bs) => patch({ bios: bs })}
-                onRegenerate={() => {
-                  if (!state.primaryType) return;
-                  const defaults = getTypeDefaults(state.primaryType);
-                  const text = defaults.bioTemplate({
-                    stageName: state.stageName,
-                    homeBase: state.serviceArea.homeBase,
-                    languages: state.languages.map(l => l.language),
-                  });
-                  patch({
-                    bios: state.bios.map(b => b.locale === state.bioActiveLocale ? { ...b, text } : b),
-                  });
-                }}
+                onActivateLocale={patchBioActiveLocale}
+                onChange={patchBios}
+                onRegenerate={onBiosRegenerate}
                 primaryLabel={primaryRes?.child.label}
               />
-              <PersonalityEditor value={state.personality} onChange={(p) => patch({ personality: p })} />
+              <PersonalityEditor value={state.personality} onChange={patchPersonality} />
             </ProfileAccordionSection>
 
             {/* PHYSICAL & MEASUREMENTS — dedicated accordion mirroring
@@ -6497,7 +6852,7 @@ function TalentProfileShellDrawer() {
                   <RatesEditor
                     rates={state.rates}
                     selectedTypeIds={allSelectedTypeIds}
-                    onChange={(rs) => patch({ rates: rs })}
+                    onChange={patchRates}
                   />
                 </div>
               )}
@@ -6554,7 +6909,7 @@ function TalentProfileShellDrawer() {
                   ))}
                 </div>
               </div>
-              <LanguagesEditor value={state.languages} onChange={(v) => patch({ languages: v })} />
+              <LanguagesEditor value={state.languages} onChange={patchLanguages} />
             </ProfileAccordionSection>
 
             {/* REFINEMENT */}
@@ -6658,7 +7013,7 @@ function TalentProfileShellDrawer() {
             >
               <CreditsEditor
                 credits={state.credits}
-                onChange={(c) => patch({ credits: c })}
+                onChange={patchCredits}
               />
             </ProfileAccordionSection>
 
@@ -6672,7 +7027,7 @@ function TalentProfileShellDrawer() {
             >
               <LimitsEditor
                 limits={state.limits}
-                onChange={(l) => patch({ limits: l })}
+                onChange={patchLimits}
               />
             </ProfileAccordionSection>
 
@@ -6686,7 +7041,8 @@ function TalentProfileShellDrawer() {
             >
               <FilesEditor
                 files={state.files}
-                onChange={(f) => patch({ files: f })}
+                onChange={patchFiles}
+                talentProfileId={payload.talentId}
               />
             </ProfileAccordionSection>
 
@@ -6698,7 +7054,7 @@ function TalentProfileShellDrawer() {
               open={activeSection === "social_proof"}
               onToggle={() => setActiveSection(activeSection === "social_proof" ? "" : "social_proof")}
             >
-              <PastClientsEditor clients={state.pastClients} onChange={(c) => patch({ pastClients: c })} />
+              <PastClientsEditor clients={state.pastClients} onChange={patchPastClients} />
             </ProfileAccordionSection>
 
             {/* VERIFICATIONS */}
@@ -6796,6 +7152,7 @@ function TalentProfileShellDrawer() {
                   hint="Hand the keys to the talent so they can edit their own profile + accept inquiries directly."
                 >
                   <ProfileOwnershipPanel
+                    talentProfileId={payload.talentId}
                     talentName={state.stageName || "this talent"}
                     contactEmail={payload.seed?.contact}
                   />
@@ -6823,7 +7180,7 @@ function TalentProfileShellDrawer() {
                 </FieldRow>
                 {/* #9 — Recent activity / change log */}
                 <FieldRow label="Recent activity" hint="Last 5 changes to this profile. Tap to see diff.">
-                  <ProfileActivityLog />
+                  <ProfileActivityLog talentProfileId={payload.talentId} />
                 </FieldRow>
               </ProfileAccordionSection>
             )}
@@ -6832,20 +7189,11 @@ function TalentProfileShellDrawer() {
           </div>
         </div>
 
-        {/* #20 — Mobile sticky save bar (hidden on desktop via media query) */}
-        <div data-pshell-mobile-save>
-          <span data-pshell-saved>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: savedAt ? COLORS.green : "rgba(11,11,13,0.20)" }} />
-            {savedAt ? `Saved ${ageString(savedAt)}` : "Not saved yet"}
-          </span>
-          <StatusPillDropdown status={state.profileStatus} onChange={(s) => patch({ profileStatus: s })} role={isSelf ? "talent" : "admin"} />
-          <SmartFooterCTA
-            status={state.profileStatus}
-            mode={mode}
-            canPublish={missing.length === 0}
-            onAction={submit}
-          />
-        </div>
+        {/* The bottom mobile-save bar (status pill + Publish CTA) was removed
+            in favor of the always-visible header controls (Save button +
+            StatusPillDropdown). Killed the footer to reclaim ~56px of vertical
+            real estate. The Publish action lives inside the StatusPillDropdown
+            (pick "Published") and is gated by the same missing-field rules. */}
 
         {/* View as client modal */}
         {viewAsClient && (
@@ -6907,6 +7255,61 @@ function TalentProfileShellDrawer() {
               setDiffOpen(false);
               toast(`Applied · approved ${computeDiff().length - rejected.size} · reverted ${rejected.size}`);
             } : undefined}
+          />
+        )}
+
+        {/* Phase 1 — MediaGalleryDrawer (three-slot photo block) */}
+        {galleryDrawerOpen && payload.talentId && tenantSlug && (
+          <MediaGalleryDrawer
+            open={galleryDrawerOpen}
+            onOpenChange={setGalleryDrawerOpen}
+            talentId={payload.talentId}
+            tenantSlug={tenantSlug}
+            assets={galleryAssets}
+            onAssetsChange={setGalleryAssets}
+            focusSlot={galleryDrawerFocus}
+            onSetAvatar={async (mediaAssetId) => {
+              const res = await setTalentAvatar(tenantSlug, payload.talentId!, mediaAssetId);
+              if (res.ok) {
+                const hit = galleryAssets.find(a => a.id === mediaAssetId);
+                if (hit) setAvatarPhotoUrl(hit.url);
+              }
+              return res;
+            }}
+            onSetHero={async (mediaAssetId) => {
+              const res = await setTalentHero(tenantSlug, payload.talentId!, mediaAssetId);
+              if (res.ok) {
+                const hit = galleryAssets.find(a => a.id === mediaAssetId);
+                if (hit) setHeroPhotoUrl(hit.url);
+              }
+              return res;
+            }}
+            onAddToPortfolio={async (storagePath) => {
+              const res = await registerPortfolioPhoto(tenantSlug, payload.talentId!, { storagePath });
+              if (res.ok) return { ok: true, id: res.data?.id };
+              return { ok: false, error: res.error };
+            }}
+            onDeleteAsset={async (mediaAssetId) => {
+              const res = await actionDeleteMediaAssets([mediaAssetId]);
+              if (res.ok) {
+                setGalleryAssets(prev => prev.filter(a => a.id !== mediaAssetId));
+              }
+              return res;
+            }}
+            onUploadFile={async (file, variantKind) => {
+              const fd = new FormData();
+              fd.append("file", file);
+              const allowed = ["gallery", "card", "banner", "lightbox"] as const;
+              const kind = allowed.includes(variantKind as typeof allowed[number])
+                ? (variantKind as typeof allowed[number])
+                : "gallery";
+              const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind);
+              if (!res.ok) return { ok: false, error: res.error };
+              return {
+                ok: true,
+                asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0 },
+              };
+            }}
           />
         )}
       </div>
@@ -7455,14 +7858,15 @@ function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
 }
 
 // ── Locale-aware bios editor ─────────────────────────────────────────
-function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel }: {
+type BiosEditorProps = {
   bios: LocaleBio[];
   activeLocale: LocaleCode;
   onActivateLocale: (l: LocaleCode) => void;
   onChange: (b: LocaleBio[]) => void;
   onRegenerate: () => void;
   primaryLabel?: string;
-}) {
+};
+const BiosEditor = React.memo(({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel }: BiosEditorProps) => {
   const ALL_LOCALES: LocaleCode[] = ["en", "es", "fr", "it", "pt", "de"];
   const ensureLocale = (l: LocaleCode) => {
     if (bios.some(b => b.locale === l)) return;
@@ -7569,14 +7973,15 @@ function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenera
       </div>
     </div>
   );
-}
+});
 
 // ── Rates editor ─────────────────────────────────────────────────────
-function RatesEditor({ rates, selectedTypeIds, onChange }: {
+type RatesEditorProps = {
   rates: ProfileRate[];
   selectedTypeIds: string[];
   onChange: (r: ProfileRate[]) => void;
-}) {
+};
+const RatesEditor = React.memo(({ rates, selectedTypeIds, onChange }: RatesEditorProps) => {
   if (selectedTypeIds.length === 0) {
     return (
       <div style={{
@@ -7669,7 +8074,7 @@ function RatesEditor({ rates, selectedTypeIds, onChange }: {
       ))}
     </div>
   );
-}
+});
 
 // ── Availability mini-grid (4 weeks) ────────────────────────────────
 function AvailabilityGrid({ cells, onToggle }: {
@@ -8400,9 +8805,11 @@ function celebrationBtnStyle(): React.CSSProperties {
 // In production these states are stored on `talent_profiles.ownership`
 // with timestamps. The prototype keeps it local for the demo.
 function ProfileOwnershipPanel({
+  talentProfileId,
   talentName,
   contactEmail,
 }: {
+  talentProfileId?: string;
   talentName: string;
   contactEmail?: string;
 }) {
@@ -8426,10 +8833,14 @@ function ProfileOwnershipPanel({
     status: false,
   });
 
-  const sendInvite = () => {
+  const sendInvite = async () => {
     if (!email.trim() && !phone.trim()) {
       toast("Add an email or phone first");
       return;
+    }
+    if (talentProfileId) {
+      const res = await sendTalentClaimInvite({ talent_profile_id: talentProfileId, email: email.trim() || undefined, phone: phone.trim() || undefined });
+      if (!res.ok) { toast("Failed to send invite — try again"); return; }
     }
     setState("invited");
     setShowInviteForm(false);
@@ -8647,52 +9058,223 @@ function ProfileOwnershipPanel({
   );
 }
 
-// #9 — Profile activity log. Mock data for prototype; production reads
-// from profile_changes table with field-level diffs.
-function ProfileActivityLog() {
-  const { toast } = useProto();
-  const entries = [
-    { who: "Talent · Sofia",   action: "edited bio",          when: "2h ago",   diff: true },
-    { who: "Admin · Sven",     action: "added 2 photos",      when: "yesterday", diff: true },
-    { who: "Talent · Sofia",   action: "updated languages",   when: "2 days ago", diff: true },
-    { who: "Admin · Marta",    action: "set primary type → Fashion model", when: "1 week ago", diff: true },
-    { who: "System",           action: "verified ID",         when: "1 week ago", diff: false },
-  ];
+function ProfileActivityLog({ talentProfileId }: { talentProfileId?: string }) {
+  const [entries, setEntries] = useState<ProfileActivityEntry[]>([]);
+  const [loading, setLoading] = useState(!!talentProfileId);
+
+  useEffect(() => {
+    if (!talentProfileId) { setLoading(false); return; }
+    setLoading(true);
+    getTalentProfileActivity({ talent_profile_id: talentProfileId, limit: 8 })
+      .then((res) => { if (res.ok) setEntries(res.entries); })
+      .finally(() => setLoading(false));
+  }, [talentProfileId]);
+
+  if (loading) return (
+    <div style={{ padding: "12px 0", color: COLORS.inkMuted, fontSize: 12, fontFamily: FONTS.body }}>Loading…</div>
+  );
+  if (entries.length === 0) return (
+    <div style={{ padding: "12px 0", color: COLORS.inkDim, fontSize: 12, fontFamily: FONTS.body }}>No activity recorded yet.</div>
+  );
+
+  const relTime = (iso: string) => {
+    const diff = Date.now() - Date.parse(iso);
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, fontFamily: FONTS.body }}>
       {entries.map((e, i) => (
-        <button key={i} type="button"
-          onClick={() => e.diff ? toast(`Open diff: ${e.action}`) : undefined}
-          disabled={!e.diff}
-          style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "8px 10px", borderRadius: 8, border: "none",
-            background: COLORS.surface, cursor: e.diff ? "pointer" : "default",
-            textAlign: "left", fontFamily: FONTS.body,
-          }}>
+        <div key={i} style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "8px 10px", borderRadius: 8,
+          background: COLORS.surface,
+        }}>
           <span style={{
             width: 6, height: 6, borderRadius: "50%",
-            background: e.who.startsWith("Admin") ? COLORS.amberDeep
-              : e.who.startsWith("Talent") ? COLORS.indigoDeep
+            background: e.actorRole === "admin" ? COLORS.amberDeep
+              : e.actorRole === "talent" ? COLORS.indigoDeep
               : COLORS.inkDim,
             flexShrink: 0,
           }} />
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: "block", fontSize: 12, color: COLORS.ink, lineHeight: 1.4 }}>
-              <strong style={{ fontWeight: 600 }}>{e.who}</strong> {e.action}
+              <strong style={{ fontWeight: 600, textTransform: "capitalize" }}>{e.actorRole}</strong>{" · "}{e.action}
             </span>
-            <span style={{ display: "block", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>{e.when}</span>
+            <span style={{ display: "block", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>{relTime(e.createdAt)}</span>
           </span>
-          {e.diff && <span style={{ color: COLORS.inkMuted, fontSize: 13 }}>›</span>}
-        </button>
+        </div>
       ))}
     </div>
   );
 }
 
+// ── Three-slot photo block (Phase 1) ─────────────────────────────────────────
+
+function ThreeSlotPhotoBlock({
+  avatarUrl,
+  heroUrl,
+  onOpenSlot,
+}: {
+  avatarUrl: string | null;
+  heroUrl: string | null;
+  onOpenSlot: (slot: "avatar" | "hero" | "gallery") => void;
+}) {
+  return (
+    <div style={{
+      display: "flex",
+      gap: 10,
+      padding: "14px 0 10px",
+      borderBottom: `1px solid ${COLORS.borderSoft}`,
+      marginBottom: 14,
+    }}>
+      {/* Avatar slot 1:1 */}
+      <PhotoSlot
+        label="Avatar"
+        hint="1:1 square"
+        imageUrl={avatarUrl}
+        aspectRatio="1 / 1"
+        onClick={() => onOpenSlot("avatar")}
+      />
+      {/* Hero slot 4:5 */}
+      <PhotoSlot
+        label="Hero"
+        hint="4:5 portrait"
+        imageUrl={heroUrl}
+        aspectRatio="4 / 5"
+        onClick={() => onOpenSlot("hero")}
+      />
+      {/* Gallery add tile */}
+      <button
+        type="button"
+        onClick={() => onOpenSlot("gallery")}
+        aria-label="Manage gallery photos"
+        style={{
+          flex: 1,
+          minHeight: 80,
+          background: COLORS.surfaceAlt,
+          border: `1.5px dashed rgba(15,79,62,0.3)`,
+          borderRadius: 8,
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 4,
+          padding: 8,
+        }}
+      >
+        <span style={{ fontSize: 20 }}>＋</span>
+        <span style={{
+          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
+          color: COLORS.accent, letterSpacing: 0.2, textAlign: "center",
+        }}>
+          Gallery photos
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function PhotoSlot({
+  label,
+  hint,
+  imageUrl,
+  aspectRatio,
+  onClick,
+}: {
+  label: string;
+  hint: string;
+  imageUrl: string | null;
+  aspectRatio: string;
+  onClick: () => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={imageUrl ? `Change ${label}` : `Set ${label}`}
+        style={{
+          width: aspectRatio === "1 / 1" ? 72 : 58,
+          height: 72,
+          borderRadius: 8,
+          overflow: "hidden",
+          border: imageUrl
+            ? `2px solid rgba(15,79,62,0.25)`
+            : `1.5px dashed rgba(15,79,62,0.3)`,
+          background: imageUrl ? "transparent" : COLORS.surfaceAlt,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 0,
+          position: "relative",
+        }}
+      >
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt={label}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <span style={{ fontSize: 22, opacity: 0.4 }}>📷</span>
+        )}
+        <span style={{
+          position: "absolute", bottom: 2, left: 0, right: 0,
+          background: "rgba(11,11,13,0.45)", color: "#fff",
+          fontFamily: FONTS.body, fontSize: 9, fontWeight: 700,
+          textAlign: "center", padding: "1px 0",
+          opacity: 0,
+          transition: "opacity 120ms",
+        }} className="photo-slot-overlay">
+          {imageUrl ? "Change" : "Set"}
+        </span>
+      </button>
+      <style>{`button:hover .photo-slot-overlay { opacity: 1 !important; }`}</style>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, color: COLORS.ink }}>{label}</div>
+        <div style={{ fontFamily: FONTS.body, fontSize: 9.5, color: COLORS.inkDim }}>{hint}</div>
+      </div>
+    </div>
+  );
+}
+
 // ── Cover photo editor ──────────────────────────────────────────────
-function CoverPhotoEditor({ url, onChange }: { url: string | null; onChange: (u: string | null) => void }) {
+type CoverPhotoEditorProps = {
+  url: string | null;
+  onChange: (u: string | null) => void;
+  talentProfileId?: string;
+  mediaAssetId?: string | null;
+  onMediaAssetIdChange?: (id: string | null) => void;
+};
+const CoverPhotoEditor = React.memo(({ url, onChange, talentProfileId, mediaAssetId, onMediaAssetIdChange }: CoverPhotoEditorProps) => {
+  const { toast } = useProto();
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const handleFile = async (f: File) => {
+    if (!talentProfileId) { onChange(URL.createObjectURL(f)); return; }
+    onChange(URL.createObjectURL(f)); // optimistic preview
+    const fd = new FormData(); fd.append("file", f);
+    const res = await actionUploadAndAssignMedia(fd, talentProfileId, "banner");
+    if (res.ok) {
+      onChange(res.data.publicUrl);
+      onMediaAssetIdChange?.(res.data.id);
+    } else {
+      toast(res.error || "Upload failed");
+      onChange(null);
+    }
+  };
+  const handleRemove = () => {
+    onChange(null);
+    if (talentProfileId && mediaAssetId) void actionDeleteMediaAssets([mediaAssetId]);
+    onMediaAssetIdChange?.(null);
+  };
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -8712,7 +9294,7 @@ function CoverPhotoEditor({ url, onChange }: { url: string | null; onChange: (u:
             fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: FONTS.body,
             backdropFilter: "blur(8px)",
           }}>Replace</button>
-          <button type="button" onClick={() => onChange(null)} aria-label="Remove cover" style={{
+          <button type="button" onClick={handleRemove} aria-label="Remove cover" style={{
             position: "absolute", top: 8, right: 8,
             width: 26, height: 26, borderRadius: "50%", border: "none",
             background: "rgba(11,11,13,0.6)", color: "#fff",
@@ -8735,23 +9317,44 @@ function CoverPhotoEditor({ url, onChange }: { url: string | null; onChange: (u:
       <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) onChange(URL.createObjectURL(f));
+          if (f) void handleFile(f);
           e.target.value = "";
         }}
       />
     </div>
   );
-}
+});
 
 // ── Polaroids editor ────────────────────────────────────────────────
-function PolaroidsEditor({ polaroids, onChange }: {
-  polaroids: { id: string; angle: string; url: string | null }[];
-  onChange: (p: { id: string; angle: string; url: string | null }[]) => void;
-}) {
+type PolaroidsEditorProps = {
+  polaroids: { id: string; angle: string; url: string | null; mediaAssetId?: string | null }[];
+  onChange: (p: { id: string; angle: string; url: string | null; mediaAssetId?: string | null }[]) => void;
+  talentProfileId?: string;
+};
+const PolaroidsEditor = React.memo(({ polaroids, onChange, talentProfileId }: PolaroidsEditorProps) => {
+  const { toast } = useProto();
   const fileRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const polaroidsRef = useRef(polaroids);
+  polaroidsRef.current = polaroids;
   const filledCount = polaroids.filter(p => p.url).length;
-  const setUrl = (id: string, url: string | null) =>
-    onChange(polaroids.map(p => p.id === id ? { ...p, url } : p));
+  const setUrl = (id: string, url: string | null, mediaAssetId?: string | null) =>
+    onChange(polaroidsRef.current.map(p => p.id === id ? { ...p, url, mediaAssetId: mediaAssetId === undefined ? p.mediaAssetId : mediaAssetId } : p));
+  const handlePick = async (id: string, f: File) => {
+    setUrl(id, URL.createObjectURL(f));
+    if (!talentProfileId) return;
+    const slot = polaroidsRef.current.find(p => p.id === id);
+    // Soft-delete previous polaroid for this slot if any
+    if (slot?.mediaAssetId) void actionDeleteMediaAssets([slot.mediaAssetId]);
+    const fd = new FormData(); fd.append("file", f);
+    const res = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery", { polaroidSlot: id });
+    if (res.ok) setUrl(id, res.data.publicUrl, res.data.id);
+    else { toast(res.error || "Upload failed"); setUrl(id, null, null); }
+  };
+  const handleClear = (id: string) => {
+    const slot = polaroidsRef.current.find(p => p.id === id);
+    if (talentProfileId && slot?.mediaAssetId) void actionDeleteMediaAssets([slot.mediaAssetId]);
+    setUrl(id, null, null);
+  };
   return (
     <div style={{ fontFamily: FONTS.body }}>
       <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
@@ -8770,7 +9373,7 @@ function PolaroidsEditor({ polaroids, onChange }: {
             }}>
               {!p.url && "+"}
               {p.url && (
-                <span onClick={(e) => { e.stopPropagation(); setUrl(p.id, null); }} style={{
+                <span onClick={(e) => { e.stopPropagation(); handleClear(p.id); }} style={{
                   position: "absolute", top: 4, right: 4,
                   width: 20, height: 20, borderRadius: "50%",
                   background: "rgba(11,11,13,0.6)", color: "#fff",
@@ -8783,7 +9386,7 @@ function PolaroidsEditor({ polaroids, onChange }: {
               type="file" accept="image/*" capture="user" style={{ display: "none" }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) setUrl(p.id, URL.createObjectURL(f));
+                if (f) void handlePick(p.id, f);
                 e.target.value = "";
               }}
             />
@@ -8796,13 +9399,15 @@ function PolaroidsEditor({ polaroids, onChange }: {
       </div>
     </div>
   );
-}
+});
 
 // ── Credits editor ──────────────────────────────────────────────────
-function CreditsEditor({ credits, onChange }: {
-  credits: { id: string; year: string; brand: string; type: string; credit?: string; role?: string; pinned?: boolean }[];
-  onChange: (c: typeof credits) => void;
-}) {
+type CreditsEntry = { id: string; year: string; brand: string; type: string; credit?: string; role?: string; pinned?: boolean };
+type CreditsEditorProps = {
+  credits: CreditsEntry[];
+  onChange: (c: CreditsEntry[]) => void;
+};
+const CreditsEditor = React.memo(({ credits, onChange }: CreditsEditorProps) => {
   const add = () => onChange([...credits, { id: `cr-${Date.now()}`, year: "", brand: "", type: "Editorial" }]);
   const update = (id: string, patch: Partial<typeof credits[number]>) =>
     onChange(credits.map(c => c.id === id ? { ...c, ...patch } : c));
@@ -8873,13 +9478,15 @@ function CreditsEditor({ credits, onChange }: {
       }}>+ Add credit</button>
     </div>
   );
-}
+});
 
 // ── Limits editor ──────────────────────────────────────────────────
-function LimitsEditor({ limits, onChange }: {
-  limits: { id: string; category: string; label: string; enforcement: "hard" | "soft" }[];
-  onChange: (l: typeof limits) => void;
-}) {
+type LimitsEntry = { id: string; category: string; label: string; enforcement: "hard" | "soft" };
+type LimitsEditorProps = {
+  limits: LimitsEntry[];
+  onChange: (l: LimitsEntry[]) => void;
+};
+const LimitsEditor = React.memo(({ limits, onChange }: LimitsEditorProps) => {
   const QUICK_LIMITS = [
     "No nudity", "No fur", "Lingerie · case-by-case", "No tobacco / vape",
     "No alcohol", "No religious imagery", "Vegan only",
@@ -8940,36 +9547,85 @@ function LimitsEditor({ limits, onChange }: {
       }}>+ Custom limit</button>
     </div>
   );
-}
+});
 
 // ── Files editor ───────────────────────────────────────────────────
-function FilesEditor({ files, onChange }: {
-  files: { id: string; name: string; kind: string; sizeBytes?: number; uploadedAt: string }[];
-  onChange: (f: typeof files) => void;
-}) {
+type FilesEditorEntry = { id: string; name: string; kind: string; sizeBytes?: number; uploadedAt: string; storagePath?: string; bucketId?: string; mimeType?: string; uploading?: boolean; uploadError?: string };
+type FilesEditorProps = {
+  files: FilesEditorEntry[];
+  onChange: (f: FilesEditorEntry[]) => void;
+  /** When set, picked files are uploaded to the private media-originals
+   *  bucket and the metadata list reflects the real storage path. */
+  talentProfileId?: string;
+};
+const FilesEditor = React.memo(({ files, onChange, talentProfileId }: FilesEditorProps) => {
+  const { toast } = useProto();
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const filesRef = useRef(files);
+  filesRef.current = files;
   const ICON_FOR_KIND: Record<string, string> = {
     tax: "🧾", release: "📝", nda: "🔒", contract: "📃", cert: "🎓", id: "🪪", other: "📄",
   };
-  const add = (selectedFile: File) => {
-    const lower = selectedFile.name.toLowerCase();
-    const guessedKind = /tax|w8|w9|w-8|w-9/.test(lower) ? "tax"
+  const guessKind = (name: string) => {
+    const lower = name.toLowerCase();
+    return /tax|w8|w9|w-8|w-9/.test(lower) ? "tax"
       : /release/.test(lower) ? "release"
       : /nda/.test(lower) ? "nda"
       : /contract/.test(lower) ? "contract"
       : /cert|diploma/.test(lower) ? "cert"
       : "other";
-    onChange([...files, {
-      id: `f-${Date.now()}-${Math.random().toString(36).slice(2,5)}`,
+  };
+  const add = async (selectedFile: File) => {
+    const id = `f-${Date.now()}-${Math.random().toString(36).slice(2,5)}`;
+    const kind = guessKind(selectedFile.name);
+    // Optimistic — show the file row immediately with `uploading: true`.
+    const optimistic: FilesEditorEntry = {
+      id,
       name: selectedFile.name,
-      kind: guessedKind,
+      kind,
       sizeBytes: selectedFile.size,
       uploadedAt: new Date().toISOString(),
-    }]);
+      mimeType: selectedFile.type || undefined,
+      uploading: !!talentProfileId,
+    };
+    onChange([...filesRef.current, optimistic]);
+    if (!talentProfileId) return;
+    try {
+      const fd = new FormData(); fd.append("file", selectedFile);
+      const res = await actionUploadTalentDocument(fd, talentProfileId);
+      const next = [...filesRef.current];
+      const idx = next.findIndex(f => f.id === id);
+      if (idx === -1) return;
+      if (res.ok) {
+        next[idx] = { ...next[idx], storagePath: res.data.storagePath, bucketId: res.data.bucketId, sizeBytes: res.data.sizeBytes, mimeType: res.data.mimeType, uploading: false, uploadError: undefined };
+      } else {
+        next[idx] = { ...next[idx], uploading: false, uploadError: res.error };
+      }
+      onChange(next);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[FilesEditor upload]", err);
+      const next = [...filesRef.current];
+      const idx2 = next.findIndex(f => f.id === id);
+      if (idx2 !== -1) next[idx2] = { ...next[idx2], uploading: false, uploadError: "Upload failed — try again." };
+      onChange(next);
+    }
   };
-  const update = (id: string, patch: Partial<typeof files[number]>) =>
-    onChange(files.map(f => f.id === id ? { ...f, ...patch } : f));
-  const remove = (id: string) => onChange(files.filter(f => f.id !== id));
+  const update = (id: string, patch: Partial<FilesEditorEntry>) =>
+    onChange(filesRef.current.map(f => f.id === id ? { ...f, ...patch } : f));
+  const remove = async (id: string) => {
+    const target = filesRef.current.find(f => f.id === id);
+    onChange(filesRef.current.filter(f => f.id !== id));
+    if (target?.storagePath && target.bucketId && talentProfileId) {
+      await actionDeleteTalentDocument(target.bucketId, target.storagePath, talentProfileId, target.id);
+    }
+  };
+  const download = async (entry: FilesEditorEntry) => {
+    if (!entry.storagePath || !entry.bucketId || !talentProfileId) return;
+    const res = await actionGetTalentDocumentSignedUrl(entry.bucketId, entry.storagePath, talentProfileId);
+    if (res.ok) window.open(res.data.url, "_blank", "noopener,noreferrer");
+    else toast(res.error);
+  };
   const fmtSize = (b?: number) => {
     if (!b) return "—";
     if (b < 1024) return `${b} B`;
@@ -8991,13 +9647,24 @@ function FilesEditor({ files, onChange }: {
         }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>{ICON_FOR_KIND[f.kind] ?? ICON_FOR_KIND.other}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {f.name}
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: f.uploadError ? "#C82828" : COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {f.name}{f.uploading ? " · uploading…" : ""}
             </div>
-            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
-              {fmtSize(f.sizeBytes)} · uploaded {new Date(f.uploadedAt).toLocaleDateString()}
-            </div>
+            {f.uploadError ? (
+              <div style={{ fontSize: 10.5, color: "#C82828", marginTop: 1 }}>{f.uploadError}</div>
+            ) : (
+              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                {fmtSize(f.sizeBytes)} · uploaded {new Date(f.uploadedAt).toLocaleDateString()}{f.storagePath ? " · saved" : (f.uploading ? "" : " · not saved")}
+              </div>
+            )}
           </div>
+          {f.storagePath && (
+            <button type="button" onClick={() => void download(f)} aria-label="Download" title="Download" style={{
+              padding: "5px 9px", borderRadius: 6, border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff", color: COLORS.inkMuted, fontSize: 11, fontWeight: 600,
+              cursor: "pointer", fontFamily: FONTS.body,
+            }}>↓</button>
+          )}
           <select value={f.kind} onChange={(e) => update(f.id, { kind: e.target.value })} style={{
             padding: "5px 8px", borderRadius: 6,
             border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
@@ -9011,7 +9678,7 @@ function FilesEditor({ files, onChange }: {
             <option value="id">ID</option>
             <option value="other">Other</option>
           </select>
-          <button type="button" onClick={() => remove(f.id)} aria-label="Remove" style={{
+          <button type="button" onClick={() => void remove(f.id)} aria-label="Remove" style={{
             width: 26, height: 26, borderRadius: 6, border: "none",
             background: "transparent", color: COLORS.inkMuted, fontSize: 13, cursor: "pointer",
           }}>×</button>
@@ -9040,7 +9707,7 @@ function FilesEditor({ files, onChange }: {
       </div>
     </div>
   );
-}
+});
 
 
 function RequiredCoach({ missing, onJump }: {
@@ -9166,7 +9833,7 @@ function HeaderPublishCoach({ missing, onJump }: {
 // menu carries the actions that don't deserve a permanent slot on mobile.
 function ProfileShellMobileMenu({
   adminVisible, isSelf, primaryTypeSet, canUndo, canRedo,
-  onUndo, onRedo, onSaveAsTemplate, onApplyTemplate, onViewAsClient, onSaveAndExit,
+  onUndo, onRedo, onViewAsClient, onSaveAndExit,
   onOpenFullEditor, onRemoveFromRoster,
 }: {
   adminVisible: boolean;
@@ -9176,8 +9843,6 @@ function ProfileShellMobileMenu({
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  onSaveAsTemplate: () => void;
-  onApplyTemplate: (tpl: ProfileTemplate) => void;
   onViewAsClient: () => void;
   onSaveAndExit: () => void;
   /** Phase 3 — admin-only escape hatch to the canonical /{slug}/admin/
@@ -9190,7 +9855,6 @@ function ProfileShellMobileMenu({
   onRemoveFromRoster?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
   // Native popover migration: browser handles outside-click + escape via
   // popover="auto". Position is computed against the trigger when the
   // toggle event fires, since top-layer elements don't inherit
@@ -9208,13 +9872,17 @@ function ProfileShellMobileMenu({
       setOpen(isOpen);
       if (isOpen && triggerRef.current) {
         const r = triggerRef.current.getBoundingClientRect();
-        setPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+        // Option A — anchor the menu's right edge a few pixels OUTSIDE the
+        // trigger's right edge so the trigger sits flush at the top-right
+        // corner of the menu. Visually reads as "menu drops straight from
+        // the dots", not "menu floats off to the left".
+        const offsetRight = -2; // negative = menu extends further right
+        setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right + offsetRight) });
       }
     };
     el.addEventListener("toggle", onToggle);
     return () => el.removeEventListener("toggle", onToggle);
   }, []);
-  useEffect(() => { if (!open) setShowTemplates(false); }, [open]);
   // Helper: close the native popover from inside (menu-item clicks).
   // Browser clears top-layer + fires the toggle event which clears React state.
   const close = () => {
@@ -9234,47 +9902,35 @@ function ProfileShellMobileMenu({
         aria-expanded={open}
         aria-controls={fullId}
         style={{
-          width: 36, height: 36, borderRadius: 10,
-          border: `1px solid ${COLORS.borderSoft}`,
-          background: open ? COLORS.surfaceAlt : "#fff",
+          width: 28, height: 28, borderRadius: 8,
+          border: "none",
+          background: open ? "rgba(11,11,13,0.06)" : "transparent",
           color: COLORS.ink,
-          fontSize: 17, lineHeight: 1, cursor: "pointer",
+          fontSize: 18, lineHeight: 1, letterSpacing: 1, cursor: "pointer",
           display: "inline-flex", alignItems: "center", justifyContent: "center",
-          fontFamily: FONTS.body,
-        }}>•••</button>
+          fontFamily: FONTS.body, padding: 0,
+          transition: "background 0.12s",
+        }}
+        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.04)"; }}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
+      >⋯</button>
       <div
         ref={popoverRef}
         id={fullId}
         role="menu"
         {...({ popover: "auto" } as Record<string, string>)}
         style={{
-          position: "fixed", top: pos.top, right: pos.right,
+          // Native [popover] applies a default `left: 0` via UA stylesheet
+          // which fights `right`. Override with `left: auto` so right-anchor
+          // wins and the menu actually drops below the trigger.
+          position: "fixed", top: pos.top, right: pos.right, left: "auto", bottom: "auto",
           background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
           boxShadow: "0 16px 40px -8px rgba(11,11,13,0.25)",
-          minWidth: 240, padding: 4,
+          minWidth: 200, padding: 4,
           margin: 0,
           fontFamily: FONTS.body,
         }}>
-            {showTemplates ? (
-              <div>
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 6,
-                  padding: "8px 10px",
-                  fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase",
-                  color: COLORS.inkMuted,
-                }}>
-                  <button type="button" onClick={() => setShowTemplates(false)} style={{
-                    background: "transparent", border: "none", padding: 0, cursor: "pointer",
-                    color: COLORS.inkMuted, fontSize: 14,
-                  }}>‹</button>
-                  Templates
-                </div>
-                {PROFILE_TEMPLATES.map(t => (
-                  <PMobileMenuItem key={t.id} onClick={() => { onApplyTemplate(t); close(); }} icon="📋" label={t.name} />
-                ))}
-              </div>
-            ) : (
-              <>
+            <>
                 <PMobileMenuItem
                   icon="↶" label="Undo"
                   onClick={() => { if (canUndo) { onUndo(); close(); } }}
@@ -9290,20 +9946,10 @@ function ProfileShellMobileMenu({
                   icon="👁" label="View as client"
                   onClick={() => { onViewAsClient(); close(); }}
                 />
-                {adminVisible && (
-                  <>
-                    <PMobileMenuItem
-                      icon="📋" label="Apply template…"
-                      onClick={() => setShowTemplates(true)} hasSubmenu
-                    />
-                    {primaryTypeSet && (
-                      <PMobileMenuItem
-                        icon="★" label="Save as template"
-                        onClick={() => { onSaveAsTemplate(); close(); }}
-                      />
-                    )}
-                  </>
-                )}
+                {/* Apply template / Save as template were prototype-only —
+                    no DB schema for templates exists yet. Hidden until
+                    talent_profile_templates ships so we don't promise
+                    persistence we can't deliver. */}
                 {/* Phase 3 — admin-only Full editor escape hatch + Remove
                     from roster. Mirrors the desktop header-extras buttons
                     which are responsive-hidden at narrow drawer widths. */}
@@ -9344,7 +9990,6 @@ function ProfileShellMobileMenu({
                   </>
                 )}
               </>
-            )}
       </div>
     </div>
   );
@@ -9860,10 +10505,11 @@ function CatalogChips({ items, selected, onToggle }: {
   );
 }
 
-function LanguagesEditor({ value, onChange }: {
+type LanguagesEditorProps = {
   value: ProfileLanguage[];
   onChange: (v: ProfileLanguage[]) => void;
-}) {
+};
+const LanguagesEditor = React.memo(({ value, onChange }: LanguagesEditorProps) => {
   const [draftLang, setDraftLang] = useState("");
   const [draftLevel, setDraftLevel] = useState<LanguageLevel>("fluent");
   const add = () => {
@@ -9976,7 +10622,7 @@ function LanguagesEditor({ value, onChange }: {
       </div>
     </div>
   );
-}
+});
 
 // ════════════════════════════════════════════════════════════════════
 // Phase H — Talent approvals queue
@@ -10758,10 +11404,17 @@ function BioToneSelector({ value, onChange }: {
 }
 
 // ── Personality (love / avoid) ───────────────────────────────────────
-function PersonalityEditor({ value, onChange }: {
+type PersonalityEditorProps = {
   value: Personality;
   onChange: (p: Personality) => void;
-}) {
+};
+const PersonalityEditor = React.memo(({ value, onChange }: PersonalityEditorProps) => {
+  // Stable callbacks so the memoized ChipsInput children only re-render
+  // when their `values` actually change.
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const setLoves = React.useCallback((v: string[]) => onChange({ ...valueRef.current, loves: v }), [onChange]);
+  const setAvoids = React.useCallback((v: string[]) => onChange({ ...valueRef.current, avoids: v }), [onChange]);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
       <div>
@@ -10769,25 +11422,55 @@ function PersonalityEditor({ value, onChange }: {
           ❤️  I love
         </div>
         <ChipsInput label="" placeholder="e.g. Champagne service, French villas, late-night gigs"
-          values={value.loves} onChange={(v) => onChange({ ...value, loves: v })} />
+          values={value.loves} onChange={setLoves} />
       </div>
       <div>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
           ⊘  I avoid
         </div>
         <ChipsInput label="" placeholder="e.g. Photoshoots before 10am, smoking environments"
-          values={value.avoids} onChange={(v) => onChange({ ...value, avoids: v })} />
+          values={value.avoids} onChange={setAvoids} />
       </div>
     </div>
   );
-}
+});
 
 // ── Hello reel + per-photo metadata ─────────────────────────────────
-function HelloReelEditor({ reel, onChange }: {
+type HelloReelEditorProps = {
   reel: VideoSlot | null;
   onChange: (r: VideoSlot | null) => void;
-}) {
+  /** Talent profile id — when present, the picked file is uploaded to
+   *  Supabase storage as a media_assets row tagged with metadata.kind=
+   *  'hello_reel' so it persists across sessions. */
+  talentProfileId?: string;
+};
+const HelloReelEditor = React.memo(({ reel, onChange, talentProfileId }: HelloReelEditorProps) => {
+  const { toast } = useProto();
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const handleFile = async (f: File) => {
+    // Optimistic preview so the user immediately sees the reel as picked.
+    onChange({ url: URL.createObjectURL(f), durationSec: 30 });
+    if (!talentProfileId) return;
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append("file", f);
+      const res = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery", { kind: "hello_reel" });
+      if (res.ok) {
+        onChange({ url: res.data.publicUrl, durationSec: 30 });
+      } else {
+        toast(`Reel upload failed: ${res.error}`);
+        onChange(null);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[HelloReelEditor upload]", err);
+      toast("Reel upload failed");
+      onChange(null);
+    } finally {
+      setUploading(false);
+    }
+  };
   return (
     <div style={{ marginBottom: 12, fontFamily: FONTS.body }}>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
@@ -10806,9 +11489,11 @@ function HelloReelEditor({ reel, onChange }: {
             fontSize: 18, flexShrink: 0,
           }}>▶</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>Reel uploaded</div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+              {uploading ? "Uploading reel…" : "Reel uploaded"}
+            </div>
             <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
-              {reel.durationSec ? `~${reel.durationSec}s` : "Ready"} · {reel.url.startsWith("blob:") ? "local preview" : "linked"}
+              {reel.durationSec ? `~${reel.durationSec}s` : "Ready"} · {reel.url.startsWith("blob:") ? (uploading ? "saving…" : "local preview") : "saved"}
             </div>
           </div>
           <button type="button" onClick={() => onChange(null)} style={{
@@ -10832,26 +11517,30 @@ function HelloReelEditor({ reel, onChange }: {
       <input ref={fileRef} type="file" accept="video/*" style={{ display: "none" }}
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) onChange({ url: URL.createObjectURL(f), durationSec: 30 });
+          if (f) void handleFile(f);
           e.target.value = "";
         }}
       />
     </div>
   );
-}
+});
 
-function PhotoGalleryPro({ items, onChange }: {
+type PhotoGalleryProProps = {
   items: PhotoMeta[];
   onChange: (items: PhotoMeta[]) => void;
-}) {
+  talentProfileId?: string;
+  albumId?: string;
+};
+const PhotoGalleryPro = React.memo(({ items, onChange, talentProfileId, albumId }: PhotoGalleryProProps) => {
+  const { toast } = useProto();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
-  // 2026 — paste a YouTube/Vimeo URL to add a video card to the gallery.
-  // We store the parsed thumb as `url` so all tile rendering paths
-  // continue to work; the `videoUrl` + `videoProvider` fields trigger
-  // the play-overlay treatment in the tile + the embed in PhotoMetaModal.
+  // Refs to the latest items so async upload completions can patch the
+  // right index even when several files are uploading in parallel.
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
   const [videoUrlInput, setVideoUrlInput] = useState("");
   const [videoUrlError, setVideoUrlError] = useState<string | null>(null);
   const addVideoUrl = () => {
@@ -10870,12 +11559,68 @@ function PhotoGalleryPro({ items, onChange }: {
     setVideoUrlError(null);
   };
 
-  const addFiles = (files: FileList | File[]) => {
+  const addFiles = async (files: FileList | File[]) => {
     const arr = Array.from(files).slice(0, 12 - items.length);
-    const additions: PhotoMeta[] = arr.map(f => ({
+    if (arr.length === 0) return;
+    // eslint-disable-next-line no-console
+    console.info("[PhotoGalleryPro] addFiles", { count: arr.length, talentProfileId, hasId: !!talentProfileId });
+    // Optimistic — show blob previews immediately so the user sees something.
+    const blobs: PhotoMeta[] = arr.map(f => ({
       url: URL.createObjectURL(f),
+      uploading: !!talentProfileId,
     }));
-    onChange([...items, ...additions]);
+    const startIdx = items.length;
+    onChange([...items, ...blobs]);
+
+    // No talentId → mock mode, can't persist. Show an error overlay so
+    // the user sees the problem instead of silently storing blobs.
+    if (!talentProfileId) {
+      const next = [...itemsRef.current];
+      for (let i = 0; i < blobs.length; i++) {
+        const idx = startIdx + i;
+        if (idx < next.length) {
+          next[idx] = { ...next[idx], uploading: false, uploadError: "Not saved — no talent context" };
+        }
+      }
+      onChange(next);
+      toast("Upload skipped — no talent ID. Open this drawer from the real roster, not the prototype.");
+      return;
+    }
+
+    // Upload each file in parallel; patch the corresponding row in place.
+    await Promise.all(arr.map(async (file, i) => {
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const meta = albumId ? { albumId } : {};
+        const res = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery", meta);
+        // eslint-disable-next-line no-console
+        console.info("[PhotoGalleryPro] upload result", { fileName: file.name, albumId, ok: res.ok, error: res.ok ? null : res.error });
+        const next = [...itemsRef.current];
+        const idx = startIdx + i;
+        if (idx >= next.length) return;
+        if (res.ok) {
+          next[idx] = { ...next[idx], url: res.data.publicUrl, mediaAssetId: res.data.id, uploading: false, uploadError: undefined };
+        } else {
+          // Keep the failed entry visible with an error overlay so the user
+          // sees what went wrong instead of the photo silently disappearing.
+          next[idx] = { ...next[idx], uploading: false, uploadError: res.error || "Upload failed" };
+          toast(res.error || "Upload failed");
+        }
+        onChange(next);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Upload failed";
+        const next = [...itemsRef.current];
+        const idx = startIdx + i;
+        if (idx < next.length) {
+          next[idx] = { ...next[idx], uploading: false, uploadError: message };
+          onChange(next);
+        }
+        toast(`Upload failed: ${message}`);
+        // eslint-disable-next-line no-console
+        console.error("[PhotoGalleryPro upload]", err);
+      }
+    }));
   };
   const onPick = () => fileInputRef.current?.click();
   const onDrop = (e: React.DragEvent) => {
@@ -10884,13 +11629,23 @@ function PhotoGalleryPro({ items, onChange }: {
     if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
   };
 
-  const removeAt = (i: number) => onChange(items.filter((_, idx) => idx !== i));
+  const removeAt = (i: number) => {
+    const target = items[i];
+    onChange(items.filter((_, idx) => idx !== i));
+    if (talentProfileId && target?.mediaAssetId) {
+      void actionDeleteMediaAssets([target.mediaAssetId]);
+    }
+  };
   const movePhoto = (from: number, to: number) => {
     if (from === to) return;
     const next = [...items];
     const [it] = next.splice(from, 1);
     next.splice(to, 0, it);
     onChange(next);
+    if (talentProfileId) {
+      const orderedIds = next.map(p => p.mediaAssetId).filter((id): id is string => !!id);
+      if (orderedIds.length > 0) void actionReorderMediaAssets(orderedIds);
+    }
   };
   const makeMain = (i: number) => movePhoto(i, 0);
   const updateAt = (i: number, patch: Partial<PhotoMeta>) =>
@@ -10938,6 +11693,36 @@ function PhotoGalleryPro({ items, onChange }: {
             }}
             onClick={() => setEditIdx(i)}
           >
+            {it.uploading && (
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "rgba(11,11,13,0.55)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#fff", fontFamily: FONTS.body, fontSize: 11, fontWeight: 600,
+                gap: 6,
+              }}>
+                <span style={{
+                  width: 14, height: 14, borderRadius: "50%",
+                  border: "2px solid rgba(255,255,255,0.3)",
+                  borderTopColor: "#fff",
+                  animation: "tulala-spin 0.8s linear infinite",
+                }} />
+                <style>{`@keyframes tulala-spin { to { transform: rotate(360deg); } }`}</style>
+                Uploading…
+              </div>
+            )}
+            {it.uploadError && (
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "rgba(176,48,58,0.85)",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                color: "#fff", fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
+                padding: 6, textAlign: "center", gap: 4,
+              }}>
+                <span style={{ fontSize: 18 }}>⚠</span>
+                <span style={{ fontSize: 9.5, lineHeight: 1.3 }}>{it.uploadError}</span>
+              </div>
+            )}
             {i === 0 && (
               <span style={{
                 position: "absolute", top: 4, left: 4,
@@ -11056,7 +11841,7 @@ function PhotoGalleryPro({ items, onChange }: {
       )}
     </div>
   );
-}
+});
 
 function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
   item: PhotoMeta;
@@ -11563,10 +12348,11 @@ function PackageRatesEditor({ packages, onChange }: {
 }
 
 // ── Past clients + testimonials ──────────────────────────────────────
-function PastClientsEditor({ clients, onChange }: {
+type PastClientsEditorProps = {
   clients: PastClient[];
   onChange: (c: PastClient[]) => void;
-}) {
+};
+const PastClientsEditor = React.memo(({ clients, onChange }: PastClientsEditorProps) => {
   const add = () => onChange([...clients, { id: `pc-${Date.now()}`, name: "", testimonial: "", testimonialBy: "" }]);
   const update = (id: string, p: Partial<PastClient>) =>
     onChange(clients.map(x => x.id === id ? { ...x, ...p } : x));
@@ -11625,7 +12411,7 @@ function PastClientsEditor({ clients, onChange }: {
       }}>+ Add client</button>
     </div>
   );
-}
+});
 
 // ── Next-tier coach (in trust section) ──────────────────────────────
 function NextTierCoach({ tier, verifications }: {
@@ -11675,53 +12461,6 @@ function NextTierCoach({ tier, verifications }: {
   );
 }
 
-// ── Profile templates picker (admin) ─────────────────────────────────
-// 2026 #1 — Native popover. Browser handles outside-click + Esc + a11y.
-function TemplatesPicker({ onApply }: {
-  onApply: (tpl: ProfileTemplate) => void;
-}) {
-  const popoverId = React.useId();
-  const popoverRef = useRef<HTMLDivElement | null>(null);
-  return (
-    <div style={{ position: "relative", display: "inline-block" }}>
-      <button type="button"
-        {...({ popoverTarget: popoverId } as Record<string, string>)}
-        style={{
-          padding: "5px 11px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
-          background: "#fff", color: COLORS.ink,
-          fontSize: 11, fontWeight: 600, cursor: "pointer",
-          fontFamily: FONTS.body,
-        }}>📋 Use template ▾</button>
-      <div
-        ref={popoverRef}
-        id={popoverId}
-        {...({ popover: "auto" } as Record<string, string>)}
-        style={{
-          position: "absolute", top: "calc(100% + 4px)", right: 0,
-          background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10,
-          boxShadow: "0 10px 30px -8px rgba(11,11,13,0.18)",
-          minWidth: 280, padding: 4, fontFamily: FONTS.body,
-          margin: 0, inset: "auto",
-        }}>
-        {PROFILE_TEMPLATES.map(t => (
-          <button key={t.id} type="button" onClick={() => {
-            onApply(t);
-            popoverRef.current?.hidePopover?.();
-          }} style={{
-            width: "100%", padding: "10px 12px", borderRadius: 6,
-            background: "transparent", border: "none", cursor: "pointer", textAlign: "left",
-            fontSize: 12.5, color: COLORS.ink,
-          }}>
-            <div style={{ fontWeight: 600 }}>{t.name}</div>
-            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2 }}>
-              {t.serviceArea?.homeBase} · {(t.contexts ?? []).slice(0, 2).join(", ")}
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ── Field-lock toggle (admin) ────────────────────────────────────────
 function FieldLockToggle({ path, locks, onChange }: {
@@ -11818,6 +12557,7 @@ function WatermarkPreviewCard({ preset, logoUrl }: { preset: WatermarkPreset; lo
 
 function BrandingDrawer() {
   const { state, closeDrawer, openUpgrade, toast, tenantSlug } = useProto();
+  const router = useRouter();
   const isStudioPlus = meetsPlan(state.plan, "studio");
 
   const [tagline, setTagline]         = useState("");
@@ -11830,12 +12570,35 @@ function BrandingDrawer() {
   const [logoFile, setLogoFile]         = useState<File | null>(null);
   const [logoFileName, setLogoFileName] = useState<string>("No logo uploaded");
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(true);
 
   const [wm, setWm] = useState<WatermarkPreset>({ ...DEFAULT_WATERMARK_PRESET });
   const setWmField = <K extends keyof WatermarkPreset>(k: K, v: WatermarkPreset[K]) =>
     setWm(prev => ({ ...prev, [k]: v }));
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // Load saved branding settings on open
+  useEffect(() => {
+    if (!tenantSlug) { setLoadingSettings(false); return; }
+    void (async () => {
+      try {
+        const result = await loadAgencyBrandingSettings();
+        if (result.ok) {
+          const d = result.data;
+          if (d.logoUrl) { setLogoPreview(d.logoUrl); setLogoFileName("Saved logo"); }
+          if (d.primaryColor) setPrimaryColor(d.primaryColor);
+          if (d.accentColor) setAccentColor(d.accentColor);
+          if (d.tagline) setTagline(d.tagline);
+          if (d.description) setDescription(d.description);
+          if (d.watermarkPreset) setWm(d.watermarkPreset);
+        }
+      } finally {
+        setLoadingSettings(false);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -11876,6 +12639,7 @@ function BrandingDrawer() {
       });
       if (!result.ok) { toast(result.error || "Couldn't save. Try again."); return; }
       toast("Branding saved");
+      router.refresh();
       closeDrawer();
     } catch (err) {
       console.error("[BrandingDrawer.save]", err);
@@ -11891,7 +12655,7 @@ function BrandingDrawer() {
       title="Branding"
       description="Logo, voice, brand colors. What clients see across emails and storefront."
       width={580}
-      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? (isUploadingLogo ? "Uploading…" : "Saving…") : "Save"} />}
+      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? (isUploadingLogo ? "Uploading…" : "Saving…") : loadingSettings ? "Loading…" : "Save"} />}
     >
       <Section title="Logo & icon">
         <FieldRow label="Wordmark" hint="PNG or SVG, up to 10 MB. Used in storefront header and emails.">
@@ -12025,23 +12789,45 @@ function BrandingDrawer() {
 function WatermarkEditorDrawer() {
   const { state, closeDrawer, openUpgrade, toast, tenantSlug } = useProto();
   const isStudioPlus = meetsPlan(state.plan, "studio");
-  const payload = state.drawer.payload as { mediaAssetId?: string; imageUrl?: string; talentName?: string } | undefined;
+  const payload = state.drawer.payload as {
+    mediaAssetId?: string;
+    selectedIds?: string[];
+    imageUrl?: string;
+    talentName?: string;
+    currentOverride?: unknown;
+  } | undefined;
   const assetId    = payload?.mediaAssetId ?? "demo-asset";
   const talentName = payload?.talentName ?? "Sample photo";
+  const isBulk     = (payload?.selectedIds?.length ?? 0) > 0;
 
-  const [wm, setWm] = useState<WatermarkPreset>({ ...DEFAULT_WATERMARK_PRESET, enabled: true });
+  const initialPreset: WatermarkPreset =
+    payload?.currentOverride && typeof payload.currentOverride === "object"
+      ? { ...DEFAULT_WATERMARK_PRESET, ...(payload.currentOverride as Partial<WatermarkPreset>), enabled: true }
+      : { ...DEFAULT_WATERMARK_PRESET, enabled: true };
+  const [wm, setWm] = useState<WatermarkPreset>(initialPreset);
   const setWmField = <K extends keyof WatermarkPreset>(k: K, v: WatermarkPreset[K]) =>
     setWm(prev => ({ ...prev, [k]: v }));
   const [isSaving, setIsSaving] = useState(false);
 
+  const targetIds = isBulk
+    ? (payload!.selectedIds!)
+    : (assetId !== "demo-asset" ? [assetId] : []);
+
   const onApply = async () => {
     if (isSaving) return;
-    if (!tenantSlug || assetId === "demo-asset") { toast("Watermark override saved (demo)"); closeDrawer(); return; }
+    if (!tenantSlug || targetIds.length === 0) {
+      toast(isBulk ? "Watermark applied (demo)" : "Watermark override saved (demo)");
+      closeDrawer();
+      return;
+    }
     setIsSaving(true);
     try {
-      const result = await updateMediaWatermarkOverride({ mediaAssetId: assetId, override: wm });
-      if (!result.ok) { toast(result.error || "Couldn't save."); return; }
-      toast("Watermark override saved");
+      const results = await Promise.all(
+        targetIds.map((id) => actionSetMediaWatermarkOverride(id, wm as Record<string, unknown>))
+      );
+      const failed = results.filter((r) => !r.ok).length;
+      if (failed > 0) { toast(`${failed} photo(s) failed to save.`); return; }
+      toast(isBulk ? `Watermark applied to ${targetIds.length} photos` : "Watermark override saved");
       closeDrawer();
     } catch { toast("Couldn't save."); }
     finally { setIsSaving(false); }
@@ -12068,12 +12854,14 @@ function WatermarkEditorDrawer() {
         <div style={{ display: "flex", gap: 8, alignItems: "center", flex: 1 }}>
           <div style={{ marginRight: "auto" }}>
             <SecondaryButton onClick={async () => {
-              await updateMediaWatermarkOverride({ mediaAssetId: assetId, override: undefined });
-              toast("Reset to workspace default"); closeDrawer();
+              if (targetIds.length === 0) { toast("Reset to workspace default (demo)"); closeDrawer(); return; }
+              await Promise.all(targetIds.map((id) => actionSetMediaWatermarkOverride(id, null)));
+              toast(isBulk ? `Reset ${targetIds.length} photos to workspace default` : "Reset to workspace default");
+              closeDrawer();
             }}>Reset to default</SecondaryButton>
           </div>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={onApply}>{isSaving ? "Saving…" : "Apply"}</PrimaryButton>
+          <PrimaryButton onClick={onApply} disabled={isSaving}>{isSaving ? "Saving…" : isBulk ? `Apply to ${targetIds.length}` : "Apply"}</PrimaryButton>
         </div>
       }
     >
@@ -12356,16 +13144,27 @@ function DomainDrawer() {
 
 function IdentityDrawer() {
   const { closeDrawer, toast, tenantSlug } = useProto();
-  // Phase 3 (deep QA fix) — controlled state, real updateWorkspaceAccount
-  // server action. Slug change is destructive and out of scope here
-  // (separate flow with redirect mapping); the slug input is read-only
-  // until that lands.
+  const router = useRouter();
   const [displayName, setDisplayName] = useState(TENANT.name);
   const [contactEmail, setContactEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!tenantSlug);
+
+  useEffect(() => {
+    if (!tenantSlug) { setIsLoading(false); return; }
+    void (async () => {
+      try {
+        const res = await loadWorkspaceAccountSettings();
+        if (res.ok) {
+          if (res.data.displayName) setDisplayName(res.data.displayName);
+          if (res.data.contactEmail) setContactEmail(res.data.contactEmail);
+        }
+      } finally { setIsLoading(false); }
+    })();
+  }, [tenantSlug]);
 
   const onSave = async () => {
-    if (isSaving) return;
+    if (isSaving || isLoading) return;
     if (!tenantSlug) {
       toast("Identity saved (demo)");
       closeDrawer();
@@ -12382,6 +13181,7 @@ function IdentityDrawer() {
         return;
       }
       toast("Identity saved");
+      router.refresh();
       closeDrawer();
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -12398,7 +13198,7 @@ function IdentityDrawer() {
       onClose={closeDrawer}
       title="Identity"
       description="The basics — who you are inside Tulala."
-      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? "Saving…" : "Save"} />}
+      footer={<StandardFooter onSave={onSave} disabled={isSaving || isLoading} saveLabel={isSaving ? "Saving…" : isLoading ? "Loading…" : "Save"} />}
     >
       <Section title="Workspace" framed>
         <FieldRow label="Workspace name" hint="Shown in browser tab, emails, and the public storefront.">
@@ -12442,15 +13242,29 @@ function IdentityDrawer() {
 
 function WorkspaceSettingsDrawer() {
   const { closeDrawer, toast, tenantSlug } = useProto();
-  // Phase 3 (deep QA fix) — controlled state for the three persisted
-  // fields, calling updateWorkspaceFields server action. Locale/currency/
-  // timezone all map to typed columns or settings JSONB on agencies.
-  // First-day-of-week stays UI-only for now (cosmetic, can ship later).
+  const router = useRouter();
   const [locale, setLocale] = useState<"en" | "es" | "pt" | "fr" | "it">("en");
   const [timezone, setTimezone] = useState("America/Cancun");
   const [currency, setCurrency] = useState("USD");
   const [firstDay, setFirstDay] = useState("Monday");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!tenantSlug);
+
+  useEffect(() => {
+    if (!tenantSlug) { setIsLoading(false); return; }
+    void (async () => {
+      try {
+        const res = await loadWorkspaceAccountSettings();
+        if (res.ok) {
+          const validLocales = ["en", "es", "pt", "fr", "it"] as const;
+          const loc = res.data.primaryLocale;
+          if (loc && (validLocales as readonly string[]).includes(loc)) setLocale(loc as typeof locale);
+          if (res.data.timezone) setTimezone(res.data.timezone);
+          if (res.data.preferredCurrency) setCurrency(res.data.preferredCurrency);
+        }
+      } finally { setIsLoading(false); }
+    })();
+  }, [tenantSlug]);
 
   // Map prototype-friendly labels to canonical values + back.
   const localeOptions = [
@@ -12480,7 +13294,7 @@ function WorkspaceSettingsDrawer() {
   };
 
   const onSave = async () => {
-    if (isSaving) return;
+    if (isSaving || isLoading) return;
     if (!tenantSlug) {
       toast("Settings saved (demo)");
       closeDrawer();
@@ -12498,6 +13312,7 @@ function WorkspaceSettingsDrawer() {
         return;
       }
       toast("Settings saved");
+      router.refresh();
       closeDrawer();
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -12514,7 +13329,7 @@ function WorkspaceSettingsDrawer() {
       onClose={closeDrawer}
       title="Workspace settings"
       description="Operational defaults — locale, currency, timezone."
-      footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? "Saving…" : "Save"} />}
+      footer={<StandardFooter onSave={onSave} disabled={isSaving || isLoading} saveLabel={isSaving ? "Saving…" : isLoading ? "Loading…" : "Save"} />}
     >
       <Section title="Locale & timezone" framed>
         <FieldRow label="Default locale">
@@ -12907,6 +13722,10 @@ function NewTalentDrawer() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  // Hold the actual File so we can upload it as a `card` variant after
+  // addTalentToRoster returns the new talentProfileId. The blob URL above
+  // is only for preview.
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -12992,14 +13811,36 @@ function NewTalentDrawer() {
         lastName,
         displayName,
         email,
-        phone,
+        phone: phoneCountry && phone ? `${phoneCountry} ${phone}` : phone,
+        pronunciation,
         homeBase,
         primaryTypeSlugorId: primaryType ?? undefined,
+        secondaryTypeSlugorIds: secondaryTypes,
         managementMethod,
       });
       if (!result.ok) {
         toast(result.error, { tone: "error" });
         return;
+      }
+
+      // Upload the optional avatar file as the talent's `card` variant
+      // (the public roster card photo). Best-effort — surface a toast on
+      // failure but don't block the add flow.
+      if (result.talentProfileId && photoFile) {
+        try {
+          const fd = new FormData();
+          fd.append("file", photoFile);
+          const upRes = await actionUploadAndAssignMedia(fd, result.talentProfileId, "card");
+          if (!upRes.ok) toast(`Photo upload failed: ${upRes.error}`, { tone: "error" });
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error("[NewTalentDrawer photo upload]", err);
+          toast("Photo upload failed — talent created without photo", { tone: "error" });
+        }
+      }
+
+      if (result.warnings?.length) {
+        result.warnings.forEach(w => toast(w, { tone: "error" }));
       }
       clearProfileDraft("default");
       router.refresh();
@@ -13180,7 +14021,7 @@ function NewTalentDrawer() {
       {addMode === "csv" && (
         <CsvBulkAddPanel
           allowedParents={allowedParents}
-          onComplete={(rows, defaultType) => {
+          onComplete={async (rows, defaultType) => {
             // Map CSV "type" column → taxonomy slug. Falls back to defaultType.
             const allTypes = allowedParents.flatMap(p => p.children);
             const matchType = (label: string): string | undefined => {
@@ -13192,6 +14033,41 @@ function NewTalentDrawer() {
                 || c.label.toLowerCase().includes(label.toLowerCase())
               )?.id;
             };
+
+            // Live mode — fire the real bulk action that writes each row to
+            // talent_profiles + agency_talent_roster. Per-row errors don't
+            // abort the batch; the toast surfaces created vs failed counts.
+            if (tenantSlug) {
+              const liveRows = rows.map(r => ({
+                firstName: r.firstName,
+                lastName: r.lastName,
+                email: r.email,
+                homeBase: r.city,
+                primaryTypeSlugorId: matchType(r.type) ?? defaultType ?? undefined,
+              }));
+              startTransition(async () => {
+                const res = await bulkAddTalentToRoster(tenantSlug, liveRows);
+                if (!res.ok) {
+                  toast(res.error, { tone: "error" });
+                  return;
+                }
+                if (res.failed > 0) {
+                  // eslint-disable-next-line no-console
+                  console.warn("[bulk-add talent] failures:", res.errors);
+                  toast(`Created ${res.created} of ${res.created + res.failed}. ${res.failed} failed — see console.`, { tone: res.created > 0 ? undefined : "error" });
+                } else {
+                  toast(`Created ${res.created} talent profile${res.created === 1 ? "" : "s"}`);
+                }
+                if (res.created > 0) {
+                  router.refresh();
+                  closeDrawer();
+                }
+              });
+              return;
+            }
+
+            // Mock mode (no tenant) — fall back to the prototype's local
+            // pending-talent queue so the prototype demo path still works.
             const enriched = rows.map(r => ({
               firstName: r.firstName,
               lastName: r.lastName,
@@ -13264,7 +14140,10 @@ function NewTalentDrawer() {
         <input ref={fileRef} type="file" accept="image/*" capture="user" style={{ display: "none" }}
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) setPhotoUrl(URL.createObjectURL(f));
+            if (f) {
+              setPhotoUrl(URL.createObjectURL(f));
+              setPhotoFile(f);
+            }
             e.target.value = "";
           }}
         />
@@ -13612,50 +14491,7 @@ function CsvBulkAddPanel({ allowedParents, onComplete }: {
   const [raw, setRaw] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [defaultType, setDefaultType] = useState<string | null>(null);
-  // Parse CSV — naive split on newlines + commas. Quotes ignored to
-  // keep this prototype-tight; production wires papaparse.
-  type Row = { firstName: string; lastName: string; email: string; phone: string; type: string; city: string };
-  const parsed: Row[] = (() => {
-    if (!raw.trim()) return [];
-    const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    if (lines.length === 0) return [];
-    const headerLine = lines[0].toLowerCase();
-    const cols = headerLine.split(",").map(c => c.trim());
-    const indexOf = (...names: string[]) => {
-      for (const n of names) {
-        const idx = cols.findIndex(c => c === n || c.startsWith(n));
-        if (idx >= 0) return idx;
-      }
-      return -1;
-    };
-    const iFirst = indexOf("first", "firstname", "first name", "given");
-    const iLast  = indexOf("last", "lastname", "last name", "surname", "family");
-    const iName  = indexOf("name", "full name", "displayname");
-    const iEmail = indexOf("email", "e-mail");
-    const iPhone = indexOf("phone", "tel", "mobile");
-    const iType  = indexOf("type", "role", "talent type", "primary");
-    const iCity  = indexOf("city", "base", "homebase", "home base");
-    const dataLines = lines.slice(1);
-    return dataLines.map(line => {
-      const cells = line.split(",").map(c => c.trim());
-      let firstName = iFirst >= 0 ? cells[iFirst] ?? "" : "";
-      let lastName  = iLast  >= 0 ? cells[iLast]  ?? "" : "";
-      if (!firstName && !lastName && iName >= 0) {
-        const n = cells[iName] ?? "";
-        const parts = n.split(/\s+/);
-        firstName = parts[0] ?? "";
-        lastName  = parts.slice(1).join(" ");
-      }
-      return {
-        firstName,
-        lastName,
-        email: iEmail >= 0 ? cells[iEmail] ?? "" : "",
-        phone: iPhone >= 0 ? cells[iPhone] ?? "" : "",
-        type:  iType  >= 0 ? cells[iType]  ?? "" : "",
-        city:  iCity  >= 0 ? cells[iCity]  ?? "" : "",
-      } as Row;
-    }).filter(r => r.firstName || r.lastName || r.email);
-  })();
+  const parsed = useMemo(() => parseTalentCsv(raw), [raw]);
   const valid = parsed.filter(r => r.firstName.trim() && r.email.trim()).length;
   const sample = `firstName,lastName,email,phone,type,city
 Sofia,Lupo,sofia@example.com,+34 612 345 678,Fashion model,Madrid
@@ -13774,13 +14610,18 @@ Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
               </table>
             </div>
           </div>
-          <button type="button" onClick={() => onComplete(parsed, defaultType)} disabled={valid === 0} style={{
+          {parsed.length > 200 && (
+            <div style={{ padding: "8px 12px", borderRadius: 8, background: COLORS.amberSoft, color: COLORS.amberDeep, fontSize: 12, marginBottom: 8 }}>
+              {parsed.length} rows detected — imports are capped at 200. Trim your CSV to continue.
+            </div>
+          )}
+          <button type="button" onClick={() => onComplete(parsed.slice(0, 200), defaultType)} disabled={valid === 0 || parsed.length > 200} style={{
             width: "100%", padding: "11px 18px", borderRadius: 10, border: "none",
-            background: valid > 0 ? COLORS.fill : "rgba(11,11,13,0.10)",
-            color: valid > 0 ? "#fff" : COLORS.inkDim,
+            background: valid > 0 && parsed.length <= 200 ? COLORS.fill : "rgba(11,11,13,0.10)",
+            color: valid > 0 && parsed.length <= 200 ? "#fff" : COLORS.inkDim,
             fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
-            cursor: valid > 0 ? "pointer" : "default",
-          }}>{valid === 0 ? "Add a name + email per row to continue" : `Create ${valid} talent${valid === 1 ? "" : "s"}`}</button>
+            cursor: valid > 0 && parsed.length <= 200 ? "pointer" : "default",
+          }}>{valid === 0 ? "Add a name + email per row to continue" : parsed.length > 200 ? `Trim to ≤ 200 rows first (${parsed.length} detected)` : `Create ${valid} talent${valid === 1 ? "" : "s"}`}</button>
         </>
       )}
 
@@ -23215,7 +24056,6 @@ function SavedRepliesDrawer() {
       footer={
         <div style={{ display: "flex", gap: 8 }}>
           <SecondaryButton onClick={closeDrawer}>Done</SecondaryButton>
-          <GhostButton onClick={() => toast("New reply editor — coming up")}>+ New reply</GhostButton>
         </div>
       }
       defaultSize="half"
@@ -23421,7 +24261,6 @@ function OnCallRotationDrawer() {
       footer={
         <div style={{ display: "flex", gap: 8 }}>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <GhostButton onClick={() => toast("Rotation editor — coming in ops v2")}>Edit rotation</GhostButton>
         </div>
       }
       defaultSize="half"
@@ -23824,7 +24663,6 @@ function ContractTemplatesDrawer() {
           ) : (
             <>
               <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-              <GhostButton onClick={() => toast("Template editor — coming in legal v2")}>+ New template</GhostButton>
             </>
           )}
         </div>
@@ -24067,7 +24905,6 @@ function EmailTemplatesDrawer() {
       footer={
         <div style={{ display: "flex", gap: 8 }}>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <GhostButton onClick={() => toast("Template editor — coming in email v2")}>+ New template</GhostButton>
         </div>
       }
       defaultSize="half"
@@ -24258,7 +25095,6 @@ function EmailSequencesDrawer() {
       footer={
         <div style={{ display: "flex", gap: 8 }}>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <GhostButton onClick={() => toast("Sequence builder — coming in email v2")}>+ New sequence</GhostButton>
         </div>
       }
       defaultSize="half"
@@ -24757,13 +25593,13 @@ function CalendarSyncDrawer() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => toast(intg.connected ? "Disconnected" : "Connect flow — coming soon")}
+                  disabled
                   style={{
                     padding: "5px 12px", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
-                    color: intg.connected ? COLORS.red : COLORS.accent,
+                    color: COLORS.inkMuted,
                     background: "transparent",
-                    border: `1px solid ${intg.connected ? COLORS.red + "44" : COLORS.accent + "44"}`,
-                    borderRadius: RADIUS.sm, cursor: "pointer",
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    borderRadius: RADIUS.sm, cursor: "default", opacity: 0.5,
                   }}
                 >
                   {intg.connected ? "Disconnect" : "Connect"}
@@ -25513,7 +26349,6 @@ function BrandAssetsDrawer() {
       footer={
         <div style={{ display: "flex", gap: 8 }}>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <GhostButton onClick={() => toast("Upload flow — coming in brand v2")}>+ Upload</GhostButton>
         </div>
       }
       defaultSize="half"

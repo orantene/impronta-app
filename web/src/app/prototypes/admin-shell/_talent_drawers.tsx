@@ -29,7 +29,19 @@
  *   and lazy-loaded via next/dynamic in TalentRouter.
  */
 
-import { useState, type ReactNode } from "react";
+import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
+import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
+import {
+  updateSelfSocialLinks,
+  updateSelfPrivacy,
+  updateSelfEmergencyContact,
+  updateSelfCredits,
+  updateSelfLimits,
+  updateSelfRates,
+  updateSelfLocation,
+} from "@/lib/server-actions/talent-self-profile-sections";
 import {
   AVAILABILITY_BLOCKS,
   AVAILABLE_CHANNELS,
@@ -166,6 +178,34 @@ function useSaveAndClose(message = "Saved") {
   };
 }
 
+// Persistent error banner — stays until the user acts. Never toast-only.
+function SaveErrorBanner({ error, onDismiss }: { error: string; onDismiss: () => void }) {
+  return (
+    <div
+      role="alert"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 14px",
+        background: "rgba(208,46,46,0.07)",
+        border: "1px solid rgba(208,46,46,0.28)",
+        borderRadius: 8,
+        marginBottom: 12,
+      }}
+    >
+      <span style={{ flex: 1, fontFamily: FONTS.body, fontSize: 13, color: "#c0392b" }}>{error}</span>
+      <button
+        onClick={onDismiss}
+        aria-label="Dismiss error"
+        style={{ background: "transparent", border: "none", color: "#c0392b", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 function StandardFooter({
   onSave,
   saveLabel = "Save",
@@ -285,43 +325,31 @@ export function TalentOfferDetailDrawer() {
       footer={
         r.status === "needs-answer" ? (
           <>
+            {/* Decline/Accept are disabled here — this drawer uses prototype mock IDs (no real inquiryId).
+                The real accept/decline flow routes through the Messages shell, which has the live inquiry context.
+                TODO Phase 3+: when offer-detail is rewritten against bridge inquiry data, wire acceptInquiryInvitation /
+                declineInquiryInvitation from talent-pipeline.ts. */}
             <button
-              onClick={() => {
-                toast("Declined — agency notified");
-                closeDrawer();
-              }}
+              disabled
+              title="Open in Messages to respond"
               style={{
                 background: "transparent",
                 border: `1px solid ${COLORS.borderSoft}`,
-                color: COLORS.red,
+                color: COLORS.inkDim,
                 padding: "8px 12px",
                 borderRadius: 8,
                 fontFamily: FONTS.body,
                 fontSize: 12.5,
                 fontWeight: 500,
-                cursor: "pointer",
+                cursor: "not-allowed",
                 marginRight: "auto",
+                opacity: 0.5,
               }}
             >
               Decline
             </button>
-            <SecondaryButton
-              onClick={() => {
-                toast("Marked as 'on hold' for the agency");
-                closeDrawer();
-              }}
-            >
-              Hold open
-            </SecondaryButton>
-            <SecondaryButton onClick={() => openDrawer("talent-voice-reply")}>
-              🎙️ Voice reply
-            </SecondaryButton>
-            <PrimaryButton
-              onClick={() => {
-                toast("Accepted — booking will be created when terms are final");
-                closeDrawer();
-              }}
-            >
+            <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+            <PrimaryButton disabled>
               Accept
             </PrimaryButton>
           </>
@@ -2011,8 +2039,19 @@ function BlockTimeForm({
 }
 
 
-function ToggleRow({ label, hint, defaultOn }: { label: string; hint?: string; defaultOn?: boolean }) {
+function ToggleRow({
+  label,
+  hint,
+  defaultOn,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  defaultOn?: boolean;
+  onChange?: (v: boolean) => void;
+}) {
   const [on, setOn] = useState(defaultOn ?? false);
+  const handleChange = (v: boolean) => { setOn(v); onChange?.(v); };
   return (
     <div
       style={{
@@ -2035,7 +2074,7 @@ function ToggleRow({ label, hint, defaultOn }: { label: string; hint?: string; d
           </div>
         )}
       </div>
-      <Toggle on={on} onChange={setOn} />
+      <Toggle on={on} onChange={handleChange} />
     </div>
   );
 }
@@ -2043,10 +2082,10 @@ function ToggleRow({ label, hint, defaultOn }: { label: string; hint?: string; d
 // ─── Section editor (used for sub-sections of profile) ───────────
 
 export function TalentProfileSectionDrawer() {
+  // TODO Phase 3+: generic section save requires section-specific field mapping. Save is disabled.
   const { state, closeDrawer } = useProto();
   const open = state.drawer.drawerId === "talent-profile-section";
   const label = (state.drawer.payload?.label as string) ?? "Section";
-  const onSave = useSaveAndClose(`${label} saved`);
 
   return (
     <DrawerShell
@@ -2055,7 +2094,12 @@ export function TalentProfileSectionDrawer() {
       title={`Edit · ${label}`}
       description="Update this section. Changes propagate to all your rosters automatically."
       width={520}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <PrimaryButton disabled>Save</PrimaryButton>
+        </>
+      }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <FieldRow label="Notes" hint="Field-specific UI lands in production. Prototype shows a textarea.">
@@ -2621,9 +2665,9 @@ function AvailabilityToggleRow({
 // ─── Portfolio manager ───────────────────────────────────────────
 
 export function TalentPortfolioDrawer() {
+  // TODO Phase 3+: portfolio sort requires real media IDs from bridge data. Save is disabled.
   const { state, closeDrawer } = useProto();
   const open = state.drawer.drawerId === "talent-portfolio";
-  const onSave = useSaveAndClose("Portfolio updated");
   const shots = ["🌸", "🌊", "🍃", "🌷", "🌹", "🪷", "🌾", "🌺", "🌿", "🌳", "🍂", "🌲"];
   return (
     <DrawerShell
@@ -2632,7 +2676,12 @@ export function TalentPortfolioDrawer() {
       title="Portfolio"
       description="12 / 15 shots. Your agencies favour fresh work — try to keep at least 3 from this year."
       width={620}
-      footer={<StandardFooter onSave={onSave} saveLabel="Save order" />}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <PrimaryButton disabled>Save order</PrimaryButton>
+        </>
+      }
     >
       <div
         style={{
@@ -2892,9 +2941,33 @@ export function TalentLeaveAgencyDrawer() {
 // ─── Privacy ────────────────────────────────────────────────────
 
 export function TalentPrivacyDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-privacy";
-  const onSave = useSaveAndClose("Privacy saved");
+  const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
+
+  const [hubVisible, setHubVisible] = useState(true);
+  const [searchIndexable, setSearchIndexable] = useState(true);
+  const [showMeasurements, setShowMeasurements] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
+    setSaving(true);
+    setSaveError(null);
+    const result = await updateSelfPrivacy({
+      talent_profile_id: talentProfileId,
+      prefs: {
+        search_engine_indexable: searchIndexable,
+        show_measurements_publicly: showMeasurements,
+        hub_visible: hubVisible,
+      },
+    });
+    setSaving(false);
+    if (!result.ok) { setSaveError(result.error); return; }
+    closeDrawer();
+  };
+
   return (
     <DrawerShell
       open={open}
@@ -2902,22 +2975,32 @@ export function TalentPrivacyDrawer() {
       title="Privacy"
       description="Where you appear, and who can see your full profile."
       width={520}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </PrimaryButton>
+        </>
+      }
     >
+      {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <ToggleRow label="Tulala hub (curated discovery)" hint="Only featured talent are shown." defaultOn={true} />
+        <ToggleRow label="Tulala hub (curated discovery)" hint="Only featured talent are shown." defaultOn={hubVisible} onChange={setHubVisible} />
         <ToggleRow label="Acme Models public roster" defaultOn={true} />
         <ToggleRow label="Praline London public roster" defaultOn={true} />
         <ToggleRow
           label="Search engines (Google etc.)"
           hint="Lets people find your public page from a Google search."
-          defaultOn={true}
+          defaultOn={searchIndexable}
+          onChange={setSearchIndexable}
         />
         <Divider label="Sensitive data" />
         <ToggleRow
           label="Show measurements publicly"
           hint="Off = only agencies + clients you accept can see them."
-          defaultOn={true}
+          defaultOn={showMeasurements}
+          onChange={setShowMeasurements}
         />
       </div>
     </DrawerShell>
@@ -4459,7 +4542,6 @@ export function ReplyTemplatesDrawer() {
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("New template — coming soon")}>+ New template</SecondaryButton>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
@@ -4645,136 +4727,123 @@ function netOf(gross: string): string {
 //   matching the rest of the talent surface.
 // ════════════════════════════════════════════════════════════════════
 
-// ─── Photo edit (cover or headshot) ───────────────────────────────
+// ─── Photo edit — real MediaGalleryDrawer ─────────────────────────
 
 export function TalentPhotoEditDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, tenantSlug, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-photo-edit";
-  const which = (state.drawer.payload?.which as "cover" | "headshot") ?? "headshot";
-  const isCover = which === "cover";
-  const onSave = useSaveAndClose(`${isCover ? "Cover photo" : "Headshot"} updated · agencies notified`);
+  const focusSlot = (state.drawer.payload?.focusSlot as "avatar" | "hero" | "gallery") ?? "gallery";
 
-  const swatches = isCover
-    ? ["🌅", "🌊", "🏔️", "🌆", "🏝️", "🌃", "🌌", "🌇"]
-    : ["🌸", "🌷", "🌹", "🪷", "🌺", "🌻", "🌼", "🌿"];
+  // Derive talentId: payload wins, then self-profile fallback.
+  const talentId = (state.drawer.payload?.talentId as string | undefined)
+    ?? bridgeTalentSelfProfile?.id
+    ?? null;
+
+  const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const loadedForRef = useRef<string | null>(null);
+
+  // Load existing assets when drawer opens for a real talent.
+  const loadAssets = useCallback(async (tid: string) => {
+    if (loadedForRef.current === tid) return;
+    loadedForRef.current = tid;
+    const res = await actionLoadTalentMediaBundle(tid);
+    if (!res.ok) return;
+    const { gallery, card, cover } = res.data;
+    const all: MediaAsset[] = [];
+    if (card) all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
+    if (cover) all.push({ id: cover.id, url: cover.url, variantKind: "banner", sortOrder: 0 });
+    for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder });
+    setAssets(all);
+  }, []);
+
+  useEffect(() => {
+    if (open && talentId) void loadAssets(talentId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, talentId]);
+
+  if (!open) return null;
+
+  // When there's no real talentId, show a disabled state.
+  if (!talentId || !tenantSlug) {
+    return (
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 9000,
+        background: "rgba(11,11,13,0.56)", display: "flex",
+        alignItems: "center", justifyContent: "center",
+      }}>
+        <div style={{
+          background: "#FAFAF7", borderRadius: 12, padding: "32px 28px",
+          fontFamily: '"Inter", system-ui, sans-serif', fontSize: 14,
+          color: "rgba(11,11,13,0.62)", textAlign: "center",
+          boxShadow: "0 12px 40px rgba(11,11,13,0.18)",
+        }}>
+          <div style={{ marginBottom: 10, fontSize: 24 }}>📷</div>
+          Photo editing requires a live talent profile.
+          <div style={{ marginTop: 16 }}>
+            <button type="button" onClick={closeDrawer} style={{
+              fontFamily: '"Inter", system-ui, sans-serif', fontSize: 13,
+              padding: "8px 18px", borderRadius: 8, cursor: "pointer",
+              background: "#0F4F3E", border: "none", color: "#fff",
+            }}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <DrawerShell
+    <MediaGalleryDrawer
       open={open}
-      onClose={closeDrawer}
-      title={isCover ? "Replace cover photo" : "Replace headshot"}
-      description={
-        isCover
-          ? "1600 × 480 minimum. Wide horizon shots work best — your headshot will overlap the lower edge."
-          : "Square crop. Faces forward, daylight, neutral background — the same headshot used on your comp card."
-      }
-      width={560}
-      footer={<StandardFooter onSave={onSave} saveLabel="Use selection" />}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div
-          style={{
-            background: COLORS.surfaceAlt,
-            border: `1px solid rgba(15,79,62,0.18)`,
-            borderRadius: 12,
-            padding: 14,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              width: isCover ? 96 : 64,
-              height: 64,
-              background: "#fff",
-              borderRadius: isCover ? 8 : "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 32,
-              border: `1px solid ${COLORS.borderSoft}`,
-            }}
-          >
-            {isCover ? MY_TALENT_PROFILE.coverPhoto : MY_TALENT_PROFILE.profilePhoto}
-          </div>
-          <div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>Currently using</div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, marginTop: 2 }}>
-              {isCover ? "Sunset over a coastline · uploaded Apr 12" : "Pink florals · uploaded Mar 28"}
-            </div>
-          </div>
-        </div>
-        <FieldRow label="Upload" hint="JPG / PNG / HEIC up to 12 MB. We'll auto-crop and generate retina sizes.">
-          <button
-            onClick={() => toast("Upload picker — coming soon")}
-            style={{
-              padding: "16px 14px",
-              background: "rgba(11,11,13,0.02)",
-              border: `1px dashed rgba(11,11,13,0.18)`,
-              borderRadius: 10,
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              color: COLORS.inkMuted,
-              cursor: "pointer",
-              textAlign: "center",
-            }}
-          >
-            Drop a file or click to upload
-          </button>
-        </FieldRow>
-        <Divider label="Or pick a placeholder" />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-          {swatches.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => toast(`${isCover ? "Cover" : "Headshot"} placeholder selected`)}
-              style={{
-                aspectRatio: isCover ? "16 / 9" : "1 / 1",
-                background: COLORS.surfaceAlt,
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 28,
-                cursor: "pointer",
-              }}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-        {!isCover && (
-          <>
-            <Divider label="Crop guide" />
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 18,
-                fontFamily: FONTS.body,
-                fontSize: 12.5,
-                color: COLORS.inkMuted,
-                lineHeight: 1.7,
-              }}
-            >
-              <li>Eyes on the upper third</li>
-              <li>Neutral or daylight background</li>
-              <li>No filters or heavy retouch — agencies use this to verify identity</li>
-            </ul>
-          </>
-        )}
-      </div>
-    </DrawerShell>
+      onOpenChange={(o) => { if (!o) closeDrawer(); }}
+      talentId={talentId}
+      tenantSlug={tenantSlug}
+      assets={assets}
+      onAssetsChange={setAssets}
+      focusSlot={focusSlot}
+      onSetAvatar={async (mediaAssetId) => {
+        const { setTalentAvatar } = await import("@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions");
+        return setTalentAvatar(tenantSlug, talentId, mediaAssetId);
+      }}
+      onSetHero={async (mediaAssetId) => {
+        const { setTalentHero } = await import("@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions");
+        return setTalentHero(tenantSlug, talentId, mediaAssetId);
+      }}
+      onAddToPortfolio={async (storagePath) => {
+        const { registerPortfolioPhoto } = await import("@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions");
+        const res = await registerPortfolioPhoto(tenantSlug, talentId, { storagePath });
+        if (res.ok) return { ok: true, id: res.data?.id };
+        return { ok: false, error: res.error };
+      }}
+      onDeleteAsset={async (mediaAssetId) => {
+        const res = await actionDeleteMediaAssets([mediaAssetId]);
+        return res;
+      }}
+      onUploadFile={async (file, variantKind) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        const allowed = ["gallery", "card", "banner", "lightbox"] as const;
+        const kind = allowed.includes(variantKind as typeof allowed[number])
+          ? (variantKind as typeof allowed[number])
+          : "gallery";
+        const res = await actionUploadAndAssignMedia(fd, talentId, kind);
+        if (!res.ok) return { ok: false, error: res.error };
+        return {
+          ok: true,
+          asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0 },
+        };
+      }}
+    />
   );
 }
 
 // ─── Polaroids ───────────────────────────────────────────────────
 
 export function TalentPolaroidsDrawer() {
+  // TODO Phase 3+: polaroid upload flow requires Phase 1 media infra. Save is disabled.
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-polaroids";
-  const onSave = useSaveAndClose("Polaroid set updated");
 
   return (
     <DrawerShell
@@ -4783,7 +4852,12 @@ export function TalentPolaroidsDrawer() {
       title="Polaroid set"
       description="Industry standard: 5 angles, no styling, daylight. Clients use polaroids to verify what you actually look like in person."
       width={560}
-      footer={<StandardFooter onSave={onSave} saveLabel="Save set" />}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <PrimaryButton disabled>Save set</PrimaryButton>
+        </>
+      }
     >
       <div
         style={{
@@ -4844,23 +4918,6 @@ export function TalentPolaroidsDrawer() {
           </div>
         ))}
       </div>
-      <button
-        onClick={() => toast("Bulk uploader — coming soon")}
-        style={{
-          marginTop: 14,
-          padding: "12px 14px",
-          width: "100%",
-          background: "rgba(11,11,13,0.02)",
-          border: `1px dashed rgba(11,11,13,0.18)`,
-          borderRadius: 10,
-          fontFamily: FONTS.body,
-          fontSize: 13,
-          color: COLORS.inkMuted,
-          cursor: "pointer",
-        }}
-      >
-        Replace all 5 in a single shoot
-      </button>
     </DrawerShell>
   );
 }
@@ -4868,10 +4925,26 @@ export function TalentPolaroidsDrawer() {
 // ─── Credits ─────────────────────────────────────────────────────
 
 export function TalentCreditsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-credits";
-  const onSave = useSaveAndClose("Credits updated");
+  const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const credits = MY_TALENT_PROFILE.credits;
+
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
+    setSaving(true);
+    setSaveError(null);
+    const result = await updateSelfCredits({
+      talent_profile_id: talentProfileId,
+      credits_data: credits.map((c) => ({ id: c.id, brand: c.brand, type: c.type, credit: c.credit, role: c.role, year: c.year, pinned: c.pinned })),
+    });
+    setSaving(false);
+    if (!result.ok) { setSaveError(result.error); return; }
+    closeDrawer();
+  };
 
   return (
     <DrawerShell
@@ -4882,11 +4955,12 @@ export function TalentCreditsDrawer() {
       width={620}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("New credit form — coming soon")}>+ Add credit</SecondaryButton>
-          <StandardFooter onSave={onSave} saveLabel="Save order" />
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save order"}</PrimaryButton>
         </>
       }
     >
+      {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {credits.map((c) => (
           <div
@@ -4947,9 +5021,9 @@ export function TalentCreditsDrawer() {
 // ─── Skills ─────────────────────────────────────────────────────
 
 export function TalentSkillsDrawer() {
+  // TODO Phase 3+: wire save to self-mode skill actions (taxonomy system, complex). Save is disabled for now.
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-skills";
-  const onSave = useSaveAndClose("Skills updated");
   const skills = MY_TALENT_PROFILE.skills;
 
   const grouped: Record<string, typeof skills> = {};
@@ -4976,8 +5050,7 @@ export function TalentSkillsDrawer() {
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Add-skill picker — coming soon")}>+ Add skill</SecondaryButton>
-          <StandardFooter onSave={onSave} />
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
     >
@@ -5020,10 +5093,25 @@ export function TalentSkillsDrawer() {
 // ─── Limits ─────────────────────────────────────────────────────
 
 export function TalentLimitsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-limits";
-  const onSave = useSaveAndClose("Limits saved · agencies notified");
+  const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const limits = MY_TALENT_PROFILE.limits;
+
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
+    setSaving(true);
+    setSaveError(null);
+    const hardLimits = limits.filter((l) => l.enforcement === "hard").map((l) => l.label);
+    const softLimits = limits.filter((l) => l.enforcement === "soft").map((l) => l.label);
+    const result = await updateSelfLimits({ talent_profile_id: talentProfileId, limits_data: { hardLimits, softLimits } });
+    setSaving(false);
+    if (!result.ok) { setSaveError(result.error); return; }
+    closeDrawer();
+  };
 
   return (
     <DrawerShell
@@ -5034,11 +5122,12 @@ export function TalentLimitsDrawer() {
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Add-limit form — coming soon")}>+ Add limit</SecondaryButton>
-          <StandardFooter onSave={onSave} />
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save"}</PrimaryButton>
         </>
       }
     >
+      {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {limits.map((l) => (
           <div
@@ -5109,17 +5198,29 @@ export function TalentLimitsDrawer() {
 // ─── Rate card ──────────────────────────────────────────────────
 
 export function TalentRateCardDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-rate-card";
-  const onSave = useSaveAndClose("Rate card saved");
+  const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const rc = MY_TALENT_PROFILE.rateCard;
   const [vis, setVis] = useState(rc.visibility);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const visOptions: Array<{ value: typeof rc.visibility; label: string; hint: string }> = [
     { value: "public", label: "Public", hint: "Shown on your public profile to anyone." },
     { value: "agency-only", label: "Agency only", hint: "Only your agencies and confirmed clients see ranges." },
     { value: "on-request", label: "On request", hint: "Hidden — clients have to inquire to get a quote." },
   ];
+
+  const handleSave = async () => {
+    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
+    setSaving(true);
+    setSaveError(null);
+    const result = await updateSelfRates({ talent_profile_id: talentProfileId, rate_card_visibility: vis });
+    setSaving(false);
+    if (!result.ok) { setSaveError(result.error); return; }
+    closeDrawer();
+  };
 
   return (
     <DrawerShell
@@ -5128,8 +5229,14 @@ export function TalentRateCardDrawer() {
       title="Rate card"
       description="Reference ranges, not final fees. The actual offer is per-booking and includes usage."
       width={580}
-      footer={<StandardFooter onSave={onSave} saveLabel="Save rate card" />}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save rate card"}</PrimaryButton>
+        </>
+      }
     >
+      {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <CapsLabel>Visibility</CapsLabel>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6, marginBottom: 16 }}>
         {visOptions.map((o) => (
@@ -5221,10 +5328,24 @@ export function TalentRateCardDrawer() {
 // ─── Travel & work auth ─────────────────────────────────────────
 
 export function TalentTravelDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-travel";
-  const onSave = useSaveAndClose("Travel preferences saved");
+  const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const t = MY_TALENT_PROFILE.travel;
+
+  const [basedIn, setBasedIn] = useState(t.basedIn);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
+    setSaving(true);
+    setSaveError(null);
+    const result = await updateSelfLocation({ talent_profile_id: talentProfileId, home_base: basedIn });
+    setSaving(false);
+    if (!result.ok) { setSaveError(result.error); return; }
+    closeDrawer();
+  };
 
   return (
     <DrawerShell
@@ -5233,11 +5354,17 @@ export function TalentTravelDrawer() {
       title="Travel & work authorization"
       description="What countries can book you without visa drama, plus how far you'll fly for a job."
       width={560}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save"}</PrimaryButton>
+        </>
+      }
     >
+      {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <FieldRow label="Based in">
-          <TextInput defaultValue={t.basedIn} />
+          <TextInput value={basedIn} onChange={(e) => setBasedIn(e.target.value)} />
         </FieldRow>
         <FieldRow label="Willing to travel" hint="City · country · region · global.">
           <TextInput defaultValue={t.willingTravel} />
@@ -5300,10 +5427,26 @@ export function TalentTravelDrawer() {
 // ─── External links ─────────────────────────────────────────────
 
 export function TalentLinksDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-links";
-  const onSave = useSaveAndClose("Links saved");
+  const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const links = MY_TALENT_PROFILE.links;
+
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
+    setSaving(true);
+    setSaveError(null);
+    const result = await updateSelfSocialLinks({
+      talent_profile_id: talentProfileId,
+      social_links: links.map((l) => ({ kind: l.kind, label: l.label, url: l.url, ...(l.followers ? { followers: l.followers } : {}) })),
+    });
+    setSaving(false);
+    if (!result.ok) { setSaveError(result.error); return; }
+    closeDrawer();
+  };
 
   return (
     <DrawerShell
@@ -5314,11 +5457,12 @@ export function TalentLinksDrawer() {
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Connect account flow in production")}>+ Connect account</SecondaryButton>
-          <StandardFooter onSave={onSave} />
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save"}</PrimaryButton>
         </>
       }
     >
+      {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {links.map((l, i) => (
           <div
@@ -5482,7 +5626,7 @@ export function TalentShowreelDrawer() {
       width={620}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Replace showreel flow in production")}>Replace clip</SecondaryButton>
+          <SecondaryButton disabled>Replace clip</SecondaryButton>
           <PrimaryButton onClick={closeDrawer}>Close</PrimaryButton>
         </>
       }
@@ -5502,35 +5646,6 @@ export function TalentShowreelDrawer() {
         }}
       >
         {p.showreelThumb ?? "🎞️"}
-        <button
-          onClick={() => toast("Showreel plays in production")}
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <span
-            style={{
-              width: 60,
-              height: 60,
-              borderRadius: "50%",
-              background: "rgba(11,11,13,0.78)",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 22,
-            }}
-          >
-            ▶
-          </span>
-        </button>
       </div>
       <Divider label="Why a showreel" />
       <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
@@ -5546,9 +5661,10 @@ export function TalentShowreelDrawer() {
 // ─── Measurements ───────────────────────────────────────────────
 
 export function TalentMeasurementsDrawer() {
+  // TODO Phase 3+: measurements use the field-catalog/field-values system (saveTalentScalarFieldValues).
+  // Save is disabled until the drawer is converted to use field IDs + FormData pattern.
   const { state, closeDrawer } = useProto();
   const open = state.drawer.drawerId === "talent-measurements";
-  const onSave = useSaveAndClose("Measurements saved · agencies notified");
   const m = MY_TALENT_PROFILE.measurements;
 
   return (
@@ -5558,7 +5674,12 @@ export function TalentMeasurementsDrawer() {
       title="Measurements"
       description="Your full comp card. Re-measure every 6 months — accurate stats prevent fitting reshoots."
       width={580}
-      footer={<StandardFooter onSave={onSave} saveLabel="Save measurements" />}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <PrimaryButton disabled>Save measurements</PrimaryButton>
+        </>
+      }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div
@@ -5648,9 +5769,9 @@ export function TalentMeasurementsDrawer() {
 // ─── Documents ──────────────────────────────────────────────────
 
 export function TalentDocumentsDrawer() {
+  // TODO Phase 3+: document upload requires secure file-upload infra. Save is disabled.
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-documents";
-  const onSave = useSaveAndClose("Documents saved");
   const docs = MY_TALENT_PROFILE.documents;
 
   const stateMeta: Record<string, { color: string; label: string }> = {
@@ -5666,7 +5787,7 @@ export function TalentDocumentsDrawer() {
       title="Documents"
       description="ID, tax forms, certifications. Stored encrypted. Visible only to your agency's admin team."
       width={560}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {docs.map((d) => {
@@ -5704,16 +5825,17 @@ export function TalentDocumentsDrawer() {
                 }}
               />
               <button
-                onClick={() => toast(d.state === "uploaded" ? "Replace flow in production" : "Upload picker in production")}
+                disabled
                 style={{
                   background: "transparent",
                   border: `1px solid ${COLORS.borderSoft}`,
-                  color: COLORS.ink,
+                  color: COLORS.inkMuted,
                   padding: "5px 10px",
                   borderRadius: 6,
                   fontFamily: FONTS.body,
                   fontSize: 11.5,
-                  cursor: "pointer",
+                  cursor: "default",
+                  opacity: 0.5,
                 }}
               >
                 {d.state === "uploaded" ? "Replace" : "Upload"}
@@ -5729,10 +5851,32 @@ export function TalentDocumentsDrawer() {
 // ─── Emergency contact ──────────────────────────────────────────
 
 export function TalentEmergencyContactDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-emergency-contact";
-  const onSave = useSaveAndClose("Emergency contact saved");
+  const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const c = MY_TALENT_PROFILE.emergencyContact;
+
+  const [name, setName] = useState(c.name);
+  const [relation, setRelation] = useState(c.relation);
+  const [phone, setPhone] = useState(c.phone);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
+    if (!name.trim()) { setSaveError("Name is required."); return; }
+    setSaving(true);
+    setSaveError(null);
+    const result = await updateSelfEmergencyContact({
+      talent_profile_id: talentProfileId,
+      name,
+      relation,
+      phone,
+    });
+    setSaving(false);
+    if (!result.ok) { setSaveError(result.error); return; }
+    closeDrawer();
+  };
 
   return (
     <DrawerShell
@@ -5741,17 +5885,25 @@ export function TalentEmergencyContactDrawer() {
       title="Emergency contact"
       description="Visible only during an active booking, to the producer running the call sheet. Hidden the rest of the time."
       width={520}
-      footer={<StandardFooter onSave={onSave} />}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </PrimaryButton>
+        </>
+      }
     >
+      {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <FieldRow label="Name">
-          <TextInput defaultValue={c.name} />
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} />
         </FieldRow>
         <FieldRow label="Relation">
-          <TextInput defaultValue={c.relation} />
+          <TextInput value={relation} onChange={(e) => setRelation(e.target.value)} />
         </FieldRow>
         <FieldRow label="Phone" hint="Stored encrypted. Masked on every other surface.">
-          <TextInput defaultValue={c.phone} />
+          <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} />
         </FieldRow>
         <Divider label="When this is shown" />
         <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.7 }}>
@@ -6180,12 +6332,7 @@ export function TalentTierCompareDrawer() {
       width={760}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Maybe later</SecondaryButton>
-          {current !== "portfolio" && (
-            <PrimaryButton onClick={() => toast(`${current === "basic" ? "Pro" : "Portfolio"} trial started · 14 days free`)}>
-              Start {current === "basic" ? "Pro" : "Portfolio"} trial
-            </PrimaryButton>
-          )}
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
     >
@@ -6347,6 +6494,48 @@ export function TalentTierCompareDrawer() {
         Personal page tiers are independent of agency / hub presence. You stay on every roster
         you're on now. The tier only affects your direct Tulala destination page.
       </div>
+
+      {/* Phase 1.5: Pro & Portfolio not yet available for launch — waitlist card replaces trial CTA */}
+      <div
+        style={{
+          marginTop: 16,
+          padding: "18px 20px",
+          background: "#fff",
+          border: `1.5px solid rgba(91,107,160,0.28)`,
+          borderRadius: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          fontFamily: FONTS.body,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.indigoDeep, marginBottom: 4 }}>
+            Pro &amp; Portfolio launching soon
+          </div>
+          <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+            Join the waitlist and you&apos;ll be first to know — plus an early-access discount when billing opens.
+          </div>
+        </div>
+        <button
+          onClick={() => toast("You're on the waitlist — we'll email you when Pro launches")}
+          style={{
+            flexShrink: 0,
+            padding: "9px 18px",
+            background: COLORS.indigoSoft,
+            border: `1px solid rgba(91,107,160,0.32)`,
+            borderRadius: 8,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 600,
+            color: COLORS.indigoDeep,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Join waitlist
+        </button>
+      </div>
     </DrawerShell>
   );
 }
@@ -6397,8 +6586,8 @@ export function TalentPersonalPageDrawer() {
       width={620}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Page preview — coming soon")}>Preview page</SecondaryButton>
-          <PrimaryButton onClick={() => toast("Page saved · changes live in 30 sec")}>Publish</PrimaryButton>
+          {/* Phase 1.5 STRIP: fake Publish CTA removed — page builder ships in Phase 2 */}
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
     >
@@ -6433,24 +6622,6 @@ export function TalentPersonalPageDrawer() {
             <Toggle on={true} onChange={() => {}} />
           </div>
         ))}
-      </div>
-      <div style={{ marginTop: 12 }}>
-        <button
-          onClick={() => toast("Section catalog — coming soon")}
-          style={{
-            padding: "12px 14px",
-            width: "100%",
-            background: "rgba(11,11,13,0.02)",
-            border: `1px dashed rgba(11,11,13,0.18)`,
-            borderRadius: 10,
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            color: COLORS.inkMuted,
-            cursor: "pointer",
-          }}
-        >
-          + Add section · Tour dates · Show calendar · FAQ · Custom block
-        </button>
       </div>
     </DrawerShell>
   );
@@ -6545,9 +6716,9 @@ export function TalentPageTemplateDrawer() {
 // ─── Media embeds ──────────────────────────────────────────────────
 
 export function TalentMediaEmbedsDrawer() {
+  // Phase 1.5 STRIP: Pro+ only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-media-embeds";
-  const onSave = useSaveAndClose("Embeds saved");
   const embeds = MY_TALENT_PROFILE.subscription.embeds;
 
   const supported: Array<{ kind: TalentMediaEmbed["kind"]; label: string; thumb: string }> = [
@@ -6568,8 +6739,8 @@ export function TalentMediaEmbedsDrawer() {
       width={580}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Connect-account flow in production")}>+ Connect account</SecondaryButton>
-          <StandardFooter onSave={onSave} />
+          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Basic */}
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
     >
@@ -6656,9 +6827,9 @@ export function TalentMediaEmbedsDrawer() {
 // ─── Press / clippings ──────────────────────────────────────────────
 
 export function TalentPressDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  // Phase 1.5 STRIP: Pro+ only — save CTA removed; drawer kept for Phase 2 re-wiring
+  const { state, closeDrawer } = useProto();
   const open = state.drawer.drawerId === "talent-press";
-  const onSave = useSaveAndClose("Press band saved");
   const press = MY_TALENT_PROFILE.subscription.press;
 
   return (
@@ -6670,8 +6841,8 @@ export function TalentPressDrawer() {
       width={580}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Add-clip form in production")}>+ Add clip</SecondaryButton>
-          <StandardFooter onSave={onSave} />
+          {/* Phase 1.5 STRIP: save removed — Pro+ feature, not wired for Basic */}
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
     >
@@ -6728,8 +6899,8 @@ export function TalentMediaKitDrawer() {
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Regenerated · ready to download in 30 sec")}>Re-generate</SecondaryButton>
-          <PrimaryButton onClick={() => toast("Download starts in production")}>Download PDF</PrimaryButton>
+          <SecondaryButton disabled>Re-generate</SecondaryButton>
+          <PrimaryButton disabled>Download PDF</PrimaryButton>
         </>
       }
     >
@@ -6791,10 +6962,10 @@ export function TalentMediaKitDrawer() {
 // ─── Custom domain ──────────────────────────────────────────────────
 
 export function TalentCustomDomainDrawer() {
+  // Phase 1.5 STRIP: Portfolio only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-custom-domain";
   const sub = MY_TALENT_PROFILE.subscription;
-  const onSave = useSaveAndClose("Domain saved · DNS check started");
 
   return (
     <DrawerShell
@@ -6803,7 +6974,10 @@ export function TalentCustomDomainDrawer() {
       title="Custom domain"
       description="Point your own domain at your Tulala personal page. Visitors see yourname.com — Tulala handles SSL + redirects."
       width={580}
-      footer={<StandardFooter onSave={onSave} saveLabel="Save & verify" />}
+      footer={
+        // Phase 1.5 STRIP: save removed — Portfolio-only feature, not wired for Basic
+        <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+      }
     >
       <FieldRow label="Domain" hint="Use the apex (yourname.com) or a subdomain (page.yourname.com).">
         <TextInput placeholder="marta-reyes.com" defaultValue={sub.customDomain ?? ""} />

@@ -64,6 +64,15 @@ type MembershipRow = {
 const MEMBERSHIP_SELECT =
   "tenant_id, role, status, agencies:tenant_id ( slug, display_name, status )";
 
+// Module-level membership cache — survives across server action calls within
+// the same process instance. React's cache() only deduplicates within a single
+// request; without this, every server action pays a round-trip to Supabase for
+// membership data that doesn't change mid-session.
+// 30s TTL: short enough that a plan/role change takes effect quickly, long
+// enough to eliminate redundant DB hits during normal admin work.
+const _membershipCache = new Map<string, { data: TenantMembership[]; ts: number }>();
+const MEMBERSHIP_CACHE_TTL = 30_000;
+
 async function fetchMemberships(
   supabase: SupabaseClient,
   userId: string,
@@ -109,8 +118,13 @@ export const getCurrentUserTenants = cache(
     const session = await getCachedActorSession();
     if (!session.supabase || !session.user) return [];
 
-    const memberships = await fetchMemberships(session.supabase, session.user.id);
+    const userId = session.user.id;
+    const hit = _membershipCache.get(userId);
+    if (hit && Date.now() - hit.ts < MEMBERSHIP_CACHE_TTL) return hit.data;
 
+    const memberships = await fetchMemberships(session.supabase, userId);
+
+    let result = memberships;
     if (session.profile?.app_role === "super_admin") {
       // Platform admin sees all tenants; fill in synthetic "admin" membership
       // for those where no real row exists so the switcher lists everything.
@@ -120,25 +134,25 @@ export const getCurrentUserTenants = cache(
 
       if (error) {
         logServerError("saas/tenant.getCurrentUserTenants.all", error);
-        return memberships;
+      } else {
+        const known = new Map(memberships.map((m) => [m.tenant_id, m]));
+        for (const agency of allAgencies ?? []) {
+          if (known.has(agency.id)) continue;
+          known.set(agency.id, {
+            tenant_id: agency.id,
+            role: "admin",
+            status: "active",
+            slug: agency.slug,
+            display_name: agency.display_name,
+            agency_status: agency.status,
+          });
+        }
+        result = Array.from(known.values());
       }
-
-      const known = new Map(memberships.map((m) => [m.tenant_id, m]));
-      for (const agency of allAgencies ?? []) {
-        if (known.has(agency.id)) continue;
-        known.set(agency.id, {
-          tenant_id: agency.id,
-          role: "admin",
-          status: "active",
-          slug: agency.slug,
-          display_name: agency.display_name,
-          agency_status: agency.status,
-        });
-      }
-      return Array.from(known.values());
     }
 
-    return memberships;
+    _membershipCache.set(userId, { data: result, ts: Date.now() });
+    return result;
   },
 );
 

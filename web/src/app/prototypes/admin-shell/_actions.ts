@@ -29,7 +29,7 @@ import { logServerError } from "@/lib/server/safe-error";
 // ── Shared result type ──────────────────────────────────────────────────────
 
 export type ActionResult =
-  | { ok: true; talentProfileId?: string }
+  | { ok: true; talentProfileId?: string; warnings?: string[] }
   | { ok: false; error: string };
 
 // ── Add Talent (NewTalentDrawer) ────────────────────────────────────────────
@@ -48,8 +48,13 @@ const addTalentSchema = z.object({
       message: "Enter a valid email address.",
     }),
   phone: z.string().trim().default(""),
+  pronunciation: z.string().trim().default(""),
   homeBase: z.string().trim().default(""),
   primaryTypeSlugorId: z.string().trim().optional(),
+  /** Secondary talent types (slugs or UUIDs) collected in the QuickAdd
+   *  drawer. Persisted as `relationship_type: "secondary_role"` rows in
+   *  `talent_profile_taxonomy`. */
+  secondaryTypeSlugorIds: z.array(z.string().trim().min(1)).default([]),
   managementMethod: z
     .enum(["agency", "invited", "draft"])
     .default("draft"),
@@ -123,6 +128,7 @@ export async function addTalentToRoster(
       phone:             d.phone || null,
       invitation_email:  d.email || null,
       home_city_text:    d.homeBase || null,
+      pronunciation:     d.pronunciation || null,
       workflow_status:   workflowStatus,
       visibility:        "hidden",
       membership_tier:   "free",
@@ -157,6 +163,8 @@ export async function addTalentToRoster(
     return { ok: false, error: "Could not add to roster. Try again." };
   }
 
+  const warnings: string[] = [];
+
   // ── Primary talent type ────────────────────────────────────────────────────
   if (d.primaryTypeSlugorId) {
     // Accept either a UUID (direct term id) or a slug — look up the term id
@@ -182,14 +190,120 @@ export async function addTalentToRoster(
       });
       if (taxErr) {
         logServerError("admin-shell._actions.addTalentToRoster/taxonomy", taxErr);
+        warnings.push("Talent type could not be saved — open the drawer and pick it again.");
       }
     }
   }
 
-  // Bust the layout-level Router Cache so the top-bar roster counter
-  // ("N talent · M open inquiries") reflects the new row immediately
-  // when router.refresh() runs on the client.
-  revalidatePath("/", "layout");
+  // ── Secondary talent types ─────────────────────────────────────────────────
+  // Resolve every secondary slug/UUID to a UUID and bulk-insert them as
+  // `secondary_role` rows. Skip silently when none provided.
+  if (d.secondaryTypeSlugorIds.length > 0) {
+    const resolvedSecondaryIds: string[] = [];
+    for (const raw of d.secondaryTypeSlugorIds) {
+      const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
+      if (looksLikeUuid) {
+        resolvedSecondaryIds.push(raw);
+        continue;
+      }
+      const { data: term } = await admin
+        .from("taxonomy_terms")
+        .select("id")
+        .eq("slug", raw)
+        .eq("tenant_id", scope.tenantId)
+        .single();
+      if (term?.id) resolvedSecondaryIds.push(term.id);
+    }
+    if (resolvedSecondaryIds.length > 0) {
+      const rows = resolvedSecondaryIds.map((id) => ({
+        talent_profile_id: talentProfileId,
+        taxonomy_term_id:  id,
+        relationship_type: "secondary_role" as const,
+        is_primary:        false,
+      }));
+      const { error: secTaxErr } = await admin.from("talent_profile_taxonomy").insert(rows);
+      if (secTaxErr) {
+        logServerError("admin-shell._actions.addTalentToRoster/secondary-taxonomy", secTaxErr);
+        warnings.push("Secondary types could not be saved — open the drawer and re-select them.");
+      }
+    }
+  }
 
-  return { ok: true, talentProfileId };
+  revalidatePath(`/${d.tenantSlug}/admin/roster`, "page");
+
+  return { ok: true as const, talentProfileId, warnings };
+}
+
+// ─── Bulk Add Talent (CSV import) ─────────────────────────────────────────────
+//
+// Calls addTalentToRoster sequentially for each row so per-row failures
+// don't roll back the whole batch. Returns a summary with per-row outcome
+// so the UI can show "Created 8 of 10 — 2 failed (duplicate email · no
+// taxonomy match)". Sequential rather than parallel to avoid swamping the
+// roster-seat check + RLS policy evaluator.
+
+export type BulkAddTalentRow = {
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  email?: string;
+  phone?: string;
+  homeBase?: string;
+  /** Taxonomy slug or UUID — already resolved by the caller before invoking. */
+  primaryTypeSlugorId?: string;
+};
+
+export type BulkAddTalentResult = {
+  ok: true;
+  created: number;
+  failed: number;
+  errors: { rowIndex: number; rowLabel: string; error: string }[];
+  createdIds: string[];
+} | { ok: false; error: string };
+
+export async function bulkAddTalentToRoster(
+  tenantSlug: string,
+  rows: BulkAddTalentRow[],
+): Promise<BulkAddTalentResult> {
+  if (!tenantSlug) return { ok: false, error: "Workspace not found." };
+  if (!Array.isArray(rows) || rows.length === 0) return { ok: false, error: "No rows to import." };
+  if (rows.length > 200) return { ok: false, error: "Imports are capped at 200 rows per batch. Split your CSV." };
+
+  const created: string[] = [];
+  const errorList: { rowIndex: number; rowLabel: string; error: string }[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const label =
+      (r.displayName?.trim() || `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim()) || r.email || `row ${i + 1}`;
+    try {
+      const res = await addTalentToRoster({
+        tenantSlug,
+        firstName: r.firstName ?? "",
+        lastName: r.lastName ?? "",
+        displayName: r.displayName ?? "",
+        email: r.email ?? "",
+        phone: r.phone ?? "",
+        homeBase: r.homeBase ?? "",
+        primaryTypeSlugorId: r.primaryTypeSlugorId,
+        managementMethod: "draft",
+      });
+      if (res.ok && res.talentProfileId) {
+        created.push(res.talentProfileId);
+      } else {
+        errorList.push({ rowIndex: i, rowLabel: label, error: res.ok ? "Unknown error" : res.error });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unexpected error";
+      errorList.push({ rowIndex: i, rowLabel: label, error: message });
+    }
+  }
+
+  return {
+    ok: true,
+    created: created.length,
+    failed: errorList.length,
+    errors: errorList,
+    createdIds: created,
+  };
 }

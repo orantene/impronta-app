@@ -56,6 +56,8 @@ import {
   fieldsForType,
   FIELD_CATALOG,
   getProfileById,
+  buildFreshTalentProfile,
+  TALENT_PROFILES_BY_ID,
   TAXONOMY,
   type TaxonomyParentId,
   talentIdOf,
@@ -758,15 +760,19 @@ const TALENT_INQUIRY_TO_CONV: Record<string, string> = {
 };
 
 function TalentTodayPage() {
-  const { openDrawer, setTalentPage } = useProto();
-  const profile = MY_TALENT_PROFILE;
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile } = useProto();
+  // Use real bridge data when available so a freshly-provisioned talent
+  // sees their own name/photo/city in the Today header instead of Marta's.
+  const profile = bridgeTalentSelfProfile
+    ? buildFreshTalentProfile(bridgeTalentSelfProfile)
+    : MY_TALENT_PROFILE;
   // Bridge-aware conversations. Falls back to MOCK_CONVERSATIONS when the
   // bridge array is empty (prototype / mock-mode sessions). See
   // `useTalentConversations()` above for the full adapter contract.
   const conversations = useTalentConversations();
-  // Funnel into the unified profile-shell from any Today CTA that
-  // edits the profile. Same helper pattern as MyProfilePage + ProfileHero.
-  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: "t1", section });
+  // Use real talentId from bridge when available; fall back to mock "t1".
+  const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
+  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
   // First-session checklist persists dismiss only for the session in the
   // prototype. Production wires this to a per-user kv pair.
   const [firstSessionDismissed, setFirstSessionDismissed] = useState(false);
@@ -860,6 +866,32 @@ function TalentTodayPage() {
     replyConvs.length === 0 &&
     watchingConvs.length === 0;
 
+  // ── Onboarding banner: freshly-provisioned talents show a prominent
+  // "Finish setting up your profile" card at the top of Today until they
+  // hit 100% completeness. Clicking a chip deep-links to the matching
+  // drawer section. Only renders when the bridge has provided a real
+  // talent profile (skips the prototype demo path).
+  const isFreshSelf = !!bridgeTalentSelfProfile && !TALENT_PROFILES_BY_ID[selfTalentId];
+  const onboardingCompleteness = isFreshSelf
+    ? computeProfileCompleteness(profile, [profile.primaryType, ...profile.secondaryTypes])
+    : null;
+  const onboardingSectionForLabel = (label: string): string => {
+    const lower = label.toLowerCase();
+    if (lower.includes("polaroid")) return "polaroids";
+    if (lower.includes("rate")) return "rates";
+    if (lower.includes("showreel") || lower.includes("photo") || lower.includes("portfolio") || lower.includes("album")) return "media";
+    if (lower.includes("language")) return "languages";
+    if (lower.includes("availab")) return "availability";
+    if (lower.includes("skill")) return "services";
+    if (lower.includes("credit")) return "credits";
+    if (lower.includes("limit")) return "limits";
+    if (lower.includes("verif")) return "verifications";
+    if (lower.includes("bio") || lower.includes("about") || lower.includes("tagline")) return "about";
+    if (lower.includes("location") || lower.includes("city") || lower.includes("travel")) return "location";
+    if (lower.includes("type") || lower.includes("primary") || lower.includes("category")) return "services";
+    return "identity";
+  };
+
   return (
     <>
       {/* Mobile compaction for the entire Today page. Tighter card
@@ -902,12 +934,99 @@ function TalentTodayPage() {
         }
       `}</style>
 
+      {/* Fresh-talent onboarding banner — only for talents who were just
+          provisioned via "Create your talent page" (bridge has their
+          profile but the prototype mock index doesn't). Renders ABOVE
+          everything else so the talent's first action is to finish their
+          profile. Hidden once completeness hits 100 — but always shows on
+          first session even if the math returns 100 (defensive: a freshly-
+          provisioned profile still has nothing in it). */}
+      {isFreshSelf && onboardingCompleteness && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            padding: "16px 18px",
+            marginBottom: 16,
+            borderRadius: 14,
+            background: "linear-gradient(135deg, rgba(15,79,62,0.08), rgba(91,107,160,0.08))",
+            border: `1px solid rgba(15,79,62,0.18)`,
+            fontFamily: FONTS.body,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div
+              style={{
+                flexShrink: 0,
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                background: "#fff",
+                border: `2px solid ${COLORS.accent}`,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontFamily: FONTS.display,
+                fontSize: 18,
+                fontWeight: 600,
+                color: COLORS.accentDeep,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {onboardingCompleteness.percent}%
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
+                Finish setting up your profile
+              </div>
+              <div style={{ fontSize: 12.5, color: COLORS.inkMuted }}>
+                {onboardingCompleteness.missing.length} field{onboardingCompleteness.missing.length === 1 ? "" : "s"} left before you can publish + take bookings.
+              </div>
+            </div>
+            <PrimaryButton
+              size="sm"
+              onClick={() => {
+                const first = onboardingCompleteness.missing[0];
+                openSection(first ? onboardingSectionForLabel(first.label) : "identity");
+              }}
+            >
+              Continue setup →
+            </PrimaryButton>
+          </div>
+          {onboardingCompleteness.missing.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {onboardingCompleteness.missing.slice(0, 8).map((m) => (
+                <button
+                  key={m.label}
+                  type="button"
+                  onClick={() => openSection(onboardingSectionForLabel(m.label))}
+                  style={{
+                    padding: "5px 11px",
+                    borderRadius: 999,
+                    background: "#fff",
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    color: COLORS.ink,
+                    fontFamily: FONTS.body,
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  + {m.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* First-session checklist — shows ONCE on Day-1 and routes the
           new talent through the 4 onboarding wins that unlock inquiries.
           Sits above the hero so it's the first thing they see.
           polaroidCount/channelsLive/payoutSet are stubbed; production
           derives them from the profile object. */}
-      {isDay1 && !firstSessionDismissed && (
+      {isDay1 && !firstSessionDismissed && !onboardingCompleteness && (
         <FirstSessionChecklist
           completeness={profile.completeness}
           polaroidCount={0}
@@ -1021,7 +1140,7 @@ function TalentTodayPage() {
           title="Next on the calendar"
           subtitle={
             upcoming.length === 0
-              ? "No confirmed bookings yet."
+              ? undefined
               : `${upcoming.length} upcoming · next ${upcoming[0]?.date}`
           }
           actionLabel="See calendar →"
@@ -1029,15 +1148,24 @@ function TalentTodayPage() {
           secondaryActionLabel="+ Add manually"
           onSecondaryAction={() => openDrawer("talent-add-event")}
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          {upcoming.map((c) => (
-            <ConversationCalendarRow
-              key={c.id}
-              conv={c}
-              onOpen={() => openInMessagesAt(c.id, "booking")}
-            />
-          ))}
-        </div>
+        {upcoming.length === 0 ? (
+          <EmptyState
+            icon="calendar"
+            title="Calendar's clear"
+            body="No confirmed bookings yet. The first one always lands faster than you think."
+            compact
+          />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {upcoming.map((c) => (
+              <ConversationCalendarRow
+                key={c.id}
+                conv={c}
+                onOpen={() => openInMessagesAt(c.id, "booking")}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       <div style={{ height: 12 }} />
@@ -3174,22 +3302,25 @@ function TierBreakdown({
 }
 
 function MyProfilePage() {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  // Use the real profile id from the bridge when available; fall back to mock.
+  const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   // Subscribe to override store + read the MERGED profile. Edits in
   // the workspace/self profile shell that finalSubmit() into the
   // override store now flow through here without a refresh.
   useProfileOverrideSubscription();
-  // Audit fix #2 — also subscribe to the pending-review queue. When
-  // Marta submits a self-edit, finalSubmit() pushes a PendingReviewEntry
-  // for `t-marta`. The dashboard now surfaces that as a status banner
-  // so she sees "submitted, waiting" instead of nothing changing.
   usePendingReviewSubscription();
-  const pendingMine = getPendingReviewForRoster({ id: "t1", name: MY_TALENT_PROFILE.name });
-  // Phase B — talent surface renders the canonical profile by id.
-  // The "currently logged in talent" is hardcoded to t1 (Marta) for
-  // the prototype; production reads from auth context. The override
-  // store keys by the same id so edits round-trip cleanly.
-  const baseProfile = applyProfileOverride("t1", getProfileById("t1"));
+  const pendingMine = getPendingReviewForRoster({ id: selfTalentId, name: bridgeTalentSelfProfile?.displayName ?? MY_TALENT_PROFILE.name });
+  // For display: when the live bridge has a real talent profile that
+  // ISN'T in the prototype mock index (i.e., a genuine signed-in talent),
+  // build a fresh profile scaffold from bridge fields. Otherwise fall
+  // back to mock data (Marta) so the prototype demo still works.
+  const baseProfile = applyProfileOverride(
+    selfTalentId,
+    bridgeTalentSelfProfile && !TALENT_PROFILES_BY_ID[selfTalentId]
+      ? buildFreshTalentProfile(bridgeTalentSelfProfile)
+      : getProfileById(selfTalentId),
+  );
   // Catalog-driven completeness — replaces the static `completeness`
   // int + `missing` array on the seed. Counts applicable fields per
   // primaryType, counts filled, returns percent + a missing list.
@@ -3235,10 +3366,8 @@ function MyProfilePage() {
       // Default — land on Identity (fields like name / pronouns / DOB).
       return { label: field, section: "identity" };
     });
-  // Single helper — every "edit X" CTA on this dashboard funnels through
-  // here. Centralizes the mode + section payload so we never accidentally
-  // open the wrong drawer or miss a section.
-  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: "t1", section });
+  // Single helper — every "edit X" CTA funnels through here with the real ID.
+  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
 
   // Phase C4 — derive role labels for the page header. Primary +
   // secondary roles render as "Model · also Host" so the multi-role
@@ -3254,8 +3383,8 @@ function MyProfilePage() {
   return (
     <>
       <PageHeader
-        title={p.name}
-        subtitle={`${roleSummary} · ${p.measurementsSummary} · ${p.city}`}
+        title={bridgeTalentSelfProfile?.displayName ?? p.name}
+        subtitle={`${bridgeTalentSelfProfile?.primaryTypeLabel ?? roleSummary}${p.measurementsSummary ? ` · ${p.measurementsSummary}` : ""}${(bridgeTalentSelfProfile?.homeCity ?? p.city) ? ` · ${bridgeTalentSelfProfile?.homeCity ?? p.city}` : ""}`}
         actions={
           // Header actions are intentionally compact (size="sm"). The
           // md size is for body-level CTAs; in a header alongside the
@@ -4041,11 +4170,17 @@ function AllSectionsGrid({ openSection }: { openSection: (s: string) => void }) 
 // ─── Hero (cover photo + headshot + identity strip) ─────────────────
 
 function ProfileHero() {
-  const { openDrawer } = useProto();
+  const { openDrawer, bridgeTalentSelfProfile } = useProto();
+  const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   // Same subscription as MyProfilePage so the hero (cover, name,
   // measurements row) reflects shell edits live.
   useProfileOverrideSubscription();
-  const baseHero = applyProfileOverride("t1", getProfileById("t1"));
+  const baseHero = applyProfileOverride(
+    selfTalentId,
+    bridgeTalentSelfProfile && !TALENT_PROFILES_BY_ID[selfTalentId]
+      ? buildFreshTalentProfile(bridgeTalentSelfProfile)
+      : getProfileById(selfTalentId),
+  );
   // Catalog-driven completeness — keeps the hero percent in sync with
   // MyProfilePage.
   const compHero = computeProfileCompleteness(baseHero, [baseHero.primaryType, ...baseHero.secondaryTypes]);
@@ -4056,7 +4191,7 @@ function ProfileHero() {
   };
   // Same shell-funnel as MyProfilePage — every edit affordance lands
   // in the unified profile-shell drawer with mode "edit-self".
-  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: "t1", section });
+  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
 
   return (
     <section
@@ -4322,17 +4457,91 @@ function EngagementStrip() {
 // rather than disabled controls, so the ladder is always visible.
 
 function PersonalPageBand() {
-  const { openDrawer } = useProto();
+  const { openDrawer, toast } = useProto();
   const p = MY_TALENT_PROFILE;
   const sub = p.subscription;
-  const tier = sub.tier;
-  const meta = TALENT_TIER_META[tier];
+  // Phase 1.5: hard-code Basic for launch — no subscription field wired yet.
+  // Phase 2: derive from real talent.subscription.tier once billing ships.
+  const tier: "basic" | "pro" | "portfolio" = "basic";
+
+  // Basic talent: hide the full premium band and show a single "coming soon" card instead.
+  if (tier === "basic") {
+    return (
+      <div
+        style={{
+          padding: "20px 22px",
+          background: "#fff",
+          border: `1.5px solid rgba(91,107,160,0.22)`,
+          borderRadius: 14,
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+          fontFamily: FONTS.body,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 16,
+              fontWeight: 500,
+              color: COLORS.indigoDeep,
+              marginBottom: 5,
+            }}
+          >
+            Tulala Pro &amp; Portfolio — coming soon
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: COLORS.inkMuted,
+              lineHeight: 1.6,
+              maxWidth: 520,
+            }}
+          >
+            Richer templates, social &amp; video embeds, press band, downloadable media kit, and a custom
+            domain for your own name. Join the waitlist and get early access when billing opens.
+          </div>
+          <div style={{ marginTop: 4, fontSize: 11.5, color: COLORS.inkMuted }}>
+            Your standard roster page at{" "}
+            <span style={{ fontFamily: FONTS.mono }}>{sub.personalPageUrl}</span> is already live.
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            toast("You're on the waitlist — we'll email you when Pro launches");
+            openDrawer("talent-tier-compare");
+          }}
+          style={{
+            flexShrink: 0,
+            padding: "10px 20px",
+            background: COLORS.indigoSoft,
+            border: `1px solid rgba(91,107,160,0.32)`,
+            borderRadius: 8,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 600,
+            color: COLORS.indigoDeep,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          See what&apos;s coming
+        </button>
+      </div>
+    );
+  }
+
+  // Pro / Portfolio talent: show the full premium band (unchanged).
+  // Cast needed because TypeScript narrows `tier` to `never` after the Basic early-return guard.
+  const resolvedTier = tier as "pro" | "portfolio";
+  const meta = TALENT_TIER_META[resolvedTier];
   const activeTemplate = TALENT_PAGE_TEMPLATES.find((t) => t.id === sub.template) ?? TALENT_PAGE_TEMPLATES[0];
-  const allowEmbeds = tierAllows(tier, "media-embeds");
-  const allowPress = tierAllows(tier, "press-band");
-  const allowKit = tierAllows(tier, "media-kit");
-  const allowDomain = tierAllows(tier, "custom-domain");
-  const allowExtraSections = tierAllows(tier, "extra-sections");
+  const allowEmbeds = tierAllows(resolvedTier, "media-embeds");
+  const allowPress = tierAllows(resolvedTier, "press-band");
+  const allowKit = tierAllows(resolvedTier, "media-kit");
+  const allowDomain = tierAllows(resolvedTier, "custom-domain");
+  const allowExtraSections = tierAllows(resolvedTier, "extra-sections");
 
   return (
     <>
@@ -4340,16 +4549,14 @@ function PersonalPageBand() {
       <PrimaryCard
         title={`Your personal Tulala page · ${meta.label}`}
         description={
-          tier === "basic"
-            ? "Right now this is the standard roster-style page. Upgrade to unlock richer templates, embeds, press, and a custom domain."
-            : tier === "pro"
-              ? "Pro template, social + video embeds, press band, and a downloadable media kit. Custom domain unlocks at Portfolio."
-              : "Full mini personal site. Multi-section page builder, custom domain, EPK kit, SEO controls, priority discover placement."
+          resolvedTier === "pro"
+            ? "Pro template, social + video embeds, press band, and a downloadable media kit. Custom domain unlocks at Portfolio."
+            : "Full mini personal site. Multi-section page builder, custom domain, EPK kit, SEO controls, priority discover placement."
         }
         icon={<Icon name="globe" size={14} stroke={1.7} />}
-        affordance={tier === "portfolio" ? "Manage page" : "Compare tiers"}
+        affordance={resolvedTier === "portfolio" ? "Manage page" : "Compare tiers"}
         onClick={() =>
-          tier === "portfolio" ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare")
+          resolvedTier === "portfolio" ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare")
         }
       >
         <div
@@ -4393,13 +4600,13 @@ function PersonalPageBand() {
                 : "Roster style only on Basic. Pro unlocks Editorial / Studio. Portfolio adds Stage / Creator / EPK."
             }
             meta={
-              tierAllows(tier, "template-picker")
+              tierAllows(resolvedTier, "template-picker")
                 ? <><StatDot tone="green" /> {activeTemplate.label}</>
                 : <LockedBadge requiredTier="pro" />
             }
-            affordance={tierAllows(tier, "template-picker") ? "Switch template" : "Unlock templates"}
+            affordance={tierAllows(resolvedTier, "template-picker") ? "Switch template" : "Unlock templates"}
             onClick={() =>
-              tierAllows(tier, "template-picker")
+              tierAllows(resolvedTier, "template-picker")
                 ? openDrawer("talent-page-template")
                 : openDrawer("talent-tier-compare")
             }
@@ -11476,9 +11683,17 @@ function CalendarPage() {
             background: "#fff",
             border: `1px solid ${COLORS.borderSoft}`,
             borderRadius: 12,
-            padding: "0 14px",
+            padding: AVAILABILITY_BLOCKS.length === 0 ? 0 : "0 14px",
           }}
         >
+          {AVAILABILITY_BLOCKS.length === 0 ? (
+            <EmptyState
+              icon="calendar"
+              title="No dates blocked"
+              body="Block unavailable dates so agencies don't pitch you for jobs you can't take."
+              compact
+            />
+          ) : null}
           {AVAILABILITY_BLOCKS.map((a) => (
             <div
               key={a.id}
@@ -13615,6 +13830,26 @@ function DistributionCard({
           overflow: "hidden",
         }}
       >
+        {channels.length === 0 && !showAvailable ? (
+          <EmptyState
+            icon="info"
+            title={
+              kind === "agency"
+                ? "No agency channels yet"
+                : kind === "external"
+                  ? "No external hubs joined"
+                  : "No channels in this lane"
+            }
+            body={
+              kind === "agency"
+                ? "Agencies invite talent onto their roster — keep your profile complete so the right ones find you."
+                : kind === "external"
+                  ? "Browse verified hubs below to expand your reach."
+                  : undefined
+            }
+            compact
+          />
+        ) : null}
         {channels.map((c, i) => (
           <ChannelRow
             key={c.id}
@@ -14080,10 +14315,11 @@ function TalentTrustCard({ onOpenDetail }: { onOpenDetail: () => void }) {
 }
 
 function SettingsPage() {
-  const { openDrawer, setTalentPage } = useProto();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile } = useProto();
+  const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   // Settings privacy → admin section of profile shell. Same funnel
   // as MyProfilePage / ProfileHero / TalentTodayPage.
-  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: "t1", section });
+  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
 
   return (
     <>
@@ -14791,6 +15027,22 @@ function AgenciesPage() {
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkDim, fontFamily: FONTS.body, marginBottom: 12 }}>
           Your agencies ({MY_AGENCIES.length})
         </div>
+        {MY_AGENCIES.length === 0 ? (
+          <div
+            style={{
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: RADIUS.lg,
+            }}
+          >
+            <EmptyState
+              icon="team"
+              title="No agencies yet"
+              body="Agencies invite talent — keep your profile up to date so the right ones find you."
+              compact
+            />
+          </div>
+        ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {MY_AGENCIES.map((ag) => (
             <div
@@ -14846,6 +15098,7 @@ function AgenciesPage() {
             </div>
           ))}
         </div>
+        )}
       </section>
 
       {/* Leave agency CTA */}

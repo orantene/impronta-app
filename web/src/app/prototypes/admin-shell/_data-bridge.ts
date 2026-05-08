@@ -146,6 +146,47 @@ export type BridgeData = {
    */
   talentInquiries?: TalentInquiryRow[] | null;
 
+  // ── Phase 5 — cross-mode unread counts for hybrid users ───────────────────
+  /**
+   * Unread message count scoped to the talent's personal inquiry threads.
+   * Populated by admin/layout when isHybrid=true. undefined = no data (use 0).
+   */
+  talentUnread?: number;
+  /**
+   * Unread message count for workspace-scoped inquiries.
+   * Populated by talent/layout when isHybrid=true. undefined = use totalUnread.
+   */
+  workspaceUnread?: number;
+
+  // ── Phase 5 — user surface preference ──────────────────────────────────────
+  /**
+   * Persisted preferred surface from user_prefs. Null = no preference stored yet.
+   * Used by ProtoProvider to set the initial surface (preferred > URL param > default).
+   */
+  preferredSurface?: "talent" | "workspace" | null;
+
+  /**
+   * Whether the user has seen the first-run toggle tip. When false and the
+   * user is hybrid, a tooltip prompts them to try the mode toggle.
+   */
+  firstRunToggleTipSeen?: boolean;
+
+  // ── Phase 0 (talent-surface launch readiness) — hybrid signal ──────────────
+  /**
+   * True when the signed-in user has BOTH a talent profile AND a workspace
+   * membership in this tenant. Drives the `Talent | Workspace` mode toggle
+   * in the prototype shell — the toggle is hidden for non-hybrid users.
+   *
+   * Derived server-side in the layout:
+   *   - admin/layout.tsx: true when loadTalentSelfProfile() returns non-null
+   *   - talent/layout.tsx: true when the user has any agency_memberships row
+   *     in this tenant
+   *
+   * Defaults to `false` when the bridge is in standalone demo mode
+   * (preserves the prototype's existing toggle visibility for design QA).
+   */
+  isHybrid?: boolean;
+
   // ── Phase 1 (master plan) — chrome identity bridge ────────────────────────
   /**
    * Real tenant identity for the workspace surface. When provided, the
@@ -160,6 +201,9 @@ export type BridgeData = {
     displayName: string;
     planTier: string; // 'free' | 'studio' | 'agency' | 'network' (forwards-compat string)
     kind: string; // 'agency' | 'hub' | 'app' | 'marketing'
+    /** Optional brand logo URL — replaces the TULALA wordmark in the
+     *  identity bar when set. */
+    logoUrl?: string | null;
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome
@@ -207,6 +251,7 @@ type RosterRow = {
   status: string;
   agency_visibility: string;
   talent_profile_id: string;
+  created_at: string | null;
   talent_profiles: {
     id: string;
     display_name: string | null;
@@ -445,6 +490,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
         status,
         agency_visibility,
         talent_profile_id,
+        created_at,
         talent_profiles!talent_profile_id (
           id,
           display_name,
@@ -495,6 +541,14 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
         ? supabase.storage.from("media-public").getPublicUrl(thumbPath).data
             .publicUrl
         : undefined;
+      // Count portfolio-eligible photos (gallery + portfolio variants, excluding
+      // soft-deleted rows). Computed from the same media_assets rows already
+      // fetched above — no extra round-trip.
+      const portfolioCount = (profile.media_assets ?? []).filter(
+        (m) =>
+          m.deleted_at == null &&
+          (m.variant_kind === "portfolio" || m.variant_kind === "gallery"),
+      ).length;
       out.push({
         id: profile.id,
         name: deriveDisplayName(profile),
@@ -503,6 +557,8 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
         city: deriveCity(profile),
         thumb: thumbUrl,
         primaryType: derivePrimaryType(profile),
+        portfolioCount,
+        createdAt: row.created_at ?? undefined,
         // `completeness`, `availability`, `lastActive` are derived UI
         // hints not yet wired in the live schema. Leaving them undefined
         // is a valid `TalentProfile` and the existing roster card

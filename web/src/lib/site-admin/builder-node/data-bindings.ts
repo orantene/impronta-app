@@ -10,7 +10,7 @@ export type BuilderDataSourceKey =
   | "asset"
   | "custom_field";
 
-export type BuilderDataBindingMode = "auto" | "manual";
+export type BuilderDataBindingMode = "manual" | "bound" | "hybrid";
 
 export interface BuilderDataBinding {
   sourceKey: string;
@@ -43,6 +43,14 @@ export interface BuilderDataBindingTreeFinding extends BuilderDataBindingFinding
   nodeId: string;
   nodeKind: BuilderNodeKind;
 }
+
+const PLAN_RANK: Record<string, number> = {
+  free: 0,
+  studio: 1,
+  agency: 2,
+  network: 3,
+  legacy: 3,
+};
 
 export const BUILDER_DATA_SOURCE_REGISTRY: ReadonlyArray<BuilderDataSourceDefinition> = [
   {
@@ -158,9 +166,20 @@ export function getDefaultBuilderDataBinding(
   const source = getBuilderDataSourceDefinition(sourceKey);
   return {
     sourceKey,
-    mode: source?.supportsManualSelection ? "auto" : undefined,
+    mode: source?.supportsManualSelection ? "bound" : undefined,
     maxItems: source?.recommendedMaxItems,
   };
+}
+
+export function builderDataSourceAllowedForPlan(
+  sourceKey: string,
+  workspacePlan: string | null | undefined,
+): boolean {
+  const source = getBuilderDataSourceDefinition(sourceKey);
+  if (!source) return false;
+  const currentRank = PLAN_RANK[workspacePlan ?? "free"] ?? PLAN_RANK.free;
+  const requiredRank = PLAN_RANK[source.requiredPlan] ?? PLAN_RANK.network;
+  return currentRank >= requiredRank;
 }
 
 export function normalizeBuilderDataBinding(
@@ -171,8 +190,7 @@ export function normalizeBuilderDataBinding(
   const sourceKey = typeof record.sourceKey === "string" ? record.sourceKey.trim() : "";
   if (!sourceKey) return null;
   const normalizedSourceKey = normalizeDataSourceKey(sourceKey);
-  const mode =
-    record.mode === "manual" || record.mode === "auto" ? record.mode : undefined;
+  const mode = normalizeBindingMode(record.mode);
   const filterQuery =
     typeof record.filterQuery === "string" && record.filterQuery.trim()
       ? record.filterQuery.trim()
@@ -199,6 +217,7 @@ export function getBuilderNodeDataBinding(node: BuilderNode): BuilderDataBinding
 
 export function getBuilderDataBindingFindings(
   node: BuilderNode,
+  options?: { workspacePlan?: string | null },
 ): ReadonlyArray<BuilderDataBindingFinding> {
   if (!builderNodeSupportsDataBinding(node.kind)) return [];
   const binding = getBuilderNodeDataBinding(node);
@@ -224,12 +243,55 @@ export function getBuilderDataBindingFindings(
     ];
   }
   const findings: BuilderDataBindingFinding[] = [];
+  if (
+    options?.workspacePlan &&
+    !builderDataSourceAllowedForPlan(binding.sourceKey, options.workspacePlan)
+  ) {
+    findings.push({
+      id: "source-plan-restricted",
+      severity: "error",
+      message: `${source.label} requires ${source.requiredPlan}. Upgrade plan or pick a supported data source.`,
+      fix: { sourceKey: "workspace_profile", mode: undefined },
+    });
+  }
   if (source.supportsManualSelection && !binding.mode) {
     findings.push({
       id: "missing-mode",
       severity: "warning",
-      message: "Choose whether this list is automatic or manually selected.",
-      fix: { mode: "auto" },
+      message:
+        "Choose whether this list is bound to live data, manually curated, or hybrid.",
+      fix: { mode: "bound" },
+    });
+  }
+  if (!source.supportsManualSelection && binding.mode === "manual") {
+    findings.push({
+      id: "unsupported-manual-mode",
+      severity: "warning",
+      message: `${source.label} does not support manual curation. Use bound mode instead.`,
+      fix: { mode: "bound" },
+    });
+  }
+  if (!source.supportsManualSelection && binding.mode === "hybrid") {
+    findings.push({
+      id: "unsupported-hybrid-mode",
+      severity: "warning",
+      message: `${source.label} does not support hybrid mode. Use bound mode instead.`,
+      fix: { mode: "bound" },
+    });
+  }
+  if (binding.mode === "hybrid" && !source.supportsFiltering) {
+    findings.push({
+      id: "hybrid-needs-filterable-source",
+      severity: "warning",
+      message: `Hybrid mode works best on filterable sources. Choose a filterable source or switch mode.`,
+      fix: { mode: "bound" },
+    });
+  }
+  if (binding.mode === "hybrid" && !binding.filterQuery?.trim()) {
+    findings.push({
+      id: "hybrid-missing-filter-intent",
+      severity: "warning",
+      message: "Hybrid mode should include a filter note to document what part stays data-driven.",
     });
   }
   if (source.recommendedMaxItems && !binding.maxItems) {
@@ -263,12 +325,20 @@ export function getBuilderDataBindingFindings(
   return findings;
 }
 
+function normalizeBindingMode(raw: unknown): BuilderDataBindingMode | undefined {
+  if (raw === "manual" || raw === "bound" || raw === "hybrid") return raw;
+  // Backward compatibility: old snapshots used "auto".
+  if (raw === "auto") return "bound";
+  return undefined;
+}
+
 export function collectBuilderDataBindingTreeFindings(
   tree: ReadonlyArray<BuilderNode>,
+  options?: { workspacePlan?: string | null },
 ): ReadonlyArray<BuilderDataBindingTreeFinding> {
   const findings: BuilderDataBindingTreeFinding[] = [];
   const visit = (node: BuilderNode) => {
-    for (const finding of getBuilderDataBindingFindings(node)) {
+    for (const finding of getBuilderDataBindingFindings(node, options)) {
       findings.push({
         ...finding,
         nodeId: node.id,

@@ -17,11 +17,14 @@
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadTalentSelfProfile,
   loadTalentInquiries,
 } from "@/app/prototypes/admin-shell/_data-bridge";
+import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
+import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
 import type { TalentPage } from "@/app/prototypes/admin-shell/_state";
 
@@ -74,10 +77,25 @@ export default async function TalentLayout({
   const pathname = hdrs.get("x-impronta-original-pathname") ?? `/${tenantSlug}/talent/today`;
   const initialTalentPage = deriveInitialTalentPage(pathname, tenantSlug);
 
-  // ── Pre-fetch talent data in parallel ────────────────────────────────────────
-  const [talentInquiries] = await Promise.all([
+  // ── Pre-fetch talent data + hybrid signal in parallel ────────────────────────
+  // Phase 0 — `membership` is non-null when this user is also a workspace
+  // staff member in this tenant (owner/admin/coordinator/editor/viewer).
+  // The mode toggle is shown only when both surfaces are reachable.
+  //
+  // All four loaders run in a single Promise.all so the layout completes in
+  // one network wave. The unread + prefs results are gated on `isHybrid`
+  // below, but each loader returns a safe default for non-hybrid users
+  // (0 / null), so doing them speculatively here is cheaper than a second
+  // sequential await on every page load.
+  const [talentInquiries, membership, workspaceUnreadRaw, userPrefsRaw] = await Promise.all([
     loadTalentInquiries(talentSelfProfile.id, tenantId),
+    findTenantMembership(tenantId),
+    loadWorkspaceUnreadCount(tenantId),
+    loadUserPrefs(session.user.id),
   ]);
+  const isHybrid = membership != null;
+  const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
+  const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
 
   return (
     <TalentShellPrototypePageClient
@@ -97,6 +115,12 @@ export default async function TalentLayout({
         // Talent self-surface fields
         talentSelfProfile,
         talentInquiries,
+        // Phase 0 — hybrid signal drives the Talent | Workspace toggle
+        isHybrid,
+        // Phase 5 — cross-mode unread + user prefs
+        workspaceUnread: workspaceUnread ?? 0,
+        preferredSurface: userPrefs?.preferredSurface ?? null,
+        firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
       }}
     >
       {/* TalentPageRouteSyncer lives here — inside ProtoProvider context, returns null */}

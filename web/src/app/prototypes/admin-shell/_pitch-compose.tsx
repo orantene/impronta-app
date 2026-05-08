@@ -404,10 +404,18 @@ function AttachmentChip({
 
 function PostSendView({
   data,
+  recipientName,
+  recipientCompany,
+  talents,
+  expiresAt,
   onClose,
   onNewPitch,
 }: {
   data: PostSendData;
+  recipientName: string;
+  recipientCompany: string;
+  talents: PitchTalentEntry[];
+  expiresAt: string | null;
   onClose: () => void;
   onNewPitch: () => void;
 }) {
@@ -423,182 +431,439 @@ function PostSendView({
     }
   };
 
+  // Compact host/path split so the URL reads cleanly without truncating the
+  // useful part. We keep the host visible in full and elide the long token.
+  const linkLabel = (() => {
+    try {
+      const u = new URL(data.shareUrl);
+      const path = u.pathname.replace(/^\/+/, "");
+      const tail = path.length > 28 ? path.slice(0, 24) + "…" : path;
+      return { host: u.host, tail };
+    } catch {
+      return { host: data.shareUrl, tail: "" };
+    }
+  })();
+
+  // Expiry chip — humanize "expires in N days" if a future timestamp is given.
+  const expiryLabel = (() => {
+    if (!expiresAt) return null;
+    const ms = new Date(expiresAt).getTime() - Date.now();
+    if (!Number.isFinite(ms) || ms <= 0) return null;
+    const days = Math.round(ms / (1000 * 60 * 60 * 24));
+    if (days < 1) return "Expires today";
+    if (days === 1) return "Expires in 1 day";
+    return `Expires in ${days} days`;
+  })();
+
+  const visibleAvatars = talents.slice(0, 4);
+  const overflow = Math.max(0, talents.length - visibleAvatars.length);
+  const talentNames =
+    talents.length === 0
+      ? ""
+      : talents.length <= 2
+        ? talents.map((t) => t.name).join(" & ")
+        : `${talents
+            .slice(0, 2)
+            .map((t) => t.name.split(" ")[0])
+            .join(", ")} + ${talents.length - 2} more`;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 8 }}>
-      {/* Success header */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, paddingTop: 4 }}>
+      {/* Compact success line — replaces the full-width banner. */}
       <div
         style={{
-          background: COLORS.successSoft,
-          borderRadius: 10,
-          padding: "14px 16px",
           display: "flex",
-          gap: 10,
           alignItems: "center",
+          gap: 8,
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          color: COLORS.successDeep,
+          fontWeight: 600,
         }}
       >
-        <span style={{ fontSize: 22 }}>✓</span>
+        <span
+          aria-hidden
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 18,
+            height: 18,
+            borderRadius: 999,
+            background: COLORS.successSoft,
+            color: COLORS.successDeep,
+            fontSize: 11,
+            fontWeight: 700,
+          }}
+        >
+          ✓
+        </span>
+        Pitch sent · just now
+      </div>
+
+      {/* Pitch summary — recipient + talent avatars + expiry. Replaces the
+          empty space at the bottom of the previous design with a real
+          confirmation of what went out. */}
+      <div
+        style={{
+          background: COLORS.surfaceAlt,
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          padding: 16,
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
         <div>
           <div
             style={{
-              fontFamily: FONTS.body,
-              fontSize: 14,
+              fontSize: 10.5,
               fontWeight: 700,
-              color: COLORS.successDeep,
-              marginBottom: 2,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              color: COLORS.inkDim,
+              marginBottom: 4,
             }}
           >
-            Pitch sent
+            Recipient
           </div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.successDeep }}>
-            The share link is live. Copy or send it directly.
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: COLORS.ink,
+              fontFamily: FONTS.body,
+            }}
+          >
+            {recipientName || "—"}
+            {recipientCompany ? (
+              <span
+                style={{ fontWeight: 400, color: COLORS.inkMuted, marginLeft: 6 }}
+              >
+                · {recipientCompany}
+              </span>
+            ) : null}
           </div>
+        </div>
+
+        <div style={{ height: 1, background: COLORS.borderSoft }} />
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Overlapping avatars */}
+          <div style={{ display: "flex", flexShrink: 0 }}>
+            {visibleAvatars.map((t, i) => (
+              <div
+                key={t.id}
+                title={t.name}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
+                  background: t.thumb
+                    ? `center / cover no-repeat url(${t.thumb})`
+                    : COLORS.fillSoft,
+                  border: `2px solid ${COLORS.surfaceAlt}`,
+                  marginLeft: i === 0 ? 0 : -10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: COLORS.inkMuted,
+                  fontFamily: FONTS.body,
+                  zIndex: visibleAvatars.length - i,
+                }}
+              >
+                {!t.thumb ? t.name.charAt(0).toUpperCase() : null}
+              </div>
+            ))}
+            {overflow > 0 ? (
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
+                  background: COLORS.surface,
+                  border: `2px solid ${COLORS.surfaceAlt}`,
+                  marginLeft: -10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: COLORS.inkMuted,
+                  fontFamily: FONTS.body,
+                }}
+              >
+                +{overflow}
+              </div>
+            ) : null}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: COLORS.ink,
+                fontFamily: FONTS.body,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {talents.length} talent{talents.length === 1 ? "" : "s"}
+              {talentNames ? (
+                <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>
+                  {" · "}
+                  {talentNames}
+                </span>
+              ) : null}
+            </div>
+            {expiryLabel ? (
+              <div
+                style={{
+                  marginTop: 4,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11.5,
+                  color: COLORS.inkMuted,
+                  fontFamily: FONTS.body,
+                }}
+              >
+                <span
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: 999,
+                    background: COLORS.coral,
+                  }}
+                />
+                {expiryLabel}
+              </div>
+            ) : null}
+          </div>
+
+          <a
+            href={data.shareUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: COLORS.brand,
+              textDecoration: "none",
+              flexShrink: 0,
+              fontFamily: FONTS.body,
+            }}
+          >
+            Preview ↗
+          </a>
         </div>
       </div>
 
-      {/* Share URL */}
+      {/* Share link — compact card with inline copy. The URL is visible but
+          truncated; full value still goes into the clipboard on copy. */}
       <div>
         <p style={sectionHeading}>Share link</p>
         <div
           style={{
             display: "flex",
-            gap: 6,
             alignItems: "stretch",
+            background: COLORS.card,
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            overflow: "hidden",
           }}
         >
-          <input
-            readOnly
-            value={data.shareUrl}
+          <div
             style={{
-              ...field,
               flex: 1,
-              background: COLORS.fill,
-              color: COLORS.inkDim,
-              fontSize: 12,
+              minWidth: 0,
+              padding: "10px 14px",
+              display: "flex",
+              alignItems: "baseline",
+              gap: 2,
+              fontSize: 12.5,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              color: COLORS.inkMuted,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
-          />
+          >
+            <span style={{ color: COLORS.ink, fontWeight: 600 }}>
+              {linkLabel.host}
+            </span>
+            {linkLabel.tail ? <span>/{linkLabel.tail}</span> : null}
+          </div>
           <button
             type="button"
             onClick={copyLink}
+            aria-live="polite"
             style={{
-              padding: "0 14px",
-              background: copied ? COLORS.successDeep : COLORS.ink,
-              color: "#fff",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "0 16px",
+              background: copied ? COLORS.successSoft : "transparent",
+              color: copied ? COLORS.successDeep : COLORS.ink,
               border: "none",
-              borderRadius: 8,
+              borderLeft: `1px solid ${COLORS.borderSoft}`,
               fontFamily: FONTS.body,
               fontSize: 12.5,
               fontWeight: 600,
               cursor: "pointer",
               flexShrink: 0,
-              transition: "background 0.15s",
+              transition: "background 0.15s, color 0.15s",
             }}
           >
-            {copied ? "Copied!" : "Copy"}
+            {copied ? "✓ Copied" : "Copy"}
           </button>
         </div>
       </div>
 
-      {/* Send via */}
-      <div>
-        <p style={sectionHeading}>Send via</p>
-        <div style={{ display: "flex", gap: 8 }}>
-          {data.whatsappUrl ? (
-            <a
-              href={data.whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 7,
-                padding: "10px 14px",
-                background: "#25D366",
-                color: "#fff",
-                border: "none",
-                borderRadius: 9,
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              <span style={{ fontSize: 16 }}>💬</span>
-              WhatsApp
-            </a>
-          ) : null}
-          {data.emailUrl ? (
-            <a
-              href={data.emailUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 7,
-                padding: "10px 14px",
-                background: COLORS.fill,
-                color: COLORS.ink,
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 9,
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              <span style={{ fontSize: 16 }}>✉️</span>
-              Email
-            </a>
-          ) : null}
-          {!data.whatsappUrl && !data.emailUrl ? (
-            <p
-              style={{
-                flex: 1,
-                margin: 0,
-                fontSize: 12,
-                color: COLORS.inkMuted,
-                lineHeight: 1.5,
-              }}
-            >
-              No phone or email on file — copy the link above to share it manually.
-            </p>
-          ) : null}
+      {/* Send via — equal-weight options, brand-tinted icon badges. */}
+      {(data.whatsappUrl || data.emailUrl) && (
+        <div>
+          <p style={sectionHeading}>Send directly to client</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            {data.whatsappUrl ? (
+              <a
+                href={data.whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "11px 14px",
+                  background: COLORS.card,
+                  color: COLORS.ink,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 10,
+                  fontFamily: FONTS.body,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  transition: "border-color 0.12s, transform 0.1s",
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    background: "rgba(37,211,102,0.14)",
+                    fontSize: 14,
+                  }}
+                >
+                  💬
+                </span>
+                <span style={{ flex: 1 }}>WhatsApp</span>
+                <span style={{ color: COLORS.inkDim, fontSize: 14, fontWeight: 400 }}>↗</span>
+              </a>
+            ) : null}
+            {data.emailUrl ? (
+              <a
+                href={data.emailUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "11px 14px",
+                  background: COLORS.card,
+                  color: COLORS.ink,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 10,
+                  fontFamily: FONTS.body,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  transition: "border-color 0.12s, transform 0.1s",
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    background: COLORS.brandSoft,
+                    fontSize: 14,
+                  }}
+                >
+                  ✉
+                </span>
+                <span style={{ flex: 1 }}>Email</span>
+                <span style={{ color: COLORS.inkDim, fontSize: 14, fontWeight: 400 }}>↗</span>
+              </a>
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Actions */}
-      <div style={{ display: "flex", gap: 8, paddingTop: 4 }}>
+      {!data.whatsappUrl && !data.emailUrl ? (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12,
+            color: COLORS.inkMuted,
+            lineHeight: 1.5,
+            fontFamily: FONTS.body,
+          }}
+        >
+          No phone or email on file — copy the link above to share it manually.
+        </p>
+      ) : null}
+
+      {/* Footer — quiet "+ New pitch" link, primary "Done". Visual weight
+          matches the rest of the workspace chrome rather than a 50/50 split. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingTop: 6,
+        }}
+      >
         <button
           type="button"
           onClick={onNewPitch}
           style={{
-            flex: 1,
-            padding: "10px 0",
             background: "none",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 8,
+            border: "none",
+            padding: 0,
             fontFamily: FONTS.body,
             fontSize: 13,
             fontWeight: 600,
-            color: COLORS.ink,
+            color: COLORS.inkMuted,
             cursor: "pointer",
           }}
         >
-          New pitch
+          + New pitch
         </button>
         <button
           type="button"
           onClick={onClose}
           style={{
-            flex: 1,
-            padding: "10px 0",
+            padding: "10px 22px",
             background: COLORS.ink,
             border: "none",
-            borderRadius: 8,
+            borderRadius: 999,
             fontFamily: FONTS.body,
             fontSize: 13,
             fontWeight: 600,
@@ -870,6 +1135,14 @@ export function PitchComposeDrawer({
       {postSend ? (
         <PostSendView
           data={postSend}
+          recipientName={recipient.name}
+          recipientCompany={recipient.company}
+          talents={talents}
+          expiresAt={
+            expiryEnabled
+              ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString()
+              : null
+          }
           onClose={resetAndClose}
           onNewPitch={() => {
             setPostSend(null);

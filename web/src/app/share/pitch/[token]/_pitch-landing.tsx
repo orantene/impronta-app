@@ -82,30 +82,62 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
     setDeclineState("done");
   }
 
+  const recipient = pitch.recipient_contact ?? {};
+  const recipientFirst =
+    recipient.name?.trim().split(/\s+/)[0] ?? null;
+  const sentDate = pitch.sent_at ?? pitch.created_at;
+
   return (
-    <div className="min-h-screen bg-zinc-50">
-      {/* Header */}
-      <header className="border-b border-zinc-200 bg-white px-5 py-4">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
+    <div className="min-h-screen bg-[#FAFAF7] text-[#0B0B0D] antialiased">
+      {/* Slim brand bar — agency identity, never dominant */}
+      <header className="border-b border-[#0B0B0D]/[0.06] bg-white/80 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-3xl items-center gap-3 px-6 py-4">
           {brandMarkSvg ? (
             <div
-              className="h-8 w-8 shrink-0 overflow-hidden rounded"
+              className="h-7 w-7 shrink-0 overflow-hidden rounded"
               dangerouslySetInnerHTML={{ __html: brandMarkSvg }}
               aria-hidden
             />
           ) : (
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-zinc-900 text-xs font-bold text-white">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[#0F4F3E] text-[11px] font-semibold text-white">
               {agencyName.charAt(0).toUpperCase()}
             </div>
           )}
-          <div>
-            <p className="text-sm font-semibold text-zinc-900">{agencyName}</p>
-            <p className="text-xs text-zinc-500">Talent pitch</p>
-          </div>
+          <p className="text-[13px] font-semibold tracking-tight">
+            {agencyName}
+          </p>
+          <span className="ml-auto text-[10.5px] font-medium uppercase tracking-[0.18em] text-[#0B0B0D]/45">
+            Talent selection
+          </span>
         </div>
       </header>
 
-      <main className="mx-auto max-w-lg px-5 pb-20 pt-6 space-y-6">
+      {/* Editorial hero — personal greeting + lineup count */}
+      <section className="border-b border-[#0B0B0D]/[0.06] bg-[#F2F2EE]">
+        <div className="mx-auto max-w-3xl px-6 pt-12 pb-10 sm:pt-16 sm:pb-12">
+          <p className="text-[10.5px] font-medium uppercase tracking-[0.22em] text-[#0F4F3E]/70">
+            {recipientFirst
+              ? `For ${recipient.name}`
+              : recipient.company
+                ? `For ${recipient.company}`
+                : "A curated selection"}
+          </p>
+          <h1 className="mt-3 text-[34px] font-semibold leading-[1.05] tracking-[-0.02em] sm:text-[44px]">
+            {recipientFirst
+              ? `${recipientFirst}, here's the lineup we picked for you.`
+              : `Here's the lineup we picked for you.`}
+          </h1>
+          <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[#0B0B0D]/60">
+            <span>{activeTalents.length} talent{activeTalents.length === 1 ? "" : "s"}</span>
+            <span aria-hidden className="text-[#0B0B0D]/25">·</span>
+            <span>Curated by {agencyName}</span>
+            <span aria-hidden className="text-[#0B0B0D]/25">·</span>
+            <span>{fmtDate(sentDate)}</span>
+          </p>
+        </div>
+      </section>
+
+      <main className="mx-auto max-w-3xl px-6 pt-10 pb-20 space-y-10 sm:pt-12">
         {/* Terminal state overlays */}
         {pitch.status === "converted" && (
           <TerminalBanner
@@ -130,30 +162,39 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
           />
         )}
 
-        {/* Personal note */}
+        {/* Personal note — styled as a letter from the agency */}
         {pitch.personal_note && (
-          <div className="rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-zinc-200">
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
-              A note from {agencyName}
-            </p>
-            <p className="text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap">
+          <section className="relative rounded-3xl bg-white px-7 py-7 ring-1 ring-[#0B0B0D]/[0.06] sm:px-10 sm:py-9">
+            <span
+              aria-hidden
+              className="absolute left-6 top-4 select-none text-[64px] font-serif leading-none text-[#0F4F3E]/15 sm:left-8 sm:text-[80px]"
+            >
+              &ldquo;
+            </span>
+            <p className="relative whitespace-pre-wrap text-[16px] leading-[1.6] text-[#0B0B0D]/85 sm:text-[17px]">
               {pitch.personal_note}
             </p>
-          </div>
+            <p className="mt-5 text-[12.5px] font-medium tracking-tight text-[#0B0B0D]/55">
+              — {agencyName}
+            </p>
+          </section>
         )}
 
-        {/* Brief */}
+        {/* Event brief — only renders when fields exist */}
         <PitchBriefBlock pitch={pitch} />
 
-        {/* Talent list */}
+        {/* Talent gallery — the hero of the page */}
         {talents.length > 0 && (
           <section>
-            <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-400">
-              {activeTalents.length === 1
-                ? "1 talent"
-                : `${activeTalents.length} talents`}
-            </p>
-            <div className="space-y-3">
+            <div className="mb-5 flex items-baseline justify-between">
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#0B0B0D]/55">
+                The lineup
+              </h2>
+              <span className="text-[11px] font-medium tabular-nums text-[#0B0B0D]/40">
+                {activeTalents.length} of {talents.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               {talents.map((talent) => (
                 <TalentCard
                   key={talent.pitchTalentId}
@@ -167,17 +208,30 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
           </section>
         )}
 
-        {/* Actions */}
+        {/* CTA section — generous spacing, confident button */}
         {!isTerminal && (
-          <div className="space-y-3 pt-2">
+          <section className="space-y-4 pt-2">
             {convertState.phase === "idle" && (
-              <button
-                type="button"
-                onClick={() => setConvertState({ phase: "form" })}
-                className="w-full rounded-2xl bg-zinc-900 px-6 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 active:bg-zinc-700"
-              >
-                I'm interested →
-              </button>
+              <div className="rounded-3xl bg-white px-6 py-7 text-center ring-1 ring-[#0B0B0D]/[0.06] sm:px-8 sm:py-9">
+                <p className="text-[13px] font-medium uppercase tracking-[0.18em] text-[#0B0B0D]/45">
+                  Like the lineup?
+                </p>
+                <h3 className="mt-2 text-[22px] font-semibold tracking-tight sm:text-[26px]">
+                  Let's start a conversation.
+                </h3>
+                <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-[#0B0B0D]/55">
+                  Reply with a few details about your project and {agencyName}{" "}
+                  will get back to you with availability and rates.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setConvertState({ phase: "form" })}
+                  className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#0F4F3E] px-7 py-3 text-[14px] font-semibold text-white shadow-sm transition hover:bg-[#093328] active:translate-y-px"
+                >
+                  Open inquiry
+                  <span aria-hidden>→</span>
+                </button>
+              </div>
             )}
 
             {(convertState.phase === "form" ||
@@ -192,12 +246,14 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
             )}
 
             {convertState.phase === "success" && (
-              <div className="rounded-2xl bg-emerald-50 px-5 py-5 text-center ring-1 ring-emerald-200">
-                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
-                  <CheckIcon className="h-5 w-5 text-emerald-600" />
+              <div className="rounded-3xl bg-[#2E7D5B]/8 px-6 py-8 text-center ring-1 ring-[#2E7D5B]/20">
+                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#2E7D5B]/15">
+                  <CheckIcon className="h-5 w-5 text-[#1F5D43]" />
                 </div>
-                <p className="text-sm font-semibold text-emerald-800">Inquiry sent!</p>
-                <p className="mt-1 text-xs text-emerald-700">
+                <p className="text-[16px] font-semibold tracking-tight text-[#1F5D43]">
+                  Inquiry sent
+                </p>
+                <p className="mt-1 text-[13px] text-[#1F5D43]/85">
                   {agencyName} will be in touch shortly.
                 </p>
               </div>
@@ -209,31 +265,31 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
                   <button
                     type="button"
                     onClick={() => setDeclineState("confirming")}
-                    className="text-xs text-zinc-400 underline underline-offset-2 transition hover:text-zinc-600"
+                    className="text-[12px] text-[#0B0B0D]/40 underline-offset-4 transition hover:text-[#0B0B0D]/70 hover:underline"
                   >
                     Not a fit — decline this pitch
                   </button>
                 )}
                 {declineState === "confirming" && (
-                  <div className="rounded-xl border border-zinc-200 bg-white px-4 py-4 text-left shadow-sm">
-                    <p className="text-sm font-medium text-zinc-800">
+                  <div className="rounded-2xl bg-white px-5 py-5 text-left ring-1 ring-[#0B0B0D]/[0.06]">
+                    <p className="text-[14px] font-semibold tracking-tight">
                       Decline this pitch?
                     </p>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-[12.5px] text-[#0B0B0D]/55">
                       {agencyName} will be notified. You can&apos;t undo this.
                     </p>
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-4 flex gap-2">
                       <button
                         type="button"
                         onClick={handleDecline}
-                        className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-700"
+                        className="rounded-full bg-[#0B0B0D] px-5 py-2 text-[12.5px] font-semibold text-white transition hover:bg-[#33303A]"
                       >
                         Yes, decline
                       </button>
                       <button
                         type="button"
                         onClick={() => setDeclineState("idle")}
-                        className="rounded-lg border border-zinc-200 px-4 py-2 text-xs font-medium text-zinc-600 transition hover:border-zinc-400"
+                        className="rounded-full px-4 py-2 text-[12.5px] font-medium text-[#0B0B0D]/65 transition hover:bg-[#0B0B0D]/[0.04]"
                       >
                         Cancel
                       </button>
@@ -241,23 +297,31 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
                   </div>
                 )}
                 {declineState === "submitting" && (
-                  <span className="text-xs text-zinc-400">Declining…</span>
+                  <span className="text-[12px] text-[#0B0B0D]/40">Declining…</span>
                 )}
               </div>
             )}
-          </div>
+          </section>
         )}
 
         {/* Expiry notice */}
         {pitch.expires_at && !isTerminal && (
-          <p className="text-center text-[11px] text-zinc-400">
+          <p className="text-center text-[11px] text-[#0B0B0D]/40">
             This pitch expires on {fmtDate(pitch.expires_at)}.
           </p>
         )}
       </main>
 
-      <footer className="border-t border-zinc-100 bg-white px-5 py-6 text-center text-[11px] text-zinc-400">
-        Sent by {agencyName} via Tulala.
+      {/* Footer — refined wordmark */}
+      <footer className="border-t border-[#0B0B0D]/[0.06] bg-white">
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-1 px-6 py-7 text-center text-[11px] text-[#0B0B0D]/40 sm:flex-row sm:justify-between sm:gap-4 sm:text-left">
+          <span>
+            Sent by <span className="font-medium text-[#0B0B0D]/70">{agencyName}</span> · {fmtDate(sentDate)}
+          </span>
+          <span className="tracking-[0.14em] uppercase">
+            Powered by <span className="font-semibold text-[#0B0B0D]/70">Tulala</span>
+          </span>
+        </div>
       </footer>
     </div>
   );
@@ -273,32 +337,29 @@ function PitchBriefBlock({ pitch }: { pitch: PitchRow }) {
 
   if (!hasDate && !hasLocation && !hasRate) return null;
 
+  const fields: Array<{ label: string; value: string }> = [];
+  if (hasDate) fields.push({ label: "Date", value: b.event_date as string });
+  if (hasLocation) fields.push({ label: "Where", value: b.event_location as string });
+  if (hasRate) fields.push({ label: "Rate", value: b.rate_hint as string });
+
   return (
-    <div className="rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-zinc-200">
-      <p className="mb-3 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+    <section>
+      <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#0B0B0D]/55">
         Event details
-      </p>
-      <dl className="space-y-2">
-        {hasDate && (
-          <div className="flex items-start gap-3">
-            <dt className="w-16 shrink-0 text-xs text-zinc-400">Date</dt>
-            <dd className="text-sm text-zinc-700">{b.event_date as string}</dd>
+      </h2>
+      <dl className="grid grid-cols-1 divide-y divide-[#0B0B0D]/[0.06] overflow-hidden rounded-2xl bg-white ring-1 ring-[#0B0B0D]/[0.06] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        {fields.map((f) => (
+          <div key={f.label} className="px-5 py-4">
+            <dt className="text-[10.5px] font-medium uppercase tracking-[0.18em] text-[#0B0B0D]/40">
+              {f.label}
+            </dt>
+            <dd className="mt-1.5 text-[14px] font-medium leading-snug text-[#0B0B0D]">
+              {f.value}
+            </dd>
           </div>
-        )}
-        {hasLocation && (
-          <div className="flex items-start gap-3">
-            <dt className="w-16 shrink-0 text-xs text-zinc-400">Location</dt>
-            <dd className="text-sm text-zinc-700">{b.event_location as string}</dd>
-          </div>
-        )}
-        {hasRate && (
-          <div className="flex items-start gap-3">
-            <dt className="w-16 shrink-0 text-xs text-zinc-400">Rate</dt>
-            <dd className="text-sm text-zinc-700">{b.rate_hint as string}</dd>
-          </div>
-        )}
+        ))}
       </dl>
-    </div>
+    </section>
   );
 }
 
@@ -316,71 +377,82 @@ function TalentCard({
   const height = fmtHeight(talent.heightCm);
 
   return (
-    <div
+    <article
       className={[
-        "relative rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200 overflow-hidden transition-opacity",
-        removed ? "opacity-40" : "",
+        "group relative overflow-hidden rounded-2xl bg-white ring-1 ring-[#0B0B0D]/[0.06] transition",
+        removed ? "opacity-50" : "hover:ring-[#0B0B0D]/[0.12] hover:shadow-[0_6px_24px_rgba(11,11,13,0.06)]",
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="flex gap-4 p-4">
-        {/* Photo */}
-        <div className="h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
-          {talent.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={talent.photoUrl}
-              alt={talent.displayName}
-              className="h-full w-full object-cover object-top"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg font-bold text-zinc-400">
-              {talent.displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="truncate text-sm font-semibold text-zinc-900">
-              {talent.displayName}
-            </p>
-            {!removed && canRemove && (
-              <button
-                type="button"
-                onClick={onRemove}
-                title="Remove from pitch"
-                className="shrink-0 rounded-full p-1 text-zinc-300 transition hover:bg-zinc-100 hover:text-zinc-500"
-                aria-label={`Remove ${talent.displayName}`}
-              >
-                <XIcon className="h-3.5 w-3.5" />
-              </button>
-            )}
+      {/* Photo — full-bleed top, 4:5 portrait aspect */}
+      <div className="relative aspect-[4/5] overflow-hidden bg-[#F2F2EE]">
+        {talent.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={talent.photoUrl}
+            alt={talent.displayName}
+            className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-[44px] font-semibold tracking-tight text-[#0B0B0D]/15">
+            {talent.displayName.charAt(0).toUpperCase()}
           </div>
-          {height && <p className="mt-0.5 text-xs text-zinc-400">{height}</p>}
-          {talent.shortBio && (
-            <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-zinc-500">
-              {talent.shortBio}
-            </p>
-          )}
-          {talent.adminNote && (
-            <p className="mt-2 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-xs italic leading-relaxed text-zinc-500">
-              "{talent.adminNote}"
-            </p>
-          )}
-        </div>
+        )}
+
+        {/* Remove button — discreet, top-right, only when allowed */}
+        {!removed && canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            title="Remove from pitch"
+            aria-label={`Remove ${talent.displayName}`}
+            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#0B0B0D]/55 opacity-0 ring-1 ring-[#0B0B0D]/[0.08] backdrop-blur-sm transition hover:bg-white hover:text-[#0B0B0D] group-hover:opacity-100 focus:opacity-100"
+          >
+            <XIcon className="h-3 w-3" />
+          </button>
+        )}
+
+        {/* Removed overlay */}
+        {removed && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[2px]">
+            <span className="rounded-full bg-white px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-[#0B0B0D]/55 ring-1 ring-[#0B0B0D]/[0.08]">
+              Removed
+            </span>
+          </div>
+        )}
       </div>
 
-      {removed && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-zinc-500 shadow-sm ring-1 ring-zinc-200">
-            Removed
-          </span>
-        </div>
-      )}
-    </div>
+      {/* Info — display name + meta row + bio + admin note */}
+      <div className="flex flex-col gap-2 px-5 py-5">
+        <h3 className="text-[17px] font-semibold leading-tight tracking-tight text-[#0B0B0D]">
+          {talent.displayName}
+        </h3>
+
+        {(height || talent.shortBio) && (
+          <div className="space-y-1.5">
+            {height && (
+              <p className="text-[12px] font-medium tabular-nums tracking-wide text-[#0B0B0D]/55">
+                {height}
+              </p>
+            )}
+            {talent.shortBio && (
+              <p className="line-clamp-3 text-[13px] leading-[1.55] text-[#0B0B0D]/65">
+                {talent.shortBio}
+              </p>
+            )}
+          </div>
+        )}
+
+        {talent.adminNote && (
+          <div className="mt-2 border-l-2 border-[#0F4F3E]/40 pl-3 py-1">
+            <p className="text-[12.5px] italic leading-[1.55] text-[#0B0B0D]/60">
+              {talent.adminNote}
+            </p>
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -429,33 +501,40 @@ function ConvertForm({
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white px-5 py-5 shadow-sm">
-      <p className="mb-4 text-sm font-semibold text-zinc-900">
-        Send an inquiry
-      </p>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <Field label="Name" required>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={submitting}
-            placeholder="Your name"
-            required
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white disabled:opacity-50"
-          />
-        </Field>
-        <Field label="Email" required>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={submitting}
-            placeholder="your@email.com"
-            required
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white disabled:opacity-50"
-          />
-        </Field>
+    <div className="rounded-3xl bg-white px-6 py-7 ring-1 ring-[#0B0B0D]/[0.06] sm:px-8 sm:py-8">
+      <div className="mb-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#0F4F3E]/70">
+          Open inquiry
+        </p>
+        <h3 className="mt-1.5 text-[20px] font-semibold tracking-tight">
+          Tell us a bit about your project
+        </h3>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Name" required>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={submitting}
+              placeholder="Your name"
+              required
+              className="w-full rounded-xl bg-[#F2F2EE] px-3.5 py-2.5 text-[14px] text-[#0B0B0D] placeholder-[#0B0B0D]/35 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-[#0F4F3E]/40 disabled:opacity-50"
+            />
+          </Field>
+          <Field label="Email" required>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={submitting}
+              placeholder="your@email.com"
+              required
+              className="w-full rounded-xl bg-[#F2F2EE] px-3.5 py-2.5 text-[14px] text-[#0B0B0D] placeholder-[#0B0B0D]/35 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-[#0F4F3E]/40 disabled:opacity-50"
+            />
+          </Field>
+        </div>
         <Field label="Phone (optional)">
           <input
             type="tel"
@@ -463,7 +542,7 @@ function ConvertForm({
             onChange={(e) => setPhone(e.target.value)}
             disabled={submitting}
             placeholder="+1 555 000 0000"
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white disabled:opacity-50"
+            className="w-full rounded-xl bg-[#F2F2EE] px-3.5 py-2.5 text-[14px] text-[#0B0B0D] placeholder-[#0B0B0D]/35 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-[#0F4F3E]/40 disabled:opacity-50"
           />
         </Field>
         <Field label="Message (optional)">
@@ -471,21 +550,21 @@ function ConvertForm({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             disabled={submitting}
-            placeholder="Anything you'd like to add…"
+            placeholder="Project, dates, anything we should know…"
             rows={3}
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none transition focus:border-zinc-400 focus:bg-white disabled:opacity-50 resize-none"
+            className="w-full resize-none rounded-xl bg-[#F2F2EE] px-3.5 py-3 text-[14px] leading-relaxed text-[#0B0B0D] placeholder-[#0B0B0D]/35 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-[#0F4F3E]/40 disabled:opacity-50"
           />
         </Field>
 
         {state.phase === "error" && (
-          <p className="text-xs text-red-600">{state.message}</p>
+          <p className="text-[12.5px] text-[#B0303A]">{state.message}</p>
         )}
 
-        <div className="flex gap-2 pt-1">
+        <div className="flex items-center gap-3 pt-1">
           <button
             type="submit"
             disabled={submitting || !name.trim() || !email.trim()}
-            className="flex-1 rounded-xl bg-zinc-900 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+            className="flex-1 rounded-full bg-[#0F4F3E] py-3 text-[14px] font-semibold text-white shadow-sm transition hover:bg-[#093328] active:translate-y-px disabled:opacity-40 disabled:hover:bg-[#0F4F3E]"
           >
             {submitting ? "Sending…" : "Send inquiry"}
           </button>
@@ -493,7 +572,7 @@ function ConvertForm({
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-600 transition hover:border-zinc-400"
+              className="rounded-full px-5 py-3 text-[13px] font-medium text-[#0B0B0D]/60 transition hover:bg-[#0B0B0D]/[0.04]"
             >
               Back
             </button>
@@ -515,9 +594,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-zinc-600">
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0B0B0D]/55">
         {label}
-        {required && <span className="ml-0.5 text-zinc-400">*</span>}
+        {required && <span className="ml-1 text-[#0F4F3E]/65">*</span>}
       </label>
       {children}
     </div>
@@ -534,9 +613,9 @@ function TerminalBanner({
   body: string;
 }) {
   const palette = {
-    check: "bg-emerald-50 ring-emerald-200 text-emerald-800",
-    x: "bg-zinc-100 ring-zinc-200 text-zinc-700",
-    clock: "bg-amber-50 ring-amber-200 text-amber-800",
+    check: "bg-[#2E7D5B]/8 ring-[#2E7D5B]/20 text-[#1F5D43]",
+    x: "bg-[#0B0B0D]/[0.04] ring-[#0B0B0D]/[0.10] text-[#0B0B0D]/75",
+    clock: "bg-[#C26A45]/10 ring-[#C26A45]/25 text-[#7A4128]",
   }[icon];
   const iconEl = {
     check: <CheckIcon className="h-5 w-5" />,
@@ -548,8 +627,8 @@ function TerminalBanner({
       <div className="flex items-start gap-3">
         <div className="mt-0.5 shrink-0">{iconEl}</div>
         <div>
-          <p className="text-sm font-semibold">{title}</p>
-          <p className="mt-0.5 text-xs">{body}</p>
+          <p className="text-[14px] font-semibold tracking-tight">{title}</p>
+          <p className="mt-0.5 text-[12.5px] opacity-85">{body}</p>
         </div>
       </div>
     </div>

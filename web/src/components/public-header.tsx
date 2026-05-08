@@ -217,7 +217,7 @@ export async function PublicHeader() {
       {showBrandMark ? (
         <span
           aria-hidden
-          className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-primary sm:h-6 sm:w-6 [&>svg]:h-full [&>svg]:w-full"
+          className="inline-flex h-7 w-auto shrink-0 items-center justify-center text-primary sm:h-8 [&>svg]:h-full [&>svg]:w-auto"
           dangerouslySetInnerHTML={{ __html: brandMarkSvg! }}
         />
       ) : null}

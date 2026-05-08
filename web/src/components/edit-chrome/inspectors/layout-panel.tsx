@@ -45,6 +45,7 @@ import type {
 } from "@/lib/site-admin/builder-node";
 import {
   getBuilderNodeLayoutFindings,
+  isBlockingLayoutFindingId,
   type BuilderNodeLayoutFinding,
 } from "@/lib/site-admin/builder-node/layout-health";
 
@@ -812,7 +813,24 @@ function LayoutHealthCard({
   findings: ReadonlyArray<BuilderNodeLayoutFinding>;
   onApply: (patch: Record<string, unknown>) => void;
 }) {
-  if (findings.length === 0) {
+  const orderedFindings = [...findings].sort((a, b) => {
+    const rank = (finding: BuilderNodeLayoutFinding): number => {
+      if (isBlockingLayoutFindingId(finding.id)) return 0;
+      if (finding.level === "warning") return 1;
+      return 2;
+    };
+    return rank(a) - rank(b);
+  });
+
+  const blockingCount = orderedFindings.filter((finding) =>
+    isBlockingLayoutFindingId(finding.id),
+  ).length;
+  const warningCount = orderedFindings.filter(
+    (finding) => !isBlockingLayoutFindingId(finding.id) && finding.level === "warning",
+  ).length;
+  const recommendationCount = orderedFindings.length - blockingCount - warningCount;
+
+  if (orderedFindings.length === 0) {
     return (
       <div
         data-builder-node-layout-health="ok"
@@ -841,27 +859,74 @@ function LayoutHealthCard({
       <div className="flex items-center justify-between gap-2">
         <span className={FIELD_LABEL}>Layout checks</span>
         <span className={INHERIT_HINT}>
-          {findings.length} finding{findings.length === 1 ? "" : "s"}
+          {blockingCount > 0 ? `${blockingCount} blocker${blockingCount === 1 ? "" : "s"}` : null}
+          {blockingCount > 0 && (warningCount > 0 || recommendationCount > 0)
+            ? " · "
+            : null}
+          {warningCount > 0 ? `${warningCount} warning${warningCount === 1 ? "" : "s"}` : null}
+          {warningCount > 0 && recommendationCount > 0 ? " · " : null}
+          {recommendationCount > 0
+            ? `${recommendationCount} recommendation${recommendationCount === 1 ? "" : "s"}`
+            : null}
+          {blockingCount === 0 && warningCount === 0 && recommendationCount === 0
+            ? "No findings"
+            : null}
         </span>
       </div>
-      {findings.map((finding) => (
+      {blockingCount > 0 ? (
+        <div
+          data-builder-node-layout-blockers={blockingCount}
+          className="rounded-md px-2.5 py-2"
+          style={{
+            background: "rgba(239, 68, 68, 0.08)",
+            border: "1px solid rgba(239, 68, 68, 0.28)",
+          }}
+        >
+          <div className="text-[10px] font-semibold uppercase tracking-[0.11em] text-red-700">
+            Publish blockers
+          </div>
+          <p className="mt-0.5 text-[10.5px] leading-snug text-red-700">
+            {blockingCount} layout issue{blockingCount === 1 ? "" : "s"} should be
+            fixed before publish.
+          </p>
+        </div>
+      ) : null}
+      {orderedFindings.map((finding) => (
         <div
           key={finding.id}
           data-builder-node-layout-finding={finding.id}
           className="rounded-md px-2.5 py-2"
           style={{
-            background:
-              finding.level === "warning"
+            background: isBlockingLayoutFindingId(finding.id)
+              ? "rgba(239, 68, 68, 0.08)"
+              : finding.level === "warning"
                 ? "rgba(245, 158, 11, 0.10)"
                 : "rgba(59, 130, 246, 0.08)",
-            border:
-              finding.level === "warning"
+            border: isBlockingLayoutFindingId(finding.id)
+              ? "1px solid rgba(239, 68, 68, 0.26)"
+              : finding.level === "warning"
                 ? "1px solid rgba(245, 158, 11, 0.28)"
                 : "1px solid rgba(59, 130, 246, 0.18)",
           }}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
+              <div
+                className="text-[9.5px] font-semibold uppercase tracking-[0.11em]"
+                style={{
+                  color: isBlockingLayoutFindingId(finding.id)
+                    ? "rgb(185, 28, 28)"
+                    : finding.level === "warning"
+                      ? "rgb(161, 98, 7)"
+                      : "rgb(30, 64, 175)",
+                }}
+              >
+                {isBlockingLayoutFindingId(finding.id)
+                  ? "Publish blocker"
+                  : finding.level === "warning"
+                    ? "Warning"
+                    : "Recommendation"}
+              </div>
               <div className="text-[11px] font-semibold text-zinc-800">
                 {finding.title}
               </div>
@@ -1436,10 +1501,11 @@ export function LayoutPanel({
   onPatch,
   onDeepPatch,
 }: LayoutPanelProps) {
-  const {
+const {
     builderTree,
     selectedBuilderNodeId,
     patchBuilderNodeProps,
+    reportMutationError,
     device,
     setDevice,
   } = useEditContext();
@@ -1622,6 +1688,15 @@ export function LayoutPanel({
         : [],
     [selectedBuilderNode],
   );
+  const commitBuilderNodePatch = async (
+    nodeId: string,
+    patch: Record<string, unknown>,
+  ) => {
+    const result = await patchBuilderNodeProps(nodeId, patch);
+    if (!result.ok && result.error) {
+      reportMutationError(result.error);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -1643,13 +1718,13 @@ export function LayoutPanel({
             <LayoutHealthCard
               findings={selectedBuilderNodeFindings}
               onApply={(patch) => {
-                void patchBuilderNodeProps(selectedBuilderNode.id, patch);
+                void commitBuilderNodePatch(selectedBuilderNode.id, patch);
               }}
             />
             <AdvancedNodeLayoutEditor
               node={selectedBuilderNode}
               onPatch={(patch) => {
-                void patchBuilderNodeProps(selectedBuilderNode.id, patch);
+                void commitBuilderNodePatch(selectedBuilderNode.id, patch);
               }}
             />
           </div>

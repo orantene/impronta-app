@@ -15,6 +15,20 @@ import {
   type PreflightIssue,
 } from "@/lib/site-admin/edit-mode/publish-preflight-action";
 
+const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
+  headings: "Headings",
+  alt_text: "Alt text",
+  image_size: "Image size",
+  aria: "Accessibility",
+  cta: "CTA links",
+  builder_payload: "Builder payload",
+  featured_talent: "Featured roster",
+  data_binding: "Data bindings",
+  link_integrity: "Link integrity",
+  seo: "SEO",
+  layout: "Layout",
+};
+
 interface Props {
   /** Only run checks while the publish drawer is visible. */
   enabled?: boolean;
@@ -25,6 +39,7 @@ interface Props {
     loading: boolean;
     blockingErrors: number;
   }) => void;
+  onFocusSection?: (sectionId: string) => void;
 }
 
 export function PublishPreflight({
@@ -32,6 +47,7 @@ export function PublishPreflight({
   refreshKey,
   locale,
   onStatusChange,
+  onFocusSection,
 }: Props) {
   const [issues, setIssues] = useState<ReadonlyArray<PreflightIssue> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -93,6 +109,49 @@ export function PublishPreflight({
   }
   const errors = issues.filter((i) => i.severity === "error").length;
   const warns = issues.filter((i) => i.severity === "warn").length;
+  const ordered = [...issues].sort((a, b) => {
+    if (a.severity === b.severity) {
+      return a.category.localeCompare(b.category);
+    }
+    return a.severity === "error" ? -1 : 1;
+  });
+  const blockingIssues = ordered.filter((i) => i.severity === "error");
+  const warningIssues = ordered.filter((i) => i.severity === "warn");
+
+  const renderIssue = (issue: PreflightIssue, index: number) => (
+    <li key={`${issue.category}:${index}`} className="flex items-start gap-2">
+      <span
+        aria-hidden
+        className={`mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+          issue.severity === "error" ? "bg-rose-500" : "bg-amber-500"
+        }`}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <span>{CATEGORY_LABEL[issue.category]}</span>
+          {issue.severity === "error" ? (
+            <span className="rounded border border-rose-300/80 bg-rose-100/60 px-1 py-0 text-[9px] font-semibold leading-[1.2] text-rose-700">
+              Blocker
+            </span>
+          ) : null}
+        </div>
+        <p className="leading-snug">{issue.message}</p>
+        {issue.sectionId && onFocusSection ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (!issue.sectionId) return;
+              onFocusSection(issue.sectionId);
+            }}
+            className="mt-1 inline-flex cursor-pointer items-center rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted"
+          >
+            Focus section
+          </button>
+        ) : null}
+      </div>
+    </li>
+  );
+
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-3 text-xs">
       <div className="flex items-center justify-between">
@@ -104,19 +163,28 @@ export function PublishPreflight({
           {warns} warning{warns === 1 ? "" : "s"}
         </span>
       </div>
-      <ul className="flex flex-col gap-1">
-        {issues.map((iss, i) => (
-          <li key={i} className="flex items-start gap-2">
-            <span
-              aria-hidden
-              className={`mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                iss.severity === "error" ? "bg-rose-500" : "bg-amber-500"
-              }`}
-            />
-            <span>{iss.message}</span>
-          </li>
-        ))}
-      </ul>
+      {blockingIssues.length > 0 ? (
+        <div className="rounded-md border border-rose-300/70 bg-rose-50/50 p-2">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+            Publish blockers ({blockingIssues.length})
+          </div>
+          <ul className="flex flex-col gap-1.5 text-rose-950">
+            {blockingIssues.map((issue, index) => renderIssue(issue, index))}
+          </ul>
+        </div>
+      ) : null}
+      {warningIssues.length > 0 ? (
+        <div className="rounded-md border border-amber-300/70 bg-amber-50/40 p-2">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+            Warnings ({warningIssues.length})
+          </div>
+          <ul className="flex flex-col gap-1.5 text-zinc-800">
+            {warningIssues.map((issue, index) =>
+              renderIssue(issue, blockingIssues.length + index),
+            )}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

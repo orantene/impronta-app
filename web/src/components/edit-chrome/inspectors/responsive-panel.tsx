@@ -34,8 +34,13 @@ import {
   PRESENTATION_OPTIONS,
   BREAKPOINT_LABELS,
 } from "@/lib/site-admin/sections/shared/presentation";
+import {
+  collectBreakpointCascadeRisks,
+  collectBreakpointOrderRisks,
+  collectBreakpointVisibilityRisks,
+} from "@/lib/site-admin/edit-mode/publish-preflight-layout-rules";
 
-import type { ReactElement } from "react";
+import { useMemo, type ReactElement } from "react";
 
 import { useEditContext, type EditDevice } from "../edit-context";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
@@ -177,10 +182,13 @@ export function ResponsivePanel({
 }: ResponsivePanelProps) {
   const { device, setDevice } = useEditContext();
 
-  const breakpoints =
-    (presentation.breakpoints as
-      | { tablet?: Record<string, unknown>; mobile?: Record<string, unknown> }
-      | undefined) ?? {};
+  const breakpoints = useMemo(
+    () =>
+      ((presentation.breakpoints as
+        | { tablet?: Record<string, unknown>; mobile?: Record<string, unknown> }
+        | undefined) ?? {}),
+    [presentation],
+  );
 
   const isDesktop = device === "desktop";
   const overrideObject =
@@ -194,6 +202,19 @@ export function ResponsivePanel({
     (presentation[k] as string | undefined) ?? "";
   const overrideVal = (k: OverrideKey): string =>
     (overrideObject[k] as string | undefined) ?? "";
+  const hasAnyOverride = OVERRIDE_KEYS.some((k) => overrideVal(k) !== "");
+  const responsiveDiagnostics = useMemo(() => {
+    const visibility = collectBreakpointVisibilityRisks(
+      { breakpoints },
+      "presentation",
+    );
+    const cascade = collectBreakpointCascadeRisks(
+      { breakpoints },
+      "presentation",
+    );
+    const order = collectBreakpointOrderRisks({ breakpoints }, "presentation");
+    return { visibility, cascade, order };
+  }, [breakpoints]);
 
   /**
    * Toggle pattern: clicking the active override clears it back to
@@ -216,6 +237,18 @@ export function ResponsivePanel({
       PRESENTATION_OPTIONS[k].find((o) => o.value === value)?.label ??
       value
     );
+  }
+
+  function clearBreakpointOverrides() {
+    if (isDesktop || !hasAnyOverride) return;
+    const cleared = Object.fromEntries(
+      OVERRIDE_KEYS.map((key) => [key, undefined]),
+    ) as Record<OverrideKey, undefined>;
+    onDeepPatch({
+      breakpoints: {
+        [device]: cleared,
+      },
+    });
   }
 
   return (
@@ -251,8 +284,26 @@ export function ResponsivePanel({
       )}
 
       <section className="flex flex-col gap-4">
-        <div className={SECTION_TITLE}>
-          {BREAKPOINT_LABELS[device]} overrides
+        <div className="flex items-center justify-between gap-3">
+          <div className={SECTION_TITLE}>
+            {BREAKPOINT_LABELS[device]} overrides
+          </div>
+          {!isDesktop ? (
+            <button
+              type="button"
+              onClick={clearBreakpointOverrides}
+              disabled={!hasAnyOverride}
+              className="text-[10.5px] font-semibold"
+              style={{
+                color: hasAnyOverride ? CHROME.muted : CHROME.muted2,
+                opacity: hasAnyOverride ? 1 : 0.55,
+                cursor: hasAnyOverride ? "pointer" : "default",
+                transition: "opacity 100ms ease, color 100ms ease",
+              }}
+            >
+              Reset all
+            </button>
+          ) : null}
         </div>
 
         {OVERRIDE_KEYS.map((k) => {
@@ -355,11 +406,75 @@ export function ResponsivePanel({
         })}
       </section>
 
+      <ResponsiveDiagnosticsCard
+        visibilityCount={responsiveDiagnostics.visibility.length}
+        cascadeCount={responsiveDiagnostics.cascade.length}
+        orderCount={responsiveDiagnostics.order.length}
+      />
+
       <p className={HINT}>
         Tablet overrides take effect at viewports up to 1023px. Mobile at
         640px. Anything left on inherit falls through to the desktop base
         above the breakpoint.
       </p>
+    </div>
+  );
+}
+
+function ResponsiveDiagnosticsCard({
+  visibilityCount,
+  cascadeCount,
+  orderCount,
+}: {
+  visibilityCount: number;
+  cascadeCount: number;
+  orderCount: number;
+}) {
+  const total = visibilityCount + cascadeCount + orderCount;
+  const ok = total === 0;
+  return (
+    <div
+      className="rounded-md p-3"
+      style={{
+        background: ok ? "rgba(16, 185, 129, 0.08)" : CHROME.paper,
+        border: ok
+          ? "1px solid rgba(16, 185, 129, 0.24)"
+          : `1px solid ${CHROME.line}`,
+      }}
+      data-builder-responsive-diagnostics={ok ? "ok" : "issues"}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className={FIELD_LABEL}>Responsive diagnostics</span>
+        <span className={INHERIT_HINT}>
+          {ok ? "No issues" : `${total} issue${total === 1 ? "" : "s"}`}
+        </span>
+      </div>
+      {ok ? (
+        <p className="mt-1 text-[10.5px] leading-snug text-emerald-700">
+          Breakpoint overrides look structurally consistent.
+        </p>
+      ) : (
+        <div className="mt-2 flex flex-col gap-1.5 text-[10.5px] leading-snug text-zinc-600">
+          {visibilityCount > 0 ? (
+            <p>
+              {visibilityCount} hidden-on-breakpoint override
+              {visibilityCount === 1 ? "" : "s"}.
+            </p>
+          ) : null}
+          {cascadeCount > 0 ? (
+            <p>
+              {cascadeCount} mobile override
+              {cascadeCount === 1 ? "" : "s"} without tablet intent.
+            </p>
+          ) : null}
+          {orderCount > 0 ? (
+            <p>
+              {orderCount} mobile spacing value{orderCount === 1 ? "" : "s"} larger
+              than tablet.
+            </p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

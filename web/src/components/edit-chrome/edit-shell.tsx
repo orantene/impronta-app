@@ -200,6 +200,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     removeBuilderNode,
     removeSection,
     navigatorOpen,
+    navigatorWidth,
     toggleNavigator,
     reportMutationError,
     locale,
@@ -518,6 +519,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <BodyPaddingController
         selectedSectionId={selectedSectionId}
         navigatorOpen={navigatorOpen}
+        navigatorWidth={navigatorWidth}
       />
       {/* data-edit-chrome marks all editor UI so CanvasLinkInterceptor can
           exclude these links (locale switcher, page picker, admin nav) from
@@ -626,12 +628,13 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <IframeBridgeParent />
       </div>
       {children}
-      <DeviceFrameSurface
-        device={device}
-        pageSlug={pageSlug}
-        navigatorOpen={navigatorOpen}
-        inspectorOpen={!!selectedSectionId}
-      />
+        <DeviceFrameSurface
+          device={device}
+          pageSlug={pageSlug}
+          navigatorOpen={navigatorOpen}
+          navigatorWidth={navigatorWidth}
+          inspectorOpen={!!selectedSectionId}
+        />
     </>
   );
 }
@@ -738,14 +741,16 @@ function FirstPaintTip() {
 function BodyPaddingController({
   selectedSectionId,
   navigatorOpen,
+  navigatorWidth,
 }: {
   selectedSectionId: string | null;
   navigatorOpen: boolean;
+  navigatorWidth: number;
 }) {
   const dockOpen = !!selectedSectionId;
   // Navigator collapses to a 22px rail handle so the canvas always cedes
-  // a hair of space; the full panel reserves 280px when open.
-  const left = navigatorOpen ? 280 : 22;
+  // a hair of space; when open it reserves the user-sized left rail.
+  const left = navigatorOpen ? navigatorWidth : 22;
   const right = dockOpen ? 380 : 0;
   return (
     <style>{`@media (min-width: 1024px) { body { padding-left: ${left}px !important; padding-right: ${right}px !important; transition: padding-left 200ms ease, padding-right 200ms ease; } }`}</style>
@@ -798,12 +803,29 @@ function DraftSavedToast() {
 function MutationErrorToast() {
   const { mutationError, clearMutationError } = useEditContext();
   if (!mutationError) return null;
+  const detailLines = mutationError.details?.slice(0, 2) ?? [];
   return (
     <div
       data-edit-overlay="mutation-toast"
-      className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex -translate-x-1/2 items-center gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 shadow-lg"
+      className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex max-w-[min(92vw,680px)] -translate-x-1/2 items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 shadow-lg"
     >
-      <span>{mutationError}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block leading-snug">{mutationError.message}</span>
+        {mutationError.code ? (
+          <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] text-amber-700">
+            {mutationError.code.replaceAll("_", " ")}
+          </span>
+        ) : null}
+        {detailLines.length > 0 ? (
+          <span className="mt-1 block text-[11px] font-normal leading-snug text-amber-800/90">
+            {detailLines.map((line, index) => (
+              <span key={`${line}-${index}`} className="block truncate">
+                {line}
+              </span>
+            ))}
+          </span>
+        ) : null}
+      </span>
       <button
         type="button"
         onClick={clearMutationError}
@@ -854,11 +876,13 @@ function DeviceFrameSurface({
   device,
   pageSlug,
   navigatorOpen,
+  navigatorWidth,
   inspectorOpen,
 }: {
   device: EditDevice;
   pageSlug?: string | null;
   navigatorOpen: boolean;
+  navigatorWidth: number;
   inspectorOpen: boolean;
 }) {
   const width = DEVICE_WIDTHS[device];
@@ -893,7 +917,7 @@ function DeviceFrameSurface({
   // can be open; tight on phone where neither is mounted (their wrappers
   // carry `max-lg:hidden`, see NavigatorPanel + InspectorDock).
   const isPhone = (hostSize?.w ?? 1280) < 1024;
-  const leftPad = isPhone ? 8 : navigatorOpen ? 280 : 22;
+  const leftPad = isPhone ? 8 : navigatorOpen ? navigatorWidth : 22;
   const rightPad = isPhone ? 8 : inspectorOpen ? 380 : 0;
   const verticalPad = isPhone ? 12 : 24;
 

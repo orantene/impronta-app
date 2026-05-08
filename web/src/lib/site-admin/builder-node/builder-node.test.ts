@@ -25,7 +25,7 @@ test("validates a registry-backed node tree", () => {
         gap: "m",
         dataBinding: {
           sourceKey: "featured_talent_profiles",
-          mode: "auto",
+          mode: "bound",
           maxItems: 4,
         },
       },
@@ -55,7 +55,7 @@ test("validates advanced layout/container kinds", () => {
         sectionTypeKey: "feature_layout",
         dataBinding: {
           sourceKey: "talent_profiles",
-          mode: "auto",
+          mode: "bound",
           maxItems: 12,
         },
       },
@@ -142,6 +142,88 @@ test("validates button state-style props and responsive container overrides", ()
     },
   ]);
   assert.equal(result.ok, true);
+});
+
+test("rejects invalid container columns when non-grid layouts declare multi-column", () => {
+  const result = validateBuilderNodeTree([
+    {
+      id: "container-invalid-columns",
+      kind: "container",
+      props: {
+        layout: "row",
+        columns: 3,
+      },
+      children: [],
+    },
+  ]);
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(
+      result.issues.some((issue) =>
+        issue.message.includes('columns > 1 is only valid when layout is "grid"'),
+      ),
+    );
+  }
+});
+
+test("rejects invalid mobile stack column counts", () => {
+  const result = validateBuilderNodeTree([
+    {
+      id: "container-invalid-mobile-stack-columns",
+      kind: "container",
+      props: {
+        layout: "grid",
+        columns: 3,
+        responsive: {
+          mobile: {
+            layout: "stack",
+            columns: 2,
+          },
+        },
+      },
+      children: [],
+    },
+  ]);
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(
+      result.issues.some((issue) =>
+        issue.message.includes("stack layout must use exactly 1 column"),
+      ),
+    );
+  }
+});
+
+test("rejects mobile column override without base or tablet column intent", () => {
+  const result = validateBuilderNodeTree([
+    {
+      id: "container-mobile-columns-without-cascade",
+      kind: "container",
+      props: {
+        layout: "grid",
+        responsive: {
+          mobile: {
+            layout: "grid",
+            columns: 2,
+          },
+        },
+      },
+      children: [],
+    },
+  ]);
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(
+      result.issues.some((issue) =>
+        issue.message.includes(
+          "mobile columns override requires base or tablet columns",
+        ),
+      ),
+    );
+  }
 });
 
 test("rejects invalid advanced node relationships", () => {
