@@ -25,6 +25,7 @@ import type {
   WorkspaceTeamMember as BridgeTeamMember,
   TalentSelfProfile as BridgeTalentSelfProfile,
   TalentInquiryRow,
+  WorkspaceMediaPhoto as BridgeMediaPhoto,
 } from "./_data-bridge";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
@@ -6663,6 +6664,12 @@ type Ctx = {
    */
   bridgeTalentSelfProfile: BridgeTalentSelfProfile | null;
 
+  /**
+   * Media photos from the bridge. `null` = mock mode (Media page falls
+   * back to MOCK_MEDIA). Empty array = live mode with zero photos.
+   */
+  bridgeMediaPhotos: BridgeMediaPhoto[] | null;
+
   // ── Phase 1 (master plan) — chrome identity bridge ────────────────────────
   /**
    * Real tenant identity from the workspace admin layout. null = standalone
@@ -7970,6 +7977,10 @@ export function ProtoProvider({
   );
   const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;
 
+  // Media gallery bridge — `null` falls back to MOCK_MEDIA in WorkspaceMediaPage,
+  // empty array means "live mode, no photos yet" → renders empty state.
+  const bridgeMediaPhotos = initialBridgeData?.mediaPhotos ?? null;
+
   const value: Ctx = useMemo(
     () => ({
       state: {
@@ -8073,6 +8084,7 @@ export function ProtoProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeMediaPhotos,
       bridgeTenantIdentity,
       bridgeSessionIdentity,
     }),
@@ -8157,6 +8169,7 @@ export function ProtoProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeMediaPhotos,
       bridgeTenantIdentity,
       bridgeSessionIdentity,
     ],

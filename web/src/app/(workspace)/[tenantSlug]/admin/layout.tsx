@@ -21,6 +21,7 @@ import {
   loadWorkspaceBookings,
   loadWorkspaceTeamMembers,
   loadTotalUnreadMessages,
+  loadWorkspaceMediaPhotos,
 } from "@/app/prototypes/admin-shell/_data-bridge";
 import { AdminShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
 import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
@@ -130,6 +131,7 @@ export default async function WorkspaceAdminLayout({
     totalUnread,
     tenantIdentity,
     profileDisplayName,
+    mediaPhotos,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(),
     loadInquiriesForMessages(tenantId),
@@ -141,6 +143,7 @@ export default async function WorkspaceAdminLayout({
     loadTotalUnreadMessages(tenantId),
     loadTenantIdentity(tenantId),
     loadProfileDisplayName(session.user.id),
+    loadWorkspaceMediaPhotos(tenantId),
   ]);
 
   const sessionIdentity = {
@@ -174,6 +177,7 @@ export default async function WorkspaceAdminLayout({
           totalUnread,
           tenantIdentity,
           sessionIdentity,
+          mediaPhotos,
         }}
       >
         {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}

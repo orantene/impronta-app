@@ -8860,7 +8860,7 @@ const MOCK_MEDIA: MockPhoto[] = MOCK_TALENT_NAMES.flatMap((name, ti) => {
 });
 
 function WorkspaceMediaPage() {
-  const { state, openDrawer, openUpgrade } = useProto();
+  const { state, openDrawer, openUpgrade, bridgeMediaPhotos } = useProto();
   const isAgency = meetsPlan(state.plan, "agency");
   const isStudio = meetsPlan(state.plan, "studio");
 
@@ -8870,6 +8870,24 @@ function WorkspaceMediaPage() {
   const [filterWm, setFilterWm]             = useState<"all" | "yes" | "no">("all");
   const [selected, setSelected]             = useState<Set<string>>(new Set());
   const [usageFocus, setUsageFocus]         = useState<MockPhoto | null>(null);
+
+  // Live mediaPhotos from the bridge — when present, use them. Otherwise
+  // fall back to MOCK_MEDIA so /prototypes/admin-shell still demos.
+  const livePhotos = useMemo<MockPhoto[]>(() => {
+    if (!bridgeMediaPhotos) return [];
+    return bridgeMediaPhotos.map((p) => ({
+      id: p.id,
+      talentName: p.talentName,
+      bg: "#cec8c2",
+      url: p.url,
+      thumbUrl: p.thumbUrl,
+      hasWatermark: p.hasWatermark,
+      approvalState: p.approvalState === "rejected" ? "approved" : (p.approvalState as "approved" | "pending"),
+      usedIn: p.usedIn,
+    }));
+  }, [bridgeMediaPhotos]);
+  const isLiveMode = bridgeMediaPhotos !== null;
+  const photos: MockPhoto[] = isLiveMode ? livePhotos : MOCK_MEDIA;
 
   // Gate — non-Agency users see upgrade CTA
   if (!isAgency) {
@@ -8935,8 +8953,8 @@ function WorkspaceMediaPage() {
   }
 
   // ── Filtered data ──────────────────────────────────────────────────────
-  const allTalentNames = Array.from(new Set(MOCK_MEDIA.map((p) => p.talentName)));
-  const filtered = MOCK_MEDIA.filter((p) => {
+  const allTalentNames = Array.from(new Set(photos.map((p) => p.talentName)));
+  const filtered = photos.filter((p) => {
     if (filterTalent !== "all" && p.talentName !== filterTalent) return false;
     if (filterStatus !== "all" && p.approvalState !== filterStatus) return false;
     if (filterWm === "yes" && !p.hasWatermark) return false;
@@ -8967,7 +8985,9 @@ function WorkspaceMediaPage() {
           <div>
             <h1 style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, color: COLORS.ink, margin: 0 }}>Media</h1>
             <p style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, marginTop: 4, marginBottom: 0 }}>
-              {MOCK_MEDIA.length} photos across {allTalentNames.length} talent
+              {photos.length} photos across {allTalentNames.length} talent
+              {isLiveMode && photos.length === 0 && " · upload to start"}
+              {!isLiveMode && " (demo)"}
             </p>
           </div>
           <SecondaryButton
@@ -8981,7 +9001,7 @@ function WorkspaceMediaPage() {
         {/* Tab strip */}
         <div style={{ display: "flex", gap: 2, marginTop: 20, borderBottom: `1px solid ${COLORS.borderSoft}` }}>
           {(["all", "usage"] as const).map((tab) => {
-            const label = tab === "all" ? `All photos (${MOCK_MEDIA.length})` : "Usage view";
+            const label = tab === "all" ? `All photos (${photos.length})` : "Usage view";
             const active = activeTab === tab;
             return (
               <button key={tab} type="button" onClick={() => { setActiveTab(tab); setUsageFocus(null); }} style={{
@@ -9262,7 +9282,7 @@ function WorkspaceMediaPage() {
               Select photo
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {MOCK_MEDIA.slice(0, 12).map((photo) => {
+              {photos.slice(0, 12).map((photo) => {
                 const active = usageFocus?.id === photo.id;
                 return (
                   <button

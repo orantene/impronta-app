@@ -23,6 +23,10 @@ export {
   loadTalentInquiries,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
+// Media gallery + watermark bridge (Agency tier feature)
+export { loadWorkspaceMediaPhotos } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
+export type { WorkspaceMediaPhoto } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
+
 export type {
   WorkspaceInquiryForMessages,
   WorkspaceClientRow,
@@ -162,7 +166,19 @@ export type BridgeData = {
     role: string; // membership role: 'owner' | 'admin' | 'coordinator' | etc.
     displayName: string | null;
   } | null;
+
+  // ── Media gallery + watermark (Agency tier) ────────────────────────────────
+  /**
+   * Workspace media photos joined to roster talent. `null` means the
+   * Media page falls back to MOCK_MEDIA. An empty array means "live mode
+   * but no photos yet" — UI shows the empty state, NOT mock data.
+   */
+  mediaPhotos?: WorkspaceMediaPhoto[] | null;
 };
+
+// Forward-import the media photo type so BridgeData can use it without a
+// circular import on the bridge module itself.
+import type { WorkspaceMediaPhoto } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
 
 export function createBridgeDataFromRoster(
   roster: TalentProfile[] | null,
