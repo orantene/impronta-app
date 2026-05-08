@@ -79,14 +79,14 @@ export async function loadWorkspaceMediaPhotos(
           first_name,
           last_name,
           agency_talent_roster!inner (
-            agency_id,
+            tenant_id,
             status
           )
         )
       `)
       .eq("variant_kind", "original")
       .is("deleted_at", null)
-      .eq("talent_profiles.agency_talent_roster.agency_id", tenantId)
+      .eq("talent_profiles.agency_talent_roster.tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(200);
 
