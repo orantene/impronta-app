@@ -11943,10 +11943,12 @@ function WatermarkEditorDrawer() {
       title="Edit watermark" description={talentName} width={520}
       footer={
         <div style={{ display: "flex", gap: 8, alignItems: "center", flex: 1 }}>
-          <SecondaryButton onClick={async () => {
-            await updateMediaWatermarkOverride({ mediaAssetId: assetId, override: undefined });
-            toast("Reset to workspace default"); closeDrawer();
-          }} style={{ marginRight: "auto" }}>Reset to default</SecondaryButton>
+          <div style={{ marginRight: "auto" }}>
+            <SecondaryButton onClick={async () => {
+              await updateMediaWatermarkOverride({ mediaAssetId: assetId, override: undefined });
+              toast("Reset to workspace default"); closeDrawer();
+            }}>Reset to default</SecondaryButton>
+          </div>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
           <PrimaryButton onClick={onApply}>{isSaving ? "Saving…" : "Apply"}</PrimaryButton>
         </div>
