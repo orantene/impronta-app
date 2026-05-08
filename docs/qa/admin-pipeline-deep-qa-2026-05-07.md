@@ -398,7 +398,7 @@ No Vercel push until the marathon completes its full run and the user gives go.
 
 ## Changelog
 
-- **rev 11 (this commit)** — final polish pass:
+- **rev 11 (95e4e050)** — final polish pass:
   - **Talent-side file uploads** — new `uploadInquiryAttachmentAsTalent` in
     `lib/server-actions/talent-pipeline.ts`. Validates caller has an active
     `talent_profile` and is a non-removed participant on the inquiry via
