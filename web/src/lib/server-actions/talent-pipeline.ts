@@ -14,6 +14,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   acceptTalentInvitation,
@@ -280,4 +281,114 @@ export async function submitMyRate(
     }
   });
   return result.ok ? { ok: true } : result;
+}
+
+/**
+ * Upload a file to the inquiry-files bucket on behalf of a talent participant.
+ * Mirrors `uploadInquiryAttachment` in `_pipeline-actions.ts` but uses
+ * participant-role gating instead of staff capability:
+ *   1. Verify the caller has an active talent_profile linked to their account.
+ *   2. Verify that talent_profile is an active participant on this inquiry.
+ *   3. Use the service-role client for the storage + metadata write so the
+ *      bucket RLS (which gates on staff membership) doesn't block talent.
+ *
+ * Resulting attachment row has visibility="participant" so staff + talent
+ * can both see it; the client thread stays clean.
+ */
+export async function uploadInquiryAttachmentAsTalent(
+  formData: FormData,
+): Promise<TalentActionResult & { data?: { attachmentId: string } }> {
+  try {
+    const inquiryId = String(formData.get("inquiryId") ?? "");
+    const description = String(formData.get("description") ?? "").trim() || null;
+    const file = formData.get("file");
+
+    if (!inquiryId) return { ok: false, error: "Missing inquiryId." };
+    if (!(file instanceof File)) return { ok: false, error: "No file uploaded." };
+    if (file.size === 0) return { ok: false, error: "File is empty." };
+    if (file.size > 100 * 1024 * 1024) return { ok: false, error: "File exceeds 100 MB cap." };
+
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return { ok: false, error: "Database unavailable." };
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Not authenticated." };
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("id, tenant_id")
+      .eq("id", inquiryId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found." };
+    const tenantId = inq.tenant_id as string;
+
+    const { data: tp } = await supabase
+      .from("talent_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!tp) return { ok: false, error: "No talent profile linked to your account." };
+
+    const { data: participant } = await supabase
+      .from("inquiry_participants")
+      .select("id, status")
+      .eq("inquiry_id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", tp.id)
+      .eq("role", "talent")
+      .maybeSingle();
+    if (!participant) return { ok: false, error: "You're not on this inquiry." };
+    if (participant.status === "removed" || participant.status === "declined") {
+      return { ok: false, error: "You're no longer an active participant on this inquiry." };
+    }
+
+    // Service-role client bypasses storage bucket RLS (which gates on staff).
+    // Participation was validated above — this is a trusted server-side write.
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Storage unavailable." };
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+    const objectId = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const storagePath = `${tenantId}/${inquiryId}/${objectId}-${safeName}`;
+
+    const { error: uploadErr } = await admin
+      .storage
+      .from("inquiry-files")
+      .upload(storagePath, file, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+    if (uploadErr) {
+      logServerError("talent-pipeline.uploadInquiryAttachmentAsTalent/storage", uploadErr);
+      return { ok: false, error: `Upload failed: ${uploadErr.message}` };
+    }
+
+    const { data: row, error: insertErr } = await admin
+      .from("inquiry_attachments")
+      .insert({
+        tenant_id: tenantId,
+        inquiry_id: inquiryId,
+        uploaded_by: user.id,
+        storage_path: storagePath,
+        filename: file.name,
+        mime_type: file.type || null,
+        byte_size: file.size,
+        description,
+        visibility: "participant",
+      })
+      .select("id")
+      .single();
+
+    if (insertErr || !row) {
+      await admin.storage.from("inquiry-files").remove([storagePath]);
+      logServerError("talent-pipeline.uploadInquiryAttachmentAsTalent/insert", insertErr);
+      return { ok: false, error: "Could not save file metadata." };
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true, data: { attachmentId: row.id as string } };
+  } catch (err) {
+    logServerError("talent-pipeline.uploadInquiryAttachmentAsTalent", err);
+    return { ok: false, error: "Unexpected error." };
+  }
 }

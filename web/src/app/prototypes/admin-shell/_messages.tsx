@@ -48,6 +48,7 @@ import {
   declineInquiryInvitation,
   submitMyRateForInquiry,
   sendInquiryMessageAsTalent,
+  uploadInquiryAttachmentAsTalent,
 } from "@/lib/server-actions/talent-pipeline";
 import {
   clientApproveCurrentOffer,
@@ -4275,7 +4276,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
         )}
         {activeTab === "files" && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            <FilesTab conv={conv} povCanSeeTalentFiles={true} />
+            <FilesTab conv={conv} povCanSeeTalentFiles={true} pov="talent" />
           </div>
         )}
         {activeTab === "payment" && (
@@ -7694,7 +7695,6 @@ function PaymentStep({ done, label, detail }: { done?: boolean; label: string; d
 }
 
 export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
-  const { toast } = useProto();
   const isClient = pov === "client";
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
@@ -7702,24 +7702,35 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
         <DetailField label="Date" value={inquiry.schedule.start} />
         {inquiry.schedule.callTime && <DetailField label="Call time" value={inquiry.schedule.callTime} />}
         {inquiry.schedule.wrapTime && <DetailField label="Wrap" value={inquiry.schedule.wrapTime} />}
-        <div style={{ marginTop: 10 }}>
-          <button type="button" onClick={() => toast(isClient ? "Opening call sheet…" : "Edit call sheet")} style={primaryBtn(COLORS.accent)}>
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+          <button type="button" disabled style={{ ...primaryBtn(COLORS.accent), opacity: 0.45, cursor: "default" }}>
             {isClient ? "View call sheet" : "Edit call sheet"}
           </button>
+          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Coming soon</span>
         </div>
       </DetailSection>
       <DetailSection title="Location">
         {inquiry.location.venue && <DetailField label="Venue" value={inquiry.location.venue} />}
         {inquiry.location.address && <DetailField label="Address" value={inquiry.location.address} />}
         {inquiry.location.mapUrl && (
-          <button type="button" onClick={() => toast("Open map")} style={ghostBtn()}>Open map</button>
+          <a
+            href={inquiry.location.mapUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ ...ghostBtn(), textDecoration: "none", display: "inline-block" }}
+          >
+            Open map
+          </a>
         )}
       </DetailSection>
       <DetailSection title="Transport">
         <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "6px 0" }}>
           Add transport, parking, or accommodation as needed.
         </div>
-        <button type="button" onClick={() => toast("Add transport")} style={ghostBtn()}>+ Add transport</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button type="button" disabled style={{ ...ghostBtn(), opacity: 0.45, cursor: "default" }}>+ Add transport</button>
+          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Coming soon</span>
+        </div>
       </DetailSection>
     </div>
   );
@@ -12783,8 +12794,25 @@ function LiveBookingActions({ inquiryId }: { inquiryId: string }) {
   );
 }
 
-function FilesTab({ conv, povCanSeeTalentFiles }: { conv: Conversation; povCanSeeTalentFiles: boolean }) {
+function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversation; povCanSeeTalentFiles: boolean; pov?: "talent" }) {
   const { toast } = useProto();
+  const [talentUploadPending, startTalentUploadTransition] = useTransition();
+  const talentFileInputRef = useRef<HTMLInputElement | null>(null);
+  const isUuidConv = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+  const isTalentUpload = pov === "talent" && isUuidConv;
+
+  const onTalentPickFile = (file: File) => {
+    if (file.size > 100 * 1024 * 1024) { toast("File exceeds 100 MB cap"); return; }
+    startTalentUploadTransition(async () => {
+      const fd = new FormData();
+      fd.set("inquiryId", conv.id);
+      fd.set("file", file);
+      const r = await uploadInquiryAttachmentAsTalent(fd);
+      if (!r.ok) toast(`Upload failed: ${r.error}`);
+      else toast("File uploaded");
+    });
+  };
+
   const all = MOCK_FILES_FOR_CONV[resolveFileKey(conv.id)] ?? [];
   // Per-thread visibility: client only sees client-thread files (call
   // sheets, briefs, contract). Coordinator + talent see both client
@@ -12918,24 +12946,41 @@ function FilesTab({ conv, povCanSeeTalentFiles }: { conv: Conversation; povCanSe
       <LiveFilesPanel inquiryId={conv.id} />
       {/* Add-file affordance — at top so the talent can upload polaroids,
           signed contracts, references without leaving this tab. */}
+      {isTalentUpload && (
+        <input
+          ref={talentFileInputRef}
+          type="file"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onTalentPickFile(f);
+            e.target.value = "";
+          }}
+        />
+      )}
       <button
         type="button"
-        onClick={() => toast("Choose a file to upload")}
+        disabled={talentUploadPending}
+        onClick={() => {
+          if (isTalentUpload) talentFileInputRef.current?.click();
+          else toast("Choose a file to upload");
+        }}
         style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           padding: "10px 12px", marginBottom: 4,
           background: "transparent",
           border: `1.5px dashed ${COLORS.border}`, borderRadius: 10,
-          color: COLORS.ink, cursor: "pointer",
+          color: COLORS.ink, cursor: talentUploadPending ? "wait" : "pointer",
           fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+          opacity: talentUploadPending ? 0.6 : 1,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.accent; e.currentTarget.style.color = COLORS.accentDeep; }}
+        onMouseEnter={(e) => { if (!talentUploadPending) { e.currentTarget.style.borderColor = COLORS.accent; e.currentTarget.style.color = COLORS.accentDeep; } }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }}
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
         </svg>
-        Add file
+        {talentUploadPending ? "Uploading…" : "Add file"}
         <span style={{ marginLeft: 8, color: COLORS.inkMuted, fontWeight: 400, fontSize: 11 }}>
           polaroids, signed contracts, references
         </span>

@@ -398,6 +398,22 @@ No Vercel push until the marathon completes its full run and the user gives go.
 
 ## Changelog
 
+- **rev 11 (this commit)** — final polish pass:
+  - **Talent-side file uploads** — new `uploadInquiryAttachmentAsTalent` in
+    `lib/server-actions/talent-pipeline.ts`. Validates caller has an active
+    `talent_profile` and is a non-removed participant on the inquiry via
+    `inquiry_participants`. Uses service-role client for storage + metadata
+    write (bypasses bucket RLS which gates on staff). Sets
+    `visibility="participant"`. `FilesTab` gains a `pov?: "talent"` prop;
+    when set, the dashed "Add file" button opens a real file picker backed by
+    this action for real-UUID inquiries.
+  - **B5 LogisticsTab** — toast-only CTAs replaced: call-sheet and
+    add-transport buttons are now disabled + "Coming soon" labels; "Open map"
+    is a real `<a href>` link when `mapUrl` is set. Silent-failure pattern
+    eliminated.
+  - **E2/C5 confirmed clean** — code audit proves no double-counting or
+    RICH_INQUIRIES leakage in overview metrics or calendar StatusStrip.
+    No code change needed.
 - **rev 1 (cc724be4)** — initial doc + sendMessage fix (A3)
 - **rev 2 (26c5a89f)** — added D1 atomicity finding, missing offer backend
   inventory, PaymentTab + WorkPage wiring gaps, talent + client pov sections,
@@ -618,7 +634,7 @@ No Vercel push until the marathon completes its full run and the user gives go.
 | (this)   | Dom | DomainDrawer wired |
 | (this)   | Doc | `docs/deploy/pipeline-runtime-config.md` — Stripe env, realtime RLS, settings schema |
 
-## What's still open after rev 10
+## What's still open after rev 11
 
 ### Truly out of scope (config or refactor, not pipeline functionality)
 
@@ -636,35 +652,24 @@ No Vercel push until the marathon completes its full run and the user gives go.
   concerns. Pure tech-debt cleanup; deferred because the churn risk
   across all importers outweighs zero functional benefit. Recommend
   doing it as a dedicated pass with full test coverage.
-- **Talent-side file uploads** — the staff `uploadInquiryAttachment`
-  path uses `requireStaffTenantAction`. A talent-side equivalent
-  (with participant-role gating instead of staff capability) would
-  let talent upload polaroids/contracts directly. Not built.
 
 ### UI polish / small follow-ups
 
-- **B5 LogisticsTab** — toast stubs (call sheet etc.). Defer until
-  `call_sheets` schema direction confirmed.
+- **B5 LogisticsTab** ✅ stubbed — call-sheet + add-transport CTAs are
+  now disabled buttons with "Coming soon" labels. "Open map" is a real
+  `<a>` link when `inquiry.location.mapUrl` is set. Deferred until
+  `call_sheets` schema direction is confirmed.
 - **C4** — Drag-to-reschedule calendar (not implemented).
-- **C5** — Calendar StatusStrip mock+real double-counting risk.
-- **E2** — Verify other top-bar metrics (talent count, open inquiries) use
-  bridge not RICH_INQUIRIES.
-- **F-pass complete** — Accept/Decline/Submit-rate/message-send/Hold-
-  Confirm/Action-confirm all hit DB. Still local-only: polaroid uploads
-  (depends on B4-style upload but talent-side; can reuse the staff
-  upload action for now since the bucket policy admits any authenticated
-  user that's also tenant-staff — talent-side upload needs a parallel
-  action with participant-role gating).
+- **C5** ✅ confirmed clean — Calendar StatusStrip `allMonthEvents` uses
+  an exclusive if/else (bridge path OR RICH_INQUIRIES mock, never both).
+  No double-counting risk. No code change needed.
+- **E2** ✅ confirmed clean — Overview metrics (`openInquiryCount`,
+  `draftCount`, etc.) use `overviewMetrics?.x ?? richInqs.filter(...)`.
+  Bridge data wins when available; RICH_INQUIRIES only when
+  `overviewMetrics` is null. No code change needed.
 - **G-pass complete** — Approve/Reject + client message-send. Pay
   invoice still toast-only — needs a real Stripe checkout integration
   (genuinely new infra beyond the marathon's wiring scope).
-- **H** — Remaining toast-only drawers in `_drawers.tsx` (theme, domain,
-  navigation, languages, SEO, visibility, filters, email branding) —
-  settings polish, not pipeline-critical.
-- **Real-time refresh** — bridge data is loaded server-side and stays
-  static between `router.refresh()` calls. Consider a Supabase realtime
-  subscription on `inquiries`, `inquiry_offers`, `booking_transactions`
-  for the active inquiry detail view.
 
 ### Architectural — for future cleanup
 
