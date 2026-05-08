@@ -190,6 +190,7 @@ import {
 } from "./_primitives";
 import { InquiryWorkspaceDrawer } from "./_workspace";
 import SkillOverridesPanel from "./_skill-overrides-panel";
+import SkillHintsBanner from "./_skill-hints-banner";
 import dynamic from "next/dynamic";
 const InquiryComposerLazyD = dynamic(
   () => import("./_messages").then((m) => m.InquiryComposer),
@@ -5387,6 +5388,16 @@ function TalentProfileShellDrawer() {
                 </div>
               )}
             </ProfileAccordionSection>
+
+            {/* PROFICIENCY HINTS BANNER — Phase 6.3
+                Shown to both admins and the talent themselves when booking
+                history suggests a tier bump. Dismissible per-session. */}
+            {(adminVisible || isSelf) && payload.talentId && (
+              <SkillHintsBanner
+                talentProfileId={payload.talentId}
+                viewMode={adminVisible ? "admin" : "talent-self"}
+              />
+            )}
 
             {/* PER-AGENCY SKILL OVERRIDES (admin only) — Phase 7.1
                 Renders just after the talent's own skills section so
