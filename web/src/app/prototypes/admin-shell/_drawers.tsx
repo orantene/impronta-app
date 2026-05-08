@@ -10165,29 +10165,38 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       fontFamily: FONTS.body,
     }}>{children}</div>
   );
-  // Render a chip-style segmented selector. Used for Pronouns / Gender /
-  // Reply-time — all the same shape, was open-coded three times before.
-  const ChipPicker = ({
-    options, active, onPick,
+  // Single-pick dropdown — used for Pronouns / Gender / Reply time / Age
+  // display. Native <select> styled to match the rest of the form so the
+  // editor reads as one calm surface instead of a wall of choice chips.
+  const SelectPicker = ({
+    options, value, placeholder, onPick,
   }: {
     options: { id: string; label: string }[];
-    active: string | null | undefined;
-    onPick: (id: string) => void;
+    value: string | null | undefined;
+    placeholder?: string;
+    onPick: (id: string | null) => void;
   }) => (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-      {options.map(opt => {
-        const on = active === opt.id;
-        return (
-          <button key={opt.id} type="button" onClick={() => onPick(opt.id)} style={{
-            padding: "6px 12px", borderRadius: 999,
-            border: `1px solid ${on ? COLORS.accent : COLORS.borderSoft}`,
-            background: on ? "rgba(15,79,62,0.08)" : "#fff",
-            color: on ? COLORS.accentDeep : COLORS.ink,
-            fontSize: 12, fontWeight: on ? 600 : 500, cursor: "pointer",
-            fontFamily: FONTS.body, letterSpacing: 0.1,
-          }}>{opt.label}</button>
-        );
-      })}
+    <div style={{ position: "relative" }}>
+      <select
+        value={value ?? ""}
+        onChange={(e) => onPick(e.target.value === "" ? null : e.target.value)}
+        style={{
+          ...inputStyle,
+          appearance: "none",
+          paddingRight: 32,
+          cursor: "pointer",
+          background: "#fff",
+        }}
+      >
+        <option value="">{placeholder ?? "Select…"}</option>
+        {options.map(opt => (
+          <option key={opt.id} value={opt.id}>{opt.label}</option>
+        ))}
+      </select>
+      <span aria-hidden style={{
+        position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+        pointerEvents: "none", fontSize: 10, color: COLORS.inkMuted,
+      }}>▾</span>
     </div>
   );
   return (
@@ -10257,53 +10266,51 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       {/* ── Demographics ────────────────────────────────────────────── */}
       <SubLabel>Demographics</SubLabel>
 
-      <div data-pshell-identity-full>
-        <FieldRow
-          label="Pronouns"
-          optional
-          visibility={identity.visibility?.pronouns ?? ["public", "agency"]}
-          onVisibilityChange={(next) => onChange({
-            ...identity,
-            visibility: { ...(identity.visibility ?? {}), pronouns: next },
-          })}
-        >
-          <ChipPicker
-            options={PRONOUNS_OPTIONS}
-            active={identity.pronouns}
-            onPick={(id) => onChange({ ...identity, pronouns: identity.pronouns === id ? null : (id as typeof identity.pronouns) })}
+      <FieldRow
+        label="Pronouns"
+        optional
+        visibility={identity.visibility?.pronouns ?? ["public", "agency"]}
+        onVisibilityChange={(next) => onChange({
+          ...identity,
+          visibility: { ...(identity.visibility ?? {}), pronouns: next },
+        })}
+      >
+        <SelectPicker
+          options={PRONOUNS_OPTIONS}
+          value={identity.pronouns}
+          placeholder="Select pronouns"
+          onPick={(id) => onChange({ ...identity, pronouns: id as typeof identity.pronouns })}
+        />
+        {identity.pronouns === "custom" && (
+          <input
+            placeholder="e.g. xe / xem"
+            value={identity.pronounsCustom ?? ""}
+            onChange={(e) => onChange({ ...identity, pronounsCustom: e.target.value })}
+            style={{
+              marginTop: 8, width: "100%", boxSizing: "border-box", padding: "8px 12px",
+              borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
+              fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
+            }}
           />
-          {identity.pronouns === "custom" && (
-            <input
-              placeholder="e.g. xe / xem"
-              value={identity.pronounsCustom ?? ""}
-              onChange={(e) => onChange({ ...identity, pronounsCustom: e.target.value })}
-              style={{
-                marginTop: 8, width: "100%", boxSizing: "border-box", padding: "8px 12px",
-                borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
-                fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
-              }}
-            />
-          )}
-        </FieldRow>
-      </div>
+        )}
+      </FieldRow>
 
-      <div data-pshell-identity-full>
-        <FieldRow
-          label="Gender"
-          optional
-          visibility={identity.visibility?.gender ?? ["agency"]}
-          onVisibilityChange={(next) => onChange({
-            ...identity,
-            visibility: { ...(identity.visibility ?? {}), gender: next },
-          })}
-        >
-          <ChipPicker
-            options={GENDER_OPTIONS}
-            active={identity.gender}
-            onPick={(id) => onChange({ ...identity, gender: identity.gender === id ? null : (id as typeof identity.gender) })}
-          />
-        </FieldRow>
-      </div>
+      <FieldRow
+        label="Gender"
+        optional
+        visibility={identity.visibility?.gender ?? ["agency"]}
+        onVisibilityChange={(next) => onChange({
+          ...identity,
+          visibility: { ...(identity.visibility ?? {}), gender: next },
+        })}
+      >
+        <SelectPicker
+          options={GENDER_OPTIONS}
+          value={identity.gender}
+          placeholder="Select gender"
+          onPick={(id) => onChange({ ...identity, gender: id as typeof identity.gender })}
+        />
+      </FieldRow>
 
       <FieldRow
         label="Date of birth"
@@ -10326,25 +10333,15 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
 
       {age != null && (
         <FieldRow label="Show age as" optional>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {([
-              { id: "exact" as const,  label: `Exact (${age})` },
-              { id: "range" as const,  label: ageRange ? `Range (${ageRange})` : "Range" },
-              { id: "hidden" as const, label: "Hidden" },
-            ]).map(opt => {
-              const on = identity.ageDisplay === opt.id;
-              return (
-                <button key={opt.id} type="button" onClick={() => onChange({ ...identity, ageDisplay: opt.id })} style={{
-                  padding: "6px 12px", borderRadius: 999,
-                  border: `1px solid ${on ? COLORS.indigo : COLORS.borderSoft}`,
-                  background: on ? COLORS.indigoSoft : "#fff",
-                  color: on ? COLORS.indigoDeep : COLORS.ink,
-                  fontSize: 12, fontWeight: on ? 600 : 500, cursor: "pointer",
-                  fontFamily: FONTS.body,
-                }}>{opt.label}</button>
-              );
-            })}
-          </div>
+          <SelectPicker
+            options={[
+              { id: "exact",  label: `Exact (${age})` },
+              { id: "range",  label: ageRange ? `Range (${ageRange})` : "Range" },
+              { id: "hidden", label: "Hidden" },
+            ]}
+            value={identity.ageDisplay ?? "range"}
+            onPick={(id) => onChange({ ...identity, ageDisplay: (id ?? "range") as typeof identity.ageDisplay })}
+          />
         </FieldRow>
       )}
 
