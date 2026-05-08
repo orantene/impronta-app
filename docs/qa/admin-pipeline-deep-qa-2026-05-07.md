@@ -416,7 +416,31 @@ No Vercel push until the marathon completes its full run and the user gives go.
   TalentProfileDrawer → updateTalentIdentity. New `_pipeline-actions.ts`
   module hosts the engine wrappers. D3 root cause identified
   (architectural fix deferred). B8 lineup wiring deferred (UI rewrite scope).
-- **rev 6 (this commit)** — F-pass (talent surface):
+- **rev 7 (this commit)** — finishing pass:
+  - **G-pass (client surface)** — `clientApproveCurrentOffer` /
+    `clientRejectCurrentOffer` / `sendInquiryMessageAsClient` in new
+    `lib/server-actions/client-pipeline.ts`. ClientProjectDetail header
+    CTA dispatches Approve/Reject by label heuristic for real inquiry
+    UUIDs. Shared `ConversationTab.DraftComposer` now routes by
+    threadKey suffix — `:client` → client send, `:talent` → talent send.
+  - **F-remainder** — Hold "Confirm" / "Release" reuse the engine
+    Accept/Decline path (talent committing the hold = accepting the
+    invitation; releasing = declining). Booked-stage action-confirm
+    posts an explicit ack message into the group thread.
+  - **B4 upload** — `uploadInquiryAttachment` server action accepts
+    FormData with a File, uploads to the `inquiry-files` bucket
+    (path `{tenant_id}/{inquiry_id}/{uuid}-{filename}` matching the
+    storage RLS), creates the `inquiry_attachments` row. Compensating
+    delete on metadata-insert failure. LiveFilesPanel surfaces an
+    Upload button + hidden file input with 100 MB cap.
+  - **B8 talent picker** — Add-by-UUID input replaced with a real
+    roster picker. Filters out talent already on the lineup, supports
+    free-text search, and only surfaces real-UUID roster rows so the
+    add action will succeed.
+  - **Settings drawers deferred** — no canonical actions exist for
+    theme/SEO/navigation/languages/visibility/filters; building those
+    is a separate phase orthogonal to the inquiry-pipeline marathon.
+- **rev 6 (9674de4a)** — F-pass (talent surface):
   - **Talent shell now hits real DB** — bridge already loaded
     `effectiveTalentInquiries` via `loadTalentInquiries`; this pass wires
     the action side. Synthetic mock conv ids (`c1`..`c12`) keep the
@@ -487,29 +511,35 @@ No Vercel push until the marathon completes its full run and the user gives go.
 | (this)   | A5  | markThreadRead fires on Client/Talent tab open |
 | (this)   | A6  | pin/archive/manuallyUnread persist to `inquiry_user_flags` for real inquiries |
 | add17e2b | D4  | `LiveBookingActions` — Duplicate booking wrapper |
-| (this)   | F1  | `talent-pipeline.ts` — accept / decline / submit-rate / send-message wrappers |
-| (this)   | F2  | `ConversationActionPin` calls real engine for Accept / Decline / Submit rate |
-| (this)   | F3  | `SubmitRateSheet.onSubmit` persists to DB via `submitMyRateForInquiry` |
-| (this)   | F4  | `DraftComposer` (talent pov) writes to inquiry_messages.group |
+| 9674de4a | F1  | `talent-pipeline.ts` — accept / decline / submit-rate / send-message wrappers |
+| 9674de4a | F2  | `ConversationActionPin` calls real engine for Accept / Decline / Submit rate |
+| 9674de4a | F3  | `SubmitRateSheet.onSubmit` persists to DB via `submitMyRateForInquiry` |
+| 9674de4a | F4  | `DraftComposer` (talent pov) writes to inquiry_messages.group |
+| (this)   | G1  | `client-pipeline.ts` — approve / reject / send-message wrappers (client pov) |
+| (this)   | G2  | `ClientProjectDetail` CTA dispatches Approve/Reject for real inquiries |
+| (this)   | G3  | `ConversationTab` shared composer routes by threadKey suffix |
+| (this)   | F-r | Hold/Confirm reuse engine Accept/Decline; action-confirm posts ack message |
+| (this)   | B4u | `uploadInquiryAttachment` server action + LiveFilesPanel upload affordance |
+| (this)   | B8p | LiveLineupPanel uses real roster picker (search + filter on-lineup) |
 
-## What's still open after rev 6
+## What's still open after rev 7
 
 ### Backend gaps that remain
 
-- **`uploadInquiryAttachment`** — FilesTab can list + delete real files
-  but upload still just opens a "choose file" toast. Needs storage
-  signed-url flow (RLS + bucket policies are already in place per
-  `20260907110000_inquiry_attachments.sql`).
-- **`rosterReorderParticipant`** — engine helper exists but no UI in the
-  prototype. The lineup panel renders rows in invited_at order with no
-  drag handles.
-- **B8 talent picker** — Add-by-UUID input is staff-friendly but not
-  end-user-friendly; needs a roster picker with thumbs + types.
-- **Default payout receiver** — schema is per-transaction; no workspace
-  default. The drawer still toasts. Real model: select receiver inside
-  PaymentTab when transitioning to payout.
+- **`rosterReorderParticipant` UI** — engine helper exists but no drag
+  handles in the LiveLineupPanel. Order is invited_at ascending.
+- **Per-transaction payout receiver picker** — schema is per-transaction;
+  no workspace default. PaymentTab can mark payout-pending but doesn't
+  let staff pick which payout account receives the funds.
 - **Bulk inquiry/booking ops** — archive / restore from list views isn't
   wired.
+- **Counter-offer line-item editor** — `counterOffer` opens v2 but no
+  UI for populating line items (the offer stays empty until
+  `updateOfferDraft` is called separately).
+- **Settings drawers** (theme / SEO / domain / navigation / languages /
+  visibility / filters) — no canonical actions exist for any of these
+  yet. Building them is a separate phase orthogonal to the inquiry
+  pipeline.
 
 ### UI polish / small follow-ups
 
@@ -519,11 +549,15 @@ No Vercel push until the marathon completes its full run and the user gives go.
 - **C5** — Calendar StatusStrip mock+real double-counting risk.
 - **E2** — Verify other top-bar metrics (talent count, open inquiries) use
   bridge not RICH_INQUIRIES.
-- **F-pass remainder** — Accept/Decline/Submit-rate/message-send all
-  hit DB now. Still local-only: hold/confirm CTAs, polaroid uploads,
-  call-sheet acks. The conv-shape needs to expose offerId + lineItemId
-  for the OfferTab's inline rate edit (currently uses a window.prompt).
-- **G-pass** — full ClientProjectShell audit (next big surface).
+- **F-pass complete** — Accept/Decline/Submit-rate/message-send/Hold-
+  Confirm/Action-confirm all hit DB. Still local-only: polaroid uploads
+  (depends on B4-style upload but talent-side; can reuse the staff
+  upload action for now since the bucket policy admits any authenticated
+  user that's also tenant-staff — talent-side upload needs a parallel
+  action with participant-role gating).
+- **G-pass complete** — Approve/Reject + client message-send. Pay
+  invoice still toast-only — needs a real Stripe checkout integration
+  (genuinely new infra beyond the marathon's wiring scope).
 - **H** — Remaining toast-only drawers in `_drawers.tsx` (theme, domain,
   navigation, languages, SEO, visibility, filters, email branding) —
   settings polish, not pipeline-critical.

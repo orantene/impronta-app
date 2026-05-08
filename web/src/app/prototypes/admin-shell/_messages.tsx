@@ -50,6 +50,11 @@ import {
   sendInquiryMessageAsTalent,
 } from "@/lib/server-actions/talent-pipeline";
 import {
+  clientApproveCurrentOffer,
+  clientRejectCurrentOffer,
+  sendInquiryMessageAsClient,
+} from "@/lib/server-actions/client-pipeline";
+import {
   convertInquiryToBookingAction,
   loadInquiryPaymentState,
   markInquiryPaymentReceived,
@@ -64,6 +69,7 @@ import {
   counterOfferAction,
   loadInquiryAttachments,
   deleteInquiryAttachment,
+  uploadInquiryAttachment,
   createInquiryTransactionDraft,
   requestInquiryPayment,
   initiateInquiryPayout,
@@ -4831,6 +4837,36 @@ function ClientProjectInbox({
 // ── Client PROJECT DETAIL — calm, status-focused ──
 function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
   const { toast } = useProto();
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+
+  // G-pass — when conv.id is a real inquiry UUID, the client-side header
+  // CTA routes through clientApproveCurrentOffer / clientRejectCurrentOffer
+  // depending on which action the inquiry calls for. Synthetic mock conv
+  // ids (c1..c12, m1..m8, g1..g4) keep the toast-only stub.
+  const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+  const handleClientCtaClick = (label: string) => {
+    if (!isRealInquiry) { toast(label); return; }
+    // Heuristic: "Approve" or "Sign" → approve; otherwise just toast.
+    // A future iteration can route Sign → Stripe checkout etc.
+    if (/approve|sign/i.test(label)) {
+      startTransition(async () => {
+        const r = await clientApproveCurrentOffer(conv.id);
+        if (!r.ok) toast(`Approve failed: ${r.error}`);
+        else { toast("Offer approved"); router.refresh(); }
+      });
+      return;
+    }
+    if (/reject|decline|pass/i.test(label)) {
+      startTransition(async () => {
+        const r = await clientRejectCurrentOffer(conv.id);
+        if (!r.ok) toast(`Reject failed: ${r.error}`);
+        else { toast("Offer rejected"); router.refresh(); }
+      });
+      return;
+    }
+    toast(label);
+  };
 
   // Mock talent lineup for client view (would come from inquiry record)
   const lineup = (conv.participants ?? []).filter(p => p.isTalent).slice(0, 4);
@@ -4867,7 +4903,7 @@ function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () 
           const action = CLIENT_NEXT_ACTION_FOR_CONV[conv.id];
           if (!action) return null;
           return (
-            <button type="button" onClick={() => toast(action.label)} style={{
+            <button type="button" onClick={() => handleClientCtaClick(action.label)} style={{
               padding: "5px 11px", borderRadius: 999,
               border: action.primary ? "none" : `1px solid ${COLORS.border}`,
               background: action.primary ? COLORS.success : "transparent",
@@ -10298,11 +10334,12 @@ function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta?: stri
  * still renders the demo lineup chips).
  */
 function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
-  const { toast } = useProto();
+  const { toast, effectiveRoster } = useProto();
   const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
-  const [addId, setAddId] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
 
   // Skip the DB roundtrip entirely for synthetic mock inquiry ids — the
   // demo conversations use "RI-XXX" / "c1" style ids that won't resolve.
@@ -10321,6 +10358,19 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
   if (!isUuid) return null;
   if (loading || lineup == null) return null;
 
+  const onLineupTalentIds = new Set(lineup.map((p) => p.talentProfileId).filter((x): x is string => !!x));
+  // Roster talent ids are real UUIDs (synthetic mock roster won't match
+  // anything in DB — those rows are filtered out so the picker only
+  // surfaces real talent the action will accept).
+  const pickerCandidates = effectiveRoster.filter((p) => {
+    const id = p.id;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return false;
+    if (onLineupTalentIds.has(id)) return false;
+    if (!pickerSearch.trim()) return true;
+    const q = pickerSearch.trim().toLowerCase();
+    return p.name.toLowerCase().includes(q) || (p.city ?? "").toLowerCase().includes(q);
+  });
+
   const remove = (participantId: string, name: string | null) => {
     if (!confirm(`Remove ${name ?? "this talent"} from the lineup?`)) return;
     startTransition(async () => {
@@ -10330,13 +10380,16 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
     });
   };
 
-  const add = () => {
-    const id = addId.trim();
-    if (!id) { toast("Enter a talent profile id"); return; }
+  const add = (talentProfileId: string, name: string) => {
     startTransition(async () => {
-      const r = await addInquiryLineupTalent(TENANT.slug, inquiryId, id);
+      const r = await addInquiryLineupTalent(TENANT.slug, inquiryId, talentProfileId);
       if (!r.ok) toast(`Add failed: ${r.error}`);
-      else { toast("Talent added to lineup"); setAddId(""); reload(); }
+      else {
+        toast(`${name} added to lineup`);
+        setPickerOpen(false);
+        setPickerSearch("");
+        reload();
+      }
     });
   };
 
@@ -10353,6 +10406,15 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
         <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
           inquiry_participants
         </span>
+        <span style={{ flex: 1 }} />
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => setPickerOpen((o) => !o)}
+          style={primaryBtn(COLORS.accent)}
+        >
+          {pickerOpen ? "Close picker" : "Add talent"}
+        </button>
       </div>
       {lineup.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
@@ -10385,25 +10447,54 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
           ))}
         </div>
       )}
-      <div style={{ display: "flex", gap: 6 }}>
-        <input
-          type="text"
-          value={addId}
-          onChange={(e) => setAddId(e.target.value)}
-          placeholder="Add by talent profile UUID…"
-          style={{
-            flex: 1, padding: "6px 10px",
-            border: `1px solid ${COLORS.border}`, borderRadius: 6,
-            fontSize: 12, fontFamily: FONTS.body,
-          }}
-        />
-        <button
-          type="button"
-          disabled={pending || !addId.trim()}
-          onClick={add}
-          style={primaryBtn(COLORS.accent)}
-        >Add</button>
-      </div>
+      {pickerOpen && (
+        <div style={{
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 8, padding: 8,
+          display: "flex", flexDirection: "column", gap: 6,
+        }}>
+          <input
+            type="text"
+            value={pickerSearch}
+            onChange={(e) => setPickerSearch(e.target.value)}
+            placeholder="Search roster…"
+            autoFocus
+            style={{
+              padding: "6px 10px",
+              border: `1px solid ${COLORS.border}`, borderRadius: 6,
+              fontSize: 12, fontFamily: FONTS.body,
+            }}
+          />
+          <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+            {pickerCandidates.length === 0 && (
+              <div style={{ fontSize: 11, color: COLORS.inkMuted, padding: "6px 4px" }}>
+                {pickerSearch.trim() ? "No matches in roster." : "All roster talent are already on this lineup."}
+              </div>
+            )}
+            {pickerCandidates.slice(0, 50).map((cand) => (
+              <button
+                key={cand.id}
+                type="button"
+                disabled={pending}
+                onClick={() => add(cand.id, cand.name)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "6px 8px", textAlign: "left",
+                  background: "transparent",
+                  border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6,
+                  cursor: pending ? "wait" : "pointer",
+                  fontSize: 12, fontFamily: FONTS.body, color: COLORS.ink,
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+              >
+                <span style={{ flex: 1, fontWeight: 600 }}>{cand.name}</span>
+                <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>{cand.city ?? ""}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -12117,18 +12208,22 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   const [files, setFiles] = useState<InquiryAttachment[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
 
   const reload = React.useCallback(() => {
+    if (!isUuid) { setLoading(false); return; }
     setLoading(true);
     loadInquiryAttachments(TENANT.slug, inquiryId)
       .then((r) => { if (r.ok) setFiles(r.data ?? []); })
       .finally(() => setLoading(false));
-  }, [inquiryId]);
+  }, [inquiryId, isUuid]);
 
   useEffect(() => { reload(); }, [reload]);
 
+  if (!isUuid) return null;
   if (loading || !files) return null;
-  if (files.length === 0) return null;
+  // Even with zero files, render so the upload affordance is reachable.
 
   const remove = (id: string, name: string) => {
     if (!confirm(`Delete ${name}? This can't be undone from the prototype shell.`)) return;
@@ -12136,6 +12231,18 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
       const r = await deleteInquiryAttachment(TENANT.slug, id);
       if (!r.ok) toast(`Delete failed: ${r.error}`);
       else { toast("File deleted"); reload(); }
+    });
+  };
+
+  const onPickFile = (file: File) => {
+    if (file.size > 100 * 1024 * 1024) { toast("File exceeds 100 MB cap"); return; }
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("inquiryId", inquiryId);
+      fd.set("file", file);
+      const r = await uploadInquiryAttachment(fd);
+      if (!r.ok) toast(`Upload failed: ${r.error}`);
+      else { toast("File uploaded"); reload(); }
     });
   };
 
@@ -12152,8 +12259,32 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
         <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
           inquiry_attachments
         </span>
+        <span style={{ flex: 1 }} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onPickFile(f);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => fileInputRef.current?.click()}
+          style={primaryBtn(COLORS.accent)}
+        >
+          {pending ? "Uploading…" : "Upload file"}
+        </button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {files.length === 0 && (
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, padding: "4px 0" }}>
+            No files yet — drop a brief, contract, polaroid, or call sheet.
+          </div>
+        )}
         {files.map((f) => (
           <div key={f.id} style={{
             display: "flex", alignItems: "center", gap: 10,
@@ -13155,25 +13286,46 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
     }
   }
 
+  // F-remainder — quick post-message helper for action-confirm style CTAs
+  // that don't have a dedicated engine action. The talent's confirmation
+  // gets sent as a message into the group thread so the coordinator sees
+  // the explicit acknowledgement in audit + activity.
+  const realPostConfirm = isRealInquiry ? (label: string) => {
+    startTransition(async () => {
+      const r = await sendInquiryMessageAsTalent(conv.id, `✓ Confirmed: ${label}`);
+      if (!r.ok) toast(`Confirm failed: ${r.error}`);
+      else { toast("Confirmed"); router.refresh(); }
+    });
+  } : null;
+
   // HOLD — deadline countdown takes priority over generic actions.
+  // "Confirm hold" maps to acceptTalentInvitation (the talent commits);
+  // "Release" maps to declineTalentInvitation. Both via the same engine
+  // path as the inquiry-stage Accept/Decline.
   if (conv.stage === "hold") {
     return (
       <ActionPinShell tone="amber" icon="⏰"
         title="Hold expires in 4h"
         body="Confirm now to keep this slot, or release it for the next talent."
-        primary={{ label: "Confirm hold", onClick: () => toast("Hold confirmed") }}
-        secondary={{ label: "Release", onClick: () => toast("Hold released") }}
+        primary={{ label: "Confirm hold", onClick: realAccept ?? (() => toast("Hold confirmed")) }}
+        secondary={{ label: "Release", onClick: realDecline ?? (() => toast("Hold released")) }}
       />
     );
   }
 
   // BOOKED — surface unresolved action-confirm (e.g. call sheet).
   if (conv.stage === "booked" && lastAction?.kind === "action-confirm") {
+    const label = lastAction.label || "Action";
     return (
       <ActionPinShell tone="indigo" icon="📋"
-        title={lastAction.label || "Action needed"}
+        title={label}
         body="Coordinator is waiting for your sign-off before set day."
-        primary={{ label: "Confirm", onClick: () => toast(`${lastAction.label || "Action"} confirmed`) }}
+        primary={{
+          label: "Confirm",
+          onClick: realPostConfirm
+            ? () => realPostConfirm(label)
+            : () => toast(`${label} confirmed`),
+        }}
         secondary={{ label: "Question", onClick: () => toast("Reply to coordinator") }}
       />
     );
@@ -13624,13 +13776,17 @@ function ConversationTab({
             placeholder={placeholder}
             onSend={(text) => {
               appendLocalMessage(stashKey, text);
-              // F-pass — when conv.id is a real inquiry UUID, persist
-              // the talent's message to inquiry_messages (group thread).
-              // Mock conv ids stay local-only for the demo.
-              if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id)) {
-                void sendInquiryMessageAsTalent(conv.id, text).then((r) => {
-                  if (!r.ok) toast(`Send failed: ${r.error}`);
-                });
+              // Dispatch by threadKey suffix:
+              //   ":client" → client thread — sendInquiryMessageAsClient (G-pass)
+              //   ":talent" → talent group thread — sendInquiryMessageAsTalent (F-pass)
+              // Synthetic mock conv ids stay local-only for the demo.
+              const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+              if (isRealInquiry) {
+                const isClientThread = /:client$/.test(threadKey);
+                const send = isClientThread
+                  ? sendInquiryMessageAsClient(conv.id, text)
+                  : sendInquiryMessageAsTalent(conv.id, text);
+                void send.then((r) => { if (!r.ok) toast(`Send failed: ${r.error}`); });
               } else {
                 toast("Message sent");
               }

@@ -912,6 +912,90 @@ export async function loadInquiryAttachments(
 }
 
 /**
+ * Upload a file to the inquiry-files bucket and create the matching
+ * `inquiry_attachments` row. Path convention follows the storage RLS:
+ *   {tenant_id}/{inquiry_id}/{uuid}-{filename}
+ *
+ * Accepts a FormData with `file` (File) + `inquiryId` (string) +
+ * optional `description` (string). Tenant ownership of the inquiry is
+ * verified before the upload to avoid orphan storage objects.
+ *
+ * Returns the new attachment id on success.
+ */
+export async function uploadInquiryAttachment(
+  formData: FormData,
+): Promise<PipelineActionResult<{ attachmentId: string }>> {
+  try {
+    const inquiryId = String(formData.get("inquiryId") ?? "");
+    const description = String(formData.get("description") ?? "").trim() || null;
+    const file = formData.get("file");
+    if (!inquiryId) return { ok: false, error: "Missing inquiryId." };
+    if (!(file instanceof File)) return { ok: false, error: "No file uploaded." };
+    if (file.size === 0) return { ok: false, error: "File is empty." };
+    if (file.size > 100 * 1024 * 1024) return { ok: false, error: "File exceeds 100 MB cap." };
+
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("id")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    // Build storage path — matches the bucket RLS pattern.
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+    const objectId = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const storagePath = `${tenantId}/${inquiryId}/${objectId}-${safeName}`;
+
+    const { error: uploadErr } = await supabase
+      .storage
+      .from("inquiry-files")
+      .upload(storagePath, file, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+    if (uploadErr) {
+      logServerError("admin._pipeline-actions.uploadInquiryAttachment/storage", uploadErr);
+      return { ok: false, error: `Upload failed: ${uploadErr.message}` };
+    }
+
+    const { data: row, error: insertErr } = await supabase
+      .from("inquiry_attachments")
+      .insert({
+        tenant_id: tenantId,
+        inquiry_id: inquiryId,
+        uploaded_by: user.id,
+        storage_path: storagePath,
+        filename: file.name,
+        mime_type: file.type || null,
+        byte_size: file.size,
+        description,
+        visibility: "staff",
+      })
+      .select("id")
+      .single();
+
+    if (insertErr || !row) {
+      // Compensating delete — pull the orphan storage object so the bucket
+      // doesn't accumulate files with no metadata row.
+      await supabase.storage.from("inquiry-files").remove([storagePath]);
+      logServerError("admin._pipeline-actions.uploadInquiryAttachment/insert", insertErr);
+      return { ok: false, error: "Could not save file metadata." };
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true, data: { attachmentId: row.id as string } };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.uploadInquiryAttachment", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
  * Soft-delete an attachment (sets deleted_at). The storage object stays
  * in the bucket — purging is a separate batch job.
  */
