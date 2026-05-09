@@ -101,7 +101,7 @@ Legend: ✅ live & matches mockup · 🟡 partial / select-heavy · ❌ missing 
 | 21 | Schedule publish | ✅ | `schedule-drawer.tsx` (379 LOC) | Built |
 | 22 | Team presence | ❌ | none found | Realtime presence indicators not implemented. **Deferred** until multi-user editing is a real use case. |
 | 23 | Bespoke content panel — featured talent picker | ✅ | `inspectors/kit/talent-picker.tsx` (436 LOC) | Built and used by featured-talent-content |
-| 24 | Pages picker — multi-page sites | ✅ | `topbar.tsx` (PagePicker) | Phase A.1 wired full dropdown + outside-click dismiss + Link to /admin/site-settings/pages. |
+| 24 | Pages picker — multi-page sites | ✅ | `topbar.tsx` (PagePicker) | Phase A.1 wired full dropdown + outside-click dismiss + Link to /admin/site-settings/pages. **Update (2026-05):** legacy redirect `?panel=pages` opens the dropdown; ⌘⇧P (`open-pages-picker` in `shortcuts.ts`); E2E `impronta pages menu opens from panel deep link`. |
 | 25 | Import from prototype | ❌ | none found | "Strategic differentiator" surface not implemented. **Deferred** — large scope. |
 | 26 | Keyboard shortcuts overlay | ✅ | `shortcut-overlay.tsx` | `?`-key reference modal reading from `kit/shortcuts.ts` — chips never drift between palette and reference. |
 

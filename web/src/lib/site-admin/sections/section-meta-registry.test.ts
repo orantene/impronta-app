@@ -24,3 +24,12 @@ test("lightweight section metadata registry exposes real labels without editors"
   assert.equal(getSectionMeta("gallery_strip")?.label, "Gallery strip");
   assert.equal(getSectionMeta("unknown"), null);
 });
+
+/** Builder convergence §3 — default operators see ~15 types before "Advanced". */
+test("default-tier section count stays at the curated picker budget (~15)", () => {
+  let defaultTier = 0;
+  for (const key of listSectionMetaKeys()) {
+    if (getSectionMeta(key)?.inDefault) defaultTier += 1;
+  }
+  assert.equal(defaultTier, 15);
+});
