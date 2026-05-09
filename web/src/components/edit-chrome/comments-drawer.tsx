@@ -6,8 +6,9 @@
  * Implements builder-experience.html surface §15 (Comments — async client
  * feedback). Last reconciled: 2026-04-25.
  *
- * Right-side drawer that lists every open comment thread on the current
- * homepage. Operators can scope the list to a specific section (e.g. when
+ * Right-side drawer that lists open comment threads for the **page being
+ * edited** (`cms_pages` row from `EditContext.pageId` — homepage when slug is null).
+ * Operators can scope the list to a specific section (e.g. when
  * the canvas pin is clicked) or browse globally. Each thread supports:
  *   - reply (one level deep)
  *   - resolve / unresolve (top-level only, staff only)
@@ -133,6 +134,8 @@ export function CommentsDrawer() {
   const locale = ctx.locale;
   const tenantId = ctx.tenantId;
   const slots = ctx.slots;
+  const pageSlug = ctx.pageSlug;
+  const compositionPageId = ctx.pageId;
 
   const [pageId, setPageId] = useState<string | null>(null);
   const [rows, setRows] = useState<CommentRow[]>([]);
@@ -171,11 +174,20 @@ export function CommentsDrawer() {
   // channel. Tearing down on close prevents zombie listeners.
   useEffect(() => {
     if (!open) return;
+    const innerPage = pageSlug != null;
+    if (innerPage && !compositionPageId) {
+      setLoading(true);
+      setRows([]);
+      setPageId(null);
+      setErrorMessage(null);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
 
     listCommentsAction({
       locale,
+      pageId: compositionPageId ?? undefined,
       sectionId: focusSectionId ?? undefined,
       includeResolved: true,
     }).then((res) => {
@@ -206,7 +218,7 @@ export function CommentsDrawer() {
     return () => {
       cancelled = true;
     };
-  }, [open, locale, focusSectionId]);
+  }, [open, locale, focusSectionId, pageSlug, compositionPageId]);
 
   // Resolve viewer user id from the supabase session so "You" labels
   // and "Edit" affordances render correctly. Cheap (cached cookie read).
@@ -347,6 +359,7 @@ export function CommentsDrawer() {
     setErrorMessage(null);
     const res = await addCommentAction({
       locale,
+      pageId: pageId ?? undefined,
       sectionId: targetSectionId,
       body: trimmed,
     });
@@ -361,7 +374,7 @@ export function CommentsDrawer() {
       if (prev.some((r) => r.id === res.comment.id)) return prev;
       return [...prev, res.comment];
     });
-  }, [composerBody, composerSectionId, locale]);
+  }, [composerBody, composerSectionId, locale, pageId]);
 
   const handleResolveToggle = useCallback(
     async (commentId: string, currentlyResolved: boolean) => {
@@ -450,7 +463,9 @@ export function CommentsDrawer() {
 
           {loading ? (
             <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: CHROME.muted }}>
-              Loading comments…
+              {pageSlug != null && !compositionPageId
+                ? "Loading page…"
+                : "Loading comments…"}
             </div>
           ) : threads.length === 0 ? (
             <div
@@ -475,6 +490,7 @@ export function CommentsDrawer() {
                   sectionName={sectionNameById.get(t.parent.sectionId)}
                   viewerUserId={viewerUserId}
                   locale={locale}
+                  commentsPageId={pageId}
                   onResolve={handleResolveToggle}
                   onDelete={handleDelete}
                   onError={setErrorMessage}
@@ -515,7 +531,7 @@ export function CommentsDrawer() {
             <select
               value={composerSectionId ?? ""}
               onChange={(e) => setComposerSectionId(e.target.value || null)}
-              disabled={submitting}
+              disabled={submitting || loading || !pageId}
               style={{
                 width: "100%",
                 padding: "6px 8px",
@@ -541,7 +557,7 @@ export function CommentsDrawer() {
             onChange={(e) => setComposerBody(e.target.value)}
             placeholder="Add a comment…"
             rows={3}
-            disabled={submitting}
+            disabled={submitting || loading || !pageId}
             style={{
               width: "100%",
               padding: "8px 10px",
@@ -561,7 +577,7 @@ export function CommentsDrawer() {
             <button
               type="button"
               onClick={() => setComposerBody("")}
-              disabled={submitting || !composerBody}
+              disabled={submitting || loading || !pageId || !composerBody}
               style={{
                 padding: "6px 10px",
                 fontSize: 12,
@@ -569,7 +585,10 @@ export function CommentsDrawer() {
                 background: "transparent",
                 border: `1px solid ${CHROME.lineMid}`,
                 borderRadius: 6,
-                cursor: submitting || !composerBody ? "not-allowed" : "pointer",
+                cursor:
+                  submitting || loading || !pageId || !composerBody
+                    ? "not-allowed"
+                    : "pointer",
               }}
             >
               Clear
@@ -579,6 +598,8 @@ export function CommentsDrawer() {
               onClick={handleSubmit}
               disabled={
                 submitting ||
+                loading ||
+                !pageId ||
                 composerBody.trim().length === 0 ||
                 !composerSectionId
               }
@@ -592,12 +613,16 @@ export function CommentsDrawer() {
                 borderRadius: 6,
                 cursor:
                   submitting ||
+                  loading ||
+                  !pageId ||
                   composerBody.trim().length === 0 ||
                   !composerSectionId
                     ? "not-allowed"
                     : "pointer",
                 opacity:
                   submitting ||
+                  loading ||
+                  !pageId ||
                   composerBody.trim().length === 0 ||
                   !composerSectionId
                     ? 0.6
@@ -620,6 +645,8 @@ interface ThreadCardProps {
   sectionName: string | undefined;
   viewerUserId: string | null;
   locale: string;
+  /** Matches list/add comment target `cms_pages.id`; replies must use the same page. */
+  commentsPageId: string | null;
   onResolve: (commentId: string, currentlyResolved: boolean) => void;
   onDelete: (commentId: string) => void;
   onError: (msg: string | null) => void;
@@ -631,6 +658,7 @@ function ThreadCard({
   sectionName,
   viewerUserId,
   locale,
+  commentsPageId,
   onResolve,
   onDelete,
   onError,
@@ -648,6 +676,7 @@ function ThreadCard({
     onError(null);
     const res = await addCommentAction({
       locale,
+      pageId: commentsPageId ?? undefined,
       sectionId: parent.sectionId,
       body: trimmed,
       parentCommentId: parent.id,
@@ -660,7 +689,15 @@ function ThreadCard({
     onLocalUpsert(res.comment);
     setReplyBody("");
     setReplyOpen(false);
-  }, [replyBody, parent.sectionId, parent.id, locale, onError, onLocalUpsert]);
+  }, [
+    replyBody,
+    parent.sectionId,
+    parent.id,
+    locale,
+    commentsPageId,
+    onError,
+    onLocalUpsert,
+  ]);
 
   const isResolved = !!parent.resolvedAt;
 
@@ -759,7 +796,7 @@ function ThreadCard({
             onChange={(e) => setReplyBody(e.target.value)}
             placeholder="Write a reply…"
             rows={2}
-            disabled={replySubmitting}
+            disabled={replySubmitting || !commentsPageId}
             style={{
               width: "100%",
               padding: "6px 8px",
@@ -778,7 +815,11 @@ function ThreadCard({
             <button
               type="button"
               onClick={handleReply}
-              disabled={replySubmitting || replyBody.trim().length === 0}
+              disabled={
+                replySubmitting ||
+                !commentsPageId ||
+                replyBody.trim().length === 0
+              }
               style={{
                 padding: "5px 10px",
                 fontSize: 11,
@@ -788,11 +829,17 @@ function ThreadCard({
                 border: `1px solid ${CHROME.accent}`,
                 borderRadius: 6,
                 cursor:
-                  replySubmitting || replyBody.trim().length === 0
+                  replySubmitting ||
+                  !commentsPageId ||
+                  replyBody.trim().length === 0
                     ? "not-allowed"
                     : "pointer",
                 opacity:
-                  replySubmitting || replyBody.trim().length === 0 ? 0.6 : 1,
+                  replySubmitting ||
+                  !commentsPageId ||
+                  replyBody.trim().length === 0
+                    ? 0.6
+                    : 1,
               }}
             >
               {replySubmitting ? "Posting…" : "Post reply"}

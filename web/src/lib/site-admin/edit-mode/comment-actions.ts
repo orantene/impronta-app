@@ -119,10 +119,62 @@ async function resolveHomepagePageId(
   return data.id;
 }
 
+/**
+ * Comments attach to a `cms_pages` row. When the editor passes `pageId`
+ * (from the loaded composition), verify tenant + locale alignment; otherwise
+ * resolve the homepage row for this locale (legacy single-page behaviour).
+ */
+async function resolveCommentsPageId(
+  supabase: SupabaseClient,
+  tenantId: string,
+  locale: Locale,
+  explicitPageId: string | undefined,
+): Promise<
+  | { ok: true; pageId: string }
+  | { ok: false; error: string; code: string }
+> {
+  const trimmed = explicitPageId?.trim();
+  if (trimmed) {
+    const { data, error } = await supabase
+      .from("cms_pages")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("id", trimmed)
+      .eq("locale", locale)
+      .maybeSingle<{ id: string }>();
+    if (error) {
+      logServerError("section-comments/resolve-page", error);
+      return { ok: false, error: error.message, code: "READ_FAILED" };
+    }
+    if (!data) {
+      return {
+        ok: false,
+        error: "Page not found for comments.",
+        code: "NOT_FOUND",
+      };
+    }
+    return { ok: true, pageId: data.id };
+  }
+  const homepageId = await resolveHomepagePageId(supabase, tenantId, locale);
+  if (!homepageId) {
+    return {
+      ok: false,
+      error: "Homepage row not found.",
+      code: "NOT_FOUND",
+    };
+  }
+  return { ok: true, pageId: homepageId };
+}
+
 // ── list ────────────────────────────────────────────────────────────────
 
 export interface ListCommentsInput {
   locale?: string;
+  /**
+   * When set, lists threads for this `cms_pages` row (tenant + locale must match).
+   * Omit → homepage for that locale.
+   */
+  pageId?: string;
   /** Optional section filter — when set, returns only comments on this section. */
   sectionId?: string;
   /** Optional resolution filter — `false` excludes resolved threads. */
@@ -151,14 +203,16 @@ export async function listCommentsAction(
   const locale = asLocale(input.locale);
   if (!locale) return { ok: false, error: "Invalid locale.", code: "BAD_INPUT" };
 
-  const pageId = await resolveHomepagePageId(
+  const resolved = await resolveCommentsPageId(
     auth.supabase,
     scope.tenantId,
     locale,
+    input.pageId,
   );
-  if (!pageId) {
-    return { ok: false, error: "Homepage row not found.", code: "NOT_FOUND" };
+  if (!resolved.ok) {
+    return { ok: false, error: resolved.error, code: resolved.code };
   }
+  const pageId = resolved.pageId;
 
   let query = auth.supabase
     .from("cms_section_comments")
@@ -194,6 +248,8 @@ export async function listCommentsAction(
 
 export interface AddCommentInput {
   locale?: string;
+  /** Target `cms_pages` row; omit → homepage for locale. */
+  pageId?: string;
   sectionId: string;
   body: string;
   parentCommentId?: string;
@@ -234,14 +290,16 @@ export async function addCommentAction(
     };
   }
 
-  const pageId = await resolveHomepagePageId(
+  const resolved = await resolveCommentsPageId(
     auth.supabase,
     scope.tenantId,
     locale,
+    input.pageId,
   );
-  if (!pageId) {
-    return { ok: false, error: "Homepage row not found.", code: "NOT_FOUND" };
+  if (!resolved.ok) {
+    return { ok: false, error: resolved.error, code: resolved.code };
   }
+  const pageId = resolved.pageId;
 
   // If replying, verify the parent exists in the same tenant + page so a
   // forged parentId can't graft a reply onto another tenant's thread.

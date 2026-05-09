@@ -92,7 +92,7 @@ Legend: ✅ live & matches mockup · 🟡 partial / select-heavy · ❌ missing 
 | 12 | Theme — global design system | 🟡 | `theme-drawer.tsx` (960 LOC) | Has hex input + swatch + preset chips. Missing: HSL picker, eyedropper, recent colors, per-element typography overrides. **Backlogged.** |
 | 13 | Assets — workspace media library | ✅ | `assets-drawer.tsx` (1007 LOC) | Working |
 | 14 | Motion — entry, scroll, hover | ✅ | `inspectors/motion-panel.tsx` | Phase B.4 rewrite: iconographic Segmented chips for entry directions/scroll/hover + two-state Respect/Force-animate accessibility toggle with amber callout. |
-| 15 | Comments — async client feedback | ✅ | `comments-drawer.tsx` (994 LOC) | Phase A.5 fix: NOT_FOUND treated as expected empty state, not error. |
+| 15 | Comments — async client feedback | ✅ | `comments-drawer.tsx` (994 LOC) | NOT_FOUND → empty state (no false error chip). **2026-05:** list/add/reply use **`cms_pages.id` from the active composition** so multi-page edits don’t attach threads to the homepage row only (`comment-actions.ts`). |
 | 16 | Compare revisions | ❌ | none found | No side-by-side diff UI. **Deferred** — single restore covers the v1 use case. |
 | 17 | Inline text editing | ✅ | `selection-layer.tsx` | Click-to-edit text on canvas works |
 | 18 | Empty canvas — fresh tenant onboarding | ✅ | `empty-canvas-starter.tsx` | Three-recipe starter rendered when slots are empty in edit mode. |
@@ -148,7 +148,7 @@ Goal: the editor should never present a non-functional control to the user.
 2. **LocaleSwitcher navigation** (`topbar.tsx`). Canvas link interceptor already skips `[data-edit-chrome]`. Failure mode was **pathname logic assuming English is always the unprefixed default**. **Done (2026-05):** `defaultLocale` from `loadTenantLocaleSettings` flows through `EditChromeMount` → `EditProvider` → `TopBar`; destination URLs use `withLocalePath` + `pathnameWithoutAnyLocalePrefix` (aligned with middleware).
 3. **Fix Page Settings empty body** (`page-settings-drawer.tsx`). Trace data-loading guard that's returning early. Likely a missing `pageId` prop or a hook that returns null while loading without skeleton.
 4. **Drawer-exclusivity mutex** (Root cause 1). New `useEditorPanel` slice + refactor each drawer open call site.
-5. **Investigate Comments error chip** (`comments-drawer.tsx` "Could not find"). Likely RPC failure — log it, then either fix or hide the surface gracefully.
+5. **Comments** — empty homepage row uses NOT_FOUND (handled as empty state). Multi-page bugfix: comments were always resolved to **homepage** `cms_pages`; now **`EditContext.pageId`** is passed into `listCommentsAction` / `addCommentAction` with tenant+locale validation server-side.
 6. **Bottom-left "Settings" button confusion** (the one that just expands the navigator instead of opening Page Settings). Rename to "Sections" or wire to actual page settings.
 
 **Deliverable:** all toolbar controls do something. No drawer overlap. Page Settings shows content. Comments either works or is hidden.
