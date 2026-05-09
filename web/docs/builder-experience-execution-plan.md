@@ -118,6 +118,8 @@ Every drawer manages its own open/close boolean independently. Opening one doesn
 
 **Fix:** introduce `useEditorPanel` Zustand slice with `activeDrawer: DrawerId | null` and an `openDrawer(id)` action that closes peers. ~40 LOC. Refactor each drawer's open/close call site to use it. ~10 sites × 1 line each.
 
+**Incremental (2026-05):** `EditContext` now routes all right-rail opens through **`showExclusiveRightRailDrawer`** plus **`dismissCompetingEditorChrome`** — one mutex site, clears stale `commentsFocusSectionId` when leaving Comments. Zustand slice remains optional if this stays sufficient.
+
 ### Root cause 2: universal inspector panels were built before the kit was ready
 Layout / Style / Responsive / Motion panels each render `<select>` because `Stepper` / `Swatch` / `Segmented` weren't in the kit when those panels shipped. They never got a second pass.
 

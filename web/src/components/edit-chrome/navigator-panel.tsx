@@ -18,7 +18,7 @@
  *   - Reads slots from EditContext, flattens them in slot-def order.
  *   - Selecting a row → `setSelectedSectionId` (matches canvas selection).
  *   - Drag-reorder → `moveSectionTo` (existing CAS-safe action).
- *   - Footer Settings button → `openPageSettings`.
+ *   - Footer "Page setup" → `openPageSettings` (SEO / URL / social — not workspace settings).
  *   - Footer Theme button → `openTheme` (Phase 5 ThemeDrawer).
  *
  * Visibility toggle:
@@ -2661,9 +2661,9 @@ export function NavigatorPanel() {
         <div style={{ display: "flex", gap: 6 }}>
           <FooterShortcut
             onClick={openPageSettings}
-            title="Edit page title, SEO, social, URL"
+            title="Page setup — title, SEO, social preview, URL"
           >
-            Settings
+            Page setup
           </FooterShortcut>
           {canEditSiteShell ? (
             <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">

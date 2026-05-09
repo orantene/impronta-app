@@ -3624,37 +3624,46 @@ export function EditProvider({
   );
   const closePickerPopover = useCallback(() => setPickerPopover(null), []);
 
-  // The right-side drawers (Publish, Page Settings, Revisions) all anchor
-  // to the same `right: 0` slot. Opening one mutexes out the others so
-  // they never visually stack — picking up a new drawer means dismissing
-  // whichever one was up. `dismissCompetingEditorChrome` first clears
-  // palette / shortcut / starter gallery / library chrome so nothing stacks.
-  // The InspectorDock is intentionally NOT included here because its open
-  // state is selection-driven, not topbar-driven; a drawer slides in front
-  // of it (higher z-index) and the inspector remains underneath as the
-  // operator's "current section" anchor.
+  // The right-side drawers all anchor to the same `right: 0` slot. Exactly
+  // one `*Open` flag is true after `showExclusiveRightRailDrawer` — keeps
+  // mutex logic in one place (step toward execution-plan root cause 1).
+  // `dismissCompetingEditorChrome` clears palette / gallery / library first.
+  // The InspectorDock stays selection-driven underneath (higher z-index drawer).
+  const showExclusiveRightRailDrawer = useCallback(
+    (
+      active:
+        | "publish"
+        | "pageSettings"
+        | "revisions"
+        | "theme"
+        | "assets"
+        | "schedule"
+        | "comments",
+      commentsSectionFocus?: string | null,
+    ) => {
+      dismissCompetingEditorChrome();
+      setPublishOpen(active === "publish");
+      setPageSettingsOpen(active === "pageSettings");
+      setRevisionsOpen(active === "revisions");
+      setThemeOpen(active === "theme");
+      setAssetsOpen(active === "assets");
+      setScheduleOpen(active === "schedule");
+      setCommentsOpen(active === "comments");
+      setCommentsFocusSectionId(
+        active === "comments" ? (commentsSectionFocus ?? null) : null,
+      );
+    },
+    [dismissCompetingEditorChrome],
+  );
+
   const openPublish = useCallback(() => {
-    dismissCompetingEditorChrome();
-    setPageSettingsOpen(false);
-    setRevisionsOpen(false);
-    setThemeOpen(false);
-    setAssetsOpen(false);
-    setScheduleOpen(false);
-    setCommentsOpen(false);
-    setPublishOpen(true);
-  }, [dismissCompetingEditorChrome]);
+    showExclusiveRightRailDrawer("publish");
+  }, [showExclusiveRightRailDrawer]);
   const closePublish = useCallback(() => setPublishOpen(false), []);
 
   const openPageSettings = useCallback(() => {
-    dismissCompetingEditorChrome();
-    setPublishOpen(false);
-    setRevisionsOpen(false);
-    setThemeOpen(false);
-    setAssetsOpen(false);
-    setScheduleOpen(false);
-    setCommentsOpen(false);
-    setPageSettingsOpen(true);
-  }, [dismissCompetingEditorChrome]);
+    showExclusiveRightRailDrawer("pageSettings");
+  }, [showExclusiveRightRailDrawer]);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
 
   const requestPagesPickerOpen = useCallback(() => {
@@ -3663,81 +3672,36 @@ export function EditProvider({
   }, [dismissCompetingEditorChrome]);
 
   const openRevisions = useCallback(() => {
-    dismissCompetingEditorChrome();
-    setPublishOpen(false);
-    setPageSettingsOpen(false);
-    setThemeOpen(false);
-    setAssetsOpen(false);
-    setScheduleOpen(false);
-    setCommentsOpen(false);
-    setRevisionsOpen(true);
-  }, [dismissCompetingEditorChrome]);
+    showExclusiveRightRailDrawer("revisions");
+  }, [showExclusiveRightRailDrawer]);
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
 
   const openTheme = useCallback(() => {
     if (!canEditSiteShell) return;
-    dismissCompetingEditorChrome();
-    setPublishOpen(false);
-    setPageSettingsOpen(false);
-    setRevisionsOpen(false);
-    setAssetsOpen(false);
-    setScheduleOpen(false);
-    setCommentsOpen(false);
-    setThemeOpen(true);
-  }, [canEditSiteShell, dismissCompetingEditorChrome]);
+    showExclusiveRightRailDrawer("theme");
+  }, [canEditSiteShell, showExclusiveRightRailDrawer]);
   const closeTheme = useCallback(() => setThemeOpen(false), []);
 
   const openAssets = useCallback(() => {
-    dismissCompetingEditorChrome();
-    setPublishOpen(false);
-    setPageSettingsOpen(false);
-    setRevisionsOpen(false);
-    setThemeOpen(false);
-    setScheduleOpen(false);
-    setCommentsOpen(false);
-    setAssetsOpen(true);
-  }, [dismissCompetingEditorChrome]);
+    showExclusiveRightRailDrawer("assets");
+  }, [showExclusiveRightRailDrawer]);
   const closeAssets = useCallback(() => setAssetsOpen(false), []);
 
   const openSchedule = useCallback(() => {
-    dismissCompetingEditorChrome();
-    setPublishOpen(false);
-    setPageSettingsOpen(false);
-    setRevisionsOpen(false);
-    setThemeOpen(false);
-    setAssetsOpen(false);
-    setCommentsOpen(false);
-    setScheduleOpen(true);
-  }, [dismissCompetingEditorChrome]);
+    showExclusiveRightRailDrawer("schedule");
+  }, [showExclusiveRightRailDrawer]);
   const closeSchedule = useCallback(() => setScheduleOpen(false), []);
 
-  // Comments drawer (Phase 11) — same right-side mutex pattern. Two
-  // entry points: `openComments` opens the global "all open threads"
-  // view, `openCommentsForSection` deep-links to a specific section's
-  // thread (used by the canvas pin click). The drawer reads
-  // `commentsFocusSectionId` to decide which view to render on mount.
+  // Comments drawer (Phase 11) — `commentsSectionFocus` null = all threads.
   const openComments = useCallback(() => {
-    dismissCompetingEditorChrome();
-    setPublishOpen(false);
-    setPageSettingsOpen(false);
-    setRevisionsOpen(false);
-    setThemeOpen(false);
-    setAssetsOpen(false);
-    setScheduleOpen(false);
-    setCommentsFocusSectionId(null);
-    setCommentsOpen(true);
-  }, [dismissCompetingEditorChrome]);
-  const openCommentsForSection = useCallback((sectionId: string) => {
-    dismissCompetingEditorChrome();
-    setPublishOpen(false);
-    setPageSettingsOpen(false);
-    setRevisionsOpen(false);
-    setThemeOpen(false);
-    setAssetsOpen(false);
-    setScheduleOpen(false);
-    setCommentsFocusSectionId(sectionId);
-    setCommentsOpen(true);
-  }, [dismissCompetingEditorChrome]);
+    showExclusiveRightRailDrawer("comments", null);
+  }, [showExclusiveRightRailDrawer]);
+  const openCommentsForSection = useCallback(
+    (sectionId: string) => {
+      showExclusiveRightRailDrawer("comments", sectionId);
+    },
+    [showExclusiveRightRailDrawer],
+  );
   const closeComments = useCallback(() => {
     setCommentsOpen(false);
     setCommentsFocusSectionId(null);
