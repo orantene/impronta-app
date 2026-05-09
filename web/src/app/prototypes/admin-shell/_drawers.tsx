@@ -6241,9 +6241,9 @@ function TalentProfileShellDrawer() {
               )}
             </ProfileAccordionSection>
 
-            {/* LIVE CATEGORY FIELDS — only show alongside field-relevant sections */}
+            {/* LIVE CATEGORY FIELDS — only show in Services or overview */}
             {payload.talentId && bridgeTenantIdentity?.tenantId &&
-              (activeSection === "" || ["services", "media", "albums", "polaroids"].includes(activeSection)) && (
+              (activeSection === "" || activeSection === "services") && (
               <LiveCategoryFieldsPanelStateful talentProfileId={payload.talentId} />
             )}
 
@@ -6994,21 +6994,18 @@ function TalentProfileShellDrawer() {
               )}
             </ProfileAccordionSection>
 
-            {/* PROFICIENCY HINTS BANNER — Phase 6.3
-                Shown to both admins and the talent themselves when booking
-                history suggests a tier bump. Dismissible per-session. */}
-            {(adminVisible || isSelf) && payload.talentId && (
+            {/* PROFICIENCY HINTS BANNER — Phase 6.3. Services section only. */}
+            {(adminVisible || isSelf) && payload.talentId &&
+              (activeSection === "" || activeSection === "services") && (
               <SkillHintsBanner
                 talentProfileId={payload.talentId}
                 viewMode={adminVisible ? "admin" : "talent-self"}
               />
             )}
 
-            {/* PER-AGENCY SKILL OVERRIDES (admin only) — Phase 7.1
-                Renders just after the talent's own skills section so
-                admin operators can see the canonical skill list and
-                immediately control how each skill appears on their site. */}
-            {adminVisible && payload.talentId && (
+            {/* PER-AGENCY SKILL OVERRIDES (admin only) — Services section only. */}
+            {adminVisible && payload.talentId &&
+              (activeSection === "" || activeSection === "services") && (
               <div style={{ marginTop: 4 }}>
                 <div style={{
                   fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
@@ -7025,11 +7022,9 @@ function TalentProfileShellDrawer() {
               </div>
             )}
 
-            {/* SKILL FRESHNESS + VERIFICATION-EXPIRY PROMPTS — Phase 6.4
-                Mounted below Phase 6.3 hints banner and below Per-agency
-                overrides. Shown to both admins and the talent themselves.
-                Render nothing when there are no pending prompts. */}
-            {(adminVisible || isSelf) && payload.talentId && (
+            {/* SKILL FRESHNESS + VERIFICATION-EXPIRY PROMPTS — Phase 6.4. Services section only. */}
+            {(adminVisible || isSelf) && payload.talentId &&
+              (activeSection === "" || activeSection === "services") && (
               <SkillFreshnessBanner
                 talentProfileId={payload.talentId}
                 viewMode={adminVisible ? "admin" : "talent-self"}
@@ -9169,22 +9164,21 @@ function ThreeSlotPhotoBlock({
   onOpenSlot: (slot: "avatar" | "hero" | "gallery") => void;
 }) {
   return (
-    <>
-      <style>{`
-        .pshell-photo-block { display: flex; gap: 10px; }
-        @media (max-width: 480px) {
-          .pshell-photo-block { gap: 6px; }
-          .pshell-photo-block img { width: 52px !important; height: 52px !important; }
-        }
-      `}</style>
-      <div className="pshell-photo-block" style={{
-        display: "flex",
-        gap: 10,
-        padding: "14px 18px 10px",
-        borderBottom: `1px solid ${COLORS.borderSoft}`,
-        marginBottom: 14,
-      }}>
-        {/* Avatar slot 1:1 */}
+    <div style={{
+      padding: "14px 18px 10px",
+      borderBottom: `1px solid ${COLORS.borderSoft}`,
+      marginBottom: 14,
+      display: "flex",
+      flexDirection: "column",
+      gap: 8,
+    }}>
+      {/* Cover photo — full-width at the top, tall preview */}
+      <CoverPhotoSlot
+        imageUrl={heroUrl}
+        onClick={() => onOpenSlot("hero")}
+      />
+      {/* Avatar + gallery strip in a row below */}
+      <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
         <PhotoSlot
           label="Avatar"
           hint="1:1 square"
@@ -9193,23 +9187,88 @@ function ThreeSlotPhotoBlock({
           onClick={() => onOpenSlot("avatar")}
           onRemove={avatarUrl ? () => onOpenSlot("avatar") : undefined}
         />
-        {/* Cover slot 4:5 */}
-        <PhotoSlot
-          label="Cover"
-          hint="4:5 portrait"
-          imageUrl={heroUrl}
-          aspectRatio="4 / 5"
-          onClick={() => onOpenSlot("hero")}
-          onRemove={heroUrl ? () => onOpenSlot("hero") : undefined}
-        />
-        {/* Gallery strip */}
         <GalleryStrip
           photos={galleryPhotos}
           totalCount={galleryPhotos.length}
           onOpen={() => onOpenSlot("gallery")}
         />
       </div>
-    </>
+    </div>
+  );
+}
+
+function CoverPhotoSlot({
+  imageUrl,
+  onClick,
+}: {
+  imageUrl: string | null;
+  onClick: () => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={imageUrl ? "Change cover photo" : "Set cover photo"}
+        style={{
+          width: "100%",
+          height: 220,
+          borderRadius: 10,
+          overflow: "hidden",
+          border: imageUrl
+            ? `2px solid rgba(15,79,62,0.25)`
+            : `2px dashed ${COLORS.borderSoft}`,
+          background: imageUrl ? "transparent" : COLORS.surfaceAlt,
+          cursor: "pointer",
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt="Cover"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+            color: COLORS.inkMuted, fontFamily: FONTS.body,
+          }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+            <span style={{ fontSize: 11.5, fontWeight: 500 }}>Add cover photo</span>
+          </div>
+        )}
+        {imageUrl && (
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "rgba(0,0,0,0)",
+            transition: "background 0.15s",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+            className="pshell-cover-hover"
+          />
+        )}
+      </button>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 2 }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, color: COLORS.inkMuted }}>
+          Cover <span style={{ color: COLORS.inkDim }}>· 4:5 portrait</span>
+        </span>
+        {imageUrl && (
+          <button type="button" onClick={onClick} style={{
+            fontFamily: FONTS.body, fontSize: 11, color: COLORS.accent, fontWeight: 500,
+            border: "none", background: "none", cursor: "pointer", padding: 0,
+          }}>Change</button>
+        )}
+      </div>
+    </div>
   );
 }
 

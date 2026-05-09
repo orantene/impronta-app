@@ -4775,20 +4775,17 @@ export function ChannelVisibilityStrip({
         aria-label={`${label}: ${summary.label}`}
         aria-expanded={open}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 3,
-          padding: "2px 7px", borderRadius: 999,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: 22, height: 22, borderRadius: 6,
           border: `1px solid ${tone.border}`,
           background: tone.bg,
           color: tone.fg,
-          fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
-          letterSpacing: 0.3,
           cursor: onChange ? "pointer" : "default",
           opacity: onChange ? 1 : 0.65,
-          lineHeight: 1.2,
+          flexShrink: 0,
         }}
       >
-        <span aria-hidden style={{ fontSize: 10.5 }}>{summary.icon}</span>
-        <span style={{ fontSize: 9.5, textTransform: "uppercase" }}>{summary.label}</span>
+        <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>{summary.icon}</span>
       </button>
       {open && onChange && (
         <div
@@ -6356,12 +6353,19 @@ export function Popover({
 // Detects browser offline/online events and shows a sticky banner.
 
 export function OfflineBanner() {
-  const [offline, setOffline] = useState(
-    typeof navigator !== "undefined" ? !navigator.onLine : false,
-  );
+  // Always start `false` so the server-rendered HTML and the client's first
+  // paint agree. We sync the real `navigator.onLine` state in the effect
+  // below — matters because on the client this component mounts BEFORE
+  // hydration commits, and reading navigator at construction time produced
+  // SSR/CSR mismatches whenever the browser was momentarily offline.
+  const [offline, setOffline] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
+    // Sync to current state on mount (covers the "loaded while offline" case).
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setOffline(true);
+    }
     const go = () => { setOffline(false); setRetrying(false); };
     const gone = () => setOffline(true);
     window.addEventListener("online", go);
