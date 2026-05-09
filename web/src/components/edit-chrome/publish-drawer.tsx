@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * PublishDrawer — right-side drawer for promoting the live canvas draft.
+ * Implements `docs/mockups/builder-experience.html` surface 7 (Publish drawer).
+ * Last reconciled: 2026-05.
  *
- * Mirrors mockup surface 7 (`docs/mockups/builder-experience.html` § 7).
+ * PublishDrawer — right-side drawer for promoting the live canvas draft.
  * Same chrome shape as InspectorDock and PageSettingsDrawer:
  *   eyebrow → display title (icon · "Push homepage live") → meta
  *   ("Last published …") → tools group → paper body with white cards →

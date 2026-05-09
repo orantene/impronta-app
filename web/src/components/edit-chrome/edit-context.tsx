@@ -1538,6 +1538,18 @@ export function EditProvider({
     string | null
   >(null);
 
+  /** Full-screen library / gallery / popover — hide right rails so focus + Escape stack stay sane. */
+  const closeAllRightRailDrawers = useCallback(() => {
+    setPublishOpen(false);
+    setPageSettingsOpen(false);
+    setRevisionsOpen(false);
+    setThemeOpen(false);
+    setAssetsOpen(false);
+    setScheduleOpen(false);
+    setCommentsOpen(false);
+    setCommentsFocusSectionId(null);
+  }, []);
+
   // command palette state (Phase 8) — centred modal; `openStarterTemplateGallery`
   // calls `dismissCentredModals` only; right-rail drawers use
   // `dismissCompetingEditorChrome` (includes gallery + library teardown).
@@ -1580,12 +1592,13 @@ export function EditProvider({
   const openStarterTemplateGallery = useCallback(
     (highlightedSlug?: string | null) => {
       dismissCentredModals();
+      closeAllRightRailDrawers();
       setLibraryTarget(null);
       setPickerPopover(null);
       setStarterTemplateGalleryHighlightedSlug(highlightedSlug ?? null);
       setStarterTemplateGalleryOpen(true);
     },
-    [dismissCentredModals],
+    [dismissCentredModals, closeAllRightRailDrawers],
   );
   const closeStarterTemplateGallery = useCallback(() => {
     setStarterTemplateGalleryOpen(false);
@@ -3616,9 +3629,10 @@ export function EditProvider({
   const openLibrary = useCallback(
     (target: LibraryTarget) => {
       dismissCompetingEditorChrome();
+      closeAllRightRailDrawers();
       setLibraryTarget(target);
     },
-    [dismissCompetingEditorChrome],
+    [dismissCompetingEditorChrome, closeAllRightRailDrawers],
   );
   const closeLibrary = useCallback(() => setLibraryTarget(null), []);
 
@@ -3628,9 +3642,10 @@ export function EditProvider({
   const openPickerPopover = useCallback(
     (target: LibraryTarget, x: number, y: number) => {
       dismissCompetingEditorChrome();
+      closeAllRightRailDrawers();
       setPickerPopover({ target, x, y });
     },
-    [dismissCompetingEditorChrome],
+    [dismissCompetingEditorChrome, closeAllRightRailDrawers],
   );
   const closePickerPopover = useCallback(() => setPickerPopover(null), []);
 

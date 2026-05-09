@@ -10,7 +10,7 @@
 
 The live editor is **further along than it looks** but **less finished than the mockup promises**. The chrome and most drawers are substantially built (~7,300 LOC of drawer code + ~5,000 LOC of inspector code), the design-system primitives exist (`Stepper`, `Swatch`, `Segmented`, `Toggle`, `Field`), and the canonical mockup is in the repo. But four things are wrong:
 
-1. **A handful of dead controls and runtime bugs** make the editor feel broken (page-switcher with no `onClick`, drawer stacking, empty Page Settings body, locale toggle that doesn't navigate).
+1. **Residual polish gaps** — canvas-level drag (#9), Theme advanced picks (#12), compare-revisions (#16). Phase A cleared the worst UX traps: PagePicker + LocaleSwitcher paths, Page Settings hydration shell, drawer/modal mutex increments, comments scoped to the active page.
 2. **The four "universal" inspector tabs (Layout / Style / Responsive / Motion) are thin select-only surfaces** even though the kit to build them properly already exists.
 3. **An unapplied stash (`wip-canvas-felt-quality-pre-mockup`)** contains substantial canvas/drawer work — including a 193-line `selection-layer.tsx` overhaul and an 84-line `resizable-drawer.tsx` upgrade — that never landed.
 4. **No source of truth ties code to mockup.** The mockup defines 26 surfaces; the codebase has implementations of ~15 of them at varying fidelity, but nothing maps which is which, what's complete, and what's missing.
@@ -118,7 +118,7 @@ Every drawer manages its own open/close boolean independently. Opening one doesn
 
 **Fix:** introduce `useEditorPanel` Zustand slice with `activeDrawer: DrawerId | null` and an `openDrawer(id)` action that closes peers. ~40 LOC. Refactor each drawer's open/close call site to use it. ~10 sites × 1 line each.
 
-**Incremental (2026-05):** `EditContext` now routes all right-rail opens through **`showExclusiveRightRailDrawer`** plus **`dismissCompetingEditorChrome`** — one mutex site, clears stale `commentsFocusSectionId` when leaving Comments. Zustand slice remains optional if this stays sufficient.
+**Incremental (2026-05):** `EditContext` now routes all right-rail opens through **`showExclusiveRightRailDrawer`** plus **`dismissCompetingEditorChrome`** — one mutex site, clears stale `commentsFocusSectionId` when leaving Comments. **Modal library, inline picker, and starter gallery** call **`closeAllRightRailDrawers`** so drawers don’t stay logically “open” under full-screen pickers. Zustand slice remains optional if this stays sufficient.
 
 ### Root cause 2: universal inspector panels were built before the kit was ready
 Layout / Style / Responsive / Motion panels each render `<select>` because `Stepper` / `Swatch` / `Segmented` weren't in the kit when those panels shipped. They never got a second pass.
@@ -162,7 +162,7 @@ Goal: the editor should never present a non-functional control to the user.
 Goal: reconcile what's in the repo (live + stashed + prototype) with what the mockup promises. Output is this document, kept up-to-date.
 
 **Tasks:**
-1. **Verify the 4 ❓ surfaces** in the audit table (Compare revisions, Empty canvas, Editor command palette, Keyboard shortcuts overlay). Either find them or mark as ❌.
+1. **Audit table reconciliation** — the live matrix above is source of truth (2026-05): Compare revisions ❌ deferred; Empty canvas ✅; command palette ✅; shortcuts ✅. Re-verify after any major editor merge.
 2. **Stash diff review.** For each of the 23 files in `stash@{0}`:
    - Does the change still apply cleanly after audit-batch work?
    - Is the change still desirable, or has the post-stash work superseded it?
