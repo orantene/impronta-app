@@ -5684,7 +5684,7 @@ function TalentProfileShellDrawer() {
              still render, but inline above the form so they participate
              in the same scroll. */
           [data-tulala-pshell] [data-pshell-body] { display: flex; flex-direction: row; flex: 1; min-height: 0; }
-          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; padding: 0; position: relative; min-width: 0; }
+          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0; position: relative; min-width: 0; }
           [data-tulala-pshell] [data-pshell-form-banners] {
             display: flex; flex-direction: column; gap: 10px;
             padding: 14px 18px 0;
@@ -6204,16 +6204,19 @@ function TalentProfileShellDrawer() {
                 />
               </div>
             )}
-            {/* THREE-SLOT PHOTO BLOCK */}
-            <ThreeSlotPhotoBlock
-              avatarUrl={avatarPhotoUrl}
-              heroUrl={heroPhotoUrl}
-              galleryPhotos={galleryAssets.filter(a => a.variantKind === "gallery").map(a => a.url)}
-              onOpenSlot={(slot) => {
-                setGalleryDrawerFocus(slot);
-                setGalleryDrawerOpen(true);
-              }}
-            />
+            {/* THREE-SLOT PHOTO BLOCK — only in visual sections to avoid
+                bleeding into Identity / Rates / Availability etc. */}
+            {(activeSection === "" || ["media", "albums", "polaroids"].includes(activeSection)) && (
+              <ThreeSlotPhotoBlock
+                avatarUrl={avatarPhotoUrl}
+                heroUrl={heroPhotoUrl}
+                galleryPhotos={galleryAssets.filter(a => a.variantKind === "gallery").map(a => a.url)}
+                onOpenSlot={(slot) => {
+                  setGalleryDrawerFocus(slot);
+                  setGalleryDrawerOpen(true);
+                }}
+              />
+            )}
 
             {/* IDENTITY */}
             <ProfileAccordionSection
@@ -6238,10 +6241,9 @@ function TalentProfileShellDrawer() {
               )}
             </ProfileAccordionSection>
 
-            {/* LIVE CATEGORY FIELDS — read-only preview from DB resolver.
-                Uses its own open-state since "live-fields" isn't part of
-                the typed PROFILE_SECTIONS union. */}
-            {payload.talentId && bridgeTenantIdentity?.tenantId && (
+            {/* LIVE CATEGORY FIELDS — only show alongside field-relevant sections */}
+            {payload.talentId && bridgeTenantIdentity?.tenantId &&
+              (activeSection === "" || ["services", "media", "albums", "polaroids"].includes(activeSection)) && (
               <LiveCategoryFieldsPanelStateful talentProfileId={payload.talentId} />
             )}
 
@@ -6586,6 +6588,7 @@ function TalentProfileShellDrawer() {
                 activeId={state.activeAlbumId}
                 onActivate={(id) => patch({ activeAlbumId: id })}
                 onChange={(albs) => patch({ albumsPro: albs })}
+                loading={hydratingMedia}
               />
             </ProfileAccordionSection>
 
@@ -9177,7 +9180,7 @@ function ThreeSlotPhotoBlock({
       <div className="pshell-photo-block" style={{
         display: "flex",
         gap: 10,
-        padding: "14px 0 10px",
+        padding: "14px 18px 10px",
         borderBottom: `1px solid ${COLORS.borderSoft}`,
         marginBottom: 14,
       }}>
@@ -9219,12 +9222,12 @@ function GalleryStrip({
   totalCount: number;
   onOpen: () => void;
 }) {
-  const MAX_THUMBS = 5;
+  const MAX_THUMBS = 3;
   const shown = photos.slice(0, MAX_THUMBS);
   const extra = totalCount - shown.length;
   return (
     <button type="button" onClick={onOpen} style={{
-      flex: 1, display: "flex", alignItems: "center", gap: 4,
+      flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 4,
       padding: 6, borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
       background: COLORS.surfaceAlt, cursor: "pointer", minHeight: 72,
       overflow: "hidden",
@@ -9232,14 +9235,14 @@ function GalleryStrip({
       {shown.map((url, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={i} src={url} alt="" style={{
-          width: 44, height: 60, objectFit: "cover", borderRadius: 5, flexShrink: 0,
+          width: 42, height: 58, objectFit: "cover", borderRadius: 5, flexShrink: 0,
         }} />
       ))}
       {extra > 0 && (
         <div style={{
-          width: 44, height: 60, borderRadius: 5, background: "rgba(15,79,62,0.10)",
+          width: 38, height: 58, borderRadius: 5, background: "rgba(15,79,62,0.10)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 700, color: COLORS.accent,
+          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, color: COLORS.accent,
           flexShrink: 0,
         }}>+{extra}</div>
       )}
@@ -12111,11 +12114,12 @@ function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
 // the talent's `albums` field). Media folders are agency-internal
 // organizational containers in the admin Media page. They serve
 // different audiences and should not be consolidated.
-function AlbumsEditorPro({ albums, activeId, onActivate, onChange }: {
+function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loading }: {
   albums: { id: string; name: string; items: PhotoMeta[] }[];
   activeId: string;
   onActivate: (id: string) => void;
   onChange: (a: { id: string; name: string; items: PhotoMeta[] }[]) => void;
+  loading?: boolean;
 }) {
   const [newName, setNewName] = useState("");
   const addAlbum = () => {
@@ -12147,7 +12151,7 @@ function AlbumsEditorPro({ albums, activeId, onActivate, onChange }: {
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: 6,
             }}>
-              {a.name} <span style={{ color: COLORS.inkDim, fontWeight: 500 }}>· {a.items.length}</span>
+              {a.name} <span style={{ color: COLORS.inkDim, fontWeight: 500 }}>· {loading ? "…" : a.items.length}</span>
             </button>
           );
         })}
@@ -12170,7 +12174,7 @@ function AlbumsEditorPro({ albums, activeId, onActivate, onChange }: {
                   fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
                 }}
               />
-              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{a.items.length} photo{a.items.length === 1 ? "" : "s"}</span>
+              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{loading ? "…" : `${a.items.length} photo${a.items.length === 1 ? "" : "s"}`}</span>
               {albums.length > 1 && (
                 <button type="button" onClick={() => deleteAlbum(a.id)} aria-label="Delete album" style={{
                   width: 24, height: 24, borderRadius: 6,
