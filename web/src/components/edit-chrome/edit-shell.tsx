@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { EditErrorBoundary } from "./edit-error-boundary";
 import { EditProvider, useEditContext, type EditDevice } from "./edit-context";
@@ -144,6 +145,10 @@ async function handleShareClick(
 }
 
 function EditShellInner({ children }: { children?: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const {
     device,
     setDevice,
@@ -225,12 +230,15 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   // URL clears on first paint.
   //
   // `panel=pages` bumps EditContext → opens the TopBar Pages dropdown (§24).
+  //
+  // Uses `router.replace` (not raw `history.replaceState`) so App Router
+  // `useSearchParams` consumers stay consistent; dependency on `searchParams`
+  // avoids re-running this on unrelated renders (prior version had no deps
+  // and fired after every paint).
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    const panel = url.searchParams.get("panel");
+    const panel = searchParams.get("panel");
     if (!panel) return;
-    const templateSlug = url.searchParams.get("template");
+    const templateSlug = searchParams.get("template");
     const dispatch: Record<string, (() => void) | "noop"> = {
       publish: openPublish,
       pageSettings: openPageSettings,
@@ -247,10 +255,28 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     };
     const handler = dispatch[panel];
     if (typeof handler === "function") handler();
-    url.searchParams.delete("panel");
-    url.searchParams.delete("template");
-    window.history.replaceState(null, "", url.toString());
-  });
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("panel");
+    next.delete("template");
+    const qs = next.toString();
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}${hash}`, { scroll: false });
+  }, [
+    searchParams,
+    pathname,
+    router,
+    openPublish,
+    openPageSettings,
+    openRevisions,
+    openTheme,
+    openAssets,
+    openSchedule,
+    openComments,
+    openStarterTemplateGallery,
+    requestPagesPickerOpen,
+    pageSlug,
+  ]);
 
   // T0-1 — Server-action network failure resilience.
   //
