@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { EditErrorBoundary } from "./edit-error-boundary";
@@ -34,18 +35,34 @@ import { PageSettingsDrawer } from "./page-settings-drawer";
 import { RevisionsDrawer } from "./revisions-drawer";
 import { ThemeDrawer } from "./theme-drawer";
 import { AssetsDrawer } from "./assets-drawer";
-import { ScheduleDrawer } from "./schedule-drawer";
-import { CommentsDrawer } from "./comments-drawer";
 import { CommandPalette } from "./command-palette";
 import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
-import { StarterTemplateGalleryOverlay } from "./starter-template-gallery-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { IframeBridgeParent } from "./iframe-bridge";
 import { SectionPickerPopover } from "./section-picker-popover";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
+import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
+
+const ScheduleDrawer = dynamic(
+  () =>
+    import("./schedule-drawer").then((m) => ({ default: m.ScheduleDrawer })),
+  { ssr: false, loading: () => null },
+);
+const CommentsDrawer = dynamic(
+  () =>
+    import("./comments-drawer").then((m) => ({ default: m.CommentsDrawer })),
+  { ssr: false, loading: () => null },
+);
+const StarterTemplateGalleryOverlay = dynamic(
+  () =>
+    import("./starter-template-gallery-overlay").then((m) => ({
+      default: m.StarterTemplateGalleryOverlay,
+    })),
+  { ssr: false, loading: () => null },
+);
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
   desktop: null,
@@ -371,6 +388,14 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         return;
       }
 
+      // `,` toggles Page settings (SHORTCUTS `open-page-settings`).
+      if (e.key === "," && !mod && !e.altKey) {
+        e.preventDefault();
+        if (pageSettingsOpen) closePageSettings();
+        else openPageSettings();
+        return;
+      }
+
       // Escape dismisses (in priority order) the shortcut overlay, then
       // the palette, then whichever right-side drawer is up. The drawers
       // mutex each other on open, so at most one is open at a time —
@@ -416,11 +441,48 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         return;
       }
 
+      // ⌘↵ / Ctrl+Enter — Publish drawer (matches SHORTCUTS `open-publish`).
+      if (mod && e.key === "Enter") {
+        e.preventDefault();
+        if (publishOpen) closePublish();
+        else openPublish();
+        return;
+      }
+
+      // ⌘1 / ⌘2 / ⌘3 — device preview (matches SHORTCUTS `switch-device-*`).
+      if (
+        mod &&
+        !e.shiftKey &&
+        !e.altKey &&
+        (e.key === "1" || e.key === "2" || e.key === "3")
+      ) {
+        e.preventDefault();
+        if (e.key === "1") setDevice("desktop");
+        else if (e.key === "2") setDevice("tablet");
+        else setDevice("mobile");
+        return;
+      }
+
       // ⌘⇧P (or Ctrl+Shift+P) opens the TopBar Pages picker — mirrors §24 +
       // palette row `open-pages-picker`.
       if (mod && e.shiftKey && key === "p") {
         e.preventDefault();
         requestPagesPickerOpen();
+        return;
+      }
+
+      // ⌘⇧S / Ctrl+Shift+S — share preview link (SHORTCUTS `share-link`;
+      // matches ⌘K palette + `copySharePreviewLinkToClipboard`).
+      if (mod && e.shiftKey && key === "s") {
+        e.preventDefault();
+        void copySharePreviewLinkToClipboard(reportMutationError);
+        return;
+      }
+
+      // ⌘S / Ctrl+S — save draft checkpoint (SHORTCUTS `save-draft`).
+      if (mod && key === "s" && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        void saveDraft();
         return;
       }
 
@@ -543,6 +605,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     reportMutationError,
     toggleNavigator,
     requestPagesPickerOpen,
+    openPublish,
+    openPageSettings,
+    setDevice,
     publishOpen,
     pageSettingsOpen,
     revisionsOpen,
@@ -564,6 +629,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     shortcutOverlayOpen,
     openShortcutOverlay,
     closeShortcutOverlay,
+    saveDraft,
   ]);
 
   return (

@@ -16,9 +16,16 @@
  *     glyph sequence per call site.
  *
  * The actual key handlers stay in `edit-shell.tsx` (and inside each
- * inspector / drawer where they belong). The registry is purely
- * declarative — it doesn't dispatch. The `id` field is what consumers
- * lookup by; the `keys` array is what gets rendered as `<Kbd>` chips.
+ * inspector / drawer where they belong). Globally wired there today,
+ * among others: ⌘K, `?`, the Escape ladder, ⌘L (assets), ⌘↵ (publish),
+ * `,` (page settings), ⌘1–⌘3 (device preview), ⌘⇧P (pages picker), ⌘\
+ * (navigator), ⌘Z / ⇧⌘Z (undo/redo), ⌘S (save draft), ⌘⇧S (share link).
+ * Some drawer rows intentionally have
+ * no global chord (empty `keys`) because macOS / the browser reserves ⌘H,
+ * ⌘T, etc.; the overlay shows ⌘K as the entry path.
+ * The registry is purely declarative — it doesn't dispatch. The `id`
+ * field is what consumers lookup by; the `keys` array is what gets
+ * rendered as `<Kbd>` chips (may be empty — see overlay / palette).
  *
  * Platform glyphs: `mod` represents Cmd on macOS / Ctrl elsewhere. We
  * surface `⌘` in the rendered chip since the editor is staff-facing and
@@ -45,6 +52,8 @@ export interface Shortcut {
    * Key glyphs as they should render in `<Kbd>` chips, in order.
    * Use "⌘" for the platform mod key, "⇧" for shift, "⌥" for alt,
    * "↵" for enter, "⌫" for backspace, "Esc" verbatim.
+   * Empty means no global binding — palette (`⌘K`) only; overlay labels
+   * that explicitly.
    */
   keys: ReadonlyArray<string>;
   category: ShortcutCategory;
@@ -113,16 +122,18 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   {
     id: "open-revisions",
     label: "Open Revisions",
-    description: "Browse and restore prior drafts.",
-    keys: ["⌘", "H"],
+    description:
+      "Command palette only — ⌘H hides the active app on macOS (no global bind).",
+    keys: [],
     category: "drawers",
     paletteAction: true,
   },
   {
     id: "open-theme",
     label: "Open Theme drawer",
-    description: "Colors, typography, layout, effects.",
-    keys: ["⌘", "T"],
+    description:
+      "Command palette only — ⌘T opens a new browser tab (no global bind).",
+    keys: [],
     category: "drawers",
     paletteAction: true,
   },
@@ -251,6 +262,13 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   },
 ];
 
+/** Inputs shared by `isShortcutVisible` + `filterVisibleShortcuts`. */
+export type ShortcutVisibilityOptions = {
+  canEditSiteShell: boolean;
+  /** Homepage composition editor — Revisions drawer exists here only (matches ⌘K palette). */
+  homepageEditing: boolean;
+};
+
 /**
  * Capability-aware shortcut visibility gate.
  *
@@ -259,17 +277,20 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
  */
 export function isShortcutVisible(
   shortcutId: string,
-  options: { canEditSiteShell: boolean },
+  options: ShortcutVisibilityOptions,
 ): boolean {
   if (shortcutId === "open-theme") {
     return options.canEditSiteShell;
+  }
+  if (shortcutId === "open-revisions") {
+    return options.homepageEditing;
   }
   return true;
 }
 
 export function filterVisibleShortcuts(
   shortcuts: ReadonlyArray<Shortcut>,
-  options: { canEditSiteShell: boolean },
+  options: ShortcutVisibilityOptions,
 ): ReadonlyArray<Shortcut> {
   return shortcuts.filter((entry) =>
     isShortcutVisible(entry.id, options),

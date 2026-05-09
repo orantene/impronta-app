@@ -60,7 +60,7 @@ import { isShortcutVisible } from "./kit/shortcuts";
 import { useEditContext, type EditDevice } from "./edit-context";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
-import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
+import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
 
 // ── public surface ──────────────────────────────────────────────────────
 
@@ -310,7 +310,12 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         },
       ),
     );
-    if (!ctx.pageSlug) {
+    if (
+      isShortcutVisible("open-revisions", {
+        canEditSiteShell: ctx.canEditSiteShell,
+        homepageEditing: !ctx.pageSlug,
+      })
+    ) {
       rows.push(
         drawerRow(
           "open-revisions",
@@ -327,6 +332,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     rows.push(
       ...(isShortcutVisible("open-theme", {
         canEditSiteShell: ctx.canEditSiteShell,
+        homepageEditing: !ctx.pageSlug,
       })
         ? [
             drawerRow(
@@ -430,34 +436,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           // background. The topbar Share button shows the same
           // confirmation chip path; from the palette we just route the
           // URL to the clipboard and surface failures via the toast.
-          void (async () => {
-            try {
-              const res = await createShareLinkAction({});
-              if (!res.ok) {
-                ctx.reportMutationError(res.error);
-                return;
-              }
-              if (
-                typeof window === "undefined" ||
-                typeof navigator === "undefined" ||
-                !navigator.clipboard
-              ) {
-                return;
-              }
-              const url = `${window.location.origin}${res.path}`;
-              try {
-                await navigator.clipboard.writeText(url);
-              } catch {
-                window.prompt("Share link", url);
-              }
-            } catch (err) {
-              ctx.reportMutationError(
-                err instanceof Error
-                  ? err.message
-                  : "Failed to create share link.",
-              );
-            }
-          })();
+          void copySharePreviewLinkToClipboard(ctx.reportMutationError);
           onClose();
         },
       ),
@@ -915,6 +894,7 @@ function Row({ row, active, idx, onHover, onCommit }: RowProps) {
     background: active ? CHROME.blueBg : "transparent",
     color: active ? CHROME.ink : CHROME.text,
     transition: "background 80ms ease",
+    boxShadow: active ? CHROME_SHADOWS.inputFocus : undefined,
   };
   return (
     <div
@@ -963,7 +943,7 @@ function Row({ row, active, idx, onHover, onCommit }: RowProps) {
           </div>
         ) : null}
       </div>
-      {row.shortcut ? (
+      {row.shortcut && row.shortcut.keys.length > 0 ? (
         <KbdSequence keys={row.shortcut.keys.slice()} />
       ) : null}
     </div>

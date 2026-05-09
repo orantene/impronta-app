@@ -4,6 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import {
+  buildPostPublicPathname,
+  buildPublicPathname,
+  isValidSlugPath,
+  normalizeSlugPath,
+} from "@/lib/cms/paths";
+import type { Locale } from "@/i18n/config";
 import { SkillDiscoveryPanel } from "./_skill-discovery-panel";
 import {
   CLIENT_PAGES,
@@ -70,10 +77,10 @@ import {
   type TalentProfile,
   type TaxonomyParentId,
   type WorkspacePage,
-  WEBSITE_STATE,
   type WebsiteAnalytics,
   type WebsitePeriodMetrics,
   type WebsitePageRow,
+  type WebsitePost,
   FAB_PALETTE_OPEN_EVENT,
   FAB_PALETTE_CHANGED_EVENT,
   type FabPaletteChangedDetail,
@@ -8558,11 +8565,86 @@ function ProductionPage() {
 // See dev-handoff §27 for production wiring map per section.
 // ════════════════════════════════════════════════════════════════════
 
+/** Same host + scheme rules as legacy storefront redirects — http on lvh/local. */
+function resolveWebsiteLiveOrigin(
+  primaryDomain: string | undefined,
+  windowOriginFallback: string,
+): string {
+  const host = primaryDomain?.trim() ?? "";
+  const proto =
+    host.endsWith(".lvh.me") ||
+    host.startsWith("localhost") ||
+    host.startsWith("127.")
+      ? "http"
+      : "https";
+  if (host.length > 0) return `${proto}://${host}`;
+  return windowOriginFallback;
+}
+
 function WebsitePage() {
-  const { state, openDrawer, toast, bridgeTenantIdentity } = useProto();
+  const { state, openDrawer, toast, effectiveWebsiteState, locale } = useProto();
   const canEdit = meetsRole(state.role, "admin");
-  const w = WEBSITE_STATE;
-  const liveUrl = `https://${w.domain.primaryDomain}`;
+  const w = effectiveWebsiteState;
+
+  const [windowOrigin, setWindowOrigin] = useState("");
+  useEffect(() => {
+    setWindowOrigin(window.location.origin);
+  }, []);
+
+  const liveOrigin = useMemo(
+    () => resolveWebsiteLiveOrigin(w.domain.primaryDomain, windowOrigin),
+    [w.domain.primaryDomain, windowOrigin],
+  );
+
+  const openPageVisualEditor = useCallback(
+    (page: WebsitePageRow) => {
+      if (!liveOrigin) {
+        toast("Live site URL isn’t available yet — check Domain below.");
+        return;
+      }
+      const raw = page.slug.trim();
+      const inner =
+        raw === "" || raw === "/"
+          ? ""
+          : normalizeSlugPath(raw.replace(/^\/+/u, ""));
+      if (inner && !isValidSlugPath(inner)) {
+        toast(
+          "This URL doesn’t map to a public page path — open the live site and use ?edit=1 there.",
+        );
+        return;
+      }
+      const pathname =
+        inner === "" ? "/" : buildPublicPathname(locale as Locale, inner);
+      const url = `${liveOrigin}${pathname}?edit=1`;
+      window.open(url, "_blank", "noopener,noreferrer");
+      toast("Opening visual editor…");
+    },
+    [liveOrigin, locale, toast],
+  );
+
+  const openPostOnLive = useCallback(
+    (post: WebsitePost) => {
+      if (!liveOrigin) {
+        toast("Live site URL isn’t available yet.");
+        return;
+      }
+      const raw = post.slug.trim().replace(/^\/+/u, "");
+      const firstSegment = raw.split("/").filter(Boolean)[0] ?? "";
+      const pathname = buildPostPublicPathname(locale as Locale, firstSegment);
+      window.open(`${liveOrigin}${pathname}`, "_blank", "noopener,noreferrer");
+      toast("Opening post…");
+    },
+    [liveOrigin, locale, toast],
+  );
+
+  const openHomepageEditor = useCallback(() => {
+    if (!liveOrigin) {
+      toast("Live site URL isn’t available yet.");
+      return;
+    }
+    window.open(`${liveOrigin}/?edit=1`, "_blank", "noopener,noreferrer");
+    toast("Opening homepage editor…");
+  }, [liveOrigin, toast]);
   const totals = {
     publishedPages: w.pages.filter(p => p.status === "published").length,
     draftPages: w.pages.filter(p => p.status === "draft").length,
@@ -8580,9 +8662,18 @@ function WebsitePage() {
         actions={
           <>
             {!canEdit && <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Read-only</span>}
-            <SecondaryButton size="sm" onClick={() => liveUrl ? window.open(liveUrl, "_blank", "noopener") : undefined}>
+            <SecondaryButton
+              size="sm"
+              disabled={!liveOrigin}
+              onClick={() => liveOrigin && window.open(liveOrigin, "_blank", "noopener,noreferrer")}
+            >
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <Icon name="external" size={12} stroke={1.7} /> View live
+              </span>
+            </SecondaryButton>
+            <SecondaryButton size="sm" disabled={!liveOrigin} onClick={openHomepageEditor}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Icon name="pencil" size={12} stroke={1.7} /> Edit homepage
               </span>
             </SecondaryButton>
           </>
@@ -8600,9 +8691,9 @@ function WebsitePage() {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", opacity: 0.7 }}>Live URL</span>
-          <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 14, fontWeight: 600 }}>{liveUrl}</span>
-          <button type="button" onClick={() => { try { navigator.clipboard.writeText(liveUrl); } catch {} toast("Copied"); }}
-            style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.30)", background: "transparent", color: "#fff", fontFamily: FONTS.body, cursor: "pointer" }}
+          <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 14, fontWeight: 600 }}>{liveOrigin || "—"}</span>
+          <button type="button" disabled={!liveOrigin} onClick={() => { try { navigator.clipboard.writeText(liveOrigin); } catch {} toast("Copied"); }}
+            style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.30)", background: "transparent", color: "#fff", fontFamily: FONTS.body, cursor: liveOrigin ? "pointer" : "not-allowed", opacity: liveOrigin ? 1 : 0.45 }}
           >Copy</button>
           <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: w.maintenance.enabled ? COLORS.amber : "#5BD893" }} />
@@ -8645,20 +8736,38 @@ function WebsitePage() {
 
       {/* Pages — visual card grid (the hero asset, not a table) */}
       <section style={{ marginBottom: 22 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>Pages</h2>
           <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
             {totals.publishedPages} live · {totals.draftPages} draft · {totals.scheduledPages} scheduled
           </span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-          {(() => {
-            const maxHits = Math.max(...w.pages.map(p => p.hits7d ?? 0), 1);
-            return w.pages.map(p => (
-              <PageVisualCard key={p.id} page={p} maxHits={maxHits} />
-            ));
-          })()}
-        </div>
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, lineHeight: 1.45 }}>
+          Click a page to open the visual editor on your live site (<span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>?edit=1</span>
+          ). Hits below are placeholder until analytics bridge to this surface.
+        </p>
+        {w.pages.length === 0 ? (
+          <EmptyState
+            icon="info"
+            title="No pages yet"
+            body="Pages from your workspace will appear here once the CMS lists them for this tenant."
+            compact
+          />
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+            {(() => {
+              const maxHits = Math.max(...w.pages.map(p => p.hits7d ?? 0), 1);
+              return w.pages.map(p => (
+                <PageVisualCard
+                  key={p.id}
+                  page={p}
+                  maxHits={maxHits}
+                  onClick={() => openPageVisualEditor(p)}
+                />
+              ));
+            })()}
+          </div>
+        )}
       </section>
 
       {/* Posts + Redirects — two-column composite (breaks the visual rhythm) */}
@@ -8671,24 +8780,56 @@ function WebsitePage() {
             </h3>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {w.posts.map(p => (
-              <div key={p.id}
-                style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 9, border: `1px solid ${COLORS.borderSoft}`, background: "#fff", textAlign: "left", fontFamily: FONTS.body }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                    <PageStatusChip status={p.status} />
-                    <span style={{ fontSize: 11, color: COLORS.inkDim }}>{p.author}</span>
+            {w.posts.length === 0 ? (
+              <EmptyState icon="info" title="No posts" body="Blog posts will list here when present." compact />
+            ) : (
+              w.posts.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={!liveOrigin}
+                  aria-label={`Open post on live site: ${p.title}`}
+                  onClick={() => openPostOnLive(p)}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto",
+                    gap: 10,
+                    alignItems: "center",
+                    padding: "10px 12px",
+                    borderRadius: 9,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    background: "#fff",
+                    textAlign: "left",
+                    fontFamily: FONTS.body,
+                    cursor: liveOrigin ? "pointer" : "not-allowed",
+                    opacity: liveOrigin ? 1 : 0.65,
+                    transition: `border-color ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!liveOrigin) return;
+                    e.currentTarget.style.borderColor = COLORS.indigoDeep;
+                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(11,11,13,0.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = COLORS.borderSoft;
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                      <PageStatusChip status={p.status} />
+                      <span style={{ fontSize: 11, color: COLORS.inkDim }}>{p.author}</span>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{p.tags.join(" · ")}</div>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{p.tags.join(" · ")}</div>
-                </div>
-                <div style={{ textAlign: "right", color: COLORS.inkMuted }}>
-                  <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, fontWeight: 600, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>{(p.hits7d ?? 0).toLocaleString()}</div>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>hits 7d</div>
-                </div>
-              </div>
-            ))}
+                  <div style={{ textAlign: "right", color: COLORS.inkMuted }}>
+                    <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, fontWeight: 600, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>{(p.hits7d ?? 0).toLocaleString()}</div>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>hits 7d</div>
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </div>
 
@@ -8700,7 +8841,10 @@ function WebsitePage() {
             </h3>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {w.redirects.map(r => (
+            {w.redirects.length === 0 ? (
+              <EmptyState icon="info" title="No redirects" body="URL redirects will appear here when configured." compact />
+            ) : (
+              w.redirects.map(r => (
               <div key={r.id} style={{ padding: "9px 12px", borderRadius: 9, border: `1px solid ${COLORS.borderSoft}`, background: r.active ? "#fff" : COLORS.surfaceAlt, opacity: r.active ? 1 : 0.7 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: COLORS.indigoSoft, color: COLORS.indigoDeep, fontFamily: "ui-monospace, monospace" }}>{r.statusCode}</span>
@@ -8713,7 +8857,8 @@ function WebsitePage() {
                   <span style={{ color: COLORS.indigoDeep, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }}>{r.to}</span>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -8805,8 +8950,9 @@ function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRow; maxH
   const hits = page.hits7d ?? 0;
   const fillPct = maxHits > 0 ? (hits / maxHits) * 100 : 0;
   const isLive = page.status === "published";
+  const label = `Open visual editor for ${page.title} (${page.slug})`;
   return (
-    <button type="button" onClick={onClick}
+    <button type="button" onClick={onClick} aria-label={label}
       style={{
         textAlign: "left", cursor: "pointer", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
         background: "#fff", padding: 0, fontFamily: FONTS.body, overflow: "hidden",
@@ -8839,6 +8985,9 @@ function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRow; maxH
           <div style={{ height: 4, borderRadius: 999, background: COLORS.surfaceAlt, overflow: "hidden" }}>
             <div style={{ width: `${fillPct}%`, height: "100%", background: isLive ? COLORS.indigoDeep : COLORS.inkDim, borderRadius: 999, transition: "width 200ms ease" }} />
           </div>
+        </div>
+        <div aria-hidden style={{ fontSize: 10, fontWeight: 600, color: COLORS.indigoDeep, letterSpacing: 0.02 }}>
+          Visual editor →
         </div>
         <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.inkMuted }}>
           <span>by {page.lastEditedBy}</span>
@@ -9077,11 +9226,16 @@ function SiteTableRow({ cells, onClick }: { cells: ReactNode[]; onClick?: () => 
   );
 }
 
-function PageStatusChip({ status }: { status: "published" | "draft" | "scheduled" }) {
+function PageStatusChip({
+  status,
+}: {
+  status: "published" | "draft" | "scheduled" | "archived";
+}) {
   const map = {
     published: { label: "Live",      bg: COLORS.successSoft, fg: COLORS.successDeep },
     draft:     { label: "Draft",     bg: COLORS.surfaceAlt,  fg: COLORS.inkMuted },
     scheduled: { label: "Scheduled", bg: COLORS.indigoSoft,  fg: COLORS.indigoDeep },
+    archived:  { label: "Archived",  bg: COLORS.surfaceAlt,  fg: COLORS.inkDim },
   } as const;
   const m = map[status];
   return (

@@ -24,6 +24,7 @@ import {
   loadWorkspaceTeamMembers,
   loadTotalUnreadMessages,
   loadWorkspaceMediaBridge,
+  loadWebsiteData,
   loadTalentSelfProfile,
   loadTalentInquiries,
 } from "@/app/prototypes/admin-shell/_data-bridge";
@@ -111,6 +112,7 @@ export default async function WorkspaceAdminLayout({
     profileDisplayName,
     mediaBridge,
     talentSelfProfile,
+    websiteData,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(),
     loadInquiriesForMessages(tenantId),
@@ -128,6 +130,7 @@ export default async function WorkspaceAdminLayout({
     // on this tenant's roster gets the mode toggle; non-hybrid admins
     // don't. Returns null when the user has no talent profile here.
     loadTalentSelfProfile(session.user.id, tenantId),
+    loadWebsiteData(tenantId),
   ]);
 
   // Pre-fetch hybrid-only data (talent inquiries + cross-mode unread + user
@@ -190,6 +193,7 @@ export default async function WorkspaceAdminLayout({
           talentUnread: talentUnread ?? 0,
           preferredSurface: userPrefs?.preferredSurface ?? null,
           firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
+          website: websiteData,
         }}
       >
         {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}

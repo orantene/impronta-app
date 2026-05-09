@@ -10,7 +10,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope } from "@/lib/saas/scope";
-import { loadPublicPage } from "@/lib/site-admin/server/page-reads";
+import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 
 export const dynamic = "force-dynamic";
 
@@ -103,7 +103,7 @@ export default async function CmsPublicPage({
   // the homepage. Falls through to legacy body-rendering if the snapshot
   // is null (legacy compatibility path; backfill/removal sequencing tracked
   // in docs/saas/page-builder-package-audit-2026-05-06.md).
-  const sectionPage = await loadPublicPage(publicScope.tenantId, locale as Locale, slugPath);
+  const sectionPage = await loadPageForRender(publicScope.tenantId, locale as Locale, slugPath);
   if (sectionPage?.snapshot && sectionPage.snapshot.slots?.length > 0) {
     return (
       <>

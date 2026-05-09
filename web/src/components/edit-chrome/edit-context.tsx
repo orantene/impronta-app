@@ -1484,7 +1484,8 @@ export function EditProvider({
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
   // is Figma-ish and well past what any realistic undo chain needs for a
   // page-composition tool (the tool has ~12 slots total; 50 states of
-  // that is hundreds of individual moves).
+  // that is hundreds of individual moves). Operators recover older work via
+  // Revisions (snapshots), not by extending this stack — see RevisionsDrawer copy.
   //
   // Entries are a discriminated union: `composition` captures slots +
   // metadata for structural moves; `field` captures a single section's
@@ -2527,7 +2528,8 @@ export function EditProvider({
       });
       pageVersionRef.current = res.pageVersion;
       setPageVersion(res.pageVersion);
-      router.refresh();
+      setSelectedSectionId(res.section.id);
+      await router.refresh();
       return { ok: true, section: { id: res.section.id, sortOrder: insertAt } };
     },
     [
@@ -2540,6 +2542,7 @@ export function EditProvider({
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
       reportMutationError,
+      setSelectedSectionId,
     ],
   );
 
@@ -2627,7 +2630,9 @@ export function EditProvider({
         props: res.section.props,
       });
       setPageVersion(res.pageVersion);
-      router.refresh();
+      pageVersionRef.current = res.pageVersion;
+      setSelectedSectionId(res.section.id);
+      await router.refresh();
       return { ok: true, newSectionId: res.section.id };
     },
     [
@@ -2642,6 +2647,7 @@ export function EditProvider({
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
       reportMutationError,
+      setSelectedSectionId,
     ],
   );
 

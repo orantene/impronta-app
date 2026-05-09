@@ -21,9 +21,11 @@ export type WebsitePageItem = {
   id: string;
   slug: string;
   title: string;
-  status: string; // 'published' | 'draft' | 'scheduled'
+  status: string; // 'published' | 'draft' | 'archived'
   updatedAt: string | null;
   updatedBy: string | null;
+  /** cms_pages.template_key — drives the Website surface card label. */
+  templateKey: string | null;
 };
 
 export type WebsitePostItem = {
@@ -108,8 +110,9 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
         slug: p.slug,
         title: p.title,
         status: p.status,
-        updatedAt: (p as unknown as { updated_at: string | null }).updated_at ?? null,
-        updatedBy: (p as unknown as { updated_by: string | null }).updated_by ?? null,
+        updatedAt: p.updated_at ?? null,
+        updatedBy: p.updated_by ?? null,
+        templateKey: p.template_key ?? null,
       })),
       posts: ((postsRes.data ?? []) as unknown as PostRow[]).map((p) => ({
         id: p.id,

@@ -53,7 +53,7 @@ const CATEGORY_ORDER: ReadonlyArray<ShortcutCategory> = [
 ];
 
 export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
-  const { canEditSiteShell } = useEditContext();
+  const { canEditSiteShell, pageSlug } = useEditContext();
   // Escape close lives both here (when focus is within the overlay) and
   // in edit-shell.tsx (so background focus still dismisses). Two layers
   // of safety net so a stray click anywhere can't strand the modal.
@@ -82,6 +82,7 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
   };
   const visibleShortcuts = filterVisibleShortcuts(SHORTCUTS, {
     canEditSiteShell,
+    homepageEditing: !pageSlug,
   });
   for (const s of visibleShortcuts) {
     buckets[s.category] = [...buckets[s.category], s];
@@ -251,7 +252,21 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
                           </div>
                         ) : null}
                       </div>
-                      <KbdSequence keys={s.keys} />
+                      {s.keys.length > 0 ? (
+                        <KbdSequence keys={s.keys} />
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            color: CHROME.muted,
+                            whiteSpace: "nowrap",
+                          }}
+                          title="Run from the command palette"
+                        >
+                          ⌘K
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

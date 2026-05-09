@@ -302,7 +302,24 @@ export function RevisionsDrawer(): ReactElement | null {
             <strong style={{ color: CHROME.text }}>Save draft</strong> to keep a
             recoverable checkpoint.
           </div>
-        ) : null}
+        ) : (
+          <div
+            className="mb-3 rounded-md px-3 py-2 text-[12px] leading-relaxed"
+            style={{
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.line}`,
+              color: CHROME.muted,
+            }}
+          >
+            <strong style={{ color: CHROME.text }}>Undo / Redo</strong> (⌘Z /
+            ⌘⇧Z) applies to this editing session only and does not survive a full
+            reload.{" "}
+            <strong style={{ color: CHROME.text }}>Restore</strong> replaces your
+            draft with a saved snapshot from the list below — review the canvas,
+            then publish when ready. A full side-by-side diff between revisions is
+            not available yet; use Restore when you need a known-good version.
+          </div>
+        )}
         {error ? (
           <div
             className="mb-3 rounded-md px-3 py-2"

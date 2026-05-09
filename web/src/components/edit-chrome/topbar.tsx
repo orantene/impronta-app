@@ -934,6 +934,8 @@ function ViewportSwitcher({
 }) {
   return (
     <div
+      role="group"
+      aria-label="Canvas preview width"
       className="inline-flex shrink-0 items-center rounded-full p-[3px]"
       style={{
         background: "rgba(0,0,0,0.05)",
@@ -948,6 +950,8 @@ function ViewportSwitcher({
             type="button"
             onClick={() => setDevice(opt.key)}
             title={opt.label}
+            aria-label={opt.label}
+            aria-pressed={active}
             className="inline-flex items-center gap-[5px] rounded-full border-none px-[13px] py-[5px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
             style={{
               background: active ? CHROME.surface : "transparent",

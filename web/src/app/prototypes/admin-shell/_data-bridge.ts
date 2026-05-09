@@ -241,6 +241,13 @@ export type BridgeData = {
   mediaPhotos?: WorkspaceMediaPhoto[] | null;
   /** Workspace virtual folders. Empty array = live mode, no folders yet. */
   mediaFolders?: WorkspaceMediaFolder[];
+
+  /**
+   * Live CMS / domain snapshot for the Website workspace surface.
+   * `undefined` / omitted = standalone prototype (mock WEBSITE_STATE).
+   * Empty `pages` arrays still mean "real tenant, zero pages" — not mock.
+   */
+  website?: WebsiteData | null;
 };
 
 export function createBridgeDataFromRoster(
@@ -259,6 +266,7 @@ export function createBridgeDataFromRoster(
     talentSelfProfile: null,
     talentInquiries: null,
     talentAgencies: null,
+    website: null,
   };
 }
 

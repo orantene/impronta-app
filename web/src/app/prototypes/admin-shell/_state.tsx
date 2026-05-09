@@ -32,6 +32,7 @@ import type {
   WorkspaceMediaPhoto as BridgeMediaPhoto,
   WorkspaceMediaFolder as BridgeMediaFolder,
 } from "./_data-bridge";
+import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
@@ -6772,6 +6773,9 @@ type Ctx = {
   locale: string;
   /** Dot-path translator for the current locale. */
   t: (key: string) => string;
+
+  /** Workspace Website surface — live CMS rows merged with mock fallbacks. */
+  effectiveWebsiteState: WebsiteState;
 };
 
 /** Agency-defined custom field. Renders in Profile Shell's "Profile details"
@@ -8187,6 +8191,15 @@ export function ProtoProvider({
   const bridgeMediaPhotos = initialBridgeData?.mediaPhotos ?? null;
   const bridgeMediaFolders: BridgeMediaFolder[] = initialBridgeData?.mediaFolders ?? [];
 
+  const bridgeWebsite = initialBridgeData?.website;
+  const effectiveWebsiteState = useMemo(
+    () =>
+      bridgeWebsite != null
+        ? mergeWebsiteStateFromBridge(bridgeWebsite)
+        : WEBSITE_STATE,
+    [bridgeWebsite],
+  );
+
   const value: Ctx = useMemo(
     () => ({
       state: {
@@ -8297,6 +8310,7 @@ export function ProtoProvider({
       bridgeTenantIdentity,
       bridgeSessionIdentity,
       effectiveTenant,
+      effectiveWebsiteState,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
@@ -8392,6 +8406,7 @@ export function ProtoProvider({
       bridgeTenantIdentity,
       bridgeSessionIdentity,
       effectiveTenant,
+      effectiveWebsiteState,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
@@ -9013,7 +9028,7 @@ export type WebsitePageRow = {
   id: string;
   title: string;
   slug: string;
-  status: "published" | "draft" | "scheduled";
+  status: "published" | "draft" | "scheduled" | "archived";
   updatedAt: string;
   scheduledFor?: string;
   lastEditedBy: string;
@@ -9271,7 +9286,109 @@ export const WEBSITE_STATE: WebsiteState = {
   },
 };
 
-// ─────────────────────��───────────────────────────────────────────────
+/**
+ * Merge server-loaded `WebsiteData` into the prototype `WebsiteState` shape.
+ * Keeps mock analytics / maintenance / announcement until those loaders exist.
+ */
+export function mergeWebsiteStateFromBridge(live: WebsiteData): WebsiteState {
+  const host =
+    live.domainSummary.primaryHost ??
+    live.domainSummary.customDomainHost ??
+    live.domainSummary.subdomainHost ??
+    WEBSITE_STATE.domain.primaryDomain;
+
+  const sslOk =
+    live.domainSummary.primaryHostStatus === "active" ||
+    live.domainSummary.primaryHostStatus === "ssl_provisioned" ||
+    live.domainSummary.primaryHostStatus === "verified";
+
+  const mapRowStatus = (raw: string): WebsitePageRow["status"] => {
+    if (raw === "published") return "published";
+    if (raw === "archived") return "archived";
+    return "draft";
+  };
+
+  const pages: WebsitePageRow[] = live.pages.map((p) => {
+    const rawSlug = (p.slug ?? "").trim();
+    const slug =
+      rawSlug === ""
+        ? "/"
+        : rawSlug.startsWith("/")
+          ? rawSlug
+          : `/${rawSlug}`;
+    return {
+      id: p.id,
+      title: p.title?.trim() ? p.title : "Untitled",
+      slug,
+      status: mapRowStatus(p.status),
+      updatedAt: p.updatedAt ?? new Date().toISOString(),
+      lastEditedBy: p.updatedBy ?? "—",
+      template: p.templateKey?.replace(/_/g, " ") ?? "page",
+      hits7d: 0,
+    };
+  });
+
+  const posts: WebsitePost[] = live.posts.map((p) => {
+    const slug = (p.slug ?? "").trim();
+    const path = slug.startsWith("/") ? slug : slug ? `/${slug}` : "/";
+    return {
+      id: p.id,
+      title: p.title,
+      slug: path,
+      status: p.status === "published" ? "published" : "draft",
+      publishedAt: p.status === "published" ? p.updatedAt ?? undefined : undefined,
+      updatedAt: p.updatedAt ?? new Date().toISOString(),
+      author: "—",
+      hits7d: 0,
+      tags: [],
+    };
+  });
+
+  const redirects: WebsiteRedirect[] = live.redirects.map((r) => {
+    const code = r.statusCode;
+    const statusCode: WebsiteRedirect["statusCode"] =
+      code === 302 || code === 307 || code === 308 ? code : 301;
+    return {
+      id: r.id,
+      from: r.oldPath,
+      to: r.newPath,
+      statusCode,
+      match: "exact" as const,
+      hits7d: 0,
+      createdAt: new Date().toISOString(),
+      createdBy: "—",
+      active: r.active,
+    };
+  });
+
+  const domainPatch: WebsiteDomain = {
+    ...WEBSITE_STATE.domain,
+    primaryDomain: host,
+    status:
+      live.domainSummary.primaryHostStatus === "verified" || sslOk
+        ? "verified"
+        : "pending",
+    sslStatus: sslOk ? "active" : WEBSITE_STATE.domain.sslStatus,
+  };
+
+  const seoPatch: WebsiteSeoDefaults = {
+    ...WEBSITE_STATE.seo,
+    siteTitle: live.seoTitle ?? WEBSITE_STATE.seo.siteTitle,
+    description: live.seoDescription ?? WEBSITE_STATE.seo.description,
+    canonicalDomain: host,
+  };
+
+  return {
+    ...WEBSITE_STATE,
+    pages,
+    posts,
+    redirects,
+    domain: domainPatch,
+    seo: seoPatch,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Re-exports from _field-catalog.ts
 //
 // `_talent.tsx` imports computeProfileCompleteness, fieldsForType, and
@@ -9280,7 +9397,7 @@ export const WEBSITE_STATE: WebsiteState = {
 // these from the catalog module. The circular import (_state ↔
 // _field-catalog) is safe: _field-catalog already uses lazy
 // initialization for everything that touches TAXONOMY_FIELDS.
-// ──────────────────────────────���─────────────────────────────────��────
+// ─────────────────────────────────────────────────────────────────────
 export {
   computeProfileCompleteness,
   fieldsForType,

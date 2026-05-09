@@ -257,3 +257,74 @@ Tracked but not in the immediate plan:
 - Working tree is clean
 - Each drawer/panel file has a mockup-surface reference header
 - This doc is updated to match reality
+
+---
+
+## Audit execution backlog (Buckets A–H)
+
+**Source:** Builder audit execution plan (2026-05). **Product-grade expansion:** [builder-excellence-execution-plan.md](./builder-excellence-execution-plan.md).  
+**Done when** = minimum bar to mark the bucket item complete in a release.
+
+### Bucket A — Hygiene, convergence, engineering
+
+| ID | Work | Done when |
+|----|------|-----------|
+| A1 | Phase 0/1 convergence: duplicate gallery mounts, Page Settings dead tabs, storefront dev chips, orphan AI — wire or remove | No orphan server actions; smoke `?edit=1` publish; lint |
+| A2 | Redirects for legacy `/admin/site-settings/sections|structure|pages` | Bookmarks land on `/{slug}/admin/website` (workspace Website); no 404 |
+| A3 | Drawer exclusivity documented | [DRAWER-MUTEX.md](../src/components/edit-chrome/DRAWER-MUTEX.md) + PR checklist; no stacked right-rail drawers |
+| A4 | Mockup § map in file headers | Major chrome files cite `builder-experience.html` §N (optional CI later) |
+| A5 | Stash `wip-canvas-felt-quality-pre-mockup` | Diff reviewed; useful bits cherry-picked or ticket filed |
+
+### Bucket B — Feel (§9, §17, §8, rhythm)
+
+| ID | Work | Done when |
+|----|------|-----------|
+| B1 | Canvas section drag (§9) | **Shipped:** `selection-layer` + `moveSectionTo` / navigator parity — keep polishing drop affordances vs mockup §9 |
+| B2 | WYSIWYG Phase C (§17) | No raw markers while typing; toolbar for inline text |
+| B3 | Section library Phase D (§8) | Categories, search, thumbs, ~15 default + Advanced |
+| B4 | Visual rhythm (capability #4) | Shared SectionHead, CTA, spacing across types |
+
+### Bucket C — Structure (header/footer)
+
+| ID | Work | Done when |
+|----|------|-----------|
+| C1 | Phase B site shell | Header/footer selectable; inspector parity; [builder-convergence-plan](./builder-convergence-plan.md) smoke |
+| C2 | Shell publish cache | All tenant routes using shell invalidate on shell publish |
+
+### Bucket D — Trust (publish, revisions)
+
+| ID | Work | Done when |
+|----|------|-----------|
+| D1 | Preflight §7 | `runPublishPreflight` issues surfaced; jump-to-section; WCAG copy where relevant |
+| D2 | Revisions §16 | Restore UX clear; optional diff deferred with explicit copy |
+| D3 | Undo vs revisions | Undo bounded/documented; Cmd-Z primary story in UX |
+
+### Bucket E — Optimization
+
+| ID | Work | Done when |
+|----|------|-----------|
+| E1–E5 | Refresh batching, selection-layer profiling, lazy drawers, LCP, tenant tests | Measured or gated; `test:tenant-isolation` on touched paths |
+
+### Bucket F — Accessibility
+
+| ID | Work | Done when |
+|----|------|-----------|
+| F1–F3 | Focus trap/restore, reduced-motion, SR announcements | Spot-check keyboard + VoiceOver on publish path |
+
+### Bucket G — Post-v1 collaboration
+
+| ID | Work | Done when |
+|----|------|-----------|
+| G1–G5 | Comments depth, presence, share analytics, §22/§25 deferrals, Theme polish | Tracked in excellence plan order; ship only when pulled |
+
+### Bucket H — AI discipline
+
+| ID | Work | Done when |
+|----|------|-----------|
+| H1–H2 | Preflight AI wired or deleted; per-field rewrite scoped | No dangling AI entry points |
+
+---
+
+## Post-v1 tracking (Buckets G–H)
+
+Treat **G** (collaboration, extras) and **H** (AI discipline beyond hygiene) as **post-core-builder** unless product escalates. Owning doc: [builder-excellence-execution-plan.md](./builder-excellence-execution-plan.md) Pillars 9–10. Engineering hygiene for AI orphans belongs in **Bucket A/H** first.

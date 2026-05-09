@@ -18,6 +18,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://app.local:3102";
 
+/** Set `PLAYWRIGHT_CHANNEL=chrome` to run against the installed Google Chrome app (not bundled Chromium). */
+const useGoogleChrome = process.env.PLAYWRIGHT_CHANNEL === "chrome";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -31,8 +34,11 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      name: useGoogleChrome ? "google-chrome" : "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(useGoogleChrome ? { channel: "chrome" as const } : {}),
+      },
     },
   ],
 });
