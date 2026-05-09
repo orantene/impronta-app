@@ -32,6 +32,7 @@
     "test:node-presentation": "tsx --test src/lib/site-admin/sections/shared/node-presentation.test.ts src/lib/site-admin/sections/node-presentation.test.ts src/lib/site-admin/sections/node-presentation-render.test.ts",
     "test:publish-preflight": "tsx --test src/lib/site-admin/edit-mode/publish-preflight-rules.test.ts src/lib/site-admin/edit-mode/publish-preflight-link-rules.test.ts src/lib/site-admin/edit-mode/publish-preflight-layout-rules.test.ts src/lib/site-admin/edit-mode/publish-diff.test.ts",
     "test:e2e": "playwright test",
+    "test:e2e:browser-health": "playwright test e2e/browser-health.spec.ts",
     "test:e2e:impronta-local": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta login next lands on slugged admin and opens builder edit mode'",
     "test:e2e:impronta-empty-first-add": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta blank canvas can create the first hero section'",
     "test:e2e:impronta-section-build": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta can build core body sections one by one'",
