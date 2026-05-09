@@ -44,6 +44,7 @@
     "test:e2e:impronta-starter-insertion": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta starter template inserts a real section and cleans up'",
     "test:e2e:impronta-kit-insertion": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta starter kit inserts a sequence and cleans up'",
     "test:e2e:impronta-template-gallery": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta template gallery'",
+    "test:e2e:impronta-panel-pages": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta pages menu opens from panel deep link'",
     "test:e2e:impronta-navigator-layers": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta navigator layers show child-node metadata'",
     "test:e2e:impronta-navigator-layer-filtering": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta navigator layers collapse and search child nodes'",
     "test:e2e:impronta-navigator-keyboard": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta navigator keyboard controls and tab-gated action chrome'",

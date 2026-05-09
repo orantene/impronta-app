@@ -1560,6 +1560,40 @@ test.describe("smoke: login → builder → publish → share", () => {
     await expect(page).not.toHaveURL(/template=free-quickstart-5/);
   });
 
+  test("impronta pages menu opens from panel deep link", async ({ page }) => {
+    test.setTimeout(120_000);
+    await seedAnalyticsConsent(page);
+    await signIn(page, "/impronta?edit=1&panel=pages");
+    await page.waitForLoadState("domcontentloaded");
+    if (new URL(page.url()).pathname !== "/impronta") {
+      await page.goto("/impronta?edit=1&panel=pages", {
+        waitUntil: "domcontentloaded",
+      });
+    }
+    await dismissAnalyticsIfPresent(page);
+
+    const editTopbar = page.locator("[data-edit-topbar]");
+    const topbarVisible = await editTopbar
+      .waitFor({ state: "visible", timeout: 90_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!topbarVisible) {
+      const enterEdit = page.getByRole("button", { name: /edit this page|^edit$/i });
+      if (await enterEdit.isVisible().catch(() => false)) {
+        await enterEdit.click();
+      }
+      await expect(editTopbar).toBeVisible({ timeout: 90_000 });
+    }
+
+    await expect(page).not.toHaveURL(/panel=pages/);
+
+    const picker = page.locator("[data-page-picker]");
+    await expect(picker.getByRole("menu")).toBeVisible({ timeout: 15_000 });
+    await expect(
+      picker.getByRole("menuitem", { name: /manage pages/i }),
+    ).toBeVisible();
+  });
+
   test("impronta navigator layers show child-node metadata", async ({ page }) => {
     test.setTimeout(90_000);
     await openImprontaBuilder(page);
