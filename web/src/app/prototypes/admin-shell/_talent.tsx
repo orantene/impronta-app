@@ -216,6 +216,8 @@ function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversa
       role:     "Coordinator",
       initials: agencyName.slice(0, 2).toUpperCase(),
     },
+    location: row.event_location ?? undefined,
+    date:     row.event_date ?? undefined,
     lastMessage: {
       sender:  "coordinator" as const,
       preview: stage === "booked" ? "Booking confirmed — check logistics tab." : "Awaiting your response.",
@@ -236,10 +238,17 @@ function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversa
 export function useTalentConversations(): Conversation[] {
   const { effectiveTalentInquiries, bridgeTalentSelfProfile } = useProto();
   return useMemo(() => {
-    if (effectiveTalentInquiries.length > 0) {
-      const agencyName = bridgeTalentSelfProfile?.agencyName ?? "Agency";
+    // Bridge-mode: a real talent profile is in scope. Return adapted
+    // bridge data — even if it's empty (a freshly-provisioned talent
+    // genuinely has zero conversations and should see an empty inbox,
+    // not Marta's lookbook chatter).
+    if (bridgeTalentSelfProfile) {
+      const agencyName = bridgeTalentSelfProfile.agencyName ?? "Agency";
       return effectiveTalentInquiries.map((r) => adaptTalentInquiry(r, agencyName));
     }
+    // Standalone prototype / design-QA mode (no bridge identity at all).
+    // Fall back to the demo conversation set so the prototype demo still
+    // looks lively when explored without a logged-in user.
     return MOCK_CONVERSATIONS;
   }, [effectiveTalentInquiries, bridgeTalentSelfProfile]);
 }
@@ -490,8 +499,14 @@ export function TalentSurface() {
 // ─── Topbar (lighter than workspace admin) ─────────────────────────
 
 function TalentTopbar() {
-  const { state, setTalentPage, openDrawer } = useProto();
-  const profile = MY_TALENT_PROFILE;
+  const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile } = useProto();
+  // Prefer bridge data so a freshly-provisioned talent sees their own
+  // public URL in the topbar, not Marta's. The bridge supplies a
+  // `profileCode` which we resolve against the canonical /t/<code> path;
+  // fall back to MY_TALENT_PROFILE only in standalone prototype mode.
+  const previewUrl = bridgeTalentSelfProfile?.profileCode
+    ? `tulala.digital/t/${bridgeTalentSelfProfile.profileCode}`
+    : (bridgeTalentSelfProfile ? null : MY_TALENT_PROFILE.publicUrl);
   // WS-12.6 — roving tabindex on talent topbar page nav
   const talentNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(talentNavRef, "button", { orientation: "horizontal" });
@@ -577,30 +592,32 @@ function TalentTopbar() {
             isn't a primary action; talent can still preview from
             Profile / Public page. Was a chunky pill on a colored bg —
             now it's an unstyled link, calmer alongside the page nav. */}
-        <a
-          data-tulala-talent-preview-link
-          href={`https://${profile.publicUrl}`}
-          target="_blank"
-          rel="noreferrer"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            fontWeight: 500,
-            color: COLORS.inkMuted,
-            textDecoration: "none",
-            padding: "6px 4px",
-            flexShrink: 0,
-            transition: `color ${TRANSITION.micro}`,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.ink; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.inkMuted; }}
-        >
-          <Icon name="external" size={11} stroke={1.7} />
-          Preview profile
-        </a>
+        {previewUrl && (
+          <a
+            data-tulala-talent-preview-link
+            href={`https://${previewUrl}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 500,
+              color: COLORS.inkMuted,
+              textDecoration: "none",
+              padding: "6px 4px",
+              flexShrink: 0,
+              transition: `color ${TRANSITION.micro}`,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.ink; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.inkMuted; }}
+          >
+            <Icon name="external" size={11} stroke={1.7} />
+            Preview profile
+          </a>
+        )}
         <style>{`
           @media (max-width: 720px) {
             [data-tulala-talent-preview-link] { display: none !important; }
@@ -3503,7 +3520,7 @@ function MyProfilePage() {
                 marginBottom: 2,
               }}
             >
-              {100 - p.completeness}% from full health · {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left
+              {p.completeness}% complete · {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left
             </div>
             <div
               style={{
@@ -3559,7 +3576,7 @@ function MyProfilePage() {
 
       {/* ── Engagement strip ──────────────────────────────────────── */}
       <div style={{ marginTop: 20 }}>
-        <EngagementStrip />
+        <EngagementStrip profile={p} />
       </div>
 
       {/* ── Completeness + Public URL ─────────────────────────────── */}
@@ -3605,10 +3622,12 @@ function MyProfilePage() {
           </PrimaryCard>
           <PrimaryCard
             title="Public profile"
-            description={`Lives at ${p.publicUrl}. Always reflects your latest published edits.`}
+            description={p.publicUrl
+              ? `Lives at ${p.publicUrl}. Always reflects your latest published edits.`
+              : "Not published yet — fill in the essentials to publish."}
             icon={<Icon name="globe" size={14} stroke={1.7} />}
-            affordance="Open in new tab"
-            onClick={() => window.open(`https://${p.publicUrl}`, "_blank")}
+            affordance={p.publicUrl ? "Open in new tab" : undefined}
+            onClick={p.publicUrl ? () => window.open(`https://${p.publicUrl}`, "_blank") : undefined}
           >
             <div
               style={{
@@ -3787,7 +3806,7 @@ function MyProfilePage() {
         <SecondaryCard
           title="Credits & tearsheet"
           description={`${p.credits.length} entries · ${p.credits.filter(c => c.pinned).length} pinned. Pinned credits show on the public profile.`}
-          meta={`Most recent: ${p.credits[0].brand}`}
+          meta={p.credits[0] ? `Most recent: ${p.credits[0].brand}` : "No credits yet"}
           affordance="Manage credits"
           onClick={() => openSection("credits")}
           fullHeight
@@ -3804,7 +3823,7 @@ function MyProfilePage() {
           meta={
             <>
               <StatDot tone="green" />
-              {p.reviews.length} reviews · ★ {(p.reviews.reduce((s, r) => s + r.rating, 0) / p.reviews.length).toFixed(1)}
+              {p.reviews.length} reviews{p.reviews.length > 0 ? ` · ★ ${(p.reviews.reduce((s, r) => s + r.rating, 0) / p.reviews.length).toFixed(1)}` : ""}
             </>
           }
           affordance="Open reviews"
@@ -3950,12 +3969,14 @@ function MyProfilePage() {
       {/* ── Visibility & availability (existing) ───────────────────── */}
       <Divider label="Visibility & availability" />
       <Grid cols="2">
+        {/* Read-only — talents can't directly edit which agency rosters or
+            hubs feature them; the admin section that drives that is gated
+            off the talent-self drawer. Stripped the "Adjust visibility"
+            affordance rather than route to a no-op section. */}
         <SecondaryCard
           title="Where you appear"
           description="Acme Models roster · Praline London roster · Tulala hub (featured)"
           meta="3 surfaces"
-          affordance="Adjust visibility"
-          onClick={() => openSection("admin")}
         />
         <SecondaryCard
           title="Availability"
@@ -4399,18 +4420,24 @@ function ProfileHero() {
  * was eating ~600px on mobile (stacked tall cards). One white card,
  * 4 inline cells, hairline dividers. Mobile collapses 4→2x2.
  */
-function EngagementStrip() {
-  const p = MY_TALENT_PROFILE;
+function EngagementStrip({ profile }: { profile?: import("./_state").MyTalentProfile } = {}) {
+  // Take the profile as a prop so freshly-provisioned talents see their
+  // actual stats (zeros) instead of Marta's hardcoded #12 rank / 142 views.
+  // Falls back to MY_TALENT_PROFILE only when nothing was passed (legacy
+  // call sites / standalone prototype demo).
+  const p = profile ?? MY_TALENT_PROFILE;
   const items = [
-    { label: "Discover rank", value: `#${p.discoverRank}`, sub: "Updated daily", tone: COLORS.indigo },
+    { label: "Discover rank", value: p.discoverRank > 0 ? `#${p.discoverRank}` : "—", sub: p.discoverRank > 0 ? "Updated daily" : "Not yet ranked", tone: COLORS.indigo },
     {
       label: "Views · 7d",
       value: p.profileViews7d.toLocaleString(),
-      sub: `${p.viewsTrend > 0 ? "▲" : "▼"} ${Math.abs(p.viewsTrend)}% vs last week`,
+      sub: p.profileViews7d > 0
+        ? `${p.viewsTrend > 0 ? "▲" : "▼"} ${Math.abs(p.viewsTrend)}% vs last week`
+        : "No views yet",
       tone: p.viewsTrend > 0 ? COLORS.success : COLORS.amber,
     },
-    { label: "Inquiries · 7d", value: String(p.inquiries7d), sub: `${p.bookingStats.repeatClients} repeat clients`, tone: COLORS.coral },
-    { label: "On-time rate", value: `${p.bookingStats.onTimeRate}%`, sub: `${p.bookingStats.completedBookings} bookings`, tone: COLORS.success },
+    { label: "Inquiries · 7d", value: String(p.inquiries7d), sub: p.inquiries7d > 0 ? `${p.bookingStats.repeatClients} repeat clients` : "No inquiries yet", tone: COLORS.coral },
+    { label: "On-time rate", value: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.onTimeRate}%` : "—", sub: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.completedBookings} bookings` : "No bookings yet", tone: COLORS.success },
   ];
   return (
     <div data-tulala-talent-stat-strip style={{
@@ -9136,11 +9163,18 @@ function ReadReceiptRow({ msg, fromYou }: { msg: Msg; fromYou: boolean }) {
 }
 
 function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; stage: MsgStage }) {
-  const { toast } = useProto();
+  const { toast, openDrawer } = useProto();
+  // Hoist all action-card state here to satisfy Rules of Hooks.
+  const [rateVal, setRateVal] = useState((msg as { resolved?: string }).resolved ?? "");
+  const [rateSubmitted, setRateSubmitted] = useState(false);
+  const [transportChosen, setTransportChosen] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<"pending" | "confirmed" | "issues">("pending");
+  const [calState, setCalState] = useState<"pending" | "added" | "declined">("pending");
 
   if (msg.kind === "action-rate") {
-    const [val, setVal] = useState(msg.resolved ?? "");
-    const submitted = !!msg.resolved;
+    const submitted = !!msg.resolved || rateSubmitted;
+    const val = rateVal;
+    const setVal = setRateVal;
     return (
       <div
         style={{
@@ -9213,7 +9247,7 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
               />
               <span style={{ fontSize: 11, color: COLORS.inkMuted }}>/day</span>
             </div>
-            <PrimaryButton size="sm" onClick={() => toast(`Rate sent privately to coordinator · €${val}/day`)}>
+            <PrimaryButton size="sm" onClick={() => { setRateSubmitted(true); }}>
               Send
             </PrimaryButton>
           </div>
@@ -9223,41 +9257,51 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
   }
   if (msg.kind === "action-transport") {
     return (
-      <div style={{ background: "#fff", border: `1px solid rgba(194,106,69,0.30)`, borderLeft: `3px solid ${COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 380, fontFamily: FONTS.body }}>
+      <div style={{ background: "#fff", border: `1px solid ${transportChosen ? "rgba(46,125,91,0.30)" : "rgba(194,106,69,0.30)"}`, borderLeft: `3px solid ${transportChosen ? COLORS.green : COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 380, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 16 }}>🚖</span>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>Confirm your transport</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: transportChosen ? COLORS.green : COLORS.ink }}>
+            {transportChosen ? `Transport confirmed · ${transportChosen}` : "Confirm your transport"}
+          </span>
         </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {msg.options.map((opt) => (
-            <button
-              key={opt}
-              onClick={() => toast(`Transport · ${opt}`)}
-              style={{
-                background: "rgba(11,11,13,0.04)",
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 999,
-                padding: "5px 11px",
-                cursor: "pointer",
-                fontFamily: FONTS.body,
-                fontSize: 12,
-              }}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
+        {!transportChosen && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {msg.options.map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setTransportChosen(opt)}
+                style={{
+                  background: "rgba(11,11,13,0.04)",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 999,
+                  padding: "5px 11px",
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                }}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
   if (msg.kind === "action-confirm") {
+    const confirmBorderColor = confirmState === "confirmed" ? "rgba(46,125,91,0.30)" : confirmState === "issues" ? "rgba(176,52,52,0.30)" : "rgba(194,106,69,0.30)";
+    const confirmAccent = confirmState === "confirmed" ? COLORS.green : confirmState === "issues" ? "#b03434" : COLORS.coral;
     return (
-      <div style={{ background: "#fff", border: `1px solid rgba(194,106,69,0.30)`, borderLeft: `3px solid ${COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 10 }}>{msg.label}</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <PrimaryButton size="sm" onClick={() => toast("Call sheet confirmed")}>Confirm</PrimaryButton>
-          <SecondaryButton size="sm" onClick={() => toast("Issue noted — coordinator will follow up")}>Has issues</SecondaryButton>
+      <div style={{ background: "#fff", border: `1px solid ${confirmBorderColor}`, borderLeft: `3px solid ${confirmAccent}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: confirmState === "pending" ? COLORS.ink : confirmAccent, marginBottom: confirmState === "pending" ? 10 : 0 }}>
+          {confirmState === "confirmed" ? `✓ ${msg.label} — confirmed` : confirmState === "issues" ? `⚠ ${msg.label} — issues flagged` : msg.label}
         </div>
+        {confirmState === "pending" && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <PrimaryButton size="sm" onClick={() => setConfirmState("confirmed")}>Confirm</PrimaryButton>
+            <SecondaryButton size="sm" onClick={() => setConfirmState("issues")}>Has issues</SecondaryButton>
+          </div>
+        )}
       </div>
     );
   }
@@ -9293,8 +9337,16 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
           </div>
         )}
         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-          <PrimaryButton size="sm" onClick={() => toast("Added to your calendar")}>Add</PrimaryButton>
-          <SecondaryButton size="sm" onClick={() => toast("Declined")}>Decline</SecondaryButton>
+          {calState === "pending" ? (
+            <>
+              <PrimaryButton size="sm" onClick={() => setCalState("added")}>Add</PrimaryButton>
+              <SecondaryButton size="sm" onClick={() => setCalState("declined")}>Decline</SecondaryButton>
+            </>
+          ) : calState === "added" ? (
+            <div style={{ fontSize: 12, color: COLORS.green, fontWeight: 600 }}>✓ Added to your calendar</div>
+          ) : (
+            <div style={{ fontSize: 12, color: COLORS.inkMuted }}>Declined</div>
+          )}
         </div>
       </div>
     );
@@ -9309,7 +9361,12 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
         </div>
         <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8 }}>{msg.filename}</div>
         {!msg.resolved && (
-          <PrimaryButton size="sm" onClick={() => toast("Opening signing flow…")}>Review & sign</PrimaryButton>
+          <div>
+            <div style={{ opacity: 0.5, cursor: "not-allowed", display: "inline-block" }}>
+              <PrimaryButton size="sm" disabled>Review & sign</PrimaryButton>
+            </div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 5 }}>e-Signature coming soon</div>
+          </div>
         )}
       </div>
     );
@@ -9329,7 +9386,7 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
         {msg.resolved ? (
           <div style={{ fontSize: 12, color: COLORS.green, fontWeight: 600 }}>✓ {msg.resolved} polaroids delivered</div>
         ) : (
-          <PrimaryButton size="sm" onClick={() => toast("Open camera roll…")}>Upload polaroids</PrimaryButton>
+          <PrimaryButton size="sm" onClick={() => openDrawer("talent-photo-edit", { focusSlot: "gallery" })}>Upload polaroids</PrimaryButton>
         )}
       </div>
     );
@@ -11315,8 +11372,28 @@ type CalendarEvent = {
   drawer: { id: import("./_state").DrawerId; payload: Record<string, unknown> };
 };
 
+// Parse a date value that may be an ISO string ("2026-05-14") or a
+// human-readable string ("Wed, May 14") into a May day number (1-31).
+// Returns null for unparseable values or events outside May 2026.
+function parseDateToMayDay(s: string | null | undefined, endOfRange = false): number | null {
+  if (!s) return null;
+  // ISO format: "2026-05-14" or "2026-05-14T..."
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, yr, mo, dy] = isoMatch;
+    if (yr === "2026" && mo === "05") return parseInt(dy!, 10);
+    return null; // outside May 2026 — no grid position
+  }
+  // Fallback: human-readable "May 14" or "May 14–15"
+  return parseMayDay(s, endOfRange);
+}
+
 function CalendarPage() {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  // Bridge-aware conversations — same source as TalentTodayPage and
+  // TalentJobShell. When the bridge has real data, use it for the calendar.
+  const conversations = useTalentConversations();
+  const isBridgeMode = !!bridgeTalentSelfProfile;
   const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "cancelled" | "all">("booked");
   // F7: Month / Week / Day view toggle. Month is the default — week and
   // day re-render the same event list with progressive zoom-in.
@@ -11467,14 +11544,53 @@ function CalendarPage() {
     ),
   ];
 
+  // Bridge mode: replace the mock event list with real inquiry data.
+  // `conversations` is bridge-adapted when bridgeTalentSelfProfile is set,
+  // falls back to MOCK_CONVERSATIONS otherwise (handled by useTalentConversations).
+  // We only override when the bridge is actually live to avoid clobbering the
+  // demo with an empty list in standalone prototype mode.
+  const effectiveEvents: CalendarEvent[] = isBridgeMode
+    ? conversations.map((c): CalendarEvent => {
+        const kind: CalendarEventKind =
+          c.stage === "booked"    ? "booked"
+          : c.stage === "hold"   ? "pending"
+          : c.stage === "inquiry" ? "inquiry"
+          : c.stage === "cancelled" ? "cancelled"
+          : "past";
+        const startDay = parseDateToMayDay(c.date);
+        const endDay   = parseDateToMayDay(c.date, true);
+        const dateLabel = c.date
+          ? (c.date.match(/^\d{4}-\d{2}-\d{2}/)
+              ? new Date(c.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+              : c.date)
+          : "Date TBC";
+        return {
+          id: c.id,
+          kind,
+          client: c.client,
+          brief: c.brief,
+          startDay,
+          endDay,
+          dateLabel,
+          status:
+            kind === "booked"    ? `Booked${c.location ? ` · ${c.location}` : ""}`
+            : kind === "pending"  ? "Awaiting your response"
+            : kind === "inquiry"  ? "Coordinator in touch"
+            : kind === "cancelled" ? "Cancelled"
+            : "Completed",
+          drawer: { id: "inquiry-workspace", payload: { inquiryId: c.id, pov: "talent" } },
+        };
+      })
+    : events;
+
   // Conflict detection — pairs of events that share at least one day.
   // Reported as "{a} overlaps with {b}" so the talent can resolve before
   // either party expects a commitment.
   const conflicts: { a: CalendarEvent; b: CalendarEvent }[] = [];
-  for (let i = 0; i < events.length; i++) {
-    for (let j = i + 1; j < events.length; j++) {
-      const a = events[i]!;
-      const b = events[j]!;
+  for (let i = 0; i < effectiveEvents.length; i++) {
+    for (let j = i + 1; j < effectiveEvents.length; j++) {
+      const a = effectiveEvents[i]!;
+      const b = effectiveEvents[j]!;
       // Past events don't conflict with anything (already happened).
       if (a.kind === "past" || b.kind === "past") continue;
       if (a.startDay === null || b.startDay === null) continue;
@@ -11493,15 +11609,15 @@ function CalendarPage() {
     conflictedIds.add(b.id);
   }
 
-  const filteredEvents = events.filter((e) => filter === "all" || e.kind === filter);
+  const filteredEvents = effectiveEvents.filter((e) => filter === "all" || e.kind === filter);
 
   const counts = {
-    booked: events.filter((e) => e.kind === "booked").length,
-    pending: events.filter((e) => e.kind === "pending").length,
-    inquiry: events.filter((e) => e.kind === "inquiry").length,
-    past: events.filter((e) => e.kind === "past").length,
-    cancelled: events.filter((e) => e.kind === "cancelled").length,
-    all: events.length,
+    booked: effectiveEvents.filter((e) => e.kind === "booked").length,
+    pending: effectiveEvents.filter((e) => e.kind === "pending").length,
+    inquiry: effectiveEvents.filter((e) => e.kind === "inquiry").length,
+    past: effectiveEvents.filter((e) => e.kind === "past").length,
+    cancelled: effectiveEvents.filter((e) => e.kind === "cancelled").length,
+    all: effectiveEvents.length,
   };
 
   return (
@@ -11600,13 +11716,13 @@ function CalendarPage() {
       {/* Week view — 7-row stack with day labels. Same row format as
           the list below but explicitly grouped by day. */}
       {viewMode === "week" && (
-        <CalendarWeekView events={events} onOpen={(d) => openDrawer(d.id, d.payload)} />
+        <CalendarWeekView events={effectiveEvents} onOpen={(d) => openDrawer(d.id, d.payload)} />
       )}
 
       {/* Day view — single-day timeline with morning/afternoon/evening
           buckets. Uses the same event source. */}
       {viewMode === "day" && (
-        <CalendarDayView events={events} onOpen={(d) => openDrawer(d.id, d.payload)} />
+        <CalendarDayView events={effectiveEvents} onOpen={(d) => openDrawer(d.id, d.payload)} />
       )}
 
       <div style={{ height: 24 }} />
@@ -11738,7 +11854,10 @@ function CalendarPage() {
         </div>
       </section>
 
-      <ICalSubscribeCard talentName={MY_TALENT_PROFILE.name} slug="marta-reyes" />
+      <ICalSubscribeCard
+        talentName={bridgeTalentSelfProfile?.displayName ?? MY_TALENT_PROFILE.name}
+        slug={bridgeTalentSelfProfile?.profileCode ?? "marta-reyes"}
+      />
     </>
   );
 }
@@ -14315,8 +14434,20 @@ function TalentTrustCard({ onOpenDetail }: { onOpenDetail: () => void }) {
 }
 
 function SettingsPage() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile } = useProto();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useProto();
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
+  const settingsAgencies = bridgeTalentAgencies !== null
+    ? bridgeTalentAgencies.map((a) => ({
+        id:          a.id,
+        name:        a.agencyName,
+        status:      (["exclusive", "non-exclusive"] as const).includes(a.rosterStatus as never)
+                       ? (a.rosterStatus as "exclusive" | "non-exclusive")
+                       : ("non-exclusive" as const),
+        joinedAt:    a.addedAt,
+        isPrimary:   a.isPrimary,
+        bookingsYTD: 0,
+      }))
+    : MY_AGENCIES;
   // Settings privacy → admin section of profile shell. Same funnel
   // as MyProfilePage / ProfileHero / TalentTodayPage.
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
@@ -14339,7 +14470,10 @@ function SettingsPage() {
       {/* Account security — passkey-based sign-in (WebAuthn). Real
           navigator.credentials API; in this prototype the credential ID
           round-trips localStorage instead of a server. */}
-      <PasskeysCard userName={MY_TALENT_PROFILE.name} userId="talent-self" />
+      <PasskeysCard
+        userName={bridgeTalentSelfProfile?.displayName ?? MY_TALENT_PROFILE.name}
+        userId={bridgeTalentSelfProfile?.id ?? "talent-self"}
+      />
 
       {/* A4 cross-link banner — Reach owns distribution decisions; Privacy
           here is just the locked / sensitive bits. */}
@@ -14422,7 +14556,7 @@ function SettingsPage() {
 
       <Divider label="Agencies" />
       <Grid cols="auto">
-        {MY_AGENCIES.map((a) => (
+        {settingsAgencies.map((a) => (
           <SecondaryCard
             key={a.id}
             title={a.name}
@@ -15007,8 +15141,35 @@ function WeekRhythmStrip() {
 // ════════════════════════════════════════════════════════════════════
 
 function AgenciesPage() {
-  const { openDrawer, setTalentPage, toast } = useProto();
+  const { openDrawer, setTalentPage, toast, bridgeTalentAgencies } = useProto();
   const [requestSent, setRequestSent] = useState<string | null>(null);
+
+  // Bridge-aware: when the layout supplied real agency relationships, use
+  // them (even if empty — a freshly-provisioned talent has zero agencies
+  // and should see an empty state, not Marta's Atelier Roma + Praline +
+  // Estudio Solé). Standalone prototype mode keeps MY_AGENCIES so the
+  // demo still looks lively.
+  const agencies = bridgeTalentAgencies !== null
+    ? bridgeTalentAgencies.map((a) => ({
+        id: a.id,
+        name: a.agencyName,
+        slug: a.agencySlug,
+        joinedAt: a.addedAt,
+        isPrimary: a.isPrimary,
+        // Map bridge `rosterStatus` → demo `status` vocabulary used below.
+        // active/exclusive/non-exclusive/ended/pending — anything not
+        // explicitly recognized lands as "active".
+        status: (["active", "exclusive", "non-exclusive", "ended", "pending"] as const)
+          .includes(a.rosterStatus as never)
+          ? (a.rosterStatus as "active" | "exclusive" | "non-exclusive" | "ended" | "pending")
+          : ("active" as const),
+        bookingsYTD: 0, // bridge doesn't carry this yet
+        planTier: (["free", "studio", "agency"] as const).includes(a.plan as never)
+          ? (a.plan as "free" | "studio" | "agency")
+          : ("free" as const),
+        commissionRate: 0, // future: derive from plan or per-agency override
+      }))
+    : MY_AGENCIES;
 
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", padding: "24px 0" }}>
@@ -15025,9 +15186,9 @@ function AgenciesPage() {
       {/* Active agencies */}
       <section style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkDim, fontFamily: FONTS.body, marginBottom: 12 }}>
-          Your agencies ({MY_AGENCIES.length})
+          Your agencies ({agencies.length})
         </div>
-        {MY_AGENCIES.length === 0 ? (
+        {agencies.length === 0 ? (
           <div
             style={{
               background: "#fff",
@@ -15044,7 +15205,7 @@ function AgenciesPage() {
           </div>
         ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {MY_AGENCIES.map((ag) => (
+          {agencies.map((ag) => (
             <div
               key={ag.id}
               style={{
@@ -15164,8 +15325,18 @@ function AgenciesPage() {
 // ════════════════════════════════════════════════════════════════════
 
 function PublicPageEditor() {
-  const { openDrawer, toast } = useProto();
-  const profile   = MY_TALENT_PROFILE;
+  const { openDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  // Prefer the real bridge profile so a freshly-provisioned talent sees
+  // their own canonical /t/<profile_code> URL, not Marta's. Standalone
+  // prototype mode (no bridge) keeps the demo MY_TALENT_PROFILE.
+  const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
+  const profile = bridgeTalentSelfProfile && !TALENT_PROFILES_BY_ID[selfTalentId]
+    ? buildFreshTalentProfile(bridgeTalentSelfProfile)
+    : MY_TALENT_PROFILE;
+  // The canonical share URL — /t/<profile_code> when the bridge has a
+  // real talent profile, otherwise the demo slug derived from the name.
+  const publicSlug = bridgeTalentSelfProfile?.profileCode
+    ?? profile.name.toLowerCase().replace(/\s+/g, "-");
   const [preview, setPreview] = useState(false);
 
   const tier = profile.subscription?.tier ?? "basic";
@@ -15181,7 +15352,7 @@ function PublicPageEditor() {
             Public page
           </h2>
           <p style={{ fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body, margin: "4px 0 0" }}>
-            tulala.digital/t/{profile.name.toLowerCase().replace(/\s+/g, "-")}
+            tulala.digital/t/{publicSlug}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>

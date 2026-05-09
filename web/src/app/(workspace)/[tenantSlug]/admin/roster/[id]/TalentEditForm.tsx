@@ -14,7 +14,7 @@ import {
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero } from "./extended-actions";
-import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive, actionReorderMediaAssets } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 
 // ─── Design tokens (match workspace shell) ────────────────────────────────────
 
@@ -435,6 +435,8 @@ function ThreeSlotPhotoPanel({
 }) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialPhotoUrl);
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
+  const [currentAvatarAssetId, setCurrentAvatarAssetId] = useState<string | null>(null);
+  const [currentHeroAssetId, setCurrentHeroAssetId] = useState<string | null>(null);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [focusSlot, setFocusSlot] = useState<"avatar" | "hero" | "gallery">("gallery");
@@ -446,9 +448,16 @@ function ThreeSlotPhotoPanel({
     void actionLoadTalentMediaBundle(talentId).then((res) => {
       if (!res.ok) return;
       const all: MediaAsset[] = [];
-      const { card, cover, gallery } = res.data;
-      if (card) { all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 }); setAvatarUrl(card.url); }
-      if (cover) all.push({ id: cover.id, url: cover.url, variantKind: "banner", sortOrder: 0 });
+      const { card, hero, gallery } = res.data;
+      if (card) {
+        all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
+        setAvatarUrl(card.url);
+        setCurrentAvatarAssetId(card.id);
+      }
+      if (hero) {
+        all.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
+        setCurrentHeroAssetId(hero.id);
+      }
       for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder });
       setAssets(all);
     });
@@ -471,14 +480,16 @@ function ThreeSlotPhotoPanel({
             imageUrl={avatarUrl}
             squareSize={72}
             onClick={() => { setFocusSlot("avatar"); setGalleryOpen(true); }}
+            onRemove={avatarUrl ? () => setAvatarUrl(null) : undefined}
           />
-          {/* Hero slot */}
+          {/* Cover slot */}
           <SlotButton
-            label="Hero" hint="4:5"
+            label="Cover" hint="4:5"
             imageUrl={heroUrl}
             squareSize={58}
             heightPx={72}
             onClick={() => { setFocusSlot("hero"); setGalleryOpen(true); }}
+            onRemove={heroUrl ? () => setHeroUrl(null) : undefined}
           />
           {/* Gallery */}
           <button
@@ -508,11 +519,14 @@ function ThreeSlotPhotoPanel({
           assets={assets}
           onAssetsChange={setAssets}
           focusSlot={focusSlot}
+          currentAvatarAssetId={currentAvatarAssetId}
+          currentHeroAssetId={currentHeroAssetId}
           onSetAvatar={async (mediaAssetId) => {
             const res = await setTalentAvatar(tenantSlug, talentId, mediaAssetId);
             if (res.ok) {
               const hit = assets.find(a => a.id === mediaAssetId);
               if (hit) setAvatarUrl(hit.url);
+              setCurrentAvatarAssetId(mediaAssetId);
             }
             return res;
           }}
@@ -521,10 +535,17 @@ function ThreeSlotPhotoPanel({
             if (res.ok) {
               const hit = assets.find(a => a.id === mediaAssetId);
               if (hit) setHeroUrl(hit.url);
+              setCurrentHeroAssetId(mediaAssetId);
             }
             return res;
           }}
-          onAddToPortfolio={async (storagePath) => {
+          onAddToPortfolio={async (urlOrPath) => {
+            // The gallery drawer passes asset.url (a full CDN URL). Extract the
+            // relative storage path before persisting so storage_path stays relative.
+            const BUCKET_PREFIX = process.env.NEXT_PUBLIC_SUPABASE_URL + '/storage/v1/object/public/media-public/';
+            const storagePath = urlOrPath.startsWith(BUCKET_PREFIX)
+              ? urlOrPath.slice(BUCKET_PREFIX.length)
+              : urlOrPath;
             const { registerPortfolioPhoto } = await import("./extended-actions");
             const res = await registerPortfolioPhoto(tenantSlug, talentId, { storagePath });
             if (res.ok) return { ok: true, id: res.data?.id };
@@ -535,10 +556,20 @@ function ThreeSlotPhotoPanel({
             if (res.ok) setAssets(prev => prev.filter(a => a.id !== mediaAssetId));
             return res;
           }}
+          onImportFromDrive={async (driveUrl) => {
+            const res = await actionImportFromGoogleDrive(driveUrl, talentId);
+            if (!res.ok) return { ok: false, error: res.error };
+            return { ok: true, assets: res.data.assets };
+          }}
+          onReorderAssets={async (orderedIds) => {
+            const res = await actionReorderMediaAssets(orderedIds);
+            if (!res.ok) return { ok: false, error: res.error };
+            return { ok: true };
+          }}
           onUploadFile={async (file, variantKind) => {
             const fd = new FormData();
             fd.append("file", file);
-            const allowed = ["gallery", "card", "banner", "lightbox"] as const;
+            const allowed = ["gallery", "card", "hero", "lightbox"] as const;
             const kind = allowed.includes(variantKind as typeof allowed[number])
               ? (variantKind as typeof allowed[number])
               : "gallery";
@@ -556,7 +587,7 @@ function ThreeSlotPhotoPanel({
 }
 
 function SlotButton({
-  label, hint, imageUrl, squareSize, heightPx, onClick,
+  label, hint, imageUrl, squareSize, heightPx, onClick, onRemove,
 }: {
   label: string;
   hint: string;
@@ -564,29 +595,48 @@ function SlotButton({
   squareSize: number;
   heightPx?: number;
   onClick: () => void;
+  onRemove?: () => void;
 }) {
   const h = heightPx ?? squareSize;
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-      <button
-        type="button"
-        onClick={onClick}
-        style={{
-          width: squareSize, height: h,
-          borderRadius: 8, overflow: "hidden",
-          border: imageUrl ? `2px solid rgba(15,79,62,0.25)` : `1.5px dashed rgba(15,79,62,0.3)`,
-          background: imageUrl ? "transparent" : C.accentSoft,
-          cursor: "pointer", padding: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          <span style={{ fontSize: 20, opacity: 0.35 }}>📷</span>
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          onClick={onClick}
+          style={{
+            width: squareSize, height: h,
+            borderRadius: 8, overflow: "hidden",
+            border: imageUrl ? `2px solid rgba(15,79,62,0.25)` : `1.5px dashed rgba(15,79,62,0.3)`,
+            background: imageUrl ? "transparent" : C.accentSoft,
+            cursor: "pointer", padding: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          {imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <span style={{ fontSize: 20, opacity: 0.35 }}>📷</span>
+          )}
+        </button>
+        {imageUrl && onRemove && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            aria-label={`Remove ${label}`}
+            style={{
+              position: "absolute", top: 4, right: 4,
+              width: 18, height: 18, borderRadius: "50%",
+              background: "rgba(0,0,0,0.6)", border: "none",
+              color: "#fff", fontSize: 11, lineHeight: 1,
+              cursor: "pointer", display: "flex",
+              alignItems: "center", justifyContent: "center",
+              padding: 0,
+            }}
+          >×</button>
         )}
-      </button>
+      </div>
       <div style={{ textAlign: "center" }}>
         <div style={{ fontFamily: F, fontSize: 10, fontWeight: 600, color: C.ink }}>{label}</div>
         <div style={{ fontFamily: F, fontSize: 9, color: C.inkMuted }}>{hint}</div>

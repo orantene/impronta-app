@@ -30,7 +30,7 @@ import {
   updateSelfCredits, updateSelfLimits, updateSelfSocialProof, saveSelfLanguages, updateSelfIdentity,
 } from "@/lib/server-actions/talent-self-profile-sections";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, loadAgencyBrandingSettings, loadWorkspaceAccountSettings, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
-import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero, registerPortfolioPhoto } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions";
 import { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
@@ -187,6 +187,7 @@ import {
   computeTrustTier,
   WEBSITE_STATE,
 } from "./_state";
+import type { TalentSelfProfile as BridgeTalentSelfProfile } from "./_data-bridge";
 import {
   sectionAppliesToType,
   isRequiredForType,
@@ -1047,7 +1048,7 @@ function Section({
 // ════════════════════════════════════════════════════════════════════
 
 function TenantSummaryDrawer() {
-  const { state, closeDrawer, openDrawer, openUpgrade, effectiveRoster, effectiveTeamMembers } = useProto();
+  const { state, closeDrawer, openDrawer, openUpgrade, effectiveRoster, effectiveTeamMembers, effectiveTenant } = useProto();
   const planMeta = PLAN_META[state.plan];
   const rosterCount = effectiveRoster.length;
   const rosterCap = state.plan === "free" ? 5 : state.plan === "studio" ? 50 : state.plan === "agency" ? 200 : 999;
@@ -1065,7 +1066,7 @@ function TenantSummaryDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title={TENANT.name.toUpperCase()}
+      title={effectiveTenant.name.toUpperCase()}
       description={`${planMeta.label} plan · ${planPrice(state.plan)}`}
       footer={
         <>
@@ -3028,7 +3029,7 @@ function TaxonomyToggleRow({ label, desc, value, onChange }: { label: string; de
 type RegValues = Record<string, string | string[]>;
 
 function TalentRegistrationDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, effectiveTenant } = useProto();
   const open = state.drawer.drawerId === "talent-registration";
   const [step, setStep] = useState(0);
   const [stageName, setStageName] = useState("");
@@ -3187,14 +3188,14 @@ function TalentRegistrationDrawer() {
   const canStep6 = languages.length > 0;
 
   const steps: { title: string; sub: string; canNext: boolean }[] = [
-    { title: `Join ${TENANT.name}`, sub: "Create your talent profile in a few minutes.", canNext: canStep0 },
+    { title: `Join ${effectiveTenant.name}`, sub: "Create your talent profile in a few minutes.", canNext: canStep0 },
     { title: "What do you offer?", sub: "Pick the categories you want to be booked under.", canNext: canStep1 },
     { title: "Choose your exact Talent Type", sub: "We'll match you to the right inquiries.", canNext: canStep2 },
     { title: "Where do you work?", sub: "Home base + how far you'll travel.", canNext: canStep3 },
     { title: "Photos", sub: "At least 3 photos. Start with a clean headshot.", canNext: canStep4 },
     { title: "Profile details", sub: "A few extra fields based on your Talent Types.", canNext: canStep5 },
     { title: "Languages & skills", sub: "Languages with levels — and any extra strengths.", canNext: canStep6 },
-    { title: "Review & submit", sub: `${TENANT.name} reviews new profiles within 1 business day.`, canNext: true },
+    { title: "Review & submit", sub: `${effectiveTenant.name} reviews new profiles within 1 business day.`, canNext: true },
   ];
 
   const cur = steps[step]!;
@@ -3280,7 +3281,7 @@ function TalentRegistrationDrawer() {
                 {reachCount}
               </div>
               <div style={{ fontSize: 14, color: COLORS.inkMuted, marginTop: 8, fontWeight: 500 }}>
-                clients on the {TENANT.name} hub will see your profile
+                clients on the {effectiveTenant.name} hub will see your profile
               </div>
               <h2 style={{
                 margin: "20px 0 6px",
@@ -3295,7 +3296,7 @@ function TalentRegistrationDrawer() {
                 textAlign: "left",
               }}>
                 {[
-                  { n: 1, label: `${TENANT.name} reviews your profile`, sub: "Usually within 1 business day" },
+                  { n: 1, label: `${effectiveTenant.name} reviews your profile`, sub: "Usually within 1 business day" },
                   { n: 2, label: "We publish you to the hub", sub: "Visible to verified clients only" },
                   { n: 3, label: "Your first inquiry lands", sub: "We'll email + push you when it does" },
                 ].map(item => (
@@ -3367,7 +3368,7 @@ function TalentRegistrationDrawer() {
                 background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
                 fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
               }}>
-                You're registering with <strong>{TENANT.name}</strong>. They'll review your profile before publishing.
+                You're registering with <strong>{effectiveTenant.name}</strong>. They'll review your profile before publishing.
               </div>
             </div>
           )}
@@ -3618,13 +3619,13 @@ function TalentRegistrationDrawer() {
               </div>
 
               {/* Privacy / consent — two-column "what this agency will use" */}
-              <ConsentTwoCol agencyName={TENANT.name} />
+              <ConsentTwoCol agencyName={effectiveTenant.name} />
 
               <div style={{
                 padding: "12px 14px", borderRadius: 10, background: COLORS.successSoft,
                 color: COLORS.successDeep, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5,
               }}>
-                Tap <strong>Submit for review</strong> to agree to the above and join {TENANT.name}. You'll get an email when they approve you — usually within 1 business day.
+                Tap <strong>Submit for review</strong> to agree to the above and join {effectiveTenant.name}. You'll get an email when they approve you — usually within 1 business day.
               </div>
             </div>
           )}
@@ -4287,10 +4288,6 @@ type ProfileState = {
   seasonalWindows: SeasonalWindow[];
 
   // Media
-  /** Wide editorial banner shown at the top of the public profile.
-   *  Distinct from the avatar/main photo — this is the storyboard. */
-  coverPhotoUrl: string | null;
-  coverPhotoAssetId: string | null;
   /** Albums now carry per-photo metadata (tag, alt, caption). */
   albumsPro: { id: string; name: string; items: PhotoMeta[] }[];
   activeAlbumId: string;
@@ -4398,7 +4395,11 @@ function profileReducer(state: ProfileState, action: ProfileAction): ProfileStat
   }
 }
 
-function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean): ProfileState {
+function makeInitialProfileState(
+  payload: ProfileShellPayload,
+  isSelf: boolean,
+  bridgeProfile: BridgeTalentSelfProfile | null = null,
+): ProfileState {
   const seed = payload.seed ?? {};
   // Phase B — resolve canonical profile by talentId. When the drawer
   // is opened from a roster row click, payload.talentId is set; we
@@ -4456,13 +4457,21 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     emailVerified: !!draft.email,
     phoneVerified: false,
   };
-  // Display name resolution: explicit seed > draft display > draft First+Last
-  // > canonical profile name (Phase B) > fallback. Canonical profile is
-  // queried by talentId so any roster talent's name flows through cleanly.
+  // Display name resolution. Priority order:
+  //   1. explicit seed.stageName (registration wizard)
+  //   2. shared QuickAdd draft (admin → "Add talent" flow)
+  //   3. real bridge profile displayName (talent self-edit on real DB row)
+  //   4. fixture canonical profile name (prototype mock talents)
+  //   5. fallback "Sofia Lupo"
+  // Without #3 the drawer fell back to canonicalProfile.name = MY_TALENT_PROFILE.name
+  // for any non-fixture talent — i.e. every real DB talent — and pre-filled
+  // their identity field with "Marta Reyes".
   const draftDisplay = draft.displayName?.trim()
     || `${draft.firstName?.trim() ?? ""} ${draft.lastName?.trim() ?? ""}`.trim();
   const stageName = seed.stageName
-    ?? (draftDisplay || (payload.talentId ? canonicalProfile.name : "Sofia Lupo"));
+    ?? (draftDisplay
+      || (bridgeProfile && !isFixtureTalent ? bridgeProfile.displayName : null)
+      || (payload.talentId ? canonicalProfile.name : "Sofia Lupo"));
   // Bridge MY_TALENT_PROFILE → ProfileState for the canonical demo
   // talent (Marta). When the workspace admin opens "her" or the talent
   // Phase B — bridge canonical profile → ProfileState. Works for any
@@ -4530,7 +4539,11 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     aspirations: [],
     specialties: seed.specialties ?? (isFixtureTalent ? [...canonicalProfile.specialties] : []),
     serviceArea: {
-      homeBase: seed.homeBase ?? draft.homeBase ?? "",
+      // Same priority logic as stageName: bridge wins over fixture for
+      // real talents so QA admin's drawer doesn't open with "Madrid".
+      homeBase: seed.homeBase
+        ?? draft.homeBase
+        ?? (bridgeProfile && !isFixtureTalent ? (bridgeProfile.homeCity ?? "") : ""),
       serviceCities: seed.serviceCities ?? [],
       travelKm: seed.travelKm ?? 50,
       travelFee: false,
@@ -4544,8 +4557,6 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
       visaCountries: bridgeFromMyTalent.visaCountries,
     },
     seasonalWindows: [],
-    coverPhotoUrl: null,
-    coverPhotoAssetId: null,
     albumsPro: [{ id: "main", name: "Main", items }],
     activeAlbumId: "main",
     videoLinks: [],
@@ -4615,7 +4626,20 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
     contexts: [],
     pastClients: [],
     verifications,
-    profileStatus: isSelf ? "published" : "draft",
+    // Default profile status. Self-edit drawer used to assume "published"
+    // (matched the demo Marta who's already live), but that's wrong for a
+    // freshly-provisioned talent — their workflow_status is "draft" until
+    // they actually publish. Read the real value from the bridge when
+    // available; fall back to the legacy default for fixture / standalone
+    // demo mode.
+    profileStatus:
+      bridgeProfile?.workflowStatus === "published"
+        ? "published"
+        : bridgeProfile?.workflowStatus === "pending"
+        ? "pending"
+        : bridgeProfile?.workflowStatus === "invited" || bridgeProfile?.workflowStatus === "draft"
+        ? "draft"
+        : (isSelf ? "published" : "draft"),
     featureInDirectory: false,
     internalNotes: "",
     // Bridge from canonical profile's emergencyContact when known.
@@ -4636,7 +4660,7 @@ function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean):
 // ════════════════════════════════════════════════════════════════════
 
 function TalentProfileShellDrawer() {
-  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity } = useProto();
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant } = useProto();
   const shellRouter = useRouter();
   const drawerId = protoState.drawer.drawerId;
   const drawerOpen = drawerId === "talent-profile-shell" || drawerId === "talent-profile-edit";
@@ -4651,7 +4675,13 @@ function TalentProfileShellDrawer() {
   // ── Reducer with history (undo/redo) ─────────────────────────────
   const initialState = useRef<ProfileState | null>(null);
   if (initialState.current === null) {
-    initialState.current = makeInitialProfileState(payload, isSelf);
+    // Pass `bridgeTalentSelfProfile` so the seed uses the real talent's
+    // displayName / homeCity for self-edit drawers on real DB rows.
+    // Without this thread-through, the drawer falls back to the fixture
+    // canonical profile (Marta Reyes) for any non-fixture talent — i.e.
+    // every real freshly-provisioned talent — and pre-fills the identity
+    // section with Marta's name and Madrid as the home base.
+    initialState.current = makeInitialProfileState(payload, isSelf, bridgeTalentSelfProfile);
   }
   const [state, dispatch] = React.useReducer(profileReducer, initialState.current);
   const historyRef = useRef<ProfileState[]>([initialState.current]);
@@ -4719,8 +4749,6 @@ function TalentProfileShellDrawer() {
   const patchLanguages = React.useCallback((v: ProfileState["languages"]) => patch({ languages: v }), [patch]);
   const patchPastClients = React.useCallback((c: ProfileState["pastClients"]) => patch({ pastClients: c }), [patch]);
   const patchVideoLinks = React.useCallback((v: string[]) => patch({ videoLinks: v }), [patch]);
-  const patchCoverUrl = React.useCallback((u: string | null) => patch({ coverPhotoUrl: u }), [patch]);
-  const patchCoverAssetId = React.useCallback((id: string | null) => patch({ coverPhotoAssetId: id }), [patch]);
   const patchHelloReel = React.useCallback((r: ProfileState["helloReel"]) => patch({ helloReel: r }), [patch]);
   const patchPolaroids = React.useCallback((p: ProfileState["polaroids"]) => patch({ polaroids: p }), [patch]);
   const patchRates = React.useCallback((rs: ProfileState["rates"]) => patch({ rates: rs }), [patch]);
@@ -4767,6 +4795,12 @@ function TalentProfileShellDrawer() {
   // the first album so nothing disappears from the UI.
   const hydratedGalleryForRef = useRef<string | null>(null);
   const [hydratingMedia, setHydratingMedia] = useState(false);
+  // Stash the latest state in a ref so effects/callbacks below can read the
+  // current value without forcing a `state` dep (which would re-fire on every
+  // keystroke). Declared up here because the gallery→albums sync useEffect
+  // needs it. Re-assigned every render so it always points at the latest state.
+  const stateRef = useRef(state);
+  stateRef.current = state;
   useEffect(() => {
     if (!drawerOpen || mode === "create") return;
     const tid = payload.talentId;
@@ -4777,41 +4811,42 @@ function TalentProfileShellDrawer() {
     void actionLoadTalentMediaBundle(tid).then((res) => {
       setHydratingMedia(false);
       if (!res.ok) return;
-      const { gallery, cover, polaroids, card } = res.data;
+      const { gallery, hero, polaroids, card } = res.data;
 
       // Populate Phase 1 avatar/hero local state.
       if (card?.url) setAvatarPhotoUrl(card.url);
-      // Hero is a future enum value — check by variantKind string.
-      const heroItem = (res.data as { hero?: { url: string } | null }).hero;
-      if (heroItem?.url) setHeroPhotoUrl(heroItem.url);
+      if (hero?.url) setHeroPhotoUrl(hero.url);
 
-      // Populate gallery assets for MediaGalleryDrawer.
-      const allAssets: import("@/components/talent/media-gallery-drawer").MediaAsset[] = [];
+      // Populate gallery assets for MediaGalleryDrawer. Attach the row's
+      // metadata at runtime (the MediaAsset interface doesn't declare it,
+      // but the album-sync useEffect below reads it via cast). New uploads
+      // through MediaGalleryDrawer arrive without metadata and fall back to
+      // the first album, which is what we want.
+      type AssetWithMeta = import("@/components/talent/media-gallery-drawer").MediaAsset & {
+        metadata?: Record<string, unknown>;
+      };
+      const allAssets: AssetWithMeta[] = [];
       if (card) allAssets.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
-      if (cover) allAssets.push({ id: cover.id, url: cover.url, variantKind: "banner", sortOrder: 0 });
-      for (const g of gallery) allAssets.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder });
+      if (hero) allAssets.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
+      for (const g of gallery) allAssets.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder, metadata: g.metadata ?? {} });
       setGalleryAssets(allAssets);
 
-      // Group gallery items by their stored albumId. Items with no albumId
-      // fall back to the first album (typically "main"). Discover any albumIds
-      // not in the current albumsPro and create empty albums for them so
-      // photos uploaded before to a now-deleted album still surface.
+      // Discover any albumIds in stored metadata not present in the current
+      // albumsPro and create empty placeholder albums for them so photos
+      // uploaded against now-deleted albums still surface. The actual photo
+      // contents are populated by the reactive useEffect below.
       const fallbackAlbumId = state.albumsPro[0]?.id ?? "main";
-      const byAlbum = new Map<string, PhotoMeta[]>();
+      const knownIds = new Set(state.albumsPro.map(a => a.id));
+      const extraAlbumIds = new Set<string>();
       for (const g of gallery) {
         const aid = (g.metadata?.albumId as string | undefined) ?? fallbackAlbumId;
-        const item: PhotoMeta = { url: g.url, mediaAssetId: g.id };
-        const list = byAlbum.get(aid) ?? [];
-        list.push(item);
-        byAlbum.set(aid, list);
+        if (!knownIds.has(aid)) extraAlbumIds.add(aid);
       }
-
-      const knownIds = new Set(state.albumsPro.map(a => a.id));
-      const extraAlbums = [...byAlbum.keys()]
-        .filter(id => !knownIds.has(id))
-        .map(id => ({ id, name: id.replace(/-[a-z0-9]{4,}$/, "").replace(/-/g, " ") || "Untitled", items: byAlbum.get(id) ?? [] }));
-
-      const updatedAlbums = state.albumsPro.map(a => byAlbum.has(a.id) ? { ...a, items: byAlbum.get(a.id)! } : { ...a, items: a.id === fallbackAlbumId ? (byAlbum.get(fallbackAlbumId) ?? []) : a.items });
+      const extraAlbums = [...extraAlbumIds].map(id => ({
+        id,
+        name: id.replace(/-[a-z0-9]{4,}$/, "").replace(/-/g, " ") || "Untitled",
+        items: [] as PhotoMeta[],
+      }));
 
       const polaroidsHydrated = state.polaroids.map(p => {
         const hit = polaroids[p.id];
@@ -4819,14 +4854,40 @@ function TalentProfileShellDrawer() {
       });
 
       patch({
-        albumsPro: [...updatedAlbums, ...extraAlbums],
-        coverPhotoUrl: cover?.url ?? null,
-        coverPhotoAssetId: cover?.id ?? null,
+        albumsPro: extraAlbums.length > 0 ? [...state.albumsPro, ...extraAlbums] : state.albumsPro,
         polaroids: polaroidsHydrated,
       });
     }).catch(() => setHydratingMedia(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerOpen, mode, payload.talentId]);
+
+  // Keep albumsPro photo lists in sync with galleryAssets. Without this,
+  // photos uploaded/deleted via MediaGalleryDrawer after the drawer opens
+  // would update the gallery but leave the Albums section showing stale
+  // counts (Main · 0). Runs whenever the gallery list changes — including
+  // the initial bundle hydration above.
+  useEffect(() => {
+    const galleryItems = galleryAssets.filter(a => a.variantKind === "gallery");
+    if (galleryItems.length === 0) return; // don't wipe albums on empty initial state
+    const fallbackAlbumId = stateRef.current.albumsPro[0]?.id ?? "main";
+    const byAlbum = new Map<string, PhotoMeta[]>();
+    for (const g of galleryItems) {
+      const meta = (g as { metadata?: Record<string, unknown> }).metadata;
+      const aid = (meta?.albumId as string | undefined) ?? fallbackAlbumId;
+      const list = byAlbum.get(aid) ?? [];
+      list.push({ url: g.url, mediaAssetId: g.id });
+      byAlbum.set(aid, list);
+    }
+    const updatedAlbums = stateRef.current.albumsPro.map(a =>
+      byAlbum.has(a.id)
+        ? { ...a, items: byAlbum.get(a.id)! }
+        : a.id === fallbackAlbumId
+          ? { ...a, items: byAlbum.get(fallbackAlbumId) ?? [] }
+          : a
+    );
+    patch({ albumsPro: updatedAlbums });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [galleryAssets]);
 
   // Prefetch skills data as soon as the drawer opens so the Services tab loads
   // from cache instead of waiting for a live server action call.
@@ -4844,11 +4905,8 @@ function TalentProfileShellDrawer() {
   type SaveStatus = "idle" | "saving" | "saved" | "error";
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
-  // Stash the latest state in a ref so saveAll always reads the current value
-  // without forcing the callback's dep array to include `state` (which would
-  // re-create the callback on every keystroke).
-  const stateRef = useRef(state);
-  stateRef.current = state;
+  // stateRef is declared above (near the media hydration block) — saveAll
+  // reads from it so we can keep `state` out of this callback's dep array.
 
   const saveAll = React.useCallback(async () => {
     const tid = payload.talentId;
@@ -5529,7 +5587,7 @@ function TalentProfileShellDrawer() {
           note,
         });
       }
-      toast(`Submitted to ${TENANT.name} · they'll review within 1 business day`);
+      toast(`Submitted to ${effectiveTenant.name} · they'll review within 1 business day`);
     } else {
       // Admin path clears the pending-review queue so the strip on
       // the roster page goes away after action. Safe no-op when the
@@ -6137,11 +6195,12 @@ function TalentProfileShellDrawer() {
             {/* "Add N to publish" coach moved to the drawer header. The
                 FirstTimeHero (only fires for very low completeness) still
                 lives in-form because it's a richer onboarding moment. */}
-            {completeness < 35 && (
+            {completeness < 35 && !localStorage.getItem("tulala.welcome.dismissed." + (payload.talentId ?? "")) && (
               <div data-pshell-form-banners>
                 <FirstTimeHero
                   completeness={completeness}
                   onStart={(sectionId) => setActiveSection(sectionId)}
+                  talentId={payload.talentId ?? ""}
                 />
               </div>
             )}
@@ -6149,6 +6208,7 @@ function TalentProfileShellDrawer() {
             <ThreeSlotPhotoBlock
               avatarUrl={avatarPhotoUrl}
               heroUrl={heroPhotoUrl}
+              galleryPhotos={galleryAssets.filter(a => a.variantKind === "gallery").map(a => a.url)}
               onOpenSlot={(slot) => {
                 setGalleryDrawerFocus(slot);
                 setGalleryDrawerOpen(true);
@@ -6495,48 +6555,18 @@ function TalentProfileShellDrawer() {
               </div>
             </ProfileAccordionSection>
 
-            {/* MEDIA — cover banner + gallery for active album */}
+            {/* VIDEO — hello reel + social/video links */}
             <ProfileAccordionSection
-              id="media" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Media"
-              sub="Cover, main photo, portfolio. First photo is the avatar."
+              id="media" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Video"
+              sub="Hello reel and social links. Upload photos from the photo block above."
               complete={sectionComplete.media} started={sectionStarted.media}
               open={activeSection === "media"}
               onToggle={() => setActiveSection(activeSection === "media" ? "" : "media")}
             >
-              {hydratingMedia && (
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "8px 12px", marginBottom: 10,
-                  borderRadius: 8, background: "rgba(15,79,62,0.06)",
-                  border: `1px solid rgba(15,79,62,0.18)`,
-                  fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, color: COLORS.accentDeep,
-                }}>
-                  <span style={{
-                    width: 12, height: 12, borderRadius: "50%",
-                    border: "2px solid rgba(15,79,62,0.25)", borderTopColor: COLORS.accent,
-                    animation: "tulala-spin 0.8s linear infinite",
-                  }} />
-                  <style>{`@keyframes tulala-spin { to { transform: rotate(360deg); } }`}</style>
-                  Loading your saved photos…
-                </div>
-              )}
-              <CoverPhotoEditor
-                url={state.coverPhotoUrl}
-                onChange={patchCoverUrl}
-                talentProfileId={payload.talentId}
-                mediaAssetId={state.coverPhotoAssetId}
-                onMediaAssetIdChange={patchCoverAssetId}
-              />
               <HelloReelEditor
                 reel={state.helloReel}
                 onChange={patchHelloReel}
                 talentProfileId={payload.talentId}
-              />
-              <PhotoGalleryPro
-                items={(state.albumsPro.find(a => a.id === state.activeAlbumId) ?? state.albumsPro[0]).items}
-                onChange={patchActiveAlbumItems}
-                talentProfileId={payload.talentId}
-                albumId={state.activeAlbumId || state.albumsPro[0]?.id || "main"}
               />
               <FieldRow label="Video / social links" optional catalogId="links">
                 <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks} onChange={patchVideoLinks} />
@@ -7217,7 +7247,7 @@ function TalentProfileShellDrawer() {
           <PublishCelebrationModal
             stageName={state.stageName}
             slug={(state.stageName || "talent").toLowerCase().replace(/\s+/g, "-")}
-            tenantSlug={TENANT.slug}
+            tenantSlug={effectiveTenant.slug}
             onClose={() => { setPublishCelebrationOpen(false); closeDrawer(); }}
             onCopyLink={() => toast("Profile link copied")}
             onShare={() => toast("Sharing profile…")}
@@ -7296,10 +7326,19 @@ function TalentProfileShellDrawer() {
               }
               return res;
             }}
+            onImportFromDrive={async (driveUrl) => {
+              const res = await actionImportFromGoogleDrive(driveUrl, payload.talentId!);
+              if (!res.ok) return { ok: false, error: res.error };
+              return { ok: true, assets: res.data.assets };
+            }}
+            onReorderAssets={async (orderedIds) => {
+              const res = await actionReorderMediaAssets(orderedIds);
+              return { ok: res.ok, error: res.ok ? undefined : (res as { error?: string }).error };
+            }}
             onUploadFile={async (file, variantKind) => {
               const fd = new FormData();
               fd.append("file", file);
-              const allowed = ["gallery", "card", "banner", "lightbox"] as const;
+              const allowed = ["gallery", "card", "hero", "lightbox"] as const;
               const kind = allowed.includes(variantKind as typeof allowed[number])
                 ? (variantKind as typeof allowed[number])
                 : "gallery";
@@ -9118,65 +9157,101 @@ function ProfileActivityLog({ talentProfileId }: { talentProfileId?: string }) {
 function ThreeSlotPhotoBlock({
   avatarUrl,
   heroUrl,
+  galleryPhotos,
   onOpenSlot,
 }: {
   avatarUrl: string | null;
   heroUrl: string | null;
+  galleryPhotos: string[];
   onOpenSlot: (slot: "avatar" | "hero" | "gallery") => void;
 }) {
   return (
-    <div style={{
-      display: "flex",
-      gap: 10,
-      padding: "14px 0 10px",
-      borderBottom: `1px solid ${COLORS.borderSoft}`,
-      marginBottom: 14,
+    <>
+      <style>{`
+        .pshell-photo-block { display: flex; gap: 10px; }
+        @media (max-width: 480px) {
+          .pshell-photo-block { gap: 6px; }
+          .pshell-photo-block img { width: 52px !important; height: 52px !important; }
+        }
+      `}</style>
+      <div className="pshell-photo-block" style={{
+        display: "flex",
+        gap: 10,
+        padding: "14px 0 10px",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        marginBottom: 14,
+      }}>
+        {/* Avatar slot 1:1 */}
+        <PhotoSlot
+          label="Avatar"
+          hint="1:1 square"
+          imageUrl={avatarUrl}
+          aspectRatio="1 / 1"
+          onClick={() => onOpenSlot("avatar")}
+          onRemove={avatarUrl ? () => onOpenSlot("avatar") : undefined}
+        />
+        {/* Cover slot 4:5 */}
+        <PhotoSlot
+          label="Cover"
+          hint="4:5 portrait"
+          imageUrl={heroUrl}
+          aspectRatio="4 / 5"
+          onClick={() => onOpenSlot("hero")}
+          onRemove={heroUrl ? () => onOpenSlot("hero") : undefined}
+        />
+        {/* Gallery strip */}
+        <GalleryStrip
+          photos={galleryPhotos}
+          totalCount={galleryPhotos.length}
+          onOpen={() => onOpenSlot("gallery")}
+        />
+      </div>
+    </>
+  );
+}
+
+function GalleryStrip({
+  photos,
+  totalCount,
+  onOpen,
+}: {
+  photos: string[];
+  totalCount: number;
+  onOpen: () => void;
+}) {
+  const MAX_THUMBS = 5;
+  const shown = photos.slice(0, MAX_THUMBS);
+  const extra = totalCount - shown.length;
+  return (
+    <button type="button" onClick={onOpen} style={{
+      flex: 1, display: "flex", alignItems: "center", gap: 4,
+      padding: 6, borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
+      background: COLORS.surfaceAlt, cursor: "pointer", minHeight: 72,
+      overflow: "hidden",
     }}>
-      {/* Avatar slot 1:1 */}
-      <PhotoSlot
-        label="Avatar"
-        hint="1:1 square"
-        imageUrl={avatarUrl}
-        aspectRatio="1 / 1"
-        onClick={() => onOpenSlot("avatar")}
-      />
-      {/* Hero slot 4:5 */}
-      <PhotoSlot
-        label="Hero"
-        hint="4:5 portrait"
-        imageUrl={heroUrl}
-        aspectRatio="4 / 5"
-        onClick={() => onOpenSlot("hero")}
-      />
-      {/* Gallery add tile */}
-      <button
-        type="button"
-        onClick={() => onOpenSlot("gallery")}
-        aria-label="Manage gallery photos"
-        style={{
-          flex: 1,
-          minHeight: 80,
-          background: COLORS.surfaceAlt,
-          border: `1.5px dashed rgba(15,79,62,0.3)`,
-          borderRadius: 8,
-          cursor: "pointer",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 4,
-          padding: 8,
-        }}
-      >
-        <span style={{ fontSize: 20 }}>＋</span>
-        <span style={{
-          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
-          color: COLORS.accent, letterSpacing: 0.2, textAlign: "center",
-        }}>
-          Gallery photos
+      {shown.map((url, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={i} src={url} alt="" style={{
+          width: 44, height: 60, objectFit: "cover", borderRadius: 5, flexShrink: 0,
+        }} />
+      ))}
+      {extra > 0 && (
+        <div style={{
+          width: 44, height: 60, borderRadius: 5, background: "rgba(15,79,62,0.10)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 700, color: COLORS.accent,
+          flexShrink: 0,
+        }}>+{extra}</div>
+      )}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", paddingRight: 4 }}>
+        <span style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, color: COLORS.accent }}>
+          {totalCount === 0 ? "Add photos" : "Manage"}
         </span>
-      </button>
-    </div>
+        <span style={{ fontFamily: FONTS.body, fontSize: 9.5, color: COLORS.inkDim, marginTop: 1 }}>
+          {totalCount} photo{totalCount !== 1 ? "s" : ""}
+        </span>
+      </div>
+    </button>
   );
 }
 
@@ -9186,57 +9261,77 @@ function PhotoSlot({
   imageUrl,
   aspectRatio,
   onClick,
+  onRemove,
 }: {
   label: string;
   hint: string;
   imageUrl: string | null;
   aspectRatio: string;
   onClick: () => void;
+  onRemove?: () => void;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={imageUrl ? `Change ${label}` : `Set ${label}`}
-        style={{
-          width: aspectRatio === "1 / 1" ? 72 : 58,
-          height: 72,
-          borderRadius: 8,
-          overflow: "hidden",
-          border: imageUrl
-            ? `2px solid rgba(15,79,62,0.25)`
-            : `1.5px dashed rgba(15,79,62,0.3)`,
-          background: imageUrl ? "transparent" : COLORS.surfaceAlt,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 0,
-          position: "relative",
-        }}
-      >
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt={label}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <span style={{ fontSize: 22, opacity: 0.4 }}>📷</span>
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={imageUrl ? `Change ${label}` : `Set ${label}`}
+          style={{
+            width: aspectRatio === "1 / 1" ? 72 : 58,
+            height: 72,
+            borderRadius: 8,
+            overflow: "hidden",
+            border: imageUrl
+              ? `2px solid rgba(15,79,62,0.25)`
+              : `1.5px dashed rgba(15,79,62,0.3)`,
+            background: imageUrl ? "transparent" : COLORS.surfaceAlt,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            position: "relative",
+          }}
+        >
+          {imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imageUrl}
+              alt={label}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            <span style={{ fontSize: 22, opacity: 0.4 }}>📷</span>
+          )}
+          <span style={{
+            position: "absolute", bottom: 2, left: 0, right: 0,
+            background: "rgba(11,11,13,0.45)", color: "#fff",
+            fontFamily: FONTS.body, fontSize: 9, fontWeight: 700,
+            textAlign: "center", padding: "1px 0",
+            opacity: 0,
+            transition: "opacity 120ms",
+          }} className="photo-slot-overlay">
+            {imageUrl ? "Change" : "Set"}
+          </span>
+        </button>
+        {imageUrl && onRemove && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            aria-label={`Remove ${label}`}
+            style={{
+              position: "absolute", top: 4, right: 4,
+              width: 18, height: 18, borderRadius: "50%",
+              background: "rgba(0,0,0,0.6)", border: "none",
+              color: "#fff", fontSize: 11, lineHeight: 1,
+              cursor: "pointer", display: "flex",
+              alignItems: "center", justifyContent: "center",
+              padding: 0,
+            }}
+          >×</button>
         )}
-        <span style={{
-          position: "absolute", bottom: 2, left: 0, right: 0,
-          background: "rgba(11,11,13,0.45)", color: "#fff",
-          fontFamily: FONTS.body, fontSize: 9, fontWeight: 700,
-          textAlign: "center", padding: "1px 0",
-          opacity: 0,
-          transition: "opacity 120ms",
-        }} className="photo-slot-overlay">
-          {imageUrl ? "Change" : "Set"}
-        </span>
-      </button>
+      </div>
       <style>{`button:hover .photo-slot-overlay { opacity: 1 !important; }`}</style>
       <div style={{ textAlign: "center" }}>
         <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, color: COLORS.ink }}>{label}</div>
@@ -9261,7 +9356,7 @@ const CoverPhotoEditor = React.memo(({ url, onChange, talentProfileId, mediaAsse
     if (!talentProfileId) { onChange(URL.createObjectURL(f)); return; }
     onChange(URL.createObjectURL(f)); // optimistic preview
     const fd = new FormData(); fd.append("file", f);
-    const res = await actionUploadAndAssignMedia(fd, talentProfileId, "banner");
+    const res = await actionUploadAndAssignMedia(fd, talentProfileId, "hero");
     if (res.ok) {
       onChange(res.data.publicUrl);
       onMediaAssetIdChange?.(res.data.id);
@@ -9346,7 +9441,7 @@ const PolaroidsEditor = React.memo(({ polaroids, onChange, talentProfileId }: Po
     // Soft-delete previous polaroid for this slot if any
     if (slot?.mediaAssetId) void actionDeleteMediaAssets([slot.mediaAssetId]);
     const fd = new FormData(); fd.append("file", f);
-    const res = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery", { polaroidSlot: id });
+    const res = await actionUploadAndAssignMedia(fd, talentProfileId, "polaroid", { polaroidSlot: id });
     if (res.ok) setUrl(id, res.data.publicUrl, res.data.id);
     else { toast(res.error || "Upload failed"); setUrl(id, null, null); }
   };
@@ -10027,22 +10122,40 @@ function PMobileMenuItem({ icon, label, onClick, disabled, shortcut, hasSubmenu 
 
 // #2 — First-time hero on the Profile Shell. Shows below 35% to coach
 // the talent through the 3 highest-leverage things to do first.
-function FirstTimeHero({ completeness, onStart }: {
+function FirstTimeHero({ completeness, onStart, talentId }: {
   completeness: number;
   onStart: (sectionId: ProfileSectionId) => void;
+  talentId: string;
 }) {
+  const [dismissed, setDismissed] = React.useState(false);
   const steps: { id: ProfileSectionId; label: string; helper: string; emoji: string }[] = [
     { id: "media",    label: "Add a photo",   helper: "One headshot is enough to start.", emoji: "📷" },
     { id: "services", label: "Pick what you do", helper: "What clients book you as.",     emoji: "🎯" },
     { id: "location", label: "Set your base", helper: "City + travel range.",              emoji: "📍" },
   ];
+  if (dismissed) return null;
   return (
     <div style={{
+      position: "relative",
       marginTop: 12, padding: 14, borderRadius: 12,
       background: "linear-gradient(135deg, rgba(15,79,62,0.06) 0%, rgba(91,107,160,0.06) 100%)",
       border: `1px solid ${COLORS.borderSoft}`,
       fontFamily: FONTS.body,
     }}>
+      <button
+        type="button"
+        onClick={() => {
+          localStorage.setItem("tulala.welcome.dismissed." + talentId, "1");
+          setDismissed(true);
+        }}
+        style={{
+          position: "absolute", top: 8, right: 8,
+          background: "none", border: "none", cursor: "pointer",
+          color: COLORS.inkMuted, fontSize: 14, lineHeight: 1,
+          padding: "2px 4px",
+        }}
+        aria-label="Dismiss"
+      >×</button>
       <div style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
         Welcome — let's start with 3 things
       </div>
@@ -11455,7 +11568,7 @@ const HelloReelEditor = React.memo(({ reel, onChange, talentProfileId }: HelloRe
     setUploading(true);
     try {
       const fd = new FormData(); fd.append("file", f);
-      const res = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery", { kind: "hello_reel" });
+      const res = await actionUploadAndAssignMedia(fd, talentProfileId, "reel");
       if (res.ok) {
         onChange({ url: res.data.publicUrl, durationSec: 30 });
       } else {
@@ -11992,6 +12105,12 @@ function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
 }
 
 // ── Albums Pro — uses albumsPro shape ────────────────────────────────
+// NOTE: talent-owned "albums" are NOT the same concept as workspace
+// `media_folders`. Albums are per-talent curated photo groupings that
+// appear on the public profile (saved via the profile Save button into
+// the talent's `albums` field). Media folders are agency-internal
+// organizational containers in the admin Media page. They serve
+// different audiences and should not be consolidated.
 function AlbumsEditorPro({ albums, activeId, onActivate, onChange }: {
   albums: { id: string; name: string; items: PhotoMeta[] }[];
   activeId: string;
@@ -12556,7 +12675,7 @@ function WatermarkPreviewCard({ preset, logoUrl }: { preset: WatermarkPreset; lo
 }
 
 function BrandingDrawer() {
-  const { state, closeDrawer, openUpgrade, toast, tenantSlug } = useProto();
+  const { state, closeDrawer, openUpgrade, toast, tenantSlug, effectiveTenant } = useProto();
   const router = useRouter();
   const isStudioPlus = meetsPlan(state.plan, "studio");
 
@@ -12673,7 +12792,7 @@ function BrandingDrawer() {
                 width: 56, height: 56, borderRadius: 8, background: COLORS.fill, color: "#fff",
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, flexShrink: 0,
-              }}>{TENANT.initials}</span>
+              }}>{effectiveTenant.initials}</span>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink,
@@ -12918,7 +13037,7 @@ function WatermarkEditorDrawer() {
 
 function DomainDrawer() {
   const router = useRouter();
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, effectiveTenant } = useProto();
   const [pending, startTransition] = useTransition();
   const isLive = meetsPlan(state.plan, "studio");
   // I3 — read live domain status from the Website page's source of
@@ -12976,7 +13095,7 @@ function DomainDrawer() {
     >
       <Section title="Public URL">
         <FieldRow label="Tulala subdomain" hint="Always available. Used as fallback.">
-          <TextInput defaultValue={TENANT.domain} prefix="https://" />
+          <TextInput defaultValue={effectiveTenant.domain} prefix="https://" />
         </FieldRow>
         <FieldRow label="Custom domain" optional>
           <TextInput
@@ -13143,9 +13262,9 @@ function DomainDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function IdentityDrawer() {
-  const { closeDrawer, toast, tenantSlug } = useProto();
+  const { closeDrawer, toast, tenantSlug, effectiveTenant } = useProto();
   const router = useRouter();
-  const [displayName, setDisplayName] = useState(TENANT.name);
+  const [displayName, setDisplayName] = useState(effectiveTenant.name);
   const [contactEmail, setContactEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(!!tenantSlug);
@@ -13213,7 +13332,7 @@ function IdentityDrawer() {
             border: `1px solid ${COLORS.borderSoft}`,
             background: COLORS.surfaceAlt, color: COLORS.inkMuted,
             fontSize: 13, fontFamily: FONTS.body,
-          }}>tulala.app/{TENANT.slug}</div>
+          }}>tulala.app/{effectiveTenant.slug}</div>
         </FieldRow>
         <FieldRow label="Contact email">
           <TextInput
@@ -13718,7 +13837,7 @@ function ToggleRow({
 // ════════════════════════════════════════════════════════════════════
 
 function NewTalentDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug } = useProto();
+  const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant } = useProto();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -14443,7 +14562,7 @@ function NewTalentDrawer() {
             fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
             textAlign: "left",
           }}>
-            tulala.digital/{TENANT.slug}/join · copy link
+            tulala.digital/{effectiveTenant.slug}/join · copy link
           </button>
         </div>
       </Section>
@@ -17415,9 +17534,9 @@ function TranslationsDrawer() {
 
 function SeoDrawer() {
   const router = useRouter();
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast, effectiveTenant } = useProto();
   const [pending, startTransition] = useTransition();
-  const [siteTitle, setSiteTitle] = useState(`${TENANT.name} · Talent agency`);
+  const [siteTitle, setSiteTitle] = useState(`${effectiveTenant.name} · Talent agency`);
   const [description, setDescription] = useState(
     "A boutique agency representing editorial, runway, and commercial talent across Europe.",
   );
@@ -17476,7 +17595,7 @@ function SeoDrawer() {
             color: COLORS.ink,
           }}
         >
-          {TENANT.name}
+          {effectiveTenant.name}
         </div>
       </Section>
       <Section title="Sitemap">
@@ -17493,7 +17612,7 @@ function SeoDrawer() {
           }}
         >
           /sitemap.xml<br />
-          {TENANT.domain}/sitemap.xml
+          {effectiveTenant.domain}/sitemap.xml
         </div>
       </Section>
     </DrawerShell>
@@ -21034,7 +21153,7 @@ function TaxonomyDrawer() {
 }
 
 function WidgetsDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer, effectiveTenant } = useProto();
   return (
     <DrawerShell
       open
@@ -21075,7 +21194,7 @@ function WidgetsDrawer() {
           }}
         >
 {`<script src="https://embed.tulala.app/v1/widget.js"
-  data-tenant="${TENANT.slug}"
+  data-tenant="${effectiveTenant.slug}"
   data-view="grid"
   data-cols="3"></script>`}
         </div>
@@ -21349,7 +21468,7 @@ function FilterConfigDrawer() {
 }
 
 function DangerZoneDrawer() {
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast, effectiveTenant } = useProto();
   return (
     <DrawerShell
       open
@@ -21377,7 +21496,7 @@ function DangerZoneDrawer() {
       <Section title="Delete workspace" description="Permanent. Your roster, clients, and history are removed. We email you a final export.">
         <ConfirmTypedAction
           actionLabel="Delete workspace"
-          confirmPhrase={TENANT.name}
+          confirmPhrase={effectiveTenant.name}
           tone="red"
           onConfirm={() => toast("No data was deleted — destructive actions are disabled here")}
         />
@@ -24981,11 +25100,11 @@ function EmailTemplatesDrawer() {
 }
 
 function EmailBrandingDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, effectiveTenant } = useProto();
   const open = state.drawer.drawerId === "email-branding";
-  const [senderName,  setSenderName]  = useState(TENANT.name);
-  const [senderEmail, setSenderEmail] = useState(`hello@${TENANT.name.toLowerCase().replace(/\s/g, "")}.com`);
-  const [footerText,  setFooterText]  = useState(`© ${new Date().getFullYear()} ${TENANT.name}. All rights reserved.`);
+  const [senderName,  setSenderName]  = useState(effectiveTenant.name);
+  const [senderEmail, setSenderEmail] = useState(`hello@${effectiveTenant.name.toLowerCase().replace(/\s/g, "")}.com`);
+  const [footerText,  setFooterText]  = useState(`© ${new Date().getFullYear()} ${effectiveTenant.name}. All rights reserved.`);
   const [accentColor, setAccentColor] = useState("#0F4F3E");
   const save = useSaveAndClose("Email branding saved");
 
