@@ -2,7 +2,7 @@
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest", "--extension"]
+      "args": ["-y", "@playwright/mcp@latest", "--browser", "chrome"]
     },
     "supabase": {
       "url": "https://mcp.supabase.com/mcp?read_only=true&project_ref=pluhdapdnuiulvxmyspd"
