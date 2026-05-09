@@ -26,6 +26,7 @@
 
 import React, { useMemo, useState, useEffect, useCallback, type ReactNode } from "react";
 import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
+import { actionLoadUserWorkspaces, type UserWorkspace } from "@/lib/server-actions/admin-user-workspaces";
 import {
   COLORS,
   FONTS,
@@ -928,8 +929,33 @@ const TENANT_ROLE_PALETTE: Record<TenantRole, { fg: string }> = {
 };
 
 export function TenantSwitcherDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity } = useProto();
   const open = state.drawer.drawerId === "tenant-switcher";
+  const [realWorkspaces, setRealWorkspaces] = useState<UserWorkspace[]>([]);
+  const [wsLoading, setWsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setWsLoading(true);
+    void actionLoadUserWorkspaces().then((res) => {
+      if (res.ok) setRealWorkspaces(res.workspaces);
+      setWsLoading(false);
+    });
+  }, [open]);
+
+  // Capitalise the role string from DB ("owner" → "Owner") for display + grouping.
+  function toDisplayRole(role: string): TenantRole {
+    return (role.charAt(0).toUpperCase() + role.slice(1)) as TenantRole;
+  }
+
+  // Default seat cap per plan tier when agencies.talent_seat_limit is null.
+  function defaultSeatCap(tier: string): number | "∞" {
+    if (tier === "network") return "∞";
+    if (tier === "agency")  return 50;
+    if (tier === "studio")  return 15;
+    return 5; // free
+  }
+
   return (
     <DrawerShell
       open={open}
@@ -956,13 +982,35 @@ export function TenantSwitcherDrawer() {
       )}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {wsLoading && (
+          <div style={{ padding: "20px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
+            Loading workspaces…
+          </div>
+        )}
+        {!wsLoading && realWorkspaces.length === 0 && (
+          <div style={{ padding: "20px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
+            No workspaces found.
+          </div>
+        )}
         {/* Group workspaces by role-class so the user reads "what I own"
             vs "where I'm a member" at a glance. Same person can be Owner
             of an Agency they founded AND Coordinator in someone else's
             agency — these are operationally distinct and shouldn't be
             jumbled together. */}
-        {(["Owner", "Admin", "Coordinator", "Editor", "Talent"] as const).map((roleGroup) => {
-          const tenants = MOCK_TENANTS.filter(t => t.role === roleGroup);
+        {!wsLoading && (["Owner", "Admin", "Coordinator", "Editor", "Talent"] as const).map((roleGroup) => {
+          const tenants = realWorkspaces
+            .filter(w => w.role === roleGroup.toLowerCase())
+            .map(w => ({
+              id: w.id,
+              slug: w.slug,
+              name: w.name,
+              role: toDisplayRole(w.role),
+              tier: (w.tier || "free") as TenantTier,
+              initials: w.name.charAt(0).toUpperCase() || "?",
+              seatsUsed: null as number | null,
+              seatsCap: w.tier === "network" ? ("∞" as const) : (w.seatCap ?? defaultSeatCap(w.tier)),
+              domain: w.domain ?? `${w.slug}.tulala.digital`,
+            }));
           if (tenants.length === 0) return null;
           const groupHeading = roleGroup === "Owner" ? "Workspaces you own"
             : roleGroup === "Admin" ? "Where you're an admin"
@@ -989,7 +1037,9 @@ export function TenantSwitcherDrawer() {
                 </span>
               </header>
               {tenants.map((t) => {
-                const isCurrent = t.name === TENANT.name;
+                const isCurrent = bridgeTenantIdentity
+                  ? t.id === bridgeTenantIdentity.tenantId
+                  : t.name === TENANT.name;
                 const tierPalette = TENANT_TIER_PALETTE[t.tier];
                 const rolePalette = TENANT_ROLE_PALETTE[t.role];
                 return (
@@ -999,8 +1049,17 @@ export function TenantSwitcherDrawer() {
                     data-tulala-row
                     onClick={() => {
                       if (isCurrent) { closeDrawer(); return; }
-                      toast(`Switched to ${t.name} · ${tierPalette.label} · ${t.role}`);
                       closeDrawer();
+                      // On localhost Next.js uses path-based tenant routing /{slug}/admin.
+                      // On real hosts the middleware resolves the tenant from the hostname,
+                      // so we navigate to the workspace's registered domain instead.
+                      const isLocalhost = typeof window !== "undefined" &&
+                        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+                      if (isLocalhost) {
+                        window.location.href = `/${t.slug}/admin`;
+                      } else {
+                        window.location.href = `https://${t.domain}/admin`;
+                      }
                     }}
                     style={{
                       display: "flex",
@@ -1062,8 +1121,8 @@ export function TenantSwitcherDrawer() {
                           tabIndex={0}
                           aria-label={`Copy ${t.domain}`}
                           title="Copy URL"
-                          onClick={(e) => { e.stopPropagation(); toast(`Copied ${t.domain}`); }}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toast(`Copied ${t.domain}`); } }}
+                          onClick={(e) => { e.stopPropagation(); void navigator.clipboard.writeText(t.domain).then(() => toast(`Copied ${t.domain}`)); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); void navigator.clipboard.writeText(t.domain).then(() => toast(`Copied ${t.domain}`)); } }}
                           style={{
                             flexShrink: 0,
                             width: 18, height: 18, borderRadius: 5,
@@ -1083,8 +1142,8 @@ export function TenantSwitcherDrawer() {
                           tabIndex={0}
                           aria-label={`Open ${t.domain} in a new tab`}
                           title="Open in new tab"
-                          onClick={(e) => { e.stopPropagation(); toast(`Opening ${t.domain}`); }}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toast(`Opening ${t.domain}`); } }}
+                          onClick={(e) => { e.stopPropagation(); window.open(`https://${t.domain}/admin`, "_blank"); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); window.open(`https://${t.domain}/admin`, "_blank"); } }}
                           style={{
                             flexShrink: 0,
                             width: 18, height: 18, borderRadius: 5,
@@ -1113,8 +1172,8 @@ export function TenantSwitcherDrawer() {
                             someone else's workspace shouldn't see it
                             (it's not their concern). Tone shifts to
                             amber when ≥80% full so the owner notices. */}
-                        {t.role === "Owner" && (() => {
-                          const pct = t.seatsCap === "∞" ? 0 : t.seatsUsed / t.seatsCap;
+                        {t.role === "Owner" && t.seatsUsed !== null && (() => {
+                          const pct = t.seatsCap === "∞" ? 0 : t.seatsUsed / (t.seatsCap as number);
                           const tone = pct >= 1 ? COLORS.coralDeep
                             : pct >= 0.8 ? "#9C6B14"
                             : COLORS.inkMuted;
@@ -1164,8 +1223,8 @@ export function TenantSwitcherDrawer() {
             their existing Free one to a paid tier (Studio / Agency /
             Network) first. Stops people from spinning up infinite Free
             workspaces to dodge billing. */}
-        {(() => {
-          const ownedFree = MOCK_TENANTS.filter(t => t.role === "Owner" && t.tier === "free");
+        {!wsLoading && (() => {
+          const ownedFree = realWorkspaces.filter(w => w.role === "owner" && w.tier === "free");
           const freeBlocked = ownedFree.length >= 1;
           return (
             <section style={{
@@ -1239,6 +1298,186 @@ export function TenantSwitcherDrawer() {
             </section>
           );
         })()}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #3b — TalentAgencySwitcherDrawer
+// ════════════════════════════════════════════════════════════════════
+//
+// Talent-surface equivalent of TenantSwitcherDrawer. Lists every agency
+// the signed-in talent is affiliated with (from bridgeTalentAgencies),
+// grouped: primary agency first, then others. Clicking a row navigates
+// to /{agencySlug}/talent. Data is already loaded in the bridge — no
+// extra server action needed.
+
+export function TalentAgencySwitcherDrawer() {
+  const { state, closeDrawer, openDrawer, tenantSlug, bridgeTalentAgencies } = useProto();
+  const open = state.drawer.drawerId === "talent-agency-switcher";
+
+  const agencies = bridgeTalentAgencies ?? [];
+  const primary = agencies.filter(a => a.isPrimary);
+  const others  = agencies.filter(a => !a.isPrimary);
+  const groups: Array<{ heading: string; sub: string; rows: typeof agencies }> = [];
+  if (primary.length)  groups.push({ heading: "Your primary agency", sub: "Bookings and inquiries default to this agency.", rows: primary });
+  if (others.length)   groups.push({ heading: "Other agencies", sub: "Non-exclusive affiliations — you're on their roster.", rows: others });
+
+  function navigate(slug: string) {
+    closeDrawer();
+    const isLocalhost = typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+    window.location.href = isLocalhost ? `/${slug}/talent` : `https://${slug}.tulala.digital/talent`;
+  }
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Switch agency"
+      description="Agencies you're affiliated with. Switching changes which workspace's inbox and pipeline you see."
+      toolbar={(
+        <button type="button"
+          onClick={() => { closeDrawer(); openDrawer("talent-agency-relationship", { mode: "add" }); }}
+          title="Add another agency"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "5px 11px", borderRadius: 999,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: "#fff", color: COLORS.ink,
+            fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}>
+          <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden>
+            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          </svg>
+          Add agency
+        </button>
+      )}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {agencies.length === 0 && (
+          <div style={{ padding: "24px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
+            You're not affiliated with any agency yet.
+          </div>
+        )}
+
+        {groups.map(({ heading, sub, rows }) => (
+          <section key={heading} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <header style={{ display: "flex", flexDirection: "column", gap: 1, marginBottom: 2 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted }}>
+                {heading}
+              </span>
+              <span style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.4 }}>
+                {sub}
+              </span>
+            </header>
+
+            {rows.map((a) => {
+              const isCurrent = a.agencySlug === tenantSlug;
+              const tierPalette = TENANT_TIER_PALETTE[(a.plan as TenantTier) in TENANT_TIER_PALETTE ? a.plan as TenantTier : "free"];
+              const isExclusive = a.rosterStatus === "exclusive";
+              const initials = a.agencyName.charAt(0).toUpperCase();
+              const domain = `${a.agencySlug}.tulala.digital`;
+
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  data-tulala-row
+                  onClick={() => {
+                    if (isCurrent) { closeDrawer(); return; }
+                    navigate(a.agencySlug);
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "12px 14px",
+                    background: isCurrent ? COLORS.accentSoft : "#fff",
+                    border: `1px solid ${isCurrent ? "rgba(15,79,62,0.22)" : COLORS.borderSoft}`,
+                    borderRadius: 10,
+                    cursor: "pointer", fontFamily: FONTS.body, textAlign: "left",
+                  }}
+                >
+                  <Avatar initials={initials} size={36} tone="ink" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Name + tier badge */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                      <span style={{
+                        fontSize: 14, fontWeight: 600,
+                        color: isCurrent ? COLORS.accentDeep : COLORS.ink,
+                        minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {a.agencyName}
+                      </span>
+                      <span style={{
+                        flexShrink: 0, fontSize: 9.5, fontWeight: 700,
+                        padding: "1px 7px", borderRadius: 999,
+                        background: tierPalette.bg, color: tierPalette.fg,
+                        textTransform: "uppercase", letterSpacing: 0.4,
+                      }}>
+                        {tierPalette.label}
+                      </span>
+                    </div>
+
+                    {/* Domain + copy/open */}
+                    <div style={{ marginTop: 2, display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+                      <span style={{
+                        fontSize: 11.5, color: COLORS.inkMuted,
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        minWidth: 0, flex: "0 1 auto",
+                      }}>
+                        {domain}
+                      </span>
+                      <span
+                        role="button" tabIndex={0}
+                        aria-label={`Copy ${domain}`} title="Copy URL"
+                        onClick={(e) => { e.stopPropagation(); void navigator.clipboard.writeText(domain).then(() => {}); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); void navigator.clipboard.writeText(domain); } }}
+                        style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5, display: "inline-flex", alignItems: "center", justifyContent: "center", color: COLORS.inkDim, cursor: "pointer" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceAlt; e.currentTarget.style.color = COLORS.ink; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = COLORS.inkDim; }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden>
+                          <rect x="3.5" y="3.5" width="7" height="8" rx="1.2" stroke="currentColor" strokeWidth="1.3"/>
+                          <path d="M5.5 3V2a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                        </svg>
+                      </span>
+                    </div>
+
+                    {/* Status line */}
+                    <div style={{ fontSize: 11.5, marginTop: 3, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ color: isExclusive ? COLORS.accentDeep : COLORS.inkMuted, fontWeight: 600 }}>
+                        {isExclusive ? "Exclusive" : "Non-exclusive"}
+                      </span>
+                      {a.isPrimary && (
+                        <span style={{
+                          fontSize: 9.5, fontWeight: 700,
+                          padding: "1px 6px", borderRadius: 999,
+                          background: "rgba(15,79,62,0.10)", color: COLORS.accentDeep,
+                        }}>
+                          Primary
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Current badge */}
+                  {isCurrent && (
+                    <span style={{
+                      fontSize: 9.5, fontWeight: 600,
+                      padding: "3px 7px",
+                      background: "rgba(15,79,62,0.18)", color: COLORS.accentDeep,
+                      borderRadius: 999, flexShrink: 0,
+                    }}>
+                      Current
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </section>
+        ))}
       </div>
     </DrawerShell>
   );

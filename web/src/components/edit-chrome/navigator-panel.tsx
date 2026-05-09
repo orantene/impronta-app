@@ -46,7 +46,15 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { ClipboardPaste, Copy, Files } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ClipboardPaste,
+  Copy,
+  Files,
+  Plus,
+  X,
+} from "lucide-react";
 
 import {
   CHROME,
@@ -91,9 +99,10 @@ const NAVIGATOR_MIN_WIDTH = 280;
 const NAVIGATOR_MAX_WIDTH = 520;
 const NAVIGATOR_KEYBOARD_STEP = 16;
 const NAVIGATOR_DEFAULT_WIDTH = 320;
-const NAVIGATOR_ROW_FONT_SIZE = 18;
-const NAVIGATOR_ICON_SIZE = 18;
-const NAVIGATOR_ACTION_ICON_SIZE = 16;
+const NAVIGATOR_ROW_FONT_SIZE = 14;
+const NAVIGATOR_SECTION_FONT_SIZE = 15;
+const NAVIGATOR_ICON_SIZE = 16;
+const NAVIGATOR_ACTION_ICON_SIZE = 15;
 
 interface FlatRow {
   ref: CompositionSectionRef;
@@ -135,6 +144,7 @@ export function NavigatorPanel() {
     slotDefs,
     pageMetadata,
     moveSectionTo,
+    moveSection,
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     insertBuilderNode,
@@ -160,6 +170,7 @@ export function NavigatorPanel() {
 
   const [search, setSearch] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [pendingMoveKey, setPendingMoveKey] = useState<string | null>(null);
   // Sprint 4 — inline rename. When `renamingId` is set, that row's label
   // is replaced by an editable input. Enter commits, Escape cancels.
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -652,6 +663,22 @@ export function NavigatorPanel() {
     },
     [duplicateSection, reportMutationError],
   );
+  const commitSectionMove = useCallback(
+    async (sectionId: string, direction: "up" | "down") => {
+      if (pendingMoveKey) return;
+      const moveKey = `section:${sectionId}:${direction}`;
+      setPendingMoveKey(moveKey);
+      try {
+        const moved = await moveSection(sectionId, direction);
+        if (!moved.ok && moved.error) {
+          reportMutationError(moved.error);
+        }
+      } finally {
+        setPendingMoveKey((current) => (current === moveKey ? null : current));
+      }
+    },
+    [moveSection, pendingMoveKey, reportMutationError],
+  );
   const commitNodeDuplicate = useCallback(
     async (nodeId: string) => {
       const duplicated = await duplicateBuilderNode(nodeId);
@@ -660,6 +687,22 @@ export function NavigatorPanel() {
       }
     },
     [duplicateBuilderNode, reportMutationError],
+  );
+  const commitNodeMoveWithinParent = useCallback(
+    async (nodeId: string, direction: "up" | "down") => {
+      if (pendingMoveKey) return;
+      const moveKey = `node:${nodeId}:${direction}`;
+      setPendingMoveKey(moveKey);
+      try {
+        const moved = await moveBuilderNodeWithinParent(nodeId, direction);
+        if (!moved.ok && moved.error) {
+          reportMutationError(moved.error);
+        }
+      } finally {
+        setPendingMoveKey((current) => (current === moveKey ? null : current));
+      }
+    },
+    [moveBuilderNodeWithinParent, pendingMoveKey, reportMutationError],
   );
   const commitNodeCopy = useCallback(
     (nodeId: string) => {
@@ -1565,7 +1608,7 @@ export function NavigatorPanel() {
 
         {/* Phase 10 — heading hierarchy lint badge. */}
         {flat.length > 0 ? (
-          <div style={{ padding: "4px 8px 8px" }}>
+          <div style={{ padding: "2px 8px 4px" }}>
             <HeadingLintBadge
               issues={headingIssues}
               onFocusSection={(sectionId) =>
@@ -1695,7 +1738,15 @@ export function NavigatorPanel() {
               sectionHovered ||
               sectionFocused ||
               nodeInsertTarget?.key === `section:${row.builderNodeId ?? ""}`;
-            const sectionDragEnabled = !searchQuery && !sectionActionsVisible;
+            const sectionDragEnabled = !searchQuery && visible.length > 1;
+            const slotCount = (slots[row.slotKey] ?? []).length;
+            const canMoveSectionUp = row.slotIndex > 0;
+            const canMoveSectionDown = row.slotIndex < slotCount - 1;
+            const sectionMovePending = pendingMoveKey?.startsWith(
+              `section:${row.ref.sectionId}:`,
+            );
+            const moveInFlight = Boolean(pendingMoveKey);
+            const sectionActionRight = row.childNodes.length > 0 ? 92 : 44;
 
             return (
               <div key={row.ref.sectionId} style={{ position: "relative" }}>
@@ -1707,7 +1758,9 @@ export function NavigatorPanel() {
                     if (
                       !sectionDragEnabled ||
                       (target instanceof HTMLElement &&
-                        (target.closest("[data-navigator-section-actions]") ||
+                        (!target.closest("[data-navigator-drag-handle]") ||
+                          target.closest("[data-navigator-section-actions]") ||
+                          target.closest("[data-navigator-section-reorder-controls]") ||
                           target.closest("[data-navigator-row-secondary-actions]")))
                     ) {
                       e.preventDefault();
@@ -1752,45 +1805,66 @@ export function NavigatorPanel() {
                         row.builderNodeId,
                         e,
                       );
+                      return;
+                    }
+                    if (!e.altKey) return;
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (moveInFlight || !canMoveSectionUp) return;
+                      void commitSectionMove(row.ref.sectionId, "up");
+                      return;
+                    }
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (moveInFlight || !canMoveSectionDown) return;
+                      void commitSectionMove(row.ref.sectionId, "down");
                     }
                   }}
                   data-builder-node-id={row.builderNodeId ?? undefined}
                   data-navigator-section-row=""
+                  data-moving={sectionMovePending ? "true" : undefined}
                   data-section-id={row.ref.sectionId}
                   data-section-type-key={row.ref.sectionTypeKey}
+                  aria-busy={sectionMovePending ? "true" : undefined}
                   aria-label={
                     row.builderNodeId
                       ? `${labelFor(row)} section`
                       : `${labelFor(row)} section`
                   }
                   style={{
+                    position: "relative",
                     display: "grid",
-                    gridTemplateColumns: "11px 18px minmax(0, 1fr)",
+                    gridTemplateColumns: "10px 18px minmax(0, 1fr) auto auto",
                     columnGap: 8,
-                    rowGap: 6,
-                    minHeight: 42,
-                    padding: "6px 8px",
+                    rowGap: 4,
+                    minHeight: 34,
+                    padding: "5px 8px",
                     borderRadius: CHROME_RADII.sm,
-                    // QA-9 partial — selected row uses the editor's slate
-                    // accent so navigator selection matches the chip /
-                    // Publish CTA family instead of brand-black ink.
-                    //
-                    // Sprint 4 — additional-selected rows (shift/cmd-clicked)
-                    // get a slightly translucent slate so the operator can
-                    // see the multi-set at a glance while still recognising
-                    // the primary as the focused one.
                     background: isPrimary
-                      ? CHROME.accent
+                      ? "rgba(42, 49, 71, 0.10)"
                         : isAdditional
-                          ? "rgba(42, 49, 71, 0.65)"
+                          ? "rgba(42, 49, 71, 0.06)"
                         : CHROME.surface,
-                    color: selected ? "#ffffff" : hidden ? CHROME.muted2 : CHROME.text,
+                    color: hidden ? CHROME.muted2 : CHROME.text,
                     fontSize: 15,
                     fontWeight: selected ? 600 : 500,
                     cursor: "pointer",
-                    opacity: isDragging ? 0.4 : hidden && !selected ? 0.6 : 1,
+                    opacity: sectionMovePending
+                      ? 0.72
+                      : isDragging
+                        ? 0.4
+                        : hidden && !selected
+                          ? 0.6
+                          : 1,
+                    boxShadow: isPrimary
+                      ? `inset 3px 0 0 ${CHROME.accent}`
+                      : isAdditional
+                        ? "inset 3px 0 0 rgba(42, 49, 71, 0.35)"
+                        : "none",
                     transition:
-                      "background 80ms ease, color 80ms ease, opacity 120ms ease",
+                      "background 80ms ease, color 80ms ease, opacity 120ms ease, box-shadow 120ms ease",
                   }}
                   onMouseEnter={(e) => {
                     setHoveredSectionId(row.ref.sectionId);
@@ -1820,15 +1894,26 @@ export function NavigatorPanel() {
                     }
                   }}
                 >
-                  <GripDots
-                    color={selected ? "rgba(255,255,255,0.55)" : CHROME.muted2}
-                  />
+                  <span
+                    data-navigator-drag-handle=""
+                    aria-hidden
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: sectionDragEnabled ? "grab" : "default",
+                    }}
+                  >
+                    <GripDots
+                      color={selected ? CHROME.accent : CHROME.muted2}
+                    />
+                  </span>
                   <SectionTypeIcon
                     typeKey={row.ref.sectionTypeKey}
                     size={NAVIGATOR_ICON_SIZE}
                     style={{
                       flexShrink: 0,
-                      opacity: selected ? 0.85 : 0.65,
+                      opacity: selected ? 0.78 : 0.65,
                     }}
                   />
                   {renamingId === row.ref.sectionId ? (
@@ -1855,14 +1940,16 @@ export function NavigatorPanel() {
                         flex: "1 1 0",
                         letterSpacing: "-0.005em",
                         minWidth: 0,
+                        display: "block",
                         whiteSpace: "nowrap",
                         textOverflow: "ellipsis",
                         overflow: "hidden",
-                        lineHeight: 1.2,
+                        lineHeight: 1.15,
                         textDecoration: hidden ? "line-through" : "none",
                         textDecorationColor: CHROME.muted2,
                         cursor: "text",
-                        fontSize: NAVIGATOR_ROW_FONT_SIZE,
+                        fontSize: NAVIGATOR_SECTION_FONT_SIZE,
+                        paddingRight: sectionActionsVisible ? 76 : 0,
                       }}
                     >
                       {labelFor(row)}
@@ -1871,63 +1958,119 @@ export function NavigatorPanel() {
                   <span
                     data-navigator-row-secondary-actions=""
                     style={{
-                      gridColumn: "1 / -1",
+                      gridColumn: "4",
                       display: "inline-flex",
                       alignItems: "center",
-                      justifyContent: "flex-start",
-                      gap: 6,
+                      justifyContent: "flex-end",
+                      gap: 4,
                       flexShrink: 0,
-                      marginTop: 2,
+                      marginTop: 0,
                     }}
                   >
-                  {row.childNodes.length > 0 &&
-                  (sectionActionsVisible || childListCollapsed) ? (
-                    <NodeInlineActionButton
-                      label={
-                        childListCollapsed
-                          ? `Expand layers in ${labelFor(row)}`
-                          : `Collapse layers in ${labelFor(row)}`
-                      }
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleSectionExpanded(row.ref.sectionId);
-                      }}
-                      inverted={selected}
-                      dataAttr="data-navigator-section-collapse-trigger"
-                      ariaExpanded={!childListCollapsed}
-                    >
-                      {childListCollapsed ? "›" : "⌄"}
-                    </NodeInlineActionButton>
-                  ) : null}
-                  {row.childNodes.length > 0 ? (
+                    {row.childNodes.length > 0 &&
+                    (sectionActionsVisible || childListCollapsed) ? (
+                      <NodeInlineActionButton
+                        label={
+                          childListCollapsed
+                            ? `Expand layers in ${labelFor(row)}`
+                            : `Collapse layers in ${labelFor(row)}`
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSectionExpanded(row.ref.sectionId);
+                        }}
+                        inverted={selected}
+                        dataAttr="data-navigator-section-collapse-trigger"
+                        ariaExpanded={!childListCollapsed}
+                      >
+                        {childListCollapsed ? "›" : "⌄"}
+                      </NodeInlineActionButton>
+                    ) : null}
+                    {row.childNodes.length > 0 ? (
+                      <span
+                        data-navigator-block-count=""
+                        aria-label={`${row.childNodes.length} nested blocks`}
+                        title={`${row.childNodes.length} nested blocks`}
+                        style={{
+                          height: 18,
+                          minWidth: 18,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "0 6px",
+                          borderRadius: 999,
+                          background: selected
+                            ? "rgba(42,49,71,0.10)"
+                            : "rgba(42,49,71,0.08)",
+                          color: selected
+                            ? CHROME.accent
+                            : CHROME.muted,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          lineHeight: 1,
+                          flexShrink: 0,
+                          opacity: sectionActionsVisible ? 1 : 0.82,
+                          transition: "opacity 100ms ease",
+                        }}
+                      >
+                        {row.childNodes.length}
+                      </span>
+                    ) : null}
+                  </span>
+                  {slotCount > 1 ? (
                     <span
-                      data-navigator-block-count=""
-                      aria-label={`${row.childNodes.length} nested blocks`}
-                      title={`${row.childNodes.length} nested blocks`}
+                      data-navigator-section-reorder-controls=""
+                      aria-label={`Reorder ${labelFor(row)}`}
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
                       style={{
-                        height: 18,
-                        minWidth: 18,
+                        gridColumn: "5",
                         display: "inline-flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        padding: "0 6px",
-                        borderRadius: 999,
-                        background: selected
-                          ? "rgba(255,255,255,0.14)"
-                          : "rgba(42,49,71,0.08)",
-                        color: selected ? "rgba(255,255,255,0.82)" : CHROME.muted,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        lineHeight: 1,
-                        flexShrink: 0,
-                        opacity: sectionActionsVisible ? 1 : 0.82,
+                        justifyContent: "flex-end",
+                        gap: 2,
+                        opacity: sectionActionsVisible ? 1 : 0.84,
                         transition: "opacity 100ms ease",
                       }}
                     >
-                      {row.childNodes.length}
+                      <NodeInlineActionButton
+                        label={`Move ${labelFor(row)} up`}
+                        disabled={
+                          !canMoveSectionUp || moveInFlight
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (moveInFlight || !canMoveSectionUp) return;
+                          void commitSectionMove(row.ref.sectionId, "up");
+                        }}
+                        compact
+                      >
+                        <ArrowUp
+                          size={NAVIGATOR_ACTION_ICON_SIZE}
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                      </NodeInlineActionButton>
+                      <NodeInlineActionButton
+                        label={`Move ${labelFor(row)} down`}
+                        disabled={
+                          !canMoveSectionDown || moveInFlight
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (moveInFlight || !canMoveSectionDown) return;
+                          void commitSectionMove(row.ref.sectionId, "down");
+                        }}
+                        compact
+                      >
+                        <ArrowDown
+                          size={NAVIGATOR_ACTION_ICON_SIZE}
+                          strokeWidth={2.2}
+                          aria-hidden
+                        />
+                      </NodeInlineActionButton>
                     </span>
                   ) : null}
-                  </span>
                   <span
                     data-navigator-section-actions=""
                     aria-hidden={!sectionActionsVisible}
@@ -1935,18 +2078,22 @@ export function NavigatorPanel() {
                     onPointerDown={(e) => e.stopPropagation()}
                     style={{
                       display: sectionActionsVisible ? "inline-flex" : "none",
-                      gridColumn: "1 / -1",
+                      position: "absolute",
+                      right: sectionActionRight,
+                      top: "50%",
+                      transform: "translateY(-50%)",
                       alignItems: "center",
-                      flexWrap: "wrap",
-                      justifyContent: "flex-start",
-                      gap: 4,
+                      flexWrap: "nowrap",
+                      justifyContent: "flex-end",
+                      gap: 3,
                       marginLeft: 0,
-                      paddingLeft: 26,
-                      marginTop: 4,
-                      paddingTop: 4,
-                      borderTop: `1px solid ${selected ? "rgba(255,255,255,0.20)" : CHROME.line}`,
+                      padding: "2px",
+                      borderTop: "none",
+                      background: selected ? "rgba(247,248,250,0.98)" : CHROME.surface,
+                      boxShadow: selected
+                        ? "0 2px 8px rgba(15,23,42,0.10)"
+                        : "0 2px 8px rgba(15,23,42,0.10)",
                       pointerEvents: "auto",
-                      position: "relative",
                       zIndex: 2,
                     }}
                   >
@@ -1971,7 +2118,7 @@ export function NavigatorPanel() {
                         dataAttr="data-builder-node-add-trigger"
                         tabIndex={sectionActionsVisible ? 0 : -1}
                       >
-                        +
+                        <Plus size={NAVIGATOR_ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
                       </NodeInlineActionButton>
                     ) : null}
                     <NodeInlineActionButton
@@ -2008,6 +2155,22 @@ export function NavigatorPanel() {
                   <div
                     data-navigator-child-list=""
                     data-section-id={row.ref.sectionId}
+                    onDragOver={(e) => {
+                      if (searchQuery || !draggingChildNode) return;
+                      const siblingCount = row.childNodes.filter(
+                        (node) => node.parentId === draggingChildNode.parentId,
+                      ).length;
+                      if (siblingCount <= 0) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.dataTransfer.dropEffect = "move";
+                      setChildDropTarget({
+                        parentId: draggingChildNode.parentId,
+                        index: siblingCount,
+                        siblingCount,
+                      });
+                    }}
+                    onDrop={(e) => void onChildDrop(e)}
                     style={{
                       marginLeft: 30,
                       display: "flex",
@@ -2059,6 +2222,10 @@ export function NavigatorPanel() {
                       const canMoveUp = siblingIndex > 0;
                       const canMoveDown =
                         siblingIndex >= 0 && siblingIndex < siblingCount - 1;
+                      const childMovePending = pendingMoveKey?.startsWith(
+                        `node:${child.id}:`,
+                      );
+                      const moveInFlight = Boolean(pendingMoveKey);
                       const showChildDropTop =
                         draggingChildNode &&
                         childDropTarget?.parentId === child.parentId &&
@@ -2074,12 +2241,14 @@ export function NavigatorPanel() {
                           <div
                             role="button"
                             tabIndex={0}
-                            draggable={childDragEnabled && !childActionsVisible}
+                            draggable={childDragEnabled && siblingCount > 1}
                             onDragStart={(e) => {
                               const target = e.target;
                               if (
                                 target instanceof HTMLElement &&
-                                target.closest("[data-navigator-child-actions]")
+                                (!target.closest("[data-navigator-drag-handle]") ||
+                                  target.closest("[data-navigator-child-actions]") ||
+                                  target.closest("[data-navigator-child-reorder-controls]"))
                               ) {
                                 e.preventDefault();
                                 return;
@@ -2137,15 +2306,15 @@ export function NavigatorPanel() {
                               if (e.key === "ArrowUp") {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                if (!canMoveUp) return;
-                                void moveBuilderNodeWithinParent(child.id, "up");
+                                if (moveInFlight || !canMoveUp) return;
+                                void commitNodeMoveWithinParent(child.id, "up");
                                 return;
                               }
                               if (e.key === "ArrowDown") {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                if (!canMoveDown) return;
-                                void moveBuilderNodeWithinParent(child.id, "down");
+                                if (moveInFlight || !canMoveDown) return;
+                                void commitNodeMoveWithinParent(child.id, "down");
                               }
                             }}
                             aria-label={`${child.label} block. Press Alt plus Arrow Up or Arrow Down to reorder.`}
@@ -2154,30 +2323,31 @@ export function NavigatorPanel() {
                             data-builder-node-kind={child.kind}
                             data-builder-node-role={child.role ?? undefined}
                             data-selected={childSelected ? "true" : "false"}
+                            data-moving={childMovePending ? "true" : undefined}
+                            aria-busy={childMovePending ? "true" : undefined}
                             style={{
                               position: "relative",
                               display: "grid",
-                              gridTemplateColumns: "12px 26px minmax(0, 1fr)",
-                              alignItems: "start",
+                              gridTemplateColumns: "8px 22px minmax(0, 1fr) auto",
+                              alignItems: "center",
                               columnGap: 8,
-                              rowGap: 6,
-                              minHeight: 42,
-                              padding: "6px 8px",
+                              rowGap: 3,
+                              minHeight: 32,
+                              padding: "4px 8px",
                               paddingLeft: 8 + Math.max(0, (child.depth - 1) * 13),
                               borderRadius: 0,
-                              border: childSelected
-                                ? "1px solid rgba(255,255,255,0.16)"
-                                : `1px solid transparent`,
+                              border: `1px solid transparent`,
                               background: childSelected
-                                ? "rgba(42, 49, 71, 0.92)"
+                                ? "rgba(42, 49, 71, 0.08)"
                                 : "transparent",
-                              color: childSelected ? "#fff" : CHROME.muted,
+                              color: childSelected ? CHROME.text : CHROME.muted,
                               textAlign: "left",
                               fontSize: NAVIGATOR_ROW_FONT_SIZE,
                               fontWeight: childSelected ? 600 : 500,
-                              cursor: childDragEnabled ? "grab" : "pointer",
+                              cursor: "pointer",
+                              opacity: childMovePending ? 0.72 : 1,
                               boxShadow: childSelected
-                                ? "0 6px 16px -12px rgba(0,0,0,0.55)"
+                                ? `inset 3px 0 0 ${CHROME.accent}`
                                 : "none",
                             }}
                             onMouseEnter={(e) => {
@@ -2208,12 +2378,17 @@ export function NavigatorPanel() {
                             }}
                           >
                             <span
+                              data-navigator-drag-handle=""
                               aria-hidden
                               style={{
-                                width: 12,
+                                width: 8,
                                 alignSelf: "stretch",
                                 display: "inline-flex",
                                 justifyContent: "center",
+                                cursor:
+                                  childDragEnabled && siblingCount > 1
+                                    ? "grab"
+                                    : "default",
                                 flexShrink: 0,
                               }}
                             >
@@ -2223,7 +2398,7 @@ export function NavigatorPanel() {
                                   minHeight: 22,
                                   borderRadius: 999,
                                   background: childSelected
-                                    ? "rgba(255,255,255,0.72)"
+                                    ? CHROME.accent
                                     : child.depth > 1
                                       ? "rgba(42,49,71,0.26)"
                                       : "rgba(42,49,71,0.14)",
@@ -2246,16 +2421,70 @@ export function NavigatorPanel() {
                             >
                               <span
                                 style={{
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 1,
+                                  WebkitBoxOrient: "vertical",
                                   whiteSpace: "nowrap",
                                   textOverflow: "ellipsis",
-                                  lineHeight: 1.2,
+                                  lineHeight: 1.15,
                                   width: "100%",
                                   overflow: "hidden",
+                                  paddingRight: childActionsVisible ? 108 : 0,
                                 }}
                               >
                                 {child.label}
                               </span>
                             </span>
+                            {siblingCount > 1 ? (
+                              <span
+                                data-navigator-child-reorder-controls=""
+                                aria-label={`Reorder ${child.label}`}
+                                onClick={(e) => e.stopPropagation()}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                style={{
+                                  gridColumn: "4",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "flex-end",
+                                  gap: 2,
+                                  opacity: childActionsVisible ? 1 : 0.84,
+                                  transition: "opacity 100ms ease",
+                                }}
+                              >
+                                <NodeInlineActionButton
+                                  label={`Move ${child.label} up`}
+                                  disabled={!canMoveUp || moveInFlight}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (moveInFlight || !canMoveUp) return;
+                                    void commitNodeMoveWithinParent(child.id, "up");
+                                  }}
+                                  compact
+                                >
+                                  <ArrowUp
+                                    size={NAVIGATOR_ACTION_ICON_SIZE}
+                                    strokeWidth={2.2}
+                                    aria-hidden
+                                  />
+                                </NodeInlineActionButton>
+                                <NodeInlineActionButton
+                                  label={`Move ${child.label} down`}
+                                  disabled={!canMoveDown || moveInFlight}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (moveInFlight || !canMoveDown) return;
+                                    void commitNodeMoveWithinParent(child.id, "down");
+                                  }}
+                                  compact
+                                >
+                                  <ArrowDown
+                                    size={NAVIGATOR_ACTION_ICON_SIZE}
+                                    strokeWidth={2.2}
+                                    aria-hidden
+                                  />
+                                </NodeInlineActionButton>
+                              </span>
+                            ) : null}
                             <span
                               data-navigator-child-actions=""
                               aria-hidden={!childActionsVisible}
@@ -2263,23 +2492,28 @@ export function NavigatorPanel() {
                               onPointerDown={(e) => e.stopPropagation()}
                               style={{
                                 display: childActionsVisible ? "inline-flex" : "none",
-                                gridColumn: "1 / -1",
+                                position: "absolute",
+                                right: siblingCount > 1 ? 46 : 6,
+                                top: "50%",
+                                transform: "translateY(-50%)",
                                 alignItems: "center",
-                                flexWrap: "wrap",
-                                justifyContent: "flex-start",
-                                gap: 4,
+                                flexWrap: "nowrap",
+                                justifyContent: "flex-end",
+                                gap: 3,
                                 marginLeft: 0,
-                                paddingLeft: 20,
-                                marginTop: 3,
-                                paddingTop: 4,
-                                borderTop: `1px solid ${
-                                  childSelected ? "rgba(255,255,255,0.18)" : CHROME.line
-                                }`,
-                                position: "relative",
+                                padding: "2px",
+                                marginTop: 0,
+                                borderTop: "none",
+                                background: childSelected
+                                  ? "rgba(247,248,250,0.98)"
+                                  : CHROME.surface,
+                                boxShadow: childSelected
+                                  ? "0 2px 8px rgba(15,23,42,0.10)"
+                                  : "0 2px 8px rgba(15,23,42,0.10)",
                                 pointerEvents: "auto",
                                 zIndex: 2,
                               }}
-                              >
+                            >
                               {childAllowedKinds.length > 0 ? (
                                 <NodeInlineActionButton
                                   label={`Add block inside ${child.label}`}
@@ -2299,7 +2533,11 @@ export function NavigatorPanel() {
                                   dataAttr="data-builder-node-add-trigger"
                                   tabIndex={childActionsVisible ? 0 : -1}
                                 >
-                                  +
+                                  <Plus
+                                    size={NAVIGATOR_ACTION_ICON_SIZE}
+                                    strokeWidth={2.2}
+                                    aria-hidden
+                                  />
                                 </NodeInlineActionButton>
                               ) : null}
                               <NodeInlineActionButton
@@ -2362,32 +2600,6 @@ export function NavigatorPanel() {
                                 />
                               </NodeInlineActionButton>
                               <NodeInlineActionButton
-                                label={`Move ${child.label} up`}
-                                disabled={!canMoveUp}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (!canMoveUp) return;
-                                  void moveBuilderNodeWithinParent(child.id, "up");
-                                }}
-                                inverted={childSelected}
-                                tabIndex={childActionsVisible ? 0 : -1}
-                              >
-                                ↑
-                              </NodeInlineActionButton>
-                              <NodeInlineActionButton
-                                label={`Move ${child.label} down`}
-                                disabled={!canMoveDown}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (!canMoveDown) return;
-                                  void moveBuilderNodeWithinParent(child.id, "down");
-                                }}
-                                inverted={childSelected}
-                                tabIndex={childActionsVisible ? 0 : -1}
-                              >
-                                ↓
-                              </NodeInlineActionButton>
-                              <NodeInlineActionButton
                                 label={`Remove ${child.label}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2397,7 +2609,11 @@ export function NavigatorPanel() {
                                 dataAttr="data-builder-node-remove-trigger"
                                 tabIndex={childActionsVisible ? 0 : -1}
                               >
-                                ×
+                                <X
+                                  size={NAVIGATOR_ACTION_ICON_SIZE}
+                                  strokeWidth={2.2}
+                                  aria-hidden
+                                />
                               </NodeInlineActionButton>
                             </span>
                           </div>
@@ -2690,10 +2906,10 @@ function BuilderNodeKindPill({
         justifyContent: "center",
         borderRadius: 0,
         border: selected
-          ? "1px solid rgba(255,255,255,0.16)"
+          ? "1px solid rgba(42,49,71,0.22)"
           : `1px solid ${CHROME.line}`,
-        background: selected ? "rgba(255,255,255,0.12)" : CHROME.paper,
-        color: selected ? "rgba(255,255,255,0.86)" : CHROME.muted,
+        background: selected ? "rgba(42,49,71,0.10)" : CHROME.paper,
+        color: selected ? CHROME.accent : CHROME.muted,
         fontSize: 12,
         fontWeight: 800,
         letterSpacing: "0.02em",
@@ -2712,6 +2928,7 @@ function NodeInlineActionButton({
   onClick,
   disabled,
   inverted = false,
+  compact = false,
   dataAttr,
   ariaExpanded,
   tabIndex,
@@ -2721,6 +2938,7 @@ function NodeInlineActionButton({
   onClick: MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   inverted?: boolean;
+  compact?: boolean;
   dataAttr?: string;
   ariaExpanded?: boolean;
   tabIndex?: number;
@@ -2748,19 +2966,20 @@ function NodeInlineActionButton({
       onClick={onClick}
       {...dataProps}
       style={{
-        width: 23,
-        height: 23,
+        width: compact ? 22 : 21,
+        height: compact ? 22 : 21,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 0,
         border: "none",
-        background: inverted ? "rgba(255,255,255,0.14)" : "rgba(24,24,27,0.08)",
-        color: inverted ? "rgba(255,255,255,0.88)" : CHROME.muted2,
+        background: inverted ? "rgba(42,49,71,0.10)" : "rgba(24,24,27,0.08)",
+        color: inverted ? CHROME.accent : CHROME.muted2,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.45 : 1,
         padding: 0,
         flexShrink: 0,
+        fontSize: compact ? 11 : 12,
       }}
     >
       {children}

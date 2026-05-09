@@ -121,13 +121,14 @@ function DotSwatch({ color }: { color: string }) {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function MediaSidebar({
-  view, setView, photos, folders, onNewFolder,
+  view, setView, photos, folders, onNewFolder, settings,
 }: {
   view: ActiveView;
   setView: (v: ActiveView) => void;
   photos: MediaPhoto[];
   folders: MediaFolder[];
   onNewFolder: () => void;
+  settings: { showFolders: boolean; showPending: boolean; showAnalytics: boolean; showByTalent: boolean; showByKind: boolean };
 }) {
   const pendingCount = photos.filter((p) => p.approvalState === "pending").length;
 
@@ -174,33 +175,41 @@ function MediaSidebar({
       overflowY: "auto", gap: 1,
     }}>
       <NavRow label={`All (${photos.length})`} v={{ kind: "all" }} />
-      <NavRow label="Pending review" v={{ kind: "pending" }} badge={pendingCount} />
+      {settings.showPending && <NavRow label="Pending review" v={{ kind: "pending" }} badge={pendingCount} />}
 
-      <SectionLabel text="Folders" />
-      {folders.map((f) => (
-        <NavRow
-          key={f.id}
-          label={f.name}
-          v={{ kind: "folder", folderId: f.id }}
-          dot={f.color ?? FOLDER_PALETTE[0]}
-        />
-      ))}
-      <button type="button" onClick={onNewFolder} style={{
-        display: "flex", alignItems: "center", gap: 6, width: "100%",
-        padding: "5px 9px", borderRadius: 7, border: "none",
-        background: "transparent", color: COLORS.inkMuted,
-        fontFamily: FONTS.body, fontSize: 12, cursor: "pointer", textAlign: "left",
-      }}>
-        <span style={{ fontSize: 15, lineHeight: 1 }}>+</span>
-        New folder
-      </button>
+      {settings.showFolders && (
+        <>
+          <SectionLabel text="Folders" />
+          {folders.map((f) => (
+            <NavRow
+              key={f.id}
+              label={f.name}
+              v={{ kind: "folder", folderId: f.id }}
+              dot={f.color ?? FOLDER_PALETTE[0]}
+            />
+          ))}
+          <button type="button" onClick={onNewFolder} style={{
+            display: "flex", alignItems: "center", gap: 6, width: "100%",
+            padding: "5px 9px", borderRadius: 7, border: "none",
+            background: "transparent", color: COLORS.inkMuted,
+            fontFamily: FONTS.body, fontSize: 12, cursor: "pointer", textAlign: "left",
+          }}>
+            <span style={{ fontSize: 15, lineHeight: 1 }}>+</span>
+            New folder
+          </button>
+        </>
+      )}
 
-      <SectionLabel text="Group by" />
-      <NavRow label="By talent" v={{ kind: "by-talent" }} />
-      <NavRow label="By kind" v={{ kind: "by-kind" }} />
+      {(settings.showByTalent || settings.showByKind) && <SectionLabel text="Group by" />}
+      {settings.showByTalent && <NavRow label="By talent" v={{ kind: "by-talent" }} />}
+      {settings.showByKind && <NavRow label="By kind" v={{ kind: "by-kind" }} />}
 
-      <SectionLabel text="More" />
-      <NavRow label="Analytics" v={{ kind: "analytics" }} />
+      {settings.showAnalytics && (
+        <>
+          <SectionLabel text="More" />
+          <NavRow label="Analytics" v={{ kind: "analytics" }} />
+        </>
+      )}
     </div>
   );
 }
@@ -1213,7 +1222,7 @@ export function WorkspaceMediaPage() {
   const isStudio = meetsPlan(state.plan, "studio");
 
   // ── Branding settings ────────────────────────────────────────────
-  const [wsWatermarkEnabled, setWsWatermarkEnabled] = useState(false);
+  const [_wsWatermarkEnabled, setWsWatermarkEnabled] = useState(false);
   const [wsLogoUrl, setWsLogoUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!tenantSlug || !isStudio) return;
@@ -1225,6 +1234,23 @@ export function WorkspaceMediaPage() {
     });
   }, [tenantSlug, isStudio]);
 
+  // ── Media settings popup + upload menu ───────────────────────────
+  const [showSettings, setShowSettings] = useState(false);
+  const [showUploadMenu, setShowUploadMenu] = useState(false);
+  const [mediaSettings, setMediaSettings] = useState({
+    showFolders: true,
+    showWatermark: true,
+    showPending: true,
+    showAnalytics: true,
+    showByTalent: true,
+    showByKind: true,
+    showDriveImport: true,
+  });
+  const toggleSetting = (key: keyof typeof mediaSettings) =>
+    setMediaSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  // Gate watermark on settings toggle — disables overlay + Apply WM everywhere.
+  const wsWatermarkEnabled = _wsWatermarkEnabled && mediaSettings.showWatermark;
+
   // ── View / filter state ──────────────────────────────────────────
   const [view, setView] = useState<ActiveView>({ kind: "all" });
   const [filterTalent, setFilterTalent] = useState("all");
@@ -1232,6 +1258,26 @@ export function WorkspaceMediaPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "talent">("newest");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // ── Pagination / lazy-load state ─────────────────────────────────
+  const [expandedTalentGroups, setExpandedTalentGroups] = useState<Set<string>>(new Set());
+  const [allViewLimit, setAllViewLimit] = useState(18);
+  const allViewSentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset pagination when view changes
+  useEffect(() => { setAllViewLimit(18); setExpandedTalentGroups(new Set()); }, [view.kind]);
+
+  // IntersectionObserver: auto-load more in "all" flat view
+  useEffect(() => {
+    const sentinel = allViewSentinelRef.current;
+    if (!sentinel) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setAllViewLimit((n) => n + 18); },
+      { rootMargin: "200px" },
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [allViewSentinelRef.current]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Lightbox + detail drawer ─────────────────────────────────────
   const [lightboxPhoto, setLightboxPhoto] = useState<MediaPhoto | null>(null);
@@ -1750,76 +1796,140 @@ export function WorkspaceMediaPage() {
         )}
 
         {/* Bulk bar */}
-        {selCount > 0 && (
-          <div style={{
-            padding: "8px 20px", background: COLORS.fill, color: "#fff",
-            display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap",
-            fontFamily: FONTS.body, fontSize: 12,
-          }}>
-            <span style={{ fontWeight: 700, fontSize: 13 }}>{selCount} selected</span>
-            {selHasPending && (
-              <>
-                <button type="button" disabled={isApproving} onClick={() => void handleApproveSelected()}
-                  style={{ background: "rgba(46,160,67,0.9)", border: "none", color: "#fff", padding: "4px 11px", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
-                  {isApproving ? "…" : "Approve"}
-                </button>
-                <button type="button" disabled={isApproving} onClick={() => void handleRejectSelected()}
-                  style={{ background: "rgba(192,57,43,0.55)", border: "none", color: "#fff", padding: "4px 11px", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
-                  Reject
-                </button>
-              </>
-            )}
-            <button type="button" onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })}
-              style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", padding: "4px 11px", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
-              Apply WM
+        {selCount > 0 && (() => {
+          const firstSelected = filtered.find((p) => selected.has(p.id)) ?? null;
+          const isSingle = selCount === 1;
+          const BulkBtn = ({ label, icon, onClick, danger, disabled }: { label: string; icon: string; onClick: () => void; danger?: boolean; disabled?: boolean }) => (
+            <button
+              type="button"
+              onClick={onClick}
+              disabled={disabled}
+              title={label}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                background: danger ? "rgba(192,57,43,0.75)" : "rgba(255,255,255,0.13)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "#fff", padding: "5px 11px", borderRadius: 7,
+                cursor: disabled ? "not-allowed" : "pointer",
+                fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+                opacity: disabled ? 0.45 : 1, whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = danger ? "rgba(192,57,43,0.95)" : "rgba(255,255,255,0.22)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = danger ? "rgba(192,57,43,0.75)" : "rgba(255,255,255,0.13)"; }}
+            >
+              <span style={{ fontSize: 13 }}>{icon}</span>
+              {label}
             </button>
-            <button type="button" onClick={() => void openReassignModal()}
-              style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", padding: "4px 11px", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
-              Move to…
-            </button>
-            {/* Add to folder */}
-            {folders.length > 0 && (
-              <select onChange={(e) => { if (e.target.value) { void addSelectedToFolder(e.target.value); e.target.value = ""; } }}
-                style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600 }}>
-                <option value="">+ Folder…</option>
-                {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            )}
-            <button type="button" disabled={isDeleting} onClick={() => void handleDeleteSelected()}
-              style={{ background: "rgba(192,57,43,0.7)", border: "none", color: "#fff", padding: "4px 11px", borderRadius: 6, cursor: isDeleting ? "not-allowed" : "pointer", fontWeight: 600, opacity: isDeleting ? 0.6 : 1 }}>
-              {isDeleting ? "Deleting…" : `Delete ${selCount}`}
-            </button>
-            <button type="button" onClick={() => setSelected(new Set())}
-              style={{ marginLeft: "auto", background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
-          </div>
-        )}
+          );
+          const Sep = () => <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.18)", flexShrink: 0 }} />;
+          return (
+            <div style={{
+              padding: "8px 16px", background: "#1a1e2e", color: "#fff",
+              display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+              fontFamily: FONTS.body, fontSize: 12,
+              borderBottom: `1px solid rgba(255,255,255,0.08)`,
+            }}>
+              {/* Count */}
+              <span style={{ fontWeight: 700, fontSize: 13, marginRight: 4, whiteSpace: "nowrap" }}>
+                {selCount} selected
+              </span>
+              <Sep />
+
+              {/* View / edit */}
+              <BulkBtn icon="🔍" label="Preview" disabled={!isSingle} onClick={() => { if (firstSelected) setLightboxPhoto(firstSelected); }} />
+              <BulkBtn icon="✂️" label="Crop & rotate" disabled={!isSingle} onClick={() => toast("Crop & rotate — coming soon")} />
+              <BulkBtn icon="🎨" label="Edit" disabled={!isSingle} onClick={() => toast("Basic editing — coming soon")} />
+              <Sep />
+
+              {/* Organise */}
+              <BulkBtn icon="📋" label="Duplicate" onClick={() => toast(`Duplicating ${selCount} photo${selCount > 1 ? "s" : ""}…`)} />
+              <BulkBtn icon="↩️" label="Revert to original" onClick={() => toast(`Reverting ${selCount} photo${selCount > 1 ? "s" : ""} to original…`)} />
+              {wsWatermarkEnabled && <BulkBtn icon="🔖" label="Apply WM" onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })} />}
+              <BulkBtn icon="📂" label="Move to…" onClick={() => void openReassignModal()} />
+              {folders.length > 0 && (
+                <select
+                  onChange={(e) => { if (e.target.value) { void addSelectedToFolder(e.target.value); e.target.value = ""; } }}
+                  style={{ background: "rgba(255,255,255,0.13)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "5px 10px", borderRadius: 7, cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600 }}
+                >
+                  <option value="">+ Folder…</option>
+                  {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              )}
+              <Sep />
+
+              {/* Review */}
+              {selHasPending && (
+                <>
+                  <BulkBtn icon="✅" label={isApproving ? "…" : "Approve"} disabled={isApproving} onClick={() => void handleApproveSelected()} />
+                  <BulkBtn icon="🚫" label="Reject" disabled={isApproving} onClick={() => void handleRejectSelected()} />
+                  <Sep />
+                </>
+              )}
+
+              {/* Destructive */}
+              <BulkBtn icon="🗑" label={isDeleting ? "Deleting…" : `Delete ${selCount}`} danger disabled={isDeleting} onClick={() => void handleDeleteSelected()} />
+
+              {/* Dismiss */}
+              <button
+                type="button"
+                onClick={() => setSelected(new Set())}
+                title="Clear selection"
+                style={{ marginLeft: "auto", background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "0 2px" }}
+              >×</button>
+            </div>
+          );
+        })()}
 
         {/* Grid / grouped content */}
         <div style={{ flex: 1, overflow: "auto", padding: "16px 20px 32px" }}>
           {useGrouped ? (
-            groups.map(([groupName, groupPhotos]) => (
-              <div key={groupName} style={{ marginBottom: 28 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{groupName}</div>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>{groupPhotos.length} photo{groupPhotos.length !== 1 ? "s" : ""}</div>
-                  <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
+            groups.map(([groupName, groupPhotos]) => {
+              const ROW_SIZE = 6;
+              const isExpanded = expandedTalentGroups.has(groupName);
+              const isByTalent = showGroupedByTalent;
+              const visiblePhotos = isByTalent && !isExpanded ? groupPhotos.slice(0, ROW_SIZE) : groupPhotos;
+              const hiddenCount = groupPhotos.length - visiblePhotos.length;
+              return (
+                <div key={groupName} style={{ marginBottom: 28 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                    <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{groupName}</div>
+                    <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>{groupPhotos.length} photo{groupPhotos.length !== 1 ? "s" : ""}</div>
+                    <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
+                    {isByTalent && groupPhotos.length > ROW_SIZE && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTalentGroups((prev) => {
+                          const next = new Set(prev);
+                          if (isExpanded) next.delete(groupName); else next.add(groupName);
+                          return next;
+                        })}
+                        style={{
+                          fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600,
+                          color: COLORS.fill, background: "none", border: "none",
+                          cursor: "pointer", padding: "0 2px", whiteSpace: "nowrap",
+                        }}
+                      >
+                        {isExpanded ? "Show less ↑" : `See ${hiddenCount} more →`}
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isByTalent ? "repeat(6, 1fr)" : "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
+                    {visiblePhotos.map((photo) => (
+                      <PhotoCard
+                        key={photo.id}
+                        photo={photo}
+                        selected={selected.has(photo.id)}
+                        wsLogoUrl={wsLogoUrl}
+                        wsWatermarkEnabled={wsWatermarkEnabled}
+                        onToggle={() => toggleOne(photo.id)}
+                        onOpenLightbox={() => setLightboxPhoto(photo)}
+                        onOpenDetail={() => setDetailPhoto(photo)}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
-                  {groupPhotos.map((photo) => (
-                    <PhotoCard
-                      key={photo.id}
-                      photo={photo}
-                      selected={selected.has(photo.id)}
-                      wsLogoUrl={wsLogoUrl}
-                      wsWatermarkEnabled={wsWatermarkEnabled}
-                      onToggle={() => toggleOne(photo.id)}
-                      onOpenLightbox={() => setLightboxPhoto(photo)}
-                      onOpenDetail={() => setDetailPhoto(photo)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))
+              );
+            })
           ) : filtered.length === 0 ? (
             <div style={{
               padding: 56, textAlign: "center",
@@ -1835,21 +1945,27 @@ export function WorkspaceMediaPage() {
                     : "No photos yet — drop images or click Upload."}
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 11 }}>
-              {filtered.map((photo, photoIdx) => (
-                <PhotoCard
-                  key={photo.id}
-                  photo={photo}
-                  selected={selected.has(photo.id)}
-                  keyboardFocused={view.kind === "pending" && photoIdx === focusedPendingIdx}
-                  wsLogoUrl={wsLogoUrl}
-                  wsWatermarkEnabled={wsWatermarkEnabled}
-                  onToggle={() => { toggleOne(photo.id); if (view.kind === "pending") setFocusedPendingIdx(photoIdx); }}
-                  onOpenLightbox={() => setLightboxPhoto(photo)}
-                  onOpenDetail={() => setDetailPhoto(photo)}
-                />
-              ))}
-            </div>
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 11 }}>
+                {filtered.slice(0, allViewLimit).map((photo, photoIdx) => (
+                  <PhotoCard
+                    key={photo.id}
+                    photo={photo}
+                    selected={selected.has(photo.id)}
+                    keyboardFocused={view.kind === "pending" && photoIdx === focusedPendingIdx}
+                    wsLogoUrl={wsLogoUrl}
+                    wsWatermarkEnabled={wsWatermarkEnabled}
+                    onToggle={() => { toggleOne(photo.id); if (view.kind === "pending") setFocusedPendingIdx(photoIdx); }}
+                    onOpenLightbox={() => setLightboxPhoto(photo)}
+                    onOpenDetail={() => setDetailPhoto(photo)}
+                  />
+                ))}
+              </div>
+              {/* Sentinel: triggers auto-load when scrolled into view */}
+              {allViewLimit < filtered.length && (
+                <div ref={allViewSentinelRef} style={{ height: 1, marginTop: 20 }} />
+              )}
+            </>
           )}
         </div>
       </div>
@@ -1891,13 +2007,132 @@ export function WorkspaceMediaPage() {
             <h1 style={{ fontFamily: FONTS.body, fontSize: 20, fontWeight: 700, color: COLORS.ink, margin: 0 }}>Media</h1>
             <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2, marginBottom: 0 }}>
               {photos.length} photo{photos.length !== 1 ? "s" : ""} · {folders.length} folder{folders.length !== 1 ? "s" : ""}
-              {wsWatermarkEnabled && wsLogoUrl && <span style={{ marginLeft: 8, color: COLORS.success }}>· Watermark on</span>}
+              {mediaSettings.showWatermark && wsWatermarkEnabled && wsLogoUrl && <span style={{ marginLeft: 8, color: COLORS.success }}>· Watermark on</span>}
             </p>
           </div>
-          <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
-            <SecondaryButton size="sm" onClick={() => openDrawer("branding")}>⚙ Watermark</SecondaryButton>
-            <SecondaryButton size="sm" onClick={() => void openDrivePanel()}>Drive import</SecondaryButton>
-            <PrimaryButton size="sm" onClick={() => uploadFileRef.current?.click()} disabled={assignBusy}>+ Upload</PrimaryButton>
+          <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", position: "relative" }}>
+            {/* Settings gear */}
+            <div style={{ position: "relative" }}>
+              <SecondaryButton size="sm" onClick={() => setShowSettings((v) => !v)}>⚙ Settings</SecondaryButton>
+              {showSettings && (
+                <>
+                  {/* backdrop */}
+                  <div onClick={() => setShowSettings(false)} style={{ position: "fixed", inset: 0, zIndex: 89 }} />
+                  {/* popup */}
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 90,
+                    background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                    borderRadius: 12, boxShadow: "0 8px 32px -8px rgba(11,11,13,0.22)",
+                    width: 240, padding: "6px 0",
+                    fontFamily: FONTS.body,
+                  }}>
+                    <div style={{ padding: "6px 14px 8px", fontSize: 10.5, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: COLORS.inkDim }}>
+                      Media features
+                    </div>
+                    {([
+                      ["showFolders",    "Folders"],
+                      ["showWatermark",  "Watermark"],
+                      ["showPending",    "Pending review"],
+                      ["showAnalytics",  "Analytics"],
+                      ["showByTalent",   "Group by talent"],
+                      ["showByKind",     "Group by kind"],
+                      ["showDriveImport","Drive import"],
+                    ] as [keyof typeof mediaSettings, string][]).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleSetting(key)}
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "8px 14px", background: "transparent", border: "none",
+                          cursor: "pointer", fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                      >
+                        <span>{label}</span>
+                        {/* toggle pill */}
+                        <span style={{
+                          width: 34, height: 20, borderRadius: 10, flexShrink: 0,
+                          background: mediaSettings[key] ? COLORS.fill : COLORS.borderSoft,
+                          display: "inline-flex", alignItems: "center",
+                          padding: "0 3px", transition: "background .15s",
+                        }}>
+                          <span style={{
+                            width: 14, height: 14, borderRadius: "50%", background: "#fff",
+                            transform: mediaSettings[key] ? "translateX(14px)" : "translateX(0)",
+                            transition: "transform .15s",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+                          }} />
+                        </span>
+                      </button>
+                    ))}
+                    {/* Watermark config shortcut */}
+                    {mediaSettings.showWatermark && (
+                      <>
+                        <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 0" }} />
+                        <button
+                          type="button"
+                          onClick={() => { setShowSettings(false); openDrawer("branding"); }}
+                          style={{
+                            width: "100%", padding: "8px 14px", background: "transparent", border: "none",
+                            cursor: "pointer", fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted,
+                            textAlign: "left", display: "flex", alignItems: "center", gap: 6,
+                          }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                        >
+                          <span>↗</span> Configure watermark
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            {/* Upload dropdown */}
+            <div style={{ position: "relative" }}>
+              <PrimaryButton size="sm" onClick={() => setShowUploadMenu((v) => !v)} disabled={assignBusy}>
+                + Upload ▾
+              </PrimaryButton>
+              {showUploadMenu && (
+                <>
+                  <div onClick={() => setShowUploadMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 89 }} />
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 90,
+                    background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                    borderRadius: 12, boxShadow: "0 8px 32px -8px rgba(11,11,13,0.22)",
+                    width: 220, padding: "6px 0", fontFamily: FONTS.body,
+                  }}>
+                    {([
+                      { icon: "📁", label: "From computer", sub: "JPG, PNG, WEBP, ZIP", action: () => { setShowUploadMenu(false); uploadFileRef.current?.click(); } },
+                      { icon: "⬛", label: "Drag & drop", sub: "Drop anywhere on this page", action: () => { setShowUploadMenu(false); toast("Drop images anywhere on the page"); } },
+                      ...(mediaSettings.showDriveImport ? [{ icon: "🟢", label: "Google Drive", sub: "Import from a shared folder", action: () => { setShowUploadMenu(false); void openDrivePanel(); } }] : []),
+                    ] as { icon: string; label: string; sub: string; action: () => void }[]).map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={item.action}
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center", gap: 10,
+                          padding: "9px 14px", background: "transparent", border: "none",
+                          cursor: "pointer", textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                      >
+                        <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
+                        <div>
+                          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{item.label}</div>
+                          <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{item.sub}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1993,6 +2228,7 @@ export function WorkspaceMediaPage() {
           view={view} setView={(v) => { setView(v); setSelected(new Set()); setDetailPhoto(null); setFocusedPendingIdx(0); }}
           photos={photos} folders={folders}
           onNewFolder={() => { setEditingFolder(undefined); setShowFolderModal(true); }}
+          settings={mediaSettings}
         />
 
         {/* Main content */}

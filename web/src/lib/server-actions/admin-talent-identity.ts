@@ -51,8 +51,9 @@ const updateTalentIdentitySchema = z.object({
   talent_profile_id: z.string().uuid("Invalid talent profile id."),
   // All optional — the editor saves field-by-field.
   stage_name: z.string().optional(),
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
   legal_name: z.string().optional(),
-  pronunciation: z.string().optional(),
   pronouns: z
     .enum(["she_her", "he_him", "they_them", "ze_zir", "custom"])
     .nullable()
@@ -121,10 +122,12 @@ export async function updateTalentIdentity(
   // just one field without touching the others.
   const patch: Record<string, unknown> = {};
   if (v.stage_name !== undefined) patch.display_name = v.stage_name.trim();
+  const firstName = nullifyEmpty(v.first_name);
+  if (firstName !== undefined) patch.first_name = firstName;
+  const lastName = nullifyEmpty(v.last_name);
+  if (lastName !== undefined) patch.last_name = lastName;
   const legalName = nullifyEmpty(v.legal_name);
   if (legalName !== undefined) patch.legal_name = legalName;
-  const pronunciation = nullifyEmpty(v.pronunciation);
-  if (pronunciation !== undefined) patch.pronunciation = pronunciation;
   if (v.pronouns !== undefined) patch.pronouns = v.pronouns;
   const pronounsCustom = nullifyEmpty(v.pronouns_custom);
   if (pronounsCustom !== undefined) patch.pronouns_custom = pronounsCustom;

@@ -190,6 +190,10 @@ export function SkillSlotPanel({
   );
 
   const totalSkills = skills?.length ?? 0;
+  // Skills must have finished loading before the add-skill dialog opens.
+  // If skills===null the existingSkillIds set is empty, so already-added
+  // skills would appear clickable and the user gets a 23505 duplicate error.
+  const skillsReady = skills !== null;
   const primaryGroup = useMemo(() => {
     for (const [k, g] of grouped) {
       if (g.role === "primary_role") return { key: k, ...g };
@@ -436,7 +440,7 @@ export function SkillSlotPanel({
         onSetFeatured={handleSetFeatured}
         featuredSkillId={featuredSkillId}
         savingTermIds={savingTermIds}
-        canAddSkill={totalSkills < MAX_TOTAL_SKILLS}
+        canAddSkill={skillsReady && totalSkills < MAX_TOTAL_SKILLS}
         isAdmin={adminControls}
       />
 
@@ -458,13 +462,13 @@ export function SkillSlotPanel({
           onSetFeatured={handleSetFeatured}
           featuredSkillId={featuredSkillId}
           savingTermIds={savingTermIds}
-          canAddSkill={totalSkills < MAX_TOTAL_SKILLS}
+          canAddSkill={skillsReady && totalSkills < MAX_TOTAL_SKILLS}
           isAdmin={adminControls}
         />
       ))}
 
       {/* Add new secondary category button */}
-      {primaryGroup && canAddSecondaryParent && totalSkills < MAX_TOTAL_SKILLS && (
+      {primaryGroup && canAddSecondaryParent && skillsReady && totalSkills < MAX_TOTAL_SKILLS && (
         <button
           type="button"
           onClick={() => setAddingForRole({ role: "secondary" })}
@@ -507,6 +511,7 @@ export function SkillSlotPanel({
           existingSkillIds={
             new Set((skills ?? []).map((s) => s.skill_term_id))
           }
+          totalSkills={totalSkills}
           onClose={() => setAddingForRole(null)}
           onAdded={() => {
             setAddingForRole(null);

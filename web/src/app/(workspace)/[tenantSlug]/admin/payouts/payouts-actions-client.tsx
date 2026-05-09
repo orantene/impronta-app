@@ -14,6 +14,7 @@ import {
   disconnectStripeAccountAction,
 } from "@/lib/server-actions/admin-stripe-connect";
 import type { ConnectAccountStatus } from "@/lib/payments/stripe-connect";
+import { createTranslator } from "@/i18n/messages";
 
 const C = {
   ink:        "#0B0B0D",
@@ -61,13 +62,16 @@ export function PayoutsActionsClient({
   hasAccount,
   chargesEnabled,
   payoutsEnabled,
+  locale = "en",
 }: {
   tenantSlug: string;
   status: ConnectAccountStatus;
   hasAccount: boolean;
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
+  locale?: string;
 }) {
+  const t = createTranslator(locale);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -100,20 +104,20 @@ export function PayoutsActionsClient({
     startTransition(async () => {
       const r = await refreshConnectStatusAction(tenantSlug);
       if (!r.ok) { setError(r.error); return; }
-      setInfo("Status refreshed.");
+      setInfo(t("admin.payouts.actions.refreshed"));
       router.refresh();
     });
   };
 
   const onDisconnect = () => {
-    if (!window.confirm("Disconnect Stripe? Future client payments will route to the platform account again until you reconnect. Your Stripe account is NOT deleted.")) {
+    if (!window.confirm(t("admin.payouts.actions.disconnectConfirm"))) {
       return;
     }
     setError(null); setInfo(null);
     startTransition(async () => {
       const r = await disconnectStripeAccountAction(tenantSlug);
       if (!r.ok) { setError(r.error); return; }
-      setInfo("Disconnected.");
+      setInfo(t("admin.payouts.actions.disconnected"));
       router.refresh();
     });
   };
@@ -123,31 +127,31 @@ export function PayoutsActionsClient({
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {!hasAccount && (
           <button type="button" onClick={onConnect} disabled={pending} style={primaryBtn(pending)}>
-            {pending ? "Loading…" : "Connect Stripe"}
+            {pending ? t("admin.payouts.actions.loading") : t("admin.payouts.actions.connectStripe")}
           </button>
         )}
 
         {hasAccount && !fullyEnabled && (
           <button type="button" onClick={onResume} disabled={pending} style={primaryBtn(pending)}>
-            {pending ? "Loading…" : "Continue onboarding"}
+            {pending ? t("admin.payouts.actions.loading") : t("admin.payouts.actions.continueOnboarding")}
           </button>
         )}
 
         {hasAccount && fullyEnabled && (
           <button type="button" onClick={onManage} disabled={pending} style={primaryBtn(pending)}>
-            {pending ? "Loading…" : "Manage on Stripe"}
+            {pending ? t("admin.payouts.actions.loading") : t("admin.payouts.actions.manageOnStripe")}
           </button>
         )}
 
         {hasAccount && (
           <button type="button" onClick={onRefresh} disabled={pending} style={ghostBtn(pending)}>
-            {pending ? "…" : "Refresh status"}
+            {pending ? "…" : t("admin.payouts.actions.refreshStatus")}
           </button>
         )}
 
         {hasAccount && (
           <button type="button" onClick={onDisconnect} disabled={pending} style={ghostBtn(pending, true)}>
-            Disconnect
+            {t("admin.payouts.actions.disconnect")}
           </button>
         )}
       </div>

@@ -88,12 +88,14 @@ export async function updateTalentAbout(input: {
 export async function updateTalentLocation(input: {
   talent_profile_id: string;
   home_base?: string | null;
+  home_place_id?: string | null;
   travel_radius_km?: number | null;
   travel_fee_required?: boolean;
   remote_only?: boolean;
   passport_status?: "valid" | "expired" | "none" | null;
   drivers_license?: "none" | "standard" | "international" | "commercial" | null;
   work_eligibility?: string[];
+  upcoming_visits?: Array<{ id: string; city: string; placeId?: string; date?: string; dateEnd?: string }>;
 }): Promise<Result> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -104,12 +106,14 @@ export async function updateTalentLocation(input: {
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.home_base !== undefined) patch.home_city_text = input.home_base?.trim() || null;
+  if (input.home_place_id !== undefined) patch.home_place_id = input.home_place_id?.trim() || null;
   if (input.travel_radius_km !== undefined) patch.travel_radius_km = input.travel_radius_km;
   if (input.travel_fee_required !== undefined) patch.travel_fee_required = input.travel_fee_required;
   if (input.remote_only !== undefined) patch.remote_only = input.remote_only;
   if (input.passport_status !== undefined) patch.passport_status = input.passport_status || null;
   if (input.drivers_license !== undefined) patch.drivers_license = input.drivers_license || null;
   if (input.work_eligibility !== undefined) patch.work_eligibility = input.work_eligibility;
+  if (input.upcoming_visits !== undefined) patch.upcoming_visits = input.upcoming_visits;
 
   const { error } = await supabase
     .from("talent_profiles")
@@ -542,8 +546,9 @@ export async function removeTalentTaxonomyBySlug(input: {
 export type ProfileEditorData = {
   // Identity
   display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   legal_name: string | null;
-  pronunciation: string | null;
   pronouns: string | null;
   pronouns_custom: string | null;
   gender: string | null;
@@ -551,6 +556,7 @@ export type ProfileEditorData = {
   age_display_mode: string | null;
   nationality: string | null;
   response_time: string | null;
+  field_visibility: unknown;
   // About
   bios: Array<{ locale: string; text: string }>;
   bio_tone: string | null;
@@ -558,12 +564,14 @@ export type ProfileEditorData = {
   tagline: string | null;
   // Location
   home_city_text: string | null;
+  home_place_id: string | null;
   travel_radius_km: number | null;
   travel_fee_required: boolean;
   remote_only: boolean;
   passport_status: string | null;
   drivers_license: string | null;
   work_eligibility: unknown;
+  upcoming_visits: unknown;
   // Rates
   rates_data: unknown;
   package_rates_data: unknown;
@@ -600,11 +608,11 @@ export async function getTalentProfileEditorData(input: {
     supabase
       .from("talent_profiles")
       .select(`
-        display_name, legal_name, pronunciation, pronouns, pronouns_custom,
+        display_name, first_name, last_name, legal_name, field_visibility, pronouns, pronouns_custom,
         gender, date_of_birth, age_display_mode, nationality, response_time,
         bios, bio_tone, personality_traits, tagline,
-        home_city_text, travel_radius_km, travel_fee_required, remote_only,
-        passport_status, drivers_license, work_eligibility,
+        home_city_text, home_place_id, travel_radius_km, travel_fee_required, remote_only,
+        passport_status, drivers_license, work_eligibility, upcoming_visits,
         rates_data, package_rates_data, rate_card_visibility, ask_for_quote,
         travel_included, lodging_included,
         availability_data, credits_data, limits_data, social_proof_data, media_albums_data, documents_data
@@ -640,8 +648,9 @@ export async function getTalentProfileEditorData(input: {
     ok: true,
     data: {
       display_name: (p.display_name as string | null) ?? null,
+      first_name: (p.first_name as string | null) ?? null,
+      last_name: (p.last_name as string | null) ?? null,
       legal_name: (p.legal_name as string | null) ?? null,
-      pronunciation: (p.pronunciation as string | null) ?? null,
       pronouns: (p.pronouns as string | null) ?? null,
       pronouns_custom: (p.pronouns_custom as string | null) ?? null,
       gender: (p.gender as string | null) ?? null,
@@ -649,17 +658,20 @@ export async function getTalentProfileEditorData(input: {
       age_display_mode: (p.age_display_mode as string | null) ?? null,
       nationality: (p.nationality as string | null) ?? null,
       response_time: (p.response_time as string | null) ?? null,
+      field_visibility: p.field_visibility ?? null,
       bios,
       bio_tone: (p.bio_tone as string | null) ?? null,
       personality_traits: p.personality_traits ?? { loves: [], avoids: [] },
       tagline: (p.tagline as string | null) ?? null,
       home_city_text: (p.home_city_text as string | null) ?? null,
+      home_place_id: (p.home_place_id as string | null) ?? null,
       travel_radius_km: (p.travel_radius_km as number | null) ?? null,
       travel_fee_required: Boolean(p.travel_fee_required),
       remote_only: Boolean(p.remote_only),
       passport_status: (p.passport_status as string | null) ?? null,
       drivers_license: (p.drivers_license as string | null) ?? null,
       work_eligibility: p.work_eligibility ?? [],
+      upcoming_visits: Array.isArray(p.upcoming_visits) ? p.upcoming_visits : [],
       rates_data: p.rates_data ?? [],
       package_rates_data: p.package_rates_data ?? [],
       rate_card_visibility: (p.rate_card_visibility as string | null) ?? null,

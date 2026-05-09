@@ -8,6 +8,7 @@
 
 import React, { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { createTranslator } from "@/i18n/messages";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type {
   TaxonomyTermPick,
@@ -176,7 +177,7 @@ function TermChip({
 function TaxonomyBucketEditor({
   tenantSlug, talentId, bucketKey, bucketLabel, bucketDescription,
   acceptTermTypes, allTerms, currentAssignments,
-  isPrimary,
+  isPrimary, t,
 }: {
   tenantSlug: string;
   talentId: string;
@@ -187,6 +188,7 @@ function TaxonomyBucketEditor({
   allTerms: TaxonomyTermPick[];
   currentAssignments: TalentTaxonomyAssignment[];
   isPrimary: boolean;
+  t: (key: string) => string;
 }) {
   const router = useRouter();
   const [pendingTerm, setPendingTerm] = useState<string | null>(null);
@@ -251,7 +253,7 @@ function TaxonomyBucketEditor({
               fontSize: 11, fontWeight: 700, fontFamily: F,
             }}
           >
-            {picker ? "Done" : "+ Add"}
+            {picker ? t("admin.talent.edit.taxonomy.doneBtn") : t("admin.talent.edit.taxonomy.addBtn")}
           </button>
         )}
       </div>
@@ -263,7 +265,7 @@ function TaxonomyBucketEditor({
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
         {currentAssignments.length === 0 ? (
-          <span style={{ fontSize: 12, color: C.inkDim, fontStyle: "italic" }}>None set.</span>
+          <span style={{ fontSize: 12, color: C.inkDim, fontStyle: "italic" }}>{t("admin.talent.edit.taxonomy.emptyState")}</span>
         ) : currentAssignments.map((a) => (
           <TermChip
             key={a.termId}
@@ -284,7 +286,7 @@ function TaxonomyBucketEditor({
             <input
               type="text"
               autoFocus
-              placeholder={`Search ${bucketLabel.toLowerCase()}…`}
+              placeholder={t("admin.talent.edit.taxonomy.searchPlaceholder").replace("{bucketLabel}", bucketLabel.toLowerCase())}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{ ...inputStyle(), padding: "6px 10px", fontSize: 12.5, background: C.card }}
@@ -296,7 +298,7 @@ function TaxonomyBucketEditor({
           }}>
             {filteredEligible.length === 0 ? (
               <div style={{ padding: 12, fontSize: 12, color: C.inkMuted, textAlign: "center" }}>
-                {search.trim() ? `No matches for "${search}"` : "No more terms available."}
+                {search.trim() ? t("admin.talent.edit.taxonomy.noMatches").replace("{search}", search) : t("admin.talent.edit.taxonomy.noMore")}
               </div>
             ) : filteredEligible.map((t) => (
               <button
@@ -336,32 +338,45 @@ function TaxonomyBucketEditor({
 }
 
 export function TaxonomySection({
-  tenantSlug, talentId, allTerms, currentAssignments,
+  tenantSlug, talentId, allTerms, currentAssignments, locale,
 }: {
   tenantSlug: string;
   talentId: string;
   allTerms: TaxonomyTermPick[];
   currentAssignments: TalentTaxonomyAssignment[];
+  locale: string;
 }) {
+  const t = createTranslator(locale);
+  const bucketMeta: Record<string, { label: string; description: string }> = {
+    primary_role:   { label: t("admin.talent.edit.taxonomy.buckets.primaryRole"),   description: t("admin.talent.edit.taxonomy.buckets.primaryRoleDesc") },
+    secondary_role: { label: t("admin.talent.edit.taxonomy.buckets.otherRoles"),    description: t("admin.talent.edit.taxonomy.buckets.otherRolesDesc") },
+    skill:          { label: t("admin.talent.edit.taxonomy.buckets.skills"),         description: t("admin.talent.edit.taxonomy.buckets.skillsDesc") },
+    context:        { label: t("admin.talent.edit.taxonomy.buckets.bestFor"),        description: t("admin.talent.edit.taxonomy.buckets.bestForDesc") },
+    attribute:      { label: t("admin.talent.edit.taxonomy.buckets.attributes"),     description: t("admin.talent.edit.taxonomy.buckets.attributesDesc") },
+  };
   return (
     <SectionCard
-      title="Categories & vocabulary"
-      subtitle="The 2026 vocabulary that powers discovery. Primary role + skills + contexts + attributes."
+      title={t("admin.talent.edit.taxonomy.title")}
+      subtitle={t("admin.talent.edit.taxonomy.subtitle")}
     >
-      {RELATIONSHIP_BUCKETS.map((b) => (
-        <TaxonomyBucketEditor
-          key={b.key}
-          tenantSlug={tenantSlug}
-          talentId={talentId}
-          bucketKey={b.key}
-          bucketLabel={b.label}
-          bucketDescription={b.description}
-          acceptTermTypes={b.acceptTermTypes}
-          allTerms={allTerms}
-          currentAssignments={currentAssignments.filter((a) => a.relationshipType === b.key)}
-          isPrimary={b.key === "primary_role"}
-        />
-      ))}
+      {RELATIONSHIP_BUCKETS.map((b) => {
+        const meta = bucketMeta[b.key] ?? { label: b.label, description: b.description };
+        return (
+          <TaxonomyBucketEditor
+            key={b.key}
+            tenantSlug={tenantSlug}
+            talentId={talentId}
+            bucketKey={b.key}
+            bucketLabel={meta.label}
+            bucketDescription={meta.description}
+            acceptTermTypes={b.acceptTermTypes}
+            allTerms={allTerms}
+            currentAssignments={currentAssignments.filter((a) => a.relationshipType === b.key)}
+            isPrimary={b.key === "primary_role"}
+            t={t}
+          />
+        );
+      })}
     </SectionCard>
   );
 }
@@ -393,12 +408,14 @@ const SPEAKING_LEVELS = [
 ];
 
 export function LanguagesSection({
-  tenantSlug, talentId, languages,
+  tenantSlug, talentId, languages, locale,
 }: {
   tenantSlug: string;
   talentId: string;
   languages: TalentLanguageRow[];
+  locale: string;
 }) {
+  const t = createTranslator(locale);
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startMutation] = useTransition();
@@ -445,15 +462,15 @@ export function LanguagesSection({
 
   return (
     <SectionCard
-      title="Languages"
-      subtitle="Spoken languages with proficiency. Used for discovery filters."
+      title={t("admin.talent.edit.languages.title")}
+      subtitle={t("admin.talent.edit.languages.subtitle")}
       action={
         <button
           type="button"
           onClick={() => setPicker(!picker)}
           style={btnPrimary(false)}
         >
-          {picker ? "Cancel" : "+ Add language"}
+          {picker ? t("admin.talent.edit.languages.cancelBtn") : t("admin.talent.edit.languages.addBtn")}
         </button>
       }
     >
@@ -474,24 +491,32 @@ export function LanguagesSection({
             }}
             style={inputStyle()}
           >
-            {available.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+            {available.map((l) => (
+              <option key={l.code} value={l.code}>
+                {t(`admin.talent.edit.languages.names.${l.code === "zh" ? "mandarin" : l.code === "ar" ? "arabic" : l.name.toLowerCase().split(" ")[0]}`) || l.name}
+              </option>
+            ))}
           </select>
           <select value={pickLevel} onChange={(e) => setPickLevel(e.target.value)} style={inputStyle()}>
-            {SPEAKING_LEVELS.map((lv) => <option key={lv.value} value={lv.value}>{lv.label}</option>)}
+            {SPEAKING_LEVELS.map((lv) => (
+              <option key={lv.value} value={lv.value}>
+                {t(`admin.talent.edit.languages.proficiency.${lv.value}`)}
+              </option>
+            ))}
           </select>
           <label style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             fontSize: 12.5, color: C.ink, fontFamily: F,
           }}>
             <input type="checkbox" checked={pickNative} onChange={(e) => setPickNative(e.target.checked)} />
-            Native speaker
+            {t("admin.talent.edit.languages.nativeSpeaker")}
           </label>
-          <button type="button" onClick={handleAdd} style={btnPrimary(false)}>Add</button>
+          <button type="button" onClick={handleAdd} style={btnPrimary(false)}>{t("admin.talent.edit.languages.addBtn").replace("+ ", "")}</button>
         </div>
       )}
       {languages.length === 0 ? (
         <div style={{ fontSize: 12.5, color: C.inkMuted, fontStyle: "italic" }}>
-          No languages yet.
+          {t("admin.talent.edit.languages.emptyState")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -518,7 +543,7 @@ export function LanguagesSection({
                     background: C.successSoft, color: C.success,
                     fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
                     textTransform: "uppercase",
-                  }}>Native</span>
+                  }}>{t("admin.talent.edit.languages.nativeBadge")}</span>
                 )}
               </div>
               <select
@@ -526,14 +551,18 @@ export function LanguagesSection({
                 onChange={(e) => handleUpdate(lang.id, { speakingLevel: e.target.value })}
                 style={{ ...inputStyle(), padding: "5px 8px", fontSize: 12 }}
               >
-                {SPEAKING_LEVELS.map((lv) => <option key={lv.value} value={lv.value}>{lv.label}</option>)}
+                {SPEAKING_LEVELS.map((lv) => (
+                  <option key={lv.value} value={lv.value}>
+                    {t(`admin.talent.edit.languages.proficiency.${lv.value}`)}
+                  </option>
+                ))}
               </select>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {[
-                  { key: "canHost", label: "Host", val: lang.canHost },
-                  { key: "canSell", label: "Sell", val: lang.canSell },
-                  { key: "canTranslate", label: "Translate", val: lang.canTranslate },
-                  { key: "canTeach", label: "Teach", val: lang.canTeach },
+                  { key: "canHost", labelKey: "host", val: lang.canHost },
+                  { key: "canSell", labelKey: "sell", val: lang.canSell },
+                  { key: "canTranslate", labelKey: "translate", val: lang.canTranslate },
+                  { key: "canTeach", labelKey: "teach", val: lang.canTeach },
                 ].map((b) => (
                   <label key={b.key} style={{
                     display: "inline-flex", alignItems: "center", gap: 4,
@@ -549,7 +578,7 @@ export function LanguagesSection({
                       onChange={(e) => handleUpdate(lang.id, { [b.key]: e.target.checked })}
                       style={{ width: 12, height: 12 }}
                     />
-                    {b.label}
+                    {t(`admin.talent.edit.languages.capabilities.${b.labelKey}`)}
                   </label>
                 ))}
               </div>
@@ -588,12 +617,14 @@ const SERVICE_KINDS = [
 ];
 
 export function ServiceAreasSection({
-  tenantSlug, talentId, areas,
+  tenantSlug, talentId, areas, locale,
 }: {
   tenantSlug: string;
   talentId: string;
   areas: TalentServiceAreaRow[];
+  locale: string;
 }) {
+  const t = createTranslator(locale);
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startMutation] = useTransition();
@@ -638,11 +669,11 @@ export function ServiceAreasSection({
 
   return (
     <SectionCard
-      title="Where they work"
-      subtitle="Home base + cities they're willing to travel for."
+      title={t("admin.talent.edit.serviceAreas.title")}
+      subtitle={t("admin.talent.edit.serviceAreas.subtitle")}
       action={
         <button type="button" onClick={() => setAdding(!adding)} style={btnPrimary(false)}>
-          {adding ? "Cancel" : "+ Add area"}
+          {adding ? t("admin.talent.edit.serviceAreas.cancelBtn") : t("admin.talent.edit.serviceAreas.addBtn")}
         </button>
       }
     >
@@ -654,17 +685,21 @@ export function ServiceAreasSection({
         }}>
           <div style={{ display: "grid", gridTemplateColumns: "180px 1fr 130px", gap: 8 }}>
             <select value={draftKind} onChange={(e) => setDraftKind(e.target.value)} style={inputStyle()}>
-              {SERVICE_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+              {SERVICE_KINDS.map((k) => (
+                <option key={k.value} value={k.value}>
+                  {t(`admin.talent.edit.serviceAreas.kinds.${k.value === "available_for_travel" ? "travelFriendly" : k.value === "home_base" ? "homeBase" : k.value}`)}
+                </option>
+              ))}
             </select>
             <input
-              placeholder="City (e.g. Tulum, Mexico)"
+              placeholder={t("admin.talent.edit.serviceAreas.cityPlaceholder")}
               value={draftCity}
               onChange={(e) => setDraftCity(e.target.value)}
               style={inputStyle()}
             />
             <input
               type="number"
-              placeholder="Radius (km)"
+              placeholder={t("admin.talent.edit.serviceAreas.radiusPlaceholder")}
               value={draftRadius}
               onChange={(e) => setDraftRadius(e.target.value)}
               style={inputStyle()}
@@ -673,21 +708,21 @@ export function ServiceAreasSection({
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.ink }}>
               <input type="checkbox" checked={draftFee} onChange={(e) => setDraftFee(e.target.checked)} />
-              Travel fee applies
+              {t("admin.talent.edit.serviceAreas.travelFee")}
             </label>
             <input
-              placeholder="Notes (optional)"
+              placeholder={t("admin.talent.edit.serviceAreas.notesPlaceholder")}
               value={draftNotes}
               onChange={(e) => setDraftNotes(e.target.value)}
               style={{ ...inputStyle(), flex: 1, minWidth: 180 }}
             />
-            <button type="button" onClick={handleAdd} style={btnPrimary(false)}>Add</button>
+            <button type="button" onClick={handleAdd} style={btnPrimary(false)}>{t("admin.talent.edit.languages.addBtn").replace("+ ", "")}</button>
           </div>
         </div>
       )}
       {areas.length === 0 ? (
         <div style={{ fontSize: 12.5, color: C.inkMuted, fontStyle: "italic" }}>
-          No service areas set.
+          {t("admin.talent.edit.serviceAreas.emptyState")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -707,7 +742,7 @@ export function ServiceAreasSection({
                   fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
                   textTransform: "uppercase", flexShrink: 0,
                 }}>
-                  {kindMeta?.label ?? a.serviceKind}
+                  {kindMeta ? t(`admin.talent.edit.serviceAreas.kinds.${kindMeta.value === "available_for_travel" ? "travelFriendly" : kindMeta.value === "home_base" ? "homeBase" : kindMeta.value}`) : a.serviceKind}
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.ink, flex: 1 }}>
                   {a.city ?? "—"}
@@ -723,7 +758,7 @@ export function ServiceAreasSection({
                     background: C.amberSoft, color: C.amber,
                     fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
                     textTransform: "uppercase",
-                  }}>Fee</span>
+                  }}>{t("admin.talent.edit.serviceAreas.feeBadge")}</span>
                 )}
                 {a.notes && (
                   <span style={{ fontSize: 11.5, color: C.inkMuted, fontStyle: "italic" }}>
@@ -758,12 +793,14 @@ export function ServiceAreasSection({
 // ─── Portfolio gallery ───────────────────────────────────────────────────────
 
 export function GallerySection({
-  tenantSlug, talentId, portfolio,
+  tenantSlug, talentId, portfolio, locale,
 }: {
   tenantSlug: string;
   talentId: string;
   portfolio: PortfolioMediaRow[];
+  locale: string;
 }) {
+  const t = createTranslator(locale);
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<number>(0); // count of in-flight uploads
@@ -788,12 +825,12 @@ export function GallerySection({
     for (const file of Array.from(files)) {
       try {
         if (!file.type.startsWith("image/")) {
-          setError(`${file.name}: not an image.`);
+          setError(t("admin.talent.edit.gallery.errorNotImage").replace("{name}", file.name));
           setUploading((u) => Math.max(0, u - 1));
           continue;
         }
         if (file.size > 15 * 1024 * 1024) {
-          setError(`${file.name}: over 15MB.`);
+          setError(t("admin.talent.edit.gallery.errorTooLarge").replace("{name}", file.name));
           setUploading((u) => Math.max(0, u - 1));
           continue;
         }
@@ -807,7 +844,7 @@ export function GallerySection({
             upsert: false,
           });
         if (upErr) {
-          setError(`${file.name}: upload failed (${upErr.message}).`);
+          setError(t("admin.talent.edit.gallery.errorUploadFailed").replace("{name}", file.name).replace("{message}", upErr.message));
           setUploading((u) => Math.max(0, u - 1));
           continue;
         }
@@ -823,7 +860,7 @@ export function GallerySection({
           mimeType: file.type,
         });
         if (!reg.ok) {
-          setError(`${file.name}: register failed (${reg.error}).`);
+          setError(t("admin.talent.edit.gallery.errorRegisterFailed").replace("{name}", file.name).replace("{message}", reg.error ?? ""));
         }
       } finally {
         setUploading((u) => Math.max(0, u - 1));
@@ -834,7 +871,7 @@ export function GallerySection({
   }, [tenantSlug, talentId, router]);
 
   const handleRemove = useCallback((id: string) => {
-    if (!confirm("Delete this photo? This cannot be undone.")) return;
+    if (!confirm(t("admin.talent.edit.gallery.deleteConfirm"))) return;
     setPendingId(id);
     void (async () => {
       await removePortfolioPhoto(tenantSlug, talentId, id);
@@ -845,8 +882,8 @@ export function GallerySection({
 
   return (
     <SectionCard
-      title={`Gallery (${galleryItems.length})`}
-      subtitle="Portfolio photos for the public profile. Drag-and-drop or click upload."
+      title={`${t("admin.talent.edit.gallery.titleLabel")} (${galleryItems.length})`}
+      subtitle={t("admin.talent.edit.gallery.subtitle")}
       action={
         <>
           <input
@@ -863,7 +900,7 @@ export function GallerySection({
             disabled={uploading > 0}
             style={btnPrimary(uploading > 0)}
           >
-            {uploading > 0 ? `Uploading ${uploading}…` : "+ Upload photos"}
+            {uploading > 0 ? `${t("admin.talent.edit.gallery.uploadBtn").replace("+ ", "")} ${uploading}…` : t("admin.talent.edit.gallery.uploadBtn")}
           </button>
         </>
       }
@@ -901,9 +938,9 @@ export function GallerySection({
             color: C.inkMuted, fontFamily: F,
           }}>
             <div style={{ fontSize: 28, opacity: 0.5 }}>🖼</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>No portfolio photos yet</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{t("admin.talent.edit.gallery.emptyTitle")}</div>
             <div style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.5, textAlign: "center", maxWidth: 320 }}>
-              Drop images here or click &quot;Upload photos&quot; to start.
+              {t("admin.talent.edit.gallery.emptyMessage")}
             </div>
           </div>
         ) : galleryItems.map((p) => (
@@ -965,16 +1002,16 @@ async function readImageDimensions(file: File): Promise<{ width: number; height:
 // ─── Delete-talent button ─────────────────────────────────────────────────────
 
 export function DeleteTalentButton({
-  tenantSlug, talentId, talentName,
-}: { tenantSlug: string; talentId: string; talentName: string }) {
+  tenantSlug, talentId, talentName, locale,
+}: { tenantSlug: string; talentId: string; talentName: string; locale: string }) {
+  const t = createTranslator(locale);
   const router = useRouter();
   const [busy, startMutation] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const handleClick = useCallback(() => {
     const sure = confirm(
-      `Remove ${talentName} from your roster?\n\nThis hides them from your workspace. ` +
-      `If they have an account or profiles on other agencies, those stay intact.`,
+      t("admin.talent.edit.delete.confirmMsg").replace("{name}", talentName),
     );
     if (!sure) return;
     setError(null);
@@ -991,7 +1028,7 @@ export function DeleteTalentButton({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
       <button type="button" onClick={handleClick} disabled={busy} style={btnDanger(busy)}>
-        {busy ? "Removing…" : "Remove from roster"}
+        {busy ? t("admin.talent.edit.delete.removingBtn") : t("admin.talent.edit.delete.btn")}
       </button>
       {error && (
         <span style={{ fontSize: 12, color: C.coralDeep, fontFamily: F }}>{error}</span>

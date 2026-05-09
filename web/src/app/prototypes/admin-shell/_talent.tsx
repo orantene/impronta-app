@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useRef, useState, useMemo, type CSSProperties, type ReactNode } from "react";
+import { actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 // Type-only import — `_data-bridge.ts` is server-only; `import type` is erased
 // at compile time and never reaches the client bundle (same pattern as _state.tsx).
 import type { TalentInquiryRow } from "./_data-bridge";
@@ -3383,8 +3384,8 @@ function MyProfilePage() {
       // Default — land on Identity (fields like name / pronouns / DOB).
       return { label: field, section: "identity" };
     });
-  // Single helper — every "edit X" CTA funnels through here with the real ID.
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
+  const [completenessOpen, setCompletenessOpen] = useState(false);
 
   // Phase C4 — derive role labels for the page header. Primary +
   // secondary roles render as "Model · also Host" so the multi-role
@@ -3474,165 +3475,158 @@ function MyProfilePage() {
         </div>
       )}
 
-      {/* B2: Profile Health banner — single destination for the hero
-          completeness stat. Renders only when < 100. Each missing field
-          is a clickable chip that jumps to the relevant drawer. */}
       {p.completeness < 100 && (
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            padding: "14px 18px",
             marginBottom: 16,
-            background: COLORS.indigoSoft,
-            border: `1px solid rgba(91,107,160,0.18)`,
-            borderRadius: 12,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 14,
             fontFamily: FONTS.body,
+            overflow: "hidden",
           }}
         >
-          <div
+          {/* ── Collapsed header — always visible, click to expand ── */}
+          <button
+            type="button"
+            onClick={() => setCompletenessOpen(o => !o)}
             style={{
-              flexShrink: 0,
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              background: "#fff",
-              border: `2px solid ${COLORS.indigo}`,
-              display: "inline-flex",
+              width: "100%",
+              display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontFamily: FONTS.display,
-              fontSize: 18,
-              fontWeight: 600,
-              color: COLORS.indigoDeep,
-              fontVariantNumeric: "tabular-nums",
+              gap: 16,
+              padding: "16px 20px",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: FONTS.body,
             }}
           >
-            {p.completeness}%
+            {/* SVG progress ring */}
+            <svg width="64" height="64" viewBox="0 0 64 64" style={{ flexShrink: 0 }}>
+              <circle cx="32" cy="32" r="26" fill="none" stroke={COLORS.borderSoft} strokeWidth="5" />
+              <circle
+                cx="32" cy="32" r="26"
+                fill="none"
+                stroke={COLORS.indigo}
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 26}`}
+                strokeDashoffset={`${2 * Math.PI * 26 * (1 - p.completeness / 100)}`}
+                transform="rotate(-90 32 32)"
+                style={{ transition: "stroke-dashoffset 0.6s ease" }}
+              />
+              <text
+                x="32" y="36"
+                textAnchor="middle"
+                fontFamily={FONTS.display}
+                fontSize="13"
+                fontWeight="700"
+                fill={COLORS.indigoDeep}
+              >{p.completeness}%</text>
+            </svg>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, marginBottom: 2 }}>
+                Profile {p.completeness}% complete
+              </div>
+              <div style={{ fontSize: 12.5, color: COLORS.inkMuted }}>
+                {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left · tap to see what's missing
+              </div>
+            </div>
+
+            <span style={{
+              flexShrink: 0,
+              width: 28, height: 28,
+              borderRadius: "50%",
+              background: COLORS.surfaceAlt,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              fontSize: 14, color: COLORS.inkMuted,
+              transform: completenessOpen ? "rotate(180deg)" : "none",
+              transition: "transform 0.2s ease",
+            }}>
+              ›
+            </span>
+          </button>
+
+          {/* ── Thin progress bar ── */}
+          <div style={{ height: 3, background: COLORS.borderSoft, margin: "0 20px" }}>
+            <div style={{
+              height: "100%",
+              width: `${p.completeness}%`,
+              background: COLORS.indigo,
+              borderRadius: 999,
+              transition: "width 0.6s ease",
+            }} />
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: COLORS.indigoDeep,
-                marginBottom: 2,
-              }}
-            >
-              {p.completeness}% complete · {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left
+
+          {/* ── Accordion body ── */}
+          {completenessOpen && (
+            <div style={{ padding: "16px 20px 20px" }}>
+              <TierBreakdown
+                missing={catalogCompleteness.missing}
+                primaryType={baseProfile.primaryType}
+                secondaryTypes={baseProfile.secondaryTypes}
+              />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+                {missingFieldRoutes.map((r) => (
+                  <button
+                    key={r.label}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); openSection(r.section); }}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "5px 11px",
+                      background: COLORS.indigoSoft,
+                      border: `1px solid rgba(91,107,160,0.20)`,
+                      borderRadius: 999,
+                      cursor: "pointer",
+                      fontFamily: FONTS.body,
+                      fontSize: 11.5,
+                      fontWeight: 500,
+                      color: COLORS.indigoDeep,
+                    }}
+                  >
+                    <Icon name="plus" size={10} stroke={2} color={COLORS.indigoDeep} />
+                    {r.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: COLORS.indigoDeep,
-                opacity: 0.8,
-                marginBottom: 8,
-              }}
-            >
-              Complete profiles get higher placement on agency rosters and the Tulala hub.
-            </div>
-            {/* Tier breakdown — derived from the catalog. Splits the
-                missing list by tier so the talent sees what kind of
-                progress matters: Universal must be 100% to publish,
-                Global pads the percent, Type-specific is the polish. */}
-            <TierBreakdown
-              missing={catalogCompleteness.missing}
-              primaryType={baseProfile.primaryType}
-              secondaryTypes={baseProfile.secondaryTypes}
-            />
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {missingFieldRoutes.map((r) => (
-                <button
-                  key={r.label}
-                  type="button"
-                  onClick={() => openSection(r.section)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "5px 11px",
-                    background: "#fff",
-                    border: `1px solid rgba(91,107,160,0.30)`,
-                    borderRadius: 999,
-                    cursor: "pointer",
-                    fontFamily: FONTS.body,
-                    fontSize: 11.5,
-                    fontWeight: 500,
-                    color: COLORS.indigoDeep,
-                  }}
-                >
-                  <Icon name="plus" size={10} stroke={2} color={COLORS.indigoDeep} />
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       )}
 
       {/* ── Hero band ──────────────────────────────────────────────── */}
       <ProfileHero />
 
+      {/* ── All sections — primary nav into the profile shell ─────── */}
+      <Divider label="Edit sections" />
+      <AllSectionsGrid openSection={openSection} />
+
       {/* ── Engagement strip ──────────────────────────────────────── */}
-      <div style={{ marginTop: 20 }}>
+      <div style={{ marginTop: 16 }}>
         <EngagementStrip profile={p} />
       </div>
 
-      {/* ── Completeness + Public URL ─────────────────────────────── */}
-      <div style={{ marginTop: 20 }}>
-        <Grid cols="2">
-          <PrimaryCard
-            title="Profile completeness"
-            description={
-              p.completeness >= 100
-                ? "Fully complete. You'll show up on every search filter."
-                : "Complete profiles get higher placement on agency rosters and the Tulala hub."
-            }
-            icon={<Icon name="user" size={14} stroke={1.7} />}
-            affordance="Finish missing items"
-            onClick={() => openSection("identity")}
-          >
-            <div style={{ marginTop: 8 }}>
-              <CompletenessBar value={p.completeness} />
-              {p.missing.length > 0 && (
-                <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
-                  {p.missing.map((mItem) => (
-                    <li
-                      key={mItem}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        fontFamily: FONTS.body,
-                        fontSize: 12.5,
-                        color: COLORS.inkMuted,
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.amber }}
-                      />
-                      {mItem}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </PrimaryCard>
-          <PrimaryCard
-            title="Public profile"
-            description={p.publicUrl
-              ? `Lives at ${p.publicUrl}. Always reflects your latest published edits.`
-              : "Not published yet — fill in the essentials to publish."}
-            icon={<Icon name="globe" size={14} stroke={1.7} />}
-            affordance={p.publicUrl ? "Open in new tab" : undefined}
-            onClick={p.publicUrl ? () => window.open(`https://${p.publicUrl}`, "_blank") : undefined}
-          >
+      {/* ── Public profile URL ────────────────────────────────────── */}
+      <div style={{ marginTop: 12 }}>
+        <SecondaryCard
+          title="Public profile"
+          description={p.publicUrl
+            ? `Lives at ${p.publicUrl}. Always reflects your latest published edits.`
+            : "Not published yet — fill in the essentials to get a public URL."}
+          affordance={p.publicUrl ? "Open in new tab" : undefined}
+          onClick={p.publicUrl ? () => window.open(`https://${p.publicUrl}`, "_blank") : undefined}
+        >
+          {p.publicUrl && (
             <div
               style={{
                 marginTop: 10,
-                padding: "12px 14px",
+                padding: "10px 14px",
                 background: COLORS.surfaceAlt,
                 borderRadius: 10,
                 border: `1px solid rgba(15,79,62,0.18)`,
@@ -3644,363 +3638,13 @@ function MyProfilePage() {
               <Icon name="external" size={12} color={COLORS.accentDeep} />
               <span style={{ fontFamily: FONTS.mono, fontSize: 11.5, color: COLORS.ink }}>{p.publicUrl}</span>
             </div>
-          </PrimaryCard>
-        </Grid>
-      </div>
-
-      {/* ── Visual identity (cover · headshot · polaroids · showreel) ── */}
-      <Divider label="Visual identity" />
-      <Grid cols="3">
-        <SecondaryCard
-          title="Cover photo"
-          description="The hero shot at the top of your public profile. Landscape, 16:9 ideal."
-          meta={<><StatDot tone="green" /> 1 image set</>}
-          affordance="Replace cover"
-          onClick={() => openSection("media")}
-        />
-        <SecondaryCard
-          title="Headshot"
-          description="The single shot used everywhere — agency rosters, Tulala hub, search results."
-          meta={<><StatDot tone="green" /> 1 image set</>}
-          affordance="Replace headshot"
-          onClick={() => openSection("media")}
-        />
-        <SecondaryCard
-          title="Polaroids · naturals"
-          description={`Front · Side · Back · Smile · No-makeup. ${POLAROID_SET.filter(x => x.thumb !== "—").length} of 5 set — coordinators ask for these first.`}
-          meta={<><StatDot tone={POLAROID_SET.every(x => x.thumb !== "—") ? "green" : "amber"} /> {POLAROID_SET.filter(x => x.thumb !== "—").length}/5</>}
-          affordance="Manage polaroids"
-          onClick={() => openSection("polaroids")}
-        />
-        <SecondaryCard
-          title="Portfolio"
-          description={`12 / 15 styled shots${(p.portfolioVideos?.length ?? 0) > 0 ? ` · ${p.portfolioVideos!.length} video clips` : ""}. Your agencies favour fresh work — keep at least 3 from this year.`}
-          meta={<><StatDot tone="amber" /> Needs 3 from 2026</>}
-          affordance="Manage portfolio"
-          onClick={() => openSection("albums")}
-        />
-        <SecondaryCard
-          title="Showreel"
-          description={p.showreelUrl ? `${p.showreelDuration ?? "Reel"} clip · used for casting requests with movement, dialogue, or runway.` : (p.showreelThumb ? `${p.showreelDuration} clip · used for casting requests.` : "Add a 30-60s clip — opens up acting + dance + runway leads.")}
-          meta={p.showreelUrl || p.showreelThumb ? <><StatDot tone="green" /> {p.showreelDuration ?? "Set"}</> : <><StatDot tone="dim" /> Not set</>}
-          affordance="Open showreel"
-          onClick={() => openSection("media")}
-        />
-        <SecondaryCard
-          title="Mood / vibe board"
-          description="Pin 6-9 references for the kind of work you want more of. Agencies use this to pitch you smarter."
-          meta={<><StatDot tone="dim" /> Optional</>}
-          affordance="Set mood board"
-          onClick={() => openSection("about")}
-        />
-      </Grid>
-
-      {/* ── Video showcase ─────────────────────────────────────────
-          Renders the showreel + any portfolio videos as a horizontally-
-          scrollable strip with playable embeds. Skipped when the
-          talent has no video work yet — the dashboard should still
-          read clean for image-only profiles. */}
-      {(p.showreelUrl || (p.portfolioVideos && p.portfolioVideos.length > 0)) && (
-        <>
-          <Divider label="Motion work" />
-          <VideoShowcase
-            showreelUrl={p.showreelUrl}
-            showreelCaption={p.showreelDuration ? `Showreel · ${p.showreelDuration}` : "Showreel"}
-            portfolioVideos={p.portfolioVideos ?? []}
-            onManage={() => openSection("media")}
-          />
-        </>
-      )}
-
-      {/* ── Physicality (measurements + features) ─────────────────── */}
-      <Divider label="Physicality" />
-      <PrimaryCard
-        title="Measurements & features"
-        description="Height · sizes · features. Visible to agencies and clients you're shortlisted by."
-        icon={<Icon name="user" size={14} stroke={1.7} />}
-        affordance="Edit measurements"
-        onClick={() => openSection("details")}
-      >
-        <div style={{ marginTop: 12 }}>
-          <MeasurementsTable />
-        </div>
-      </PrimaryCard>
-
-      {/* ── Capability (specialties · skills · languages · limits) ── */}
-      <Divider label="Capability" />
-      <Grid cols="2">
-        <SecondaryCard
-          title="Specialties"
-          description="What kinds of work fit you — drives discovery filters."
-          meta={`${p.specialties.length} chosen`}
-          affordance="Edit specialties"
-          onClick={() => openSection("services")}
-        >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
-            {p.specialties.map((s) => (
-              <ProfileChip key={s} label={TALENT_SPECIALTY_LABEL[s]} tone="ink" />
-            ))}
-          </div>
-        </SecondaryCard>
-        <SecondaryCard
-          title="Languages"
-          description={summarizeLanguages(p.languages)}
-          meta={`${p.languages.length} languages`}
-          affordance="Edit languages"
-          onClick={() => openSection("languages")}
-        >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
-            {p.languages.map((l) => (
-              <ProfileChip
-                key={l.language}
-                label={`${l.language} · ${l.level}`}
-                tone={l.level === "native" ? "green" : l.level === "fluent" ? "ink" : "dim"}
-              />
-            ))}
-          </div>
-        </SecondaryCard>
-        <SecondaryCard
-          title="Skills"
-          description="Movement · sport · voice · instruments. Triggers casting filters for active leads."
-          meta={`${p.skills.length} skills`}
-          affordance="Edit skills"
-          onClick={() => openSection("refinement")}
-          fullHeight
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-            {p.skills.slice(0, 5).map((s, i) => (
-              <SkillRow key={i} skill={s} />
-            ))}
-            {p.skills.length > 5 && (
-              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-                +{p.skills.length - 5} more
-              </span>
-            )}
-          </div>
-        </SecondaryCard>
-        <SecondaryCard
-          title="Wardrobe & limits"
-          description="Hard limits block pitches. Soft limits ask for a confirmation."
-          meta={
-            <>
-              <StatDot tone="amber" />
-              {p.limits.filter((l) => l.enforcement === "hard").length} hard ·{" "}
-              {p.limits.filter((l) => l.enforcement === "soft").length} soft
-            </>
-          }
-          affordance="Edit limits"
-          onClick={() => openSection("limits")}
-          fullHeight
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
-            {p.limits.slice(0, 5).map((l) => (
-              <LimitRow key={l.id} limit={l} />
-            ))}
-          </div>
-        </SecondaryCard>
-      </Grid>
-
-      {/* ── History (credits · runway · reviews · stats) ──────────── */}
-      <Divider label="History & track record" />
-      <Grid cols="2">
-        <SecondaryCard
-          title="Credits & tearsheet"
-          description={`${p.credits.length} entries · ${p.credits.filter(c => c.pinned).length} pinned. Pinned credits show on the public profile.`}
-          meta={p.credits[0] ? `Most recent: ${p.credits[0].brand}` : "No credits yet"}
-          affordance="Manage credits"
-          onClick={() => openSection("credits")}
-          fullHeight
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-            {p.credits.filter((c) => c.pinned).slice(0, 3).map((c) => (
-              <CreditRow key={c.id} credit={c} />
-            ))}
-          </div>
-        </SecondaryCard>
-        <SecondaryCard
-          title="Reviews & endorsements"
-          description="Testimonials from booked clients and producers. Auto-requested after wrapped shoots."
-          meta={
-            <>
-              <StatDot tone="green" />
-              {p.reviews.length} reviews{p.reviews.length > 0 ? ` · ★ ${(p.reviews.reduce((s, r) => s + r.rating, 0) / p.reviews.length).toFixed(1)}` : ""}
-            </>
-          }
-          affordance="Open reviews"
-          onClick={() => openSection("social_proof")}
-          fullHeight
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-            {p.reviews.slice(0, 2).map((r) => (
-              <ReviewSnippet key={r.id} review={r} />
-            ))}
-          </div>
-        </SecondaryCard>
-        <PrimaryCard
-          title="Booking record"
-          description="What an agency or client sees when they short-list you."
-          icon={<Icon name="bolt" size={14} stroke={1.7} />}
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 8,
-              marginTop: 12,
-            }}
-          >
-            <BookingStatCell label="Bookings" value={p.bookingStats.completedBookings.toString()} accent="ink" />
-            <BookingStatCell label="On time" value={`${p.bookingStats.onTimeRate}%`} accent={p.bookingStats.onTimeRate === 100 ? "green" : "amber"} />
-            <BookingStatCell label="Repeat clients" value={p.bookingStats.repeatClients.toString()} accent="ink" />
-            <BookingStatCell label="Years active" value={p.bookingStats.yearsActive.toString()} accent="dim" />
-          </div>
-        </PrimaryCard>
-      </Grid>
-
-      {/* ── Trust (badges · documents) ─────────────────────────────── */}
-      <Divider label="Trust & verification" />
-      <PrimaryCard
-        title="Badges"
-        description="Each badge proves a specific check. Clients filter on these."
-        icon={<Icon name="check" size={14} stroke={1.8} />}
-      >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
-          {p.badges.map((b) => (
-            <BadgeChip key={b.kind} badge={b} />
-          ))}
-        </div>
-      </PrimaryCard>
-      <div style={{ marginTop: 12 }}>
-        <Grid cols="2">
-          <SecondaryCard
-            title="Documents"
-            description="ID · tax · health & safety. Stored encrypted; only shared during active bookings."
-            meta={
-              <>
-                <StatDot tone={p.documents.some((d) => d.state === "missing") ? "amber" : "green"} />
-                {p.documents.filter((d) => d.state === "uploaded").length}/{p.documents.length} uploaded
-              </>
-            }
-            affordance="Manage documents"
-            onClick={() => openSection("files")}
-          />
-          <SecondaryCard
-            title="Emergency contact"
-            description="Used by agencies during active bookings only — never shown publicly."
-            meta={`${p.emergencyContact.name} · ${p.emergencyContact.relation}`}
-            affordance="Update contact"
-            onClick={() => openDrawer("talent-emergency-contact")}
-          />
-        </Grid>
-      </div>
-
-      {/* ── Commercial (rate card · travel · social) ─────────────── */}
-      <Divider label="Commercial" />
-      <Grid cols="2">
-        <SecondaryCard
-          title="Rate card"
-          description={`${p.rateCard.lines.length} usage tiers · visibility: ${p.rateCard.visibility.replace("-", " ")}.`}
-          meta={
-            p.rateCard.visibility === "public"
-              ? <><StatDot tone="green" /> Visible to clients</>
-              : p.rateCard.visibility === "agency-only"
-                ? <><StatDot tone="amber" /> Agency only</>
-                : <><StatDot tone="dim" /> On request</>
-          }
-          affordance="Edit rate card"
-          onClick={() => openSection("rates")}
-          fullHeight
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
-            {p.rateCard.lines.slice(0, 3).map((l, i) => (
-              <RateLine key={i} label={l.label} range={l.range} />
-            ))}
-          </div>
-        </SecondaryCard>
-        <SecondaryCard
-          title="Travel & work auth"
-          description={`Based in ${p.travel.basedIn}. ${p.travel.workAuth.length} work authorizations.`}
-          meta={
-            <>
-              <StatDot tone="green" />
-              {p.travel.willingTravel}
-            </>
-          }
-          affordance="Edit travel"
-          onClick={() => openSection("location")}
-          fullHeight
-        >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
-            {p.travel.workAuth.slice(0, 3).map((a) => (
-              <ProfileChip key={a} label={a} tone="dim" />
-            ))}
-            {p.travel.workAuth.length > 3 && (
-              <ProfileChip label={`+${p.travel.workAuth.length - 3}`} tone="dim" />
-            )}
-          </div>
-        </SecondaryCard>
-      </Grid>
-      <div style={{ marginTop: 12 }}>
-        <SecondaryCard
-          title="External links"
-          description="Instagram, TikTok, IMDb — your audience on other platforms. Surfaces follower counts on the public profile."
-          meta={`${p.links.length} links`}
-          affordance="Edit links"
-          onClick={() => openSection("about")}
-        >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-            {p.links.map((l) => (
-              <LinkChip key={l.kind} link={l} />
-            ))}
-          </div>
+          )}
         </SecondaryCard>
       </div>
 
-      {/* ── Personal page (premium subscription tier) ────────────────
-       *
-       * This band is the surface for Tulala's direct-to-talent
-       * subscription. It coexists with — does NOT replace — agency
-       * roster + hub presence. Locked features show a tier badge
-       * and route through the upgrade drawer rather than the editor.
-       */}
+      {/* ── Personal page (premium subscription tier) ─────────────── */}
       <Divider label="Personal page" />
       <PersonalPageBand />
-
-      {/* ── Visibility & availability (existing) ───────────────────── */}
-      <Divider label="Visibility & availability" />
-      <Grid cols="2">
-        {/* Read-only — talents can't directly edit which agency rosters or
-            hubs feature them; the admin section that drives that is gated
-            off the talent-self drawer. Stripped the "Adjust visibility"
-            affordance rather than route to a no-op section. */}
-        <SecondaryCard
-          title="Where you appear"
-          description="Acme Models roster · Praline London roster · Tulala hub (featured)"
-          meta="3 surfaces"
-        />
-        <SecondaryCard
-          title="Availability"
-          description={`${AVAILABILITY_BLOCKS.length} blocks set · next block ${AVAILABILITY_BLOCKS[0]?.startDate}`}
-          affordance="Open availability"
-          onClick={() => openSection("availability")}
-        />
-      </Grid>
-
-      {/* ── All sections — full parity with the workspace edit drawer.
-            Talents see every Tulala field set the engine knows about.
-            Each tile deep-links into the unified profile-shell on the
-            matching section. Status chip on each tile — "Complete" /
-            "Optional" / "N missing" — driven from the underlying state. */}
-      <Divider label="All sections" />
-      <p style={{
-        fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted,
-        margin: "0 0 12px", lineHeight: 1.5, maxWidth: 640,
-      }}>
-        Every field Tulala can show on your public profile, your agency rosters,
-        and the discovery hub. Tap any tile to edit — the cards above are just
-        the most-edited shortcuts.
-      </p>
-      <AllSectionsGrid openSection={openSection} />
     </>
   );
 }
@@ -4118,8 +3762,8 @@ function AllSectionsGrid({ openSection }: { openSection: (s: string) => void }) 
 
   return (
     <div data-tulala-all-sections style={{
-      display: "grid", gap: 10,
-      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+      display: "grid", gap: 8,
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
     }}>
       <style>{`
         @media (max-width: 720px) {
@@ -4166,9 +3810,7 @@ function AllSectionsGrid({ openSection }: { openSection: (s: string) => void }) 
                   background: meta.bg, color: meta.fg,
                 }}>{meta.label}</span>
               </div>
-              <div style={{
-                fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45,
-              }}>{s.description}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>{s.description}</div>
               {s.remainder && (
                 <div style={{
                   fontSize: 11, fontWeight: 600, color: meta.fg,
@@ -4193,8 +3835,6 @@ function AllSectionsGrid({ openSection }: { openSection: (s: string) => void }) 
 function ProfileHero() {
   const { openDrawer, bridgeTalentSelfProfile } = useProto();
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
-  // Same subscription as MyProfilePage so the hero (cover, name,
-  // measurements row) reflects shell edits live.
   useProfileOverrideSubscription();
   const baseHero = applyProfileOverride(
     selfTalentId,
@@ -4202,17 +3842,31 @@ function ProfileHero() {
       ? buildFreshTalentProfile(bridgeTalentSelfProfile)
       : getProfileById(selfTalentId),
   );
-  // Catalog-driven completeness — keeps the hero percent in sync with
-  // MyProfilePage.
   const compHero = computeProfileCompleteness(baseHero, [baseHero.primaryType, ...baseHero.secondaryTypes]);
   const p = {
     ...baseHero,
     completeness: compHero.percent,
     missing: compHero.missing.map(m => m.label),
   };
-  // Same shell-funnel as MyProfilePage — every edit affordance lands
-  // in the unified profile-shell drawer with mode "edit-self".
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
+
+  // Load real cover + avatar photos from the DB, falling back to mock data.
+  const [dbAvatarUrl, setDbAvatarUrl] = useState<string | null>(null);
+  const [dbHeroUrl, setDbHeroUrl] = useState<string | null>(null);
+  const loadedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!bridgeTalentSelfProfile?.id) return;
+    if (loadedForRef.current === bridgeTalentSelfProfile.id) return;
+    loadedForRef.current = bridgeTalentSelfProfile.id;
+    void actionLoadTalentMediaBundle(bridgeTalentSelfProfile.id).then((res) => {
+      if (!res.ok) return;
+      if (res.data.card?.url) setDbAvatarUrl(res.data.card.url);
+      if (res.data.hero?.url) setDbHeroUrl(res.data.hero.url);
+    });
+  }, [bridgeTalentSelfProfile?.id]);
+
+  const coverSrc = dbHeroUrl ?? (p.coverPhoto.startsWith("http") ? p.coverPhoto : null);
+  const avatarSrc = dbAvatarUrl ?? (p.profilePhoto.startsWith("http") ? p.profilePhoto : null);
 
   return (
     <section
@@ -4224,13 +3878,13 @@ function ProfileHero() {
         overflow: "hidden",
       }}
     >
-      {/* Cover photo — handles real URLs (premium) AND emoji fallback. */}
+      {/* Cover photo */}
       <div
         style={{
           position: "relative",
           height: 200,
-          background: p.coverPhoto.startsWith("http")
-            ? `url(${p.coverPhoto}) center/cover, ${COLORS.surfaceAlt}`
+          background: coverSrc
+            ? `url(${coverSrc}) center/cover, ${COLORS.surfaceAlt}`
             : `linear-gradient(180deg, ${COLORS.surfaceAlt} 0%, rgba(15,79,62,0.18) 100%)`,
           display: "flex",
           alignItems: "center",
@@ -4239,7 +3893,7 @@ function ProfileHero() {
           letterSpacing: 8,
         }}
       >
-        {!p.coverPhoto.startsWith("http") && <span style={{ filter: "saturate(0.8)" }}>{p.coverPhoto}</span>}
+        {!coverSrc && <span style={{ filter: "saturate(0.8)", fontSize: 48, color: COLORS.inkMuted, fontFamily: FONTS.body }}>No cover photo</span>}
         <button
           onClick={() => openSection("media")}
           style={{
@@ -4278,8 +3932,8 @@ function ProfileHero() {
             width: 104,
             height: 104,
             borderRadius: "50%",
-            background: p.profilePhoto.startsWith("http")
-              ? `url(${p.profilePhoto}) center/cover, ${COLORS.surfaceAlt}`
+            background: avatarSrc
+              ? `url(${avatarSrc}) center/cover, ${COLORS.surfaceAlt}`
               : COLORS.surfaceAlt,
             border: `4px solid #fff`,
             display: "flex",
@@ -4292,7 +3946,7 @@ function ProfileHero() {
           }}
           aria-label="Edit headshot"
         >
-          {!p.profilePhoto.startsWith("http") && <span>{p.profilePhoto}</span>}
+          {!avatarSrc && <span style={{ fontSize: 40 }}>👤</span>}
           <span
             style={{
               position: "absolute",
@@ -4440,39 +4094,48 @@ function EngagementStrip({ profile }: { profile?: import("./_state").MyTalentPro
     { label: "On-time rate", value: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.onTimeRate}%` : "—", sub: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.completedBookings} bookings` : "No bookings yet", tone: COLORS.success },
   ];
   return (
-    <div data-tulala-talent-stat-strip style={{
-      background: "#fff", borderRadius: 12,
-      border: `1px solid ${COLORS.borderSoft}`,
-      boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
-      display: "grid", gridTemplateColumns: `repeat(${items.length}, 1fr)`,
-      overflow: "hidden",
-    }}>
-      <style>{`
-        @media (max-width: 640px) {
-          [data-tulala-talent-stat-strip] { grid-template-columns: 1fr 1fr !important; }
-          [data-tulala-talent-stat-strip] > div { border-bottom: 1px solid ${COLORS.borderSoft} !important; }
-          [data-tulala-talent-stat-strip] > div:nth-last-child(-n+2) { border-bottom: none !important; }
-          [data-tulala-talent-stat-strip] > div:nth-child(2n) { border-right: none !important; }
-        }
-      `}</style>
-      {items.map((it, i) => (
-        <div key={it.label} style={{
-          padding: "12px 14px", fontFamily: FONTS.body,
-          borderRight: i < items.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: it.tone }} />
-            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>{it.label}</span>
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 10,
+      }}>
+        <CapsLabel>Profile performance</CapsLabel>
+        <span style={{ fontSize: 11, color: COLORS.inkDim }}>Last 7 days</span>
+      </div>
+      <div data-tulala-talent-stat-strip style={{
+        background: "#fff", borderRadius: 12,
+        border: `1px solid ${COLORS.borderSoft}`,
+        display: "grid", gridTemplateColumns: `repeat(${items.length}, 1fr)`,
+        overflow: "hidden",
+      }}>
+        <style>{`
+          @media (max-width: 640px) {
+            [data-tulala-talent-stat-strip] { grid-template-columns: 1fr 1fr !important; }
+            [data-tulala-talent-stat-strip] > div { border-bottom: 1px solid ${COLORS.borderSoft} !important; }
+            [data-tulala-talent-stat-strip] > div:nth-last-child(-n+2) { border-bottom: none !important; }
+            [data-tulala-talent-stat-strip] > div:nth-child(2n) { border-right: none !important; }
+          }
+        `}</style>
+        {items.map((it, i) => (
+          <div key={it.label} style={{
+            padding: "14px 16px", fontFamily: FONTS.body,
+            borderRight: i < items.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
+              <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: it.tone, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>{it.label}</span>
+            </div>
+            <div style={{
+              fontFamily: FONTS.display, fontSize: 28, fontWeight: 700,
+              color: it.value === "—" ? COLORS.inkDim : COLORS.ink,
+              lineHeight: 1, fontVariantNumeric: "tabular-nums", letterSpacing: -0.5,
+            }}>{it.value}</div>
+            {it.sub && (
+              <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 5, lineHeight: 1.3 }}>{it.sub}</div>
+            )}
           </div>
-          <div style={{
-            fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
-            color: COLORS.ink, lineHeight: 1, fontVariantNumeric: "tabular-nums",
-          }}>{it.value}</div>
-          {it.sub && (
-            <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 4, lineHeight: 1.3 }}>{it.sub}</div>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

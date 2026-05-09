@@ -28,6 +28,8 @@ import {
   createWorkspacePayoutAccountAction,
 } from "./payout-account-actions";
 import { isStripeConfigured } from "@/lib/stripe/client";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -55,38 +57,11 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 // ─── Plan meta ────────────────────────────────────────────────────────────────
 
-const PLAN_META: Record<
-  WorkspacePlan,
-  { label: string; bg: string; color: string; tagline: string; price: string | null }
-> = {
-  free: {
-    label: "Free",
-    bg: "rgba(11,11,13,0.07)",
-    color: "rgba(11,11,13,0.55)",
-    tagline: "Friend-link access only. No commission.",
-    price: null,
-  },
-  studio: {
-    label: "Studio",
-    bg: "rgba(180,130,20,0.10)",
-    color: "#8A6F1A",
-    tagline: "Auto-exclusive roster, ~10–12% commission.",
-    price: "$49 / month",
-  },
-  agency: {
-    label: "Agency",
-    bg: "rgba(30,80,160,0.10)",
-    color: "#2B5F8A",
-    tagline: "Auto-exclusive roster, ~15–20% commission.",
-    price: "$149 / month",
-  },
-  network: {
-    label: "Network",
-    bg: "rgba(100,50,200,0.10)",
-    color: "#6B3EC2",
-    tagline: "Unlimited roster. Platform-wide placement.",
-    price: null,
-  },
+const PLAN_META: Record<WorkspacePlan, { label: string; bg: string; color: string }> = {
+  free:    { label: "Free",    bg: "rgba(11,11,13,0.07)",    color: "rgba(11,11,13,0.55)" },
+  studio:  { label: "Studio",  bg: "rgba(180,130,20,0.10)",  color: "#8A6F1A" },
+  agency:  { label: "Agency",  bg: "rgba(30,80,160,0.10)",   color: "#2B5F8A" },
+  network: { label: "Network", bg: "rgba(100,50,200,0.10)",  color: "#6B3EC2" },
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -148,7 +123,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-function RosterUsageBar({ count, limit }: { count: number; limit: number | null }) {
+function RosterUsageBar({ count, limit, t }: { count: number; limit: number | null; t: (k: string) => string }) {
   if (limit === null) {
     return (
       <div
@@ -160,12 +135,12 @@ function RosterUsageBar({ count, limit }: { count: number; limit: number | null 
           fontFamily: FONT,
         }}
       >
-        <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>Roster</span>
+        <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>{t("admin.account.rosterLabel")}</span>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
             {count}
           </span>
-          <span style={{ fontSize: 12, color: C.inkMuted }}>of unlimited</span>
+          <span style={{ fontSize: 12, color: C.inkMuted }}>{t("admin.account.ofUnlimited")}</span>
         </div>
       </div>
     );
@@ -186,7 +161,7 @@ function RosterUsageBar({ count, limit }: { count: number; limit: number | null 
         fontFamily: FONT,
       }}
     >
-      <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>Roster</span>
+      <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>{t("admin.account.rosterLabel")}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
           <span
@@ -199,7 +174,7 @@ function RosterUsageBar({ count, limit }: { count: number; limit: number | null 
           >
             {count}
           </span>
-          <span style={{ fontSize: 12, color: C.inkMuted }}>of {limit}</span>
+          <span style={{ fontSize: 12, color: C.inkMuted }}>{t("admin.account.of")} {limit}</span>
         </div>
         <div
           style={{
@@ -249,6 +224,9 @@ export default async function WorkspaceAccountPage({
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+
   const [canManageBilling, canManageWorkspacePayout, summary, billingState, payout] = await Promise.all([
     userHasCapability("manage_billing", scope.tenantId),
     userHasCapability("agency.payout_account.manage", scope.tenantId),
@@ -261,6 +239,21 @@ export default async function WorkspaceAccountPage({
 
   const stripeEnabled = isStripeConfigured();
   const planMeta = summary ? PLAN_META[summary.plan] : PLAN_META.free;
+
+  const planTaglines: Record<WorkspacePlan, string> = {
+    free:    t("admin.account.planTaglineFree"),
+    studio:  t("admin.account.planTaglineStudio"),
+    agency:  t("admin.account.planTaglineAgency"),
+    network: t("admin.account.planTaglineNetwork"),
+  };
+  const planPrices: Record<WorkspacePlan, string | null> = {
+    free:    null,
+    studio:  t("admin.account.planPriceStudio"),
+    agency:  t("admin.account.planPriceAgency"),
+    network: null,
+  };
+  const planTagline = summary ? planTaglines[summary.plan] : planTaglines.free;
+  const planPrice = summary ? planPrices[summary.plan] : null;
 
   // Subscription is "active" when there's a billing record with a non-cancelled status
   const hasActiveSubscription =
@@ -324,7 +317,7 @@ export default async function WorkspaceAccountPage({
               lineHeight: 1.1,
             }}
           >
-            Account &amp; billing
+            {t("admin.account.title")}
           </h1>
         </div>
 
@@ -347,7 +340,7 @@ export default async function WorkspaceAccountPage({
               letterSpacing: -0.1,
             }}
           >
-            Workspace settings →
+            {t("admin.account.workspaceSettings")}
           </Link>
         )}
       </div>
@@ -356,7 +349,7 @@ export default async function WorkspaceAccountPage({
         <>
           {/* ── Plan section ── */}
           <section>
-            <SectionHead>Plan</SectionHead>
+            <SectionHead>{t("admin.account.planSection")}</SectionHead>
             <div
               style={{
                 background: C.cardBg,
@@ -376,7 +369,7 @@ export default async function WorkspaceAccountPage({
                 }}
               >
                 <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>
-                  Current plan
+                  {t("admin.account.currentPlan")}
                 </span>
                 <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <span
@@ -395,13 +388,13 @@ export default async function WorkspaceAccountPage({
                     {planMeta.label}
                   </span>
                   <span style={{ fontSize: 12, color: C.inkMuted }}>
-                    {planMeta.tagline}
+                    {planTagline}
                   </span>
                 </div>
               </div>
 
               <Divider />
-              <RosterUsageBar count={summary.talentCount} limit={summary.talentLimit} />
+              <RosterUsageBar count={summary.talentCount} limit={summary.talentLimit} t={t} />
 
               {/* Subscription state rows (only when there's a Stripe record) */}
               {billingState && (
@@ -417,22 +410,22 @@ export default async function WorkspaceAccountPage({
                     }}
                   >
                     <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>
-                      Billing status
+                      {t("admin.account.billingStatus")}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <SubscriptionStatusBadge status={billingState.status} />
+                      <SubscriptionStatusBadge status={billingState.status} locale={locale} />
                       {billingState.cancelAtPeriodEnd && (
                         <span style={{ fontSize: 11.5, color: C.amber, fontFamily: FONT }}>
-                          Cancels at period end
+                          {t("admin.account.cancelsAtPeriodEnd")}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {planMeta.price && (
+                  {planPrice && (
                     <>
                       <Divider />
-                      <DetailRow label="Price" value={planMeta.price} />
+                      <DetailRow label={t("admin.account.price")} value={planPrice} />
                     </>
                   )}
 
@@ -440,7 +433,7 @@ export default async function WorkspaceAccountPage({
                     <>
                       <Divider />
                       <DetailRow
-                        label={billingState.cancelAtPeriodEnd ? "Access until" : "Next renewal"}
+                        label={billingState.cancelAtPeriodEnd ? t("admin.account.accessUntil") : t("admin.account.nextRenewal")}
                         value={periodEndLabel}
                       />
                     </>
@@ -450,7 +443,7 @@ export default async function WorkspaceAccountPage({
                     <>
                       <Divider />
                       <DetailRow
-                        label="Trial ends"
+                        label={t("admin.account.trialEnds")}
                         value={new Date(billingState.trialEnd).toLocaleDateString("en-US", {
                           year: "numeric",
                           month: "long",
@@ -464,7 +457,7 @@ export default async function WorkspaceAccountPage({
 
               <Divider />
               <DetailRow
-                label="Workspace slug"
+                label={t("admin.account.workspaceSlug")}
                 value={
                   <span style={{ fontFamily: "monospace", fontSize: 12.5 }}>
                     {summary.slug}
@@ -479,6 +472,7 @@ export default async function WorkspaceAccountPage({
                   <CurrencyPicker
                     tenantSlug={tenantSlug}
                     currentValue={summary.preferredCurrency}
+                    locale={locale}
                   />
                 </>
               )}
@@ -489,25 +483,27 @@ export default async function WorkspaceAccountPage({
               <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {hasActiveSubscription ? (
                   // Existing subscriber → Billing Portal
-                  <ManageSubscriptionButton tenantSlug={tenantSlug} />
+                  <ManageSubscriptionButton tenantSlug={tenantSlug} locale={locale} />
                 ) : stripeEnabled && summary.plan === "free" ? (
                   // Free tier + Stripe configured → show upgrade options
                   <>
                     <UpgradePlanButton
                       plan="studio"
                       tenantSlug={tenantSlug}
-                      label="Upgrade to Studio — $49/mo"
+                      label={`Upgrade to Studio — ${planPrices.studio ?? ""}`}
+                      locale={locale}
                     />
                     <UpgradePlanButton
                       plan="agency"
                       tenantSlug={tenantSlug}
-                      label="Upgrade to Agency — $149/mo"
+                      label={`Upgrade to Agency — ${planPrices.agency ?? ""}`}
+                      locale={locale}
                     />
                   </>
                 ) : !stripeEnabled && summary.plan === "free" ? (
                   // Stripe not configured yet — show a contact note
                   <p style={{ fontSize: 12, color: C.inkMuted, margin: 0, fontFamily: FONT }}>
-                    Billing not yet active. Contact support to upgrade.
+                    {t("admin.account.billingInactive")}
                   </p>
                 ) : null}
               </div>
@@ -516,7 +512,7 @@ export default async function WorkspaceAccountPage({
 
           {/* ── Agency identity section ── */}
           <section>
-            <SectionHead>Agency identity</SectionHead>
+            <SectionHead>{t("admin.account.agencyIdentitySection")}</SectionHead>
             <div
               style={{
                 background: C.cardBg,
@@ -525,19 +521,19 @@ export default async function WorkspaceAccountPage({
                 overflow: "hidden",
               }}
             >
-              <DetailRow label="Display name" value={summary.displayName} />
+              <DetailRow label={t("admin.account.displayNameLabel")} value={summary.displayName} />
 
               {summary.contactEmail && (
                 <>
                   <Divider />
-                  <DetailRow label="Contact email" value={summary.contactEmail} />
+                  <DetailRow label={t("admin.account.contactEmail")} value={summary.contactEmail} />
                 </>
               )}
 
               {summary.contactPhone && (
                 <>
                   <Divider />
-                  <DetailRow label="Phone" value={summary.contactPhone} />
+                  <DetailRow label={t("admin.account.phoneLabel")} value={summary.contactPhone} />
                 </>
               )}
 
@@ -545,7 +541,7 @@ export default async function WorkspaceAccountPage({
                 <>
                   <Divider />
                   <DetailRow
-                    label="Location"
+                    label={t("admin.account.locationLabel")}
                     value={
                       [summary.addressCity, summary.addressCountry]
                         .filter(Boolean)
@@ -587,13 +583,13 @@ export default async function WorkspaceAccountPage({
             textAlign: "center",
           }}
         >
-          <p style={{ fontSize: 13, color: C.inkMuted }}>Account details unavailable.</p>
+          <p style={{ fontSize: 13, color: C.inkMuted }}>{t("admin.account.unavailable")}</p>
         </div>
       )}
 
       {/* ── Payout accounts (Phase 8.4) ── */}
       <section>
-        <SectionHead>Payout Accounts</SectionHead>
+        <SectionHead>{t("admin.account.payoutSection")}</SectionHead>
         <div
           style={{
             background: C.cardBg,
@@ -603,25 +599,25 @@ export default async function WorkspaceAccountPage({
           }}
         >
           <DetailRow
-            label="Workspace account"
+            label={t("admin.account.workspaceAccount")}
             value={
               payout.workspaceAccount
                 ? `${payout.workspaceAccount.displayName} · ${payout.workspaceAccount.status}`
-                : "Not connected"
+                : t("admin.account.notConnected")
             }
           />
           <Divider />
           <DetailRow
-            label="My staff account"
+            label={t("admin.account.staffAccount")}
             value={
               payout.selfStaffAccount
                 ? `${payout.selfStaffAccount.displayName} · ${payout.selfStaffAccount.status}`
-                : "Not connected"
+                : t("admin.account.notConnected")
             }
           />
           <Divider />
           <DetailRow
-            label="Connected receivers"
+            label={t("admin.account.connectedReceivers")}
             value={`${payout.connectedCount}`}
           />
         </div>
@@ -648,7 +644,7 @@ export default async function WorkspaceAccountPage({
                     cursor: "pointer",
                   }}
                 >
-                  Create workspace payout account
+                  {t("admin.account.createWorkspacePayout")}
                 </button>
               </form>
             ) : null}
@@ -673,7 +669,7 @@ export default async function WorkspaceAccountPage({
                     cursor: "pointer",
                   }}
                 >
-                  Connect my payout account
+                  {t("admin.account.connectMyPayout")}
                 </button>
               </form>
             ) : null}

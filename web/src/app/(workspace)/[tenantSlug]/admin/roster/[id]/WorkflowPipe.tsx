@@ -9,6 +9,7 @@
 // Colors track the same tier system as the completeness dial.
 
 import * as React from "react";
+import { createTranslator } from "@/i18n/messages";
 
 const C = {
   ink:        "#0B0B0D",
@@ -83,13 +84,29 @@ export function WorkflowPipe({
   workflowStatus,
   isClaimed,
   isArchived,
+  locale,
 }: {
   workflowStatus: string;
   isClaimed: boolean;
   isArchived?: boolean;
+  locale: string;
 }) {
+  const t = createTranslator(locale);
   const idx = activeIndex(workflowStatus, isClaimed);
   const isPublished = workflowStatus === "published" || workflowStatus === "approved";
+
+  const stageLabels: Record<string, string> = {
+    draft:     t("admin.talent.edit.pipe.stageDraft"),
+    invited:   t("admin.talent.edit.pipe.stageInvited"),
+    claimed:   t("admin.talent.edit.pipe.stageClaimed"),
+    published: t("admin.talent.edit.pipe.stagePublished"),
+  };
+  const stageDescs: Record<string, string> = {
+    draft:     t("admin.talent.edit.pipe.draftDesc"),
+    invited:   t("admin.talent.edit.pipe.invitedDesc"),
+    claimed:   t("admin.talent.edit.pipe.claimedDesc"),
+    published: t("admin.talent.edit.pipe.publishedDesc"),
+  };
 
   if (isArchived) {
     return (
@@ -109,13 +126,13 @@ export function WorkflowPipe({
           <h3 style={{
             margin: 0, fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: -0.05,
           }}>
-            Archived
+            {t("admin.talent.edit.pipe.archivedHeader")}
           </h3>
         </div>
         <p style={{
           margin: "6px 0 0", fontSize: 12, color: C.inkMuted, lineHeight: 1.5,
         }}>
-          This talent has been removed from your roster. Restore them from the roster list to bring them back.
+          {t("admin.talent.edit.pipe.archivedDesc")}
         </p>
       </section>
     );
@@ -136,18 +153,18 @@ export function WorkflowPipe({
           fontSize: 11, fontWeight: 700, color: C.inkMuted,
           letterSpacing: 0.5, textTransform: "uppercase",
         }}>
-          Workflow status
+          {t("admin.talent.edit.pipe.workflowHeader")}
         </div>
         <div style={{
           fontSize: 13, color: C.ink, marginTop: 4, fontWeight: 500,
         }}>
           {isPublished
-            ? "Live on your roster — public on tulala.digital."
+            ? t("admin.talent.edit.pipe.liveMsg")
             : isClaimed
-            ? "Talent has claimed their account."
+            ? t("admin.talent.edit.pipe.claimedMsg")
             : workflowStatus === "invited"
-            ? "Awaiting talent claim."
-            : "Internal draft only."}
+            ? t("admin.talent.edit.pipe.awaitingMsg")
+            : t("admin.talent.edit.pipe.draftMsg")}
         </div>
       </div>
 
@@ -197,7 +214,7 @@ export function WorkflowPipe({
                     textAlign: "center",
                     letterSpacing: state === "current" ? 0.1 : 0,
                   }}>
-                    {stage.label}
+                    {stageLabels[stage.key] ?? stage.label}
                   </div>
                 </div>
                 {i < STAGES.length - 1 && (
@@ -223,9 +240,9 @@ export function WorkflowPipe({
           <span style={{
             fontWeight: 700, color: C.ink, letterSpacing: 0.05,
           }}>
-            {STAGES[idx].label}:
+            {stageLabels[STAGES[idx].key] ?? STAGES[idx].label}:
           </span>{" "}
-          {STAGES[idx].description}
+          {stageDescs[STAGES[idx].key] ?? STAGES[idx].description}
         </div>
       </div>
     </section>

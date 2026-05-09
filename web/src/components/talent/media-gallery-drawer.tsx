@@ -40,8 +40,11 @@ export interface MediaGalleryDrawerProps {
   onAddToPortfolio: (storagePath: string, width: number, height: number) => Promise<{ ok: boolean; error?: string; id?: string }>;
   onDeleteAsset: (mediaAssetId: string) => Promise<{ ok: boolean; error?: string }>;
   onUploadFile: (file: File, variantKind: string) => Promise<{ ok: boolean; error?: string; asset?: MediaAsset }>;
-  /** Optional — when provided, shows the Google Drive import UI. */
+  /** Optional — when provided, shows the Google Drive import UI (legacy single-shot). */
   onImportFromDrive?: (driveUrl: string) => Promise<{ ok: boolean; error?: string; assets?: Array<{ id: string; publicUrl: string }> }>;
+  /** Progressive Drive import — list files first, then import one at a time for real progress. */
+  onListDriveFiles?: (driveUrl: string) => Promise<{ ok: boolean; error?: string; fileIds?: string[] }>;
+  onImportDriveFile?: (fileId: string, sortOrder: number) => Promise<{ ok: boolean; error?: string; asset?: { id: string; publicUrl: string } }>;
   /** Optional — when provided, drag-to-reorder is enabled and persisted on drop. */
   onReorderAssets?: (orderedIds: string[]) => Promise<{ ok: boolean; error?: string }>;
   /** Optional — ID of the asset currently set as avatar. Used to show badge. */
@@ -84,6 +87,10 @@ type PhotoActionStatus =
 const INJECTED_STYLES = `
 @keyframes tulala-spin {
   to { transform: rotate(360deg); }
+}
+@keyframes drive-shimmer {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
 }
 .mgd-card {
   position: relative;
@@ -200,6 +207,8 @@ export function MediaGalleryDrawer({
   onDeleteAsset,
   onUploadFile,
   onImportFromDrive,
+  onListDriveFiles,
+  onImportDriveFile,
   onReorderAssets,
   currentAvatarAssetId,
   currentHeroAssetId,
@@ -218,7 +227,8 @@ export function MediaGalleryDrawer({
   const [driveUrl, setDriveUrl] = useState("");
   const [driveStatus, setDriveStatus] = useState<
     | { kind: "idle" }
-    | { kind: "importing" }
+    | { kind: "listing" }
+    | { kind: "importing"; completed: number; total: number }
     | { kind: "ok"; count: number }
     | { kind: "error"; message: string }
   >({ kind: "idle" });
@@ -407,25 +417,64 @@ export function MediaGalleryDrawer({
   }, [assets, onAssetsChange, onReorderAssets, isBulkMode]);
 
   const handleDriveImport = useCallback(async () => {
-    if (!onImportFromDrive || !driveUrl.trim()) return;
-    setDriveStatus({ kind: "importing" });
+    if (!driveUrl.trim()) return;
+
+    // Progressive mode: list files first, then import one by one
+    if (onListDriveFiles && onImportDriveFile) {
+      setDriveStatus({ kind: "listing" });
+      const listed = await onListDriveFiles(driveUrl.trim());
+      if (!listed.ok || !listed.fileIds?.length) {
+        setDriveStatus({ kind: "error", message: listed.error ?? "No images found." });
+        return;
+      }
+      const total = listed.fileIds.length;
+      setDriveStatus({ kind: "importing", completed: 0, total });
+
+      const baseOrder = assets.length;
+      const newAssets: MediaAsset[] = [];
+      let failCount = 0;
+
+      for (let i = 0; i < listed.fileIds.length; i++) {
+        const res = await onImportDriveFile(listed.fileIds[i]!, baseOrder + i);
+        if (res.ok && res.asset) {
+          const a: MediaAsset = { id: res.asset.id, url: res.asset.publicUrl, variantKind: "gallery", sortOrder: baseOrder + i };
+          newAssets.push(a);
+          onAssetsChange([...assets, ...newAssets]);
+        } else {
+          failCount++;
+        }
+        setDriveStatus({ kind: "importing", completed: i + 1, total });
+      }
+
+      const imported = newAssets.length;
+      if (imported === 0) {
+        setDriveStatus({ kind: "error", message: `Import failed — ${failCount} file${failCount > 1 ? "s" : ""} could not be downloaded.` });
+        return;
+      }
+      setDriveStatus({ kind: "ok", count: imported });
+      setDriveUrl("");
+      setShowDriveInput(false);
+      setTimeout(() => setDriveStatus({ kind: "idle" }), 3500);
+      return;
+    }
+
+    // Legacy single-shot fallback
+    if (!onImportFromDrive) return;
+    setDriveStatus({ kind: "importing", completed: 0, total: 0 });
     const res = await onImportFromDrive(driveUrl.trim());
     if (!res.ok || !res.assets) {
       setDriveStatus({ kind: "error", message: res.error ?? "Import failed." });
       return;
     }
     const newAssets: MediaAsset[] = res.assets.map((a, i) => ({
-      id: a.id,
-      url: a.publicUrl,
-      variantKind: "gallery",
-      sortOrder: assets.length + i,
+      id: a.id, url: a.publicUrl, variantKind: "gallery", sortOrder: assets.length + i,
     }));
     onAssetsChange([...assets, ...newAssets]);
     setDriveStatus({ kind: "ok", count: newAssets.length });
     setDriveUrl("");
     setShowDriveInput(false);
     setTimeout(() => setDriveStatus({ kind: "idle" }), 3000);
-  }, [onImportFromDrive, driveUrl, assets, onAssetsChange]);
+  }, [onListDriveFiles, onImportDriveFile, onImportFromDrive, driveUrl, assets, onAssetsChange]);
 
   if (!open) return null;
 
@@ -609,15 +658,15 @@ export function MediaGalleryDrawer({
                       <button
                         type="button"
                         onClick={() => void handleDriveImport()}
-                        disabled={driveStatus.kind === "importing" || !driveUrl.trim()}
+                        disabled={driveStatus.kind === "importing" || driveStatus.kind === "listing" || !driveUrl.trim()}
                         style={{
                           fontFamily: F, fontSize: 12, fontWeight: 600,
                           padding: "7px 12px", borderRadius: 7, cursor: "pointer",
                           background: C.accent, color: "#fff", border: "none",
-                          opacity: (driveStatus.kind === "importing" || !driveUrl.trim()) ? 0.5 : 1,
+                          opacity: (driveStatus.kind === "importing" || driveStatus.kind === "listing" || !driveUrl.trim()) ? 0.5 : 1,
                         }}
                       >
-                        {driveStatus.kind === "importing" ? "Importing…" : "Import"}
+                        {driveStatus.kind === "listing" ? "Finding…" : driveStatus.kind === "importing" ? "Importing…" : "Import"}
                       </button>
                       <button
                         type="button"
@@ -631,9 +680,46 @@ export function MediaGalleryDrawer({
                     <div style={{ marginTop: 4, fontSize: 11, color: C.inkDim }}>
                       Works with any file or folder shared as "Anyone with the link"
                     </div>
+                    {driveStatus.kind === "listing" && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontFamily: F, fontSize: 12, color: C.inkMuted, marginBottom: 5 }}>
+                          Finding photos in folder…
+                        </div>
+                        <div style={{ height: 5, borderRadius: 3, background: C.border, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: "40%", borderRadius: 3, background: C.accent, animation: "drive-shimmer 1.2s ease-in-out infinite alternate" }} />
+                        </div>
+                      </div>
+                    )}
+                    {driveStatus.kind === "importing" && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontFamily: F, fontSize: 12, color: C.inkMuted, marginBottom: 5 }}>
+                          <span>
+                            {driveStatus.total > 0
+                              ? `Uploading ${driveStatus.completed} of ${driveStatus.total} photo${driveStatus.total > 1 ? "s" : ""}…`
+                              : "Uploading…"}
+                          </span>
+                          {driveStatus.total > 0 && (
+                            <span style={{ color: C.accent, fontWeight: 600 }}>
+                              {Math.round((driveStatus.completed / driveStatus.total) * 100)}%
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ height: 5, borderRadius: 3, background: C.border, overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%",
+                            borderRadius: 3,
+                            background: C.accent,
+                            transition: "width 300ms ease",
+                            width: driveStatus.total > 0
+                              ? `${Math.round((driveStatus.completed / driveStatus.total) * 100)}%`
+                              : "10%",
+                          }} />
+                        </div>
+                      </div>
+                    )}
                     {driveStatus.kind === "ok" && (
                       <div style={{ marginTop: 6, padding: "5px 10px", background: C.successSoft, border: `1px solid rgba(46,125,91,0.25)`, borderRadius: 6, fontFamily: F, fontSize: 12, color: C.success }}>
-                        {driveStatus.count} photo{driveStatus.count > 1 ? "s" : ""} imported.
+                        {driveStatus.count} photo{driveStatus.count > 1 ? "s" : ""} imported successfully.
                       </div>
                     )}
                     {driveStatus.kind === "error" && (

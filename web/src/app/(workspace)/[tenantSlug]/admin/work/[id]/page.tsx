@@ -27,6 +27,8 @@ import {
   requestPaymentAction,
   selectPayoutReceiverAction,
 } from "./actions";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -54,33 +56,36 @@ function readRevenueCents(raw: number | string | null): number {
   return Math.max(0, Math.round(Number(raw) * 100));
 }
 
-function transactionStatusLabel(status: string): string {
-  if (status === "payment_requested") return "Payment requested";
-  if (status === "pending") return "Pending";
-  if (status === "paid") return "Paid";
-  if (status === "payout_pending") return "Payout pending";
-  if (status === "payout_sent") return "Payout sent";
-  if (status === "refunded") return "Refunded";
-  if (status === "disputed") return "Disputed";
-  if (status === "cancelled") return "Cancelled";
-  if (status === "failed") return "Failed";
-  return "Draft";
+function transactionStatusLabel(status: string, t: (k: string) => string): string {
+  if (status === "payment_requested") return t("admin.work.detail.txStatus.paymentRequested");
+  if (status === "pending") return t("admin.work.detail.txStatus.pending");
+  if (status === "paid") return t("admin.work.detail.txStatus.paid");
+  if (status === "payout_pending") return t("admin.work.detail.txStatus.payoutPending");
+  if (status === "payout_sent") return t("admin.work.detail.txStatus.payoutSent");
+  if (status === "refunded") return t("admin.work.detail.txStatus.refunded");
+  if (status === "disputed") return t("admin.work.detail.txStatus.disputed");
+  if (status === "cancelled") return t("admin.work.detail.txStatus.cancelled");
+  if (status === "failed") return t("admin.work.detail.txStatus.failed");
+  return t("admin.work.detail.txStatus.draft");
 }
 
-function InquiryStatusChip({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    submitted:     { bg: "rgba(43,95,138,0.10)", color: "#1B6E9C", label: "Submitted" },
-    coordination:  { bg: "rgba(43,95,138,0.10)", color: "#1B6E9C", label: "In review" },
-    offer_pending: { bg: C.amberSoft,            color: C.amber,   label: "Offer pending" },
-    offer_sent:    { bg: C.amberSoft,            color: C.amber,   label: "Offer sent" },
-    approved:      { bg: C.accentSoft,           color: C.accent,  label: "Approved" },
-    booked:        { bg: "rgba(26,115,72,0.10)", color: "#1A7348", label: "Booked" },
-    converted:     { bg: "rgba(26,115,72,0.10)", color: "#1A7348", label: "Booked" },
-    rejected:      { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", label: "Rejected" },
-    expired:       { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", label: "Expired" },
-    draft:         { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", label: "Draft" },
+function InquiryStatusChip({ status, t }: { status: string; t: (k: string) => string }) {
+  const map: Record<string, { bg: string; color: string; labelKey: string }> = {
+    submitted:     { bg: "rgba(43,95,138,0.10)", color: "#1B6E9C", labelKey: "admin.work.detail.inquiryStatus.submitted" },
+    coordination:  { bg: "rgba(43,95,138,0.10)", color: "#1B6E9C", labelKey: "admin.work.detail.inquiryStatus.coordination" },
+    offer_pending: { bg: C.amberSoft,            color: C.amber,   labelKey: "admin.work.detail.inquiryStatus.offerPending" },
+    offer_sent:    { bg: C.amberSoft,            color: C.amber,   labelKey: "admin.work.detail.inquiryStatus.offerSent" },
+    approved:      { bg: C.accentSoft,           color: C.accent,  labelKey: "admin.work.detail.inquiryStatus.approved" },
+    booked:        { bg: "rgba(26,115,72,0.10)", color: "#1A7348", labelKey: "admin.work.detail.inquiryStatus.booked" },
+    converted:     { bg: "rgba(26,115,72,0.10)", color: "#1A7348", labelKey: "admin.work.detail.inquiryStatus.booked" },
+    rejected:      { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", labelKey: "admin.work.detail.inquiryStatus.rejected" },
+    expired:       { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", labelKey: "admin.work.detail.inquiryStatus.expired" },
+    draft:         { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", labelKey: "admin.work.detail.inquiryStatus.draft" },
   };
-  const s = map[status] ?? { bg: "rgba(11,11,13,0.05)", color: "rgba(11,11,13,0.45)", label: status.replace(/_/g, " ") };
+  const entry = map[status];
+  const s = entry
+    ? { bg: entry.bg, color: entry.color, label: t(entry.labelKey) }
+    : { bg: "rgba(11,11,13,0.05)", color: "rgba(11,11,13,0.45)", label: status.replace(/_/g, " ") };
   return (
     <span style={{
       display: "inline-flex",
@@ -113,6 +118,9 @@ export default async function WorkspaceWorkDetailPage({
 
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
+
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   const canView = await userHasCapability("agency.workspace.view", scope.tenantId);
   if (!canView) notFound();
@@ -215,13 +223,13 @@ export default async function WorkspaceWorkDetailPage({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 11, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkMuted, fontWeight: 600 }}>
-            Workflow detail
+            {t("admin.work.detail.workflowDetail")}
           </div>
           <h1 style={{ margin: "4px 0 0", fontSize: 24, color: C.ink, letterSpacing: 0 }}>
             {inquiry.contact_name}
           </h1>
           <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 3 }}>
-            {inquiry.company ?? "No company"} · {inquiry.event_location ?? "Location TBD"}
+            {inquiry.company ?? t("admin.work.detail.noCompany")} · {inquiry.event_location ?? t("admin.work.detail.locationTBD")}
           </div>
         </div>
         <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
@@ -239,7 +247,7 @@ export default async function WorkspaceWorkDetailPage({
               fontSize: 12.5,
             }}
           >
-            ← Pipeline
+            {t("admin.work.detail.backToPipeline")}
           </Link>
           <Link
             href={`/${tenantSlug}/admin/messages?inquiry=${inquiryId}`}
@@ -256,7 +264,7 @@ export default async function WorkspaceWorkDetailPage({
               fontSize: 12.5,
             }}
           >
-            💬 Messages
+            {t("admin.work.detail.messages")}
           </Link>
           {!booking && (
             <Link
@@ -274,7 +282,7 @@ export default async function WorkspaceWorkDetailPage({
                 fontWeight: 600,
               }}
             >
-              + Create booking
+              {t("admin.work.detail.createBooking")}
             </Link>
           )}
           {booking && (
@@ -292,7 +300,7 @@ export default async function WorkspaceWorkDetailPage({
                 fontSize: 12.5,
               }}
             >
-              View booking →
+              {t("admin.work.detail.viewBooking")}
             </Link>
           )}
         </div>
@@ -343,70 +351,70 @@ export default async function WorkspaceWorkDetailPage({
             </svg>
           </span>
           <span style={{ flex: 1, fontWeight: 600 }}>
-            Originated from a curated Pitch
+            {t("admin.work.detail.originatedFromPitch")}
           </span>
           <span style={{ color: "rgba(15,79,62,0.7)", fontSize: 12, fontWeight: 600 }}>
-            View all pitches →
+            {t("admin.work.detail.viewAllPitches")}
           </span>
         </Link>
       ) : null}
 
       <section style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.cardBg, padding: 14 }}>
         <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }}>
-          Inquiry
+          {t("admin.work.detail.inquirySection")}
         </div>
         <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-            Status
+            {t("admin.work.detail.statusLabel")}
             <div style={{ marginTop: 4 }}>
-              <InquiryStatusChip status={inquiry.status} />
+              <InquiryStatusChip status={inquiry.status} t={t} />
             </div>
           </div>
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-            Next action
+            {t("admin.work.detail.nextAction")}
             <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>
               {((): string => {
                 const raw = (inquiry as { next_action_by?: string | null }).next_action_by;
                 if (!raw) return "—";
                 const MAP: Record<string, string> = {
-                  client:      "⏳ Client",
-                  coordinator: "⏳ You",
-                  talent:      "⏳ Talent",
-                  agency:      "⏳ Agency",
+                  client:      t("admin.work.detail.nextActionClient"),
+                  coordinator: t("admin.work.detail.nextActionCoordinator"),
+                  talent:      t("admin.work.detail.nextActionTalent"),
+                  agency:      t("admin.work.detail.nextActionAgency"),
                 };
                 return MAP[raw] ?? raw;
               })()}
             </div>
           </div>
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-            Event date
+            {t("admin.work.detail.eventDate")}
             <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>
               {inquiry.event_date
                 ? new Date(inquiry.event_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-                : "TBD"}
+                : t("admin.work.detail.dateTBD")}
             </div>
           </div>
           {(inquiry as { event_location?: string | null }).event_location && (
             <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-              Location
+              {t("admin.work.detail.locationLabel")}
               <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>
                 {(inquiry as { event_location?: string | null }).event_location}
               </div>
             </div>
           )}
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-            Quantity
+            {t("admin.work.detail.quantityLabel")}
             <div style={{ marginTop: 2, fontSize: 13, color: C.ink, fontWeight: 600 }}>{inquiry.quantity ?? 0}</div>
           </div>
           <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-            Age
+            {t("admin.work.detail.ageLabel")}
             <div style={{ marginTop: 2, fontSize: 13, color: ageDays > 7 ? C.red : C.ink, fontWeight: 600 }}>
-              {ageDays === 0 ? "Today" : `${ageDays}d`}
+              {ageDays === 0 ? t("admin.work.detail.ageToday") : `${ageDays}d`}
             </div>
           </div>
           {inquirySource && (
             <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-              Source
+              {t("admin.work.detail.sourceLabel")}
               <div style={{ marginTop: 2 }}>
                 <span style={{
                   display: "inline-flex",
@@ -432,20 +440,20 @@ export default async function WorkspaceWorkDetailPage({
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div>
             <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }}>
-              Transaction
+              {t("admin.work.detail.transactionSection")}
             </div>
             <div style={{ marginTop: 6, fontSize: 14, color: C.ink, fontWeight: 600 }}>
-              {booking ? (booking.title as string) || "Booking" : "No booking linked to this inquiry yet"}
+              {booking ? (booking.title as string) || t("admin.work.detail.bookingLabel") : t("admin.work.detail.noBooking")}
             </div>
             {booking ? (
               <div style={{ marginTop: 3, fontSize: 12.5, color: C.inkMuted }}>
-                {(booking.client_account_name as string | null) ?? "No client account"} · {(booking.contact_name as string | null) ?? "No contact"}
+                {(booking.client_account_name as string | null) ?? t("admin.work.detail.noClientAccount")} · {(booking.contact_name as string | null) ?? t("admin.work.detail.noContact")}
               </div>
             ) : null}
           </div>
           {transaction ? (
             <div style={{ fontSize: 12.5, border: `1px solid ${C.border}`, borderRadius: 999, padding: "4px 10px", color: C.ink }}>
-              {transactionStatusLabel(transaction.status)}
+              {transactionStatusLabel(transaction.status, t)}
             </div>
           ) : null}
         </div>
@@ -453,21 +461,21 @@ export default async function WorkspaceWorkDetailPage({
         {booking ? (
           <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10 }}>
             <div style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 10, padding: 10 }}>
-              <div style={{ fontSize: 11, color: C.inkMuted }}>Gross revenue</div>
+              <div style={{ fontSize: 11, color: C.inkMuted }}>{t("admin.work.detail.grossRevenue")}</div>
               <div style={{ marginTop: 2, fontSize: 16, color: C.ink, fontWeight: 600 }}>
                 {breakdown ? formatCents(breakdown.grossCents, breakdown.currency) : "—"}
               </div>
             </div>
             <div style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 10, padding: 10 }}>
               <div style={{ fontSize: 11, color: C.inkMuted }}>
-                Platform fee ({breakdown?.feeLabel ?? commission.feePercent})
+                {t("admin.work.detail.platformFee").replace("{pct}", breakdown?.feeLabel ?? commission.feePercent)}
               </div>
               <div style={{ marginTop: 2, fontSize: 16, color: C.ink, fontWeight: 600 }}>
                 {breakdown ? formatCents(breakdown.feeCents, breakdown.currency) : "—"}
               </div>
             </div>
             <div style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 10, padding: 10 }}>
-              <div style={{ fontSize: 11, color: C.inkMuted }}>Net payout</div>
+              <div style={{ fontSize: 11, color: C.inkMuted }}>{t("admin.work.detail.netPayout")}</div>
               <div style={{ marginTop: 2, fontSize: 16, color: C.ink, fontWeight: 600 }}>
                 {breakdown ? formatCents(breakdown.netCents, breakdown.currency) : "—"}
               </div>
@@ -477,7 +485,7 @@ export default async function WorkspaceWorkDetailPage({
 
         {transaction ? (
           <div style={{ marginTop: 12, border: `1px solid ${C.borderSoft}`, borderRadius: 10, padding: 10 }}>
-            <div style={{ fontSize: 11, color: C.inkMuted }}>Payout receiver</div>
+            <div style={{ fontSize: 11, color: C.inkMuted }}>{t("admin.work.detail.payoutReceiver")}</div>
             {transaction.payoutReceiverId ? (
               <div style={{ marginTop: 3, fontSize: 13, color: C.ink, fontWeight: 600 }}>
                 {transaction.payoutReceiverDisplayName}
@@ -485,17 +493,17 @@ export default async function WorkspaceWorkDetailPage({
               </div>
             ) : (
               <div style={{ marginTop: 3, fontSize: 12.5, color: C.inkMuted }}>
-                Not selected yet.
+                {t("admin.work.detail.receiverNotSelected")}
               </div>
             )}
             {transaction.providerReference ? (
               <div style={{ marginTop: 4, fontSize: 12, color: C.inkMuted }}>
-                Provider reference: {transaction.providerReference}
+                {t("admin.work.detail.providerReference").replace("{ref}", transaction.providerReference)}
               </div>
             ) : null}
             {transaction.failureReason ? (
               <div style={{ marginTop: 4, fontSize: 12, color: C.inkMuted }}>
-                Note: {transaction.failureReason}
+                {t("admin.work.detail.failureNote").replace("{note}", transaction.failureReason)}
               </div>
             ) : null}
 
@@ -522,7 +530,7 @@ export default async function WorkspaceWorkDetailPage({
                     fontFamily: FONT,
                   }}
                 >
-                  <option value="">Select payout receiver</option>
+                  <option value="">{t("admin.work.detail.selectReceiver")}</option>
                   {payoutCandidates.map((candidate) => (
                     <option key={candidate.payoutAccountId} value={candidate.payoutAccountId}>
                       {candidate.displayName} · {candidate.receiverKind}
@@ -558,7 +566,7 @@ export default async function WorkspaceWorkDetailPage({
                         : 0.45,
                   }}
                 >
-                  Save receiver
+                  {t("admin.work.detail.saveReceiver")}
                 </button>
               </form>
             ) : null}
@@ -580,7 +588,7 @@ export default async function WorkspaceWorkDetailPage({
                     cursor: "pointer",
                   }}
                 >
-                  Create workspace payout account
+                  {t("admin.work.detail.createWorkspacePayout")}
                 </button>
               </form>
             ) : null}
@@ -591,7 +599,7 @@ export default async function WorkspaceWorkDetailPage({
           <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
             {!booking ? (
               <span style={{ fontSize: 12.5, color: C.inkMuted }}>
-                Create a booking from this inquiry before starting payment flow.
+                {t("admin.work.detail.createBookingFirst")}
               </span>
             ) : !transaction ? (
               <form action={createTransactionDraftAction}>
@@ -613,7 +621,7 @@ export default async function WorkspaceWorkDetailPage({
                     opacity: canRequestPayment || canManageBilling ? 1 : 0.45,
                   }}
                 >
-                  Create transaction draft
+                  {t("admin.work.detail.createTransactionDraft")}
                 </button>
               </form>
             ) : (
@@ -651,7 +659,7 @@ export default async function WorkspaceWorkDetailPage({
                           : 0.45,
                     }}
                   >
-                    Request payment
+                    {t("admin.work.detail.requestPayment")}
                   </button>
                 </form>
                 <form action={markPaidAction}>
@@ -659,7 +667,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input type="hidden" name="inquiryId" value={inquiryId} />
                   <input type="hidden" name="transactionId" value={transaction.id} />
                   <button type="submit" disabled={!["payment_requested", "pending", "disputed"].includes(transaction.status) || (!canMarkReceived && !canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, fontSize: 12.5, cursor: ["payment_requested", "pending", "disputed"].includes(transaction.status) && (canMarkReceived || canManageBilling) ? "pointer" : "not-allowed", opacity: ["payment_requested", "pending", "disputed"].includes(transaction.status) && (canMarkReceived || canManageBilling) ? 1 : 0.45 }}>
-                    Mark paid
+                    {t("admin.work.detail.markPaid")}
                   </button>
                 </form>
                 <form action={markPendingAction}>
@@ -667,7 +675,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input type="hidden" name="inquiryId" value={inquiryId} />
                   <input type="hidden" name="transactionId" value={transaction.id} />
                   <button type="submit" disabled={transaction.status !== "payment_requested" || (!canMarkReceived && !canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, fontSize: 12.5, cursor: transaction.status === "payment_requested" && (canMarkReceived || canManageBilling) ? "pointer" : "not-allowed", opacity: transaction.status === "payment_requested" && (canMarkReceived || canManageBilling) ? 1 : 0.45 }}>
-                    Mark pending
+                    {t("admin.work.detail.markPending")}
                   </button>
                 </form>
                 <form action={initiatePayoutAction}>
@@ -675,7 +683,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input type="hidden" name="inquiryId" value={inquiryId} />
                   <input type="hidden" name="transactionId" value={transaction.id} />
                   <button type="submit" disabled={transaction.status !== "paid" || (!canMarkPayoutExternal && !canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, fontSize: 12.5, cursor: transaction.status === "paid" && (canMarkPayoutExternal || canManageBilling) ? "pointer" : "not-allowed", opacity: transaction.status === "paid" && (canMarkPayoutExternal || canManageBilling) ? 1 : 0.45 }}>
-                    Start payout
+                    {t("admin.work.detail.startPayout")}
                   </button>
                 </form>
                 <form action={markPayoutSentAction}>
@@ -685,7 +693,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input
                     type="text"
                     name="payoutExternalReference"
-                    placeholder="Payout reference (optional)"
+                    placeholder={t("admin.work.detail.payoutRefPlaceholder")}
                     defaultValue=""
                     style={{
                       height: 32,
@@ -700,7 +708,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input
                     type="text"
                     name="payoutExternalNote"
-                    placeholder="Payout note (optional)"
+                    placeholder={t("admin.work.detail.payoutNotePlaceholder")}
                     defaultValue=""
                     style={{
                       height: 32,
@@ -713,7 +721,7 @@ export default async function WorkspaceWorkDetailPage({
                     }}
                   />
                   <button type="submit" disabled={transaction.status !== "payout_pending" || (!canMarkPayoutExternal && !canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", color: C.ink, fontSize: 12.5, cursor: transaction.status === "payout_pending" && (canMarkPayoutExternal || canManageBilling) ? "pointer" : "not-allowed", opacity: transaction.status === "payout_pending" && (canMarkPayoutExternal || canManageBilling) ? 1 : 0.45 }}>
-                    Mark payout sent externally
+                    {t("admin.work.detail.markPayoutSent")}
                   </button>
                 </form>
                 <form action={markFailedAction}>
@@ -721,7 +729,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input type="hidden" name="inquiryId" value={inquiryId} />
                   <input type="hidden" name="transactionId" value={transaction.id} />
                   <button type="submit" disabled={!["payment_requested", "pending", "payout_pending"].includes(transaction.status) || (!canMarkReceived && !canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.redSoft, color: C.red, fontSize: 12.5, cursor: ["payment_requested", "pending", "payout_pending"].includes(transaction.status) && (canMarkReceived || canManageBilling) ? "pointer" : "not-allowed", opacity: ["payment_requested", "pending", "payout_pending"].includes(transaction.status) && (canMarkReceived || canManageBilling) ? 1 : 0.45 }}>
-                    Mark failed
+                    {t("admin.work.detail.markFailed")}
                   </button>
                 </form>
                 <form action={markDisputedAction}>
@@ -729,7 +737,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input type="hidden" name="inquiryId" value={inquiryId} />
                   <input type="hidden" name="transactionId" value={transaction.id} />
                   <button type="submit" disabled={transaction.status !== "paid" || (!canRefund && !canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.redSoft, color: C.red, fontSize: 12.5, cursor: transaction.status === "paid" && (canRefund || canManageBilling) ? "pointer" : "not-allowed", opacity: transaction.status === "paid" && (canRefund || canManageBilling) ? 1 : 0.45 }}>
-                    Mark disputed
+                    {t("admin.work.detail.markDisputed")}
                   </button>
                 </form>
                 <form action={markRefundedAction}>
@@ -739,7 +747,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input
                     type="text"
                     name="refundReference"
-                    placeholder="Refund reference (optional)"
+                    placeholder={t("admin.work.detail.refundRefPlaceholder")}
                     defaultValue=""
                     style={{
                       height: 32,
@@ -754,7 +762,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input
                     type="text"
                     name="refundNote"
-                    placeholder="Refund note (optional)"
+                    placeholder={t("admin.work.detail.refundNotePlaceholder")}
                     defaultValue=""
                     style={{
                       height: 32,
@@ -767,7 +775,7 @@ export default async function WorkspaceWorkDetailPage({
                     }}
                   />
                   <button type="submit" disabled={!["paid", "payout_pending", "payout_sent", "disputed"].includes(transaction.status) || (!canRefund && !canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.amberSoft, color: C.amber, fontSize: 12.5, cursor: ["paid", "payout_pending", "payout_sent", "disputed"].includes(transaction.status) && (canRefund || canManageBilling) ? "pointer" : "not-allowed", opacity: ["paid", "payout_pending", "payout_sent", "disputed"].includes(transaction.status) && (canRefund || canManageBilling) ? 1 : 0.45 }}>
-                    Mark refunded
+                    {t("admin.work.detail.markRefunded")}
                   </button>
                 </form>
                 <form action={cancelTransactionAction}>
@@ -775,7 +783,7 @@ export default async function WorkspaceWorkDetailPage({
                   <input type="hidden" name="inquiryId" value={inquiryId} />
                   <input type="hidden" name="transactionId" value={transaction.id} />
                   <button type="submit" disabled={!["draft", "payment_requested", "failed"].includes(transaction.status) || (!canRequestPayment && !canManageBilling)} style={{ height: 32, padding: "0 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.amberSoft, color: C.amber, fontSize: 12.5, cursor: ["draft", "payment_requested", "failed"].includes(transaction.status) && (canRequestPayment || canManageBilling) ? "pointer" : "not-allowed", opacity: ["draft", "payment_requested", "failed"].includes(transaction.status) && (canRequestPayment || canManageBilling) ? 1 : 0.45 }}>
-                    Cancel
+                    {t("admin.work.detail.cancelTx")}
                   </button>
                 </form>
               </>
@@ -783,7 +791,7 @@ export default async function WorkspaceWorkDetailPage({
           </div>
         ) : (
           <div style={{ marginTop: 14, fontSize: 12.5, color: C.inkMuted }}>
-            You do not currently have permission to change transaction billing state.
+            {t("admin.work.detail.noPermission")}
           </div>
         )}
       </section>
@@ -792,30 +800,30 @@ export default async function WorkspaceWorkDetailPage({
       {activityItems.length > 0 && (
         <section style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.cardBg, padding: 14 }}>
           <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12 }}>
-            Activity
+            {t("admin.work.detail.activitySection")}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             {(activityItems as InquiryActivityItem[]).map((evt, i) => {
               const label = (() => {
-                const t = evt.event_type;
-                if (t === "inquiry_submitted")     return "Inquiry submitted";
-                if (t === "status_changed")        return "Status changed";
-                if (t === "offer_sent")            return "Offer sent";
-                if (t === "offer_approved")        return "Offer approved";
-                if (t === "offer_declined")        return "Offer declined";
-                if (t === "offer_revised")         return "Offer revised";
-                if (t === "booking_created")       return "Booking created";
-                if (t === "booking_confirmed")     return "Booking confirmed";
-                if (t === "talent_assigned")       return "Talent assigned";
-                if (t === "talent_accepted")       return "Talent accepted";
-                if (t === "talent_declined")       return "Talent declined";
-                if (t === "payment_requested")     return "Payment requested";
-                if (t === "payment_received")      return "Payment received";
-                if (t === "payout_sent")           return "Payout sent";
-                if (t === "coordinator_accepted")  return "Coordinator accepted";
-                if (t === "note_added")            return "Note added";
-                if (t === "message_sent")          return "Message sent";
-                return t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                const evtType = evt.event_type;
+                if (evtType === "inquiry_submitted")     return t("admin.work.detail.activity.inquirySubmitted");
+                if (evtType === "status_changed")        return t("admin.work.detail.activity.statusChanged");
+                if (evtType === "offer_sent")            return t("admin.work.detail.activity.offerSent");
+                if (evtType === "offer_approved")        return t("admin.work.detail.activity.offerApproved");
+                if (evtType === "offer_declined")        return t("admin.work.detail.activity.offerDeclined");
+                if (evtType === "offer_revised")         return t("admin.work.detail.activity.offerRevised");
+                if (evtType === "booking_created")       return t("admin.work.detail.activity.bookingCreated");
+                if (evtType === "booking_confirmed")     return t("admin.work.detail.activity.bookingConfirmed");
+                if (evtType === "talent_assigned")       return t("admin.work.detail.activity.talentAssigned");
+                if (evtType === "talent_accepted")       return t("admin.work.detail.activity.talentAccepted");
+                if (evtType === "talent_declined")       return t("admin.work.detail.activity.talentDeclined");
+                if (evtType === "payment_requested")     return t("admin.work.detail.activity.paymentRequested");
+                if (evtType === "payment_received")      return t("admin.work.detail.activity.paymentReceived");
+                if (evtType === "payout_sent")           return t("admin.work.detail.activity.payoutSent");
+                if (evtType === "coordinator_accepted")  return t("admin.work.detail.activity.coordinatorAccepted");
+                if (evtType === "note_added")            return t("admin.work.detail.activity.noteAdded");
+                if (evtType === "message_sent")          return t("admin.work.detail.activity.messageSent");
+                return evtType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
               })();
               const when = new Date(evt.created_at).toLocaleDateString("en-AU", {
                 day: "numeric", month: "short", year: "numeric",

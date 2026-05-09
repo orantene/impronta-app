@@ -11,6 +11,8 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { createTranslator } from "@/i18n/messages";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "./_primitives";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded
 // by `import "server-only"`. The `import type` form is erased at compile
@@ -568,6 +570,7 @@ export type DrawerId =
   | "talent-press"
   | "talent-media-kit"
   | "talent-custom-domain"
+  | "talent-agency-switcher"
   | "talent-agency-relationship"
   | "talent-leave-agency"
   | "talent-notifications"
@@ -2051,10 +2054,10 @@ export type TalentProfile = {
   primaryType?: string;
   /** Profile completeness 0–100. Surfaced on cards in non-published states. */
   completeness?: number;
-  /** ISO timestamp of when this talent was added to the roster
-   *  (`agency_talent_roster.created_at`). Drives the "Newest" sort.
-   *  Optional so mock fixtures can omit it — sort falls back to source order. */
+  /** ISO timestamp of when this talent was added to the roster. Drives "Newest" sort. */
   createdAt?: string;
+  /** ISO timestamp of the last profile edit (`talent_profiles.updated_at`). Drives "Last edited" sort. */
+  updatedAt?: string;
   /** Number of non-deleted portfolio/gallery media assets owned by this talent.
    *  Surfaced on the roster card so admins see which talents still need photos. */
   portfolioCount?: number;
@@ -4812,9 +4815,23 @@ export type ProfileLanguage = {
  * Mirrored to talent_service_areas in production; the talent_profiles
  * `location_id` / `destinations` columns are cache only.
  */
+export type UpcomingVisit = {
+  id: string;
+  city: string;
+  placeId?: string;
+  /** ISO date string, e.g. "2026-06-15" */
+  date?: string;
+  /** Optional end date for multi-day visits */
+  dateEnd?: string;
+};
+
 export type ServiceArea = {
-  /** Home base city (canonical). */
+  /** Current location / home city (canonical). */
   homeBase: string;
+  /** Google place_id for homeBase, if resolved via autocomplete. */
+  homePlaceId?: string;
+  /** Upcoming visits / travel destinations. */
+  upcomingVisits?: UpcomingVisit[];
   /** Cities the talent will work in without travel logistics. */
   serviceCities: string[];
   /** Travel radius from home base in km. 999 = anywhere. */
@@ -4980,10 +4997,12 @@ export const GENDER_OPTIONS: { id: GenderOption; label: string }[] = [
 
 export type ProfileIdentity = {
   stageName: string;
+  /** Given name — composes legal name, used for contracts. */
+  firstName: string;
+  /** Family name — composes legal name, used for contracts. */
+  lastName: string;
   /** Admin-only / KYC. Never exposed on the public profile. */
   legalName: string;
-  /** Phonetic pronunciation aid (e.g. "soh-FEE-ah loo-PO"). */
-  pronunciation: string;
   pronouns: Pronouns | null;
   pronounsCustom?: string;
   gender: GenderOption | null;
@@ -4996,6 +5015,18 @@ export type ProfileIdentity = {
   homeCountry?: string;
   /** Self-declared reply-time commitment shown on Discover. */
   responseTime?: "1h" | "4h" | "24h" | "48h";
+  /** Direct contact email — agency-visible, never public. */
+  contactEmail?: string;
+  /** Primary phone number (digits only, prefix separate). */
+  contactPhone?: string;
+  /** Phone country-code prefix, e.g. "+52". */
+  contactPhonePrefix?: string;
+  /** WhatsApp number if different from primary phone. */
+  whatsapp?: string;
+  /** WhatsApp country-code prefix. */
+  whatsappPrefix?: string;
+  /** Secondary business line or handle. */
+  businessLine?: string;
   /** Per-field visibility overrides. Keys are profile field short-ids;
    *  values are the channel array the talent chose. Matches FieldVisibility
    *  (ReadonlyArray<FieldChannel>) so ChannelVisibilityStrip onChange
@@ -6737,6 +6768,10 @@ type Ctx = {
     initials: string;
     entityType: EntityType;
   };
+  /** Current UI locale resolved from the locale cookie. */
+  locale: string;
+  /** Dot-path translator for the current locale. */
+  t: (key: string) => string;
 };
 
 /** Agency-defined custom field. Renders in Profile Shell's "Profile details"
@@ -6774,7 +6809,7 @@ export type FieldVisibility = "public" | "internal" | "hidden";
  *  Custom fields use their own UUID and don't appear in this union. */
 export type ProfileFieldId =
   // Identity
-  | "stageName" | "legalName" | "pronunciation" | "tagline" | "dob" | "ageDisplay" | "pronouns" | "gender"
+  | "stageName" | "firstName" | "lastName" | "legalName" | "tagline" | "dob" | "ageDisplay" | "pronouns" | "gender"
   // Services
   | "primaryType" | "secondaryTypes" | "specialties"
   // Location
@@ -6805,8 +6840,9 @@ export type ProfileFieldId =
 export const DEFAULT_FIELD_VISIBILITY: Record<ProfileFieldId, FieldVisibility> = {
   // Identity — name + tagline are public; legal/dob/pronouns are internal by default
   stageName:     "public",
+  firstName:     "internal",
+  lastName:      "internal",
   legalName:     "internal",
-  pronunciation: "public",
   tagline:       "public",
   dob:           "internal",
   ageDisplay:    "public",  // "29" or "26-30 range"
@@ -6866,8 +6902,9 @@ export const DEFAULT_FIELD_VISIBILITY: Record<ProfileFieldId, FieldVisibility> =
  *  settings UI. Mirrors what's in the Field Catalog. */
 export const PROFILE_FIELD_META: Record<ProfileFieldId, { label: string; section: string; description?: string }> = {
   stageName:     { label: "Stage / professional name", section: "Identity", description: "Public name on storefront." },
+  firstName:     { label: "First name",                 section: "Identity", description: "Legal given name. Admin-only." },
+  lastName:      { label: "Last name",                  section: "Identity", description: "Legal family name. Admin-only." },
   legalName:     { label: "Legal name",                 section: "Identity", description: "For contracts. Never public." },
-  pronunciation: { label: "Pronunciation",              section: "Identity" },
   tagline:       { label: "Tagline",                    section: "Identity", description: "One line shown on the directory card." },
   dob:           { label: "Date of birth",              section: "Identity", description: "Used to compute age. Never public." },
   ageDisplay:    { label: "Age (display)",              section: "Identity", description: "Shown as exact age or a range." },
@@ -7201,6 +7238,12 @@ export function ProtoProvider({
   const router = useRouter();
   const tenantSlugRef = useRef(tenantSlug);
   useEffect(() => { tenantSlugRef.current = tenantSlug; }, [tenantSlug]);
+
+  const [locale, setLocale] = useState("en");
+  useEffect(() => {
+    const m = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]*)`));
+    if (m) setLocale(decodeURIComponent(m[1]));
+  }, []);
 
   // P3.4 — Prefetch all talent tab routes on mount so cold tab-switches
   // feel instant. Only fires when we're in production talent mode (slug
@@ -8258,6 +8301,8 @@ export function ProtoProvider({
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
       bridgeFirstRunToggleTipSeen,
+      locale,
+      t: createTranslator(locale),
     }),
     [
       surface,
@@ -8351,6 +8396,7 @@ export function ProtoProvider({
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
       bridgeFirstRunToggleTipSeen,
+      locale,
     ],
   );
 

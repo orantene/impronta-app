@@ -11,6 +11,7 @@
 import * as React from "react";
 import { setCurrencyPreferenceAction } from "./currency-actions";
 import { SUPPORTED_CURRENCIES } from "./currency-options";
+import { createTranslator } from "@/i18n/messages";
 
 const C = {
   ink:      "#0B0B0D",
@@ -27,10 +28,13 @@ const FONT = '"Inter", system-ui, sans-serif';
 export function CurrencyPicker({
   tenantSlug,
   currentValue,
+  locale = "en",
 }: {
   tenantSlug: string;
   currentValue: string | null;
+  locale?: string;
 }) {
+  const t = createTranslator(locale);
   const [status, setStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
@@ -62,7 +66,7 @@ export function CurrencyPicker({
       }}
     >
       <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>
-        Currency preference
+        {t("admin.account.currency.label")}
       </span>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -96,12 +100,12 @@ export function CurrencyPicker({
 
           {status === "saving" && (
             <span style={{ fontSize: 11.5, color: C.inkMuted, fontFamily: FONT }}>
-              Saving…
+              {t("admin.account.currency.saving")}
             </span>
           )}
           {status === "saved" && (
             <span style={{ fontSize: 11.5, color: C.green, fontFamily: FONT }}>
-              ✓ Saved
+              {t("admin.account.currency.saved")}
             </span>
           )}
           {status === "error" && (
@@ -111,8 +115,7 @@ export function CurrencyPicker({
           )}
         </div>
         <span style={{ fontSize: 11, color: C.inkMuted, fontFamily: FONT, lineHeight: 1.4 }}>
-          Stripe automatically presents checkout in each customer&apos;s local currency.
-          This preference is stored for display and future native-currency pricing.
+          {t("admin.account.currency.hint")}
         </span>
       </div>
     </div>

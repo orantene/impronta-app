@@ -30,7 +30,7 @@ import {
   updateSelfCredits, updateSelfLimits, updateSelfSocialProof, saveSelfLanguages, updateSelfIdentity,
 } from "@/lib/server-actions/talent-self-profile-sections";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, loadAgencyBrandingSettings, loadWorkspaceAccountSettings, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
-import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive, actionListDriveFolder, actionImportSingleDriveFile } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero, registerPortfolioPhoto } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions";
 import { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
@@ -253,6 +253,7 @@ import {
   DataExportDrawer,
   AuditLogDrawer,
   TenantSwitcherDrawer,
+  TalentAgencySwitcherDrawer,
   WorkspaceProfileDrawer,
   TalentShareCardDrawer,
   InquiryTemplatesPicker,
@@ -552,6 +553,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentBlockDatesDrawer />;
     case "talent-portfolio":
       return <TalentPortfolioDrawer />;
+    case "talent-agency-switcher":
+      return <TalentAgencySwitcherDrawer />;
     case "talent-agency-relationship":
       return <TalentAgencyRelationshipDrawer />;
     case "talent-leave-agency":
@@ -4504,8 +4507,9 @@ function makeInitialProfileState(
   return {
     identity: {
       stageName,
+      firstName: "",
+      lastName: "",
       legalName: "",
-      pronunciation: draft.pronunciation ?? "",
       pronouns: null,
       gender: null,
       dob: null,
@@ -4940,8 +4944,9 @@ function TalentProfileShellDrawer() {
     const identityPayload = {
       talent_profile_id: tid,
       stage_name: id.stageName,
-      legal_name: id.legalName,
-      pronunciation: id.pronunciation,
+      first_name: id.firstName ?? "",
+      last_name: id.lastName ?? "",
+      legal_name: id.legalName || ((id.firstName || id.lastName) ? `${id.firstName ?? ""} ${id.lastName ?? ""}`.trim() : ""),
       pronouns: id.pronouns ? PRONOUNS_TO_DB[id.pronouns] ?? null : null,
       pronouns_custom: id.pronounsCustom ?? "",
       gender: id.gender ?? "",
@@ -4968,12 +4973,16 @@ function TalentProfileShellDrawer() {
     const locationPayload = {
       talent_profile_id: tid,
       home_base: sa.homeBase || null,
+      home_place_id: sa.homePlaceId ?? null,
       travel_radius_km: sa.travelKm ?? null,
       travel_fee_required: sa.travelFee ?? false,
       remote_only: sa.remoteOnly ?? false,
       passport_status: (sa.passport as "valid" | "expired" | "none" | undefined) ?? null,
       drivers_license: (sa.driversLicense as "none" | "standard" | "international" | "commercial" | undefined) ?? null,
       work_eligibility: sa.workEligibility ?? [],
+      upcoming_visits: (sa.upcomingVisits ?? []).map(v => ({
+        id: v.id, city: v.city, placeId: v.placeId, date: v.date, dateEnd: v.dateEnd,
+      })),
     };
 
     const ratesPayload = {
@@ -5115,22 +5124,44 @@ function TalentProfileShellDrawer() {
       if (!res.ok) return;
       const d = res.data;
       const patchPayload: Partial<ProfileState> = {};
+      // Identity — hydrate legal name, first/last name, pronouns, dob, etc.
+      {
+        const DB_PRONOUNS_TO_STATE: Record<string, string> = {
+          she_her: "she_her", he_him: "he_him", they_them: "they_them", ze_zir: "ze_zir", custom: "custom",
+        };
+        patchPayload.identity = {
+          ...state.identity,
+          firstName: (d.first_name as string | null) ?? state.identity.firstName ?? "",
+          lastName: (d.last_name as string | null) ?? state.identity.lastName ?? "",
+          legalName: (d.legal_name as string | null) ?? state.identity.legalName ?? "",
+          pronouns: d.pronouns ? (DB_PRONOUNS_TO_STATE[d.pronouns as string] as ProfileIdentity["pronouns"]) ?? null : null,
+          pronounsCustom: (d.pronouns_custom as string | null) ?? "",
+          gender: (d.gender as string | null) as ProfileIdentity["gender"] ?? null,
+          dob: (d.date_of_birth as string | null) ?? null,
+          ageDisplay: (d.age_display_mode as ProfileIdentity["ageDisplay"]) ?? "range",
+          nationality: (d.nationality as string | null) ?? state.identity.nationality,
+          responseTime: (d.response_time as ProfileIdentity["responseTime"]) ?? state.identity.responseTime,
+          visibility: (d.field_visibility as ProfileIdentity["visibility"]) ?? state.identity.visibility,
+        };
+      }
       if (d.bios && d.bios.length > 0) patchPayload.bios = d.bios as LocaleBio[];
       if (d.bio_tone) patchPayload.bioTone = d.bio_tone as BioTone;
       if (d.tagline) patchPayload.tagline = d.tagline;
       if (d.personality_traits && typeof d.personality_traits === "object") {
         patchPayload.personality = d.personality_traits as Personality;
       }
-      if (d.home_city_text) {
+      if (d.home_city_text || d.upcoming_visits) {
         patchPayload.serviceArea = {
           ...state.serviceArea,
-          homeBase: d.home_city_text,
+          homeBase: d.home_city_text ?? state.serviceArea.homeBase,
+          homePlaceId: (d.home_place_id as string | undefined) ?? state.serviceArea.homePlaceId,
           travelKm: d.travel_radius_km ?? state.serviceArea.travelKm,
           travelFee: d.travel_fee_required,
           remoteOnly: d.remote_only,
           passport: (d.passport_status as ServiceArea["passport"]) ?? state.serviceArea.passport,
           driversLicense: (d.drivers_license as ServiceArea["driversLicense"]) ?? state.serviceArea.driversLicense,
           workEligibility: Array.isArray(d.work_eligibility) ? (d.work_eligibility as string[]) : state.serviceArea.workEligibility,
+          upcomingVisits: Array.isArray(d.upcoming_visits) ? (d.upcoming_visits as ServiceArea["upcomingVisits"]) : state.serviceArea.upcomingVisits,
         };
       }
       if (Array.isArray(d.rates_data) && d.rates_data.length > 0) patchPayload.rates = d.rates_data as ProfileState["rates"];
@@ -5745,7 +5776,6 @@ function TalentProfileShellDrawer() {
              slides from the bottom with a rounded top + safe-area pad. */
           @container pshell (max-width: 720px) {
             [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; }
-            [data-tulala-pshell] [data-pshell-body] { padding-bottom: 64px; }
             [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
           }
           /* Hide mobile-only chrome when the container is wider */
@@ -5766,7 +5796,6 @@ function TalentProfileShellDrawer() {
           @supports not (container-type: inline-size) {
             @media (max-width: 720px) {
               [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; max-width: none; }
-              [data-tulala-pshell] [data-pshell-body] { padding-bottom: 64px; }
               [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
             }
             @media (max-width: 480px) {
@@ -6344,32 +6373,28 @@ function TalentProfileShellDrawer() {
             {/* LOCATION */}
             <ProfileAccordionSection
               id="location" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Location & service area"
-              sub="Home base + cities they work in."
+              sub="Current location + upcoming travel."
               complete={sectionComplete.location} started={sectionStarted.location}
               open={activeSection === "location"}
               onToggle={() => setActiveSection(activeSection === "location" ? "" : "location")}
             >
-              <FieldRow label="Home base" catalogId="serviceArea.homeBase">
-                <input data-pshell-field="homeBase"
-                  placeholder="e.g. Playa del Carmen"
+              <FieldRow label="Current location" catalogId="serviceArea.homeBase">
+                <CityAutocompleteInput
                   value={state.serviceArea.homeBase}
-                  onChange={(e) => patch({ serviceArea: { ...state.serviceArea, homeBase: e.target.value } })}
-                  style={{
-                    width: "100%", boxSizing: "border-box", padding: "10px 12px",
-                    borderRadius: 10, border: `1px solid ${COLORS.border}`,
-                    fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-                  }}
+                  placeId={state.serviceArea.homePlaceId}
+                  placeholder="e.g. Playa del Carmen"
+                  onChange={(city, pid) => patch({ serviceArea: { ...state.serviceArea, homeBase: city, homePlaceId: pid } })}
                 />
               </FieldRow>
               <ServiceAreaMap
                 homeBase={state.serviceArea.homeBase}
                 travelKm={state.serviceArea.travelKm}
-                cities={state.serviceArea.serviceCities}
+                cities={(state.serviceArea.upcomingVisits ?? []).map(v => v.city)}
               />
-              <FieldRow label="Service areas" hint="Cities they'll work in without travel logistics.">
-                <ChipsInput label="" placeholder="Add a city or region…"
-                  values={state.serviceArea.serviceCities}
-                  onChange={patchServiceCities}
+              <FieldRow label="Visiting / Away" hint="Add cities the talent will be visiting. Shown on their public page.">
+                <UpcomingVisitsEditor
+                  visits={state.serviceArea.upcomingVisits ?? []}
+                  onChange={(visits) => patch({ serviceArea: { ...state.serviceArea, upcomingVisits: visits } })}
                 />
               </FieldRow>
               <FieldRow label={`Travel radius — ${state.serviceArea.travelKm === 999 ? "Anywhere" : `${state.serviceArea.travelKm} km`}`}>
@@ -7191,7 +7216,7 @@ function TalentProfileShellDrawer() {
               </ProfileAccordionSection>
             )}
 
-            <div style={{ height: 40 }} />
+            <div style={{ height: 16 }} />
           </div>
         </div>
 
@@ -7306,6 +7331,16 @@ function TalentProfileShellDrawer() {
               const res = await actionImportFromGoogleDrive(driveUrl, payload.talentId!);
               if (!res.ok) return { ok: false, error: res.error };
               return { ok: true, assets: res.data.assets };
+            }}
+            onListDriveFiles={async (driveUrl) => {
+              const res = await actionListDriveFolder(driveUrl);
+              if (!res.ok) return { ok: false, error: res.error };
+              return { ok: true, fileIds: res.data.fileIds };
+            }}
+            onImportDriveFile={async (fileId, sortOrder) => {
+              const res = await actionImportSingleDriveFile(fileId, payload.talentId!, sortOrder);
+              if (!res.ok) return { ok: false, error: res.error };
+              return { ok: true, asset: res.data };
             }}
             onReorderAssets={async (orderedIds) => {
               const res = await actionReorderMediaAssets(orderedIds);
@@ -9259,38 +9294,53 @@ function GalleryStrip({
   totalCount: number;
   onOpen: () => void;
 }) {
-  const MAX_THUMBS = 3;
+  // Show up to 8 thumbs; anything beyond gets a +N chip
+  const MAX_THUMBS = 8;
   const shown = photos.slice(0, MAX_THUMBS);
   const extra = totalCount - shown.length;
+
+  if (totalCount === 0) {
+    return (
+      <button type="button" onClick={onOpen} style={{
+        flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center",
+        gap: 6, padding: "10px 14px", borderRadius: 8,
+        border: `1.5px dashed ${COLORS.borderSoft}`,
+        background: COLORS.surfaceAlt, cursor: "pointer", minHeight: 86,
+      }}>
+        <span style={{ fontSize: 20, opacity: 0.35 }}>📷</span>
+        <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, fontWeight: 500 }}>
+          Add photos
+        </span>
+      </button>
+    );
+  }
+
   return (
     <button type="button" onClick={onOpen} style={{
-      flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 4,
-      padding: 6, borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
-      background: COLORS.surfaceAlt, cursor: "pointer", minHeight: 72,
-      overflow: "hidden",
+      flex: 1, minWidth: 0,
+      padding: 6, borderRadius: 8,
+      border: `1px solid ${COLORS.borderSoft}`,
+      background: COLORS.surfaceAlt, cursor: "pointer",
+      display: "grid",
+      gridTemplateColumns: `repeat(auto-fill, minmax(62px, 1fr))`,
+      gap: 4,
+      alignItems: "stretch",
     }}>
       {shown.map((url, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={i} src={url} alt="" style={{
-          width: 42, height: 58, objectFit: "cover", borderRadius: 5, flexShrink: 0,
+          width: "100%", aspectRatio: "3 / 4", objectFit: "cover",
+          borderRadius: 5, display: "block",
         }} />
       ))}
       {extra > 0 && (
         <div style={{
-          width: 38, height: 58, borderRadius: 5, background: "rgba(15,79,62,0.10)",
+          aspectRatio: "3 / 4", borderRadius: 5,
+          background: "rgba(15,79,62,0.10)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, color: COLORS.accent,
-          flexShrink: 0,
+          fontFamily: FONTS.body, fontSize: 12, fontWeight: 700, color: COLORS.accent,
         }}>+{extra}</div>
       )}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", paddingRight: 4 }}>
-        <span style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, color: COLORS.accent }}>
-          {totalCount === 0 ? "Add photos" : "Manage"}
-        </span>
-        <span style={{ fontFamily: FONTS.body, fontSize: 9.5, color: COLORS.inkDim, marginTop: 1 }}>
-          {totalCount} photo{totalCount !== 1 ? "s" : ""}
-        </span>
-      </div>
     </button>
   );
 }
@@ -10333,6 +10383,291 @@ function ProfileAccordionSection({ id, title, sub, complete, started, open, onTo
   );
 }
 
+// ─── CountryAutocompleteInput ──────────────────────────────────────────────────
+// Uses the existing /api/location-countries endpoint (Supabase + Google fallback).
+// Stores the country name_en as the value (ISO2 shown in dropdown for context).
+
+type CountrySuggestion = {
+  id?: string | null;
+  iso2?: string | null;
+  name_en: string;
+  google_place_id?: string | null;
+};
+
+function CountryAutocompleteInput({
+  value, placeholder, onChange,
+}: {
+  value: string;
+  placeholder?: string;
+  onChange: (nameEn: string, iso2?: string) => void;
+}) {
+  const [draft, setDraft] = React.useState(value);
+  const [suggestions, setSuggestions] = React.useState<CountrySuggestion[]>([]);
+  const [open, setOpen] = React.useState(false);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => { setDraft(value); }, [value]);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleChange = (text: string) => {
+    setDraft(text);
+    onChange(text, undefined);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (text.trim().length < 1) { setSuggestions([]); setOpen(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/location-countries?query=${encodeURIComponent(text.trim())}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { countries?: CountrySuggestion[] };
+        setSuggestions(data.countries ?? []);
+        setOpen((data.countries ?? []).length > 0);
+      } catch { /* ignore */ }
+    }, 280);
+  };
+
+  const handleSelect = async (c: CountrySuggestion) => {
+    let nameEn = c.name_en;
+    let iso2 = c.iso2 ?? undefined;
+    if (c.google_place_id && !iso2) {
+      try {
+        const res = await fetch(`/api/location-country-details?placeId=${encodeURIComponent(c.google_place_id)}`);
+        const data = (await res.json()) as { ok?: boolean; iso2?: string; name_en?: string };
+        if (data.ok && data.name_en) { nameEn = data.name_en; iso2 = data.iso2; }
+      } catch { /* ignore */ }
+    }
+    setDraft(nameEn);
+    onChange(nameEn, iso2);
+    setSuggestions([]);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
+      <input
+        placeholder={placeholder ?? "Search country…"}
+        value={draft}
+        autoComplete="off"
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
+        style={{
+          width: "100%", boxSizing: "border-box", padding: "10px 12px",
+          borderRadius: 10, border: `1px solid ${COLORS.border}`,
+          fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+        }}
+      />
+      {open && suggestions.length > 0 && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999,
+          background: COLORS.surface, border: `1px solid ${COLORS.border}`,
+          borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden",
+        }}>
+          {suggestions.map((c, i) => (
+            <button key={`${c.google_place_id ?? c.iso2 ?? c.name_en}-${i}`}
+              onMouseDown={(e) => { e.preventDefault(); void handleSelect(c); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                width: "100%", textAlign: "left",
+                padding: "9px 12px", background: "none", border: "none", cursor: "pointer",
+                fontFamily: FONTS.body, borderBottom: `1px solid ${COLORS.borderSoft}`,
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, flex: 1 }}>{c.name_en}</span>
+              {c.iso2 && (
+                <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 600 }}>{c.iso2}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── CityAutocompleteInput ─────────────────────────────────────────────────────
+// Google Places autocomplete for a single city. Debounces 300ms, calls
+// /api/admin/places-city-global, shows dropdown. Falls back to plain text if
+// Places not configured (configured=false).
+
+type CityPrediction = { placeId: string; mainText: string; secondaryText: string };
+
+function CityAutocompleteInput({
+  value, placeId: _placeId, placeholder, onChange,
+}: {
+  value: string;
+  placeId?: string;
+  placeholder?: string;
+  onChange: (city: string, placeId?: string) => void;
+}) {
+  const [draft, setDraft] = React.useState(value);
+  const [predictions, setPredictions] = React.useState<CityPrediction[]>([]);
+  const [open, setOpen] = React.useState(false);
+  const [configured, setConfigured] = React.useState(true);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Keep draft in sync when external value changes (e.g. load from server)
+  React.useEffect(() => { setDraft(value); }, [value]);
+
+  // Close on outside click
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleChange = (text: string) => {
+    setDraft(text);
+    onChange(text, undefined); // clear placeId while typing
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (text.trim().length < 2) { setPredictions([]); setOpen(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/places-city-global?q=${encodeURIComponent(text.trim())}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { predictions: CityPrediction[]; configured?: boolean };
+        setConfigured(data.configured !== false);
+        setPredictions(data.predictions ?? []);
+        setOpen((data.predictions ?? []).length > 0);
+      } catch { /* network error — silently ignore */ }
+    }, 300);
+  };
+
+  const handleSelect = (p: CityPrediction) => {
+    const label = p.secondaryText ? `${p.mainText}, ${p.secondaryText}` : p.mainText;
+    setDraft(label);
+    onChange(label, p.placeId);
+    setPredictions([]);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
+      <input
+        data-pshell-field="homeBase"
+        placeholder={placeholder ?? "e.g. Playa del Carmen"}
+        value={draft}
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={() => { if (predictions.length > 0) setOpen(true); }}
+        style={{
+          width: "100%", boxSizing: "border-box", padding: "10px 12px",
+          borderRadius: 10, border: `1px solid ${COLORS.border}`,
+          fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+        }}
+      />
+      {!configured && (
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+          Google Places not configured — type any city name.
+        </div>
+      )}
+      {open && predictions.length > 0 && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 999,
+          background: COLORS.surface, border: `1px solid ${COLORS.border}`,
+          borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
+          overflow: "hidden",
+        }}>
+          {predictions.map((p) => (
+            <button key={p.placeId}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(p); }}
+              style={{
+                display: "block", width: "100%", textAlign: "left",
+                padding: "9px 12px", background: "none", border: "none", cursor: "pointer",
+                fontFamily: FONTS.body, borderBottom: `1px solid ${COLORS.borderSoft}`,
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{p.mainText}</span>
+              {p.secondaryText && (
+                <span style={{ fontSize: 11.5, color: COLORS.inkMuted, marginLeft: 6 }}>{p.secondaryText}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── UpcomingVisitsEditor ──────────────────────────────────────────────────────
+// List of city + optional date entries for upcoming travel.
+
+type VisitEntry = { id: string; city: string; placeId?: string; date?: string; dateEnd?: string };
+
+function UpcomingVisitsEditor({
+  visits, onChange,
+}: {
+  visits: VisitEntry[];
+  onChange: (visits: VisitEntry[]) => void;
+}) {
+  const add = () => {
+    onChange([...visits, { id: crypto.randomUUID(), city: "", date: "" }]);
+  };
+  const remove = (id: string) => onChange(visits.filter((v) => v.id !== id));
+  const update = (id: string, patch: Partial<VisitEntry>) =>
+    onChange(visits.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {visits.map((v) => (
+        <div key={v.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }}>
+            <CityAutocompleteInput
+              value={v.city}
+              placeId={v.placeId}
+              placeholder="City or destination…"
+              onChange={(city, pid) => update(v.id, { city, placeId: pid })}
+            />
+          </div>
+          <input
+            type="date"
+            value={v.date ?? ""}
+            onChange={(e) => update(v.id, { date: e.target.value || undefined })}
+            title="Start date (optional)"
+            style={{
+              padding: "9px 10px", borderRadius: 10, border: `1px solid ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
+              width: 130, flexShrink: 0,
+            }}
+          />
+          <button
+            onClick={() => remove(v.id)}
+            title="Remove"
+            style={{
+              padding: "9px 10px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`,
+              background: "none", cursor: "pointer", color: COLORS.inkMuted,
+              fontFamily: FONTS.body, fontSize: 13, flexShrink: 0,
+            }}
+          >×</button>
+        </div>
+      ))}
+      <button
+        onClick={add}
+        style={{
+          alignSelf: "flex-start", padding: "7px 14px", borderRadius: 999,
+          border: `1px dashed ${COLORS.border}`, background: "none",
+          cursor: "pointer", fontFamily: FONTS.body, fontSize: 12,
+          color: COLORS.inkMuted, display: "flex", alignItems: "center", gap: 6,
+        }}
+      >
+        <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add destination
+      </button>
+    </div>
+  );
+}
+
 function ServiceAreaMap({ homeBase, travelKm, cities }: {
   homeBase: string; travelKm: number; cities: string[];
 }) {
@@ -11121,35 +11456,78 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         </FieldRow>
       </div>
 
-      <FieldRow
-        label="Legal name"
-        catalogId="identity.legalName"
-        optional
-        hint={isSelf ? "Used for contracts. Never on the public profile." : "KYC. Admin-only."}
-        visibility={identity.visibility?.legalName ?? ["private"]}
-        onVisibilityChange={(next) => onChange({
-          ...identity,
-          visibility: { ...(identity.visibility ?? {}), legalName: next },
-        })}
-      >
-        <input
-          placeholder="Sofia Lupo García"
-          value={identity.legalName}
-          onChange={(e) => onChange({ ...identity, legalName: e.target.value })}
-          disabled={isFieldLocked("identity.legalName")}
-          style={{ ...inputStyle, opacity: isFieldLocked("identity.legalName") ? 0.55 : 1 }}
-        />
-        {isFieldLocked("identity.legalName") && <LockedHint reason={lockReasons?.["identity.legalName"]} />}
-      </FieldRow>
+      {/* ── First / Last name (required) ─────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <FieldRow label="First name">
+          <input
+            placeholder="Sofia"
+            value={identity.firstName ?? ""}
+            onChange={(e) => onChange({ ...identity, firstName: e.target.value })}
+            style={inputStyle}
+          />
+        </FieldRow>
+        <FieldRow label="Last name">
+          <input
+            placeholder="García"
+            value={identity.lastName ?? ""}
+            onChange={(e) => onChange({ ...identity, lastName: e.target.value })}
+            style={inputStyle}
+          />
+        </FieldRow>
+      </div>
 
-      <FieldRow label="Pronunciation" optional hint={`e.g. "soh-FEE-ah loo-PO".`}>
-        <input
-          placeholder="soh-FEE-ah loo-PO"
-          value={identity.pronunciation}
-          onChange={(e) => onChange({ ...identity, pronunciation: e.target.value })}
-          style={inputStyle}
-        />
-      </FieldRow>
+      {/* ── Legal name (optional, collapsible) ───────────────────── */}
+      {(() => {
+        const showLegal = !!(identity.legalName || (identity as { _showLegal?: boolean })._showLegal);
+        return showLegal ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {/* Custom label row — inline KYC pill instead of "Optional" badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, color: COLORS.ink }}>
+                Legal name
+              </span>
+              <span style={{
+                fontSize: 10, fontWeight: 600, letterSpacing: 0.4,
+                color: COLORS.inkMuted, background: "rgba(11,11,13,0.06)",
+                border: `1px solid rgba(11,11,13,0.1)`,
+                borderRadius: 5, padding: "1px 6px",
+              }}>
+                ADMIN ONLY
+              </span>
+              <div style={{ marginLeft: "auto" }}>
+                <ChannelVisibilityStrip
+                  value={identity.visibility?.legalName ?? ["private"]}
+                  onChange={(next) => onChange({
+                    ...identity,
+                    visibility: { ...(identity.visibility ?? {}), legalName: next },
+                  })}
+                />
+              </div>
+            </div>
+            <input
+              placeholder={`${identity.firstName ?? "Sofia"} ${identity.lastName ?? "García"}`.trim()}
+              value={identity.legalName}
+              onChange={(e) => onChange({ ...identity, legalName: e.target.value })}
+              disabled={isFieldLocked("identity.legalName")}
+              style={{ ...inputStyle, opacity: isFieldLocked("identity.legalName") ? 0.55 : 1 }}
+            />
+            {isFieldLocked("identity.legalName") && <LockedHint reason={lockReasons?.["identity.legalName"]} />}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onChange({ ...identity, legalName: " " })}
+            style={{
+              background: "none", border: `1px dashed ${inputStyle.borderColor ?? "rgba(24,24,27,0.14)"}`,
+              borderRadius: 10, padding: "9px 14px",
+              fontFamily: inputStyle.fontFamily, fontSize: 13, color: "rgba(11,11,13,0.45)",
+              cursor: "pointer", textAlign: "left", width: "100%",
+            }}
+          >
+            + Add legal name <span style={{ fontSize: 11, opacity: 0.7 }}>(admin-only)</span>
+          </button>
+        );
+      })()}
 
       {/* ── Demographics ────────────────────────────────────────────── */}
       <SubLabel>Demographics</SubLabel>
@@ -11243,11 +11621,10 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         hint="Citizenship country."
         visibility={["agency"]}
       >
-        <input
-          placeholder="e.g. ES · Spain"
+        <CountryAutocompleteInput
           value={identity.nationality ?? ""}
-          onChange={(e) => onChange({ ...identity, nationality: e.target.value })}
-          style={inputStyle}
+          placeholder="Search country…"
+          onChange={(nameEn) => onChange({ ...identity, nationality: nameEn })}
         />
       </FieldRow>
 
@@ -11258,11 +11635,10 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         hint="Tax + payout routing."
         visibility={["agency"]}
       >
-        <input
-          placeholder="e.g. ES · Spain"
+        <CountryAutocompleteInput
           value={identity.homeCountry ?? ""}
-          onChange={(e) => onChange({ ...identity, homeCountry: e.target.value })}
-          style={inputStyle}
+          placeholder="Search country…"
+          onChange={(nameEn) => onChange({ ...identity, homeCountry: nameEn })}
         />
       </FieldRow>
 
@@ -11281,6 +11657,127 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         <span aria-hidden>ℹ️</span>
         <span>Passport, work eligibility &amp; license live in <strong>Location &amp; travel</strong>.</span>
       </div>
+
+      {/* ── Contact ─────────────────────────────────────────────────── */}
+      <SubLabel>Contact</SubLabel>
+
+      {/* Email */}
+      <FieldRow label="Email" optional hint="Direct contact. Never shown publicly." visibility={["agency"]}>
+        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          <span style={{
+            position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none",
+            color: COLORS.inkMuted,
+          }}>✉️</span>
+          <input
+            type="email"
+            placeholder="talent@example.com"
+            value={identity.contactEmail ?? ""}
+            onChange={(e) => onChange({ ...identity, contactEmail: e.target.value })}
+            style={{
+              ...inputStyle, paddingLeft: 36, width: "100%", boxSizing: "border-box",
+            }}
+          />
+        </div>
+      </FieldRow>
+
+      {/* Phone */}
+      <FieldRow label="Phone" optional visibility={["agency"]}>
+        <div style={{
+          display: "flex", borderRadius: 10,
+          border: `1px solid ${COLORS.border}`,
+          background: "#fff", overflow: "hidden",
+        }}>
+          <select
+            value={identity.contactPhonePrefix ?? "+1"}
+            onChange={(e) => onChange({ ...identity, contactPhonePrefix: e.target.value })}
+            style={{
+              flexShrink: 0, padding: "10px 8px 10px 12px",
+              border: "none", borderRight: `1px solid ${COLORS.borderSoft}`,
+              background: "rgba(11,11,13,0.03)",
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+              outline: "none", cursor: "pointer", minWidth: 70,
+            }}
+          >
+            {["+1","+44","+34","+52","+55","+33","+49","+39","+7","+86","+91"].map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <input
+            type="tel"
+            placeholder="555 000 0000"
+            value={identity.contactPhone ?? ""}
+            onChange={(e) => onChange({ ...identity, contactPhone: e.target.value })}
+            style={{
+              flex: 1, border: "none", outline: "none",
+              padding: "10px 12px",
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+              background: "transparent",
+            }}
+          />
+        </div>
+      </FieldRow>
+
+      {/* WhatsApp */}
+      <FieldRow label="WhatsApp" optional hint="For direct client coordination." visibility={["agency"]}>
+        <div style={{
+          display: "flex", borderRadius: 10,
+          border: "1px solid rgba(37,211,102,0.35)",
+          background: "rgba(37,211,102,0.03)", overflow: "hidden",
+        }}>
+          <div style={{
+            flexShrink: 0, display: "flex", alignItems: "center", gap: 5,
+            padding: "10px 10px 10px 12px",
+            borderRight: "1px solid rgba(37,211,102,0.2)",
+            background: "rgba(37,211,102,0.06)",
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366" aria-hidden>
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+            <select
+              value={identity.whatsappPrefix ?? identity.contactPhonePrefix ?? "+1"}
+              onChange={(e) => onChange({ ...identity, whatsappPrefix: e.target.value })}
+              style={{
+                border: "none", background: "transparent",
+                fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+                outline: "none", cursor: "pointer",
+              }}
+            >
+              {["+1","+44","+34","+52","+55","+33","+49","+39","+7","+86","+91"].map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <input
+            type="tel"
+            placeholder="Same as phone or different"
+            value={identity.whatsapp ?? ""}
+            onChange={(e) => onChange({ ...identity, whatsapp: e.target.value })}
+            style={{
+              flex: 1, border: "none", outline: "none",
+              padding: "10px 12px",
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+              background: "transparent",
+            }}
+          />
+        </div>
+      </FieldRow>
+
+      {/* Business line / second contact */}
+      <FieldRow label="Business line" optional hint="Secondary email, agency handle, or manager contact." visibility={["agency"]}>
+        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          <span style={{
+            position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none",
+            color: COLORS.inkMuted,
+          }}>🏢</span>
+          <input
+            type="text"
+            placeholder="manager@agency.com or @handle"
+            value={identity.businessLine ?? ""}
+            onChange={(e) => onChange({ ...identity, businessLine: e.target.value })}
+            style={{ ...inputStyle, paddingLeft: 36, width: "100%", boxSizing: "border-box" }}
+          />
+        </div>
+      </FieldRow>
 
       {/* ── Service commitment ──────────────────────────────────────── */}
       <SubLabel>Service commitment</SubLabel>
@@ -12826,7 +13323,9 @@ function BrandingDrawer() {
             {logoPreview ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoPreview} alt="logo preview" style={{
-                width: 56, height: 56, objectFit: "contain", borderRadius: 8, background: COLORS.surfaceAlt,
+                maxWidth: 140, maxHeight: 56, width: "auto", height: "auto",
+                objectFit: "contain", objectPosition: "left center",
+                borderRadius: 8, background: COLORS.surfaceAlt, padding: 4, flexShrink: 0,
               }} />
             ) : (
               <span style={{
@@ -13892,7 +14391,6 @@ function NewTalentDrawer() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneCountry, setPhoneCountry] = useState("+34");
-  const [pronunciation, setPronunciation] = useState("");
   const [primaryType, setPrimaryType] = useState<string | null>(null);
   // A6 — multi-role parity. Wizard + edit drawer collect secondary
   // types; admin add couldn't, forcing a 2-step process (add + open
@@ -13938,13 +14436,13 @@ function NewTalentDrawer() {
     const t = setTimeout(() => {
       patchProfileDraft("default", {
         firstName, lastName, displayName,
-        pronunciation, email, phone, phoneCountry,
+        email, phone, phoneCountry,
         primaryType, homeBase, method,
         photoUrl, photoCount: photoUrl ? 1 : 0,
       } as Partial<ProfileDraft>, "quick-add");
     }, 350);
     return () => clearTimeout(t);
-  }, [firstName, lastName, displayName, pronunciation, email, phone, phoneCountry, primaryType, homeBase, method, photoUrl]);
+  }, [firstName, lastName, displayName, email, phone, phoneCountry, primaryType, homeBase, method, photoUrl]);
 
   const seedForShell = () => ({
     stageName: computedDisplayName,
@@ -13972,7 +14470,6 @@ function NewTalentDrawer() {
         displayName,
         email,
         phone: phoneCountry && phone ? `${phoneCountry} ${phone}` : phone,
-        pronunciation,
         homeBase,
         primaryTypeSlugorId: primaryType ?? undefined,
         secondaryTypeSlugorIds: secondaryTypes,
@@ -14320,10 +14817,6 @@ function NewTalentDrawer() {
             placeholder={firstName || lastName ? `Display name · defaults to ${computedDisplayName}` : "Display name (optional)"}
             value={displayName} onChange={(e) => setDisplayName(e.target.value)}
             style={qaInputStyle()}
-          />
-          <input type="text" placeholder="Pronunciation — optional, e.g. soh-FEE-ah loo-PO"
-            value={pronunciation} onChange={(e) => setPronunciation(e.target.value)}
-            style={{ ...qaInputStyle(), fontSize: 12, color: COLORS.inkMuted }}
           />
         </div>
       </div>

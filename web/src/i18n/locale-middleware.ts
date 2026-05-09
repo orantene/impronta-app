@@ -20,10 +20,22 @@ function firstSegment(pathname: string): string {
   return p.split("/")[1] ?? "";
 }
 
-/** Dashboard roots must never use a non-default locale prefix — strip if present. */
-export function isDashboardInnerPath(pathWithoutLeadingLocale: string): boolean {
-  const seg = firstSegment(pathWithoutLeadingLocale);
+function isDashboardSurfaceSegment(seg: string): boolean {
   return seg === "admin" || seg === "talent" || seg === "client";
+}
+
+/**
+ * Dashboard roots must never use a non-default locale prefix — strip if present.
+ * Recognizes both unprefixed (`/admin/...`) and tenant-prefixed (`/<slug>/admin/...`)
+ * paths so multi-tenant workspace URLs are treated as dashboard surfaces.
+ */
+export function isDashboardInnerPath(pathWithoutLeadingLocale: string): boolean {
+  const p = pathWithoutLeadingLocale.startsWith("/") ? pathWithoutLeadingLocale : `/${pathWithoutLeadingLocale}`;
+  const parts = p.split("/").filter(Boolean);
+  if (parts.length === 0) return false;
+  if (isDashboardSurfaceSegment(parts[0])) return true;
+  if (parts.length >= 2 && isDashboardSurfaceSegment(parts[1])) return true;
+  return false;
 }
 
 function nonDefaultPublicLocales(settings: LanguageSettings): Set<string> {
@@ -77,11 +89,9 @@ export function isUnprefixedPublicDefaultPath(
 ): boolean {
   if (pathname.startsWith("/api") || pathname.startsWith("/_next")) return false;
   if (isNonDefaultLocalePrefixedPath(pathname, settings)) return false;
+  if (isDashboardInnerPath(pathname)) return false;
   const seg = firstSegment(pathname);
   if (
-    seg === "admin" ||
-    seg === "talent" ||
-    seg === "client" ||
     seg === "login" ||
     seg === "register" ||
     seg === "forgot-password" ||

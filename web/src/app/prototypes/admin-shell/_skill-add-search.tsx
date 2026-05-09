@@ -3,11 +3,10 @@
 // ============================================================================
 // _skill-add-search.tsx — AddSkillSearch + RequestNewSkillForm
 //
-// Extracted from the original _skill-slot-panel.tsx during the Phase 2
-// refactor. AddSkillSearch is the modal-ish parent_category → talent_type
-// picker for adding a new skill. RequestNewSkillForm is the
-// "Don't see your skill?" capture form, only invoked from inside
-// AddSkillSearch — so the two ship together.
+// Two-step picker: category grid → multi-select skills list.
+// Selecting a category swaps the view in-place; a "← Back" button returns
+// to the grid. Skills are toggled (multi-select) and committed in one batch
+// via "Add N skill(s)". The remaining-capacity counter updates live.
 // ============================================================================
 
 import { useEffect, useState } from "react";
@@ -18,6 +17,7 @@ import {
   getTalentTypesUnderParent,
   requestNewTaxonomyTerm,
 } from "@/lib/server-actions/admin-talent-skills";
+import { MAX_TOTAL_SKILLS } from "@/lib/server-actions/admin-talent-skills.types";
 
 import { F_BODY, PARENT_EMOJI, T } from "./_skill-tokens";
 
@@ -25,6 +25,7 @@ export function AddSkillSearch({
   role,
   fixedParentId,
   existingSkillIds,
+  totalSkills,
   onClose,
   onAdded,
   talentProfileId,
@@ -32,6 +33,7 @@ export function AddSkillSearch({
   role: "primary" | "secondary";
   fixedParentId: string | undefined;
   existingSkillIds: Set<string>;
+  totalSkills: number;
   onClose: () => void;
   onAdded: () => void;
   talentProfileId: string;
@@ -42,25 +44,24 @@ export function AddSkillSearch({
   const [selectedParentId, setSelectedParentId] = useState<string | null>(
     fixedParentId ?? null,
   );
+  const [selectedParentName, setSelectedParentName] = useState<string | null>(null);
   const [types, setTypes] = useState<
-    Array<{
-      id: string;
-      name_en: string;
-      category_group_name: string | null;
-    }>
+    Array<{ id: string; name_en: string; category_group_name: string | null }>
   >([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingTypes, setLoadingTypes] = useState(false);
-  const [submittingTypeId, setSubmittingTypeId] = useState<string | null>(
-    null,
-  );
+  // Multi-select: IDs the user has toggled on in this session.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // Load parent_categories on mount via server action.
+  const remainingSlots = MAX_TOTAL_SKILLS - totalSkills - selected.size;
+
+  // Load parent categories on mount (skip when fixedParentId is set).
   useEffect(() => {
-    if (fixedParentId) return; // Don't load when a parent is fixed
+    if (fixedParentId) return;
     getEnabledParentCategoriesForPicker().then((res) => {
       if (res.ok) {
         setParents(
@@ -73,7 +74,7 @@ export function AddSkillSearch({
     });
   }, [fixedParentId]);
 
-  // Load talent_types when a parent is selected.
+  // Load talent types when a parent is selected.
   useEffect(() => {
     if (!selectedParentId) {
       setTypes([]);
@@ -91,19 +92,60 @@ export function AddSkillSearch({
       .finally(() => setLoadingTypes(false));
   }, [selectedParentId, searchQuery]);
 
-  const handleAdd = async (typeId: string) => {
-    setSubmittingTypeId(typeId);
+  const handleSelectParent = (id: string, name: string) => {
+    setSelected(new Set()); // reset selection when switching category
+    setSearchQuery("");
     setError(null);
-    const res = await addSkill({
-      talent_profile_id: talentProfileId,
-      talent_type_term_id: typeId,
-      role,
-      proficiency_level: "intermediate",
-    });
-    setSubmittingTypeId(null);
-    if (res.ok) onAdded();
-    else setError(res.error);
+    setSelectedParentId(id);
+    setSelectedParentName(name);
   };
+
+  const handleBack = () => {
+    setSelectedParentId(fixedParentId ?? null);
+    setSelectedParentName(null);
+    setSelected(new Set());
+    setSearchQuery("");
+    setError(null);
+  };
+
+  const toggleSkill = (id: string) => {
+    if (existingSkillIds.has(id)) return; // already on profile
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        if (remainingSlots <= 0 && !next.has(id)) return prev; // at cap
+        next.add(id);
+      }
+      return next;
+    });
+    setError(null);
+  };
+
+  const handleAddSelected = async () => {
+    if (selected.size === 0) return;
+    setSubmitting(true);
+    setError(null);
+    for (const typeId of selected) {
+      const res = await addSkill({
+        talent_profile_id: talentProfileId,
+        talent_type_term_id: typeId,
+        role,
+        proficiency_level: "intermediate",
+      });
+      if (!res.ok) {
+        setError(res.error);
+        setSubmitting(false);
+        return;
+      }
+    }
+    setSubmitting(false);
+    onAdded();
+  };
+
+  // ── Subview: category grid ──────────────────────────────────────────
+  const showGrid = !selectedParentId;
 
   return (
     <div
@@ -131,45 +173,77 @@ export function AddSkillSearch({
           flexDirection: "column",
         }}
       >
+        {/* ── Header ── */}
         <div
           style={{
-            padding: "20px 24px 12px",
+            padding: "18px 20px 14px",
             borderBottom: `1px solid ${T.borderSoft}`,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
           }}
         >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Back link — only when inside a category */}
+            {selectedParentId && !fixedParentId && (
+              <button
+                type="button"
+                onClick={handleBack}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  background: "transparent",
+                  border: "none",
+                  padding: "0 0 8px",
+                  cursor: "pointer",
+                  fontFamily: F_BODY,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: T.inkMuted,
+                }}
+              >
+                ← Back
+              </button>
+            )}
+            <div style={{ fontSize: 18, fontWeight: 700, color: T.ink, marginBottom: 2 }}>
+              {showGrid
+                ? `Add a ${role === "primary" ? "primary" : "secondary"} skill`
+                : selectedParentName ?? "Pick a skill"}
+            </div>
+            <div style={{ fontSize: 12, color: T.inkMuted }}>
+              {showGrid
+                ? "Pick a category, then choose the specific role."
+                : "Select one or more skills to add."}
+            </div>
+          </div>
+
+          {/* Skills remaining badge */}
           <div
             style={{
-              fontSize: 18,
+              flexShrink: 0,
+              padding: "4px 10px",
+              borderRadius: 999,
+              background: remainingSlots <= 2 ? "rgba(220,38,38,0.08)" : T.accentSoft,
+              border: `1px solid ${remainingSlots <= 2 ? "rgba(220,38,38,0.2)" : "rgba(15,79,62,0.15)"}`,
+              fontSize: 11.5,
               fontWeight: 700,
-              color: T.ink,
-              marginBottom: 4,
+              color: remainingSlots <= 2 ? "#dc2626" : T.accent,
+              whiteSpace: "nowrap",
             }}
           >
-            Add a {role === "primary" ? "primary" : "secondary"} skill
-          </div>
-          <div style={{ fontSize: 12, color: T.inkMuted }}>
-            {fixedParentId
-              ? "Pick a role within this category."
-              : !selectedParentId
-                ? role === "primary"
-                  ? "Step 1 — pick a category. Step 2 — pick the specific role."
-                  : "Step 1 — pick a category. Step 2 — pick the specific role."
-                : "Now pick the specific role within this category."}
+            {remainingSlots} of {MAX_TOTAL_SKILLS} left
           </div>
         </div>
 
-        {/* Parent picker (skip when fixedParentId is set) */}
-        {!fixedParentId && (
-          <div
-            style={{
-              padding: "12px 20px",
-              borderBottom: `1px solid ${T.borderSoft}`,
-            }}
-          >
+        {/* ── Category grid ── */}
+        {showGrid && (
+          <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
                 gap: 8,
               }}
             >
@@ -177,13 +251,12 @@ export function AddSkillSearch({
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setSelectedParentId(p.id)}
+                  onClick={() => handleSelectParent(p.id, p.name_en)}
                   style={{
                     padding: "10px 12px",
                     borderRadius: 8,
-                    border: `1px solid ${selectedParentId === p.id ? T.accent : T.border}`,
-                    background:
-                      selectedParentId === p.id ? T.accentSoft : T.surface,
+                    border: `1px solid ${T.border}`,
+                    background: T.surface,
                     color: T.ink,
                     cursor: "pointer",
                     fontFamily: F_BODY,
@@ -203,151 +276,125 @@ export function AddSkillSearch({
           </div>
         )}
 
-        {/* Search */}
-        {selectedParentId && (
-          <div
-            style={{
-              padding: "10px 20px",
-              borderBottom: `1px solid ${T.borderSoft}`,
-            }}
-          >
-            <input
-              autoFocus
-              placeholder="Search…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: `1px solid ${T.border}`,
-                fontSize: 13,
-                fontFamily: F_BODY,
-              }}
-            />
-          </div>
-        )}
-
-        {error && (
-          <div
-            style={{
-              margin: "12px 20px 0",
-              padding: 10,
-              borderRadius: 8,
-              background: T.redSoft,
-              border: `1px solid ${T.red}`,
-              fontSize: 12,
-              color: T.ink,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {/* Types list */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
-          {!selectedParentId && (
-            <div
-              style={{
-                padding: 16,
-                color: T.inkMuted,
-                fontSize: 12,
-                textAlign: "center",
-              }}
-            >
-              Pick a category above to see specific roles.
-            </div>
-          )}
-          {loadingTypes && (
-            <div style={{ padding: 12, color: T.inkMuted, fontSize: 12 }}>
-              Loading…
-            </div>
-          )}
-          {selectedParentId && !loadingTypes && types.length === 0 && (
-            <div style={{ padding: 12, color: T.inkMuted, fontSize: 12 }}>
-              No matching types.
-            </div>
-          )}
-          {types.map((t) => {
-            const alreadyAdded = existingSkillIds.has(t.id);
-            if (alreadyAdded) {
-              return (
-                <div
-                  key={t.id}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    marginBottom: 4,
-                    borderRadius: 8,
-                    border: `1px solid ${T.borderSoft}`,
-                    background: T.surfaceAlt,
-                    fontFamily: F_BODY,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    opacity: 0.55,
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: T.inkMuted }}>
-                      {t.name_en}
-                    </div>
-                    {t.category_group_name && (
-                      <div style={{ fontSize: 10.5, color: T.inkMuted, marginTop: 1 }}>
-                        {t.category_group_name}
-                      </div>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 10.5, color: T.inkMuted, fontWeight: 600 }}>
-                    ✓ On profile
-                  </span>
-                </div>
-              );
-            }
-            return (
-              <button
-                key={t.id}
-                type="button"
-                disabled={submittingTypeId === t.id}
-                onClick={() => handleAdd(t.id)}
+        {/* ── Types list (multi-select) ── */}
+        {!showGrid && (
+          <>
+            {/* Search */}
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${T.borderSoft}` }}>
+              <input
+                autoFocus
+                placeholder="Search…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
                   width: "100%",
-                  textAlign: "left",
-                  padding: "10px 12px",
-                  marginBottom: 4,
+                  padding: "8px 12px",
                   borderRadius: 8,
                   border: `1px solid ${T.border}`,
-                  background: T.surface,
-                  cursor: "pointer",
+                  fontSize: 13,
                   fontFamily: F_BODY,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  margin: "10px 16px 0",
+                  padding: 10,
+                  borderRadius: 8,
+                  background: T.redSoft,
+                  border: `1px solid ${T.red}`,
+                  fontSize: 12,
+                  color: T.ink,
                 }}
               >
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>
-                    {t.name_en}
-                  </div>
-                  {t.category_group_name && (
-                    <div style={{ fontSize: 10.5, color: T.inkMuted, marginTop: 1 }}>
-                      {t.category_group_name}
-                    </div>
-                  )}
-                </div>
-                {submittingTypeId === t.id && (
-                  <span style={{ fontSize: 10.5, color: T.inkMuted }}>
-                    adding…
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                {error}
+              </div>
+            )}
 
+            <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+              {loadingTypes && (
+                <div style={{ padding: 12, color: T.inkMuted, fontSize: 12 }}>Loading…</div>
+              )}
+              {!loadingTypes && types.length === 0 && (
+                <div style={{ padding: 12, color: T.inkMuted, fontSize: 12 }}>No matching roles.</div>
+              )}
+              {types.map((t) => {
+                const alreadyAdded = existingSkillIds.has(t.id);
+                const isSelected = selected.has(t.id);
+                const atCap = remainingSlots <= 0 && !isSelected;
+
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    disabled={alreadyAdded || (atCap && !isSelected)}
+                    onClick={() => toggleSkill(t.id)}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "10px 12px",
+                      marginBottom: 4,
+                      borderRadius: 8,
+                      border: `1px solid ${isSelected ? T.accent : alreadyAdded ? T.borderSoft : T.border}`,
+                      background: isSelected ? T.accentSoft : alreadyAdded ? T.surfaceAlt : T.surface,
+                      cursor: alreadyAdded || atCap ? "default" : "pointer",
+                      opacity: alreadyAdded ? 0.5 : atCap && !isSelected ? 0.4 : 1,
+                      fontFamily: F_BODY,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    {/* Checkbox indicator */}
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 5,
+                        flexShrink: 0,
+                        border: `1.5px solid ${isSelected ? T.accent : alreadyAdded ? T.borderSoft : T.border}`,
+                        background: isSelected ? T.accent : "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 10,
+                        color: "#fff",
+                      }}
+                    >
+                      {isSelected ? "✓" : alreadyAdded ? "✓" : ""}
+                    </span>
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: alreadyAdded ? T.inkMuted : T.ink }}>
+                        {t.name_en}
+                      </div>
+                      {t.category_group_name && (
+                        <div style={{ fontSize: 10.5, color: T.inkMuted, marginTop: 1 }}>
+                          {t.category_group_name}
+                        </div>
+                      )}
+                    </div>
+
+                    {alreadyAdded && (
+                      <span style={{ fontSize: 10.5, color: T.inkMuted, fontWeight: 600, flexShrink: 0 }}>
+                        On profile
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ── Footer ── */}
         <div
           style={{
-            padding: "14px 20px",
+            padding: "12px 16px",
             borderTop: `1px solid ${T.borderSoft}`,
             display: "flex",
             justifyContent: "space-between",
@@ -355,7 +402,6 @@ export function AddSkillSearch({
             gap: 8,
           }}
         >
-          {/* Don't see your skill? — opens the request flow */}
           <button
             type="button"
             onClick={() => setShowRequestForm(true)}
@@ -373,33 +419,58 @@ export function AddSkillSearch({
           >
             ✦ Don't see your skill? Suggest one →
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "8px 16px",
-              fontSize: 13,
-              fontWeight: 600,
-              borderRadius: 8,
-              border: `1px solid ${T.border}`,
-              background: T.surface,
-              color: T.inkMuted,
-              cursor: "pointer",
-              fontFamily: F_BODY,
-            }}
-          >
-            Close
-          </button>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* Add selected button — only when skills are picked */}
+            {selected.size > 0 && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleAddSelected}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  border: "none",
+                  background: submitting ? T.inkMuted : T.accent,
+                  color: "#fff",
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  fontFamily: F_BODY,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {submitting ? "Adding…" : `Add ${selected.size} skill${selected.size > 1 ? "s" : ""}`}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                borderRadius: 8,
+                border: `1px solid ${T.border}`,
+                background: T.surface,
+                color: T.inkMuted,
+                cursor: "pointer",
+                fontFamily: F_BODY,
+              }}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Request flow — submits a taxonomy_term_requests row that platform
-          staff later review. Eventually wires to a support inbox / chat. */}
       {showRequestForm && (
         <RequestNewSkillForm
           parentId={selectedParentId}
           parentLabel={
-            parents.find((p) => p.id === selectedParentId)?.name_en ?? null
+            selectedParentName ??
+            parents.find((p) => p.id === selectedParentId)?.name_en ??
+            null
           }
           talentProfileId={talentProfileId}
           query={searchQuery}
@@ -412,7 +483,6 @@ export function AddSkillSearch({
         />
       )}
 
-      {/* Toast confirmation */}
       {submitted && (
         <div
           style={{
@@ -438,12 +508,7 @@ export function AddSkillSearch({
   );
 }
 
-// ─── RequestNewSkillForm — "Don't see your skill?" capture modal ──────────
-//
-// Posts to taxonomy_term_requests via requestNewTaxonomyTerm. Platform staff
-// review pending requests later via a (future) support inbox. Pre-fills
-// the proposed name with whatever the user was searching for, so the
-// suggestion captures their actual intent.
+// ─── RequestNewSkillForm ──────────────────────────────────────────────────────
 
 function RequestNewSkillForm({
   parentId,
@@ -481,11 +546,8 @@ function RequestNewSkillForm({
       source: "skill_picker",
     });
     setSubmitting(false);
-    if (res.ok) {
-      onSubmitted();
-    } else {
-      setError(res.error);
-    }
+    if (res.ok) onSubmitted();
+    else setError(res.error);
   };
 
   return (
@@ -512,44 +574,16 @@ function RequestNewSkillForm({
           padding: 24,
         }}
       >
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: T.ink,
-            marginBottom: 4,
-          }}
-        >
+        <div style={{ fontSize: 18, fontWeight: 700, color: T.ink, marginBottom: 4 }}>
           Suggest a new skill
         </div>
-        <div
-          style={{
-            fontSize: 13,
-            color: T.inkMuted,
-            lineHeight: 1.5,
-            marginBottom: 16,
-          }}
-        >
-          Don't see what you're looking for in our catalog? Tell us what's
-          missing. Our team reviews suggestions and adds genuine gaps to the
-          master catalog (typically within a few business days).
-          {parentLabel && (
-            <>
-              {" "}
-              We'll file this under <strong>{parentLabel}</strong>.
-            </>
-          )}
+        <div style={{ fontSize: 13, color: T.inkMuted, lineHeight: 1.5, marginBottom: 16 }}>
+          Don't see what you're looking for? Tell us what's missing. Our team reviews
+          suggestions and adds genuine gaps to the catalog within a few business days.
+          {parentLabel && <> We'll file this under <strong>{parentLabel}</strong>.</>}
         </div>
 
-        <label
-          style={{
-            display: "block",
-            fontSize: 12,
-            fontWeight: 600,
-            color: T.ink,
-            marginBottom: 4,
-          }}
-        >
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 4 }}>
           Skill name
         </label>
         <input
@@ -570,24 +604,14 @@ function RequestNewSkillForm({
           }}
         />
 
-        <label
-          style={{
-            display: "block",
-            fontSize: 12,
-            fontWeight: 600,
-            color: T.ink,
-            marginBottom: 4,
-          }}
-        >
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 4 }}>
           Why do you need this?{" "}
-          <span style={{ fontWeight: 400, color: T.inkMuted }}>
-            (optional, but helpful)
-          </span>
+          <span style={{ fontWeight: 400, color: T.inkMuted }}>(optional)</span>
         </label>
         <textarea
           value={contextNote}
           onChange={(e) => setContextNote(e.target.value)}
-          placeholder="e.g. 'We book 3-5 doulas per month and they don't fit any existing category.'"
+          placeholder="e.g. 'We book 3–5 doulas per month and they don't fit any existing category.'"
           rows={3}
           maxLength={500}
           style={{
@@ -648,11 +672,9 @@ function RequestNewSkillForm({
               fontWeight: 600,
               borderRadius: 8,
               border: "none",
-              background:
-                proposedName.trim().length < 2 ? T.inkMuted : T.accent,
+              background: proposedName.trim().length < 2 ? T.inkMuted : T.accent,
               color: "#fff",
-              cursor:
-                proposedName.trim().length < 2 ? "not-allowed" : "pointer",
+              cursor: proposedName.trim().length < 2 ? "not-allowed" : "pointer",
               fontFamily: F_BODY,
             }}
           >

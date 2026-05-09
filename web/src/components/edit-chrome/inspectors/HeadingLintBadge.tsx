@@ -36,25 +36,34 @@ export function HeadingLintBadge({
 
   const tone = errors > 0 ? "error" : "warn";
 
+  const label =
+    errors > 0
+      ? `Headings · ${errors} error${errors > 1 ? "s" : ""}`
+      : `Headings · ${warns} warn${warns > 1 ? "s" : ""}`;
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-semibold ${
           tone === "error"
             ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
             : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
         }`}
+        style={{ width: "fit-content", maxWidth: "100%", borderRadius: 0 }}
       >
         <span aria-hidden>{tone === "error" ? "!" : "△"}</span>
-        {errors > 0 ? `Heading structure — ${errors} error${errors > 1 ? "s" : ""}` : `Heading order — ${warns} warning${warns > 1 ? "s" : ""}`}
+        <span className="min-w-0 truncate">{label}</span>
         <span aria-hidden className="opacity-60">
           {open ? "▴" : "▾"}
         </span>
       </button>
       {open ? (
-        <ul className="flex flex-col gap-1 rounded-md border border-border/60 bg-muted/30 p-2 text-xs">
+        <ul
+          className="flex flex-col gap-1 border border-border/60 bg-muted/30 p-1.5 text-[11px]"
+          style={{ borderRadius: 0 }}
+        >
           {issues.map((iss, i) => {
             const Tag: "button" | "span" = iss.heading && onFocusSection ? "button" : "span";
             return (

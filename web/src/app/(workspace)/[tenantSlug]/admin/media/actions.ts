@@ -913,6 +913,63 @@ async function downloadDriveFile(fileId: string): Promise<{ buffer: ArrayBuffer;
   return { buffer, contentType };
 }
 
+/** Phase 2 — import a single Drive file by its ID. Returns the created asset. */
+export async function actionImportSingleDriveFile(
+  fileId: string,
+  talentProfileId: string,
+  sortOrder: number,
+): Promise<ActionResult<{ id: string; publicUrl: string }>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const downloaded = await downloadDriveFile(fileId);
+  if (!downloaded) return { ok: false, error: "Could not download — make sure the file is shared as \"Anyone with the link\"." };
+
+  const ext = downloaded.contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+  const storagePath = `${talentProfileId}/gallery/${randomUUID()}.${ext}`;
+
+  const { error: upErr } = await admin.storage
+    .from("media-public")
+    .upload(storagePath, downloaded.buffer, { contentType: downloaded.contentType, upsert: false });
+  if (upErr) return { ok: false, error: "Upload failed." };
+
+  const { data: inserted, error: insErr } = await admin
+    .from("media_assets")
+    .insert({
+      tenant_id: tenantId,
+      owner_talent_profile_id: talentProfileId,
+      bucket_id: "media-public",
+      storage_path: storagePath,
+      variant_kind: "gallery",
+      approval_state: "approved",
+      sort_order: sortOrder,
+      metadata: { source: "google_drive", drive_file_id: fileId },
+    })
+    .select("id")
+    .single();
+
+  if (insErr || !inserted) {
+    void admin.storage.from("media-public").remove([storagePath]);
+    return { ok: false, error: "Could not register file." };
+  }
+
+  const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
+  return { ok: true, data: { id: (inserted as { id: string }).id, publicUrl: urlData.publicUrl } };
+}
+
 export async function actionImportFromGoogleDrive(
   driveUrl: string,
   talentProfileId: string,

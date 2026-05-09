@@ -7,6 +7,7 @@
 // to nudge the user toward a complete, publishable profile.
 
 import * as React from "react";
+import { createTranslator } from "@/i18n/messages";
 import { type CompletenessSnapshot, computeCompleteness } from "./completeness";
 import type { TalentTaxonomyAssignment, TalentLanguageRow, TalentServiceAreaRow, PortfolioMediaRow } from "./talent-data";
 
@@ -93,6 +94,7 @@ export function CompletenessCard({
   areas,
   portfolio,
   onJumpToSection,
+  locale,
 }: {
   initial: { display_name?: string; short_bio?: string | null; home_city_text?: string | null; photo_url?: string | null };
   taxonomy: TalentTaxonomyAssignment[];
@@ -100,7 +102,21 @@ export function CompletenessCard({
   areas: TalentServiceAreaRow[];
   portfolio: PortfolioMediaRow[];
   onJumpToSection?: (key: keyof CompletenessSnapshot) => void;
+  locale?: string;
 }) {
+  const t = createTranslator(locale ?? "en");
+  const checklistLabels: Record<keyof CompletenessSnapshot, string> = {
+    hasName:           t("admin.talent.edit.completeness.displayName"),
+    hasPhoto:          t("admin.talent.edit.completeness.profilePhoto"),
+    hasPrimaryRole:    t("admin.talent.edit.completeness.primaryRole"),
+    hasShortBio:       t("admin.talent.edit.completeness.shortBio"),
+    hasLongBio:        t("admin.talent.edit.completeness.shortBio"),
+    hasHomeCity:       t("admin.talent.edit.completeness.homeCity"),
+    hasLanguage:       t("admin.talent.edit.completeness.atLeastOneLanguage"),
+    hasServiceArea:    t("admin.talent.edit.completeness.serviceArea"),
+    hasSecondaryDepth: t("admin.talent.edit.completeness.skills"),
+    hasPortfolio:      t("admin.talent.edit.completeness.portfolioPhoto"),
+  };
   const snap = computeCompleteness({ initial, taxonomy, languages, areas, portfolio });
   const { filled, total, ratio } = score(snap);
   const colors = ringColor(ratio);
@@ -128,7 +144,7 @@ export function CompletenessCard({
             fontSize: 11, fontWeight: 700, color: C.inkMuted,
             letterSpacing: 0.5, textTransform: "uppercase",
           }}>
-            Profile completeness
+            {t("admin.talent.edit.completeness.title")}
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 2 }}>
             <span style={{
@@ -145,8 +161,8 @@ export function CompletenessCard({
           </div>
           <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
             {ratio >= 1
-              ? "Profile is fully filled — ready to publish."
-              : `${missing.length} more to fill before publish.`}
+              ? t("admin.talent.edit.completeness.complete")
+              : t("admin.talent.edit.completeness.incomplete").replace("{count}", String(missing.length))}
           </div>
         </div>
       </div>
@@ -157,7 +173,7 @@ export function CompletenessCard({
             fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
             textTransform: "uppercase", color: C.inkDim, marginBottom: 8,
           }}>
-            Missing
+            {t("admin.talent.edit.completeness.missingSectionHeader")}
           </div>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
             {missing.map((item) => (
@@ -179,10 +195,10 @@ export function CompletenessCard({
                       color: C.ink, fontSize: 12.5, fontFamily: F,
                     }}
                   >
-                    {item.label}
+                    {checklistLabels[item.key] ?? item.label}
                   </button>
                 ) : (
-                  <span style={{ flex: 1 }}>{item.label}</span>
+                  <span style={{ flex: 1 }}>{checklistLabels[item.key] ?? item.label}</span>
                 )}
               </li>
             ))}
@@ -197,7 +213,7 @@ export function CompletenessCard({
             listStyle: "none",
           }}>
             <span style={{ fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" as const }}>
-              Done ({done.length})
+              {t("admin.talent.edit.completeness.doneSection").replace("{count}", String(done.length))}
             </span>
           </summary>
           <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 5 }}>
@@ -215,7 +231,7 @@ export function CompletenessCard({
                     <path d="M2 6.5l3 3 5-7" stroke={C.success} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </span>
-                <span style={{ flex: 1 }}>{item.label}</span>
+                <span style={{ flex: 1 }}>{checklistLabels[item.key] ?? item.label}</span>
               </li>
             ))}
           </ul>

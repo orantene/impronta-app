@@ -4,6 +4,7 @@ import * as React from "react";
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { type CreateRosterTalentState, createRosterTalent } from "./actions";
+import { createTranslator } from "@/i18n/messages";
 
 const C = {
   ink:         "#0B0B0D",
@@ -117,6 +118,7 @@ export function NewRosterTalentForm({
   tenantSlug,
   talentTypes,
   seatUsage,
+  locale = "en",
 }: {
   tenantSlug: string;
   talentTypes: TalentTypeOption[];
@@ -126,7 +128,9 @@ export function NewRosterTalentForm({
     atLimit: boolean;
     message: string | null;
   };
+  locale?: string;
 }) {
+  const t = createTranslator(locale);
   const [method, setMethod] = useState<ManagementMethod>("agency");
   const boundAction = createRosterTalent.bind(null, tenantSlug);
   const [state, action, pending] = useActionState<CreateRosterTalentState, FormData>(
@@ -135,9 +139,9 @@ export function NewRosterTalentForm({
   );
 
   const ctaLabel =
-    method === "agency"   ? "Create + open profile" :
-    method === "invited"  ? "Save & mark as invited" :
-                            "Save as draft";
+    method === "agency"   ? t("admin.roster.new.ctaAgency") :
+    method === "invited"  ? t("admin.roster.new.ctaInvited") :
+                            t("admin.roster.new.ctaDraft");
 
   return (
     <form
@@ -175,29 +179,29 @@ export function NewRosterTalentForm({
 
       {seatUsage?.limit != null && (
         <div style={{ borderRadius: 8, border: `1px solid ${C.border}`, background: C.surface, padding: "9px 12px", fontSize: 12.5, color: C.inkMuted, fontFamily: F }}>
-          {seatUsage.used}/{seatUsage.limit} roster spots used
+          {t("admin.roster.new.seatUsage").replace("{used}", String(seatUsage.used)).replace("{limit}", String(seatUsage.limit))}
         </div>
       )}
 
       {/* ── Name ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="First name" required>
+        <Field label={t("admin.roster.new.firstName")} required>
           <input name="first_name" required autoComplete="off" placeholder="Sofia" style={inputStyle()} />
         </Field>
-        <Field label="Last name" required>
+        <Field label={t("admin.roster.new.lastName")} required>
           <input name="last_name" required autoComplete="off" placeholder="Herrera" style={inputStyle()} />
         </Field>
       </div>
 
-      <Field label="Display / stage name" hint="Defaults to First + Last if left blank.">
+      <Field label={t("admin.roster.new.displayName")} hint={t("admin.roster.new.displayNameHint")}>
         <input name="display_name" autoComplete="off" placeholder="e.g. Sofía H." style={inputStyle()} />
       </Field>
 
       {/* ── Contact ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <Field
-          label="Email"
-          hint={method === "invited" ? "Required — used for the claim invite." : "Optional — for booking comms."}
+          label={t("admin.roster.new.email")}
+          hint={method === "invited" ? t("admin.roster.new.emailHintInvited") : t("admin.roster.new.emailHintOptional")}
           required={method === "invited"}
         >
           <input
@@ -209,55 +213,55 @@ export function NewRosterTalentForm({
             style={inputStyle()}
           />
         </Field>
-        <Field label="Phone" hint="Optional.">
+        <Field label={t("admin.roster.new.phone")} hint={t("admin.roster.new.phoneHint")}>
           <input name="phone" type="tel" autoComplete="off" placeholder="+1 555 000 0000" style={inputStyle()} />
         </Field>
       </div>
 
       {/* ── Talent type + city ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <Field label="Primary talent type" hint="You can change this later.">
+        <Field label={t("admin.roster.new.primaryType")} hint={t("admin.roster.new.primaryTypeHint")}>
           <select name="talent_type_term_id" defaultValue="" style={inputStyle()}>
-            <option value="">— none —</option>
-            {talentTypes.map((t) => (
-              <option key={t.id} value={t.id}>{t.name_en}</option>
+            <option value="">{t("admin.roster.new.noneOption")}</option>
+            {talentTypes.map((tt) => (
+              <option key={tt.id} value={tt.id}>{tt.name_en}</option>
             ))}
           </select>
         </Field>
-        <Field label="Home city" hint="e.g. Playa del Carmen">
+        <Field label={t("admin.roster.new.homeCity")} hint="e.g. Playa del Carmen">
           <input name="home_city_text" autoComplete="off" placeholder="City" style={inputStyle()} />
         </Field>
       </div>
 
       {/* ── Physical ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-        <Field label="Height (cm)" hint="e.g. 175">
+        <Field label={t("admin.roster.new.heightCm")} hint="e.g. 175">
           <input name="height_cm" type="number" min={50} max={280} step={0.5} placeholder="cm" style={inputStyle()} />
         </Field>
-        <Field label="Gender">
+        <Field label={t("admin.roster.new.gender")}>
           <select name="gender" defaultValue="" style={inputStyle()}>
-            <option value="">— none —</option>
-            <option value="woman">Woman</option>
-            <option value="man">Man</option>
-            <option value="non_binary">Non-binary</option>
-            <option value="other">Other</option>
+            <option value="">{t("admin.roster.new.noneOption")}</option>
+            <option value="woman">{t("admin.roster.new.genderWoman")}</option>
+            <option value="man">{t("admin.roster.new.genderMan")}</option>
+            <option value="non_binary">{t("admin.roster.new.genderNonBinary")}</option>
+            <option value="other">{t("admin.roster.new.genderOther")}</option>
           </select>
         </Field>
-        <Field label="Roster visibility">
+        <Field label={t("admin.roster.new.rosterVisibility")}>
           <select name="agency_visibility" defaultValue="roster_only" style={inputStyle()}>
-            <option value="roster_only">Roster only</option>
-            <option value="site_visible">Site visible</option>
-            <option value="featured">Featured</option>
+            <option value="roster_only">{t("admin.roster.new.visRosterOnly")}</option>
+            <option value="site_visible">{t("admin.roster.new.visSiteVisible")}</option>
+            <option value="featured">{t("admin.roster.new.visFeatured")}</option>
           </select>
         </Field>
       </div>
 
       {/* ── Short bio ── */}
-      <Field label="Short bio">
+      <Field label={t("admin.roster.new.shortBio")}>
         <textarea
           name="short_bio"
           rows={2}
-          placeholder="One or two lines for clients. The full bio can be written from the talent profile."
+          placeholder={t("admin.roster.new.shortBioPlaceholder")}
           style={{ ...inputStyle(), resize: "vertical" }}
         />
       </Field>
@@ -265,28 +269,28 @@ export function NewRosterTalentForm({
       {/* ── Management method ── */}
       <div>
         <div style={{ fontFamily: F, fontSize: 12, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.2, marginBottom: 8 }}>
-          Management
+          {t("admin.roster.new.management")}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <MethodCard
             value="agency"
             selected={method === "agency"}
-            title="Agency fills the profile"
-            desc="You complete the full profile after this step. Profile starts as draft."
+            title={t("admin.roster.new.methodAgencyTitle")}
+            desc={t("admin.roster.new.methodAgencyDesc")}
             onChange={setMethod}
           />
           <MethodCard
             value="invited"
             selected={method === "invited"}
-            title="Mark as invited"
-            desc="Talent gets a claim link to complete their own profile. Email required."
+            title={t("admin.roster.new.methodInvitedTitle")}
+            desc={t("admin.roster.new.methodInvitedDesc")}
             onChange={setMethod}
           />
           <MethodCard
             value="draft"
             selected={method === "draft"}
-            title="Save as draft"
-            desc="Quietly adds to roster. Fill it in later — no notification sent."
+            title={t("admin.roster.new.methodDraftTitle")}
+            desc={t("admin.roster.new.methodDraftDesc")}
             onChange={setMethod}
           />
         </div>
@@ -310,10 +314,10 @@ export function NewRosterTalentForm({
             opacity: pending ? 0.6 : 1,
           }}
         >
-          {pending ? "Creating…" : ctaLabel}
+          {pending ? t("admin.roster.new.creating") : ctaLabel}
         </button>
         <Link href={`/${tenantSlug}/admin/roster`} style={{ fontSize: 13, color: C.inkMuted, fontFamily: F, textDecoration: "none" }}>
-          Cancel
+          {t("admin.roster.new.cancel")}
         </Link>
       </div>
     </form>

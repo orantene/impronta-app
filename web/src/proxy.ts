@@ -397,7 +397,7 @@ export async function proxy(request: NextRequest) {
     return cmsRedirect;
   }
 
-  const locale = resolveLocaleForPathname(originalPathname, request, langSettings);
+  const locale = resolveLocaleForPathname(effectiveCanonicalPath, request, langSettings);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);

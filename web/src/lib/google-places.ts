@@ -357,6 +357,49 @@ export async function fetchGooglePlaceDetailsForCity(
   };
 }
 
+/**
+ * Global city autocomplete — no country restriction.
+ * Returns (cities) predictions worldwide for home-base / visiting pickers.
+ */
+export async function fetchGoogleGlobalCityPredictions(
+  query: string,
+): Promise<GoogleCityPrediction[]> {
+  const key = getGooglePlacesApiKey();
+  const q = query.trim();
+  if (!key || q.length < 2) return [];
+
+  const url = new URL("https://maps.googleapis.com/maps/api/place/autocomplete/json");
+  url.searchParams.set("input", q);
+  url.searchParams.set("types", "(cities)");
+  url.searchParams.set("language", process.env.GOOGLE_PLACES_LANGUAGE?.trim() || "en");
+  url.searchParams.set("key", key);
+
+  const response = await fetch(url.toString(), { cache: "no-store" });
+  if (!response.ok) return [];
+
+  const data = (await response.json()) as {
+    status?: string;
+    error_message?: string;
+    predictions?: Array<{
+      place_id?: string;
+      structured_formatting?: { main_text?: string; secondary_text?: string };
+    }>;
+  };
+
+  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+    warnGooglePlaces("Global city autocomplete", data.status, data.error_message);
+    return [];
+  }
+
+  return (data.predictions ?? []).flatMap((p) => {
+    const placeId = String(p.place_id ?? "").trim();
+    const mainText = String(p.structured_formatting?.main_text ?? "").trim();
+    const secondaryText = String(p.structured_formatting?.secondary_text ?? "").trim();
+    if (!placeId || !mainText) return [];
+    return [{ placeId, mainText, secondaryText }];
+  });
+}
+
 /** Mixed business + address predictions (omit `types` so Google returns establishments and addresses). */
 export type GoogleClientLocationPrediction = {
   placeId: string;

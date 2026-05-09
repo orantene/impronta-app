@@ -15,6 +15,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { startWorkspaceUpgrade, openSubscriptionPortal } from "./stripe-billing-actions";
 import type { WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import { createTranslator } from "@/i18n/messages";
 
 const C = {
   accent:     "#0F4F3E",
@@ -36,11 +37,14 @@ export function UpgradePlanButton({
   plan,
   tenantSlug,
   label = `Upgrade to ${plan}`,
+  locale = "en",
 }: {
   plan: WorkspacePlanKey;
   tenantSlug: string;
   label?: string;
+  locale?: string;
 }) {
+  const t = createTranslator(locale);
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
 
@@ -81,7 +85,7 @@ export function UpgradePlanButton({
           transition: "background 0.12s",
         }}
       >
-        {pending ? "Redirecting…" : label}
+        {pending ? t("admin.account.billing.redirecting") : label}
       </button>
       {error && (
         <span style={{ fontSize: 11.5, color: "#c0392b", fontFamily: FONT }}>
@@ -94,7 +98,8 @@ export function UpgradePlanButton({
 
 // ─── Billing portal button (paid → manage) ────────────────────────────────────
 
-export function ManageSubscriptionButton({ tenantSlug }: { tenantSlug: string }) {
+export function ManageSubscriptionButton({ tenantSlug, locale = "en" }: { tenantSlug: string; locale?: string }) {
+  const t = createTranslator(locale);
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
 
@@ -135,7 +140,7 @@ export function ManageSubscriptionButton({ tenantSlug }: { tenantSlug: string })
           transition: "opacity 0.1s",
         }}
       >
-        {pending ? "Opening portal…" : "Manage subscription →"}
+        {pending ? t("admin.account.billing.openingPortal") : t("admin.account.billing.manageSubscription")}
       </button>
       {error && (
         <span style={{ fontSize: 11.5, color: "#c0392b", fontFamily: FONT }}>
@@ -148,18 +153,22 @@ export function ManageSubscriptionButton({ tenantSlug }: { tenantSlug: string })
 
 // ─── Subscription status badge ────────────────────────────────────────────────
 
-const STATUS_META: Record<string, { label: string; bg: string; color: string }> = {
-  active:             { label: "Active",          bg: "rgba(46,125,91,0.08)",  color: "#2E7D5B" },
-  trialing:           { label: "Trial",           bg: "rgba(27,110,200,0.08)", color: "#1B6EC8" },
-  past_due:           { label: "Past due",        bg: "rgba(200,100,20,0.10)", color: "#B05B0D" },
-  cancelled:          { label: "Cancelled",       bg: "rgba(11,11,13,0.06)",   color: "rgba(11,11,13,0.55)" },
-  paused:             { label: "Paused",          bg: "rgba(180,130,20,0.10)", color: "#8A6F1A" },
-  incomplete:         { label: "Incomplete",      bg: "rgba(200,100,20,0.08)", color: "#B05B0D" },
-  incomplete_expired: { label: "Expired",         bg: "rgba(11,11,13,0.06)",   color: "rgba(11,11,13,0.55)" },
+const STATUS_BG: Record<string, { bg: string; color: string; key: string }> = {
+  active:             { bg: "rgba(46,125,91,0.08)",  color: "#2E7D5B",              key: "admin.account.billing.statusActive" },
+  trialing:           { bg: "rgba(27,110,200,0.08)", color: "#1B6EC8",              key: "admin.account.billing.statusTrial" },
+  past_due:           { bg: "rgba(200,100,20,0.10)", color: "#B05B0D",              key: "admin.account.billing.statusPastDue" },
+  cancelled:          { bg: "rgba(11,11,13,0.06)",   color: "rgba(11,11,13,0.55)", key: "admin.account.billing.statusCancelled" },
+  paused:             { bg: "rgba(180,130,20,0.10)", color: "#8A6F1A",              key: "admin.account.billing.statusPaused" },
+  incomplete:         { bg: "rgba(200,100,20,0.08)", color: "#B05B0D",              key: "admin.account.billing.statusIncomplete" },
+  incomplete_expired: { bg: "rgba(11,11,13,0.06)",   color: "rgba(11,11,13,0.55)", key: "admin.account.billing.statusExpired" },
 };
 
-export function SubscriptionStatusBadge({ status }: { status: string }) {
-  const meta = STATUS_META[status] ?? { label: status, bg: "rgba(11,11,13,0.06)", color: "rgba(11,11,13,0.55)" };
+export function SubscriptionStatusBadge({ status, locale = "en" }: { status: string; locale?: string }) {
+  const t = createTranslator(locale);
+  const s = STATUS_BG[status];
+  const meta = s
+    ? { label: t(s.key), bg: s.bg, color: s.color }
+    : { label: status, bg: "rgba(11,11,13,0.06)", color: "rgba(11,11,13,0.55)" };
   return (
     <span
       style={{

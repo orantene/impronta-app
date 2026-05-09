@@ -2317,7 +2317,7 @@ export function EditProvider({
       setPageMetadata(next.metadata);
       setSaving(true);
       const builderTreeForSave = reconcileBuilderTreeFromSlots(
-        builderTree,
+        builderTreeRef.current,
         next.slots,
       );
 
@@ -2351,7 +2351,6 @@ export function EditProvider({
       pageId,
       refreshComposition,
       router,
-      builderTree,
       capHistory,
       setSlotsAndBuilderTree,
       reportMutationError,
@@ -3319,9 +3318,15 @@ export function EditProvider({
     EditContextValue["moveBuilderNodeWithinParent"]
   >(
     async (nodeId, direction) => {
-      const location = findBuilderNodeLocation(builderTree, nodeId);
+      const location = findBuilderNodeLocation(builderTreeRef.current, nodeId);
       if (!location) {
         return { ok: false, error: "Builder node not found." };
+      }
+      if (direction === "up" && location.index <= 0) {
+        return { ok: true };
+      }
+      if (direction === "down" && location.index >= location.siblingCount - 1) {
+        return { ok: true };
       }
       const targetIndex =
         direction === "up" ? location.index - 1 : location.index + 1;
@@ -3331,7 +3336,7 @@ export function EditProvider({
         targetIndex,
       );
     },
-    [builderTree, moveBuilderNodeToParentIndex],
+    [moveBuilderNodeToParentIndex],
   );
 
   // ── undo / redo ────────────────────────────────────────────────────

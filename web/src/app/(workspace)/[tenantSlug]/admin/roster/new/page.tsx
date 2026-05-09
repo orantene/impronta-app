@@ -15,6 +15,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { NewRosterTalentForm } from "./NewRosterTalentForm";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +67,9 @@ export default async function WorkspaceRosterNewPage({
   const canEdit = await userHasCapability("agency.roster.edit", scope.tenantId);
   if (!canEdit) notFound();
 
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+
   const [talentTypes, seatCheck] = await Promise.all([
     loadTalentTypes(),
     (async () => {
@@ -97,7 +102,7 @@ export default async function WorkspaceRosterNewPage({
             padding: "6px 0",
           }}
         >
-          ← Roster
+          {t("admin.roster.new.backToRoster")}
         </Link>
       </div>
 
@@ -113,7 +118,7 @@ export default async function WorkspaceRosterNewPage({
             margin: 0,
           }}
         >
-          Add talent profile
+          {t("admin.roster.new.title")}
         </h1>
         <p
           style={{
@@ -125,9 +130,7 @@ export default async function WorkspaceRosterNewPage({
             lineHeight: 1.5,
           }}
         >
-          Add a profile to your roster. Choose how you want to manage it: fill
-          it yourself, mark as invited so the talent can claim it, or save as a
-          draft to complete later. The profile stays private until approved.
+          {t("admin.roster.new.description")}
         </p>
       </div>
       {seatUsage.atLimit ? (
@@ -149,7 +152,7 @@ export default async function WorkspaceRosterNewPage({
               lineHeight: 1.5,
             }}
           >
-            {seatUsage.message ?? "This workspace reached its roster limit."}
+            {seatUsage.message ?? t("admin.roster.new.seatLimitFallback")}
           </p>
           <div style={{ marginTop: 12, display: "flex", gap: 12 }}>
             <Link
@@ -168,7 +171,7 @@ export default async function WorkspaceRosterNewPage({
                 fontWeight: 600,
               }}
             >
-              Upgrade plan
+              {t("admin.roster.new.upgradePlan")}
             </Link>
             <Link
               href={`/${tenantSlug}/admin/roster`}
@@ -186,7 +189,7 @@ export default async function WorkspaceRosterNewPage({
                 fontWeight: 500,
               }}
             >
-              Back to roster
+              {t("admin.roster.new.backToRosterBtn")}
             </Link>
           </div>
         </div>
@@ -195,6 +198,7 @@ export default async function WorkspaceRosterNewPage({
           tenantSlug={tenantSlug}
           talentTypes={talentTypes}
           seatUsage={seatUsage}
+          locale={locale}
         />
       )}
     </div>

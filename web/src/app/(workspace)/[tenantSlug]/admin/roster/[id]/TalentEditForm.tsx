@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useActionState, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { createTranslator } from "@/i18n/messages";
 import { createClient } from "@/lib/supabase/client";
 import {
   type RosterTalentEditState,
@@ -148,12 +149,15 @@ function PhotoUploader({
   tenantSlug,
   initialUrl,
   displayName,
+  locale,
 }: {
   talentId: string;
   tenantSlug: string;
   initialUrl: string | null;
   displayName: string;
+  locale: string;
 }) {
+  const t = createTranslator(locale);
   type Stage =
     | { kind: "idle" }
     | { kind: "preparing" }
@@ -181,7 +185,7 @@ function PhotoUploader({
     e.target.value = "";
     if (!file) return;
     if (file.size > 20 * 1024 * 1024) {
-      setStage({ kind: "error", message: "Image must be under 20 MB." });
+      setStage({ kind: "error", message: t("admin.talent.edit.photo.errorSize") });
       return;
     }
     try {
@@ -211,7 +215,7 @@ function PhotoUploader({
       {/* Avatar circle */}
       <button
         type="button"
-        title="Change photo"
+        title={t("admin.talent.edit.photo.changePhotoAria")}
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
         style={{
@@ -266,7 +270,7 @@ function PhotoUploader({
         }}
           className="photo-upload-overlay"
         >
-          {uploading ? "…" : "Change"}
+          {uploading ? "…" : t("admin.talent.edit.photo.changeOverlay")}
         </span>
       </button>
 
@@ -298,16 +302,17 @@ function PhotoUploader({
           opacity: uploading ? 0.5 : 1,
         }}
       >
-        {uploading ? "Working…" : photoUrl ? "Change photo" : "Add photo"}
+        {uploading ? t("admin.talent.edit.photo.working") : photoUrl ? t("admin.talent.edit.photo.changePhoto") : t("admin.talent.edit.photo.addPhoto")}
       </button>
 
-      <UploadStatus stage={stage} />
+      <UploadStatus stage={stage} t={t} />
     </div>
   );
 }
 
 function UploadStatus({
   stage,
+  t,
 }: {
   stage:
     | { kind: "idle" }
@@ -316,13 +321,14 @@ function UploadStatus({
     | { kind: "registering" }
     | { kind: "saved"; mediaId: string }
     | { kind: "error"; message: string };
+  t: (key: string) => string;
 }) {
   if (stage.kind === "idle") return null;
 
   const steps: Array<{ key: "preparing" | "uploading" | "registering"; label: string }> = [
-    { key: "preparing",   label: "Prepare image" },
-    { key: "uploading",   label: "Upload to storage" },
-    { key: "registering", label: "Save to database" },
+    { key: "preparing",   label: t("admin.talent.edit.photo.stepPrepare") },
+    { key: "uploading",   label: t("admin.talent.edit.photo.stepUpload") },
+    { key: "registering", label: t("admin.talent.edit.photo.stepSave") },
   ];
 
   // Determine each step's state.
@@ -399,8 +405,9 @@ const WORKFLOW_META: Record<string, { label: string; dot: string; bg: string; te
   hidden:    { label: "Hidden",    dot: C.amber,                bg: C.amberSoft,            textColor: C.amber },
 };
 
-function WorkflowBadge({ status }: { status: string }) {
+function WorkflowBadge({ status, t }: { status: string; t: (key: string) => string }) {
   const m = WORKFLOW_META[status] ?? WORKFLOW_META.draft;
+  const label = t(`admin.talent.edit.status.${status}`);
   return (
     <span
       style={{
@@ -417,7 +424,7 @@ function WorkflowBadge({ status }: { status: string }) {
       }}
     >
       <span style={{ width: 5, height: 5, borderRadius: "50%", background: m.dot }} />
-      {m.label}
+      {label}
     </span>
   );
 }
@@ -428,11 +435,14 @@ function ThreeSlotPhotoPanel({
   talentId,
   tenantSlug,
   initialPhotoUrl,
+  locale,
 }: {
   talentId: string;
   tenantSlug: string;
   initialPhotoUrl: string | null;
+  locale: string;
 }) {
+  const t = createTranslator(locale);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialPhotoUrl);
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [currentAvatarAssetId, setCurrentAvatarAssetId] = useState<string | null>(null);
@@ -471,12 +481,12 @@ function ThreeSlotPhotoPanel({
         display: "flex", flexDirection: "column", gap: 10,
       }}>
         <p style={{ fontFamily: F, fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.4, textTransform: "uppercase", margin: 0 }}>
-          Photos
+          {t("admin.talent.edit.photos.sectionTitle")}
         </p>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
           {/* Avatar slot */}
           <SlotButton
-            label="Avatar" hint="1:1"
+            label={t("admin.talent.edit.photos.avatarLabel")} hint="1:1"
             imageUrl={avatarUrl}
             squareSize={72}
             onClick={() => { setFocusSlot("avatar"); setGalleryOpen(true); }}
@@ -484,7 +494,7 @@ function ThreeSlotPhotoPanel({
           />
           {/* Cover slot */}
           <SlotButton
-            label="Cover" hint="4:5"
+            label={t("admin.talent.edit.photos.coverLabel")} hint="4:5"
             imageUrl={heroUrl}
             squareSize={58}
             heightPx={72}
@@ -505,7 +515,7 @@ function ThreeSlotPhotoPanel({
             }}
           >
             <span style={{ fontSize: 18 }}>＋</span>
-            <span style={{ fontFamily: F, fontSize: 10, fontWeight: 600, color: C.accent }}>Gallery</span>
+            <span style={{ fontFamily: F, fontSize: 10, fontWeight: 600, color: C.accent }}>{t("admin.talent.edit.photos.galleryBtn")}</span>
           </button>
         </div>
       </div>
@@ -654,6 +664,7 @@ function WorkflowSidebar({
   visibility,
   agencyVisibility,
   profileCode,
+  locale,
 }: {
   tenantSlug: string;
   talentId: string;
@@ -661,7 +672,9 @@ function WorkflowSidebar({
   visibility: string;
   agencyVisibility: string;
   profileCode: string | null;
+  locale: string;
 }) {
+  const t = createTranslator(locale);
   const router = useRouter();
   const boundAction = updateRosterTalentWorkflow.bind(null, tenantSlug, talentId);
   const [state, action, pending] = useActionState<RosterTalentEditState, FormData>(
@@ -699,15 +712,15 @@ function WorkflowSidebar({
         }}
       >
         <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 }}>
-          Status
+          {t("admin.talent.edit.workflow.statusLabel")}
         </div>
         <div style={{ marginBottom: 12 }}>
-          <WorkflowBadge status={workflowStatus} />
+          <WorkflowBadge status={workflowStatus} t={t} />
         </div>
         <div style={{ fontSize: 11.5, color: C.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
           {isLive
-            ? "This profile is visible on your site."
-            : "Profile is in draft — not visible to clients."}
+            ? t("admin.talent.edit.workflow.liveMessage")
+            : t("admin.talent.edit.workflow.draftMessage")}
         </div>
 
         {state?.error && (
@@ -748,7 +761,7 @@ function WorkflowSidebar({
                 opacity: pending ? 0.6 : 1,
               }}
             >
-              {pending ? "Approving…" : "Approve & publish"}
+              {pending ? t("admin.talent.edit.workflow.approvingBtn") : t("admin.talent.edit.workflow.approveBtn")}
             </button>
           </form>
         ) : (
@@ -772,7 +785,7 @@ function WorkflowSidebar({
                 opacity: pending ? 0.6 : 1,
               }}
             >
-              {pending ? "Hiding…" : "Move to draft"}
+              {pending ? t("admin.talent.edit.workflow.hidingBtn") : t("admin.talent.edit.workflow.draftBtn")}
             </button>
           </form>
         )}
@@ -788,17 +801,17 @@ function WorkflowSidebar({
         }}
       >
         <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 }}>
-          Roster visibility
+          {t("admin.talent.edit.workflow.visibilityLabel")}
         </div>
         <div style={{ fontSize: 12.5, color: C.inkMuted, marginBottom: 4, lineHeight: 1.5 }}>
           {agencyVisibility === "featured"
-            ? "Featured on your site"
+            ? t("admin.talent.edit.workflow.featured")
             : agencyVisibility === "site_visible"
-              ? "Site visible (storefront)"
-              : "Roster only (not on storefront)"}
+              ? t("admin.talent.edit.workflow.siteVisible")
+              : t("admin.talent.edit.workflow.rosterOnly")}
         </div>
         <div style={{ fontSize: 11, color: C.inkDim, lineHeight: 1.4 }}>
-          Change this in the main edit form below.
+          {t("admin.talent.edit.workflow.visibilityHint")}
         </div>
       </div>
 
@@ -813,7 +826,7 @@ function WorkflowSidebar({
           }}
         >
           <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>
-            Public profile
+            {t("admin.talent.edit.workflow.publicProfileLabel")}
           </div>
           <a
             href={publicUrl}
@@ -844,12 +857,15 @@ export function TalentEditForm({
   talentId,
   initial,
   talentTypes,
+  locale,
 }: {
   tenantSlug: string;
   talentId: string;
   initial: TalentEditInitial;
   talentTypes: TalentTypeOption[];
+  locale: string;
 }) {
+  const t = createTranslator(locale);
   const router = useRouter();
   const boundAction = updateRosterTalentProfile.bind(null, tenantSlug, talentId);
   const [state, action, pending] = useActionState<RosterTalentEditState, FormData>(
@@ -887,7 +903,7 @@ export function TalentEditForm({
         }}
       >
         <div style={{ fontFamily: FD, fontSize: 14, fontWeight: 600, color: C.inkMuted, marginBottom: 2 }}>
-          Profile details
+          {t("admin.talent.edit.form.title")}
         </div>
 
         {state?.error && (
@@ -897,128 +913,128 @@ export function TalentEditForm({
         )}
         {state?.success && (
           <div role="status" style={{ background: C.greenSoft, border: `1px solid rgba(46,125,91,0.20)`, borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.greenDeep, fontFamily: F }}>
-            Saved successfully.
+            {t("admin.talent.edit.form.savedSuccess")}
           </div>
         )}
 
         {/* ── Identity ── */}
         <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginBottom: 2 }}>
-          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Identity</span>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>{t("admin.talent.edit.form.identitySection")}</span>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="First name">
+          <Field label={t("admin.talent.edit.form.firstName")}>
             <input name="first_name" autoComplete="off" defaultValue={initial.first_name ?? ""} style={inputStyle()} />
           </Field>
-          <Field label="Last name">
+          <Field label={t("admin.talent.edit.form.lastName")}>
             <input name="last_name" autoComplete="off" defaultValue={initial.last_name ?? ""} style={inputStyle()} />
           </Field>
         </div>
 
-        <Field label="Display name" required hint="This is the name shown publicly on the roster and storefront.">
+        <Field label={t("admin.talent.edit.form.displayName")} required hint={t("admin.talent.edit.form.displayNameHint")}>
           <input name="display_name" required autoComplete="off" defaultValue={initial.display_name} style={inputStyle()} />
         </Field>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Gender">
+          <Field label={t("admin.talent.edit.form.gender")}>
             <select name="gender" defaultValue={initial.gender ?? ""} style={inputStyle()}>
-              <option value="">— none —</option>
-              <option value="woman">Woman</option>
-              <option value="man">Man</option>
-              <option value="non_binary">Non-binary</option>
-              <option value="other">Other</option>
+              <option value="">{t("admin.talent.edit.form.selectNone")}</option>
+              <option value="woman">{t("admin.talent.edit.form.genderWoman")}</option>
+              <option value="man">{t("admin.talent.edit.form.genderMan")}</option>
+              <option value="non_binary">{t("admin.talent.edit.form.genderNonBinary")}</option>
+              <option value="other">{t("admin.talent.edit.form.genderOther")}</option>
             </select>
           </Field>
-          <Field label="Date of birth">
+          <Field label={t("admin.talent.edit.form.dob")}>
             <input name="date_of_birth" type="date" autoComplete="off" defaultValue={initial.date_of_birth ?? ""} style={inputStyle()} />
           </Field>
         </div>
 
         {/* ── Contact ── */}
         <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
-          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Contact</span>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>{t("admin.talent.edit.form.contactSection")}</span>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <Field label="Email" hint="Used for invite / booking comms. Won't be shown publicly.">
-            <input name="invitation_email" type="email" autoComplete="off" defaultValue={initial.invitation_email ?? ""} placeholder="talent@example.com" style={inputStyle()} />
+          <Field label={t("admin.talent.edit.form.email")} hint={t("admin.talent.edit.form.emailHint")}>
+            <input name="invitation_email" type="email" autoComplete="off" defaultValue={initial.invitation_email ?? ""} placeholder={t("admin.talent.edit.form.emailPlaceholder")} style={inputStyle()} />
           </Field>
-          <Field label="Phone">
-            <input name="phone" type="tel" autoComplete="off" defaultValue={initial.phone ?? ""} placeholder="+1 555 000 0000" style={inputStyle()} />
+          <Field label={t("admin.talent.edit.form.phone")}>
+            <input name="phone" type="tel" autoComplete="off" defaultValue={initial.phone ?? ""} placeholder={t("admin.talent.edit.form.phonePlaceholder")} style={inputStyle()} />
           </Field>
         </div>
 
-        <Field label="Instagram" hint="Handle only — e.g. @sofiamodel. Shown as a link on the profile.">
-          <input name="instagram" type="text" autoComplete="off" defaultValue={initial.instagram ?? ""} placeholder="@handle" style={inputStyle()} />
+        <Field label={t("admin.talent.edit.form.instagram")} hint={t("admin.talent.edit.form.instagramHint")}>
+          <input name="instagram" type="text" autoComplete="off" defaultValue={initial.instagram ?? ""} placeholder={t("admin.talent.edit.form.instagramPlaceholder")} style={inputStyle()} />
         </Field>
 
         {/* ── Physical ── */}
         <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
-          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Physical</span>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>{t("admin.talent.edit.form.physicalSection")}</span>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 14, alignItems: "end" }}>
-          <Field label="Height (cm)" hint="e.g. 175">
+          <Field label={t("admin.talent.edit.form.heightCm")} hint={t("admin.talent.edit.form.heightHint")}>
             <input name="height_cm" type="number" min={50} max={280} step={0.5} autoComplete="off"
               defaultValue={initial.height_cm != null ? String(initial.height_cm) : ""} placeholder="cm"
               style={{ ...inputStyle(false), width: 100 }}
             />
           </Field>
-          <Field label="Home city" hint="Free-text city. Shown on roster card until a full location is set.">
-            <input name="home_city_text" autoComplete="off" defaultValue={initial.home_city_text ?? ""} placeholder="e.g. Playa del Carmen" style={inputStyle()} />
+          <Field label={t("admin.talent.edit.form.homeCity")} hint={t("admin.talent.edit.form.homeCityHint")}>
+            <input name="home_city_text" autoComplete="off" defaultValue={initial.home_city_text ?? ""} placeholder={t("admin.talent.edit.form.homeCityPlaceholder")} style={inputStyle()} />
           </Field>
         </div>
 
         {/* ── Primary talent type ── */}
         <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
-          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Role</span>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>{t("admin.talent.edit.form.roleSection")}</span>
         </div>
 
-        <Field label="Primary talent type" hint="Drives search and filtering on your storefront.">
+        <Field label={t("admin.talent.edit.form.primaryType")} hint={t("admin.talent.edit.form.primaryTypeHint")}>
           <select name="talent_type_term_id" defaultValue={initial.primary_type_term_id ?? ""} style={inputStyle()}>
-            <option value="">— none —</option>
-            {talentTypes.map((t) => (
-              <option key={t.id} value={t.id}>{t.name_en}</option>
+            <option value="">{t("admin.talent.edit.form.selectNone")}</option>
+            {talentTypes.map((tt) => (
+              <option key={tt.id} value={tt.id}>{tt.name_en}</option>
             ))}
           </select>
         </Field>
 
         {/* ── Bio ── */}
         <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
-          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Bio</span>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>{t("admin.talent.edit.form.bioSection")}</span>
         </div>
 
-        <Field label="Short bio" hint="2–3 lines. Shown on talent cards and inquiry threads.">
-          <textarea name="short_bio" rows={3} defaultValue={initial.short_bio ?? ""} placeholder="Brief intro for clients." style={{ ...inputStyle(), resize: "vertical" }} />
+        <Field label={t("admin.talent.edit.form.shortBio")} hint={t("admin.talent.edit.form.shortBioHint")}>
+          <textarea name="short_bio" rows={3} defaultValue={initial.short_bio ?? ""} placeholder={t("admin.talent.edit.form.shortBioPlaceholder")} style={{ ...inputStyle(), resize: "vertical" }} />
         </Field>
 
         {/* ── Visibility & status ── */}
         <div style={{ borderBottom: `1px solid rgba(11,11,13,0.06)`, paddingBottom: 4, marginTop: 6 }}>
-          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>Status & visibility</span>
+          <span style={{ fontFamily: F, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkDim }}>{t("admin.talent.edit.form.statusSection")}</span>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-          <Field label="Workflow status" hint="Controls dashboard stage.">
+          <Field label={t("admin.talent.edit.form.workflowStatus")} hint={t("admin.talent.edit.form.workflowStatusHint")}>
             <select name="workflow_status" defaultValue={initial.workflow_status} style={inputStyle()}>
-              <option value="draft">Draft</option>
-              <option value="invited">Invited</option>
-              <option value="approved">Approved</option>
-              <option value="published">Published</option>
-              <option value="hidden">Hidden</option>
+              <option value="draft">{t("admin.talent.edit.status.draft")}</option>
+              <option value="invited">{t("admin.talent.edit.status.invited")}</option>
+              <option value="approved">{t("admin.talent.edit.status.approved")}</option>
+              <option value="published">{t("admin.talent.edit.status.published")}</option>
+              <option value="hidden">{t("admin.talent.edit.status.hidden")}</option>
             </select>
           </Field>
-          <Field label="Profile visibility" hint="Whether the public URL is reachable.">
+          <Field label={t("admin.talent.edit.form.profileVisibility")} hint={t("admin.talent.edit.form.profileVisibilityHint")}>
             <select name="visibility" defaultValue={initial.visibility} style={inputStyle()}>
-              <option value="hidden">Hidden</option>
-              <option value="public">Public</option>
-              <option value="private">Private</option>
+              <option value="hidden">{t("admin.talent.edit.form.visibilityHidden")}</option>
+              <option value="public">{t("admin.talent.edit.form.visibilityPublic")}</option>
+              <option value="private">{t("admin.talent.edit.form.visibilityPrivate")}</option>
             </select>
           </Field>
-          <Field label="Roster visibility" hint="Where it appears on your site.">
+          <Field label={t("admin.talent.edit.form.rosterVisibility")} hint={t("admin.talent.edit.form.rosterVisibilityHint")}>
             <select name="agency_visibility" defaultValue={initial.agency_visibility} style={inputStyle()}>
-              <option value="roster_only">Roster only</option>
-              <option value="site_visible">Site visible</option>
-              <option value="featured">Featured</option>
+              <option value="roster_only">{t("admin.talent.edit.form.rosterOnly")}</option>
+              <option value="site_visible">{t("admin.talent.edit.form.siteVisible")}</option>
+              <option value="featured">{t("admin.talent.edit.form.featured")}</option>
             </select>
           </Field>
         </div>
@@ -1041,7 +1057,7 @@ export function TalentEditForm({
               opacity: pending ? 0.6 : 1,
             }}
           >
-            {pending ? "Saving…" : "Save changes"}
+            {pending ? t("admin.talent.edit.form.savingBtn") : t("admin.talent.edit.form.saveBtn")}
           </button>
         </div>
       </form>
@@ -1053,6 +1069,7 @@ export function TalentEditForm({
           talentId={talentId}
           tenantSlug={tenantSlug}
           initialPhotoUrl={initial.photo_url}
+          locale={locale}
         />
 
         <WorkflowSidebar
@@ -1062,6 +1079,7 @@ export function TalentEditForm({
           visibility={initial.visibility}
           agencyVisibility={initial.agency_visibility}
           profileCode={initial.profile_code}
+          locale={locale}
         />
       </div>
     </div>

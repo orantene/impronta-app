@@ -14,6 +14,8 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { TalentEditForm, type TalentEditInitial } from "./TalentEditForm";
 import {
   loadAllTaxonomyTerms,
@@ -188,6 +190,9 @@ export default async function WorkspaceRosterTalentPage({
   const canEdit = await userHasCapability("agency.roster.edit", scope.tenantId);
   if (!canEdit) notFound();
 
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+
   // ── DEBUG: surface real loader errors instead of crashing the page render ──
   const safe = async <T,>(label: string, fn: () => Promise<T>, fallback: T): Promise<T> => {
     try {
@@ -248,7 +253,7 @@ export default async function WorkspaceRosterTalentPage({
             padding: "6px 0",
           }}
         >
-          ← Roster
+          {t("admin.talent.edit.nav.backToRoster")}
         </Link>
       </div>
 
@@ -264,7 +269,7 @@ export default async function WorkspaceRosterTalentPage({
             margin: 0,
           }}
         >
-          {talent.display_name || "Unnamed talent"}
+          {talent.display_name || t("admin.talent.edit.nav.unnamedTalent")}
         </h1>
         {talent.profile_code && (
           <p
@@ -289,7 +294,7 @@ export default async function WorkspaceRosterTalentPage({
             </a>
             {talent.created_at && (
               <span style={{ color: "rgba(11,11,13,0.35)" }}>
-                Added{" "}
+                {t("admin.talent.edit.nav.added")}{" "}
                 {new Date(talent.created_at).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -311,6 +316,7 @@ export default async function WorkspaceRosterTalentPage({
           workflowStatus={talent.workflow_status}
           isClaimed={talent.is_claimed}
           isArchived={talent.is_archived}
+          locale={locale}
         />
         <CompletenessCard
           initial={{
@@ -323,6 +329,7 @@ export default async function WorkspaceRosterTalentPage({
           languages={languages}
           areas={areas}
           portfolio={portfolio}
+          locale={locale}
         />
       </div>
 
@@ -332,6 +339,7 @@ export default async function WorkspaceRosterTalentPage({
         talentId={talentId}
         initial={initial}
         talentTypes={talentTypes}
+        locale={locale}
       />
 
       {/* Extended sections — taxonomy + languages + service areas + gallery */}
@@ -341,21 +349,25 @@ export default async function WorkspaceRosterTalentPage({
           talentId={talentId}
           allTerms={allTerms}
           currentAssignments={talentTaxonomy}
+          locale={locale}
         />
         <LanguagesSection
           tenantSlug={tenantSlug}
           talentId={talentId}
           languages={languages}
+          locale={locale}
         />
         <ServiceAreasSection
           tenantSlug={tenantSlug}
           talentId={talentId}
           areas={areas}
+          locale={locale}
         />
         <GallerySection
           tenantSlug={tenantSlug}
           talentId={talentId}
           portfolio={portfolio}
+          locale={locale}
         />
 
         {/* Danger zone */}
@@ -370,20 +382,19 @@ export default async function WorkspaceRosterTalentPage({
             <h3 style={{
               fontFamily: F, fontSize: 14, fontWeight: 700, color: "#8C3318",
               margin: 0, letterSpacing: -0.05,
-            }}>Danger zone</h3>
+            }}>{t("admin.talent.edit.dangerZone.title")}</h3>
           </div>
           <p style={{
             fontSize: 12.5, color: C.inkMuted, margin: "0 0 10px",
             lineHeight: 1.5,
           }}>
-            Removing a talent hides them from your roster, public site, and discovery.
-            The talent's underlying profile is kept intact in case they're on
-            another agency or claim their account later.
+            {t("admin.talent.edit.dangerZone.description")}
           </p>
           <DeleteTalentButton
             tenantSlug={tenantSlug}
             talentId={talentId}
-            talentName={talent.display_name || "this talent"}
+            talentName={talent.display_name || t("admin.talent.edit.nav.unnamedTalent")}
+            locale={locale}
           />
         </section>
       </div>

@@ -274,6 +274,7 @@ type RosterRow = {
     last_name: string | null;
     workflow_status: string | null;
     height_cm: number | null;
+    updated_at: string | null;
     talent_profile_taxonomy:
       | {
           relationship_type: string | null;
@@ -514,6 +515,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
           last_name,
           workflow_status,
           height_cm,
+          updated_at,
           talent_profile_taxonomy (
             relationship_type,
             display_order,
@@ -575,6 +577,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
         primaryType: derivePrimaryType(profile),
         portfolioCount,
         createdAt: row.created_at ?? undefined,
+        updatedAt: profile.updated_at ?? undefined,
         // `completeness`, `availability`, `lastActive` are derived UI
         // hints not yet wired in the live schema. Leaving them undefined
         // is a valid `TalentProfile` and the existing roster card

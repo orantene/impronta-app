@@ -77,29 +77,8 @@ export function MetricsRibbon({ talentProfileId }: { talentProfileId: string }) 
     metrics.verified_skill_count === 0 &&
     metrics.verified_badge_count === 0;
 
-  // For brand-new talent, show a soft welcome instead of hollow zeros.
-  if (isNew) {
-    return (
-      <div
-        style={{
-          padding: "10px 14px",
-          marginBottom: 12,
-          borderRadius: 10,
-          background: T.indigoSoft,
-          border: `1px solid rgba(91,107,160,0.18)`,
-          fontFamily: F_BODY,
-          fontSize: 12,
-          color: T.indigoDeep,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 14 }}>✨</span>
-        <span>New here — activity and booking history will appear once they complete their first booking.</span>
-      </div>
-    );
-  }
+  // Brand-new talent with no history — render nothing rather than a hollow banner.
+  if (isNew) return null;
 
   const pieces: Array<{ icon: string; label: string; tone?: "accent" | "gold" | "neutral" }> = [];
 

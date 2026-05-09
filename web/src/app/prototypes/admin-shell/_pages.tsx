@@ -133,7 +133,11 @@ import {
   DrawerShell,
   Eyebrow,
   H3,
+  ShortcutsModal,
 } from "./_primitives";
+import { signOut } from "@/app/auth/actions";
+import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
+import { LOCALE_COOKIE, localeCookieOptions } from "@/i18n/locale-middleware";
 import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv, WorkspaceActivationBanner, DemoDataBanner } from "./_wave2";
 import { WorkspaceMediaPage } from "./_media-page";
 import { pinNextConversation as pinNextConversationP } from "./_messages";
@@ -1218,7 +1222,7 @@ export function TulalaIdentityBar() {
   const onActingClick = () =>
     inWorkspace ? openDrawer("tenant-switcher")
     : inClient ? openDrawer("client-brand-switcher")
-    : openDrawer("talent-agency-relationship");
+    : openDrawer("talent-agency-switcher");
 
   // The notifications + help drawers differ per surface.
   const notificationsDrawerId = inWorkspace ? "notifications"
@@ -1265,10 +1269,11 @@ export function TulalaIdentityBar() {
             alt={bridgeTenantIdentity.displayName || "Workspace logo"}
             data-tulala-brand
             style={{
-              height: 26,
+              height: 36,
               width: "auto",
-              maxWidth: 160,
+              maxWidth: 220,
               objectFit: "contain",
+              objectPosition: "left center",
               paddingRight: 4,
               display: "block",
             }}
@@ -1505,9 +1510,11 @@ function AccountMenuTrigger({
   userInitials: string;
   children: ReactNode;
 }) {
-  const { toast, state, openDrawer, bridgeTalentSelfProfile, tenantSlug } = useProto();
+  const { toast, state, openDrawer, bridgeTalentSelfProfile, tenantSlug, bridgeSessionIdentity } = useProto();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   // Close on outside click
   useEffect(() => {
     if (!open) return;
@@ -1596,7 +1603,7 @@ function AccountMenuTrigger({
               Signed in as
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{userName}</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{ME_EMAIL}</div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{bridgeSessionIdentity?.email ?? ""}</div>
             {/* Tenant meta — plan / role, shown on mobile where the identity
                 bar chips are hidden (#2) */}
             {state.surface === "workspace" && (
@@ -1629,8 +1636,8 @@ function AccountMenuTrigger({
             onClick={() => { setOpen(false); openDrawer("my-profile"); }}
           />
           <AccountMenuItem
-            label="Account settings"
-            sub="Email, password, security"
+            label="Workspace settings"
+            sub="Name, domain, branding, team"
             onClick={() => { setOpen(false); openDrawer("workspace-settings"); }}
           />
           <AccountMenuItem
@@ -1638,14 +1645,22 @@ function AccountMenuTrigger({
             sub="Email, push, digest preferences"
             onClick={() => { setOpen(false); openDrawer("notifications-prefs"); }}
           />
-          <AccountMenuItem
-            label="Language"
-            sub="EN · ES"
-          />
+          {/* Language — real cookie-based switcher */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "8px 10px", borderRadius: 8,
+            fontFamily: FONTS.body,
+          }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>Language</div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>Dashboard display language</div>
+            </div>
+            <DashboardLocaleToggle variant="prototype" />
+          </div>
           <AccountMenuItem
             label="Keyboard shortcuts"
-            sub="Press ?"
-            onClick={() => { setOpen(false); toast("⌘K · ? for shortcuts"); }}
+            sub="Press ? anywhere"
+            onClick={() => { setOpen(false); setShortcutsOpen(true); }}
           />
           {/* Phase 4 — Pure Workspace state: CTA to create own talent page.
               Rendered only when the signed-in user has no talent profile in
@@ -1663,10 +1678,15 @@ function AccountMenuTrigger({
           )}
           <div style={{ borderTop: `1px solid ${COLORS.borderSoft}`, marginTop: 4, paddingTop: 4 }}>
             <AccountMenuItem
-              label="Sign out"
+              label={signingOut ? "Signing out…" : "Sign out"}
               sub=""
               tone="coral"
-              onClick={() => { setOpen(false); toast("Signed out"); }}
+              onClick={async () => {
+                if (signingOut) return;
+                setOpen(false);
+                setSigningOut(true);
+                await signOut();
+              }}
             />
           </div>
         </div>
@@ -1679,6 +1699,7 @@ function AccountMenuTrigger({
           tenantSlug={tenantSlug}
         />
       )}
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }
@@ -1732,8 +1753,27 @@ function AccountMenuItem({
 }
 
 function LocaleToggle() {
-  const { toast } = useProto();
-  const [locale, setLocale] = useState<"EN" | "ES">("EN");
+  const [locale, setLocale] = useState<"en" | "es">("en");
+
+  useEffect(() => {
+    const m = document.cookie.match(
+      new RegExp(`(?:^|; )${LOCALE_COOKIE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]*)`)
+    );
+    const raw = m?.[1] ? decodeURIComponent(m[1]) : null;
+    if (raw === "es") setLocale("es");
+    else setLocale("en");
+  }, []);
+
+  const pick = (next: "en" | "es") => {
+    if (locale === next) return;
+    const { path, maxAge, sameSite, secure } = localeCookieOptions;
+    let line = `${LOCALE_COOKIE}=${next}; path=${path}; max-age=${String(maxAge)}; samesite=${sameSite}`;
+    if (secure) line += "; secure";
+    document.cookie = line;
+    setLocale(next);
+    window.location.reload();
+  };
+
   return (
     <div
       role="group"
@@ -1747,17 +1787,13 @@ function LocaleToggle() {
         fontFamily: FONTS.body,
       }}
     >
-      {(["EN", "ES"] as const).map((code) => {
+      {(["en", "es"] as const).map((code) => {
         const active = locale === code;
         return (
           <button
             key={code}
             type="button"
-            onClick={() => {
-              if (active) return;
-              setLocale(code);
-              toast(`Language set to ${code === "EN" ? "English" : "Español"}`);
-            }}
+            onClick={() => pick(code)}
             aria-pressed={active}
             style={{
               background: active ? "#fff" : "transparent",
@@ -1774,7 +1810,7 @@ function LocaleToggle() {
               transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
             }}
           >
-            {code}
+            {code.toUpperCase()}
           </button>
         );
       })}
@@ -5076,7 +5112,7 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant } = useProto();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant, t } = useProto();
   const router = useRouter();
   // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
   // the server pre-fetches Impronta's roster and `effectiveRoster` is
@@ -5089,7 +5125,7 @@ function TalentPage() {
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<"all" | "published" | "draft" | "invited" | "awaiting-approval">("all");
   const [typeFilter, setTypeFilter] = useState<TaxonomyParentId | "all">("all");
-  const [sort, setSort] = useState<"name" | "completeness" | "newest">("newest");
+  const [sort, setSort] = useState<"name" | "completeness" | "newest" | "lastEdited">("newest");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -5119,11 +5155,12 @@ function TalentPage() {
       if (sort === "name") r = a.name.localeCompare(b.name);
       else if (sort === "completeness") r = (a.completeness ?? 0) - (b.completeness ?? 0);
       else if (sort === "newest") {
-        // Older first when ascending (sortDir flip below makes newest-first
-        // the default since we set sortDir="desc" when picking "newest").
-        // Mock fixtures without createdAt fall back to 0 → stable source order.
         const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
         const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+        r = ta - tb;
+      } else if (sort === "lastEdited") {
+        const ta = a.updatedAt ? Date.parse(a.updatedAt) : 0;
+        const tb = b.updatedAt ? Date.parse(b.updatedAt) : 0;
         r = ta - tb;
       }
       return sortDir === "asc" ? r : -r;
@@ -5339,7 +5376,7 @@ function TalentPage() {
             setSort(s);
             // "Newest" + "Completeness" read more naturally with the high
             // value on top — default to desc. Name → A→Z.
-            setSortDir(s === "name" ? "asc" : "desc");
+            setSortDir(s === "name" ? "asc" : "desc"); // newest / lastEdited / completeness → desc by default
           }
         }}
         view={view}
@@ -5615,9 +5652,9 @@ function RosterFilterBar({
   typeFilter: TaxonomyParentId | "all";
   onTypeFilter: (f: TaxonomyParentId | "all") => void;
   usedTypes: TaxonomyParentId[];
-  sort: "name" | "completeness" | "newest";
+  sort: "name" | "completeness" | "newest" | "lastEdited";
   sortDir: "asc" | "desc";
-  onSort: (s: "name" | "completeness" | "newest") => void;
+  onSort: (s: "name" | "completeness" | "newest" | "lastEdited") => void;
   view: "grid" | "list";
   onView: (v: "grid" | "list") => void;
   canBulk: boolean;
@@ -5806,15 +5843,16 @@ function SortButton({
   sortDir,
   onSort,
 }: {
-  sort: "name" | "completeness" | "newest";
+  sort: "name" | "completeness" | "newest" | "lastEdited";
   sortDir: "asc" | "desc";
-  onSort: (s: "name" | "completeness" | "newest") => void;
+  onSort: (s: "name" | "completeness" | "newest" | "lastEdited") => void;
 }) {
   const [open, setOpen] = useState(false);
   const sortLabel = {
     name: "Name",
     completeness: "Completeness",
     newest: "Newest",
+    lastEdited: "Last edited",
   }[sort];
   const arrow = sortDir === "asc" ? " ↑" : " ↓";
   return (
@@ -5855,34 +5893,26 @@ function SortButton({
               fontFamily: FONTS.body,
             }}
           >
-            {(["name", "completeness", "newest"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => {
-                  onSort(s);
-                  setOpen(false);
-                }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 10px",
-                  borderRadius: 6,
-                  border: "none",
-                  background: s === sort ? "rgba(11,11,13,0.04)" : "transparent",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  color: COLORS.ink,
-                }}
-              >
-                {s === "name" ? "Name" : s === "completeness" ? "Completeness" : "Newest"}
-                {s === sort && <span style={{ marginLeft: "auto", color: COLORS.inkMuted, fontSize: 11 }}>{sortDir === "asc" ? "↑" : "↓"}</span>}
-              </button>
-            ))}
+            {(["name", "completeness", "newest", "lastEdited"] as const).map((s) => {
+              const labels: Record<string, string> = { name: "Name", completeness: "Completeness", newest: "Newest", lastEdited: "Last edited" };
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => { onSort(s); setOpen(false); }}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 10px", borderRadius: 6, border: "none",
+                    background: s === sort ? "rgba(11,11,13,0.04)" : "transparent",
+                    cursor: "pointer", textAlign: "left", fontSize: 12.5,
+                    fontWeight: 500, color: COLORS.ink,
+                  }}
+                >
+                  {labels[s]}
+                  {s === sort && <span style={{ marginLeft: "auto", color: COLORS.inkMuted, fontSize: 11 }}>{sortDir === "asc" ? "↑" : "↓"}</span>}
+                </button>
+              );
+            })}
           </div>
         </>
       )}
@@ -6091,6 +6121,8 @@ function RosterCard({
   onOpen: (p: TalentProfile) => void;
 }) {
   const [hover, setHover] = useState(false);
+  const { bridgeTalentSelfProfile } = useProto();
+  const isSelf = !!bridgeTalentSelfProfile?.id && profile.id === bridgeTalentSelfProfile.id;
 
   // Resolve primary type → label + parent emoji + first specialty.
   // The triplet is what makes the card scan-able: emoji = visual anchor,
@@ -6141,7 +6173,7 @@ function RosterCard({
       style={{
         position: "relative",
         background: "#fff",
-        border: `1px solid ${selected ? COLORS.accent : COLORS.borderSoft}`,
+        border: `1px solid ${isSelf ? COLORS.accent : selected ? COLORS.accent : COLORS.borderSoft}`,
         borderRadius: 14,
         padding: 0,
         cursor: "pointer",
@@ -6183,6 +6215,33 @@ function RosterCard({
         )}
         {/* Modern verified-icon overlay — IG / Tulala / Agency. */}
         <RosterPhotoBadgeOverlay talentId={profile.id} />
+        {/* "You" badge — persistent marker when this is the signed-in talent's own profile */}
+        {isSelf && (
+          <div
+            aria-label="Your talent profile"
+            style={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 9px",
+              borderRadius: 999,
+              background: COLORS.accent,
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 0.3,
+              backdropFilter: "blur(6px)",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+              pointerEvents: "none",
+            }}
+          >
+            You
+          </div>
+        )}
+
         {/* Selection checkbox — appears on hover or if selected */}
         {onSelect && (hover || selected) && (
           <button

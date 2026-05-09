@@ -13,6 +13,8 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getConnectedAccountSnapshot, type ConnectAccountStatus } from "@/lib/payments/stripe-connect";
 import { PayoutsActionsClient } from "./payouts-actions-client";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -37,32 +39,33 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-function StatusPill({ status, charges, payouts }: {
+function StatusPill({ status, charges, payouts, t }: {
   status: ConnectAccountStatus;
   charges: boolean;
   payouts: boolean;
+  t: (k: string) => string;
 }) {
   let label: string;
   let bg: string;
   let fg: string;
   if (status === "enabled" && charges && payouts) {
-    label = "Active";
+    label = t("admin.payouts.statusActive");
     bg = C.greenSoft;
     fg = C.green;
   } else if (status === "pending") {
-    label = "Onboarding incomplete";
+    label = t("admin.payouts.statusPending");
     bg = C.amberSoft;
     fg = C.amber;
   } else if (status === "restricted") {
-    label = "Restricted";
+    label = t("admin.payouts.statusRestricted");
     bg = C.coralSoft;
     fg = C.coral;
   } else if (status === "disabled") {
-    label = "Disabled";
+    label = t("admin.payouts.statusDisabled");
     bg = C.coralSoft;
     fg = C.coral;
   } else {
-    label = "Not connected";
+    label = t("admin.payouts.statusNotConnected");
     bg = "rgba(11,11,13,0.06)";
     fg = C.inkMuted;
   }
@@ -82,7 +85,7 @@ function StatusPill({ status, charges, payouts }: {
   );
 }
 
-function CapabilityRow({ label, on }: { label: string; on: boolean }) {
+function CapabilityRow({ label, on, t }: { label: string; on: boolean; t: (k: string) => string }) {
   return (
     <div style={{
       display: "flex",
@@ -98,7 +101,7 @@ function CapabilityRow({ label, on }: { label: string; on: boolean }) {
         fontWeight: 600,
         color: on ? C.green : C.inkDim,
       }}>
-        {on ? "Enabled" : "Not yet"}
+        {on ? t("admin.payouts.capEnabled") : t("admin.payouts.capNotYet")}
       </span>
     </div>
   );
@@ -119,15 +122,18 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
   const canEdit = await userHasCapability(scope.tenantId, "agency.workspace.edit");
   if (!canEdit) notFound();
 
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+
   const snap = await getConnectedAccountSnapshot(tenantSlug);
   if (!snap.ok) {
     return (
       <main style={{ padding: "32px 24px", fontFamily: FONT, maxWidth: 720, margin: "0 auto" }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: C.ink, margin: "0 0 8px" }}>
-          Payouts
+          {t("admin.payouts.title")}
         </h1>
         <p style={{ color: C.coral, fontSize: 13 }}>
-          Couldn&apos;t load Stripe status: {snap.error}
+          {t("admin.payouts.loadError")}: {snap.error}
         </p>
       </main>
     );
@@ -144,11 +150,10 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
     }}>
       <header style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px" }}>
-          Payouts
+          {t("admin.payouts.title")}
         </h1>
         <p style={{ fontSize: 13, color: C.inkMuted, margin: 0, lineHeight: 1.5 }}>
-          Connect a Stripe account to receive payments from clients directly. Funds settle to
-          your bank account; the platform takes a small fee per transaction.
+          {t("admin.payouts.description")}
         </p>
       </header>
 
@@ -168,22 +173,22 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
         }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>
-              Stripe account status
+              {t("admin.payouts.accountStatus")}
             </div>
             <div style={{ fontSize: 11, color: C.inkDim, marginTop: 2 }}>
               {stripeAccountId ? (
-                <>Account: <code style={{ fontSize: 11 }}>{stripeAccountId}</code></>
-              ) : "No Stripe account connected"}
+                <>{t("admin.payouts.accountStatus")}: <code style={{ fontSize: 11 }}>{stripeAccountId}</code></>
+              ) : t("admin.payouts.noAccount")}
             </div>
           </div>
-          <StatusPill status={status} charges={chargesEnabled} payouts={payoutsEnabled} />
+          <StatusPill status={status} charges={chargesEnabled} payouts={payoutsEnabled} t={t} />
         </div>
 
         {stripeAccountId && (
           <div style={{ marginTop: 8 }}>
-            <CapabilityRow label="Onboarding submitted" on={detailsSubmitted} />
-            <CapabilityRow label="Card charges enabled" on={chargesEnabled} />
-            <CapabilityRow label="Payouts to bank enabled" on={payoutsEnabled} />
+            <CapabilityRow label={t("admin.payouts.onboardingSubmitted")} on={detailsSubmitted} t={t} />
+            <CapabilityRow label={t("admin.payouts.chargesEnabled")} on={chargesEnabled} t={t} />
+            <CapabilityRow label={t("admin.payouts.payoutsEnabled")} on={payoutsEnabled} t={t} />
           </div>
         )}
 
@@ -194,7 +199,7 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
           paddingTop: 12,
           borderTop: `1px solid ${C.borderSoft}`,
         }}>
-          Last synced: {formatSyncedAt(syncedAt)}
+          {t("admin.payouts.lastSynced")}: {formatSyncedAt(syncedAt)}
         </div>
       </section>
 
@@ -205,6 +210,7 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
           hasAccount={!!stripeAccountId}
           chargesEnabled={chargesEnabled}
           payoutsEnabled={payoutsEnabled}
+          locale={locale}
         />
       </section>
 
@@ -218,13 +224,13 @@ export default async function PayoutsPage({ params }: { params: PageParams }) {
         lineHeight: 1.6,
       }}>
         <div style={{ fontWeight: 600, color: C.ink, marginBottom: 6, fontSize: 13 }}>
-          How payouts work
+          {t("admin.payouts.howItWorksTitle")}
         </div>
         <ul style={{ margin: 0, paddingLeft: 18 }}>
-          <li>Once connected, all client payments through your workspace route directly to your Stripe account.</li>
-          <li>Stripe handles the legal / KYC dance. You manage your bank account from the Stripe dashboard.</li>
-          <li>Payouts run on Stripe&apos;s default schedule (typically 2–7 days for new accounts).</li>
-          <li>Disconnecting clears the binding here; it does not delete your Stripe account.</li>
+          <li>{t("admin.payouts.howItWorks1")}</li>
+          <li>{t("admin.payouts.howItWorks2")}</li>
+          <li>{t("admin.payouts.howItWorks3")}</li>
+          <li>{t("admin.payouts.howItWorks4")}</li>
         </ul>
       </section>
     </main>
