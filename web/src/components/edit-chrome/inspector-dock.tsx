@@ -840,8 +840,10 @@ export function InspectorDock() {
       zIndex={85}
       className="max-lg:hidden"
       testId="inspector-dock"
+      ariaLabelledBy="inspector-drawer-title"
     >
       <DrawerHead
+        titleId="inspector-drawer-title"
         title={isSiteHeaderSelected ? "Site header" : sectionTitle}
         meta={headerMeta}
         metaWrap
@@ -877,6 +879,8 @@ export function InspectorDock() {
         <div
           className="flex-1 overflow-y-auto px-4 py-6 text-xs"
           style={{ color: CHROME.amber }}
+          role="alert"
+          aria-live="assertive"
         >
           {loadError}
         </div>
@@ -1028,6 +1032,9 @@ function EmptyState() {
     <div
       className="flex flex-1 flex-col items-center justify-center gap-0 px-8 text-center"
       style={{ color: CHROME.muted }}
+      role="region"
+      aria-labelledby="inspector-empty-title"
+      aria-describedby="inspector-empty-desc"
     >
       <div
         className="mb-4 flex size-12 items-center justify-center rounded-2xl border"
@@ -1043,11 +1050,19 @@ function EmptyState() {
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
       </div>
-      <p className="text-[13px] font-semibold tracking-tight" style={{ color: CHROME.text2 }}>
-        Select a section to edit
+      <p
+        id="inspector-empty-title"
+        className="text-[13px] font-semibold tracking-tight"
+        style={{ color: CHROME.text2 }}
+      >
+        Nothing selected
       </p>
-      <p className="mt-1.5 max-w-[200px] text-[11.5px] leading-relaxed" style={{ color: CHROME.muted2 }}>
-        Click any section on the canvas to open its editor here.
+      <p
+        id="inspector-empty-desc"
+        className="mt-1.5 max-w-[220px] text-[11.5px] leading-relaxed"
+        style={{ color: CHROME.muted2 }}
+      >
+        Click a section on the canvas or a row in the left Structure list. Your draft edits stay private until you publish.
       </p>
     </div>
   );

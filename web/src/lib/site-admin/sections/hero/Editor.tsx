@@ -89,6 +89,37 @@ export function HeroEditor({
     commit({ ...state, slides: slides && slides.length > 0 ? slides : undefined });
   }
 
+  function updateSearch(patch: Partial<NonNullable<HeroV1["search"]>>) {
+    const next = { ...(state.search ?? { placeholder: "" }), ...patch };
+    const placeholder = next.placeholder?.trim();
+    if (!placeholder) {
+      commit({ ...state, search: undefined });
+      return;
+    }
+    commit({
+      ...state,
+      search: {
+        placeholder,
+        buttonLabel: next.buttonLabel?.trim() || undefined,
+        actionHref: next.actionHref?.trim() || undefined,
+      },
+    });
+  }
+
+  function patchCategoryChip(index: number, patch: Partial<NonNullable<HeroV1["categoryChips"]>[number]>) {
+    const chips = [...(state.categoryChips ?? [])];
+    const next = { ...(chips[index] ?? { label: "" }), ...patch };
+    if (!next.label.trim()) {
+      chips.splice(index, 1);
+    } else {
+      chips[index] = {
+        label: next.label.trim(),
+        href: next.href?.trim() || undefined,
+      };
+    }
+    commit({ ...state, categoryChips: chips.length > 0 ? chips : undefined });
+  }
+
   function addSlide() {
     const next = [...(state.slides ?? []), {} as HeroSlide];
     updateSlides(next);
@@ -125,6 +156,9 @@ export function HeroEditor({
 
   return (
     <div className="flex flex-col gap-6 text-sm">
+      <p className={`${HINT} rounded-md border border-border/40 bg-muted/20 px-3 py-2 text-[11px] leading-relaxed`}>
+        Nested blocks are arranged on the canvas and in Structure. Use this tab for hero copy, imagery, and CTAs.
+      </p>
       <BlueprintPicker
         sectionTypeKey="hero"
         current={state}
@@ -152,6 +186,112 @@ export function HeroEditor({
           />
         </div>
       </div>
+
+      <fieldset className="flex flex-col gap-4 rounded-md border border-border/60 p-4">
+        <legend className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Search and category chips
+        </legend>
+        <div className="grid gap-4 md:grid-cols-3">
+          <label className={`${FIELD} md:col-span-2`}>
+            <span className={LABEL}>Search placeholder</span>
+            <input
+              type="text"
+              className={INPUT}
+              value={state.search?.placeholder ?? ""}
+              maxLength={120}
+              placeholder="Promotional models for a boutique venue opening"
+              onChange={(e) => updateSearch({ placeholder: e.target.value })}
+            />
+            <span className={HINT}>
+              Leave blank to hide the search bar for a classic hero.
+            </span>
+          </label>
+          <label className={FIELD}>
+            <span className={LABEL}>Button</span>
+            <input
+              type="text"
+              className={INPUT}
+              value={state.search?.buttonLabel ?? ""}
+              maxLength={40}
+              placeholder="Search"
+              onChange={(e) => updateSearch({ buttonLabel: e.target.value })}
+              disabled={!state.search}
+            />
+          </label>
+          <label className={FIELD}>
+            <span className={LABEL}>Search path</span>
+            <input
+              type="text"
+              className={INPUT}
+              value={state.search?.actionHref ?? ""}
+              maxLength={500}
+              placeholder="/directory"
+              onChange={(e) => updateSearch({ actionHref: e.target.value })}
+              disabled={!state.search}
+            />
+          </label>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className={LABEL}>Category chips</span>
+            <button
+              type="button"
+              className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={(state.categoryChips?.length ?? 0) >= 12}
+              onClick={() =>
+                commit({
+                  ...state,
+                  categoryChips: [
+                    ...(state.categoryChips ?? []),
+                    { label: "New category", href: "/directory" },
+                  ],
+                })
+              }
+            >
+              Add chip
+            </button>
+          </div>
+          {(state.categoryChips ?? []).length === 0 ? (
+            <p className="rounded-md bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
+              No category chips. Add chips when this hero should guide visitors
+              into directory filters.
+            </p>
+          ) : (
+            <div className="grid gap-2">
+              {(state.categoryChips ?? []).map((chip, index) => (
+                <div key={`${chip.label}-${index}`} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                  <input
+                    className={INPUT}
+                    value={chip.label}
+                    maxLength={40}
+                    aria-label={`Category chip ${index + 1} label`}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      patchCategoryChip(index, { label: e.target.value })
+                    }
+                  />
+                  <input
+                    className={INPUT}
+                    value={chip.href ?? ""}
+                    maxLength={500}
+                    aria-label={`Category chip ${index + 1} path`}
+                    placeholder="/directory"
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      patchCategoryChip(index, { href: e.target.value })
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive"
+                    onClick={() => patchCategoryChip(index, { label: "" })}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </fieldset>
 
       <fieldset className="flex flex-col gap-4 rounded-md border border-border/60 p-4">
         <legend className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">

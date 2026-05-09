@@ -67,6 +67,7 @@ import type {
   CompositionSectionRef,
   CompositionSlotDef,
 } from "@/lib/site-admin/edit-mode/composition-actions";
+import { defaultSectionAddSlot } from "./default-section-add-slot";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
@@ -1636,8 +1637,10 @@ export function NavigatorPanel() {
                 color: CHROME.muted2,
                 fontStyle: "italic",
               }}
+              role="status"
+              aria-live="polite"
             >
-              No sections match &ldquo;{search}&rdquo;.
+              No sections match &ldquo;{search}&rdquo;. Clear the search or add a block that matches.
             </div>
           )}
           {visible.length === 0 && !search.trim() && (
@@ -1653,9 +1656,10 @@ export function NavigatorPanel() {
                 style={{
                   fontSize: 11.5,
                   color: CHROME.muted2,
+                  lineHeight: 1.45,
                 }}
               >
-                No sections yet.
+                No sections on this page yet. Add one from the library — it appears here and on the canvas.
               </div>
               <button
                 type="button"
@@ -2733,21 +2737,6 @@ function builderChildMatchesNavigatorSearch(
     kindLabel.includes(query) ||
     (child.role ?? "").toLowerCase().includes(query)
   );
-}
-
-function defaultSectionAddSlot(
-  slotDefs: CompositionSlotDef[],
-  slots: Record<string, CompositionSectionRef[]>,
-): string {
-  const emptyRequired = slotDefs.find(
-    (def) => def.required && (slots[def.key]?.length ?? 0) === 0,
-  );
-  if (emptyRequired) return emptyRequired.key;
-
-  const flexible = slotDefs.find((def) => def.allowedSectionTypes === null);
-  if (flexible) return flexible.key;
-
-  return slotDefs[0]?.key ?? "body";
 }
 
 function GripDots({ color }: { color: string }) {

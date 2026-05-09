@@ -29,6 +29,22 @@ const heroSlideSchema = z.object({
 export const heroSchemaV1 = z.object({
   headline: z.string().min(1).max(140),
   subheadline: z.string().max(240).optional(),
+  search: z
+    .object({
+      placeholder: z.string().min(1).max(120),
+      buttonLabel: z.string().min(1).max(40).optional(),
+      actionHref: z.string().min(1).max(500).optional(),
+    })
+    .optional(),
+  categoryChips: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(40),
+        href: z.string().min(1).max(500).optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
   primaryCta: z
     .object({
       label: z.string().min(1).max(60),

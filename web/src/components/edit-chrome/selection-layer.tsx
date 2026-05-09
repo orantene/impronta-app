@@ -693,7 +693,17 @@ export function SelectionLayer() {
             (drop.sortOrder === drag.sortOrder ||
               drop.sortOrder === drag.sortOrder + 1);
           if (!sameSpot) {
-            void moveSectionTo(drag.id, drop.slotKey, drop.sortOrder);
+            void moveSectionTo(drag.id, drop.slotKey, drop.sortOrder).then(
+              (result) => {
+                if (!result.ok) return;
+                requestAnimationFrame(() => {
+                  const el = document.querySelector(
+                    `[data-cms-section][data-section-id="${CSS.escape(drag.id)}"]`,
+                  );
+                  el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                });
+              },
+            );
           }
         }
       }

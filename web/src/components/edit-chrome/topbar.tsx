@@ -672,7 +672,7 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           style={{ width: 6, height: 6, background: CHROME.blue, boxShadow: "0 0 8px rgba(58,123,255,0.6)" }}
           aria-hidden
         />
-        Saving…
+        Saving draft…
       </span>
     );
   }
@@ -686,13 +686,14 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           color: CHROME.amber,
           borderColor: CHROME.amberLine,
         }}
+        title="Draft changes are not published yet"
       >
         <span
           className={dot}
           style={{ width: 6, height: 6, background: CHROME.amber, boxShadow: "0 0 8px rgba(180,83,9,0.6)" }}
           aria-hidden
         />
-        Unsaved
+        Unsaved draft
       </span>
     );
   }
@@ -706,13 +707,14 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           color: CHROME.green,
           borderColor: CHROME.greenLine,
         }}
+        title="Draft saved — visitors still see the last published version until you Publish"
       >
         <span
           className={dot}
           style={{ width: 6, height: 6, background: CHROME.green, boxShadow: "0 0 8px rgba(20,115,46,0.6)" }}
           aria-hidden
         />
-        Saved
+        Draft saved
       </span>
     );
   }
@@ -726,13 +728,14 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
         borderColor: CHROME.greenLine,
         opacity: 0.7,
       }}
+      title="All edits saved to draft — not live until you Publish"
     >
       <span
         className={dot}
         style={{ width: 6, height: 6, background: CHROME.green }}
         aria-hidden
       />
-      Saved
+      Draft saved
     </span>
   );
 }

@@ -66,6 +66,8 @@ import {
 interface DrawerProps {
   /** Determines default width and visual variant. */
   kind: DrawerKind;
+  /** References the visible drawer title (`DrawerHead` `titleId`) for assistive tech. */
+  ariaLabelledBy?: string;
   /** Override the width. Used by the expand/fullscreen cycle. */
   width?: number | "fullscreen";
   /**
@@ -88,6 +90,7 @@ interface DrawerProps {
 
 export function Drawer({
   kind,
+  ariaLabelledBy,
   width,
   open = true,
   testId,
@@ -106,6 +109,7 @@ export function Drawer({
     <aside
       data-edit-drawer={kind}
       data-testid={testId}
+      aria-labelledby={ariaLabelledBy}
       className={`fixed flex flex-col font-sans ${className ?? ""}`}
       style={{
         top: topPx,
@@ -152,6 +156,8 @@ interface DrawerHeadProps {
   onExpand?: () => void;
   onFullscreen?: () => void;
   onClose?: () => void;
+  /** When set, labels the heading for `Drawer` `aria-labelledby`. */
+  titleId?: string;
 }
 
 export function DrawerHead({
@@ -164,6 +170,7 @@ export function DrawerHead({
   onExpand,
   onFullscreen,
   onClose,
+  titleId,
 }: DrawerHeadProps) {
   return (
     <header
@@ -191,6 +198,7 @@ export function DrawerHead({
             </span>
           ) : null}
           <span
+            id={titleId}
             className="min-w-0 flex-1 truncate"
             style={{
               // Sprint 2 — single canonical drawer heading style. Display

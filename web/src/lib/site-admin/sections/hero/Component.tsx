@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import type { SectionComponentProps } from "../types";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
@@ -250,11 +251,14 @@ function justifyDeclFromAlign(align?: "left" | "center" | "right"): string[] {
 export function HeroComponent({
   props,
   sectionId,
+  publicPathPrefix = "",
   builderNodeBindings,
 }: SectionComponentProps<HeroV1>) {
   const {
     headline,
     subheadline,
+    search,
+    categoryChips,
     primaryCta,
     secondaryCta,
     backgroundMediaAssetId,
@@ -477,6 +481,40 @@ export function HeroComponent({
             >
               {renderInlineRich(subheadline)}
             </p>
+          ) : null}
+          {search ? (
+            <form
+              className="site-hero__search"
+              action={prefixPublicHref(search.actionHref ?? "/directory", publicPathPrefix)}
+              method="get"
+            >
+              <label className="sr-only" htmlFor={`site-hero-search-${sectionId ?? "default"}`}>
+                Search the directory
+              </label>
+              <input
+                id={`site-hero-search-${sectionId ?? "default"}`}
+                name="q"
+                type="search"
+                placeholder={search.placeholder}
+                className="site-hero__search-input"
+              />
+              <button className="site-hero__search-button" type="submit">
+                {search.buttonLabel ?? "Search"}
+              </button>
+            </form>
+          ) : null}
+          {categoryChips && categoryChips.length > 0 ? (
+            <nav className="site-hero__chips" aria-label="Browse by type">
+              {categoryChips.map((chip, index) => (
+                <a
+                  key={`${chip.label}-${index}`}
+                  className="site-hero__chip"
+                  href={prefixPublicHref(chip.href ?? "/directory", publicPathPrefix)}
+                >
+                  {chip.label}
+                </a>
+              ))}
+            </nav>
           ) : null}
           {(primaryCta || secondaryCta) && (
             <div className="site-hero__ctas" style={{ justifyContent: ctaJustify }}>

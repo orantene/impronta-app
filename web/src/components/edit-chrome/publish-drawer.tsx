@@ -493,10 +493,22 @@ export function PublishDrawer() {
     </span>
   );
 
+  const publishHeadTitle = isSuccess
+    ? "Published"
+    : pageSlug
+      ? "Publish page"
+      : "Publish homepage";
+
   return (
-    <Drawer kind="publish" open={publishOpen} zIndex={88}>
+    <Drawer
+      kind="publish"
+      open={publishOpen}
+      zIndex={88}
+      ariaLabelledBy="publish-drawer-title"
+    >
       <DrawerHead
-        title={isSuccess ? "Published" : "Publish homepage"}
+        titleId="publish-drawer-title"
+        title={publishHeadTitle}
         icon={<PublishIcon />}
         meta={headerMeta}
         onClose={state.kind === "publishing" ? undefined : closePublish}
@@ -512,6 +524,28 @@ export function PublishDrawer() {
           />
         ) : (
           <>
+            <div
+              style={{
+                marginBottom: 12,
+                borderRadius: 8,
+                border: `1px solid ${CHROME.line}`,
+                background: CHROME.paper,
+                padding: "10px 12px",
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: CHROME.text2,
+              }}
+            >
+              <strong style={{ color: CHROME.text }}>What publishing does</strong>
+              <p style={{ margin: "6px 0 0", fontSize: 11.5, color: CHROME.muted }}>
+                Visitors will see this <strong style={{ color: CHROME.text }}>draft</strong> on
+                the live site. Publishing replaces the current{" "}
+                <strong style={{ color: CHROME.text }}>public</strong> version of{" "}
+                {pageSlug ? "this page" : "your homepage"} — not other pages. Use{" "}
+                <strong style={{ color: CHROME.text }}>Revisions</strong> if you need to roll
+                back a draft snapshot before publishing again.
+              </p>
+            </div>
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}
             <div style={{ marginBottom: 12 }}>
               <PublishPreflight
@@ -1009,6 +1043,8 @@ export function PublishDrawer() {
 
             {state.kind === "error" ? (
               <div
+                role="alert"
+                aria-live="assertive"
                 style={{
                   marginTop: 10,
                   borderRadius: 8,

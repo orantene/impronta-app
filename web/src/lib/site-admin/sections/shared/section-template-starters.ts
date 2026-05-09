@@ -528,6 +528,20 @@ const STARTER_DEFAULTS: Record<SectionTemplateStarterId, SectionTemplateStarterD
       headline: "Find the right talent for your brief",
       subheadline:
         "Search the directory by role, location, or fit. Agency-managed, no direct contact.",
+      search: {
+        placeholder: "Promotional models for a boutique venue opening",
+        buttonLabel: "Search",
+        actionHref: "/directory",
+      },
+      categoryChips: [
+        { label: "Models", href: "/directory?tax=models" },
+        { label: "Hosts", href: "/directory?tax=hosts" },
+        { label: "Performers", href: "/directory?tax=performers" },
+        { label: "Music", href: "/directory?tax=music" },
+        { label: "Chefs", href: "/directory?tax=chefs" },
+        { label: "Wellness", href: "/directory?tax=wellness" },
+        { label: "Photo & Video", href: "/directory?tax=photo-video" },
+      ],
       presentation: {
         background: "canvas",
         paddingTop: "editorial",

@@ -12,9 +12,40 @@
  *
  * Override the base URL when QAing a deployed environment:
  *   PLAYWRIGHT_BASE_URL=https://staging.tulala.digital npx playwright test
+ *
+ * Use the installed Google Chrome (not bundled Chromium):
+ *   PLAYWRIGHT_CHANNEL=chrome npx playwright test
  */
 
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
+
+/** Load `web/.env.local` into `process.env` so Playwright picks up `TEST_ADMIN_*` without shell exports. */
+function loadEnvLocal(): void {
+  const p = resolve(process.cwd(), ".env.local");
+  if (!existsSync(p)) return;
+  for (const line of readFileSync(p, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let val = trimmed.slice(eq + 1).trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    if (process.env[key] === undefined) {
+      process.env[key] = val;
+    }
+  }
+}
+
+loadEnvLocal();
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://app.local:3102";
 

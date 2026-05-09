@@ -24,6 +24,10 @@ Operators must never see **two right-rail drawers** open at once, or **palette +
 - [ ] Opening this surface runs **`dismissCompetingEditorChrome`** or **`closeAllRightRailDrawers`** when appropriate (match sibling flows).
 - [ ] Escape closes this surface or defers to the shell ladder without double-dismiss.
 
+## Focus / keyboard (audit)
+
+Right-rail drawers are `<aside>` panels, **not** modal dialogs: focus is **not** fully trapped (operators tab into the iframe preview). **Escape** order is centralized in [`edit-shell.tsx`](./edit-shell.tsx) (shortcut overlay → command palette → right-rail drawers). Close restores prior interaction without a dedicated focus-return stack — acceptable for non-modal panels; revisit with `react-focus-lock` or Radix **only** if a drawer becomes modal-scale.
+
 ## Related
 
 - Stash / canvas polish (`wip-canvas-felt-quality-pre-mockup`): diff-review before cherry-pick; see [builder-experience-execution-plan.md](../../../docs/builder-experience-execution-plan.md).

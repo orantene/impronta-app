@@ -45,6 +45,7 @@ import { SectionPickerPopover } from "./section-picker-popover";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
+import { defaultSectionAddSlot } from "./default-section-add-slot";
 
 const ScheduleDrawer = dynamic(
   () =>
@@ -236,6 +237,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     defaultLocale,
     availableLocales,
     pageSlug,
+    slots,
+    slotDefs,
+    openLibrary,
   } = useEditContext();
 
   // Phase A (2026-04-26) — convergence-plan §1 deep-link contract.
@@ -266,6 +270,12 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     dismissCompetingEditorChrome();
 
     const templateSlug = searchParams.get("template");
+    const openCompositionLibrary = () =>
+      openLibrary({
+        slotKey: defaultSectionAddSlot(slotDefs, slots),
+        insertAfterSortOrder: null,
+      });
+
     const dispatch: Record<string, (() => void) | "noop"> = {
       publish: openPublish,
       pageSettings: openPageSettings,
@@ -277,6 +287,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       templates: () => openStarterTemplateGallery(templateSlug),
       templateGallery: () => openStarterTemplateGallery(templateSlug),
       pages: requestPagesPickerOpen,
+      /** Opens full section library overlay (same as Structure → Add section). */
+      library: openCompositionLibrary,
+      sectionsLibrary: openCompositionLibrary,
       // Canvas is the sections navigator; landing in edit mode is enough.
       sections: "noop",
     };
@@ -304,6 +317,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     requestPagesPickerOpen,
     pageSlug,
     dismissCompetingEditorChrome,
+    slots,
+    slotDefs,
+    openLibrary,
   ]);
 
   // T0-1 — Server-action network failure resilience.

@@ -183,6 +183,11 @@ export function PublishPreflight({
           {warns} warning{warns === 1 ? "" : "s"}
         </span>
       </div>
+      <p className="m-0 text-[11px] leading-snug text-muted-foreground">
+        <strong className="font-semibold text-foreground">Blockers</strong> stop Publish until
+        fixed. <strong className="font-semibold text-foreground">Warnings</strong> are
+        suggestions — you can still publish.
+      </p>
       {blockingIssues.length > 0 ? (
         <div className="rounded-md border border-rose-300/70 bg-rose-50/50 p-2">
           <div className="mb-1 flex items-center justify-between gap-2">

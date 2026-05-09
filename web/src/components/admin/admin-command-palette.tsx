@@ -177,7 +177,7 @@ const NAV_LINKS: NavLink[] = [
     href: "/admin/site-settings/sections",
     label: "Sections library",
     category: "Site",
-    hint: "Reusable content blocks (hero, CTA, gallery)",
+    hint: "Legacy URL redirects to workspace Website; blocks are edited in the storefront builder",
     keywords: "sections blocks reusable content library gallery hero cta",
     icon: <LayoutGrid className="size-4" />,
   },
