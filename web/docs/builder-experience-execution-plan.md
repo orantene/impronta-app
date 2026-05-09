@@ -44,7 +44,7 @@ Plus an inspector-specific kit at `inspectors/kit/`:
 The "1995 selects" critique is real for the four universal panels — but the kit exists to fix it without inventing anything. It's just not wired.
 
 ### Surprise 3: substantial unapplied work in stash
-`stash@{0}: On phase-1: wip-canvas-felt-quality-pre-mockup` (23 files, 687 insertions / 1089 deletions) includes:
+Original checkpoint was `wip-canvas-felt-quality-pre-mockup`; **local `git stash list` entries drift** — re-identify the canvas/selection-layer bundle before cherry-picking. Historical summary (23 files, 687 insertions / 1089 deletions) included:
 
 | File | Net change | Significance |
 |---|---|---|

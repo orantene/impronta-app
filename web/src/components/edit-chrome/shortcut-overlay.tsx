@@ -4,7 +4,7 @@
  * ShortcutOverlay — keyboard reference modal (Phase 10).
  *
  * Implements builder-experience.html surface §26 (Keyboard shortcuts
- * overlay). Last reconciled: 2026-04-25.
+ * overlay). Last reconciled: 2026-05.
  *
  * Toggled by the `?` global keybind (or via the command palette /
  * topbar Help affordance). Reads from the centralised `SHORTCUTS`
@@ -22,9 +22,8 @@
  *   - Footer prints the `⌘` / `Ctrl` mapping note once instead of
  *     dual-printing the modifier glyph throughout.
  *
- * Like the command palette, the overlay is a true modal — it doesn't
- * mutex with the right-side drawers, so an operator can peek at
- * "what was the keybind for X" mid-drawer without losing context.
+ * Opening a right-rail drawer clears centred modals (`dismissCompetingEditorChrome`),
+ * including this overlay — operators can hit `?` again while a drawer stays open.
  */
 
 import { useEffect } from "react";

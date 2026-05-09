@@ -7,9 +7,10 @@
  * library). Last reconciled: 2026-04-25.
  *
  * Lives in the right-side drawer family alongside Publish, Page Settings,
- * Revisions, and Theme. Same chrome (paper-tinted body, white cards float
- * on top, pill-tab nav, footer with primary action). Mutexes with the
- * other four — opening Assets dismisses whichever was up.
+ * Revisions, Theme, Schedule, and Comments. Same chrome (paper-tinted body,
+ * white cards float on top, pill-tab nav, footer with primary action).
+ * Mutexed via `EditContext.showExclusiveRightRailDrawer` — opening Assets
+ * closes whichever drawer was up.
  *
  * Five tabs:
  *   - All        — every approved asset for the tenant, newest first

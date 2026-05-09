@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * StarterTemplateGalleryOverlay — staff entry to starter compositions from the
+ * engaged editor (topbar Templates, command palette, `?panel=templates`, etc.).
+ *
+ * Implements `docs/mockups/builder-experience.html` surface 18 (Empty canvas /
+ * starter onboarding). Last reconciled: 2026-05.
+ *
+ * Wraps `StarterTemplateGalleryModal` (`empty-canvas-starter.tsx`) with plan
+ * availability, `applyStarterComposition`, and optional saved-template slot.
+ */
+
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
