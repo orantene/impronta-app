@@ -501,10 +501,9 @@ export interface EditContextValue {
    * Visibility flag for the centred ⌘K command palette. Lazy-mounted:
    * we render `null` while closed so the palette's internal effects
    * (focus, keyboard listeners) only subscribe when actually visible.
-   * Opening a right-rail drawer or other drawer-scale surface via context
-   * (`openPublish`, etc.) calls `dismissCentredModals` first so the
-   * palette doesn't stack above those surfaces; operators can still ⌘K
-   * again afterward while a drawer stays open.
+   * Opening a right-rail drawer via context (`openPublish`, etc.) calls
+   * `dismissCompetingEditorChrome` first (palette + other overlays); operators
+   * can still ⌘K again afterward while a drawer stays open.
    */
   paletteOpen: boolean;
   openPalette: () => void;
@@ -523,8 +522,8 @@ export interface EditContextValue {
    * Visibility flag for the keyboard-shortcuts reference overlay
    * (Phase 10). The `?` global keybind toggles it; the overlay reads
    * from the centralised `SHORTCUTS` registry so chips never drift
-   * between the palette and the reference. Drawer opens dismiss it via
-   * `dismissCentredModals` like the palette.
+   * between the palette and the reference. Right-rail opens dismiss it via
+   * `dismissCompetingEditorChrome` together with the palette.
    */
   shortcutOverlayOpen: boolean;
   openShortcutOverlay: () => void;
@@ -532,6 +531,11 @@ export interface EditContextValue {
   toggleShortcutOverlay: () => void;
   /** ⌘K palette + `?` overlay — closes both without touching drawers. */
   dismissCentredModals: () => void;
+  /**
+   * Closes centred modals plus starter gallery, full-screen library, and
+   * inline picker popover — surfaces that must not stack over a right-rail drawer.
+   */
+  dismissCompetingEditorChrome: () => void;
   /**
    * Roll the draft back to the chosen revision. Wraps
    * `restoreHomepageRevisionAction` in the same CAS-safe rhythm as
@@ -1524,9 +1528,9 @@ export function EditProvider({
     string | null
   >(null);
 
-  // command palette state (Phase 8) — centred modal; opening a right-rail
-  // drawer or full template gallery calls `dismissCentredModals` so it
-  // doesn't stack visually above those surfaces.
+  // command palette state (Phase 8) — centred modal; `openStarterTemplateGallery`
+  // calls `dismissCentredModals` only; right-rail drawers use
+  // `dismissCompetingEditorChrome` (includes gallery + library teardown).
   const [paletteOpen, setPaletteOpen] = useState(false);
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
@@ -1577,6 +1581,14 @@ export function EditProvider({
     setStarterTemplateGalleryOpen(false);
     setStarterTemplateGalleryHighlightedSlug(null);
   }, []);
+
+  /** Right-rail drawer opens — tear down overlapping chrome (execution-plan mutex). */
+  const dismissCompetingEditorChrome = useCallback(() => {
+    dismissCentredModals();
+    closeStarterTemplateGallery();
+    setLibraryTarget(null);
+    setPickerPopover(null);
+  }, [dismissCentredModals, closeStarterTemplateGallery]);
 
   // structure navigator (left rail) — open by default; ⌘\ toggles
   const [navigatorOpen, setNavigatorOpen] = useState(true);
@@ -3593,10 +3605,10 @@ export function EditProvider({
 
   const openLibrary = useCallback(
     (target: LibraryTarget) => {
-      dismissCentredModals();
+      dismissCompetingEditorChrome();
       setLibraryTarget(target);
     },
-    [dismissCentredModals],
+    [dismissCompetingEditorChrome],
   );
   const closeLibrary = useCallback(() => setLibraryTarget(null), []);
 
@@ -3605,23 +3617,24 @@ export function EditProvider({
   // modal library (so the operator never sees both at once).
   const openPickerPopover = useCallback(
     (target: LibraryTarget, x: number, y: number) => {
-      dismissCentredModals();
-      setLibraryTarget(null);
+      dismissCompetingEditorChrome();
       setPickerPopover({ target, x, y });
     },
-    [dismissCentredModals],
+    [dismissCompetingEditorChrome],
   );
   const closePickerPopover = useCallback(() => setPickerPopover(null), []);
 
   // The right-side drawers (Publish, Page Settings, Revisions) all anchor
   // to the same `right: 0` slot. Opening one mutexes out the others so
   // they never visually stack — picking up a new drawer means dismissing
-  // whichever one was up. The InspectorDock is intentionally NOT included
-  // here because its open state is selection-driven, not topbar-driven;
-  // a drawer slides in front of it (higher z-index) and the inspector
-  // remains underneath as the operator's "current section" anchor.
+  // whichever one was up. `dismissCompetingEditorChrome` first clears
+  // palette / shortcut / starter gallery / library chrome so nothing stacks.
+  // The InspectorDock is intentionally NOT included here because its open
+  // state is selection-driven, not topbar-driven; a drawer slides in front
+  // of it (higher z-index) and the inspector remains underneath as the
+  // operator's "current section" anchor.
   const openPublish = useCallback(() => {
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
     setThemeOpen(false);
@@ -3629,11 +3642,11 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setPublishOpen(true);
-  }, [dismissCentredModals]);
+  }, [dismissCompetingEditorChrome]);
   const closePublish = useCallback(() => setPublishOpen(false), []);
 
   const openPageSettings = useCallback(() => {
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
     setPublishOpen(false);
     setRevisionsOpen(false);
     setThemeOpen(false);
@@ -3641,16 +3654,16 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setPageSettingsOpen(true);
-  }, [dismissCentredModals]);
+  }, [dismissCompetingEditorChrome]);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
 
   const requestPagesPickerOpen = useCallback(() => {
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
     setPagesPickerOpenNonce((n) => n + 1);
-  }, [dismissCentredModals]);
+  }, [dismissCompetingEditorChrome]);
 
   const openRevisions = useCallback(() => {
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setThemeOpen(false);
@@ -3658,12 +3671,12 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setRevisionsOpen(true);
-  }, [dismissCentredModals]);
+  }, [dismissCompetingEditorChrome]);
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
 
   const openTheme = useCallback(() => {
     if (!canEditSiteShell) return;
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3671,11 +3684,11 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setThemeOpen(true);
-  }, [canEditSiteShell, dismissCentredModals]);
+  }, [canEditSiteShell, dismissCompetingEditorChrome]);
   const closeTheme = useCallback(() => setThemeOpen(false), []);
 
   const openAssets = useCallback(() => {
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3683,11 +3696,11 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setAssetsOpen(true);
-  }, [dismissCentredModals]);
+  }, [dismissCompetingEditorChrome]);
   const closeAssets = useCallback(() => setAssetsOpen(false), []);
 
   const openSchedule = useCallback(() => {
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3695,7 +3708,7 @@ export function EditProvider({
     setAssetsOpen(false);
     setCommentsOpen(false);
     setScheduleOpen(true);
-  }, [dismissCentredModals]);
+  }, [dismissCompetingEditorChrome]);
   const closeSchedule = useCallback(() => setScheduleOpen(false), []);
 
   // Comments drawer (Phase 11) — same right-side mutex pattern. Two
@@ -3704,7 +3717,7 @@ export function EditProvider({
   // thread (used by the canvas pin click). The drawer reads
   // `commentsFocusSectionId` to decide which view to render on mount.
   const openComments = useCallback(() => {
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3713,9 +3726,9 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsFocusSectionId(null);
     setCommentsOpen(true);
-  }, [dismissCentredModals]);
+  }, [dismissCompetingEditorChrome]);
   const openCommentsForSection = useCallback((sectionId: string) => {
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3724,7 +3737,7 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsFocusSectionId(sectionId);
     setCommentsOpen(true);
-  }, [dismissCentredModals]);
+  }, [dismissCompetingEditorChrome]);
   const closeComments = useCallback(() => {
     setCommentsOpen(false);
     setCommentsFocusSectionId(null);
@@ -3972,6 +3985,7 @@ export function EditProvider({
       closePalette,
       togglePalette,
       dismissCentredModals,
+      dismissCompetingEditorChrome,
       starterTemplateGalleryOpen,
       starterTemplateGalleryHighlightedSlug,
       openStarterTemplateGallery,
@@ -4099,6 +4113,7 @@ export function EditProvider({
       closePalette,
       togglePalette,
       dismissCentredModals,
+      dismissCompetingEditorChrome,
       starterTemplateGalleryOpen,
       starterTemplateGalleryHighlightedSlug,
       openStarterTemplateGallery,

@@ -186,7 +186,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     paletteOpen,
     togglePalette,
     closePalette,
-    dismissCentredModals,
+    dismissCompetingEditorChrome,
     shortcutOverlayOpen,
     openShortcutOverlay,
     closeShortcutOverlay,
@@ -241,7 +241,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     if (!panel) return;
     // Legacy admin redirects should present the target surface cleanly —
     // palette / shortcut overlay / pages dropdown shouldn't stack oddly.
-    dismissCentredModals();
+    dismissCompetingEditorChrome();
 
     const templateSlug = searchParams.get("template");
     const dispatch: Record<string, (() => void) | "noop"> = {
@@ -281,7 +281,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openStarterTemplateGallery,
     requestPagesPickerOpen,
     pageSlug,
-    dismissCentredModals,
+    dismissCompetingEditorChrome,
   ]);
 
   // T0-1 — Server-action network failure resilience.

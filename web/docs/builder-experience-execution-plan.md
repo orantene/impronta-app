@@ -107,7 +107,7 @@ Legend: ✅ live & matches mockup · 🟡 partial / select-heavy · ❌ missing 
 
 **Score (post Phase A+B+C, 2026-04-25):** 21 ✅ · 2 🟡 (backlogged) · 3 ❌ (deferred) · 0 🐛 · 0 ❓ — out of 26 surfaces
 
-**Housekeeping (2026-05):** Legacy `?panel=` handling in `edit-shell.tsx` now reads `useSearchParams`, opens the matching drawer/UI once, then **`router.replace`** strips `panel` / `template` while preserving hash — avoids firing after every render and keeps Next.js client URL state aligned (raw `history.replaceState` did not). **`EditContext.dismissCentredModals`** (palette + shortcut overlay) runs on panel deep-link first paint and inside each drawer/library/template-gallery/pages-picker opener so centred chrome doesn't stack over drawer-scale surfaces.
+**Housekeeping (2026-05):** Legacy `?panel=` handling in `edit-shell.tsx` now reads `useSearchParams`, opens the matching drawer/UI once, then **`router.replace`** strips `panel` / `template` while preserving hash — avoids firing after every render and keeps Next.js client URL state aligned (raw `history.replaceState` did not). **`EditContext.dismissCompetingEditorChrome`** runs on panel deep-link first paint and before each right-rail drawer / pages-picker / library / picker-popover path: it clears **`dismissCentredModals`** targets plus starter template gallery and section-library chrome so nothing stacks over the drawer slot (Phase A mutex increment toward root cause 1; full `useEditorPanel` slice still optional).
 
 ---
 
