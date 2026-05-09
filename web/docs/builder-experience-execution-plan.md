@@ -107,7 +107,7 @@ Legend: ✅ live & matches mockup · 🟡 partial / select-heavy · ❌ missing 
 
 **Score (post Phase A+B+C, 2026-04-25):** 21 ✅ · 2 🟡 (backlogged) · 3 ❌ (deferred) · 0 🐛 · 0 ❓ — out of 26 surfaces
 
-**Housekeeping (2026-05):** Legacy `?panel=` handling in `edit-shell.tsx` now reads `useSearchParams`, opens the matching drawer/UI once, then **`router.replace`** strips `panel` / `template` while preserving hash — avoids firing after every render and keeps Next.js client URL state aligned (raw `history.replaceState` did not).
+**Housekeeping (2026-05):** Legacy `?panel=` handling in `edit-shell.tsx` now reads `useSearchParams`, opens the matching drawer/UI once, then **`router.replace`** strips `panel` / `template` while preserving hash — avoids firing after every render and keeps Next.js client URL state aligned (raw `history.replaceState` did not). Deep links also **close the command palette and shortcut overlay** first so modals do not stack over the target drawer.
 
 ---
 

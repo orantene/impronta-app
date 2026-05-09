@@ -3,6 +3,10 @@
 /**
  * SectionPickerPopover — Sprint 3 navigator/library merge surface.
  *
+ * Companion to mockup §8 (`docs/mockups/builder-experience.html`): contextual
+ * mini-picker at canvas `+` insertion points; full §8 library stays one
+ * click away (`Browse all sections…`).
+ *
  * Replaces the full-page composition library overlay for the most common
  * insertion path: clicking an inline `+` between sections. Anchored at the
  * click coordinates, scoped to the slot's allowed section types, fits in

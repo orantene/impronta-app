@@ -3,7 +3,8 @@
 /**
  * CompositionLibraryOverlay — section picker for the in-place editor.
  *
- * Phase D — rebuilt to match prototype §8:
+ * Mockup: `docs/mockups/builder-experience.html` §8 (Add section library).
+ * Phase D — rebuilt to match that surface:
  *   - Drawer chrome (existing kit) preserved on desktop.
  *   - Search input first; auto-focuses on open; matches name + description
  *     across ALL section types (default + advanced) regardless of toggle.

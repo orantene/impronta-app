@@ -238,6 +238,11 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   useEffect(() => {
     const panel = searchParams.get("panel");
     if (!panel) return;
+    // Legacy admin redirects should present the target drawer cleanly —
+    // dismiss centred modals so nothing stacks above the right-rail surface.
+    if (paletteOpen) closePalette();
+    if (shortcutOverlayOpen) closeShortcutOverlay();
+
     const templateSlug = searchParams.get("template");
     const dispatch: Record<string, (() => void) | "noop"> = {
       publish: openPublish,
@@ -276,6 +281,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openStarterTemplateGallery,
     requestPagesPickerOpen,
     pageSlug,
+    paletteOpen,
+    closePalette,
+    shortcutOverlayOpen,
+    closeShortcutOverlay,
   ]);
 
   // T0-1 — Server-action network failure resilience.

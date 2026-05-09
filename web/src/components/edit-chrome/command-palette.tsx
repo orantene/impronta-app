@@ -22,8 +22,9 @@
  *   1. Sections — every section currently in the homepage, listed by
  *      slot. Selecting a section runs `setSelectedSectionId` so the
  *      inspector engages it; if the navigator's open it follows along.
- *   2. Drawers — the five right-side drawers (Publish, Page Settings,
- *      Revisions, Theme, Assets). Selecting opens the drawer.
+ *   2. Drawers — right-side mutex drawers (Publish, Page Settings,
+ *      Revisions, Theme, Assets, Schedule, Comments) plus Pages menu and
+ *      Template gallery entries. Selecting opens the drawer or bumps UI state.
  *   3. Actions — undo, redo, save draft, duplicate selected, toggle
  *      navigator, switch device. Driven by the SHORTCUTS registry so
  *      Phase 10's overlay reads from the same source.
