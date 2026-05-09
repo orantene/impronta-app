@@ -380,6 +380,14 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         return;
       }
 
+      // ⌘⇧P (or Ctrl+Shift+P) opens the TopBar Pages picker — mirrors §24 +
+      // palette row `open-pages-picker`.
+      if (mod && e.shiftKey && key === "p") {
+        e.preventDefault();
+        requestPagesPickerOpen();
+        return;
+      }
+
       if (mod && key === "z") {
         e.preventDefault();
         if (e.shiftKey) void redo();
@@ -498,6 +506,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     removeSection,
     reportMutationError,
     toggleNavigator,
+    requestPagesPickerOpen,
     publishOpen,
     pageSettingsOpen,
     revisionsOpen,

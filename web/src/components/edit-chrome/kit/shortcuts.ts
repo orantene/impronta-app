@@ -103,6 +103,14 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: true,
   },
   {
+    id: "open-pages-picker",
+    label: "Open Pages menu",
+    description: "Switch page or open Manage pages.",
+    keys: ["⌘", "⇧", "P"],
+    category: "drawers",
+    paletteAction: true,
+  },
+  {
     id: "open-revisions",
     label: "Open Revisions",
     description: "Browse and restore prior drafts.",
