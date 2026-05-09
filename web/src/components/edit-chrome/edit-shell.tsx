@@ -186,6 +186,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     paletteOpen,
     togglePalette,
     closePalette,
+    dismissCentredModals,
     shortcutOverlayOpen,
     openShortcutOverlay,
     closeShortcutOverlay,
@@ -238,10 +239,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   useEffect(() => {
     const panel = searchParams.get("panel");
     if (!panel) return;
-    // Legacy admin redirects should present the target drawer cleanly —
-    // dismiss centred modals so nothing stacks above the right-rail surface.
-    if (paletteOpen) closePalette();
-    if (shortcutOverlayOpen) closeShortcutOverlay();
+    // Legacy admin redirects should present the target surface cleanly —
+    // palette / shortcut overlay / pages dropdown shouldn't stack oddly.
+    dismissCentredModals();
 
     const templateSlug = searchParams.get("template");
     const dispatch: Record<string, (() => void) | "noop"> = {
@@ -281,10 +281,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openStarterTemplateGallery,
     requestPagesPickerOpen,
     pageSlug,
-    paletteOpen,
-    closePalette,
-    shortcutOverlayOpen,
-    closeShortcutOverlay,
+    dismissCentredModals,
   ]);
 
   // T0-1 — Server-action network failure resilience.
@@ -347,10 +344,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
 
-      // ⌘K (or Ctrl+K) toggles the command palette. Lives above all the
-      // drawer dismiss logic so an operator can summon the palette
-      // without losing the drawer they're currently inspecting — the
-      // palette is a modal, not a drawer, and doesn't mutex with them.
+      // ⌘K (or Ctrl+K) toggles the command palette. Drawer opens routed through
+      // EditContext dismiss centred modals first (palette stays summonable again
+      // afterward without closing a drawer already open).
       if (mod && key === "k") {
         e.preventDefault();
         togglePalette();

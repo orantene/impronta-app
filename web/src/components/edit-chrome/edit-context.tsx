@@ -498,12 +498,13 @@ export interface EditContextValue {
 
   // ── command palette (Phase 8) ──
   /**
-   * Visibility flag for the centred ⌘K command palette. Unlike the
-   * right-side drawers, the palette is a modal — it doesn't mutex with
-   * the drawers (an operator can have Theme open behind a palette
-   * search). Lazy-mounted: we render `null` while closed so the
-   * palette's internal effects (focus, keyboard listeners) only
-   * subscribe when actually visible.
+   * Visibility flag for the centred ⌘K command palette. Lazy-mounted:
+   * we render `null` while closed so the palette's internal effects
+   * (focus, keyboard listeners) only subscribe when actually visible.
+   * Opening a right-rail drawer or other drawer-scale surface via context
+   * (`openPublish`, etc.) calls `dismissCentredModals` first so the
+   * palette doesn't stack above those surfaces; operators can still ⌘K
+   * again afterward while a drawer stays open.
    */
   paletteOpen: boolean;
   openPalette: () => void;
@@ -522,14 +523,15 @@ export interface EditContextValue {
    * Visibility flag for the keyboard-shortcuts reference overlay
    * (Phase 10). The `?` global keybind toggles it; the overlay reads
    * from the centralised `SHORTCUTS` registry so chips never drift
-   * between the palette and the reference. Like the palette it's a
-   * modal, not mutexed with the right-side drawers — an operator can
-   * peek at "what was the keybind for X" mid-drawer.
+   * between the palette and the reference. Drawer opens dismiss it via
+   * `dismissCentredModals` like the palette.
    */
   shortcutOverlayOpen: boolean;
   openShortcutOverlay: () => void;
   closeShortcutOverlay: () => void;
   toggleShortcutOverlay: () => void;
+  /** ⌘K palette + `?` overlay — closes both without touching drawers. */
+  dismissCentredModals: () => void;
   /**
    * Roll the draft back to the chosen revision. Wraps
    * `restoreHomepageRevisionAction` in the same CAS-safe rhythm as
@@ -1522,7 +1524,9 @@ export function EditProvider({
     string | null
   >(null);
 
-  // command palette state (Phase 8) — modal, not mutexed with drawers
+  // command palette state (Phase 8) — centred modal; opening a right-rail
+  // drawer or full template gallery calls `dismissCentredModals` so it
+  // doesn't stack visually above those surfaces.
   const [paletteOpen, setPaletteOpen] = useState(false);
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
@@ -1530,27 +1534,9 @@ export function EditProvider({
     () => setPaletteOpen((prev) => !prev),
     [],
   );
-  const [starterTemplateGalleryOpen, setStarterTemplateGalleryOpen] =
-    useState(false);
-  const [
-    starterTemplateGalleryHighlightedSlug,
-    setStarterTemplateGalleryHighlightedSlug,
-  ] = useState<string | null>(null);
-  const openStarterTemplateGallery = useCallback(
-    (highlightedSlug?: string | null) => {
-      setLibraryTarget(null);
-      setPickerPopover(null);
-      setStarterTemplateGalleryHighlightedSlug(highlightedSlug ?? null);
-      setStarterTemplateGalleryOpen(true);
-    },
-    [],
-  );
-  const closeStarterTemplateGallery = useCallback(() => {
-    setStarterTemplateGalleryOpen(false);
-    setStarterTemplateGalleryHighlightedSlug(null);
-  }, []);
 
-  // keyboard-shortcuts overlay state (Phase 10)
+  // keyboard-shortcuts overlay state (Phase 10) — declared before template
+  // gallery open handler so both modals can be cleared together.
   const [shortcutOverlayOpen, setShortcutOverlayOpen] = useState(false);
   const openShortcutOverlay = useCallback(
     () => setShortcutOverlayOpen(true),
@@ -1564,6 +1550,33 @@ export function EditProvider({
     () => setShortcutOverlayOpen((prev) => !prev),
     [],
   );
+
+  /** ⌘K palette + ? overlay — hide when opening drawer-scale surfaces. */
+  const dismissCentredModals = useCallback(() => {
+    setPaletteOpen(false);
+    setShortcutOverlayOpen(false);
+  }, []);
+
+  const [starterTemplateGalleryOpen, setStarterTemplateGalleryOpen] =
+    useState(false);
+  const [
+    starterTemplateGalleryHighlightedSlug,
+    setStarterTemplateGalleryHighlightedSlug,
+  ] = useState<string | null>(null);
+  const openStarterTemplateGallery = useCallback(
+    (highlightedSlug?: string | null) => {
+      dismissCentredModals();
+      setLibraryTarget(null);
+      setPickerPopover(null);
+      setStarterTemplateGalleryHighlightedSlug(highlightedSlug ?? null);
+      setStarterTemplateGalleryOpen(true);
+    },
+    [dismissCentredModals],
+  );
+  const closeStarterTemplateGallery = useCallback(() => {
+    setStarterTemplateGalleryOpen(false);
+    setStarterTemplateGalleryHighlightedSlug(null);
+  }, []);
 
   // structure navigator (left rail) — open by default; ⌘\ toggles
   const [navigatorOpen, setNavigatorOpen] = useState(true);
@@ -3578,9 +3591,13 @@ export function EditProvider({
     [capHistory],
   );
 
-  const openLibrary = useCallback((target: LibraryTarget) => {
-    setLibraryTarget(target);
-  }, []);
+  const openLibrary = useCallback(
+    (target: LibraryTarget) => {
+      dismissCentredModals();
+      setLibraryTarget(target);
+    },
+    [dismissCentredModals],
+  );
   const closeLibrary = useCallback(() => setLibraryTarget(null), []);
 
   // Sprint 3 — inline picker popover. The popover is the default
@@ -3588,10 +3605,11 @@ export function EditProvider({
   // modal library (so the operator never sees both at once).
   const openPickerPopover = useCallback(
     (target: LibraryTarget, x: number, y: number) => {
+      dismissCentredModals();
       setLibraryTarget(null);
       setPickerPopover({ target, x, y });
     },
-    [],
+    [dismissCentredModals],
   );
   const closePickerPopover = useCallback(() => setPickerPopover(null), []);
 
@@ -3603,6 +3621,7 @@ export function EditProvider({
   // a drawer slides in front of it (higher z-index) and the inspector
   // remains underneath as the operator's "current section" anchor.
   const openPublish = useCallback(() => {
+    dismissCentredModals();
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
     setThemeOpen(false);
@@ -3610,10 +3629,11 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setPublishOpen(true);
-  }, []);
+  }, [dismissCentredModals]);
   const closePublish = useCallback(() => setPublishOpen(false), []);
 
   const openPageSettings = useCallback(() => {
+    dismissCentredModals();
     setPublishOpen(false);
     setRevisionsOpen(false);
     setThemeOpen(false);
@@ -3621,14 +3641,16 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setPageSettingsOpen(true);
-  }, []);
+  }, [dismissCentredModals]);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
 
   const requestPagesPickerOpen = useCallback(() => {
+    dismissCentredModals();
     setPagesPickerOpenNonce((n) => n + 1);
-  }, []);
+  }, [dismissCentredModals]);
 
   const openRevisions = useCallback(() => {
+    dismissCentredModals();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setThemeOpen(false);
@@ -3636,11 +3658,12 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setRevisionsOpen(true);
-  }, []);
+  }, [dismissCentredModals]);
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
 
   const openTheme = useCallback(() => {
     if (!canEditSiteShell) return;
+    dismissCentredModals();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3648,10 +3671,11 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setThemeOpen(true);
-  }, [canEditSiteShell]);
+  }, [canEditSiteShell, dismissCentredModals]);
   const closeTheme = useCallback(() => setThemeOpen(false), []);
 
   const openAssets = useCallback(() => {
+    dismissCentredModals();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3659,10 +3683,11 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsOpen(false);
     setAssetsOpen(true);
-  }, []);
+  }, [dismissCentredModals]);
   const closeAssets = useCallback(() => setAssetsOpen(false), []);
 
   const openSchedule = useCallback(() => {
+    dismissCentredModals();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3670,7 +3695,7 @@ export function EditProvider({
     setAssetsOpen(false);
     setCommentsOpen(false);
     setScheduleOpen(true);
-  }, []);
+  }, [dismissCentredModals]);
   const closeSchedule = useCallback(() => setScheduleOpen(false), []);
 
   // Comments drawer (Phase 11) — same right-side mutex pattern. Two
@@ -3679,6 +3704,7 @@ export function EditProvider({
   // thread (used by the canvas pin click). The drawer reads
   // `commentsFocusSectionId` to decide which view to render on mount.
   const openComments = useCallback(() => {
+    dismissCentredModals();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3687,8 +3713,9 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsFocusSectionId(null);
     setCommentsOpen(true);
-  }, []);
+  }, [dismissCentredModals]);
   const openCommentsForSection = useCallback((sectionId: string) => {
+    dismissCentredModals();
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
@@ -3697,7 +3724,7 @@ export function EditProvider({
     setScheduleOpen(false);
     setCommentsFocusSectionId(sectionId);
     setCommentsOpen(true);
-  }, []);
+  }, [dismissCentredModals]);
   const closeComments = useCallback(() => {
     setCommentsOpen(false);
     setCommentsFocusSectionId(null);
@@ -3944,6 +3971,7 @@ export function EditProvider({
       openPalette,
       closePalette,
       togglePalette,
+      dismissCentredModals,
       starterTemplateGalleryOpen,
       starterTemplateGalleryHighlightedSlug,
       openStarterTemplateGallery,
@@ -4070,6 +4098,7 @@ export function EditProvider({
       openPalette,
       closePalette,
       togglePalette,
+      dismissCentredModals,
       starterTemplateGalleryOpen,
       starterTemplateGalleryHighlightedSlug,
       openStarterTemplateGallery,
