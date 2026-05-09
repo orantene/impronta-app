@@ -22,6 +22,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tagFor } from "@/lib/site-admin";
 import type { Locale } from "@/lib/site-admin/locales";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { previewCookieNameFor } from "@/lib/site-admin/preview/cookie";
 import { verifyPreviewJwt } from "@/lib/site-admin/preview/jwt";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
@@ -218,23 +219,26 @@ export async function isPreviewActiveForTenant(
 
 /**
  * Storefront read entry point. When preview is active for this tenant,
- * returns the draft composition (uncached, always fresh). Otherwise
- * returns the published snapshot from cache. Callers should use this
- * instead of calling `loadPublicHomepage` directly — it's a thin wrapper
- * that preserves the cached-publish path for the 99.9% of traffic that
- * isn't previewing.
+ * or in-place edit mode is engaged (tenant edit cookie), returns the draft
+ * composition (uncached, draft-first — same path as preview). Otherwise
+ * returns the published snapshot from cache. Draft reads keep the storefront
+ * canvas aligned with `EditProvider`, which hydrates from draft while editing.
  */
 export async function loadHomepageForRender(
   tenantId: string,
   locale: Locale,
 ): Promise<PublicHomepage | null> {
-  if (await isPreviewActiveForTenant(tenantId)) {
+  const [previewActive, editActive] = await Promise.all([
+    isPreviewActiveForTenant(tenantId),
+    isEditModeActiveForTenant(tenantId),
+  ]);
+  if (previewActive || editActive) {
     return loadDraftHomepage(tenantId, locale);
   }
   return loadPublicHomepage(tenantId, locale);
 }
 
-// ---- draft read (preview only) -------------------------------------------
+// ---- draft read (preview + in-place edit mode) ---------------------------
 
 function toLegacySnapshotSlots(
   slots: ReadonlyArray<HomepageSnapshot["slots"][number]>,

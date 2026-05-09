@@ -24,7 +24,8 @@ import type { ReactNode } from "react";
  * @deprecated Pass the description as `info` on <InspectorGroup> instead.
  * Renders nothing.
  */
-export function GroupDescription({ children: _ }: { children: ReactNode }) {
+export function GroupDescription({ children }: { children: ReactNode }) {
+  void children;
   return null;
 }
 
@@ -32,12 +33,8 @@ export function GroupDescription({ children: _ }: { children: ReactNode }) {
  * @deprecated Removed from shipped UI. Roadmap notes belong in source
  * comments, not in the UI tree.
  */
-export function NextPassRow({
-  label: _label,
-  hint: _hint,
-}: {
-  label: string;
-  hint: string;
-}) {
+export function NextPassRow(props: { label: string; hint: string }) {
+  void props.label;
+  void props.hint;
   return null;
 }

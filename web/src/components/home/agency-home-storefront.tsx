@@ -95,34 +95,16 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
   const footerTagline =
     identity?.footer_tagline?.trim() || t("public.home.footer.tagline");
-  const cmsHeroSlot = cmsHomepage?.snapshot?.slots.some(
-    (s) => s.slotKey === "hero",
-  );
+  const cmsSlots = cmsHomepage?.snapshot?.slots ?? [];
+  const cmsHeroSlot = cmsSlots.some((s) => s.slotKey === "hero");
+  /** Draft/edit canvases use whatever slot keys the builder assigned — never infer emptiness from a legacy whitelist. */
+  const cmsSectionCount = cmsSlots.length;
   /**
-   * M7.1 — when the operator has composed additional homepage slots beyond
-   * the hero (trust_band, services, featured, process, destinations,
-   * gallery, testimonials, final_cta), render those instead of the legacy
-   * hardcoded stack. A snapshot with ONLY `hero` keeps the existing
-   * hardcoded fallback sections so legacy tenants continue to work.
+   * M7.1 — snapshot-driven slots below the hero region (excluding `hero` —
+   * it's rendered full-bleed above when present). Any non-hero slot with a
+   * section replaces the legacy hardcoded stack for that tenant.
    */
-  const cmsComposedSlotKeys = new Set(
-    (cmsHomepage?.snapshot?.slots ?? []).map((s) => s.slotKey),
-  );
-  const hasCmsComposition = (
-    [
-      "trust_band",
-      "services",
-      "featured",
-      "process",
-      "destinations",
-      "gallery",
-      "testimonials",
-      "final_cta",
-      "primary",
-      "secondary",
-      "footer-callout",
-    ] as const
-  ).some((slotKey) => cmsComposedSlotKeys.has(slotKey));
+  const hasRenderableNonHeroSlots = cmsSlots.some((s) => s.slotKey !== "hero");
   const cmsIntroTagline = cmsHomepage?.snapshot?.fields.introTagline ?? null;
   /**
    * Hero kicker precedence (tenant-safe):
@@ -247,7 +229,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
            * — the operator is stranded. The picker dispatches the same
            * `applyStarterComposition` the admin composer uses, so the two
            * paths converge on the same seeded-draft state. */}
-          {editActive && !cmsHeroSlot && !hasCmsComposition ? (
+          {editActive && cmsSectionCount === 0 ? (
             <EmptyCanvasStarter locale={locale} />
           ) : (
             <>
@@ -334,7 +316,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
            * Rendering skips the `hero` slot because it's already rendered
            * above — the hero lives inside a specific `<section>` that
            * includes the search bar and lifestyle backdrop. */}
-          {hasCmsComposition && cmsHomepage?.snapshot ? (
+          {hasRenderableNonHeroSlots && cmsHomepage?.snapshot ? (
             cmsHomepage.snapshot.slots
               .filter((s) => s.slotKey !== "hero")
               .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))

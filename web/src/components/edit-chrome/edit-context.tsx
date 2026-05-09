@@ -86,6 +86,10 @@ import {
 } from "@/lib/site-admin/builder-capabilities";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
+import { normalizeCompositionSlots } from "./composition-slots";
+
+/** Dispatched from storefront surfaces outside `EditProvider` (empty canvas) to open the template gallery overlay. */
+export const IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT = "impronta:open-template-gallery";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
 
@@ -251,6 +255,8 @@ export interface EditContextValue {
   compositionLoading: boolean;
   compositionError: string | null;
   pageVersion: number | null;
+  /** CAS page row version — read from a ref for saves immediately after async gaps. */
+  getCompositionCasVersion: () => number | null;
   pageMetadata: PageMetadata | null;
   slots: Record<string, CompositionSectionRef[]>;
   builderTree: BuilderNodeTree;
@@ -827,9 +833,10 @@ function writeStoredBuilderBlockPresets(
 }
 
 function stripSnapshotForSave(s: CompositionSnapshot) {
+  const normalized = normalizeCompositionSlots(s.slots);
   const slots: Record<string, Array<{ sectionId: string; sortOrder: number }>> =
     {};
-  for (const [k, v] of Object.entries(s.slots)) {
+  for (const [k, v] of Object.entries(normalized)) {
     slots[k] = v.map((e) => ({ sectionId: e.sectionId, sortOrder: e.sortOrder }));
   }
   return {
@@ -1412,12 +1419,17 @@ export function EditProvider({
     initialComposition?.metadata ?? null,
   );
   const [slots, setSlots] = useState<Record<string, CompositionSectionRef[]>>(
-    initialComposition?.slots ?? {},
+    () => normalizeCompositionSlots(initialComposition?.slots ?? {}),
   );
-  const [builderTree, setBuilderTree] = useState<BuilderNodeTree>(
-    initialComposition?.builderTree ??
-      buildBuilderTreeFromSlots(initialComposition?.slots ?? {}),
-  );
+  const [builderTree, setBuilderTree] = useState<BuilderNodeTree>(() => {
+    const normalizedSlots = normalizeCompositionSlots(
+      initialComposition?.slots ?? {},
+    );
+    const seed =
+      initialComposition?.builderTree ??
+      buildBuilderTreeFromSlots(normalizedSlots);
+    return reconcileBuilderTreeFromSlots(seed, normalizedSlots);
+  });
   const [slotDefs, setSlotDefs] = useState<CompositionSlotDef[]>(
     initialComposition?.slotDefs ?? [],
   );
@@ -1659,13 +1671,14 @@ export function EditProvider({
     ) => {
       setSlots((prev) => {
         const next = typeof updater === "function" ? updater(prev) : updater;
-        slotsRef.current = next;
+        const normalized = normalizeCompositionSlots(next);
+        slotsRef.current = normalized;
         setBuilderTree((prevTree) => {
-          const nextTree = reconcileBuilderTreeFromSlots(prevTree, next);
+          const nextTree = reconcileBuilderTreeFromSlots(prevTree, normalized);
           builderTreeRef.current = nextTree;
           return nextTree;
         });
-        return next;
+        return normalized;
       });
     },
     [],
@@ -1776,15 +1789,20 @@ export function EditProvider({
   );
 
   const applyComposition = useCallback((data: CompositionData) => {
+    const normalizedSlots = normalizeCompositionSlots(data.slots);
     pageVersionRef.current = data.pageVersion;
     pageMetadataRef.current = data.metadata;
-    slotsRef.current = data.slots;
-    builderTreeRef.current =
-      data.builderTree ?? buildBuilderTreeFromSlots(data.slots);
+    slotsRef.current = normalizedSlots;
+    const seedTree =
+      data.builderTree ?? buildBuilderTreeFromSlots(normalizedSlots);
+    builderTreeRef.current = reconcileBuilderTreeFromSlots(
+      seedTree,
+      normalizedSlots,
+    );
     setPageId(data.pageId);
     setPageVersion(data.pageVersion);
     setPageMetadata(data.metadata);
-    setSlots(data.slots);
+    setSlots(normalizedSlots);
     setBuilderTree(builderTreeRef.current);
     setSlotDefs(data.slotDefs);
     setLibrary(data.library);
@@ -1852,6 +1870,8 @@ export function EditProvider({
   // the starter card is rendered in the storefront tree (not inside
   // EditProvider), so after it applies a starter we listen for its window
   // event and refresh both composition state and server-rendered canvas here.
+  // Saved workspace templates cannot mount on that card (no context); CTAs
+  // dispatch IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT so we open the shell modal here.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onStarterApplied = () => {
@@ -1861,11 +1881,16 @@ export function EditProvider({
         window.dispatchEvent(new CustomEvent("impronta:starter-sync-complete"));
       })();
     };
+    const onOpenTemplateGallery = () => {
+      openStarterTemplateGallery(null);
+    };
     window.addEventListener("impronta:starter-applied", onStarterApplied);
+    window.addEventListener(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT, onOpenTemplateGallery);
     return () => {
       window.removeEventListener("impronta:starter-applied", onStarterApplied);
+      window.removeEventListener(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT, onOpenTemplateGallery);
     };
-  }, [refreshComposition, router]);
+  }, [openStarterTemplateGallery, refreshComposition, router]);
 
   // ── mutation helper ─────────────────────────────────────────────────
   const currentSnapshot = useCallback<() => CompositionSnapshot>(() => {
@@ -2301,12 +2326,14 @@ export function EditProvider({
     async (
       compute: (prev: CompositionSnapshot) => CompositionSnapshot | null,
     ): Promise<{ ok: boolean; error?: string }> => {
-      if (pageVersion === null) {
+      if (pageVersionRef.current === null) {
         return { ok: false, error: "Composition not loaded yet." };
       }
       const snap = currentSnapshot();
-      const next = compute(snap);
-      if (!next) return { ok: false, error: "Mutation produced no change." };
+      const nextRaw = compute(snap);
+      if (!nextRaw) return { ok: false, error: "Mutation produced no change." };
+      const normalizedSlots = normalizeCompositionSlots(nextRaw.slots);
+      const next = { ...nextRaw, slots: normalizedSlots };
 
       // optimistic apply
       setPast((p) =>
@@ -2321,10 +2348,19 @@ export function EditProvider({
         next.slots,
       );
 
+      const casVersion = pageVersionRef.current;
+      if (casVersion === null) {
+        setSaving(false);
+        setSlotsAndBuilderTree(snap.slots);
+        setPageMetadata(snap.metadata);
+        setPast((p) => p.slice(0, -1));
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+
       const save = await saveHomepageCompositionAction({
         locale,
         pageId,
-        expectedVersion: pageVersion,
+        expectedVersion: casVersion,
         ...stripSnapshotForSave(next),
         builderTree: builderTreeForSave,
       });
@@ -2341,11 +2377,11 @@ export function EditProvider({
         return { ok: false, error: save.error };
       }
       setPageVersion(save.pageVersion);
+      pageVersionRef.current = save.pageVersion;
       router.refresh();
       return { ok: true };
     },
     [
-      pageVersion,
       currentSnapshot,
       locale,
       pageId,
@@ -2480,7 +2516,7 @@ export function EditProvider({
       const res = await duplicateSectionAction({
         locale,
         pageId,
-        expectedVersion: pageVersion,
+        expectedVersion: pageVersionRef.current ?? pageVersion,
         metadata: snap.metadata,
         slots: stripSnapshotForSave(snap).slots,
         builderTree,
@@ -3342,19 +3378,24 @@ export function EditProvider({
   // ── undo / redo ────────────────────────────────────────────────────
   const restoreSnapshot = useCallback(
     async (target: CompositionSnapshot): Promise<boolean> => {
-      if (pageVersion === null) return false;
+      if (pageVersionRef.current === null) return false;
       setSaving(true);
-      setSlotsAndBuilderTree(target.slots);
-      setPageMetadata(target.metadata);
+      const normalizedSlots = normalizeCompositionSlots(target.slots);
+      const normalizedTarget: CompositionSnapshot = {
+        ...target,
+        slots: normalizedSlots,
+      };
+      setSlotsAndBuilderTree(normalizedTarget.slots);
+      setPageMetadata(normalizedTarget.metadata);
       const builderTreeForSave = reconcileBuilderTreeFromSlots(
         builderTreeRef.current,
-        target.slots,
+        normalizedTarget.slots,
       );
       const save = await saveHomepageCompositionAction({
         locale,
         pageId,
-        expectedVersion: pageVersion,
-        ...stripSnapshotForSave(target),
+        expectedVersion: pageVersionRef.current,
+        ...stripSnapshotForSave(normalizedTarget),
         builderTree: builderTreeForSave,
       });
       setSaving(false);
@@ -3368,14 +3409,7 @@ export function EditProvider({
       router.refresh();
       return true;
     },
-    [
-      pageVersion,
-      locale,
-      pageId,
-      refreshComposition,
-      router,
-      setSlotsAndBuilderTree,
-    ],
+    [locale, pageId, refreshComposition, router, setSlotsAndBuilderTree],
   );
 
   /**
@@ -3672,7 +3706,7 @@ export function EditProvider({
       const res = await restoreHomepageRevisionAction({
         revisionId,
         locale,
-        expectedVersion: pageVersion,
+        expectedVersion: pageVersionRef.current ?? pageVersion,
       });
       setSaving(false);
       if (!res.ok) {
@@ -3740,7 +3774,8 @@ export function EditProvider({
    * conflict we reload authoritative state so the operator can re-press.
    */
   const saveDraft = useCallback<EditContextValue["saveDraft"]>(async () => {
-    if (pageVersion === null) {
+    const casVersion = pageVersionRef.current;
+    if (casVersion === null) {
       return { ok: false, error: "Composition not loaded yet." };
     }
     const snap = currentSnapshot();
@@ -3748,7 +3783,7 @@ export function EditProvider({
     const res = await saveDraftHomepageAction({
       locale,
       pageId,
-      expectedVersion: pageVersion,
+      expectedVersion: casVersion,
       ...stripSnapshotForSave(snap),
       builderTree: reconcileBuilderTreeFromSlots(builderTree, snap.slots),
     });
@@ -3764,7 +3799,6 @@ export function EditProvider({
     setLastDraftSavedAt(res.savedAt);
     return { ok: true, savedAt: res.savedAt };
   }, [
-    pageVersion,
     currentSnapshot,
     locale,
     pageId,
@@ -3772,6 +3806,10 @@ export function EditProvider({
     builderTree,
     reportMutationError,
   ]);
+
+  const getCompositionCasVersion = useCallback<
+    EditContextValue["getCompositionCasVersion"]
+  >(() => pageVersionRef.current, []);
 
   const value = useMemo<EditContextValue>(
     () => ({
@@ -3816,6 +3854,7 @@ export function EditProvider({
       compositionLoading,
       compositionError,
       pageVersion,
+      getCompositionCasVersion,
       pageMetadata,
       slots,
       builderTree,
@@ -3944,6 +3983,7 @@ export function EditProvider({
       compositionLoading,
       compositionError,
       pageVersion,
+      getCompositionCasVersion,
       pageMetadata,
       slots,
       builderTree,

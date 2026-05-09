@@ -298,16 +298,22 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           onClose();
         },
       ),
-      drawerRow(
-        "open-revisions",
-        "Open Revisions",
-        "Browse and restore prior drafts",
-        ["history", "rollback", "restore", "version"],
-        () => {
-          ctx.openRevisions();
-          onClose();
-        },
-      ),
+    );
+    if (!ctx.pageSlug) {
+      rows.push(
+        drawerRow(
+          "open-revisions",
+          "Open Revisions",
+          "Browse and restore prior drafts",
+          ["history", "rollback", "restore", "version"],
+          () => {
+            ctx.openRevisions();
+            onClose();
+          },
+        ),
+      );
+    }
+    rows.push(
       ...(isShortcutVisible("open-theme", {
         canEditSiteShell: ctx.canEditSiteShell,
       })

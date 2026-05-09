@@ -53,7 +53,7 @@ import {
   WireEditorial,
   WireStudioMinimal,
 } from "./starter-wireframes";
-import { WorkspaceTemplateGallery } from "./WorkspaceTemplateGallery";
+import { IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT } from "./edit-context";
 
 export interface RecipeTile {
   slug: string;
@@ -591,11 +591,21 @@ export function EmptyCanvasStarter({
 
         {showTemplateGallery ? (
           <div className="mt-6 border-t border-zinc-100 pt-4">
-            <WorkspaceTemplateGallery
-              defaultOpen={false}
-              enableSave={false}
-              reloadOnApply
-            />
+            <p className="text-[11px] leading-relaxed text-zinc-600">
+              Saved workspace layouts are listed under{" "}
+              <strong className="font-semibold text-zinc-800">Templates</strong>
+              {" "}in the editor top bar. Use the button below if that drawer isn&apos;t
+              open yet.
+            </p>
+            <button
+              type="button"
+              className="mt-3 inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 shadow-sm transition hover:bg-zinc-50"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT));
+              }}
+            >
+              Open Templates gallery
+            </button>
           </div>
         ) : null}
       </div>

@@ -214,9 +214,12 @@ export function RevisionsDrawer(): ReactElement | null {
     revisionsOpen,
     closeRevisions,
     locale,
+    pageSlug,
     pageMetadata,
     restoreRevision,
   } = useEditContext();
+
+  const homepageRevisionUiOnly = Boolean(pageSlug);
 
   const [revisions, setRevisions] = useState<RevisionListRow[] | null>(null);
   const [publishedVersion, setPublishedVersion] = useState<number | null>(null);
@@ -231,6 +234,13 @@ export function RevisionsDrawer(): ReactElement | null {
   useEffect(() => {
     if (!revisionsOpen) {
       setConfirmId(null);
+      return;
+    }
+    if (homepageRevisionUiOnly) {
+      setLoading(false);
+      setError(null);
+      setRevisions(null);
+      setPublishedVersion(null);
       return;
     }
     let cancelled = false;
@@ -249,7 +259,7 @@ export function RevisionsDrawer(): ReactElement | null {
     return () => {
       cancelled = true;
     };
-  }, [revisionsOpen, locale]);
+  }, [homepageRevisionUiOnly, revisionsOpen, locale]);
 
   async function handleRestore(rev: RevisionListRow): Promise<void> {
     setPendingId(rev.id);
@@ -277,6 +287,22 @@ export function RevisionsDrawer(): ReactElement | null {
       />
 
       <DrawerBody>
+        {homepageRevisionUiOnly ? (
+          <div
+            className="rounded-md px-3 py-2 text-[12px] leading-relaxed"
+            style={{
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.line}`,
+              color: CHROME.muted,
+            }}
+          >
+            Revision history in this drawer is for the{" "}
+            <strong style={{ color: CHROME.text }}>homepage</strong> only. For this
+            CMS page, use{" "}
+            <strong style={{ color: CHROME.text }}>Save draft</strong> to keep a
+            recoverable checkpoint.
+          </div>
+        ) : null}
         {error ? (
           <div
             className="mb-3 rounded-md px-3 py-2"

@@ -21,7 +21,7 @@
  *     the operator clicks Done. Cancel closes without emitting.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   searchAgencyTalentAction,

@@ -34,7 +34,6 @@ export function validateHref(raw: string): HrefValidation {
   if (ABSOLUTE_HTTP.test(v)) {
     // Try the URL constructor — catches typos like "https:/example.com"
     try {
-      // eslint-disable-next-line no-new
       new URL(v);
       return { kind: "valid", note: "External link" };
     } catch {

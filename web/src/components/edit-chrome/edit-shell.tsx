@@ -230,7 +230,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     const dispatch: Record<string, (() => void) | "noop"> = {
       publish: openPublish,
       pageSettings: openPageSettings,
-      revisions: openRevisions,
+      revisions: pageSlug ? "noop" : openRevisions,
       theme: openTheme,
       assets: openAssets,
       schedule: openSchedule,
@@ -578,7 +578,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onRedo={() => void redo()}
           onPublish={openPublish}
           onPageSettings={openPageSettings}
-          onRevisions={openRevisions}
+          onRevisions={pageSlug ? undefined : openRevisions}
           onTheme={canEditSiteShell ? openTheme : undefined}
           onAssets={openAssets}
           onTemplates={openStarterTemplateGallery}
@@ -804,16 +804,9 @@ function DraftSavedToast() {
 
 function MutationErrorToast() {
   const { mutationError, clearMutationError } = useEditContext();
-  if (!mutationError) return null;
-  const detailLines = mutationError.details?.slice(0, 3) ?? [];
-  const operationLabel = mutationError.operation
-    ? humanizeMutationOperation(mutationError.operation)
-    : null;
-  const suggestion = mutationError.code
-    ? mutationCodeSuggestion(mutationError.code)
-    : null;
 
   useEffect(() => {
+    if (!mutationError) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       const target = event.target as HTMLElement | null;
@@ -822,7 +815,16 @@ function MutationErrorToast() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [clearMutationError]);
+  }, [clearMutationError, mutationError]);
+
+  if (!mutationError) return null;
+  const detailLines = mutationError.details?.slice(0, 3) ?? [];
+  const operationLabel = mutationError.operation
+    ? humanizeMutationOperation(mutationError.operation)
+    : null;
+  const suggestion = mutationError.code
+    ? mutationCodeSuggestion(mutationError.code)
+    : null;
 
   return (
     <div

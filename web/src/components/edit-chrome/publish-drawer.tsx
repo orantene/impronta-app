@@ -219,7 +219,7 @@ export function PublishDrawer() {
     slots,
     slotDefs,
     pageMetadata,
-    pageVersion,
+    getCompositionCasVersion,
     pageId,
     pageSlug,
     dirty,
@@ -383,7 +383,8 @@ export function PublishDrawer() {
   }, [publishDiff.removedSectionIds, publishedRows]);
 
   async function handlePublish() {
-    if (pageVersion === null) return;
+    const casVersion = getCompositionCasVersion();
+    if (casVersion === null) return;
     setState({ kind: "publishing" });
     // safeAction wrapper: if the dev server restarts mid-publish or the
     // network drops, we get a graceful "Network error" toast instead of
@@ -397,7 +398,7 @@ export function PublishDrawer() {
           // through the homepage publish path — passing null signals that
           // path to the action.
           pageId: pageSlug ? pageId : null,
-          expectedVersion: pageVersion,
+          expectedVersion: casVersion,
         }),
       {
         name: "publishHomepageFromEditModeAction",
@@ -442,7 +443,7 @@ export function PublishDrawer() {
     preflightLoading ||
     preflightBlockingErrors > 0 ||
     summary.missing.length > 0 ||
-    pageVersion === null;
+    getCompositionCasVersion() === null;
   const publishBlockReasons = useMemo(() => {
     const reasons: string[] = [];
     if (preflightLoading) reasons.push("Preflight checks are still running.");
@@ -462,9 +463,18 @@ export function PublishDrawer() {
     }
     if (saving) reasons.push("Wait for autosave to finish.");
     else if (dirty) reasons.push("Save draft changes before publishing.");
-    if (pageVersion === null) reasons.push("Page version is unavailable. Reload and try again.");
+    if (getCompositionCasVersion() === null) {
+      reasons.push("Page version is unavailable. Reload and try again.");
+    }
     return reasons;
-  }, [dirty, pageVersion, preflightBlockingErrors, preflightLoading, saving, summary.missing]);
+  }, [
+    dirty,
+    getCompositionCasVersion,
+    preflightBlockingErrors,
+    preflightLoading,
+    saving,
+    summary.missing,
+  ]);
 
   const isSuccess = state.kind === "success";
 

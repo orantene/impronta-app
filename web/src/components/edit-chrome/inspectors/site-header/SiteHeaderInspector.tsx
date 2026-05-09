@@ -179,6 +179,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
   const queueRef = useRef<Map<PendingKind, Pending>>(new Map());
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<Promise<void> | null>(null);
+  const flushRef = useRef<(() => Promise<void>) | null>(null);
 
   // Two debounce windows:
   //   - 450ms for text inputs (brand label, tagline, href). Long enough
@@ -191,7 +192,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
   const scheduleFlush = useCallback((delay: number = 450) => {
     if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
     flushTimerRef.current = setTimeout(() => {
-      void flush();
+      void flushRef.current?.();
     }, delay);
   }, []);
 
@@ -337,6 +338,8 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
       scheduleFlush();
     }
   }, [router, scheduleFlush]);
+
+  flushRef.current = flush;
 
   const enqueueIdentity = useCallback(
     (payload: Record<string, unknown>) => {
@@ -500,8 +503,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
     const snap = undoSnapshotRef.current;
     if (!snap || !config) return;
     // Don't capture another undo while we're replaying the rollback.
-    undoSnapshotRef.current = null;
-    setHasUndo(false);
+    clearUndo();
 
     // Identity rollback
     if (
@@ -567,7 +569,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
         enqueueToken(key, value);
       }
     }
-  }, [config, enqueueIdentity, enqueueBranding, enqueueToken]);
+  }, [clearUndo, config, enqueueIdentity, enqueueBranding, enqueueToken]);
 
   // Render.
   if (loadError) {
