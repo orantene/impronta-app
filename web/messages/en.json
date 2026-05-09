@@ -446,6 +446,7 @@
     "impersonationReadOnly": "Viewing as",
     "impersonationV1ReadOnlyQa": "v1 read-only QA mode — saves and mutations are disabled.",
     "returnToAdmin": "Return to admin",
+    "readOnlyBadge": "Read only",
     "clientOverview": {
       "title": "Overview",
       "subtitle": "Jump into each area of your portal — the workspace bar above keeps directory and cart one tap away.",
@@ -788,19 +789,23 @@
         "pendingWaitingSingular": "{count} self-registration waiting for review",
         "pendingWaitingPlural": "{count} self-registrations waiting for review",
         "pendingHint": "Approve, request changes, or reject. Average review time: under 24h.",
-        "pendingReview": "Review →"
+        "pendingReview": "Review →",
+        "fabLabel": "Create new"
       },
       "status": {
         "published": "Published",
         "pending": "Pending",
         "invited": "Invited",
-        "draft": "Draft"
+        "draft": "Draft",
+        "claimed": "Claimed"
       },
       "filters": {
         "searchAria": "Search roster",
         "searchPlaceholder": "Search by name, type, city…",
         "allTypes": "All types",
         "talentSuffix": "talent",
+        "resultCountFull": "{totalCount} talent",
+        "resultCountPartial": "{resultCount} of {totalCount}",
         "ofSeparator": "of",
         "selectAll": "Select all",
         "selectedClear": "selected · clear",
@@ -819,6 +824,7 @@
         "deselectAria": "Deselect",
         "noTypeSet": "No type set",
         "activePrefix": "active",
+        "activeLine": " · active {when}",
         "portfolioPhotoSingular": "{count} portfolio photo",
         "portfolioPhotoPlural": "{count} portfolio photos",
         "disputedTitle": "Talent disputed this profile claim — admin review needed.",
@@ -849,6 +855,30 @@
         "archive": "Archive",
         "pitch": "Pitch",
         "clearAria": "Clear selection"
+      },
+      "cap": {
+        "headline": "{current} of {cap} {label} used",
+        "detailBlocked": "You're at the limit. Upgrade your plan to add more roster profiles.",
+        "detailRemainingOne": "1 roster spot left before you hit the cap.",
+        "detailRemainingMany": "{remaining} roster spots left before you hit the cap."
+      },
+      "skillDiscovery": {
+        "toggle": "Find talent by skill",
+        "title": "Find talent by skill",
+        "close": "Close",
+        "category": "Category",
+        "specificSkill": "Specific skill",
+        "anySkillOption": "Any skill in this category",
+        "minProficiency": "Minimum proficiency",
+        "anyLevel": "Any level",
+        "verifiedOnly": "Only verified skills",
+        "search": "Search",
+        "searching": "Searching…",
+        "clear": "Clear",
+        "matchesOne": "1 match found",
+        "matchesMany": "{count} matches found",
+        "noFeaturedSkill": "No featured skill",
+        "score": "score {score}"
       }
     },
     "account": {

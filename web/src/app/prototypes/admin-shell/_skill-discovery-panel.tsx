@@ -26,6 +26,15 @@ import {
   getEnabledParentCategoriesForPicker,
   getTalentTypesUnderParent,
 } from "@/lib/server-actions/admin-talent-skills";
+import { useProto } from "@/app/prototypes/admin-shell/_state";
+
+function fillAdminTpl(template: string, vars: Record<string, string>) {
+  let s = template;
+  for (const [k, v] of Object.entries(vars)) {
+    s = s.split(`{${k}}`).join(v);
+  }
+  return s;
+}
 
 const T = {
   ink: "#0B0B0D",
@@ -51,6 +60,7 @@ export function SkillDiscoveryPanel({
 }: {
   onTalentClick?: (talentProfileId: string) => void;
 }) {
+  const { t } = useProto();
   const [open, setOpen] = useState(false);
   const [parents, setParents] = useState<
     Array<{ id: string; slug: string; name_en: string }>
@@ -154,7 +164,7 @@ export function SkillDiscoveryPanel({
           }}
         >
           <span style={{ fontSize: 13 }}>🔍</span>
-          Find talent by skill
+          {t("admin.roster.skillDiscovery.toggle")}
         </button>
       )}
 
@@ -162,7 +172,7 @@ export function SkillDiscoveryPanel({
         <>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>
-              Find talent by skill
+              {t("admin.roster.skillDiscovery.title")}
             </div>
             <button
               type="button"
@@ -177,14 +187,14 @@ export function SkillDiscoveryPanel({
                 fontFamily: F_BODY,
               }}
             >
-              ✕ Close
+              ✕ {t("admin.roster.skillDiscovery.close")}
             </button>
           </div>
 
           {/* Parent picker */}
           <div style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: T.inkMuted, marginBottom: 4 }}>
-              Category
+              {t("admin.roster.skillDiscovery.category")}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {parents.map((p) => (
@@ -218,7 +228,7 @@ export function SkillDiscoveryPanel({
           {selectedParentSlug && skillTypes.length > 0 && (
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: T.inkMuted, marginBottom: 4 }}>
-                Specific skill
+                {t("admin.roster.skillDiscovery.specificSkill")}
               </div>
               <select
                 value={selectedSkillSlug ?? ""}
@@ -233,7 +243,7 @@ export function SkillDiscoveryPanel({
                   background: T.surface,
                 }}
               >
-                <option value="">Any skill in this category</option>
+                <option value="">{t("admin.roster.skillDiscovery.anySkillOption")}</option>
                 {skillTypes.map((t) => (
                   <option key={t.id} value={t.slug}>
                     {t.name_en}
@@ -246,7 +256,7 @@ export function SkillDiscoveryPanel({
           {/* Min proficiency */}
           <div style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: T.inkMuted, marginBottom: 4 }}>
-              Minimum proficiency
+              {t("admin.roster.skillDiscovery.minProficiency")}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               <button
@@ -264,7 +274,7 @@ export function SkillDiscoveryPanel({
                   fontFamily: F_BODY,
                 }}
               >
-                Any level
+                {t("admin.roster.skillDiscovery.anyLevel")}
               </button>
               {PROFICIENCY_LEVELS.map((lvl) => (
                 <button
@@ -307,7 +317,7 @@ export function SkillDiscoveryPanel({
               checked={verifiedOnly}
               onChange={(e) => setVerifiedOnly(e.target.checked)}
             />
-            Only verified skills
+            {t("admin.roster.skillDiscovery.verifiedOnly")}
           </label>
 
           {/* Actions */}
@@ -328,7 +338,7 @@ export function SkillDiscoveryPanel({
                 fontFamily: F_BODY,
               }}
             >
-              {searching ? "Searching…" : "Search"}
+              {searching ? t("admin.roster.skillDiscovery.searching") : t("admin.roster.skillDiscovery.search")}
             </button>
             <button
               type="button"
@@ -345,7 +355,7 @@ export function SkillDiscoveryPanel({
                 fontFamily: F_BODY,
               }}
             >
-              Clear
+              {t("admin.roster.skillDiscovery.clear")}
             </button>
           </div>
 
@@ -374,7 +384,9 @@ export function SkillDiscoveryPanel({
                 marginBottom: 8,
               }}
             >
-              {totalCount} {totalCount === 1 ? "match" : "matches"} found
+              {totalCount === 1
+                ? t("admin.roster.skillDiscovery.matchesOne")
+                : fillAdminTpl(t("admin.roster.skillDiscovery.matchesMany"), { count: String(totalCount) })}
             </div>
           )}
 
@@ -427,7 +439,7 @@ export function SkillDiscoveryPanel({
                       {r.display_name}
                     </div>
                     <div style={{ fontSize: 11, color: T.inkMuted, marginTop: 1 }}>
-                      {r.featured_skill_name ?? "No featured skill"}
+                      {r.featured_skill_name ?? t("admin.roster.skillDiscovery.noFeaturedSkill")}
                       {r.featured_proficiency && (
                         <>
                           {" · "}
@@ -451,7 +463,7 @@ export function SkillDiscoveryPanel({
                     </div>
                   </div>
                   <div style={{ fontSize: 10.5, color: T.inkMuted }}>
-                    score {r.score}
+                    {fillAdminTpl(t("admin.roster.skillDiscovery.score"), { score: String(r.score) })}
                   </div>
                 </button>
               ))}

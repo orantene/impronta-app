@@ -5091,6 +5091,23 @@ function FreeValuePanel() {
 // TALENT
 // ════════════════════════════════════════════════════════════════════
 
+function fillAdminTpl(template: string, vars: Record<string, string>) {
+  let s = template;
+  for (const [k, v] of Object.entries(vars)) {
+    s = s.split(`{${k}}`).join(v);
+  }
+  return s;
+}
+
+function rosterWorkflowStateLabel(t: (key: string) => string, state: TalentProfile["state"]): string {
+  if (state === "awaiting-approval") return t("admin.roster.status.pending");
+  if (state === "published") return t("admin.roster.status.published");
+  if (state === "draft") return t("admin.roster.status.draft");
+  if (state === "invited") return t("admin.roster.status.invited");
+  if (state === "claimed") return t("admin.roster.status.claimed");
+  return state;
+}
+
 /** Next plan up that lifts the roster cap. Network has no further upgrade. */
 function nextPlanForRoster(plan: Plan): Plan | null {
   if (plan === "free") return "studio";
@@ -5202,7 +5219,7 @@ function TalentPage() {
         representation: p.representation ?? "",
       })),
     );
-    toast(`Exported ${filteredRoster.length} rows to CSV`);
+    toast(fillAdminTpl(t("admin.roster.list.exportedToast"), { count: String(filteredRoster.length) }));
   };
 
   const rosterCap =
@@ -5216,8 +5233,6 @@ function TalentPage() {
             : null
       : null;
 
-  const entityMeta = ENTITY_TYPE_META[state.entityType];
-
   // Bulk select helpers
   const toggleSelect = (id: string) =>
     setSelected((s) => {
@@ -5230,21 +5245,24 @@ function TalentPage() {
 
   const handleBulkAction = async (status: "publish" | "archive") => {
     if (!tenantSlug) {
-      toast("Bulk actions require a live workspace connection.");
+      toast(t("admin.roster.list.bulkRequiresWorkspace"));
       return;
     }
     setIsBulkLoading(true);
     const result = await bulkSetWorkflowStatus(tenantSlug, Array.from(selected), status);
     setIsBulkLoading(false);
     if (result.ok) {
-      const label = status === "publish" ? "Published" : "Archived";
-      toast(`${label} ${result.updatedCount} profile${result.updatedCount === 1 ? "" : "s"}`);
+      toast(
+        status === "publish"
+          ? fillAdminTpl(t("admin.roster.list.bulkPublishedToast"), { count: String(result.updatedCount) })
+          : fillAdminTpl(t("admin.roster.list.bulkArchivedToast"), { count: String(result.updatedCount) }),
+      );
       clearSelected();
       // Refresh server-rendered roster so the new workflow_status badges
       // (Published / Archived) update on the cards immediately.
       router.refresh();
     } else {
-      toast(`Error: ${result.error}`);
+      toast(fillAdminTpl(t("admin.roster.list.bulkErrorToast"), { error: result.error }));
     }
   };
 
@@ -5265,12 +5283,12 @@ function TalentPage() {
   return (
     <>
       <PageHeader
-        eyebrow={state.entityType === "hub" ? "Network" : "Talent"}
-        title={entityMeta.rosterLabel}
+        eyebrow={state.entityType === "hub" ? t("admin.roster.list.eyebrowNetwork") : t("admin.roster.list.eyebrowTalent")}
+        title={state.entityType === "hub" ? t("admin.roster.list.eyebrowNetwork") : t("admin.account.rosterLabel")}
         subtitle={
           state.entityType === "hub"
-            ? "Independent members listed in your network. Each one moves through invited → onboarded → live → featured."
-            : "Profiles you represent. Each one moves through draft → invited → published → claimed."
+            ? t("admin.roster.list.headerSubtitleHub")
+            : t("admin.roster.list.headerSubtitleAgency")
         }
         actions={
           <>
@@ -5284,16 +5302,16 @@ function TalentPage() {
                   onExport={exportCsv}
                   onImport={() => {
                     setMoreOpen(false);
-                    toast("Bulk import CSV — upload a .csv with name, email, city, height columns.");
+                    toast(t("admin.roster.list.importToast"));
                   }}
                   onTypes={() => {
                     setMoreOpen(false);
                     openDrawer("talent-types");
                   }}
                 />
-                <GhostButton onClick={() => openDrawer("invite-flow")}>Invite</GhostButton>
+                <GhostButton onClick={() => openDrawer("invite-flow")}>{t("admin.roster.list.invite")}</GhostButton>
                 <PrimaryButton onClick={() => openDrawer("new-talent")}>
-                  {state.entityType === "hub" ? "Invite member" : "Add talent"}
+                  {state.entityType === "hub" ? t("admin.roster.list.inviteMember") : t("admin.roster.list.addTalent")}
                 </PrimaryButton>
               </>
             )}
@@ -5317,9 +5335,22 @@ function TalentPage() {
       {/* Cap nudge — kept as a thin top strip when relevant */}
       {rosterCap !== null && nextPlanForRoster(state.plan) && (
         <CapNudge
-          label="talents"
+          label={t("admin.roster.list.capLabel")}
           current={roster.length}
           cap={rosterCap}
+          upgradeLabel={t("admin.roster.new.upgradePlan")}
+          translateCap={({ current, cap, label, blocking, remaining }) => ({
+            headline: fillAdminTpl(t("admin.roster.cap.headline"), {
+              current: String(current),
+              cap: String(cap),
+              label,
+            }),
+            detail: blocking
+              ? t("admin.roster.cap.detailBlocked")
+              : remaining === 1
+                ? t("admin.roster.cap.detailRemainingOne")
+                : fillAdminTpl(t("admin.roster.cap.detailRemainingMany"), { remaining: String(remaining) }),
+          })}
           onUpgrade={() => {
             const next = nextPlanForRoster(state.plan)!;
             openUpgrade({
@@ -5440,19 +5471,24 @@ function TalentPage() {
           agencyName={effectiveTenant.name}
           onPitchSent={() => {
             clearSelected();
-            toast("Pitch sent!");
+            toast(t("admin.roster.list.pitchSentToast"));
           }}
         />
       )}
 
       {/* Mobile FAB — full quick-create menu */}
-      {canEdit && <FabWithQuickCreate />}
+      {canEdit && <FabWithQuickCreate label={t("admin.roster.list.fabLabel")} />}
     </>
   );
 }
 
 // ── Pending approvals strip ─────────────────────────────────────────
 function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: () => void }) {
+  const { t } = useProto();
+  const pendingTitle =
+    count === 1
+      ? fillAdminTpl(t("admin.roster.list.pendingWaitingSingular"), { count: String(count) })
+      : fillAdminTpl(t("admin.roster.list.pendingWaitingPlural"), { count: String(count) });
   return (
     <div
       style={{
@@ -5484,10 +5520,10 @@ function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: (
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.amberDeep }}>
-          {count} self-registration{count === 1 ? "" : "s"} waiting for review
+          {pendingTitle}
         </div>
         <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
-          Approve, request changes, or reject. Average review time: under 24h.
+          {t("admin.roster.list.pendingHint")}
         </div>
       </div>
       <button
@@ -5506,7 +5542,7 @@ function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: (
           whiteSpace: "nowrap",
         }}
       >
-        Review →
+        {t("admin.roster.list.pendingReview")}
       </button>
     </div>
   );
@@ -5514,6 +5550,7 @@ function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: (
 
 // ── Self-on-roster row — refined hairline strip ─────────────────────
 function SelfOnRosterRow({ onEdit }: { onEdit: () => void }) {
+  const { t } = useProto();
   return (
     <div
       style={{
@@ -5530,7 +5567,7 @@ function SelfOnRosterRow({ onEdit }: { onEdit: () => void }) {
     >
       <span style={{ fontSize: 13 }}>👤</span>
       <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: COLORS.inkMuted }}>
-        You're on this roster too — your public listing is what bookers see.
+        {t("admin.roster.list.selfRowText")}
       </div>
       <button
         type="button"
@@ -5546,7 +5583,7 @@ function SelfOnRosterRow({ onEdit }: { onEdit: () => void }) {
           fontFamily: FONTS.body,
         }}
       >
-        Edit my profile →
+        {t("admin.roster.list.selfRowEdit")}
       </button>
     </div>
   );
@@ -5562,11 +5599,12 @@ function RosterStatusStrip({
   active: "all" | "published" | "draft" | "invited" | "awaiting-approval";
   onFilter: (f: "published" | "draft" | "invited" | "awaiting-approval") => void;
 }) {
+  const { t } = useProto();
   const items: { id: "published" | "awaiting-approval" | "invited" | "draft"; label: string; count: number; tone: string }[] = [
-    { id: "published",         label: "Published",  count: counts.published, tone: COLORS.green },
-    { id: "awaiting-approval", label: "Pending",    count: counts.awaiting,  tone: COLORS.amber },
-    { id: "invited",           label: "Invited",    count: counts.invited,   tone: COLORS.indigoDeep },
-    { id: "draft",             label: "Draft",      count: counts.draft,     tone: COLORS.inkMuted },
+    { id: "published",         label: t("admin.roster.status.published"), count: counts.published, tone: COLORS.green },
+    { id: "awaiting-approval", label: t("admin.roster.status.pending"),    count: counts.awaiting,  tone: COLORS.amber },
+    { id: "invited",           label: t("admin.roster.status.invited"),    count: counts.invited,   tone: COLORS.indigoDeep },
+    { id: "draft",             label: t("admin.roster.status.draft"),      count: counts.draft,     tone: COLORS.inkMuted },
   ];
   return (
     <div
@@ -5664,6 +5702,14 @@ function RosterFilterBar({
   resultCount: number;
   totalCount: number;
 }) {
+  const { t } = useProto();
+  const resultLabel =
+    resultCount === totalCount
+      ? fillAdminTpl(t("admin.roster.filters.resultCountFull"), { totalCount: String(totalCount) })
+      : fillAdminTpl(t("admin.roster.filters.resultCountPartial"), {
+          resultCount: String(resultCount),
+          totalCount: String(totalCount),
+        });
   return (
     <div
       data-tulala-roster-filterbar
@@ -5700,10 +5746,10 @@ function RosterFilterBar({
         </span>
         <input
           type="text"
-          aria-label="Search roster"
+          aria-label={t("admin.roster.filters.searchAria")}
           value={search}
           onChange={(e) => onSearch(e.target.value)}
-          placeholder="Search by name, type, city…"
+          placeholder={t("admin.roster.filters.searchPlaceholder")}
           style={{
             width: "100%",
             boxSizing: "border-box",
@@ -5725,7 +5771,7 @@ function RosterFilterBar({
       {usedTypes.length > 0 && (
         <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
           <FilterChip
-            label="All types"
+            label={t("admin.roster.filters.allTypes")}
             active={typeFilter === "all"}
             onClick={() => onTypeFilter("all")}
           />
@@ -5748,7 +5794,7 @@ function RosterFilterBar({
 
       {/* Result count */}
       <div style={{ fontSize: 11.5, color: COLORS.inkMuted, fontWeight: 500 }}>
-        {resultCount === totalCount ? `${totalCount} talent` : `${resultCount} of ${totalCount}`}
+        {resultLabel}
       </div>
 
       {/* Sort */}
@@ -5774,14 +5820,19 @@ function RosterFilterBar({
             fontWeight: 600,
           }}
         >
-          {selectedCount} selected · clear
+          {(() => {
+            const parts = t("admin.roster.filters.selectedClear").split("·").map((s) => s.trim());
+            const selectedWord = parts[0] ?? "";
+            const clearWord = parts[1] ?? "";
+            return `${selectedCount} ${selectedWord} · ${clearWord}`;
+          })()}
         </button>
       )}
       {canBulk && selectedCount === 0 && (
         <button
           type="button"
           onClick={onSelectAll}
-          aria-label="Select all"
+          aria-label={t("admin.roster.filters.selectAll")}
           style={{
             padding: "5px 10px",
             background: "transparent",
@@ -5794,7 +5845,7 @@ function RosterFilterBar({
             fontWeight: 500,
           }}
         >
-          Select all
+          {t("admin.roster.filters.selectAll")}
         </button>
       )}
     </div>
@@ -5848,11 +5899,12 @@ function SortButton({
   onSort: (s: "name" | "completeness" | "newest" | "lastEdited") => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useProto();
   const sortLabel = {
-    name: "Name",
-    completeness: "Completeness",
-    newest: "Newest",
-    lastEdited: "Last edited",
+    name: t("admin.roster.filters.sortName"),
+    completeness: t("admin.roster.filters.sortCompleteness"),
+    newest: t("admin.roster.filters.sortNewest"),
+    lastEdited: t("admin.roster.filters.sortLastEdited"),
   }[sort];
   const arrow = sortDir === "asc" ? " ↑" : " ↓";
   return (
@@ -5873,7 +5925,7 @@ function SortButton({
           whiteSpace: "nowrap",
         }}
       >
-        Sort: <strong>{sortLabel}{arrow}</strong>
+        {t("admin.roster.filters.sortLabel")} <strong>{sortLabel}{arrow}</strong>
       </button>
       {open && (
         <>
@@ -5894,7 +5946,12 @@ function SortButton({
             }}
           >
             {(["name", "completeness", "newest", "lastEdited"] as const).map((s) => {
-              const labels: Record<string, string> = { name: "Name", completeness: "Completeness", newest: "Newest", lastEdited: "Last edited" };
+              const labels: Record<string, string> = {
+                name: t("admin.roster.filters.sortName"),
+                completeness: t("admin.roster.filters.sortCompleteness"),
+                newest: t("admin.roster.filters.sortNewest"),
+                lastEdited: t("admin.roster.filters.sortLastEdited"),
+              };
               return (
                 <button
                   key={s}
@@ -5921,6 +5978,7 @@ function SortButton({
 }
 
 function ViewToggle({ view, onView }: { view: "grid" | "list"; onView: (v: "grid" | "list") => void }) {
+  const { t } = useProto();
   return (
     <div
       style={{
@@ -5936,7 +5994,7 @@ function ViewToggle({ view, onView }: { view: "grid" | "list"; onView: (v: "grid
           key={v}
           type="button"
           onClick={() => onView(v)}
-          aria-label={`${v} view`}
+          aria-label={v === "grid" ? t("admin.roster.filters.viewGridAria") : t("admin.roster.filters.viewListAria")}
           aria-pressed={view === v}
           style={{
             width: 28,
@@ -5989,12 +6047,13 @@ function RosterMoreMenu({
   onImport: () => void;
   onTypes: () => void;
 }) {
+  const { t } = useProto();
   return (
     <div style={{ position: "relative" }}>
       <button
         type="button"
         onClick={onToggle}
-        aria-label="More actions"
+        aria-label={t("admin.roster.list.moreActionsAria")}
         style={{
           width: 32,
           height: 32,
@@ -6029,9 +6088,9 @@ function RosterMoreMenu({
             }}
           >
             {[
-              { id: "export", label: "Export CSV",    onClick: onExport },
-              { id: "import", label: "Import CSV",    onClick: onImport },
-              { id: "types",  label: "Talent types…", onClick: onTypes },
+              { id: "export", label: t("admin.roster.list.exportCsv"),    onClick: onExport },
+              { id: "import", label: t("admin.roster.list.importCsv"),    onClick: onImport },
+              { id: "types",  label: t("admin.roster.list.talentTypes"), onClick: onTypes },
             ].map((item) => (
               <button
                 key={item.id}
@@ -6121,7 +6180,7 @@ function RosterCard({
   onOpen: (p: TalentProfile) => void;
 }) {
   const [hover, setHover] = useState(false);
-  const { bridgeTalentSelfProfile } = useProto();
+  const { bridgeTalentSelfProfile, t } = useProto();
   const isSelf = !!bridgeTalentSelfProfile?.id && profile.id === bridgeTalentSelfProfile.id;
 
   // Resolve primary type → label + parent emoji + first specialty.
@@ -6218,7 +6277,7 @@ function RosterCard({
         {/* "You" badge — persistent marker when this is the signed-in talent's own profile */}
         {isSelf && (
           <div
-            aria-label="Your talent profile"
+            aria-label={t("admin.roster.card.youBadgeAria")}
             style={{
               position: "absolute",
               top: 8,
@@ -6238,7 +6297,7 @@ function RosterCard({
               pointerEvents: "none",
             }}
           >
-            You
+            {t("admin.roster.card.youBadge")}
           </div>
         )}
 
@@ -6250,7 +6309,7 @@ function RosterCard({
               e.stopPropagation();
               onSelect(profile.id);
             }}
-            aria-label={selected ? "Deselect" : "Select"}
+            aria-label={selected ? t("admin.roster.card.deselectAria") : t("admin.roster.card.selectAria")}
             style={{
               position: "absolute",
               top: 8,
@@ -6296,9 +6355,7 @@ function RosterCard({
           }}
         >
           <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
-          <span style={{ textTransform: "capitalize" }}>
-            {profile.state === "awaiting-approval" ? "pending" : profile.state}
-          </span>
+          <span>{rosterWorkflowStateLabel(t, profile.state)}</span>
         </div>
 
         {/* Bottom-left stack: completeness (non-published only) + portfolio count */}
@@ -6332,7 +6389,15 @@ function RosterCard({
           )}
           {profile.portfolioCount !== undefined && (
             <div
-              title={`${profile.portfolioCount} portfolio photo${profile.portfolioCount === 1 ? "" : "s"}`}
+              title={
+                profile.portfolioCount === 1
+                  ? fillAdminTpl(t("admin.roster.card.portfolioPhotoSingular"), {
+                      count: String(profile.portfolioCount),
+                    })
+                  : fillAdminTpl(t("admin.roster.card.portfolioPhotoPlural"), {
+                      count: String(profile.portfolioCount),
+                    })
+              }
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -6419,7 +6484,7 @@ function RosterCard({
             </span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-            {typeMeta?.label ?? profile.primaryType ?? "No type set"}
+            {typeMeta?.label ?? profile.primaryType ?? t("admin.roster.card.noTypeSet")}
             {typeMeta?.specialty && (
               <span style={{ color: COLORS.inkMuted, fontWeight: 500 }}>
                 {" · "}{typeMeta.specialty}
@@ -6436,7 +6501,9 @@ function RosterCard({
             }}
           >
             📍 {profile.city}
-            {profile.lastActive && profile.lastActive !== "—" && ` · active ${profile.lastActive}`}
+            {profile.lastActive && profile.lastActive !== "—"
+              ? fillAdminTpl(t("admin.roster.card.activeLine"), { when: profile.lastActive })
+              : null}
           </div>
         )}
         {/* Trust & claim indicators — visible on every Roster card. */}
@@ -6450,31 +6517,31 @@ function RosterCard({
 
 /** Resolves trust state for a talent and renders compact admin-surface badges. */
 function RosterTrustCell({ talentId }: { talentId: string }) {
-  const { getTrustSummary } = useProto();
+  const { getTrustSummary, t } = useProto();
   const trust = getTrustSummary("talent_profile", talentId);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
       <TrustBadgeGroup trust={trust} surface="admin_roster" size="sm" max={4} />
       {trust.claimStatus === "disputed" && (
-        <span title="Talent disputed this profile claim — admin review needed."
+        <span title={t("admin.roster.card.disputedTitle")}
           style={{
             display: "inline-flex", alignItems: "center", gap: 4,
             padding: "3px 8px", borderRadius: 999,
             background: "rgba(200,40,40,0.10)", color: "#C82828",
             fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
           }}>
-          ⚠ Disputed
+          {t("admin.roster.card.disputed")}
         </span>
       )}
       {trust.claimStatus === "invite_sent" && (
-        <span title="Claim invite sent — talent has not yet accepted."
+        <span title={t("admin.roster.card.inviteSentTitle")}
           style={{
             display: "inline-flex", alignItems: "center", gap: 4,
             padding: "3px 8px", borderRadius: 999,
             background: "rgba(82,96,109,0.10)", color: "#3A4651",
             fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
           }}>
-          Invite sent
+          {t("admin.roster.card.inviteSent")}
         </span>
       )}
     </div>
@@ -6500,6 +6567,7 @@ function RosterList({
   onSelect?: (id: string) => void;
   onOpen: (p: TalentProfile) => void;
 }) {
+  const { t } = useProto();
   return (
     <div
       data-tulala-roster-list
@@ -6539,10 +6607,10 @@ function RosterList({
       >
         {onSelect && <span style={{ width: 18, flexShrink: 0 }} />}
         <span style={{ width: 36, flexShrink: 0 }} />
-        <span style={{ flex: 1, minWidth: 0 }}>Name · type · city</span>
-        <span data-rl-completeness style={{ width: 56, flexShrink: 0, textAlign: "right" }}>Profile</span>
-        <span data-rl-lastactive style={{ width: 60, flexShrink: 0, textAlign: "right" }}>Active</span>
-        <span style={{ width: 84, flexShrink: 0 }}>State</span>
+        <span style={{ flex: 1, minWidth: 0 }}>{t("admin.roster.row.colName")}</span>
+        <span data-rl-completeness style={{ width: 56, flexShrink: 0, textAlign: "right" }}>{t("admin.roster.row.colProfile")}</span>
+        <span data-rl-lastactive style={{ width: 60, flexShrink: 0, textAlign: "right" }}>{t("admin.roster.row.colActive")}</span>
+        <span style={{ width: 84, flexShrink: 0 }}>{t("admin.roster.row.colState")}</span>
       </div>
       {items.map((p, i) => (
         <RosterRow
@@ -6572,6 +6640,7 @@ function RosterRow({
   onOpen: (p: TalentProfile) => void;
 }) {
   const [hover, setHover] = useState(false);
+  const { t } = useProto();
 
   const typeMeta = (() => {
     if (!profile.primaryType) return null;
@@ -6623,7 +6692,7 @@ function RosterRow({
             e.stopPropagation();
             onSelect(profile.id);
           }}
-          aria-label={selected ? "Deselect" : "Select"}
+          aria-label={selected ? t("admin.roster.card.deselectAria") : t("admin.roster.card.selectAria")}
           style={{
             width: 18,
             height: 18,
@@ -6693,7 +6762,7 @@ function RosterRow({
             </span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-            {typeMeta?.label ?? profile.primaryType ?? "No type"}
+            {typeMeta?.label ?? profile.primaryType ?? t("admin.roster.row.noType")}
             {typeMeta?.specialty && <span style={{ color: COLORS.inkDim }}>{" · "}{typeMeta.specialty}</span>}
             {profile.city && <span style={{ color: COLORS.inkDim }}>{" · "}{profile.city}</span>}
           </span>
@@ -6752,11 +6821,10 @@ function RosterRow({
           fontSize: 10.5,
           fontWeight: 600,
           flexShrink: 0,
-          textTransform: "capitalize",
         }}
       >
         <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
-        {profile.state === "awaiting-approval" ? "pending" : profile.state}
+        {rosterWorkflowStateLabel(t, profile.state)}
       </div>
     </div>
   );
@@ -6774,6 +6842,7 @@ function RosterEmptyState({
   onClear: () => void;
   onAdd?: () => void;
 }) {
+  const { t } = useProto();
   return (
     <div
       style={{
@@ -6796,12 +6865,12 @@ function RosterEmptyState({
           marginBottom: 4,
         }}
       >
-        {searching ? `No matches for "${query}"` : "Your roster is empty"}
+        {searching ? `${t("admin.roster.empty.noMatchesPrefix")} "${query}"` : t("admin.roster.empty.emptyTitle")}
       </div>
       <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
         {searching
-          ? "Try a different name, type, or city — or clear the filters to see everyone."
-          : "Three fast ways to start. Templates pre-fill the common types so your first 3 are 30 seconds each."}
+          ? t("admin.roster.empty.searchHint")
+          : t("admin.roster.empty.emptyHint")}
       </div>
       <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
         {searching && (
@@ -6820,7 +6889,7 @@ function RosterEmptyState({
               cursor: "pointer",
             }}
           >
-            Clear filters
+            {t("admin.roster.empty.clearFilters")}
           </button>
         )}
         {onAdd && !searching && (
@@ -6840,7 +6909,7 @@ function RosterEmptyState({
                 cursor: "pointer",
               }}
             >
-              + Add your first talent
+              {t("admin.roster.empty.addFirst")}
             </button>
             <button
               type="button"
@@ -6857,7 +6926,7 @@ function RosterEmptyState({
                 cursor: "pointer",
               }}
             >
-              📋 Use a template
+              {t("admin.roster.empty.useTemplate")}
             </button>
             <button
               type="button"
@@ -6874,7 +6943,7 @@ function RosterEmptyState({
                 cursor: "pointer",
               }}
             >
-              📎 Bulk via CSV
+              {t("admin.roster.empty.bulkCsv")}
             </button>
           </>
         )}
@@ -6899,6 +6968,8 @@ function RosterBulkActionBar({
   isLoading?: boolean;
   onSendPitch?: () => void;
 }) {
+  const { t } = useProto();
+  const selectedWord = t("admin.roster.bulk.selectedSuffix");
   return (
     <div
       style={{
@@ -6929,7 +7000,7 @@ function RosterBulkActionBar({
           fontWeight: 600,
         }}
       >
-        <span>{count} selected</span>
+        <span>{`${count} ${selectedWord}`}</span>
         <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.18)" }} />
         <button
           type="button"
@@ -6937,7 +7008,7 @@ function RosterBulkActionBar({
           disabled={isLoading}
           style={{ ...bulkBtnStyle, opacity: isLoading ? 0.5 : 1 }}
         >
-          {isLoading ? "…" : "Publish"}
+          {isLoading ? "…" : t("admin.roster.bulk.publish")}
         </button>
         <button
           type="button"
@@ -6945,7 +7016,7 @@ function RosterBulkActionBar({
           disabled={isLoading}
           style={{ ...bulkBtnStyle, opacity: isLoading ? 0.5 : 1 }}
         >
-          {isLoading ? "…" : "Archive"}
+          {isLoading ? "…" : t("admin.roster.bulk.archive")}
         </button>
 
         <button
@@ -6959,13 +7030,13 @@ function RosterBulkActionBar({
             opacity: isLoading ? 0.5 : 1,
           }}
         >
-          Pitch
+          {t("admin.roster.bulk.pitch")}
         </button>
 
         <button
           type="button"
           onClick={onClear}
-          aria-label="Clear selection"
+          aria-label={t("admin.roster.bulk.clearAria")}
           style={{
             width: 28,
             height: 28,

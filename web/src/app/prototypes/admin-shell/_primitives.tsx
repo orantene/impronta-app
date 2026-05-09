@@ -1593,6 +1593,7 @@ export function TrustBoostBanner({
 }
 
 export function ReadOnlyChip() {
+  const { t } = useProto();
   return (
     <span
       style={{
@@ -1612,7 +1613,7 @@ export function ReadOnlyChip() {
       }}
     >
       <Icon name="lock" size={9} stroke={2} />
-      Read only
+      {t("dashboard.readOnlyBadge")}
     </span>
   );
 }
@@ -3069,6 +3070,7 @@ export function CapNudge({
   onUpgrade,
   upgradeLabel = "Upgrade",
   message,
+  translateCap,
 }: {
   /** Short noun for the metric ("talents", "team seats", "saved searches"). */
   label: string;
@@ -3078,8 +3080,16 @@ export function CapNudge({
   triggerAt?: number;
   onUpgrade?: () => void;
   upgradeLabel?: string;
-  /** Optional override for the body copy. */
+  /** Optional override for the body copy (English default path only). */
   message?: string;
+  /** When set, replaces the English headline + detail with localized strings. */
+  translateCap?: (ctx: {
+    current: number;
+    cap: number;
+    label: string;
+    blocking: boolean;
+    remaining: number;
+  }) => { headline: string; detail: string };
 }) {
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
@@ -3092,6 +3102,9 @@ export function CapNudge({
   const defaultMessage = blocking
     ? `You're at the limit. New ${label} can't be added until you upgrade.`
     : `${remaining} ${label.replace(/s$/, "") + (remaining === 1 ? "" : "s")} left before you hit the cap.`;
+  const localized = translateCap?.({ current, cap, label, blocking, remaining });
+  const headline = localized?.headline ?? `${current} of ${cap} ${label} used`;
+  const detail = localized?.detail ?? (message ?? defaultMessage);
 
   return (
     <div
@@ -3132,7 +3145,7 @@ export function CapNudge({
             lineHeight: 1.3,
           }}
         >
-          {current} of {cap} {label} used
+          {headline}
         </div>
         <div
           style={{
@@ -3143,7 +3156,7 @@ export function CapNudge({
             lineHeight: 1.4,
           }}
         >
-          {message ?? defaultMessage}
+          {detail}
         </div>
       </div>
       {onUpgrade && (
