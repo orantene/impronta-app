@@ -4,6 +4,8 @@ export interface LayoutOverflowRisk {
   length: number;
 }
 
+export const LAYOUT_OVERFLOW_BLOCKING_LENGTH = 72;
+
 export interface BreakpointVisibilityRisk {
   path: string;
   breakpoint: "tablet" | "mobile";
@@ -107,6 +109,10 @@ export function collectLayoutOverflowRisks(
 
   walk(value, path);
   return risks;
+}
+
+export function isLayoutOverflowRiskBlocking(risk: LayoutOverflowRisk): boolean {
+  return risk.length >= LAYOUT_OVERFLOW_BLOCKING_LENGTH;
 }
 
 export function collectBreakpointVisibilityRisks(

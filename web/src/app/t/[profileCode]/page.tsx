@@ -758,7 +758,7 @@ export default async function PublicTalentProfilePage({
                 ?.from("media_assets")
                 .select("id, bucket_id, storage_path, width, height, variant_kind, sort_order")
                 .eq("owner_talent_profile_id", profile.id)
-                .in("variant_kind", ["banner", "gallery", "public_watermarked", "card"])
+                .in("variant_kind", ["hero", "gallery", "public_watermarked", "card"])
                 .is("deleted_at", null)
                 .order("sort_order", { ascending: true })
                 .order("id", { ascending: true })
@@ -769,7 +769,7 @@ export default async function PublicTalentProfilePage({
                 .from("media_assets")
                 .select("id, bucket_id, storage_path, width, height, variant_kind, sort_order")
                 .eq("owner_talent_profile_id", profile.id)
-                .in("variant_kind", ["banner", "gallery", "public_watermarked", "card"])
+                .in("variant_kind", ["hero", "gallery", "public_watermarked", "card"])
                 .eq("approval_state", "approved")
                 .is("deleted_at", null)
                 .order("sort_order", { ascending: true })
@@ -781,7 +781,7 @@ export default async function PublicTalentProfilePage({
 
   // Build public URLs for media
   const bannerMedia =
-    media.find((m) => m.variant_kind === "banner") ?? null;
+    media.find((m) => m.variant_kind === "hero") ?? null;
   const profileImageMedia =
     media.find((m) => m.variant_kind === "card") ??
     media.find((m) => m.variant_kind === "public_watermarked") ??

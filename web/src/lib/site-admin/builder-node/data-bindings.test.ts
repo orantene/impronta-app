@@ -55,7 +55,8 @@ test("collects data binding findings across a builder tree", () => {
   ];
 
   assert.deepEqual(
-    collectBuilderDataBindingTreeFindings(tree).map((finding) => ({
+    collectBuilderDataBindingTreeFindings(tree, { workspacePlan: "agency" }).map(
+      (finding) => ({
       id: finding.id,
       nodeId: finding.nodeId,
       severity: finding.severity,
@@ -181,6 +182,28 @@ test("flags plan-restricted binding sources when workspace plan is lower", () =>
     ),
     false,
   );
+});
+
+test("elevates free roster limit to error on free plan", () => {
+  const rosterBinding: BuilderNode = {
+    id: "node-free-limit",
+    kind: "container",
+    props: {
+      layout: "grid",
+      dataBinding: { sourceKey: "featured_talent_profiles", mode: "bound", maxItems: 8 },
+    },
+    children: [],
+  };
+
+  const freeFinding = getBuilderDataBindingFindings(rosterBinding, {
+    workspacePlan: "free",
+  }).find((finding) => finding.id === "free-roster-limit");
+  assert.equal(freeFinding?.severity, "error");
+
+  const agencyFinding = getBuilderDataBindingFindings(rosterBinding, {
+    workspacePlan: "agency",
+  }).find((finding) => finding.id === "free-roster-limit");
+  assert.equal(agencyFinding?.severity, "warning");
 });
 
 test("flags hybrid mode without filter intent", () => {

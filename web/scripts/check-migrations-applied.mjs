@@ -39,6 +39,12 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
 const MIGRATIONS_DIR = join(REPO_ROOT, "supabase", "migrations");
 
+// `--warn-only` mode (used by `predev`): print pending migrations to stderr
+// but don't block the dev server. Devs intentionally iterating on a new
+// migration shouldn't be locked out of `npm run dev`. The build-time
+// (`prebuild`) invocation still hard-fails — that's the deploy gate.
+const WARN_ONLY = process.argv.includes("--warn-only");
+
 if (process.env.SKIP_MIGRATION_DRIFT_CHECK === "1") {
   console.warn(
     "[check-migrations-applied] SKIP_MIGRATION_DRIFT_CHECK=1 — skipping",
@@ -101,13 +107,20 @@ if (pending.length === 0) {
   process.exit(0);
 }
 
+const verb = WARN_ONLY ? "WARNING" : "FAILED";
 console.error(
-  `\n[check-migrations-applied] FAILED — ${pending.length} migration(s) not applied to the connected Supabase project:\n`,
+  `\n[check-migrations-applied] ${verb} — ${pending.length} migration(s) not applied to the connected Supabase project:\n`,
 );
 for (const m of pending) console.error(`  • ${m.filename}`);
 console.error(
   `\nApply with: npx -y supabase@latest db push --linked --include-all --yes`,
 );
+if (WARN_ONLY) {
+  console.error(
+    `\nDev server will start anyway. Build will fail if these aren't applied first.\n`,
+  );
+  process.exit(0);
+}
 console.error(
   `Override (with caution): SKIP_MIGRATION_DRIFT_CHECK=1 npm run build\n`,
 );

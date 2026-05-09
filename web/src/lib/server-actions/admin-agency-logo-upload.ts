@@ -107,6 +107,6 @@ export async function actionUploadAgencyLogo(
       { onConflict: "tenant_id" },
     );
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, logoUrl };
 }

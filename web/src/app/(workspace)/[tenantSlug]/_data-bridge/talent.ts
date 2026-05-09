@@ -38,6 +38,8 @@ export type TalentSelfProfile = {
   hasBio: boolean;
   /** True if height_cm is non-null */
   hasHeight: boolean;
+  /** Contact policy — which client trust tiers can initiate inbound contact */
+  contactPolicy: Record<string, boolean>;
 };
 
 /**
@@ -66,6 +68,7 @@ export async function loadTalentSelfProfile(
         short_bio,
         bio_en,
         height_cm,
+        contact_policy,
         talent_profile_taxonomy (
           relationship_type,
           taxonomy_terms ( name_en )
@@ -93,6 +96,7 @@ export async function loadTalentSelfProfile(
       short_bio: string | null;
       bio_en: string | null;
       height_cm: number | null;
+      contact_policy: Record<string, boolean> | null;
       talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_en: string | null } | null }[] | null;
       talent_service_areas: { service_kind: string | null; locations: { display_name_en: string | null } | null }[] | null;
     };
@@ -172,6 +176,7 @@ export async function loadTalentSelfProfile(
       headshotUrl,
       hasBio: !!(p.short_bio?.trim() || p.bio_en?.trim()),
       hasHeight: p.height_cm !== null,
+      contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
     };
   } catch (err) {
     logServerError("talent.loadSelfProfile", err);

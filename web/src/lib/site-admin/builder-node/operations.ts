@@ -240,10 +240,47 @@ function childAllowed(
   return policy.kinds.includes(childKind);
 }
 
+function allowedChildKindsSummary(parentKind: BuilderNode["kind"]): string {
+  const policy = BUILDER_NODE_REGISTRY[parentKind].children;
+  if (policy.type === "none") return "none";
+  if (policy.type === "any") return "any";
+  return policy.kinds.join(", ");
+}
+
 function subtreeContainsId(node: BuilderNode, nodeId: string): boolean {
   if (node.id === nodeId) return true;
   if (!("children" in node) || !Array.isArray(node.children)) return false;
   return node.children.some((child) => subtreeContainsId(child, nodeId));
+}
+
+function valuesEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== typeof b) return false;
+  if (a === null || b === null) return false;
+
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+      if (!valuesEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  if (typeof a === "object" && typeof b === "object") {
+    const aObj = a as Record<string, unknown>;
+    const bObj = b as Record<string, unknown>;
+    const aKeys = Object.keys(aObj);
+    const bKeys = Object.keys(bObj);
+    if (aKeys.length !== bKeys.length) return false;
+    for (const key of aKeys) {
+      if (!(key in bObj)) return false;
+      if (!valuesEqual(aObj[key], bObj[key])) return false;
+    }
+    return true;
+  }
+
+  return false;
 }
 
 function removingWouldEmptyRequiredGroup(
@@ -274,6 +311,15 @@ function validateTreeOrFail(tree: BuilderNodeTree): BuilderNodeOpResult {
   return { ok: true, tree: validation.tree };
 }
 
+function missingNodeIssue(nodeId: string): ReadonlyArray<{ path: string; message: string }> {
+  return [
+    {
+      path: "source.nodeId",
+      message: `Missing node id "${nodeId}". Refresh and retry.`,
+    },
+  ];
+}
+
 export function insertBuilderNode(input: {
   tree: BuilderNodeTree;
   node: BuilderNode;
@@ -291,6 +337,12 @@ export function insertBuilderNode(input: {
         ok: false,
         code: "PARENT_NOT_FOUND",
         message: `Parent node "${input.parentId}" was not found.`,
+        issues: [
+          {
+            path: "target.parentId",
+            message: `Missing parent id "${input.parentId}". Refresh and retry.`,
+          },
+        ],
       };
     }
     targetPath = parent.path;
@@ -301,6 +353,12 @@ export function insertBuilderNode(input: {
         ok: false,
         code: "PARENT_DOES_NOT_ALLOW_CHILDREN",
         message: `Parent "${parent.node.id}" does not allow children.`,
+        issues: [
+          {
+            path: "target.parent",
+            message: `Parent kind "${parent.node.kind}" does not allow nested blocks.`,
+          },
+        ],
       };
     }
     if (!childAllowed(parent.node.kind, input.node.kind)) {
@@ -308,6 +366,12 @@ export function insertBuilderNode(input: {
         ok: false,
         code: "CHILD_KIND_NOT_ALLOWED",
         message: `Child kind "${input.node.kind}" is not allowed under "${parent.node.kind}".`,
+        issues: [
+          {
+            path: "target.parent",
+            message: `Allowed child kinds: ${allowedChildKindsSummary(parent.node.kind)}.`,
+          },
+        ],
       };
     }
   } else if (!builderNodeKindAllowedAtRoot(input.node.kind)) {
@@ -315,6 +379,12 @@ export function insertBuilderNode(input: {
       ok: false,
       code: "ROOT_KIND_NOT_ALLOWED",
       message: `Root cannot contain node kind "${input.node.kind}".`,
+      issues: [
+        {
+          path: "target.root",
+          message: `Move this block into a section/container instead of page root.`,
+        },
+      ],
     };
   }
 
@@ -324,6 +394,12 @@ export function insertBuilderNode(input: {
       ok: false,
       code: "PARENT_DOES_NOT_ALLOW_CHILDREN",
       message: "Target parent does not support child insertion.",
+      issues: [
+        {
+          path: "target.parent",
+          message: "Choose a section/container/accordion/tabs node as parent.",
+        },
+      ],
     };
   }
   if (parentKind && !childAllowed(parentKind, input.node.kind)) {
@@ -331,6 +407,12 @@ export function insertBuilderNode(input: {
       ok: false,
       code: "CHILD_KIND_NOT_ALLOWED",
       message: `Child kind "${input.node.kind}" is not allowed under "${parentKind}".`,
+      issues: [
+        {
+          path: "target.parent",
+          message: `Allowed child kinds: ${allowedChildKindsSummary(parentKind)}.`,
+        },
+      ],
     };
   }
   const rawIndex = input.index ?? targetChildren.length;
@@ -350,6 +432,7 @@ export function removeBuilderNode(input: {
       ok: false,
       code: "NODE_NOT_FOUND",
       message: `Node "${input.nodeId}" was not found.`,
+      issues: missingNodeIssue(input.nodeId),
     };
   }
   if (removingWouldEmptyRequiredGroup(nextTree, location)) {
@@ -357,6 +440,13 @@ export function removeBuilderNode(input: {
       ok: false,
       code: "INVALID_MOVE_TARGET",
       message: `Cannot remove the last ${location.node.kind === "accordion_item" ? "accordion item" : "tab panel"}.`,
+      issues: [
+        {
+          path: "source.group",
+          message:
+            "Add another item to this accordion/tabs group before removing this one.",
+        },
+      ],
     };
   }
   const parentChildren = getChildrenRefAtPath(nextTree, location.parentPath);
@@ -365,6 +455,12 @@ export function removeBuilderNode(input: {
       ok: false,
       code: "INVALID_MOVE_TARGET",
       message: "Unable to resolve the node parent list for removal.",
+      issues: [
+        {
+          path: "source.parent",
+          message: "The source parent could not be resolved. Refresh and retry.",
+        },
+      ],
     };
   }
   parentChildren.splice(location.index, 1);
@@ -382,6 +478,7 @@ export function duplicateBuilderNode(input: {
       ok: false,
       code: "NODE_NOT_FOUND",
       message: `Node "${input.nodeId}" was not found.`,
+      issues: missingNodeIssue(input.nodeId),
     };
   }
   if (location.node.kind === "section") {
@@ -396,6 +493,12 @@ export function duplicateBuilderNode(input: {
       ok: false,
       code: "ROOT_KIND_NOT_ALLOWED",
       message: `Root cannot contain node kind "${location.node.kind}".`,
+      issues: [
+        {
+          path: "target.root",
+          message: "Duplicate this block inside a section/container instead.",
+        },
+      ],
     };
   }
 
@@ -405,6 +508,12 @@ export function duplicateBuilderNode(input: {
       ok: false,
       code: "INVALID_MOVE_TARGET",
       message: "Unable to resolve the node parent list for duplication.",
+      issues: [
+        {
+          path: "source.parent",
+          message: "The source parent could not be resolved. Refresh and retry.",
+        },
+      ],
     };
   }
   const idMap = new Map<string, string>();
@@ -461,6 +570,7 @@ export function moveBuilderNode(input: {
       ok: false,
       code: "NODE_NOT_FOUND",
       message: `Node "${input.nodeId}" was not found.`,
+      issues: missingNodeIssue(input.nodeId),
     };
   }
   if (input.parentId === input.nodeId) {
@@ -468,6 +578,12 @@ export function moveBuilderNode(input: {
       ok: false,
       code: "INVALID_MOVE_TARGET",
       message: "A node cannot be moved into itself.",
+      issues: [
+        {
+          path: "target.parentId",
+          message: "Choose a different destination parent.",
+        },
+      ],
     };
   }
   if (input.parentId && subtreeContainsId(original.node, input.parentId)) {
@@ -475,6 +591,13 @@ export function moveBuilderNode(input: {
       ok: false,
       code: "INVALID_MOVE_TARGET",
       message: "A node cannot be moved into one of its own descendants.",
+      issues: [
+        {
+          path: "target.parentId",
+          message:
+            "Move the block to a sibling container or to one of its ancestors instead.",
+        },
+      ],
     };
   }
   if (
@@ -485,6 +608,70 @@ export function moveBuilderNode(input: {
       ok: false,
       code: "INVALID_MOVE_TARGET",
       message: `Cannot move the last ${original.node.kind === "accordion_item" ? "accordion item" : "tab panel"} out of its group.`,
+      issues: [
+        {
+          path: "source.group",
+          message:
+            "Add another item to this accordion/tabs group before moving this one out.",
+        },
+      ],
+    };
+  }
+  // Validate destination against the source tree before mutating a clone.
+  // Keeps the operation pipeline deterministic and error reporting stable.
+  if (input.parentId) {
+    const parent = findNodeLocation(input.tree, input.parentId);
+    if (!parent) {
+      return {
+        ok: false,
+        code: "PARENT_NOT_FOUND",
+        message: `Parent node "${input.parentId}" was not found.`,
+        issues: [
+          {
+            path: "target.parentId",
+            message: `Missing parent id "${input.parentId}". Refresh and retry.`,
+          },
+        ],
+      };
+    }
+    const policy = BUILDER_NODE_REGISTRY[parent.node.kind].children;
+    if (policy.type === "none") {
+      return {
+        ok: false,
+        code: "PARENT_DOES_NOT_ALLOW_CHILDREN",
+        message: `Parent "${parent.node.id}" does not allow children.`,
+        issues: [
+          {
+            path: "target.parent",
+            message: `Parent kind "${parent.node.kind}" does not allow nested blocks.`,
+          },
+        ],
+      };
+    }
+    if (!childAllowed(parent.node.kind, original.node.kind)) {
+      return {
+        ok: false,
+        code: "CHILD_KIND_NOT_ALLOWED",
+        message: `Child kind "${original.node.kind}" is not allowed under "${parent.node.kind}".`,
+        issues: [
+          {
+            path: "target.parent",
+            message: `Allowed child kinds: ${allowedChildKindsSummary(parent.node.kind)}.`,
+          },
+        ],
+      };
+    }
+  } else if (!builderNodeKindAllowedAtRoot(original.node.kind)) {
+    return {
+      ok: false,
+      code: "ROOT_KIND_NOT_ALLOWED",
+      message: `Root cannot contain node kind "${original.node.kind}".`,
+      issues: [
+        {
+          path: "target.root",
+          message: "Drop this block into a section/container instead of page root.",
+        },
+      ],
     };
   }
 
@@ -495,6 +682,7 @@ export function moveBuilderNode(input: {
       ok: false,
       code: "NODE_NOT_FOUND",
       message: `Node "${input.nodeId}" was not found.`,
+      issues: missingNodeIssue(input.nodeId),
     };
   }
   const sourceChildren = getChildrenRefAtPath(nextTree, moving.parentPath);
@@ -503,6 +691,12 @@ export function moveBuilderNode(input: {
       ok: false,
       code: "INVALID_MOVE_TARGET",
       message: "Unable to resolve the node source list for move.",
+      issues: [
+        {
+          path: "source.parent",
+          message: "The source parent could not be resolved. Refresh and retry.",
+        },
+      ],
     };
   }
   const [removed] = sourceChildren.splice(moving.index, 1);
@@ -511,6 +705,7 @@ export function moveBuilderNode(input: {
       ok: false,
       code: "NODE_NOT_FOUND",
       message: `Node "${input.nodeId}" was not found in source list.`,
+      issues: missingNodeIssue(input.nodeId),
     };
   }
 
@@ -523,31 +718,16 @@ export function moveBuilderNode(input: {
         ok: false,
         code: "PARENT_NOT_FOUND",
         message: `Parent node "${input.parentId}" was not found.`,
+        issues: [
+          {
+            path: "target.parentId",
+            message: `Missing parent id "${input.parentId}". Refresh and retry.`,
+          },
+        ],
       };
     }
     targetPath = parent.path;
     parentKind = parent.node.kind;
-    const policy = BUILDER_NODE_REGISTRY[parent.node.kind].children;
-    if (policy.type === "none") {
-      return {
-        ok: false,
-        code: "PARENT_DOES_NOT_ALLOW_CHILDREN",
-        message: `Parent "${parent.node.id}" does not allow children.`,
-      };
-    }
-    if (!childAllowed(parent.node.kind, removed.kind)) {
-      return {
-        ok: false,
-        code: "CHILD_KIND_NOT_ALLOWED",
-        message: `Child kind "${removed.kind}" is not allowed under "${parent.node.kind}".`,
-      };
-    }
-  } else if (!builderNodeKindAllowedAtRoot(removed.kind)) {
-    return {
-      ok: false,
-      code: "ROOT_KIND_NOT_ALLOWED",
-      message: `Root cannot contain node kind "${removed.kind}".`,
-    };
   }
 
   const targetChildren = getChildrenRefAtPath(nextTree, targetPath);
@@ -556,6 +736,12 @@ export function moveBuilderNode(input: {
       ok: false,
       code: "PARENT_DOES_NOT_ALLOW_CHILDREN",
       message: "Target parent does not support child insertion.",
+      issues: [
+        {
+          path: "target.parent",
+          message: "Choose a section/container/accordion/tabs node as parent.",
+        },
+      ],
     };
   }
   if (parentKind && !childAllowed(parentKind, removed.kind)) {
@@ -563,6 +749,12 @@ export function moveBuilderNode(input: {
       ok: false,
       code: "CHILD_KIND_NOT_ALLOWED",
       message: `Child kind "${removed.kind}" is not allowed under "${parentKind}".`,
+      issues: [
+        {
+          path: "target.parent",
+          message: `Allowed child kinds: ${allowedChildKindsSummary(parentKind)}.`,
+        },
+      ],
     };
   }
 
@@ -583,6 +775,7 @@ export function patchBuilderNodeProps(input: {
       ok: false,
       code: "NODE_NOT_FOUND",
       message: `Node "${input.nodeId}" was not found.`,
+      issues: missingNodeIssue(input.nodeId),
     };
   }
   const target = getNodeByPath(nextTree, location.path);
@@ -591,10 +784,28 @@ export function patchBuilderNodeProps(input: {
       ok: false,
       code: "NODE_NOT_FOUND",
       message: `Node "${input.nodeId}" was not found for patch.`,
+      issues: missingNodeIssue(input.nodeId),
+    };
+  }
+  const currentProps = target.props as Record<string, unknown>;
+  const hasRealChange = Object.entries(input.patch).some(([key, value]) => {
+    return !valuesEqual(currentProps[key], value);
+  });
+  if (!hasRealChange) {
+    return {
+      ok: false,
+      code: "INVALID_MOVE_TARGET",
+      message: "No changes to apply.",
+      issues: [
+        {
+          path: "target.patch",
+          message: "Adjust at least one field before saving this update.",
+        },
+      ],
     };
   }
   const mergedProps = {
-    ...(target.props as Record<string, unknown>),
+    ...currentProps,
     ...input.patch,
   };
   (target as unknown as { props: unknown }).props = mergedProps;

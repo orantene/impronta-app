@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { requireStaff, requireTalent } from "@/lib/server/action-guards";
+import { requireStaff } from "@/lib/server/action-guards";
 import { getTenantScope, type TenantScope } from "./scope";
 
 /**
@@ -95,12 +95,21 @@ export async function requireStaffTenantAction(): Promise<
 }
 
 /**
- * Server-action guard for talent self-editing their own profile.
- * Verifies the caller is a talent user who owns the given talent_profile_id,
- * then resolves the active tenant via the request's host context.
+ * Server-action guard for a user editing a talent profile they own.
  *
- * Use this instead of requireStaffTenantAction in any action a talent can
- * invoke on their own profile (bio, languages, rates, etc.).
+ * Auth model: the **ownership check** (`talent_profiles.user_id = current
+ * user`) is the security boundary, not the user's `app_role`. A workspace
+ * admin who is also rostered as talent on the same tenant (hybrid user)
+ * must be able to edit their own profile — they're not a "talent role"
+ * user but they ARE the owner of that profile row.
+ *
+ * Earlier this guard pre-checked `requireTalent()` (which gates on
+ * `subjectRole === "talent"`) and rejected hybrid users with "Not
+ * authorized" before the ownership query ever ran. The fix below skips
+ * the role gate and lets the ownership check decide.
+ *
+ * Use this instead of `requireStaffTenantAction` in any action a talent
+ * can invoke on their own profile (bio, languages, rates, etc.).
  */
 export type TalentSelfActionGuard = {
   ok: true;
@@ -114,14 +123,20 @@ export type TalentSelfActionGuard = {
 export async function requireTalentSelfAction(
   talent_profile_id: string,
 ): Promise<TalentSelfActionGuard | StaffTenantActionGuardFail> {
-  const [auth, scope] = await Promise.all([requireTalent(), getTenantScope()]);
-  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) return { ok: false, error: "Not configured." };
+
+  const scope = await getTenantScope();
   if (!scope) return { ok: false, error: "No active tenant for this request." };
 
-  const { supabase, user } = auth;
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
+  if (userErr || !user) return { ok: false, error: "You must be signed in." };
 
-  // Ownership check: verify the authenticated user owns this profile.
-  // profile_code is fetched at no extra cost for scoped revalidatePath calls.
+  // Ownership check is the security boundary. profile_code is fetched
+  // alongside id for the scoped revalidatePath call sites.
   const { data: tp, error } = await supabase
     .from("talent_profiles")
     .select("id, profile_code")
@@ -130,7 +145,13 @@ export async function requireTalentSelfAction(
     .maybeSingle();
   if (error || !tp) return { ok: false, error: "Not your profile." };
 
-  return { ok: true, supabase, user, tenantId: scope.tenantId, profileCode: (tp as { id: string; profile_code: string }).profile_code };
+  return {
+    ok: true,
+    supabase,
+    user,
+    tenantId: scope.tenantId,
+    profileCode: (tp as { id: string; profile_code: string }).profile_code,
+  };
 }
 
 /**

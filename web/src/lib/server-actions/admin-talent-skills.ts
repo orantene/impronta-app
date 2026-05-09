@@ -19,6 +19,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 import type {
   ProficiencyLevel,
   ResolvedSkill,
@@ -68,8 +69,8 @@ export async function getResolvedSkills(input: {
 // ─── Add a skill (primary or secondary) ────────────────────────────────────
 
 const addSkillSchema = z.object({
-  talent_profile_id: z.string().uuid(),
-  talent_type_term_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
+  talent_type_term_id: pgUuidSchema(),
   role: z.enum(["primary", "secondary"]),
   proficiency_level: z
     .enum(["beginner", "intermediate", "advanced", "expert", "master"])
@@ -170,8 +171,8 @@ export async function addSkill(
 // ─── Update proficiency / years on an existing skill ───────────────────────
 
 const updateSkillSchema = z.object({
-  talent_profile_id: z.string().uuid(),
-  talent_type_term_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
+  talent_type_term_id: pgUuidSchema(),
   proficiency_level: z
     .enum(["beginner", "intermediate", "advanced", "expert", "master"])
     .nullable()
@@ -263,8 +264,8 @@ export async function removeSkill(input: {
 // ─── Verify a skill (admin/agency action) ──────────────────────────────────
 
 const verifySkillSchema = z.object({
-  talent_profile_id: z.string().uuid(),
-  talent_type_term_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
+  talent_type_term_id: pgUuidSchema(),
   scope: z.enum(["agency", "platform"]).default("agency"),
   note: z.string().max(500).nullable().optional(),
 });
@@ -387,8 +388,8 @@ export async function unverifySkill(input: {
 // ─── Reorder skills (drag-to-reorder; first row = featured skill) ──────────
 
 const reorderSkillsSchema = z.object({
-  talent_profile_id: z.string().uuid(),
-  ordered_term_ids: z.array(z.string().uuid()).min(1),
+  talent_profile_id: pgUuidSchema(),
+  ordered_term_ids: z.array(pgUuidSchema()).min(1),
 });
 
 export async function reorderSkills(
@@ -440,8 +441,8 @@ export async function reorderSkills(
 // card and search snippet read display_order ASC and pick the first.
 
 const setFeaturedSchema = z.object({
-  talent_profile_id: z.string().uuid(),
-  talent_type_term_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
+  talent_type_term_id: pgUuidSchema(),
 });
 
 export async function setFeaturedSkill(
@@ -597,8 +598,8 @@ export async function getAgencySkillOverrides(input: {
 }
 
 const upsertOverrideSchema = z.object({
-  talent_profile_id: z.string().uuid(),
-  taxonomy_term_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
+  taxonomy_term_id: pgUuidSchema(),
   is_visible_on_agency_site: z.boolean().optional(),
   is_featured_for_agency: z.boolean().optional(),
   display_order_override: z.number().int().min(0).max(9999).nullable().optional(),
@@ -690,8 +691,8 @@ export async function clearAgencySkillOverride(input: {
 // ─── Aspirations (Phase 1.2 / Q2 — career interests) ──────────────────────
 
 const addAspirationSchema = z.object({
-  talent_profile_id: z.string().uuid(),
-  taxonomy_term_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
+  taxonomy_term_id: pgUuidSchema(),
 });
 
 export async function addAspiration(
@@ -808,10 +809,10 @@ export async function getAspirations(input: {
 // lands. For now, just stores the row.
 
 const requestTermSchema = z.object({
-  parent_category_id: z.string().uuid().nullable().optional(),
+  parent_category_id: pgUuidSchema().nullable().optional(),
   proposed_name: z.string().min(2).max(120),
   context_note: z.string().max(500).nullable().optional(),
-  talent_profile_id: z.string().uuid().nullable().optional(),
+  talent_profile_id: pgUuidSchema().nullable().optional(),
   source: z
     .enum(["skill_picker", "registration", "inquiry_form", "admin_settings"])
     .default("skill_picker"),

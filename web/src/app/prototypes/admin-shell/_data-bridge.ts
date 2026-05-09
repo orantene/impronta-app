@@ -22,11 +22,17 @@ export {
   // Phase 3.12.2 — talent self-surface loaders
   loadTalentSelfProfile,
   loadTalentInquiries,
+  loadTalentAgencies,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 // Media gallery + watermark bridge (Agency tier feature)
-export { loadWorkspaceMediaPhotos } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
-export type { WorkspaceMediaPhoto } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
+export {
+  loadWorkspaceMediaPhotos,
+  loadWorkspaceMediaBridge,
+  type WorkspaceMediaPhoto,
+  type WorkspaceMediaFolder,
+  type WorkspaceMediaBridge,
+} from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
 
 export type {
   WorkspaceInquiryForMessages,
@@ -40,6 +46,7 @@ export type {
   // Phase 3.12.2 — talent self-surface types
   TalentSelfProfile,
   TalentInquiryRow,
+  TalentAgencyRow,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 // Type-only import. `_state.tsx` is a client module ("use client") and
@@ -47,6 +54,7 @@ export type {
 // the bridge. `import type` is erased at compile time and emits no JS,
 // so we get the shape without pulling the client tree into server land.
 import type { TalentProfile } from "./_state";
+import type { WorkspaceMediaPhoto, WorkspaceMediaFolder } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
 import type {
   WorkspaceInquiryForMessages,
   WorkspaceClientRow,
@@ -58,6 +66,7 @@ import type {
   WebsiteData,
   TalentSelfProfile,
   TalentInquiryRow,
+  TalentAgencyRow,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 /**
@@ -145,6 +154,13 @@ export type BridgeData = {
    * `null` means talent surface is in mock mode (use MOCK_CONVERSATIONS).
    */
   talentInquiries?: TalentInquiryRow[] | null;
+  /**
+   * The talent's agency relationships — feeds the /talent/agencies page
+   * and the talent identity bar's "Acting as <agency>" chip. `null` means
+   * the layout didn't load this (e.g. workspace-only path) and the page
+   * should fall back to MY_AGENCIES mocks in standalone prototype mode.
+   */
+  talentAgencies?: TalentAgencyRow[] | null;
 
   // ── Phase 5 — cross-mode unread counts for hybrid users ───────────────────
   /**
@@ -223,11 +239,9 @@ export type BridgeData = {
    * but no photos yet" — UI shows the empty state, NOT mock data.
    */
   mediaPhotos?: WorkspaceMediaPhoto[] | null;
+  /** Workspace virtual folders. Empty array = live mode, no folders yet. */
+  mediaFolders?: WorkspaceMediaFolder[];
 };
-
-// Forward-import the media photo type so BridgeData can use it without a
-// circular import on the bridge module itself.
-import type { WorkspaceMediaPhoto } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
 
 export function createBridgeDataFromRoster(
   roster: TalentProfile[] | null,
@@ -244,6 +258,7 @@ export function createBridgeDataFromRoster(
     totalUnread: 0,
     talentSelfProfile: null,
     talentInquiries: null,
+    talentAgencies: null,
   };
 }
 
@@ -320,8 +335,9 @@ function pickPrimaryThumb(
   // Skip banner + public_watermarked — they're never good roster card photos.
   const cardEligible = usable.filter(
     (a) =>
-      a.variant_kind !== "banner" &&
-      a.variant_kind !== "public_watermarked",
+      a.variant_kind !== "public_watermarked" &&
+      a.variant_kind !== "polaroid" &&
+      a.variant_kind !== "reel",
   );
 
   // Prefer portraits/squares (height >= width) over landscapes.
@@ -547,7 +563,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
       const portfolioCount = (profile.media_assets ?? []).filter(
         (m) =>
           m.deleted_at == null &&
-          (m.variant_kind === "portfolio" || m.variant_kind === "gallery"),
+          m.variant_kind === "gallery",
       ).length;
       out.push({
         id: profile.id,

@@ -30,7 +30,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
-import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import {
@@ -41,6 +41,9 @@ import {
   updateSelfLimits,
   updateSelfRates,
   updateSelfLocation,
+  updateSelfContactPolicy,
+  selfLeaveAgency,
+  selfSetPrimaryAgency,
 } from "@/lib/server-actions/talent-self-profile-sections";
 import {
   AVAILABILITY_BLOCKS,
@@ -2731,74 +2734,111 @@ export function TalentPortfolioDrawer() {
 // ─── Agency relationship ─────────────────────────────────────────
 
 export function TalentAgencyRelationshipDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentAgencies } = useProto();
   const open = state.drawer.drawerId === "talent-agency-relationship";
   const mode = state.drawer.payload?.mode;
+
+  // payload may use "agencyId" (from AgenciesPage) or "id" (legacy paths)
+  const payloadAgencyId = (state.drawer.payload?.agencyId ?? state.drawer.payload?.id) as string | undefined;
+
+  // Resolve agency from bridge data when available, fall back to mock.
+  const bridgeAgency = bridgeTalentAgencies && payloadAgencyId
+    ? bridgeTalentAgencies.find((a) => a.id === payloadAgencyId)
+    : null;
+
+  const [settingPrimary, setSettingPrimary] = useState(false);
+  const [primaryError, setPrimaryError] = useState<string | null>(null);
+
+  const handleSetPrimary = async () => {
+    const talentProfileId = bridgeTalentSelfProfile?.id;
+    const agencyId = bridgeAgency?.id ?? payloadAgencyId;
+    if (!talentProfileId || !agencyId) { setPrimaryError("Unable to identify profile or agency."); return; }
+    setSettingPrimary(true);
+    setPrimaryError(null);
+    const result = await selfSetPrimaryAgency({ talent_profile_id: talentProfileId, agency_id: agencyId });
+    setSettingPrimary(false);
+    if (!result.ok) { setPrimaryError(result.error); return; }
+    toast("Primary agency updated");
+    closeDrawer();
+  };
+
   if (mode === "add") {
+    const publicUrl = bridgeTalentSelfProfile?.profileCode
+      ? `tulala.digital/t/${bridgeTalentSelfProfile.profileCode}`
+      : MY_TALENT_PROFILE.publicUrl;
     return (
       <DrawerShell
         open={open}
         onClose={closeDrawer}
         title="Add another agency"
-        description="On Tulala, agencies invite talent — not the other way around. Forward an invite to your inbox or share your public profile with the agency."
+        description="On Tulala, agencies invite talent — not the other way around. Share your public profile with an agency and they can request you onto their roster."
         width={520}
         footer={<SecondaryButton onClick={closeDrawer}>Got it</SecondaryButton>}
       >
-        <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.6 }}>
-          Share this URL with the agency you'd like to work with — they can request you onto
-          their roster, and you'll see the request in your inbox.
+        <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.6, marginBottom: 14 }}>
+          Share this link with any agency you'd like to work with. When they add you to their roster, you'll get an invite in your inbox.
         </div>
-        <div
-          style={{
-            marginTop: 14,
-            padding: "10px 12px",
-            background: COLORS.surfaceAlt,
-            border: `1px solid rgba(15,79,62,0.18)`,
-            borderRadius: 10,
-            fontFamily: FONTS.mono,
-            fontSize: 12,
-            color: COLORS.ink,
-          }}
-        >
-          {MY_TALENT_PROFILE.publicUrl}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              flex: 1,
+              padding: "10px 12px",
+              background: COLORS.surfaceAlt,
+              border: `1px solid rgba(15,79,62,0.18)`,
+              borderRadius: 10,
+              fontFamily: FONTS.mono,
+              fontSize: 12,
+              color: COLORS.ink,
+            }}
+          >
+            {publicUrl}
+          </div>
+          <button
+            type="button"
+            onClick={() => { void navigator.clipboard.writeText(`https://${publicUrl}`); toast("Link copied"); }}
+            style={{ padding: "8px 12px", background: COLORS.fill, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: FONTS.body, whiteSpace: "nowrap" }}
+          >
+            Copy
+          </button>
         </div>
       </DrawerShell>
     );
   }
-  const id = (state.drawer.payload?.id as string) ?? "ag1";
-  const a = MY_AGENCIES.find((x) => x.id === id) ?? MY_AGENCIES[0];
 
-  // Plan-tier shapes the rules: free can't be exclusive, agency/studio
-  // sets exclusivity + commission. Per the agency-exclusivity product spec.
-  const planLabel = a.planTier === "free"
-    ? "Free plan"
-    : a.planTier === "studio"
-      ? "Studio plan"
-      : "Agency plan";
-  const exclusivityRule = a.planTier === "free"
-    ? "Free-tier agencies can't hold exclusivity. They share their link to refer work but you're not bound."
-    : a.status === "exclusive"
-      ? `${a.name} is your exclusive agency. You can have only one exclusive at a time.`
-      : `${a.name} represents you alongside other agencies. Exclusivity is granted per agency.`;
-  const commissionLabel = a.commissionRate === 0
+  // Resolve display data — prefer bridge, fall back to mock fixture.
+  const mockAgency = MY_AGENCIES.find((x) => x.id === payloadAgencyId) ?? MY_AGENCIES[0];
+  const name       = bridgeAgency?.agencyName ?? mockAgency.name;
+  const status     = bridgeAgency?.rosterStatus ?? mockAgency.status;
+  const joinedAt   = bridgeAgency?.addedAt ?? mockAgency.joinedAt;
+  const isPrimary  = bridgeAgency?.isPrimary ?? mockAgency.isPrimary;
+  const planTier   = (bridgeAgency?.plan ?? mockAgency.planTier) as "free" | "studio" | "agency";
+  const commissionRate = mockAgency.commissionRate; // bridge doesn't carry this yet
+
+  const planLabel = planTier === "free" ? "Free plan" : planTier === "studio" ? "Studio plan" : "Agency plan";
+  const commissionLabel = commissionRate === 0
     ? "No commission · friend / free-plan agency"
-    : `${Math.round(a.commissionRate * 100)}% on bookings ${a.name} brings`;
+    : `${Math.round(commissionRate * 100)}% on bookings ${name} brings`;
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title={a.name}
-      description={`${a.status === "exclusive" ? "Exclusive" : a.status === "non-exclusive" ? "Non-exclusive" : "Active"} relationship · joined ${a.joinedAt}`}
+      title={name}
+      description={`${status === "exclusive" ? "Exclusive" : "Non-exclusive"} relationship · joined ${joinedAt}`}
       width={540}
       footer={
         <StandardFooter
           onSave={() => closeDrawer()}
           saveLabel="Done"
-          destructive={{ label: "End relationship", onClick: () => openDrawer("talent-leave-agency", { id: a.id }) }}
+          destructive={{ label: "End relationship", onClick: () => openDrawer("talent-leave-agency", { agencyId: payloadAgencyId }) }}
         />
       }
     >
+      {primaryError && (
+        <div style={{ padding: "10px 14px", background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, marginBottom: 14, fontFamily: FONTS.body, fontSize: 12.5, color: "#b91c1c" }}>
+          {primaryError}
+        </div>
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {/* Plan + commission summary chip */}
         <div
@@ -2807,8 +2847,8 @@ export function TalentAgencyRelationshipDrawer() {
             alignItems: "center",
             gap: 10,
             padding: "10px 12px",
-            background: a.planTier === "free" ? "rgba(11,11,13,0.04)" : COLORS.indigoSoft,
-            border: `1px solid ${a.planTier === "free" ? COLORS.borderSoft : "rgba(91,107,160,0.18)"}`,
+            background: planTier === "free" ? "rgba(11,11,13,0.04)" : COLORS.indigoSoft,
+            border: `1px solid ${planTier === "free" ? COLORS.borderSoft : "rgba(91,107,160,0.18)"}`,
             borderRadius: 8,
             fontFamily: FONTS.body,
             fontSize: 12,
@@ -2821,28 +2861,17 @@ export function TalentAgencyRelationshipDrawer() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <KvRow label="Status" value={a.status} />
-          <KvRow label="Joined" value={a.joinedAt} />
-          <KvRow label="Bookings YTD" value={a.bookingsYTD} />
-          <KvRow label="Primary" value={a.isPrimary ? "Yes" : "No"} />
-          <KvRow label="Take rate" value={a.commissionRate === 0 ? "—" : `${Math.round(a.commissionRate * 100)}%`} />
+          <KvRow label="Status" value={status} />
+          <KvRow label="Joined" value={joinedAt} />
+          <KvRow label="Primary" value={isPrimary ? "Yes" : "No"} />
+          <KvRow label="Take rate" value={commissionRate === 0 ? "—" : `${Math.round(commissionRate * 100)}%`} />
         </div>
 
-        <Divider label="Exclusivity" />
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-            lineHeight: 1.6,
-          }}
-        >
-          {exclusivityRule}
-        </div>
-        {a.planTier !== "free" && a.status !== "exclusive" && (
+        {!isPrimary && (
           <button
             type="button"
-            onClick={() => openDrawer("talent-leave-agency", { id: a.id, mode: "make-exclusive" })}
+            onClick={handleSetPrimary}
+            disabled={settingPrimary}
             style={{
               alignSelf: "flex-start",
               padding: "7px 12px",
@@ -2856,10 +2885,10 @@ export function TalentAgencyRelationshipDrawer() {
               cursor: "pointer",
             }}
           >
-            Make {a.name} exclusive →
+            {settingPrimary ? "Setting…" : `Set ${name} as primary`}
           </button>
         )}
-        {a.status === "exclusive" && (
+        {status === "exclusive" && (
           <div
             style={{
               fontFamily: FONTS.body,
@@ -2878,8 +2907,8 @@ export function TalentAgencyRelationshipDrawer() {
           <li>List you on their public roster</li>
           <li>Hold dates on your calendar with your approval</li>
           <li>Send you direct messages via the inbox</li>
-          {a.commissionRate > 0 && (
-            <li>Take {Math.round(a.commissionRate * 100)}% of any booking they bring you</li>
+          {commissionRate > 0 && (
+            <li>Take {Math.round(commissionRate * 100)}% of any booking they bring you</li>
           )}
         </ul>
       </div>
@@ -2890,8 +2919,23 @@ export function TalentAgencyRelationshipDrawer() {
 // ─── Leave agency ───────────────────────────────────────────────
 
 export function TalentLeaveAgencyDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-leave-agency";
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const handleSendNotice = async () => {
+    const talentProfileId = bridgeTalentSelfProfile?.id;
+    if (!talentProfileId) { setSendError("No talent profile — reload and try again."); return; }
+    setSending(true);
+    setSendError(null);
+    const result = await selfLeaveAgency({ talent_profile_id: talentProfileId });
+    setSending(false);
+    if (!result.ok) { setSendError(result.error); return; }
+    toast("Notice sent — agency informed. Active bookings continue through the wind-down period.");
+    closeDrawer();
+  };
+
   return (
     <DrawerShell
       open={open}
@@ -2901,14 +2945,12 @@ export function TalentLeaveAgencyDrawer() {
       width={520}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Keep working with them</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer} disabled={sending}>Keep working with them</SecondaryButton>
           <button
-            onClick={() => {
-              toast("Notice sent — agency informed");
-              closeDrawer();
-            }}
+            onClick={handleSendNotice}
+            disabled={sending}
             style={{
-              background: COLORS.red,
+              background: sending ? COLORS.inkDim : COLORS.red,
               color: "#fff",
               border: "none",
               padding: "9px 16px",
@@ -2916,14 +2958,20 @@ export function TalentLeaveAgencyDrawer() {
               fontSize: 13,
               fontWeight: 500,
               borderRadius: 8,
-              cursor: "pointer",
+              cursor: sending ? "not-allowed" : "pointer",
+              opacity: sending ? 0.7 : 1,
             }}
           >
-            Send 14-day notice
+            {sending ? "Sending…" : "Send 14-day notice"}
           </button>
         </>
       }
     >
+      {sendError && (
+        <div style={{ padding: "10px 14px", background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, marginBottom: 14, fontFamily: FONTS.body, fontSize: 12.5, color: "#b91c1c" }}>
+          {sendError}
+        </div>
+      )}
       <div style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.6 }}>
         Active bookings stay confirmed and get paid out. New pitches stop immediately. Past
         earnings remain in your activity log. Your agency can't see your inbox or calendar
@@ -3015,18 +3063,35 @@ export function TalentPrivacyDrawer() {
 // never frames it as "pay to message". See project_client_trust_badges.md.
 
 export function TalentContactPreferencesDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
   const open = state.drawer.drawerId === "talent-contact-preferences";
-  const [policy, setPolicy] = useState<TalentContactPolicy>(MY_TALENT_PROFILE.contactPolicy);
+  const defaultPolicy = bridgeTalentSelfProfile?.contactPolicy ?? MY_TALENT_PROFILE.contactPolicy;
+  const [policy, setPolicy] = useState<TalentContactPolicy>(defaultPolicy as TalentContactPolicy);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Sync from bridge whenever drawer opens
+  useEffect(() => {
+    if (open && bridgeTalentSelfProfile?.contactPolicy) {
+      setPolicy(bridgeTalentSelfProfile.contactPolicy as TalentContactPolicy);
+    }
+    if (!open) { setSaveError(null); setSaving(false); }
+  }, [open, bridgeTalentSelfProfile]);
+
   const allowedCount = (Object.values(policy) as boolean[]).filter(Boolean).length;
   const allOn = allowedCount === CLIENT_TRUST_LEVELS.length;
 
-  const onSave = () => {
-    toast(
-      allOn
-        ? "Contact preferences saved · open to all tiers"
-        : `Contact preferences saved · ${allowedCount} of ${CLIENT_TRUST_LEVELS.length} tiers on`,
-    );
+  const onSave = async () => {
+    const talentProfileId = bridgeTalentSelfProfile?.id;
+    if (!talentProfileId) {
+      setSaveError("No talent profile loaded — reload and try again.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    const result = await updateSelfContactPolicy({ talent_profile_id: talentProfileId, policy: policy as Record<string, boolean> });
+    setSaving(false);
+    if (!result.ok) { setSaveError(result.error); return; }
     closeDrawer();
   };
 
@@ -3039,11 +3104,18 @@ export function TalentContactPreferencesDrawer() {
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton onClick={onSave}>Save</PrimaryButton>
+          <SecondaryButton onClick={closeDrawer} disabled={saving}>Close</SecondaryButton>
+          <PrimaryButton onClick={onSave} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </PrimaryButton>
         </>
       }
     >
+      {saveError && (
+        <div style={{ padding: "10px 14px", background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, marginBottom: 14, fontFamily: FONTS.body, fontSize: 12.5, color: "#b91c1c" }}>
+          {saveError}
+        </div>
+      )}
       {/* Framing card — explains the principle without leaking the
           "pay to DM" anti-pattern. */}
       <div
@@ -4748,10 +4820,10 @@ export function TalentPhotoEditDrawer() {
     loadedForRef.current = tid;
     const res = await actionLoadTalentMediaBundle(tid);
     if (!res.ok) return;
-    const { gallery, card, cover } = res.data;
+    const { gallery, card, hero } = res.data;
     const all: MediaAsset[] = [];
     if (card) all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
-    if (cover) all.push({ id: cover.id, url: cover.url, variantKind: "banner", sortOrder: 0 });
+    if (hero) all.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
     for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder });
     setAssets(all);
   }, []);
@@ -4820,10 +4892,15 @@ export function TalentPhotoEditDrawer() {
         const res = await actionDeleteMediaAssets([mediaAssetId]);
         return res;
       }}
+      onImportFromDrive={async (driveUrl) => {
+        const res = await actionImportFromGoogleDrive(driveUrl, talentId);
+        if (!res.ok) return { ok: false, error: res.error };
+        return { ok: true, assets: res.data.assets };
+      }}
       onUploadFile={async (file, variantKind) => {
         const fd = new FormData();
         fd.append("file", file);
-        const allowed = ["gallery", "card", "banner", "lightbox"] as const;
+        const allowed = ["gallery", "card", "hero", "lightbox"] as const;
         const kind = allowed.includes(variantKind as typeof allowed[number])
           ? (variantKind as typeof allowed[number])
           : "gallery";

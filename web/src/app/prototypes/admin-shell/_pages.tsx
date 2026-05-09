@@ -135,18 +135,7 @@ import {
   H3,
 } from "./_primitives";
 import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv, WorkspaceActivationBanner, DemoDataBanner } from "./_wave2";
-import {
-  actionDeleteMediaAssets,
-  actionUploadToStagingStorage,
-  actionBulkAssignStagedMedia,
-  actionLoadRosterTalents,
-  actionSetApprovalState,
-  actionReassignMediaToTalent,
-  actionSetAsCardPhoto,
-  actionReorderMediaAssets,
-  type RosterTalentOption,
-} from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
-import { loadAgencyBrandingSettings } from "@/lib/server-actions/admin-workspace-settings";
+import { WorkspaceMediaPage } from "./_media-page";
 import { pinNextConversation as pinNextConversationP } from "./_messages";
 import { NotificationsBell } from "./_notifications-hub";
 // WS-13.1 — lazy-load non-workspace surfaces so the workspace JS bundle
@@ -1132,10 +1121,12 @@ export function TulalaIdentityBar() {
     totalUnread: bridgeTotalUnread,
     bridgeTenantIdentity,
     bridgeSessionIdentity,
+    bridgeTalentSelfProfile,
     overviewMetrics,
     bridgeTalentUnread,
     bridgeWorkspaceUnread,
     bridgeFirstRunToggleTipSeen,
+    effectiveTenant,
   } = useProto();
   const { surface, alsoTalent, role, plan, entityType } = state;
 
@@ -1171,21 +1162,38 @@ export function TulalaIdentityBar() {
     return letters.toUpperCase() || src.slice(0, 2).toUpperCase();
   })();
 
+  // Talent surface name/initials prefer bridgeTalentSelfProfile (real
+  // freshly-provisioned talent) over the prototype's hardcoded "Marta Reyes".
+  // Falls back through bridgeSessionIdentity (same signed-in user) before
+  // landing on the demo constant in standalone mode.
+  const talentBridgeName = bridgeTalentSelfProfile?.displayName?.trim() || null;
+  const talentBridgeInitials = (() => {
+    if (!talentBridgeName) return null;
+    const parts = talentBridgeName.split(/\s+/u).filter(Boolean);
+    const letters = (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "");
+    return letters.toUpperCase() || talentBridgeName.slice(0, 2).toUpperCase();
+  })();
+
   const userName = inClient
     ? activeClientProfile.contactName
-    : (inWorkspace && realUserName ? realUserName : MY_TALENT_PROFILE.name);
+    : (inWorkspace && realUserName)
+      ? realUserName
+      : (talentBridgeName ?? realUserName ?? MY_TALENT_PROFILE.name);
   const userInitials = inClient
     ? activeClientProfile.initials
-    : (inWorkspace && realUserInitials ? realUserInitials : MY_TALENT_PROFILE.initials);
+    : (inWorkspace && realUserInitials)
+      ? realUserInitials
+      : (talentBridgeInitials ?? realUserInitials ?? MY_TALENT_PROFILE.initials);
   const userPhotoUrl = inClient ? activeClientProfile.photoUrl : undefined;
 
-  // Acting-as context flips with surface. For the workspace surface, prefer
-  // the real tenant identity from the bridge over the hardcoded TENANT.
-  const realTenantName = bridgeTenantIdentity?.displayName?.trim() || null;
+  // Acting-as context flips with surface. For the workspace surface, use
+  // effectiveTenant.name (derived from bridge in production, mock in demo).
+  // For talent surface, prefer the bridge's `agencyName` (the actual agency
+  // hosting this rostered talent) over Marta's hardcoded primaryAgency.
   const actingLabel = inWorkspace
-    ? (realTenantName ?? TENANT.name)
+    ? effectiveTenant.name
     : inClient ? activeClientProfile.name
-    : MY_TALENT_PROFILE.primaryAgency;
+    : (bridgeTalentSelfProfile?.agencyName?.trim() || MY_TALENT_PROFILE.primaryAgency);
   // Subtext stays terse — the plan tier now has its own badge inline,
   // so this just clarifies the role + entity context.
   const actingRoleLabel = bridgeSessionIdentity?.role ?? role;
@@ -2123,7 +2131,7 @@ export function WorkspaceShell() {
  * fixed-width sidebar on the left and the main column flexing.
  */
 function WorkspaceSidebarShell() {
-  const { state, setPage, openDrawer, setWorkspaceLayout } = useProto();
+  const { state, setPage, openDrawer, setWorkspaceLayout, effectiveTenant } = useProto();
   const { role } = state;
   const canCreate = meetsRole(role, "editor");
   // WS-12.6 — roving tabindex on sidebar nav: arrow keys move between pages
@@ -2185,10 +2193,10 @@ function WorkspaceSidebarShell() {
           onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.accentSoft)}
           onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.surfaceAlt)}
         >
-          <Avatar initials={TENANT.name.slice(0, 2).toUpperCase()} size={26} tone="ink" />
+          <Avatar initials={effectiveTenant.name.slice(0, 2).toUpperCase()} size={26} tone="ink" />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {TENANT.name}
+              {effectiveTenant.name}
             </div>
             <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "capitalize" }}>
               {state.plan} · {state.entityType}
@@ -2700,12 +2708,13 @@ function OverviewPage() {
     effectiveRoster,
     bridgeSessionIdentity,
     bridgeTenantIdentity,
+    effectiveTenant,
   } = useProto();
   const isFree = state.plan === "free";
   const canEdit = meetsRole(state.role, "editor");
   const tenantDomain = bridgeTenantIdentity?.slug
     ? `${bridgeTenantIdentity.slug}.tulala.app`
-    : TENANT.domain;
+    : effectiveTenant.domain;
 
   if (isFree) {
     return <OverviewFree />;
@@ -3130,10 +3139,10 @@ function OverviewPage() {
 }
 
 function OverviewFree() {
-  const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers, effectiveMessagesInquiries, bridgeTenantIdentity } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers, effectiveMessagesInquiries, bridgeTenantIdentity, effectiveTenant } = useProto();
   const tenantDomain = bridgeTenantIdentity?.slug
     ? `${bridgeTenantIdentity.slug}.tulala.app`
-    : TENANT.domain;
+    : effectiveTenant.domain;
 
   // Live signals that prove a step is "really done" — overrides the
   // user-confirmed Set. Order: real state first, manual confirmation
@@ -4121,7 +4130,7 @@ function parseInquiryDays(dateStr: string, displayMonth: number): number[] {
 }
 
 function CalendarPage() {
-  const { openDrawer, setPage, effectiveCalendarEvents, toast } = useProto();
+  const { openDrawer, setPage, effectiveCalendarEvents, toast, effectiveTenant } = useProto();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const today = new Date();
@@ -4325,7 +4334,7 @@ function CalendarPage() {
                     return;
                   }
                   startTransition(async () => {
-                    const r = await rescheduleInquiry(TENANT.slug, inquiryId, isoDate);
+                    const r = await rescheduleInquiry(effectiveTenant.slug, inquiryId, isoDate);
                     if (!r.ok) toast(`Reschedule failed: ${r.error}`);
                     else { toast(`Moved to ${isoDate}`); router.refresh(); }
                   });
@@ -5067,7 +5076,7 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug } = useProto();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant } = useProto();
   const router = useRouter();
   // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
   // the server pre-fetches Impronta's roster and `effectiveRoster` is
@@ -5391,7 +5400,7 @@ function TalentPage() {
           selectedTalents={roster.filter((t) => selected.has(t.id))}
           clients={getClients(state.plan)}
           tenantSlug={tenantSlug ?? ""}
-          agencyName={TENANT.name}
+          agencyName={effectiveTenant.name}
           onPitchSent={() => {
             clearSelected();
             toast("Pitch sent!");
@@ -7344,7 +7353,7 @@ function fmtPitchRelative(iso: string | null): string {
 }
 
 function PitchesPage() {
-  const { state, effectivePitches, effectiveRoster, tenantSlug, toast } = useProto();
+  const { state, effectivePitches, effectiveRoster, tenantSlug, toast, effectiveTenant } = useProto();
   const router = useRouter();
   const canEdit = meetsRole(state.role, "coordinator");
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
@@ -7479,7 +7488,7 @@ function PitchesPage() {
           selectedTalents={effectiveRoster.slice(0, 0)}
           clients={getClients(state.plan)}
           tenantSlug={tenantSlug ?? "impronta"}
-          agencyName={TENANT.name}
+          agencyName={effectiveTenant.name}
           onPitchSent={() => {
             toast("Pitch sent!");
             router.refresh();
@@ -8982,7 +8991,7 @@ function SiteTrackingCell({ label, value }: { label: string; value: string }) {
 // ════════════════════════════════════════════════════════════════════
 
 function SitePage() {
-  const { state, setPage, openDrawer, openUpgrade, bridgeTenantIdentity } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, bridgeTenantIdentity, effectiveTenant } = useProto();
   const canEdit = meetsRole(state.role, "admin");
 
   return (
@@ -9103,7 +9112,7 @@ function SitePage() {
         />
         <TierCard
           title="Custom domain & home"
-          description={meetsPlan(state.plan, "studio") ? `Live at your custom domain` : `Currently at ${bridgeTenantIdentity?.slug ? `${bridgeTenantIdentity.slug}.tulala.app` : TENANT.domain}`}
+          description={meetsPlan(state.plan, "studio") ? `Live at your custom domain` : `Currently at ${bridgeTenantIdentity?.slug ? `${bridgeTenantIdentity.slug}.tulala.app` : effectiveTenant.domain}`}
           icon="globe"
           requiredPlan="studio"
           currentPlan={state.plan}
@@ -9830,1214 +9839,6 @@ function BillingActivityTable() {
 // Accordion sections — `supportLink` deep-links to the support docs/help
 // surface for that category, so backend can route help-requests by section.
 // ════════════════════════════════════════════════════════════════════
-// WorkspaceMediaPage — Branded media gallery (Agency+) / Watermark (Studio+)
-// ════════════════════════════════════════════════════════════════════
-
-type MediaPhoto = {
-  id: string;
-  talentProfileId: string;
-  talentName: string;
-  url: string;
-  thumbUrl: string;
-  approvalState: "approved" | "pending" | "rejected";
-  hasOverride: boolean;
-  watermarkOverride: unknown | null;
-  createdAt: string;
-};
-
-function WorkspaceMediaPage() {
-  const { state, openDrawer, openUpgrade, bridgeMediaPhotos, tenantSlug, toast } = useProto();
-  const router = useRouter();
-  const isAgency = meetsPlan(state.plan, "agency");
-  const isStudio = meetsPlan(state.plan, "studio");
-
-  // ── Branding / watermark workspace state ──────────────────────────
-  const [wsWatermarkEnabled, setWsWatermarkEnabled] = useState(false);
-  const [wsLogoUrl, setWsLogoUrl]                   = useState<string | null>(null);
-  useEffect(() => {
-    if (!tenantSlug || !isStudio) return;
-    void loadAgencyBrandingSettings().then((r) => {
-      if (r.ok) {
-        setWsWatermarkEnabled(r.data.watermarkPreset?.enabled ?? false);
-        setWsLogoUrl(r.data.logoUrl);
-      }
-    });
-  }, [tenantSlug, isStudio]);
-
-  // ── View state ───────────────────────────────────────────────────
-  const [activeTab, setActiveTab]           = useState<"all" | "grouped">("all");
-  const [filterTalent, setFilterTalent]     = useState<string>("all");
-  const [filterStatus, setFilterStatus]     = useState<"all" | "approved" | "pending" | "rejected">("all");
-  const [filterWm, setFilterWm]             = useState<"all" | "yes" | "no">("all");
-  const [searchQuery, setSearchQuery]       = useState("");
-  const [sortOrder, setSortOrder]           = useState<"newest" | "oldest" | "talent">("newest");
-  const [selected, setSelected]             = useState<Set<string>>(new Set());
-  const [visibleCount, setVisibleCount]     = useState(60);
-
-  // ── Lightbox ─────────────────────────────────────────────────────
-  const [lightboxPhoto, setLightboxPhoto]   = useState<MediaPhoto | null>(null);
-  const [showWmInLightbox, setShowWmInLightbox] = useState(true);
-  const [copiedUrl, setCopiedUrl]           = useState(false);
-  const [settingCard, setSettingCard]       = useState(false);
-
-  // ── Upload + assign state ────────────────────────────────────────
-  const uploadFileRef = useRef<HTMLInputElement | null>(null);
-  const zipFolderRef  = useRef<HTMLInputElement | null>(null);
-  const [uploadError, setUploadError]       = useState<string | null>(null);
-  const [isDragOver, setIsDragOver]         = useState(false);
-
-  // Staging: upload-first, assign-second flow
-  type StagingItem = {
-    id: string; file: File; blobUrl: string;
-    status: "queued" | "uploading" | "ready" | "error";
-    storagePath?: string; publicUrl?: string; errorMsg?: string;
-    talentId: string;
-  };
-  const [stagingItems, setStagingItems]     = useState<StagingItem[]>([]);
-  const [stagingSelected, setStagingSelected] = useState<Set<string>>(new Set());
-  const [stagingBulkTalentId, setStagingBulkTalentId] = useState("");
-
-  // ── Assign/reassign modal (used for both upload and move-to) ─────
-  const [assignMode, setAssignMode]         = useState<"upload" | "reassign">("upload");
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assignTalents, setAssignTalents]   = useState<RosterTalentOption[]>([]);
-  const [assignTalentId, setAssignTalentId] = useState<string>("");
-  const [assignBusy, setAssignBusy]         = useState(false);
-
-  // ── Drag-reassign (By talent tab) ────────────────────────────────
-  const [dragPhotoId, setDragPhotoId]       = useState<string | null>(null);
-  const [dropTargetTalent, setDropTargetTalent] = useState<string | null>(null);
-
-  // ── Mutation state ───────────────────────────────────────────────
-  const [isDeleting, setIsDeleting]         = useState(false);
-  const [isApproving, setIsApproving]       = useState(false);
-
-  // ── Data ─────────────────────────────────────────────────────────
-  const isLiveMode = bridgeMediaPhotos !== null;
-  const photos: MediaPhoto[] = useMemo(() => {
-    if (!bridgeMediaPhotos) return [];
-    return bridgeMediaPhotos.map((p) => ({
-      id: p.id,
-      talentProfileId: p.talentProfileId,
-      talentName: p.talentName,
-      url: p.url,
-      thumbUrl: p.thumbUrl,
-      approvalState: p.approvalState,
-      hasOverride: p.hasOverride,
-      watermarkOverride: p.watermarkOverride,
-      createdAt: p.createdAt,
-    }));
-  }, [bridgeMediaPhotos]);
-
-  // ── Keyboard shortcuts ───────────────────────────────────────────
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
-      if (e.key === "Escape") { setSelected(new Set()); setLightboxPhoto(null); }
-      if ((e.metaKey || e.ctrlKey) && e.key === "a") { e.preventDefault(); setSelected(new Set(filtered.map((p) => p.id))); }
-      if ((e.key === "Delete" || e.key === "Backspace") && selected.size > 0 && !lightboxPhoto) {
-        e.preventDefault();
-        void handleDeleteSelected();
-      }
-      if (lightboxPhoto) {
-        const idx = filtered.findIndex((p) => p.id === lightboxPhoto.id);
-        if (e.key === "ArrowLeft"  && idx > 0)                  setLightboxPhoto(filtered[idx - 1]!);
-        if (e.key === "ArrowRight" && idx < filtered.length - 1) setLightboxPhoto(filtered[idx + 1]!);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, lightboxPhoto]);
-
-  // ── File selection helpers ───────────────────────────────────────
-  const openUploadPicker = () => uploadFileRef.current?.click();
-  const openBulkPicker   = () => zipFolderRef.current?.click();
-
-  const processFiles = async (files: FileList | File[]) => {
-    if (!isLiveMode) { setUploadError("Demo mode — connect a workspace to upload."); return; }
-    setUploadError(null);
-    const rawFiles = Array.from(files);
-    const zips = rawFiles.filter((f) => f.name.toLowerCase().endsWith(".zip"));
-    let imageFiles = rawFiles.filter((f) => f.type.startsWith("image/") && !f.name.toLowerCase().endsWith(".zip"));
-    if (zips.length > 0) {
-      try {
-        const JSZip = (await import("jszip")).default;
-        for (const zip of zips) {
-          if (zip.size > 500 * 1024 * 1024) { setUploadError("ZIP must be under 500 MB."); return; }
-          const z = await JSZip.loadAsync(zip);
-          const IMAGE_EXTS = /\.(jpe?g|png|webp|gif|heic|avif)$/i;
-          const extracted: File[] = [];
-          for (const [name, entry] of Object.entries(z.files)) {
-            if (entry.dir || !IMAGE_EXTS.test(name)) continue;
-            const blob = await entry.async("blob");
-            const mime = name.match(/\.png$/i) ? "image/png" : name.match(/\.webp$/i) ? "image/webp" : name.match(/\.gif$/i) ? "image/gif" : "image/jpeg";
-            extracted.push(new File([blob], name.split("/").pop() ?? name, { type: mime }));
-            if (extracted.length >= 100) break;
-          }
-          imageFiles = [...imageFiles, ...extracted];
-        }
-      } catch { setUploadError("Could not read ZIP file."); return; }
-    }
-    if (imageFiles.length === 0) return;
-    if (imageFiles.length > 200) { setUploadError("Max 200 images per batch."); return; }
-
-    // Load roster (needed for talent selector)
-    const result = await actionLoadRosterTalents();
-    if (!result.ok || result.data.length === 0) { setUploadError("No talent on roster to assign to."); return; }
-    const talents = result.data;
-    setAssignTalents(talents);
-    const defaultTalentId = talents[0]?.id ?? "";
-    setStagingBulkTalentId(defaultTalentId);
-
-    // Create staging items immediately with blob URLs for instant thumbnails
-    const items: StagingItem[] = imageFiles.map((file) => ({
-      id: Math.random().toString(36).slice(2),
-      file,
-      blobUrl: URL.createObjectURL(file),
-      status: "queued" as const,
-      talentId: defaultTalentId,
-    }));
-    setStagingItems(items);
-    setStagingSelected(new Set());
-    setAssignMode("upload");
-    setShowAssignModal(true);
-
-    // Parallel upload: 4 concurrent, update each item's status as it goes
-    const CONCURRENCY = 4;
-    let active = 0;
-    const queue = [...items];
-    await new Promise<void>((resolve) => {
-      const tryNext = () => {
-        if (queue.length === 0 && active === 0) { resolve(); return; }
-        while (active < CONCURRENCY && queue.length > 0) {
-          const item = queue.shift()!;
-          active++;
-          setStagingItems((prev) => prev.map((it) => it.id === item.id ? { ...it, status: "uploading" } : it));
-          const fd = new FormData();
-          fd.append("file", item.file);
-          actionUploadToStagingStorage(fd).then((res) => {
-            setStagingItems((prev) => prev.map((it) => it.id === item.id
-              ? res.ok
-                ? { ...it, status: "ready", storagePath: res.data.storagePath, publicUrl: res.data.publicUrl }
-                : { ...it, status: "error", errorMsg: res.error }
-              : it));
-            active--;
-            tryNext();
-          }).catch(() => {
-            setStagingItems((prev) => prev.map((it) => it.id === item.id ? { ...it, status: "error", errorMsg: "Upload failed" } : it));
-            active--;
-            tryNext();
-          });
-        }
-      };
-      tryNext();
-    });
-  };
-
-  const confirmStaging = async () => {
-    const ready = stagingItems.filter((it) => it.status === "ready" && it.storagePath);
-    if (ready.length === 0) return;
-    setAssignBusy(true);
-    const assignments = ready.map((it) => ({ storagePath: it.storagePath!, talentProfileId: it.talentId }));
-    const res = await actionBulkAssignStagedMedia(assignments);
-    setAssignBusy(false);
-    if (!res.ok) { setUploadError(res.error); return; }
-    // Revoke blob URLs to free memory
-    stagingItems.forEach((it) => URL.revokeObjectURL(it.blobUrl));
-    setStagingItems([]);
-    setShowAssignModal(false);
-    router.refresh();
-  };
-
-  const cancelStaging = () => {
-    stagingItems.forEach((it) => URL.revokeObjectURL(it.blobUrl));
-    setStagingItems([]);
-    setShowAssignModal(false);
-  };
-
-  const runReassign = async () => {
-    if (!assignTalentId || selected.size === 0) return;
-    setAssignBusy(true);
-    const res = await actionReassignMediaToTalent(Array.from(selected), assignTalentId);
-    setAssignBusy(false);
-    setShowAssignModal(false);
-    if (!res.ok) { setUploadError(res.error); return; }
-    setSelected(new Set());
-    router.refresh();
-  };
-
-  // ── Mutations ────────────────────────────────────────────────────
-  const handleDeleteSelected = async () => {
-    if (selected.size === 0 || !isLiveMode) return;
-    if (!confirm(`Delete ${selected.size} photo${selected.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
-    setIsDeleting(true);
-    const res = await actionDeleteMediaAssets(Array.from(selected));
-    setIsDeleting(false);
-    if (!res.ok) { setUploadError(res.error); return; }
-    setSelected(new Set());
-    router.refresh();
-  };
-
-  const handleDeleteOne = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!isLiveMode) return;
-    if (!confirm("Delete this photo?")) return;
-    const res = await actionDeleteMediaAssets([id]);
-    if (!res.ok) { setUploadError(res.error); return; }
-    setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; });
-    router.refresh();
-  };
-
-  const handleApproveSelected = async () => {
-    if (selected.size === 0 || !isLiveMode) return;
-    setIsApproving(true);
-    const res = await actionSetApprovalState(Array.from(selected), "approved");
-    setIsApproving(false);
-    if (!res.ok) { setUploadError(res.error); return; }
-    setSelected(new Set());
-    router.refresh();
-  };
-
-  const handleRejectSelected = async () => {
-    if (selected.size === 0 || !isLiveMode) return;
-    if (!confirm(`Reject ${selected.size} photo${selected.size > 1 ? "s" : ""}?`)) return;
-    setIsApproving(true);
-    const res = await actionSetApprovalState(Array.from(selected), "rejected");
-    setIsApproving(false);
-    if (!res.ok) { setUploadError(res.error); return; }
-    setSelected(new Set());
-    router.refresh();
-  };
-
-  const openReassignModal = async () => {
-    if (selected.size === 0) return;
-    const result = await actionLoadRosterTalents();
-    if (!result.ok || result.data.length === 0) { setUploadError("No talent on roster."); return; }
-    setAssignTalents(result.data);
-    setAssignTalentId(result.data[0]?.id ?? "");
-    setAssignMode("reassign");
-    setShowAssignModal(true);
-  };
-
-  const handleDownloadOne = (photo: MediaPhoto, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const a = document.createElement("a");
-    a.href = photo.url;
-    a.download = `${photo.talentName.replace(/\s+/g, "-")}-${photo.id.slice(0, 8)}.jpg`;
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.click();
-  };
-
-  const handleBulkDownload = async () => {
-    const targets = filtered.filter((p) => selected.has(p.id));
-    if (targets.length === 0) return;
-    if (targets.length === 1) { handleDownloadOne(targets[0]!, { stopPropagation: () => {} } as React.MouseEvent); return; }
-    try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-      await Promise.all(targets.map(async (p, i) => {
-        try {
-          const res = await fetch(p.url);
-          const blob = await res.blob();
-          const ext = blob.type.split("/")[1] ?? "jpg";
-          zip.file(`${String(i + 1).padStart(3, "0")}-${p.talentName.replace(/\s+/g, "-")}.${ext}`, blob);
-        } catch { /* skip failed fetch */ }
-      }));
-      const content = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(content);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "media-export.zip";
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch { setUploadError("Download failed. Try again."); }
-  };
-
-  // Gate — non-Agency users see upgrade CTA
-  if (!isAgency) {
-    return (
-      <div style={{ padding: "48px 28px", maxWidth: 560, margin: "0 auto" }}>
-        <PageHeader
-          title="Media"
-          subtitle="Your workspace photo library — every photo across every talent, with watermark control and usage tracking."
-        />
-        <div style={{
-          marginTop: 32, padding: 28, borderRadius: 16,
-          border: `1px solid ${COLORS.borderSoft}`,
-          background: "#fff",
-          display: "flex", flexDirection: "column", gap: 18,
-        }}>
-          <div style={{ fontSize: 36 }}>🖼️</div>
-          <div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 6 }}>
-              Branded media gallery — Agency plan
-            </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6, marginBottom: 16 }}>
-              See every photo your agency has, see exactly where each one is used, and apply your logo as a watermark so attribution travels with the image.
-            </div>
-            <ul style={{ padding: 0, margin: "0 0 20px 0", listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-              {[
-                "Workspace-wide photo inventory across all talent",
-                "Logo watermark — position, opacity, size",
-                "Bulk apply across selections",
-                "Usage view — which photo is on which profile / pitch",
-              ].map((item) => (
-                <li key={item} style={{
-                  display: "flex", gap: 8, alignItems: "flex-start",
-                  fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
-                }}>
-                  <span style={{ color: COLORS.success, flexShrink: 0 }}>✓</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-            {isStudio && (
-              <div style={{
-                marginBottom: 16, padding: "10px 14px", borderRadius: 10,
-                background: "rgba(91,107,160,0.07)", border: `1px solid rgba(91,107,160,0.15)`,
-              }}>
-                <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "#3B4A75" }}>
-                  <strong>You have Studio</strong> — you already have logo watermark control in Branding settings.
-                  Upgrade to Agency for the full media gallery and usage tracking.
-                </div>
-              </div>
-            )}
-          </div>
-          <PrimaryButton onClick={() => openUpgrade({
-            feature: "Branded media gallery",
-            why: "See every photo your agency controls — and where each one lives.",
-            requiredPlan: "agency",
-            unlocks: ["Workspace-wide photo inventory", "Logo watermark (position · opacity · size)", "Bulk apply", "Usage tracking"],
-          })}>
-            Upgrade to Agency
-          </PrimaryButton>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Filtered + sorted data ───────────────────────────────────────
-  const allTalentNames = useMemo(
-    () => Array.from(new Set(photos.map((p) => p.talentName))).sort(),
-    [photos],
-  );
-  const pendingCount = photos.filter((p) => p.approvalState === "pending").length;
-
-  const filtered = useMemo(() => {
-    let list = photos.filter((p) => {
-      if (filterTalent !== "all" && p.talentName !== filterTalent) return false;
-      if (filterStatus !== "all" && p.approvalState !== filterStatus) return false;
-      if (filterWm === "yes" && !p.hasOverride && !wsWatermarkEnabled) return false;
-      if (filterWm === "no" && (p.hasOverride || wsWatermarkEnabled)) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.trim().toLowerCase();
-        if (!p.talentName.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-    if (sortOrder === "oldest") list = [...list].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    else if (sortOrder === "talent") list = [...list].sort((a, b) => a.talentName.localeCompare(b.talentName));
-    return list;
-  }, [photos, filterTalent, filterStatus, filterWm, searchQuery, sortOrder, wsWatermarkEnabled]);
-
-  const visiblePhotos = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount;
-
-  const allSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
-  const toggleAll = () => {
-    if (allSelected) setSelected(new Set());
-    else setSelected(new Set(filtered.map((p) => p.id)));
-  };
-  const toggleOne = (id: string) => {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setSelected(next);
-  };
-  const selCount = selected.size;
-  const selHasPending = selCount > 0 && Array.from(selected).some(
-    (id) => photos.find((p) => p.id === id)?.approvalState === "pending",
-  );
-
-  // ── Grouped view (by talent) ────────────────────────────────────
-  const groupedByTalent = useMemo(() => {
-    const map = new Map<string, MediaPhoto[]>();
-    for (const p of photos) {
-      const arr = map.get(p.talentName) ?? [];
-      arr.push(p);
-      map.set(p.talentName, arr);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [photos]);
-
-  const filterSel: CSSProperties = {
-    fontFamily: FONTS.body, fontSize: 12, padding: "5px 10px",
-    borderRadius: 8, border: `1px solid ${COLORS.border}`, background: "#fff",
-    color: COLORS.ink, cursor: "pointer",
-  };
-
-  return (
-    <div
-      style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}
-      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-      onDragLeave={() => setIsDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setIsDragOver(false);
-        void processFiles(e.dataTransfer.files);
-      }}
-    >
-      {/* Hidden file inputs */}
-      <input ref={uploadFileRef} type="file" accept="image/*,.zip" multiple hidden
-        onChange={(e) => { void processFiles(e.target.files ?? []); e.target.value = ""; }} />
-      <input ref={zipFolderRef} type="file" accept="image/*,.zip" multiple hidden
-        // @ts-expect-error — webkitdirectory is valid HTML but not in TS types
-        webkitdirectory=""
-        onChange={(e) => { void processFiles(e.target.files ?? []); e.target.value = ""; }} />
-
-      {/* Drag-drop overlay */}
-      {isDragOver && (
-        <div style={{
-          position: "absolute", inset: 0, zIndex: 9999,
-          background: `${COLORS.fill}18`,
-          border: `3px dashed ${COLORS.fill}`,
-          borderRadius: 16,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          pointerEvents: "none",
-        }}>
-          <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700, color: COLORS.fill }}>
-            Drop photos here
-          </div>
-        </div>
-      )}
-
-      {/* Lightbox */}
-      {lightboxPhoto && (() => {
-        const lbIdx   = filtered.findIndex((p) => p.id === lightboxPhoto.id);
-        const hasPrev = lbIdx > 0;
-        const hasNext = lbIdx < filtered.length - 1;
-        const btnStyle: CSSProperties = {
-          padding: "6px 14px", borderRadius: 8,
-          border: "1px solid rgba(255,255,255,0.25)",
-          background: "rgba(255,255,255,0.1)", color: "#fff",
-          fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
-          whiteSpace: "nowrap",
-        };
-        const wmActive = showWmInLightbox && wsWatermarkEnabled && wsLogoUrl;
-        return (
-          <div style={{
-            position: "fixed", inset: 0, zIndex: 9990,
-            background: "rgba(11,11,13,0.92)", backdropFilter: "blur(8px)",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          }} onClick={() => setLightboxPhoto(null)}>
-
-            {/* Top bar */}
-            <div style={{
-              position: "absolute", top: 0, left: 0, right: 0,
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "14px 20px", gap: 10,
-            }} onClick={(e) => e.stopPropagation()}>
-              {/* Left: talent name + status */}
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.75)", minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {lightboxPhoto.talentName}
-                {lightboxPhoto.approvalState === "pending" && <span style={{ marginLeft: 8, color: COLORS.amber }}>· Pending</span>}
-                {lightboxPhoto.hasOverride  && <span style={{ marginLeft: 8, color: COLORS.success }}>· WM override</span>}
-                {!lightboxPhoto.hasOverride && wsWatermarkEnabled && <span style={{ marginLeft: 8, color: COLORS.success }}>· WM on</span>}
-                {lbIdx >= 0 && <span style={{ marginLeft: 8, opacity: 0.4 }}>{lbIdx + 1} / {filtered.length}</span>}
-              </div>
-              {/* Right: action buttons */}
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                {/* WM toggle */}
-                {wsWatermarkEnabled && wsLogoUrl && (
-                  <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid rgba(255,255,255,0.2)" }}>
-                    {(["Original", "Watermarked"] as const).map((label) => {
-                      const active = label === "Watermarked" ? showWmInLightbox : !showWmInLightbox;
-                      return (
-                        <button key={label} type="button"
-                          onClick={() => setShowWmInLightbox(label === "Watermarked")}
-                          style={{ padding: "5px 12px", border: "none", fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer", background: active ? "rgba(255,255,255,0.22)" : "transparent", color: active ? "#fff" : "rgba(255,255,255,0.5)" }}>
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {/* Copy URL */}
-                <button type="button" onClick={() => {
-                  void navigator.clipboard.writeText(lightboxPhoto.url).then(() => {
-                    setCopiedUrl(true); setTimeout(() => setCopiedUrl(false), 1800);
-                  });
-                }} style={btnStyle}>
-                  {copiedUrl ? "Copied!" : "Copy URL"}
-                </button>
-                {/* Open original */}
-                <a href={lightboxPhoto.url} target="_blank" rel="noopener noreferrer"
-                  style={{ ...btnStyle, textDecoration: "none", display: "inline-block" }}
-                  onClick={(e) => e.stopPropagation()}>
-                  Open ↗
-                </a>
-                {/* Download */}
-                <button type="button" onClick={(e) => handleDownloadOne(lightboxPhoto, e)} style={btnStyle}>
-                  Download
-                </button>
-                {/* Set as card photo */}
-                <button type="button" disabled={settingCard} onClick={async (e) => {
-                  e.stopPropagation();
-                  if (!isLiveMode) { toast("Set card photo (demo)"); return; }
-                  setSettingCard(true);
-                  const res = await actionSetAsCardPhoto(lightboxPhoto.id, lightboxPhoto.talentProfileId);
-                  setSettingCard(false);
-                  if (!res.ok) { setUploadError(res.error); return; }
-                  toast("Set as card photo");
-                  router.refresh();
-                }} style={{ ...btnStyle, opacity: settingCard ? 0.6 : 1 }}>
-                  {settingCard ? "Saving…" : "Set as card"}
-                </button>
-                {/* Close */}
-                <button type="button" onClick={() => setLightboxPhoto(null)} style={btnStyle}>
-                  Esc
-                </button>
-              </div>
-            </div>
-
-            {/* Prev chevron */}
-            {hasPrev && (
-              <button type="button" onClick={(e) => { e.stopPropagation(); setLightboxPhoto(filtered[lbIdx - 1]!); }}
-                style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.08)", color: "#fff", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                ‹
-              </button>
-            )}
-
-            {/* Photo */}
-            <div style={{ position: "relative", maxWidth: "88vw", maxHeight: "80vh" }}
-              onClick={(e) => e.stopPropagation()}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={lightboxPhoto.url} alt={lightboxPhoto.talentName}
-                style={{ maxWidth: "88vw", maxHeight: "80vh", objectFit: "contain", borderRadius: 10, display: "block" }} />
-              {wmActive && (
-                <div style={{ position: "absolute", bottom: "3%", right: "3%", width: "13%", opacity: 0.72, pointerEvents: "none" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={wsLogoUrl!} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }} />
-                </div>
-              )}
-            </div>
-
-            {/* Next chevron */}
-            {hasNext && (
-              <button type="button" onClick={(e) => { e.stopPropagation(); setLightboxPhoto(filtered[lbIdx + 1]!); }}
-                style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.08)", color: "#fff", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                ›
-              </button>
-            )}
-
-            {/* Bottom hint */}
-            <div style={{ position: "absolute", bottom: 14, fontFamily: FONTS.body, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-              ← → to navigate · Esc to close
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Staging / Reassign modal ──────────────────────────────── */}
-      {showAssignModal && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9000,
-          background: "rgba(11,11,13,0.55)", display: "flex",
-          alignItems: "center", justifyContent: "center", padding: 24,
-        }} onClick={() => !assignBusy && assignMode === "reassign" && setShowAssignModal(false)}>
-          <div style={{
-            background: "#fff", borderRadius: 16,
-            width: assignMode === "upload" ? "min(820px, 96vw)" : 380,
-            maxHeight: "88vh", display: "flex", flexDirection: "column",
-            boxShadow: "0 24px 64px rgba(11,11,13,0.28)", fontFamily: FONTS.body,
-          }} onClick={(e) => e.stopPropagation()}>
-
-            {/* Header */}
-            <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 6 }}>
-                {assignMode === "upload"
-                  ? `Upload ${stagingItems.length} photo${stagingItems.length !== 1 ? "s" : ""}`
-                  : `Move ${selCount} photo${selCount !== 1 ? "s" : ""} to talent`}
-              </div>
-              {assignMode === "upload" && (() => {
-                const inFlight = stagingItems.filter((it) => it.status === "uploading" || it.status === "queued").length;
-                const ready    = stagingItems.filter((it) => it.status === "ready").length;
-                const errors   = stagingItems.filter((it) => it.status === "error").length;
-                return (
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <div style={{ flex: 1, height: 3, borderRadius: 99, background: COLORS.borderSoft, overflow: "hidden" }}>
-                      <div style={{
-                        height: "100%", borderRadius: 99, background: COLORS.fill,
-                        width: `${stagingItems.length > 0 ? (ready / stagingItems.length) * 100 : 0}%`,
-                        transition: "width 300ms",
-                      }} />
-                    </div>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, whiteSpace: "nowrap" }}>
-                      {inFlight > 0 ? `${ready}/${stagingItems.length} uploaded…` : errors > 0 ? `${errors} failed` : `${ready} ready`}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Bulk-assign bar — upload mode only */}
-            {assignMode === "upload" && (
-              <div style={{ padding: "10px 24px", borderBottom: `1px solid ${COLORS.borderSoft}`, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <button type="button"
-                  onClick={() => setStagingSelected(new Set(stagingItems.map((it) => it.id)))}
-                  style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.inkMuted, background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontFamily: FONTS.body }}>
-                  Select all
-                </button>
-                {stagingSelected.size > 0 && (
-                  <button type="button" onClick={() => setStagingSelected(new Set())}
-                    style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.inkMuted, background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontFamily: FONTS.body }}>
-                    Clear
-                  </button>
-                )}
-                {stagingSelected.size > 0 && (
-                  <>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{stagingSelected.size} selected →</div>
-                    <select value={stagingBulkTalentId} onChange={(e) => setStagingBulkTalentId(e.target.value)}
-                      style={{ ...filterSel, fontSize: 12 }}>
-                      {assignTalents.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                    <button type="button"
-                      onClick={() => {
-                        if (!stagingBulkTalentId) return;
-                        setStagingItems((prev) => prev.map((it) => stagingSelected.has(it.id) ? { ...it, talentId: stagingBulkTalentId } : it));
-                      }}
-                      style={{ fontSize: 12, fontWeight: 600, color: "#fff", background: COLORS.fill, border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: FONTS.body }}>
-                      Assign
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Reassign: simple talent picker */}
-            {assignMode === "reassign" && (
-              <div style={{ padding: "18px 24px" }}>
-                <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
-                  Photos will be re-assigned and appear under the new talent.
-                </div>
-                <input type="text" placeholder="Search talent…"
-                  style={{ ...filterSel, width: "100%", boxSizing: "border-box", marginBottom: 8 }}
-                  onChange={(e) => {
-                    const q = e.target.value.toLowerCase();
-                    const el = document.getElementById("assign-talent-select") as HTMLSelectElement | null;
-                    if (!el) return;
-                    for (const opt of Array.from(el.options)) opt.hidden = !opt.text.toLowerCase().includes(q);
-                  }} />
-                <select id="assign-talent-select" value={assignTalentId} onChange={(e) => setAssignTalentId(e.target.value)}
-                  disabled={assignBusy} size={Math.min(assignTalents.length, 6)}
-                  style={{ width: "100%", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, background: "#fff" }}>
-                  {assignTalents.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            {/* Staging thumbnail grid */}
-            {assignMode === "upload" && (
-              <div style={{ flex: 1, overflow: "auto", padding: "14px 24px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
-                  {stagingItems.map((item) => {
-                    const sel = stagingSelected.has(item.id);
-                    return (
-                      <div key={item.id}
-                        onClick={() => setStagingSelected((prev) => { const n = new Set(prev); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n; })}
-                        style={{ cursor: "pointer", borderRadius: 8, overflow: "hidden", border: sel ? `2px solid ${COLORS.fill}` : `1px solid ${COLORS.borderSoft}`, background: COLORS.surfaceAlt }}>
-                        <div style={{ position: "relative", aspectRatio: "1" }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={item.blobUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                          {item.status === "uploading" && (
-                            <div style={{ position: "absolute", inset: 0, background: "rgba(11,11,13,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.35)", borderTopColor: "#fff", borderRadius: "50%" }} />
-                            </div>
-                          )}
-                          {item.status === "queued" && (
-                            <div style={{ position: "absolute", inset: 0, background: "rgba(11,11,13,0.28)" }} />
-                          )}
-                          {item.status === "error" && (
-                            <div style={{ position: "absolute", inset: 0, background: "rgba(192,57,43,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <div style={{ fontSize: 9, fontWeight: 700, color: "#fff", fontFamily: FONTS.body }}>FAILED</div>
-                            </div>
-                          )}
-                          {item.status === "ready" && sel && (
-                            <div style={{ position: "absolute", top: 4, right: 4, width: 16, height: 16, background: COLORS.fill, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ color: "#fff", fontSize: 10 }}>✓</span>
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ padding: "4px 6px" }}>
-                          <select value={item.talentId}
-                            onChange={(e) => { e.stopPropagation(); setStagingItems((prev) => prev.map((it) => it.id === item.id ? { ...it, talentId: e.target.value } : it)); }}
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ width: "100%", fontSize: 10, fontFamily: FONTS.body, border: "none", background: "transparent", color: COLORS.ink, cursor: "pointer", padding: 0 }}>
-                            {assignTalents.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Footer */}
-            <div style={{ padding: "14px 24px", borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
-              {assignMode === "upload" && (() => {
-                const inFlight = stagingItems.filter((it) => it.status === "uploading" || it.status === "queued").length;
-                const ready    = stagingItems.filter((it) => it.status === "ready").length;
-                if (inFlight === 0 && ready === 0) return null;
-                return inFlight > 0
-                  ? <div style={{ marginRight: "auto", fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Uploading…</div>
-                  : null;
-              })()}
-              <button type="button" disabled={assignBusy}
-                onClick={assignMode === "upload" ? cancelStaging : () => setShowAssignModal(false)}
-                style={{ padding: "8px 18px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, background: "transparent", color: COLORS.inkMuted, cursor: "pointer" }}>
-                Cancel
-              </button>
-              <button type="button"
-                disabled={assignBusy || (assignMode === "upload"
-                  ? stagingItems.filter((it) => it.status === "ready").length === 0 || stagingItems.some((it) => it.status === "uploading" || it.status === "queued")
-                  : !assignTalentId)}
-                onClick={() => { void (assignMode === "upload" ? confirmStaging() : runReassign()); }}
-                style={{ padding: "8px 18px", borderRadius: 8, border: "none", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, background: COLORS.fill, color: "#fff", cursor: "pointer", opacity: assignBusy ? 0.7 : 1 }}>
-                {assignBusy ? "Saving…"
-                  : assignMode === "upload"
-                    ? `Save ${stagingItems.filter((it) => it.status === "ready").length} photo${stagingItems.filter((it) => it.status === "ready").length !== 1 ? "s" : ""}`
-                    : "Move to talent"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Page header ─────────────────────────────────────────── */}
-      <div style={{ padding: "24px 28px 0" }}>
-        {uploadError && (
-          <div style={{
-            marginBottom: 12, padding: "8px 14px", borderRadius: 8,
-            background: "rgba(192,57,43,0.06)", border: "1px solid rgba(192,57,43,0.18)",
-            fontFamily: FONTS.body, fontSize: 12.5, color: "#c0392b",
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-          }}>
-            <span>{uploadError}</span>
-            <button type="button" onClick={() => setUploadError(null)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b", fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
-          </div>
-        )}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, color: COLORS.ink, margin: 0 }}>Media</h1>
-            <p style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, marginTop: 4, marginBottom: 0 }}>
-              {photos.length} photo{photos.length !== 1 ? "s" : ""} across {allTalentNames.length} talent
-              {isLiveMode && photos.length === 0 && " · drop photos or click Upload to start"}
-              {wsWatermarkEnabled && wsLogoUrl && <span style={{ marginLeft: 8, color: COLORS.success }}>· Watermark on</span>}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <SecondaryButton size="sm" onClick={() => openDrawer("branding")}>
-              ⚙ Watermark
-            </SecondaryButton>
-            <SecondaryButton size="sm" onClick={openBulkPicker} disabled={assignBusy}>
-              Folder
-            </SecondaryButton>
-            <PrimaryButton size="sm" onClick={openUploadPicker} disabled={assignBusy}>
-              + Upload
-            </PrimaryButton>
-          </div>
-        </div>
-
-        {/* Tab strip */}
-        <div style={{ display: "flex", gap: 2, marginTop: 20, borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-          {(["all", "grouped"] as const).map((tab) => {
-            const label = tab === "all"
-              ? `All photos (${photos.length})`
-              : "By talent";
-            const active = activeTab === tab;
-            return (
-              <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{
-                fontFamily: FONTS.body, fontSize: 13, fontWeight: active ? 600 : 500,
-                color: active ? COLORS.ink : COLORS.inkMuted,
-                background: "transparent", border: "none", cursor: "pointer",
-                padding: "8px 14px 10px",
-                borderBottom: active ? `2px solid ${COLORS.ink}` : "2px solid transparent",
-                marginBottom: -1, display: "flex", alignItems: "center", gap: 6,
-              }}>
-                {label}
-                {tab === "all" && pendingCount > 0 && (
-                  <span style={{
-                    background: COLORS.amber, color: "#fff", borderRadius: 999,
-                    fontSize: 9, fontWeight: 800, padding: "1px 5px", lineHeight: 1.4,
-                  }}>{pendingCount}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── All photos tab ──────────────────────────────────────── */}
-      {activeTab === "all" && (
-        <div style={{ flex: 1, overflow: "auto", padding: "16px 28px 32px" }}>
-          {/* Filter bar */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setSelected(new Set()); }}
-              placeholder="Search talent…"
-              style={{ ...filterSel, minWidth: 140 }}
-            />
-            <select value={filterTalent} onChange={(e) => { setFilterTalent(e.target.value); setSelected(new Set()); }} style={filterSel}>
-              <option value="all">All talent</option>
-              {allTalentNames.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-            <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value as typeof filterStatus); setSelected(new Set()); }} style={filterSel}>
-              <option value="all">All statuses</option>
-              <option value="approved">Approved</option>
-              <option value="pending">Pending{pendingCount > 0 ? ` (${pendingCount})` : ""}</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select value={filterWm} onChange={(e) => { setFilterWm(e.target.value as typeof filterWm); setSelected(new Set()); }} style={filterSel}>
-              <option value="all">All watermark</option>
-              <option value="yes">Watermarked</option>
-              <option value="no">No watermark</option>
-            </select>
-            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)} style={filterSel}>
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="talent">By talent A–Z</option>
-            </select>
-            {(filterTalent !== "all" || filterStatus !== "all" || filterWm !== "all" || searchQuery) && (
-              <button type="button" onClick={() => { setFilterTalent("all"); setFilterStatus("all"); setFilterWm("all"); setSearchQuery(""); setSelected(new Set()); }}
-                style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, background: "none", border: "none", cursor: "pointer", padding: "5px 6px" }}>
-                × Clear
-              </button>
-            )}
-            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                  style={{ accentColor: COLORS.fill, cursor: "pointer" }} />
-                <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
-                  Select all ({filtered.length})
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {/* Bulk action toolbar */}
-          {selCount > 0 && (
-            <div style={{
-              position: "sticky", top: 0, zIndex: 10, marginBottom: 12,
-              padding: "10px 14px", background: COLORS.fill, borderRadius: 10, color: "#fff",
-              display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-              fontFamily: FONTS.body, fontSize: 12,
-            }}>
-              <span style={{ fontWeight: 700, fontSize: 13 }}>{selCount} selected</span>
-              {selHasPending && (
-                <button type="button" onClick={() => { void handleApproveSelected(); }}
-                  disabled={isApproving}
-                  style={{ background: "rgba(46,160,67,0.9)", border: "none", color: "#fff", padding: "5px 12px", borderRadius: 7, cursor: "pointer", fontWeight: 600 }}>
-                  {isApproving ? "Approving…" : "Approve"}
-                </button>
-              )}
-              {selHasPending && (
-                <button type="button" onClick={() => { void handleRejectSelected(); }}
-                  disabled={isApproving}
-                  style={{ background: "rgba(192,57,43,0.55)", border: "none", color: "#fff", padding: "5px 12px", borderRadius: 7, cursor: "pointer", fontWeight: 600 }}>
-                  Reject
-                </button>
-              )}
-              <button type="button"
-                onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })}
-                style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", padding: "5px 12px", borderRadius: 7, cursor: "pointer", fontWeight: 600 }}>
-                Apply WM
-              </button>
-              <button type="button" onClick={() => { void openReassignModal(); }}
-                style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", padding: "5px 12px", borderRadius: 7, cursor: "pointer", fontWeight: 600 }}>
-                Move to…
-              </button>
-              <button type="button" onClick={() => { void handleBulkDownload(); }}
-                style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", padding: "5px 12px", borderRadius: 7, cursor: "pointer", fontWeight: 600 }}>
-                Download
-              </button>
-              <button type="button" onClick={() => { void handleDeleteSelected(); }}
-                disabled={isDeleting}
-                style={{ background: "rgba(192,57,43,0.75)", border: "none", color: "#fff", padding: "5px 12px", borderRadius: 7, cursor: isDeleting ? "not-allowed" : "pointer", fontWeight: 600, opacity: isDeleting ? 0.6 : 1 }}>
-                {isDeleting ? "Deleting…" : `Delete ${selCount}`}
-              </button>
-              <button type="button" onClick={() => setSelected(new Set())}
-                style={{ marginLeft: "auto", background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
-            </div>
-          )}
-
-          {/* Photo grid */}
-          {filtered.length === 0 ? (
-            <div style={{ padding: 48, textAlign: "center", fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, border: `1px dashed ${COLORS.border}`, borderRadius: 12 }}>
-              <div style={{ marginBottom: 10 }}>No photos match the current filters.</div>
-              <button type="button"
-                onClick={() => { setFilterTalent("all"); setFilterStatus("all"); setFilterWm("all"); setSearchQuery(""); }}
-                style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.fill, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-                Clear filters
-              </button>
-            </div>
-          ) : (
-            <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12 }}>
-                {visiblePhotos.map((photo) => {
-                  const isSel = selected.has(photo.id);
-                  const showWmDefault = wsWatermarkEnabled && !photo.hasOverride;
-                  const showWmOverride = photo.hasOverride;
-                  const isDragTarget = dropTargetTalent === `reorder-${photo.id}`;
-                  return (
-                    <div key={photo.id}
-                      draggable
-                      onDragStart={(e) => { e.dataTransfer.setData("reorderPhotoId", photo.id); setDragPhotoId(photo.id); }}
-                      onDragEnd={() => { setDragPhotoId(null); setDropTargetTalent(null); }}
-                      onDragOver={(e) => { e.preventDefault(); setDropTargetTalent(`reorder-${photo.id}`); }}
-                      onDragLeave={() => setDropTargetTalent(null)}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        setDropTargetTalent(null);
-                        const fromId = e.dataTransfer.getData("reorderPhotoId");
-                        if (!fromId || fromId === photo.id || !isLiveMode) return;
-                        const fromIdx = filtered.findIndex((p) => p.id === fromId);
-                        const toIdx   = filtered.findIndex((p) => p.id === photo.id);
-                        if (fromIdx === -1 || toIdx === -1) return;
-                        const reordered = [...filtered];
-                        const [moved] = reordered.splice(fromIdx, 1);
-                        reordered.splice(toIdx, 0, moved!);
-                        void actionReorderMediaAssets(reordered.map((p) => p.id)).then(() => router.refresh());
-                      }}
-                      style={{
-                        borderRadius: 12, overflow: "hidden", position: "relative",
-                        border: isDragTarget ? `2px dashed ${COLORS.fill}` : isSel ? `2px solid ${COLORS.fill}` : `2px solid transparent`,
-                        boxShadow: isSel ? `0 0 0 2px ${COLORS.fill}22` : "0 1px 4px rgba(11,11,13,0.08)",
-                        cursor: dragPhotoId ? "grabbing" : "pointer",
-                        opacity: dragPhotoId === photo.id ? 0.45 : 1,
-                        transition: "border 0.12s, box-shadow 0.12s, opacity 0.12s", background: "#fff",
-                      }}
-                      onClick={() => toggleOne(photo.id)}
-                    >
-                      {/* Image area */}
-                      <div style={{ width: "100%", aspectRatio: "3/4", position: "relative", overflow: "hidden", background: COLORS.surfaceAlt }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photo.thumbUrl} alt={photo.talentName} loading="lazy"
-                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-
-                        {/* Real logo watermark preview overlay */}
-                        {(showWmDefault || showWmOverride) && wsLogoUrl && (
-                          <div style={{ position: "absolute", bottom: "5%", right: "5%", width: "24%", opacity: 0.75, pointerEvents: "none" }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={wsLogoUrl} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }} />
-                          </div>
-                        )}
-
-                        {/* WM badge — OVERRIDE vs DEFAULT */}
-                        {showWmOverride && (
-                          <div style={{ position: "absolute", top: 5, left: 5, background: "rgba(46,107,82,0.92)", backdropFilter: "blur(4px)", color: "#fff", borderRadius: 4, fontFamily: FONTS.body, fontSize: 8.5, fontWeight: 700, padding: "2px 5px", letterSpacing: 0.4 }}>
-                            WM OVERRIDE
-                          </div>
-                        )}
-                        {showWmDefault && !showWmOverride && (
-                          <div style={{ position: "absolute", top: 5, left: 5, background: "rgba(46,107,82,0.70)", backdropFilter: "blur(4px)", color: "#fff", borderRadius: 4, fontFamily: FONTS.body, fontSize: 8.5, fontWeight: 700, padding: "2px 5px", letterSpacing: 0.4 }}>
-                            WM
-                          </div>
-                        )}
-
-                        {/* Status badge */}
-                        {photo.approvalState === "pending" && (
-                          <div style={{ position: "absolute", top: showWmDefault || showWmOverride ? 22 : 5, left: 5, background: COLORS.amber, color: "#fff", borderRadius: 4, fontFamily: FONTS.body, fontSize: 8.5, fontWeight: 700, padding: "2px 5px" }}>
-                            PENDING
-                          </div>
-                        )}
-                        {photo.approvalState === "rejected" && (
-                          <div style={{ position: "absolute", top: 5, left: 5, background: "rgba(192,57,43,0.92)", color: "#fff", borderRadius: 4, fontFamily: FONTS.body, fontSize: 8.5, fontWeight: 700, padding: "2px 5px" }}>
-                            REJECTED
-                          </div>
-                        )}
-
-                        {/* Full-size preview button */}
-                        <button type="button"
-                          onClick={(e) => { e.stopPropagation(); setLightboxPhoto(photo); }}
-                          style={{
-                            position: "absolute", bottom: 5, left: 5,
-                            background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)",
-                            border: "none", color: "rgba(255,255,255,0.85)", borderRadius: 5,
-                            fontFamily: FONTS.body, fontSize: 9, fontWeight: 600,
-                            padding: "3px 6px", cursor: "pointer", letterSpacing: 0.3,
-                            opacity: 0, transition: "opacity 0.15s",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
-                        >
-                          Full size
-                        </button>
-
-                        {/* Select checkbox */}
-                        <div style={{
-                          position: "absolute", top: 5, right: 5, width: 18, height: 18, borderRadius: 5,
-                          border: `2px solid ${isSel ? COLORS.fill : "rgba(255,255,255,0.7)"}`,
-                          background: isSel ? COLORS.fill : "rgba(255,255,255,0.35)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          backdropFilter: "blur(4px)", transition: "all 0.12s",
-                        }}>
-                          {isSel && <span style={{ color: "#fff", fontSize: 11, lineHeight: 1 }}>✓</span>}
-                        </div>
-                      </div>
-
-                      {/* Card footer */}
-                      <div style={{ padding: "7px 9px 9px" }}>
-                        <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {photo.talentName}
-                        </div>
-                        {/* Quick actions row */}
-                        <div style={{ display: "flex", gap: 5, marginTop: 6 }}>
-                          <button type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDrawer("watermark-editor", {
-                                mediaAssetId: photo.id,
-                                talentName: photo.talentName,
-                                currentOverride: photo.watermarkOverride,
-                              });
-                            }}
-                            style={{ flex: 1, padding: "3px 0", borderRadius: 5, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.ink, fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 600, cursor: "pointer" }}>
-                            WM
-                          </button>
-                          <button type="button" onClick={(e) => handleDownloadOne(photo, e)}
-                            style={{ padding: "3px 6px", borderRadius: 5, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 600, cursor: "pointer" }}>
-                            ↓
-                          </button>
-                          {photo.approvalState === "pending" && (
-                            <button type="button"
-                              onClick={async (e) => { e.stopPropagation(); const r = await actionSetApprovalState([photo.id], "approved"); if (r.ok) router.refresh(); }}
-                              style={{ padding: "3px 6px", borderRadius: 5, border: "1px solid rgba(46,160,67,0.4)", background: "transparent", color: "rgba(46,160,67,1)", fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 700, cursor: "pointer" }}>
-                              ✓
-                            </button>
-                          )}
-                          <button type="button" onClick={(e) => { void handleDeleteOne(photo.id, e); }}
-                            style={{ padding: "3px 6px", borderRadius: 5, border: `1px solid rgba(192,57,43,0.3)`, background: "transparent", color: "#c0392b", fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 700, cursor: "pointer" }}>
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {hasMore && (
-                <div style={{ textAlign: "center", marginTop: 24 }}>
-                  <button type="button"
-                    onClick={() => setVisibleCount((c) => c + 60)}
-                    style={{
-                      padding: "9px 28px", borderRadius: 999,
-                      border: `1px solid ${COLORS.border}`, background: "#fff",
-                      fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
-                      color: COLORS.ink, cursor: "pointer",
-                    }}>
-                    Load more ({filtered.length - visibleCount} remaining)
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── By talent tab ───────────────────────────────────────── */}
-      {activeTab === "grouped" && (
-        <div style={{ flex: 1, overflow: "auto", padding: "20px 28px 40px" }}>
-          {groupedByTalent.length === 0 ? (
-            <div style={{ padding: 48, textAlign: "center", fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
-              No photos yet. Upload to get started.
-            </div>
-          ) : (
-            groupedByTalent.map(([talentName, talentPhotos]) => {
-              const targetTalentId = talentPhotos[0]?.talentProfileId ?? "";
-              const isDroppingHere = dropTargetTalent === targetTalentId;
-              return (
-                <div key={talentName} style={{ marginBottom: 32 }}
-                  onDragOver={(e) => { e.preventDefault(); setDropTargetTalent(targetTalentId); }}
-                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTargetTalent(null); }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDropTargetTalent(null);
-                    const photoId = e.dataTransfer.getData("photoId");
-                    if (!photoId || !targetTalentId) return;
-                    const photo = photos.find((p) => p.id === photoId);
-                    if (!photo || photo.talentProfileId === targetTalentId) return;
-                    void actionReassignMediaToTalent([photoId], targetTalentId).then(() => router.refresh());
-                  }}>
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 10, marginBottom: 12,
-                    padding: "6px 10px", borderRadius: 8, transition: "background 150ms",
-                    background: isDroppingHere ? `${COLORS.fill}14` : "transparent",
-                    border: isDroppingHere ? `2px dashed ${COLORS.fill}` : "2px solid transparent",
-                  }}>
-                    <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, color: COLORS.ink }}>
-                      {talentName}
-                    </div>
-                    <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
-                      {talentPhotos.length} photo{talentPhotos.length !== 1 ? "s" : ""}
-                    </div>
-                    {talentPhotos.some((p) => p.approvalState === "pending") && (
-                      <span style={{ background: COLORS.amber, color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 800, padding: "1px 5px" }}>
-                        {talentPhotos.filter((p) => p.approvalState === "pending").length} pending
-                      </span>
-                    )}
-                    {isDroppingHere && (
-                      <span style={{ fontSize: 11, color: COLORS.fill, fontWeight: 600, fontFamily: FONTS.body }}>
-                        Drop to reassign
-                      </span>
-                    )}
-                    <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {talentPhotos.map((photo) => (
-                      <button key={photo.id} type="button"
-                        draggable
-                        onDragStart={(e) => { e.dataTransfer.setData("photoId", photo.id); setDragPhotoId(photo.id); }}
-                        onDragEnd={() => setDragPhotoId(null)}
-                        onClick={() => setLightboxPhoto(photo)}
-                        style={{
-                          width: 88, height: 117, borderRadius: 8, overflow: "hidden",
-                          border: dragPhotoId === photo.id ? `2px solid ${COLORS.fill}` : `1px solid ${COLORS.borderSoft}`,
-                          cursor: "grab", position: "relative", padding: 0,
-                          background: COLORS.surfaceAlt, flexShrink: 0,
-                          opacity: dragPhotoId && dragPhotoId !== photo.id ? 0.6 : 1,
-                          transition: "opacity 150ms, border 150ms",
-                        }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photo.thumbUrl} alt={photo.talentName} loading="lazy"
-                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                        {photo.approvalState === "pending" && (
-                          <div style={{ position: "absolute", top: 3, left: 3, background: COLORS.amber, color: "#fff", borderRadius: 3, fontFamily: FONTS.body, fontSize: 7.5, fontWeight: 800, padding: "1px 4px" }}>
-                            PENDING
-                          </div>
-                        )}
-                        {(photo.hasOverride || wsWatermarkEnabled) && (
-                          <div style={{ position: "absolute", bottom: 3, right: 3, background: "rgba(46,107,82,0.88)", color: "#fff", borderRadius: 3, fontFamily: FONTS.body, fontSize: 7.5, fontWeight: 800, padding: "1px 4px" }}>
-                            WM
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 const SETTINGS_SECTIONS = [
   { id: "account",      label: "Account",          desc: "Workspace name, slug, contact email.",                                supportLink: "/help/settings/account" },
   { id: "plan",         label: "Plan & billing",   desc: "Your current plan, usage, and invoices.",                              supportLink: "/help/settings/billing" },
@@ -11074,7 +9875,7 @@ function LockedPill({ plan }: { plan: Plan }) {
 }
 
 function WorkspacePageView() {
-  const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useProto();
   const pendingTrustCount = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
   ).length;
@@ -11326,7 +10127,7 @@ function WorkspacePageView() {
           <AccordionItem id="account" label="Account" desc="Workspace name, slug, and contact info." supportLink="/help/settings/account">
             <SettingsRow onClick={() => openDrawer("identity")}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{TENANT.name}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{effectiveTenant.name}</div>
                 <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Name · Slug · Contact email</div>
               </div>
               <Affordance label="Edit" />

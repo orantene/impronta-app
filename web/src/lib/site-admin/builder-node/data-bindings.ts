@@ -307,10 +307,13 @@ export function getBuilderDataBindingFindings(
     binding.maxItems &&
     binding.maxItems > 5
   ) {
+    const freePlanLimit = (options?.workspacePlan ?? "free") === "free";
     findings.push({
       id: "free-roster-limit",
-      severity: "warning",
-      message: "Free workspaces can publish up to five roster profiles on the public page.",
+      severity: freePlanLimit ? "error" : "warning",
+      message: freePlanLimit
+        ? "Free workspaces can publish up to five roster profiles on the public page. Lower this block limit before publish."
+        : "Free workspaces can publish up to five roster profiles on the public page.",
       fix: { maxItems: 5 },
     });
   }

@@ -68,7 +68,7 @@ function isLocalhostHost(hostHeader: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
 

@@ -443,6 +443,28 @@ export function PublishDrawer() {
     preflightBlockingErrors > 0 ||
     summary.missing.length > 0 ||
     pageVersion === null;
+  const publishBlockReasons = useMemo(() => {
+    const reasons: string[] = [];
+    if (preflightLoading) reasons.push("Preflight checks are still running.");
+    if (preflightBlockingErrors > 0) {
+      reasons.push(
+        `${preflightBlockingErrors} preflight blocker${
+          preflightBlockingErrors === 1 ? "" : "s"
+        } must be resolved.`,
+      );
+    }
+    if (summary.missing.length > 0) {
+      reasons.push(
+        `Add at least one section to: ${summary.missing
+          .map((slot) => slot.label)
+          .join(", ")}.`,
+      );
+    }
+    if (saving) reasons.push("Wait for autosave to finish.");
+    else if (dirty) reasons.push("Save draft changes before publishing.");
+    if (pageVersion === null) reasons.push("Page version is unavailable. Reload and try again.");
+    return reasons;
+  }, [dirty, pageVersion, preflightBlockingErrors, preflightLoading, saving, summary.missing]);
 
   const isSuccess = state.kind === "success";
 
@@ -1010,6 +1032,45 @@ export function PublishDrawer() {
                     Reload the latest version
                   </button>
                 ) : null}
+              </div>
+            ) : null}
+
+            {state.kind !== "publishing" &&
+            publishBlockReasons.length > 0 ? (
+              <div
+                style={{
+                  marginTop: 10,
+                  borderRadius: 8,
+                  border: `1px solid ${CHROME.roseLine}`,
+                  background: CHROME.roseBg,
+                  color: CHROME.rose,
+                  padding: "9px 10px",
+                  fontSize: 11.5,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: 5,
+                  }}
+                >
+                  Publish blocked
+                </div>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: 14,
+                    display: "grid",
+                    gap: 2,
+                  }}
+                >
+                  {publishBlockReasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
               </div>
             ) : null}
           </>

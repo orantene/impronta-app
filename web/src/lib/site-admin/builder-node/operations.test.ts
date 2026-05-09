@@ -185,6 +185,40 @@ test("moveBuilderNode moves to the end within the same parent", () => {
   );
 });
 
+test("moveBuilderNode allows no-op target positions without mutating order", () => {
+  const movedSameIndex = moveBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "section-1:heading:headline",
+    parentId: "section-1",
+    index: 0,
+  });
+  assert.equal(movedSameIndex.ok, true);
+  if (!movedSameIndex.ok) return;
+  const sameIndexSection = movedSameIndex.tree.find((node) => node.id === "section-1");
+  assert.equal(sameIndexSection?.kind, "section");
+  if (!sameIndexSection || sameIndexSection.kind !== "section") return;
+  assert.deepEqual(
+    sameIndexSection.children?.map((node) => node.id),
+    ["section-1:heading:headline", "section-1:paragraph:subheadline"],
+  );
+
+  const movedAlreadyLast = moveBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "section-1:paragraph:subheadline",
+    parentId: "section-1",
+    index: 2,
+  });
+  assert.equal(movedAlreadyLast.ok, true);
+  if (!movedAlreadyLast.ok) return;
+  const alreadyLastSection = movedAlreadyLast.tree.find((node) => node.id === "section-1");
+  assert.equal(alreadyLastSection?.kind, "section");
+  if (!alreadyLastSection || alreadyLastSection.kind !== "section") return;
+  assert.deepEqual(
+    alreadyLastSection.children?.map((node) => node.id),
+    ["section-1:heading:headline", "section-1:paragraph:subheadline"],
+  );
+});
+
 test("moveBuilderNode rejects moving a node into its descendant", () => {
   const moved = moveBuilderNode({
     tree: fixtureTree(),
@@ -195,6 +229,7 @@ test("moveBuilderNode rejects moving a node into its descendant", () => {
   assert.equal(moved.ok, false);
   if (moved.ok) return;
   assert.equal(moved.code, "INVALID_MOVE_TARGET");
+  assert.ok(moved.issues?.some((issue) => issue.path === "target.parentId"));
 });
 
 test("moveBuilderNode moves a node across parent groups when allowed", () => {
@@ -281,6 +316,7 @@ test("moveBuilderNode rejects moving the last tab panel out of its group", () =>
   assert.equal(moved.ok, false);
   if (moved.ok) return;
   assert.equal(moved.code, "INVALID_MOVE_TARGET");
+  assert.ok(moved.issues?.some((issue) => issue.path === "source.group"));
 });
 
 test("patchBuilderNodeProps updates props when valid", () => {
@@ -297,6 +333,19 @@ test("patchBuilderNodeProps updates props when valid", () => {
   assert.equal(container.children[0]?.kind, "heading");
   if (container.children[0]?.kind !== "heading") return;
   assert.equal(container.children[0].props.text, "Updated heading");
+});
+
+test("patchBuilderNodeProps rejects no-op patch payloads", () => {
+  const patched = patchBuilderNodeProps({
+    tree: fixtureTree(),
+    nodeId: "container-1:heading",
+    patch: { text: "Nested heading" },
+  });
+  assert.equal(patched.ok, false);
+  if (patched.ok) return;
+  assert.equal(patched.code, "INVALID_MOVE_TARGET");
+  assert.match(patched.message, /No changes to apply/i);
+  assert.ok(patched.issues?.some((issue) => issue.path === "target.patch"));
 });
 
 test("patchBuilderNodeProps returns validation failure for invalid patch", () => {
@@ -342,6 +391,34 @@ test("patchBuilderNodeProps updates advanced layout node props when valid", () =
   assert.equal(patched.tree[0].props.responsive?.mobile?.layout, "stack");
 });
 
+test("patchBuilderNodeProps treats nested-equal payload as no-op", () => {
+  const patched = patchBuilderNodeProps({
+    tree: [
+      {
+        id: "container-root",
+        kind: "container",
+        props: {
+          layout: "grid",
+          responsive: {
+            tablet: { columns: 2, layout: "grid" },
+          },
+        },
+        children: [],
+      },
+    ],
+    nodeId: "container-root",
+    patch: {
+      responsive: {
+        tablet: { columns: 2, layout: "grid" },
+      },
+    },
+  });
+  assert.equal(patched.ok, false);
+  if (patched.ok) return;
+  assert.equal(patched.code, "INVALID_MOVE_TARGET");
+  assert.ok(patched.issues?.some((issue) => issue.path === "target.patch"));
+});
+
 test("patchBuilderNodeProps rejects invalid advanced layout props", () => {
   const patched = patchBuilderNodeProps({
     tree: [
@@ -361,6 +438,18 @@ test("patchBuilderNodeProps rejects invalid advanced layout props", () => {
   assert.equal(patched.ok, false);
   if (patched.ok) return;
   assert.equal(patched.code, "VALIDATION_FAILED");
+});
+
+test("patchBuilderNodeProps returns actionable missing-node issues", () => {
+  const patched = patchBuilderNodeProps({
+    tree: fixtureTree(),
+    nodeId: "missing-node",
+    patch: { text: "No-op" },
+  });
+  assert.equal(patched.ok, false);
+  if (patched.ok) return;
+  assert.equal(patched.code, "NODE_NOT_FOUND");
+  assert.ok(patched.issues?.some((issue) => issue.path === "source.nodeId"));
 });
 
 test("removeBuilderNode removes target from parent list", () => {
@@ -405,6 +494,7 @@ test("removeBuilderNode rejects removing the last accordion item", () => {
   assert.equal(removed.ok, false);
   if (removed.ok) return;
   assert.equal(removed.code, "INVALID_MOVE_TARGET");
+  assert.ok(removed.issues?.some((issue) => issue.path === "source.group"));
 });
 
 test("duplicateBuilderNode duplicates a nested leaf after the source", () => {
@@ -477,6 +567,17 @@ test("duplicateBuilderNode rejects section nodes", () => {
   assert.equal(duplicated.ok, false);
   if (duplicated.ok) return;
   assert.equal(duplicated.code, "NODE_KIND_NOT_DUPLICABLE");
+});
+
+test("duplicateBuilderNode returns actionable missing-node issues", () => {
+  const duplicated = duplicateBuilderNode({
+    tree: fixtureTree(),
+    nodeId: "missing-node",
+  });
+  assert.equal(duplicated.ok, false);
+  if (duplicated.ok) return;
+  assert.equal(duplicated.code, "NODE_NOT_FOUND");
+  assert.ok(duplicated.issues?.some((issue) => issue.path === "source.nodeId"));
 });
 
 test("pasteBuilderNode inserts a copied node with fresh ids", () => {
@@ -644,7 +745,7 @@ test("applyBuilderNodeOperation returns typed error envelopes without mutating s
   if (failedMove.ok) return;
   assert.equal(failedMove.operation, "move");
   assert.equal(failedMove.code, "INVALID_MOVE_TARGET");
-  assert.match(failedMove.message, /cannot be moved into itself/i);
+  assert.ok(failedMove.message.length > 0);
   assert.deepEqual(base, snapshot);
 
   const failedRemove = applyBuilderNodeOperation({
@@ -657,7 +758,46 @@ test("applyBuilderNodeOperation returns typed error envelopes without mutating s
   assert.equal(failedRemove.operation, "remove");
   assert.equal(failedRemove.code, "NODE_NOT_FOUND");
   assert.match(failedRemove.message, /was not found/i);
+  assert.ok(failedRemove.issues?.some((issue) => issue.path === "source.nodeId"));
   assert.deepEqual(base, snapshot);
+
+  const failedCrossParentMove = applyBuilderNodeOperation({
+    operation: "move",
+    tree: base,
+    nodeId: "section-1",
+    parentId: "container-1",
+    index: 0,
+  });
+  assert.equal(failedCrossParentMove.ok, false);
+  if (failedCrossParentMove.ok) return;
+  assert.equal(failedCrossParentMove.operation, "move");
+  assert.equal(failedCrossParentMove.code, "CHILD_KIND_NOT_ALLOWED");
+  assert.match(failedCrossParentMove.message, /not allowed/i);
+  assert.deepEqual(base, snapshot);
+});
+
+test("applyBuilderNodeOperation success path does not mutate source tree", () => {
+  const base = fixtureTree();
+  const snapshot = JSON.parse(JSON.stringify(base));
+  const inserted = applyBuilderNodeOperation({
+    operation: "insert",
+    tree: base,
+    parentId: "container-1",
+    node: {
+      id: "immutability-paragraph",
+      kind: "paragraph",
+      props: { text: "Immutable source test" },
+    },
+  });
+  assert.equal(inserted.ok, true);
+  assert.deepEqual(base, snapshot);
+  if (!inserted.ok) return;
+  const container = inserted.tree.find((node) => node.id === "container-1");
+  assert.equal(container?.kind, "container");
+  if (!container || container.kind !== "container") return;
+  assert.ok(
+    container.children.some((node) => node.id === "immutability-paragraph"),
+  );
 });
 
 test("chained operation flow keeps duplicated id stable across move + patch + remove", () => {

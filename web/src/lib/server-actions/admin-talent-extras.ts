@@ -20,6 +20,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 
 // ─── Trust badges ───────────────────────────────────────────────────────────
 
@@ -47,10 +48,10 @@ export type TrustBadge = {
 };
 
 const createTrustBadgeSchema = z.object({
-  talent_profile_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
   badge_kind: z.enum(VALID_BADGE_KINDS),
   scope: z.enum(["platform", "agency"]).default("agency"),
-  evidence_media_id: z.string().uuid().nullable().optional(),
+  evidence_media_id: pgUuidSchema().nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
 });
 
@@ -94,7 +95,7 @@ export async function createTrustBadge(
 }
 
 const updateTrustBadgeSchema = z.object({
-  badge_id: z.string().uuid(),
+  badge_id: pgUuidSchema(),
   status: z.enum(["pending", "verified", "rejected", "expired"]),
   notes: z.string().max(500).nullable().optional(),
   expires_at: z.string().datetime().nullable().optional(),
@@ -180,7 +181,7 @@ const VALID_DATA_SCOPES = [
 export type DataScope = (typeof VALID_DATA_SCOPES)[number];
 
 const createPermissionRequestSchema = z.object({
-  talent_profile_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
   requested_scopes: z.array(z.enum(VALID_DATA_SCOPES)).min(1).max(8),
   request_message: z.string().max(2000).nullable().optional(),
 });
@@ -238,7 +239,7 @@ export async function createPermissionRequest(
 }
 
 const respondToPermissionRequestSchema = z.object({
-  request_id: z.string().uuid(),
+  request_id: pgUuidSchema(),
   decision: z.enum(["approved", "denied"]),
   approved_scopes: z.array(z.enum(VALID_DATA_SCOPES)).optional(),
 });
@@ -344,7 +345,7 @@ export async function revokeDataGrant(input: {
 // ─── External calendars ─────────────────────────────────────────────────────
 
 const addCalendarSchema = z.object({
-  talent_profile_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
   kind: z.enum(["calendly", "google", "ical", "cal_com", "manual"]),
   external_url: z.string().url().nullable().optional(),
   is_primary: z.boolean().default(false),
@@ -452,9 +453,9 @@ export async function getAgencyMediaForTenant(input: {
 }
 
 const addAgencyMediaSchema = z.object({
-  talent_profile_id: z.string().uuid(),
-  agency_media_id: z.string().uuid(),
-  master_media_id: z.string().uuid().nullable().optional(),
+  talent_profile_id: pgUuidSchema(),
+  agency_media_id: pgUuidSchema(),
+  master_media_id: pgUuidSchema().nullable().optional(),
   caption: z.string().max(500).nullable().optional(),
   display_order: z.number().int().min(0).max(9999).default(100),
 });
@@ -521,8 +522,8 @@ export async function removeAgencyMedia(input: {
 }
 
 const reorderAgencyMediaSchema = z.object({
-  talent_profile_id: z.string().uuid(),
-  ordered_ids: z.array(z.string().uuid()).min(1),
+  talent_profile_id: pgUuidSchema(),
+  ordered_ids: z.array(pgUuidSchema()).min(1),
 });
 
 export async function reorderAgencyMedia(

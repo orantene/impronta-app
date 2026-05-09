@@ -58,7 +58,6 @@ import {
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { prefetchSkillsData, SkillSlotPanel } from "./_skill-slot-panel";
-import { TrustBadgesPanel } from "./_phase7-drawers";
 import { MetricsRibbon } from "./_metrics-ribbon";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
 import {
@@ -4243,11 +4242,11 @@ const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string; emoji
   rates:         { label: "Rates",         emoji: "💶" },
   availability:  { label: "Availability",  emoji: "📅" },
   languages:     { label: "Languages",     emoji: "🌐" },
-  refinement:    { label: "Refinement",    emoji: "✦" },
+  refinement:    { label: "Extra details",  emoji: "✦" },
   credits:       { label: "Credits",       emoji: "🏆" },
-  limits:        { label: "Limits",        emoji: "⊘" },
+  limits:        { label: "Restrictions",  emoji: "⊘" },
   files:         { label: "Files",         emoji: "📎" },
-  social_proof:  { label: "Social proof",  emoji: "⭐" },
+  social_proof:  { label: "Past clients",  emoji: "⭐" },
   verifications: { label: "Trust",         emoji: "🛡" },
   admin:         { label: "Admin",         emoji: "🔒" },
 };
@@ -6088,7 +6087,7 @@ function TalentProfileShellDrawer() {
               { label: "Visual", ids: ["media", "albums", "polaroids"] },
               { label: "Type-specific", ids: ["physical", "wardrobe", "details"] },
               { label: "Booking", ids: ["availability", "rates", "languages"] },
-              { label: "Polish", ids: ["refinement", "credits", "limits", "social_proof"] },
+              { label: "Track record", ids: ["refinement", "credits", "limits", "social_proof"] },
               { label: "Admin", ids: ["files", "verifications", "admin"] },
             ];
             const visible = (s: ProfileSectionId) => {
@@ -6173,9 +6172,7 @@ function TalentProfileShellDrawer() {
                             )}
                             <span aria-hidden style={{
                               width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                              background: done ? COLORS.green
-                                : started ? "#D9A441"
-                                : "rgba(11,11,13,0.18)",
+                              background: done ? COLORS.green : "rgba(11,11,13,0.12)",
                             }} />
                             <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>{meta.emoji}</span>
                             <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta.label}</span>
@@ -6218,6 +6215,11 @@ function TalentProfileShellDrawer() {
               />
             )}
 
+            {/* Earned-trust ribbon — drawer-level signal (not tied to any one section) */}
+            {payload.talentId && bridgeTenantIdentity?.tenantId && (
+              <MetricsRibbon talentProfileId={payload.talentId} />
+            )}
+
             {/* IDENTITY */}
             <ProfileAccordionSection
               id="identity" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Identity"
@@ -6233,6 +6235,9 @@ function TalentProfileShellDrawer() {
                 isFieldLocked={(path) => isSelf && state.fieldLocks.includes(path)}
                 lockReasons={state.fieldLockReasons}
               />
+              <FieldRow label="Tagline" optional hint="One line clients see at a glance." catalogId="identity.tagline">
+                <TextInput placeholder="e.g. Editorial fashion model · Madrid" value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
+              </FieldRow>
               {adminVisible && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
                   <FieldLockToggle path="identity.legalName" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
@@ -6255,40 +6260,13 @@ function TalentProfileShellDrawer() {
               open={activeSection === "services"}
               onToggle={() => setActiveSection(activeSection === "services" ? "" : "services")}
             >
-              <FieldRow label="Tagline" optional hint="One line clients see at a glance." catalogId="identity.tagline">
-                <TextInput placeholder="e.g. Editorial fashion model · Madrid" value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
-              </FieldRow>
-
-              {/* Multi-skill panel — live DB-backed, replaces the
-                  prototype's chip-grid picker for real talents. Renders
-                  only when on a real tenant + the talent has a UUID
-                  (i.e., the profile has been persisted to DB).
-
-                  When this panel is shown, the legacy ServicesEditor +
-                  "More categories" expander + "Live taxonomy" footer +
-                  "Career interests" details are all hidden — they are
-                  duplicates of what SkillSlotPanel already covers.
-
-                  The legacy block still renders for prototype/demo mode
-                  where there's no real tenant to query. */}
+              {/* SkillSlotPanel — DB-backed, real tenants only.
+                  Falls back to legacy ServicesEditor for prototype/demo mode
+                  (no real tenant). Career interests render inside SkillSlotPanel
+                  once a primary skill is set. */}
               {bridgeTenantIdentity?.tenantId && payload.talentId ? (
                 <div style={{ marginTop: 6, marginBottom: 14 }}>
-                  {/* Phase 5.2 — Earned-trust ribbon. Read-only signals
-                      (last_active_at, total_completed_bookings, verified
-                      skills, verified trust badges) at the top. Hidden when
-                      all metrics are zero (new talent), shows welcome instead. */}
-                  <MetricsRibbon talentProfileId={payload.talentId} />
                   <SkillSlotPanel talentProfileId={payload.talentId} isAdmin={adminVisible} />
-                  {/* Phase 4.2: Trust badges panel surfaces identity / license /
-                      insurance / etc. verification states alongside skills.
-                      Skill verifications also create a "skills_verified" badge
-                      automatically (Phase 4.1). Admin-only — talent doesn't
-                      manage trust state directly. */}
-                  {adminVisible && (
-                    <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.borderSoft}` }}>
-                      <TrustBadgesPanel talentProfileId={payload.talentId} />
-                    </div>
-                  )}
                 </div>
               ) : (
                 <>

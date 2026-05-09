@@ -15,11 +15,15 @@ import {
 import { BOOKING_AUDIT, INQUIRY_AUDIT } from "@/lib/commercial-audit-events";
 import { logBookingActivity, logInquiryActivity } from "@/lib/server/commercial-audit";
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
-import type { AdminActionState } from "@/lib/admin/admin-action-state";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
-export type { AdminActionState };
+// Type-only import + re-export. Combined into one statement so Turbopack
+// doesn't emit a runtime reference for `AdminActionState` (it was throwing
+// `ReferenceError: AdminActionState is not defined` at module evaluation
+// when the prior `import type ... ; export type { ... }` pair was used).
+export type { AdminActionState } from "@/lib/admin/admin-action-state";
+import type { AdminActionState } from "@/lib/admin/admin-action-state";
 
 const updateInquirySchema = z.object({
   inquiry_id: z.string().min(1, "Missing inquiry."),
@@ -129,7 +133,7 @@ export async function createAgencyInquiry(
   }
 
   // Refresh the workspace so Messages + Calendar pick up the new inquiry.
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
 
   return { ok: true, inquiry_id: data.id };
 }

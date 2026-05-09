@@ -6,6 +6,7 @@
     "node": ">=22.0.0 <25.0.0"
   },
   "scripts": {
+    "predev": "node scripts/check-migrations-applied.mjs --warn-only",
     "dev": "next dev -p ${PORT:-3000}",
     "dev:webpack": "next dev --webpack -p ${PORT:-3000}",
     "prebuild": "node scripts/check-migrations-applied.mjs",
@@ -87,7 +88,7 @@
     "qa:impronta-media-cta-style-panel": "npm run test:e2e:impronta-media-cta-style-panel && npm run test:builder-node-bindings && npm run typecheck",
     "qa:impronta-composition-packs": "npm run test:e2e:impronta-composition-packs && npm run test:builder-node-bindings && npm run typecheck",
     "qa:impronta-builder-wave3": "npm run qa:builder-focused && npm run test:e2e:impronta-layout-presets && npm run test:e2e:impronta-node-layout-presets && npm run test:e2e:impronta-data-panel && npm run test:e2e:impronta-node-style-panel && npm run test:e2e:impronta-media-cta-style-panel && npm run test:e2e:impronta-composition-packs",
-    "qa:builder-focused": "npm run typecheck && npm run test:builder-capabilities && npm run test:builder-node-bindings && npm run test:publish-preflight",
+    "qa:builder-focused": "npm run typecheck && npm run test:builder-capabilities && npm run test:builder-node-bindings && npm run test:publish-preflight && npm run verify:published-page-snapshots:strict",
     "qa:impronta-builder-wave2": "npm run qa:builder-focused && npm run test:e2e:impronta-navigator-layers && npm run test:e2e:impronta-navigator-layer-filtering && npm run test:e2e:impronta-navigator-layer-actions",
     "register:tulum-demo-talent": "node --env-file=.env.local scripts/register-tulum-demo-talent.mjs",
     "verify:dashboard-users": "node scripts/verify-dashboard-users.mjs",

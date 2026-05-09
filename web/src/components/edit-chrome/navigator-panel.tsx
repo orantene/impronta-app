@@ -67,6 +67,8 @@ import { useEditContext } from "./edit-context";
 import {
   builderSectionNodeAddressKey,
   BUILDER_NODE_REGISTRY,
+  collectBuilderPerformanceIssues,
+  collectBuilderPerformanceMetrics,
   indexBuilderSectionChildNodes,
   indexBuilderSectionNodeIds,
   type BuilderSectionChildNode,
@@ -89,6 +91,9 @@ const NAVIGATOR_MIN_WIDTH = 280;
 const NAVIGATOR_MAX_WIDTH = 520;
 const NAVIGATOR_KEYBOARD_STEP = 16;
 const NAVIGATOR_DEFAULT_WIDTH = 320;
+const NAVIGATOR_ROW_FONT_SIZE = 18;
+const NAVIGATOR_ICON_SIZE = 18;
+const NAVIGATOR_ACTION_ICON_SIZE = 16;
 
 interface FlatRow {
   ref: CompositionSectionRef;
@@ -188,6 +193,7 @@ export function NavigatorPanel() {
   const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
   const [focusedChildNodeId, setFocusedChildNodeId] = useState<string | null>(null);
   const [resizing, setResizing] = useState(false);
+  const [resizeHandleHovered, setResizeHandleHovered] = useState(false);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
 
   const handleResizeMove = useCallback(
@@ -363,6 +369,13 @@ export function NavigatorPanel() {
     }
     return out;
   }, [builderTree, slotDefs, slots]);
+  const builderPerformanceIssues = useMemo(() => {
+    const metrics = collectBuilderPerformanceMetrics(builderTree);
+    return collectBuilderPerformanceIssues(metrics);
+  }, [builderTree]);
+  const hasBlockingPerformanceIssue = builderPerformanceIssues.some(
+    (issue) => issue.severity === "error",
+  );
 
   // Phase 10 — heading hierarchy lint. Two modes:
   //   - Structural (default, instant): infers from section types alone.
@@ -469,17 +482,34 @@ export function NavigatorPanel() {
     expandedSectionIds.has(id),
   );
 
-  const toggleSectionExpanded = useCallback((sectionId: string) => {
-    setExpandedSectionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(sectionId)) {
-        next.delete(sectionId);
-      } else {
-        next.add(sectionId);
+  const toggleSectionExpanded = useCallback(
+    (sectionId: string) => {
+      const isExpanded = expandedSectionIds.has(sectionId);
+      if (isExpanded && selectedBuilderNodeId) {
+        const sectionRow = flat.find((row) => row.ref.sectionId === sectionId);
+        if (sectionRow) {
+          const selectedChildHiddenByCollapse = sectionRow.childNodes.some(
+            (child) => child.id === selectedBuilderNodeId,
+          );
+          if (selectedChildHiddenByCollapse) {
+            // Keep inspector/canvas/navigator in sync: collapsing a section with
+            // a selected child should promote selection back to the section row.
+            setSelectedSectionId(sectionId);
+          }
+        }
       }
-      return next;
-    });
-  }, []);
+      setExpandedSectionIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(sectionId)) {
+          next.delete(sectionId);
+        } else {
+          next.add(sectionId);
+        }
+        return next;
+      });
+    },
+    [expandedSectionIds, flat, selectedBuilderNodeId, setSelectedSectionId],
+  );
   const expandAllLayeredSections = useCallback(() => {
     setExpandedSectionIds((prev) => {
       const next = new Set(prev);
@@ -488,12 +518,20 @@ export function NavigatorPanel() {
     });
   }, [layeredSectionIds]);
   const collapseAllLayeredSections = useCallback(() => {
+    if (selectedBuilderNodeId) {
+      const owner = flat.find((row) =>
+        row.childNodes.some((child) => child.id === selectedBuilderNodeId),
+      );
+      if (owner) {
+        setSelectedSectionId(owner.ref.sectionId);
+      }
+    }
     setExpandedSectionIds((prev) => {
       const next = new Set(prev);
       for (const id of layeredSectionIds) next.delete(id);
       return next;
     });
-  }, [layeredSectionIds]);
+  }, [flat, layeredSectionIds, selectedBuilderNodeId, setSelectedSectionId]);
 
   // Sprint 4 — outline mode data. Builds the operator-facing heading
   // tree from the same flat + headingProbe combo the lint already uses.
@@ -901,6 +939,8 @@ export function NavigatorPanel() {
           setNavigatorWidth(NAVIGATOR_DEFAULT_WIDTH);
         }}
         onPointerDown={startResize}
+        onPointerEnter={() => setResizeHandleHovered(true)}
+        onPointerLeave={() => setResizeHandleHovered(false)}
         style={{
           position: "absolute",
           top: 0,
@@ -909,10 +949,34 @@ export function NavigatorPanel() {
           width: RESIZE_HANDLE_WIDTH,
           cursor: "col-resize",
           zIndex: 6,
-          background: "transparent",
+          background:
+            resizing || resizeHandleHovered ? "rgba(42,49,71,0.09)" : "transparent",
           touchAction: "none",
         }}
       >
+        {(resizing || resizeHandleHovered) && (
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 8,
+              padding: "2px 6px",
+              border: `1px solid ${CHROME.lineStrong}`,
+              borderRadius: 0,
+              background: CHROME.surface,
+              color: CHROME.muted,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.02em",
+              lineHeight: 1.2,
+              boxShadow: CHROME_SHADOWS.card,
+              pointerEvents: "none",
+            }}
+          >
+            {navigatorWidth}px
+          </span>
+        )}
         <span
           aria-hidden
           style={{
@@ -920,9 +984,13 @@ export function NavigatorPanel() {
             left: "50%",
             top: 0,
             bottom: 0,
-            width: 1,
+            width: 2,
             transform: "translateX(-50%)",
-            background: "rgba(24,24,27,0.16)",
+            background:
+              resizing || resizeHandleHovered
+                ? "rgba(42,49,71,0.44)"
+                : "rgba(24,24,27,0.16)",
+            transition: "background 120ms ease",
           }}
         />
       </div>
@@ -966,6 +1034,29 @@ export function NavigatorPanel() {
               }}
             />
             Navigator
+            {builderPerformanceIssues.length > 0 ? (
+              <span
+                title={builderPerformanceIssues.map((issue) => issue.message).join("\n")}
+                style={{
+                  marginLeft: 6,
+                  padding: "1px 6px",
+                  borderRadius: 999,
+                  border: hasBlockingPerformanceIssue
+                    ? "1px solid rgba(180, 35, 35, 0.35)"
+                    : "1px solid rgba(209, 87, 0, 0.35)",
+                  background: hasBlockingPerformanceIssue
+                    ? "rgba(180, 35, 35, 0.14)"
+                    : "rgba(209, 87, 0, 0.12)",
+                  color: hasBlockingPerformanceIssue ? "#9f1239" : "#8f4300",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Perf
+              </span>
+            ) : null}
           </div>
           <button
             type="button"
@@ -1033,7 +1124,7 @@ export function NavigatorPanel() {
                   textTransform: "capitalize",
                   cursor: "pointer",
                   border: "none",
-                  borderRadius: 4,
+                  borderRadius: 0,
                   background: active ? CHROME.surface : "transparent",
                   color: active ? CHROME.ink : CHROME.muted,
                   boxShadow: active
@@ -1326,7 +1417,7 @@ export function NavigatorPanel() {
                     ? "rgba(42,49,71,0.045)"
                     : "transparent",
                   border: `1px solid ${CHROME.line}`,
-                  borderRadius: 5,
+                  borderRadius: 0,
                   cursor: allLayeredSectionsExpanded ? "default" : "pointer",
                   color: allLayeredSectionsExpanded ? CHROME.muted2 : CHROME.muted,
                   opacity: allLayeredSectionsExpanded ? 0.65 : 1,
@@ -1379,7 +1470,7 @@ export function NavigatorPanel() {
                     ? "rgba(42,49,71,0.045)"
                     : "transparent",
                   border: `1px solid ${CHROME.line}`,
-                  borderRadius: 5,
+                  borderRadius: 0,
                   cursor: !hasExpandedLayeredSection ? "default" : "pointer",
                   color: !hasExpandedLayeredSection ? CHROME.muted2 : CHROME.muted,
                   opacity: !hasExpandedLayeredSection ? 0.65 : 1,
@@ -1437,7 +1528,7 @@ export function NavigatorPanel() {
               justifyContent: "center",
               background: "transparent",
               border: `1px solid ${CHROME.line}`,
-              borderRadius: 5,
+              borderRadius: 0,
               cursor: "pointer",
               color: CHROME.muted,
               transition: "background 100ms, color 100ms, border-color 100ms",
@@ -1543,7 +1634,7 @@ export function NavigatorPanel() {
                   color: "#fff",
                   background: CHROME.accent,
                   border: "none",
-                  borderRadius: 7,
+                borderRadius: 0,
                   cursor: "pointer",
                   boxShadow: "0 1px 2px rgba(0,0,0,0.10)",
                 }}
@@ -1604,13 +1695,26 @@ export function NavigatorPanel() {
               sectionHovered ||
               sectionFocused ||
               nodeInsertTarget?.key === `section:${row.builderNodeId ?? ""}`;
+            const sectionDragEnabled = !searchQuery && !sectionActionsVisible;
 
             return (
               <div key={row.ref.sectionId} style={{ position: "relative" }}>
                 {showDropLineAbove && <DropLine />}
                 <div
-                  draggable
-                  onDragStart={(e) => onDragStart(e, row.ref.sectionId)}
+                  draggable={sectionDragEnabled}
+                  onDragStart={(e) => {
+                    const target = e.target;
+                    if (
+                      !sectionDragEnabled ||
+                      (target instanceof HTMLElement &&
+                        (target.closest("[data-navigator-section-actions]") ||
+                          target.closest("[data-navigator-row-secondary-actions]")))
+                    ) {
+                      e.preventDefault();
+                      return;
+                    }
+                    onDragStart(e, row.ref.sectionId);
+                  }}
                   onDragEnd={onDragEnd}
                   onDragOver={(e) => onRowDragOver(e, row.flatIndex)}
                   onClick={(e) =>
@@ -1654,19 +1758,18 @@ export function NavigatorPanel() {
                   data-navigator-section-row=""
                   data-section-id={row.ref.sectionId}
                   data-section-type-key={row.ref.sectionTypeKey}
-                  title={
+                  aria-label={
                     row.builderNodeId
-                      ? `${labelFor(row)} · ${row.builderNodeId}`
-                      : labelFor(row)
+                      ? `${labelFor(row)} section`
+                      : `${labelFor(row)} section`
                   }
                   style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    flexWrap: "wrap",
-                    columnGap: 7,
-                    rowGap: 5,
-                    minHeight: 36,
-                    padding: "5px 8px",
+                    display: "grid",
+                    gridTemplateColumns: "11px 18px minmax(0, 1fr)",
+                    columnGap: 8,
+                    rowGap: 6,
+                    minHeight: 42,
+                    padding: "6px 8px",
                     borderRadius: CHROME_RADII.sm,
                     // QA-9 partial — selected row uses the editor's slate
                     // accent so navigator selection matches the chip /
@@ -1682,7 +1785,7 @@ export function NavigatorPanel() {
                           ? "rgba(42, 49, 71, 0.65)"
                         : CHROME.surface,
                     color: selected ? "#ffffff" : hidden ? CHROME.muted2 : CHROME.text,
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: selected ? 600 : 500,
                     cursor: "pointer",
                     opacity: isDragging ? 0.4 : hidden && !selected ? 0.6 : 1,
@@ -1722,7 +1825,7 @@ export function NavigatorPanel() {
                   />
                   <SectionTypeIcon
                     typeKey={row.ref.sectionTypeKey}
-                    size={15}
+                    size={NAVIGATOR_ICON_SIZE}
                     style={{
                       flexShrink: 0,
                       opacity: selected ? 0.85 : 0.65,
@@ -1752,33 +1855,33 @@ export function NavigatorPanel() {
                         flex: "1 1 0",
                         letterSpacing: "-0.005em",
                         minWidth: 0,
-                        whiteSpace: "normal",
-                        overflowWrap: "anywhere",
-                        lineHeight: 1.2,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
+                        whiteSpace: "nowrap",
+                        textOverflow: "ellipsis",
                         overflow: "hidden",
+                        lineHeight: 1.2,
                         textDecoration: hidden ? "line-through" : "none",
                         textDecorationColor: CHROME.muted2,
                         cursor: "text",
+                        fontSize: NAVIGATOR_ROW_FONT_SIZE,
                       }}
                     >
                       {labelFor(row)}
                     </span>
                   )}
                   <span
+                    data-navigator-row-secondary-actions=""
                     style={{
-                      width: "100%",
+                      gridColumn: "1 / -1",
                       display: "inline-flex",
                       alignItems: "center",
-                      justifyContent: "flex-end",
+                      justifyContent: "flex-start",
                       gap: 6,
                       flexShrink: 0,
-                      marginTop: 1,
+                      marginTop: 2,
                     }}
                   >
-                  {row.childNodes.length > 0 ? (
+                  {row.childNodes.length > 0 &&
+                  (sectionActionsVisible || childListCollapsed) ? (
                     <NodeInlineActionButton
                       label={
                         childListCollapsed
@@ -1817,7 +1920,7 @@ export function NavigatorPanel() {
                         fontWeight: 700,
                         lineHeight: 1,
                         flexShrink: 0,
-                        opacity: sectionActionsVisible ? 1 : 0.72,
+                        opacity: sectionActionsVisible ? 1 : 0.82,
                         transition: "opacity 100ms ease",
                       }}
                     >
@@ -1832,13 +1935,16 @@ export function NavigatorPanel() {
                     onPointerDown={(e) => e.stopPropagation()}
                     style={{
                       display: sectionActionsVisible ? "inline-flex" : "none",
-                      width: "100%",
+                      gridColumn: "1 / -1",
                       alignItems: "center",
                       flexWrap: "wrap",
                       justifyContent: "flex-start",
                       gap: 4,
-                      marginLeft: 27,
-                      marginTop: 1,
+                      marginLeft: 0,
+                      paddingLeft: 26,
+                      marginTop: 4,
+                      paddingTop: 4,
+                      borderTop: `1px solid ${selected ? "rgba(255,255,255,0.20)" : CHROME.line}`,
                       pointerEvents: "auto",
                       position: "relative",
                       zIndex: 2,
@@ -1878,7 +1984,7 @@ export function NavigatorPanel() {
                       dataAttr="data-navigator-section-duplicate-trigger"
                       tabIndex={sectionActionsVisible ? 0 : -1}
                     >
-                      <Files size={11} strokeWidth={2.2} aria-hidden />
+                      <Files size={NAVIGATOR_ACTION_ICON_SIZE} strokeWidth={2.2} aria-hidden />
                     </NodeInlineActionButton>
                     <VisibilityEye
                       selected={selected}
@@ -1921,10 +2027,12 @@ export function NavigatorPanel() {
                         nodeInsertTarget?.key === `child:${child.id}`;
                       const childAllowedKinds = allowedChildKindsForParent(child.kind);
                       const pastePreview = getCopiedBuilderNodePastePreview(child.id);
-                      const canPaste =
+                      const hasClipboardPasteTarget =
                         Boolean(copiedBuilderNodeKind) &&
                         Boolean(pastePreview) &&
                         pastePreview?.mode !== "blocked";
+                      const canPaste =
+                        hasClipboardPasteTarget || !copiedBuilderNodeKind;
                       const siblingIds = row.childNodes
                         .filter((node) => node.parentId === child.parentId)
                         .map((node) => node.id);
@@ -1966,8 +2074,16 @@ export function NavigatorPanel() {
                           <div
                             role="button"
                             tabIndex={0}
-                            draggable={childDragEnabled}
+                            draggable={childDragEnabled && !childActionsVisible}
                             onDragStart={(e) => {
+                              const target = e.target;
+                              if (
+                                target instanceof HTMLElement &&
+                                target.closest("[data-navigator-child-actions]")
+                              ) {
+                                e.preventDefault();
+                                return;
+                              }
                               if (!childDragEnabled || siblingIndex < 0) {
                                 e.preventDefault();
                                 return;
@@ -2032,7 +2148,7 @@ export function NavigatorPanel() {
                                 void moveBuilderNodeWithinParent(child.id, "down");
                               }
                             }}
-                            title={`${child.label} · ${child.id} · Alt+↑/↓ reorder`}
+                            aria-label={`${child.label} block. Press Alt plus Arrow Up or Arrow Down to reorder.`}
                             data-navigator-child-node=""
                             data-builder-node-id={child.id}
                             data-builder-node-kind={child.kind}
@@ -2040,15 +2156,15 @@ export function NavigatorPanel() {
                             data-selected={childSelected ? "true" : "false"}
                             style={{
                               position: "relative",
-                              display: "flex",
-                              alignItems: "flex-start",
-                              flexWrap: "wrap",
-                              columnGap: 7,
-                              rowGap: 4,
-                              minHeight: 30,
-                              padding: "5px 7px",
+                              display: "grid",
+                              gridTemplateColumns: "12px 26px minmax(0, 1fr)",
+                              alignItems: "start",
+                              columnGap: 8,
+                              rowGap: 6,
+                              minHeight: 42,
+                              padding: "6px 8px",
                               paddingLeft: 8 + Math.max(0, (child.depth - 1) * 13),
-                              borderRadius: 7,
+                              borderRadius: 0,
                               border: childSelected
                                 ? "1px solid rgba(255,255,255,0.16)"
                                 : `1px solid transparent`,
@@ -2057,7 +2173,7 @@ export function NavigatorPanel() {
                                 : "transparent",
                               color: childSelected ? "#fff" : CHROME.muted,
                               textAlign: "left",
-                              fontSize: 13,
+                              fontSize: NAVIGATOR_ROW_FONT_SIZE,
                               fontWeight: childSelected ? 600 : 500,
                               cursor: childDragEnabled ? "grab" : "pointer",
                               boxShadow: childSelected
@@ -2130,13 +2246,10 @@ export function NavigatorPanel() {
                             >
                               <span
                                 style={{
-                                  whiteSpace: "normal",
-                                  overflowWrap: "anywhere",
+                                  whiteSpace: "nowrap",
+                                  textOverflow: "ellipsis",
                                   lineHeight: 1.2,
                                   width: "100%",
-                                  display: "-webkit-box",
-                                  WebkitLineClamp: 2,
-                                  WebkitBoxOrient: "vertical",
                                   overflow: "hidden",
                                 }}
                               >
@@ -2150,13 +2263,18 @@ export function NavigatorPanel() {
                               onPointerDown={(e) => e.stopPropagation()}
                               style={{
                                 display: childActionsVisible ? "inline-flex" : "none",
-                                width: "100%",
+                                gridColumn: "1 / -1",
                                 alignItems: "center",
                                 flexWrap: "wrap",
                                 justifyContent: "flex-start",
                                 gap: 4,
-                                marginLeft: 20,
-                                marginTop: 1,
+                                marginLeft: 0,
+                                paddingLeft: 20,
+                                marginTop: 3,
+                                paddingTop: 4,
+                                borderTop: `1px solid ${
+                                  childSelected ? "rgba(255,255,255,0.18)" : CHROME.line
+                                }`,
                                 position: "relative",
                                 pointerEvents: "auto",
                                 zIndex: 2,
@@ -2194,7 +2312,11 @@ export function NavigatorPanel() {
                                 dataAttr="data-builder-node-duplicate-trigger"
                                 tabIndex={childActionsVisible ? 0 : -1}
                               >
-                                <Files size={11} strokeWidth={2.2} aria-hidden />
+                                <Files
+                                  size={NAVIGATOR_ACTION_ICON_SIZE}
+                                  strokeWidth={2.2}
+                                  aria-hidden
+                                />
                               </NodeInlineActionButton>
                               <NodeInlineActionButton
                                 label={`Copy ${child.label}`}
@@ -2206,24 +2328,38 @@ export function NavigatorPanel() {
                                 dataAttr="data-builder-node-copy-trigger"
                                 tabIndex={childActionsVisible ? 0 : -1}
                               >
-                                <Copy size={11} strokeWidth={2.2} aria-hidden />
+                                <Copy
+                                  size={NAVIGATOR_ACTION_ICON_SIZE}
+                                  strokeWidth={2.2}
+                                  aria-hidden
+                                />
                               </NodeInlineActionButton>
                               <NodeInlineActionButton
                                 label={
-                                  pastePreview?.message ??
-                                  `Paste copied block near ${child.label}`
+                                  copiedBuilderNodeKind
+                                    ? (pastePreview?.message ??
+                                      `Paste copied block near ${child.label}`)
+                                    : `Duplicate ${child.label} near this row`
                                 }
                                 disabled={!canPaste}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (!canPaste) return;
+                                  if (!copiedBuilderNodeKind) {
+                                    void commitNodeDuplicate(child.id);
+                                    return;
+                                  }
                                   void commitNodePaste(child.id);
                                 }}
                                 inverted={childSelected}
                                 dataAttr="data-builder-node-paste-trigger"
                                 tabIndex={childActionsVisible ? 0 : -1}
                               >
-                                <ClipboardPaste size={11} strokeWidth={2.2} aria-hidden />
+                                <ClipboardPaste
+                                  size={NAVIGATOR_ACTION_ICON_SIZE}
+                                  strokeWidth={2.2}
+                                  aria-hidden
+                                />
                               </NodeInlineActionButton>
                               <NodeInlineActionButton
                                 label={`Move ${child.label} up`}
@@ -2546,19 +2682,19 @@ function BuilderNodeKindPill({
       title={role ? `${label} / ${formatBuilderNodeRole(role)}` : label}
       aria-hidden
       style={{
-        width: 24,
-        height: 23,
+        width: 26,
+        height: 25,
         alignSelf: "center",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: 6,
+        borderRadius: 0,
         border: selected
           ? "1px solid rgba(255,255,255,0.16)"
           : `1px solid ${CHROME.line}`,
         background: selected ? "rgba(255,255,255,0.12)" : CHROME.paper,
         color: selected ? "rgba(255,255,255,0.86)" : CHROME.muted,
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: 800,
         letterSpacing: "0.02em",
         textTransform: "uppercase",
@@ -2598,15 +2734,26 @@ function NodeInlineActionButton({
       title={label}
       disabled={disabled}
       tabIndex={tabIndex}
+      draggable={false}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+      }}
+      onMouseDown={(event) => {
+        event.stopPropagation();
+      }}
+      onDragStart={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
       onClick={onClick}
       {...dataProps}
       style={{
-        width: 18,
-        height: 18,
+        width: 23,
+        height: 23,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: 4,
+        borderRadius: 0,
         border: "none",
         background: inverted ? "rgba(255,255,255,0.14)" : "rgba(24,24,27,0.08)",
         color: inverted ? "rgba(255,255,255,0.88)" : CHROME.muted2,
@@ -2644,7 +2791,7 @@ function NodeInsertMenu({
         marginTop: 4,
         marginBottom: 4,
         padding: "8px 8px 9px",
-        borderRadius: 8,
+        borderRadius: 0,
         border: `1px solid ${CHROME.line}`,
         background: CHROME.surface,
         display: "flex",
@@ -2693,7 +2840,7 @@ function NodeInsertMenu({
             width: 18,
             height: 18,
             border: "none",
-            borderRadius: 5,
+            borderRadius: 0,
             background: "transparent",
             color: CHROME.muted,
             cursor: "pointer",
@@ -2933,7 +3080,7 @@ function OutlineTree({
                 fontWeight: 700,
                 letterSpacing: "0.04em",
                 padding: "1px 5px",
-                borderRadius: 3,
+                borderRadius: 0,
                 background: selected
                   ? "rgba(255,255,255,0.18)"
                   : node.level === 1
@@ -3030,7 +3177,7 @@ function RenameInput({
           ? "rgba(255,255,255,0.12)"
           : CHROME.surface,
         border: `1px solid ${selected ? "rgba(255,255,255,0.30)" : CHROME.lineStrong}`,
-        borderRadius: 4,
+        borderRadius: 0,
         outline: "none",
         letterSpacing: "-0.005em",
       }}

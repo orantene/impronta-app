@@ -38,6 +38,15 @@ import {
   type DragEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import {
+  ArrowDown,
+  ArrowUp,
+  ClipboardPaste,
+  Copy,
+  Files,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import {
@@ -2624,6 +2633,8 @@ function CanvasNodeChildrenPanel({
     sourceIndex: number;
   } | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const viewportHeight =
     typeof window === "undefined" ? selectedRect.top + selectedRect.height + 220 : window.innerHeight;
   const viewportWidth =
@@ -2673,8 +2684,8 @@ function CanvasNodeChildrenPanel({
       style={{
         position: "fixed",
         top: Math.min(selectedRect.top + selectedRect.height + 12, viewportHeight - 220),
-        left: Math.max(Math.min(selectedRect.left, viewportWidth - 308), 8),
-        width: 300,
+        left: Math.max(Math.min(selectedRect.left, viewportWidth - 340), 8),
+        width: 332,
         maxHeight: 208,
         padding: "10px 10px 11px",
         borderRadius: CANVAS_CHROME_RADIUS,
@@ -2747,6 +2758,8 @@ function CanvasNodeChildrenPanel({
       >
         {nodes.map((node, index) => {
           const isSelected = selectedNodeId === node.id;
+          const showActionRow =
+            isSelected || hoveredNodeId === node.id || focusedNodeId === node.id;
           const pastePreview = copiedKind ? getPastePreview(node.id) : null;
           return (
             <div key={node.id}>
@@ -2770,7 +2783,8 @@ function CanvasNodeChildrenPanel({
                 onDragEnd={clearDragState}
                 style={{
                   display: "flex",
-                  alignItems: "center",
+                  alignItems: "flex-start",
+                  flexWrap: "wrap",
                   gap: 8,
                   padding: "7px 8px",
                   borderRadius: CANVAS_CHROME_RADIUS,
@@ -2782,15 +2796,27 @@ function CanvasNodeChildrenPanel({
                     ? "1px solid rgba(255,255,255,0.14)"
                     : "1px solid rgba(255,255,255,0.05)",
                 }}
+                onMouseEnter={() => setHoveredNodeId(node.id)}
+                onMouseLeave={() =>
+                  setHoveredNodeId((current) => (current === node.id ? null : current))
+                }
+                onFocusCapture={() => setFocusedNodeId(node.id)}
+                onBlurCapture={(event) => {
+                  const next = event.relatedTarget;
+                  if (next instanceof Node && event.currentTarget.contains(next)) {
+                    return;
+                  }
+                  setFocusedNodeId((current) => (current === node.id ? null : current));
+                }}
               >
               <button
                 type="button"
                 onClick={() => onSelect(node.id)}
                 style={{
-                  flex: 1,
-                  minWidth: 0,
+                  flex: "1 1 100%",
+                  minWidth: "100%",
                   display: "flex",
-                  alignItems: "center",
+                  alignItems: "flex-start",
                   gap: 8,
                   border: "none",
                   background: "transparent",
@@ -2821,11 +2847,11 @@ function CanvasNodeChildrenPanel({
                   <span
                     style={{
                       display: "block",
-                      fontSize: 11.5,
+                      fontSize: 12.5,
                       fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      lineHeight: 1.25,
+                      whiteSpace: "normal",
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {canvasChildPrimaryLabel(node)}
@@ -2847,10 +2873,14 @@ function CanvasNodeChildrenPanel({
               </button>
               <div
                 style={{
-                  display: "inline-flex",
+                  display: showActionRow ? "inline-flex" : "none",
+                  width: "100%",
                   alignItems: "center",
                   gap: 4,
                   flexShrink: 0,
+                  paddingLeft: 26,
+                  paddingTop: 4,
+                  borderTop: "1px solid rgba(255,255,255,0.08)",
                 }}
               >
                 <CanvasMiniButton
@@ -2858,26 +2888,26 @@ function CanvasNodeChildrenPanel({
                   disabled={index === 0}
                   onClick={() => void onMove(node.id, "up")}
                 >
-                  ↑
+                  <ArrowUp size={13} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
                   label={`Move ${canvasChildPrimaryLabel(node)} down`}
                   disabled={index === nodes.length - 1}
                   onClick={() => void onMove(node.id, "down")}
                 >
-                  ↓
+                  <ArrowDown size={13} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
                   label={`Duplicate ${canvasChildPrimaryLabel(node)}`}
                   onClick={() => void onDuplicate(node.id)}
                 >
-                  D
+                  <Files size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
                   label={`Copy ${canvasChildPrimaryLabel(node)}`}
                   onClick={() => void onCopy(node.id)}
                 >
-                  C
+                  <Copy size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 {copiedKind ? (
                   <CanvasMiniButton
@@ -2885,14 +2915,20 @@ function CanvasNodeChildrenPanel({
                     disabled={pastePreview?.mode === "blocked"}
                     onClick={() => void onPaste(node.id)}
                   >
-                    P
+                    <ClipboardPaste size={12} strokeWidth={2.1} aria-hidden />
                   </CanvasMiniButton>
                 ) : null}
+                <CanvasMiniButton
+                  label={`Add block near ${canvasChildPrimaryLabel(node)}`}
+                  onClick={() => onSelect(node.id)}
+                >
+                  <Plus size={12} strokeWidth={2.1} aria-hidden />
+                </CanvasMiniButton>
                 <CanvasMiniButton
                   label={`Remove ${canvasChildPrimaryLabel(node)}`}
                   onClick={() => void onRemove(node.id)}
                 >
-                  ×
+                  <Trash2 size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
               </div>
             </div>
@@ -2929,7 +2965,7 @@ function CanvasMiniButton({
   onClick,
   disabled = false,
 }: {
-  children: string;
+  children: React.ReactNode;
   label: string;
   onClick: () => void;
   disabled?: boolean;
@@ -2942,8 +2978,8 @@ function CanvasMiniButton({
       disabled={disabled}
       onClick={onClick}
       style={{
-        width: 20,
-        height: 20,
+        width: 22,
+        height: 22,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -2954,8 +2990,6 @@ function CanvasMiniButton({
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.35 : 1,
         padding: 0,
-        fontSize: 10.5,
-        fontWeight: 700,
       }}
     >
       {children}

@@ -179,6 +179,19 @@ function findBuilderNodePath(
   return walk(tree, []);
 }
 
+type InspectorBreadcrumbCrumb =
+  | {
+      id: "page";
+      label: string;
+      selectable: false;
+    }
+  | {
+      id: string;
+      label: string;
+      selectable: true;
+      kind: "section" | "node";
+    };
+
 function nodeUsesLayoutInspector(
   node: Exclude<BuilderNode, { kind: "section" }>,
 ): boolean {
@@ -209,6 +222,7 @@ export function InspectorDock() {
     selectedSectionId,
     selectedBuilderNodeId,
     setSelectedSectionId,
+    selectBuilderNode,
     loadedSection,
     setLoadedSection,
     draftProps,
@@ -693,9 +707,11 @@ export function InspectorDock() {
         : skeletonHint
           ? humanizeTypeKey(skeletonHint.typeKey)
           : undefined;
-  const inspectorBreadcrumb = useMemo(() => {
-    if (!selectedSectionId) return undefined;
-    const crumbs: string[] = ["Page"];
+  const inspectorBreadcrumbCrumbs = useMemo<
+    ReadonlyArray<InspectorBreadcrumbCrumb>
+  >(() => {
+    if (!selectedSectionId) return [];
+    const crumbs: InspectorBreadcrumbCrumb[] = [{ id: "page", label: "Page", selectable: false }];
     const rootLabel =
       isSiteHeaderSelected
         ? "Site header"
@@ -703,15 +719,25 @@ export function InspectorDock() {
           ? sectionTitle
           : null;
     if (rootLabel) {
-      crumbs.push(rootLabel);
+      crumbs.push({
+        id: selectedSectionId,
+        label: rootLabel,
+        selectable: true,
+        kind: "section",
+      });
     }
     if (selectedBuilderNodePath.length > 1 && selectedBuilderNode) {
       for (const node of selectedBuilderNodePath) {
         if (node.kind === "section") continue;
-        crumbs.push(builderNodeTitle(node));
+        crumbs.push({
+          id: node.id,
+          label: builderNodeTitle(node),
+          selectable: true,
+          kind: "node",
+        });
       }
     }
-    return crumbs.join(" > ");
+    return crumbs;
   }, [
     isSiteHeaderSelected,
     sectionTitle,
@@ -719,10 +745,55 @@ export function InspectorDock() {
     selectedBuilderNodePath,
     selectedSectionId,
   ]);
-  const headerMeta =
-    sectionMeta && inspectorBreadcrumb
-      ? `${sectionMeta} · ${inspectorBreadcrumb}`
-      : sectionMeta ?? inspectorBreadcrumb;
+  const handleInspectorCrumbSelect = useCallback(
+    (crumb: InspectorBreadcrumbCrumb) => {
+      if (!crumb.selectable) return;
+      if (crumb.kind === "section") {
+        setSelectedSectionId(crumb.id);
+        return;
+      }
+      selectBuilderNode(crumb.id);
+    },
+    [selectBuilderNode, setSelectedSectionId],
+  );
+  const headerMeta = useMemo(() => {
+    if (!sectionMeta && inspectorBreadcrumbCrumbs.length === 0) return undefined;
+    return (
+      <div className="flex min-w-0 flex-col gap-0.5">
+        {sectionMeta ? (
+          <span className="truncate text-[10.5px] font-medium uppercase tracking-[0.06em] text-zinc-500">
+            {sectionMeta}
+          </span>
+        ) : null}
+        {inspectorBreadcrumbCrumbs.length > 0 ? (
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[11px] text-zinc-600">
+            {inspectorBreadcrumbCrumbs.map((crumb, index) => (
+              <span key={`${crumb.id}:${index}`} className="inline-flex min-w-0 items-center">
+                {crumb.selectable ? (
+                  <button
+                    type="button"
+                    onClick={() => handleInspectorCrumbSelect(crumb)}
+                    className="min-w-0 max-w-[170px] truncate rounded-[3px] px-1 text-left transition hover:bg-zinc-100 hover:text-zinc-800"
+                    title={crumb.label}
+                    aria-label={`Select ${crumb.label}`}
+                  >
+                    {crumb.label}
+                  </button>
+                ) : (
+                  <span className="truncate px-1">{crumb.label}</span>
+                )}
+                {index < inspectorBreadcrumbCrumbs.length - 1 ? (
+                  <span className="px-0.5 text-zinc-400" aria-hidden>
+                    &gt;
+                  </span>
+                ) : null}
+              </span>
+            ))}
+          </span>
+        ) : null}
+      </div>
+    );
+  }, [handleInspectorCrumbSelect, inspectorBreadcrumbCrumbs, sectionMeta]);
 
   // 2026-04-28 — Tab strip is now adaptive per section type. Sections
   // declare which tabs they meaningfully use; the strip only renders
@@ -773,6 +844,7 @@ export function InspectorDock() {
       <DrawerHead
         title={isSiteHeaderSelected ? "Site header" : sectionTitle}
         meta={headerMeta}
+        metaWrap
         icon={
           isSiteHeaderSelected ? (
             <SiteHeaderHeadIcon />

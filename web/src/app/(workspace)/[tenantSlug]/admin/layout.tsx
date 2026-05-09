@@ -23,7 +23,7 @@ import {
   loadWorkspacePitches,
   loadWorkspaceTeamMembers,
   loadTotalUnreadMessages,
-  loadWorkspaceMediaPhotos,
+  loadWorkspaceMediaBridge,
   loadTalentSelfProfile,
   loadTalentInquiries,
 } from "@/app/prototypes/admin-shell/_data-bridge";
@@ -33,62 +33,7 @@ import { AdminShellPrototypePageClient } from "@/app/prototypes/admin-shell/_she
 import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 import { RealIdentityBanner } from "./_real-identity-banner";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { logServerError } from "@/lib/server/safe-error";
-
-// Phase 1 — load tenant + session identity for the prototype chrome.
-// Failures degrade to null so the layout never crashes; the prototype
-// falls back to its hardcoded TENANT/MY_TALENT_PROFILE constants when
-// these are absent (standalone demo mode).
-async function loadTenantIdentity(tenantId: string): Promise<{
-  tenantId: string;
-  slug: string;
-  displayName: string;
-  planTier: string;
-  kind: string;
-  /** Brand logo URL — when set, replaces the "TULALA" wordmark in the
-   *  identity bar. Stored in agency_branding.theme_json.logo_url for
-   *  parity with the public storefront's branded chrome. */
-  logoUrl: string | null;
-} | null> {
-  const admin = createServiceRoleClient();
-  if (!admin) return null;
-  // Run agency + branding lookups in parallel; branding is optional.
-  const [agencyRes, brandingRes] = await Promise.all([
-    admin.from("agencies").select("id, slug, display_name, plan_tier, kind").eq("id", tenantId).maybeSingle(),
-    admin.from("agency_branding").select("theme_json").eq("tenant_id", tenantId).maybeSingle(),
-  ]);
-  if (agencyRes.error || !agencyRes.data) {
-    if (agencyRes.error) logServerError("admin-layout.loadTenantIdentity", agencyRes.error);
-    return null;
-  }
-  const data = agencyRes.data;
-  const themeJson = brandingRes.data?.theme_json as { logo_url?: string } | null | undefined;
-  const logoUrl = (themeJson?.logo_url && typeof themeJson.logo_url === "string") ? themeJson.logo_url : null;
-  return {
-    tenantId: data.id,
-    slug: data.slug ?? "",
-    displayName: data.display_name ?? "Workspace",
-    planTier: data.plan_tier ?? "free",
-    kind: data.kind ?? "agency",
-    logoUrl,
-  };
-}
-
-async function loadProfileDisplayName(userId: string): Promise<string | null> {
-  const admin = createServiceRoleClient();
-  if (!admin) return null;
-  const { data, error } = await admin
-    .from("profiles")
-    .select("display_name")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) {
-    logServerError("admin-layout.loadProfileDisplayName", error);
-    return null;
-  }
-  return data?.display_name ?? null;
-}
+import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -164,7 +109,7 @@ export default async function WorkspaceAdminLayout({
     totalUnread,
     tenantIdentity,
     profileDisplayName,
-    mediaPhotos,
+    mediaBridge,
     talentSelfProfile,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(),
@@ -178,7 +123,7 @@ export default async function WorkspaceAdminLayout({
     loadTotalUnreadMessages(tenantId),
     loadTenantIdentity(tenantId),
     loadProfileDisplayName(session.user.id),
-    loadWorkspaceMediaPhotos(tenantId),
+    loadWorkspaceMediaBridge(tenantId),
     // Phase 0 — hybrid detection. A workspace admin who is ALSO a talent
     // on this tenant's roster gets the mode toggle; non-hybrid admins
     // don't. Returns null when the user has no talent profile here.
@@ -236,7 +181,8 @@ export default async function WorkspaceAdminLayout({
           totalUnread,
           tenantIdentity,
           sessionIdentity,
-          mediaPhotos,
+          mediaPhotos: mediaBridge.photos,
+          mediaFolders: mediaBridge.folders,
           talentSelfProfile,
           talentInquiries,
           isHybrid,

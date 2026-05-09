@@ -142,7 +142,7 @@ export async function updateAgencyBranding(
       .upsert({ tenant_id: tenantId, theme_json: themeUpdate, updated_at: new Date().toISOString() }, { onConflict: "tenant_id" });
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };
 }
 
@@ -205,7 +205,7 @@ export async function updateWorkspaceAccount(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };
 }
 
@@ -281,7 +281,7 @@ export async function updateWorkspaceFields(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };
 }
 
@@ -328,7 +328,7 @@ export async function updateMediaWatermarkOverride(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };
 }
 

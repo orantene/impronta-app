@@ -122,7 +122,7 @@ export async function removeFromRoster(input: {
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, talent_profile_id: v.talent_profile_id, keptUserAccount };
 }
 
@@ -229,7 +229,7 @@ export async function setTalentCardPhoto(input: {
 
   const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(v.storage_path).data.publicUrl;
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return {
     ok: true,
     talent_profile_id: v.talent_profile_id,
@@ -275,7 +275,7 @@ export async function restoreToRoster(input: {
     .eq("id", v.talent_profile_id)
     .maybeSingle();
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return {
     ok: true,
     talent_profile_id: v.talent_profile_id,

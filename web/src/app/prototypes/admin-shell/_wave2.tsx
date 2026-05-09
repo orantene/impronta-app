@@ -24,7 +24,8 @@
  * the main _state.tsx until any of these graduate to "real."
  */
 
-import React, { useMemo, useState, type ReactNode } from "react";
+import React, { useMemo, useState, useEffect, useCallback, type ReactNode } from "react";
+import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
 import {
   COLORS,
   FONTS,
@@ -1915,6 +1916,21 @@ function NotifRow({
   );
 }
 
+const NOTIF_DEFAULTS: Record<string, { email: boolean; push: boolean }> = {
+  "new-offer":        { email: true,  push: true  },
+  "hold-expiring":    { email: true,  push: false },
+  "booking-reminder": { email: true,  push: true  },
+  "payouts":          { email: false, push: false },
+  "weekly-summary":   { email: false, push: false },
+};
+const NOTIF_ROWS: { id: string; label: string; description: string }[] = [
+  { id: "new-offer",        label: "New offer",             description: "When an agency sends you an offer." },
+  { id: "hold-expiring",    label: "Hold expiring soon",    description: "When a hold is about to release." },
+  { id: "booking-reminder", label: "Booking reminders",     description: "24h and 2h before a confirmed booking." },
+  { id: "payouts",          label: "Payouts",               description: "When a booking is paid." },
+  { id: "weekly-summary",   label: "Weekly summary",        description: "Monday digest of last week's activity." },
+];
+
 export function TalentNotificationsDrawer() {
   const { state, closeDrawer, openDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-notifications";
@@ -1931,26 +1947,27 @@ export function TalentNotificationsDrawer() {
     setReadIds(new Set(MOCK_TALENT_NOTIFS.map((n) => n.id)));
     toast("All notifications marked as read");
   };
-  // Same prefs as the workspace notifications-prefs drawer — mirrored
-  // here so the talent surface owns its own copy. Real implementation
-  // shares storage by user_id.
-  const [prefs, setPrefs] = useState<Record<string, { email: boolean; push: boolean }>>({
-    "new-offer": { email: true, push: true },
-    "hold-expiring": { email: true, push: false },
-    "booking-reminder": { email: true, push: true },
-    payouts: { email: false, push: false },
-    "weekly-summary": { email: false, push: false },
-  });
-  const NOTIF_ROWS: { id: string; label: string; description: string }[] = [
-    { id: "new-offer", label: "New offer", description: "When an agency sends you an offer." },
-    { id: "hold-expiring", label: "Hold expiring soon", description: "When a hold is about to release." },
-    { id: "booking-reminder", label: "Booking reminders", description: "24h and 2h before a confirmed booking." },
-    { id: "payouts", label: "Payouts", description: "When a booking is paid." },
-    { id: "weekly-summary", label: "Weekly summary", description: "Monday digest of last week's activity." },
-  ];
-  const togglePref = (id: string, ch: "email" | "push") => {
-    setPrefs((p) => ({ ...p, [id]: { ...p[id]!, [ch]: !p[id]![ch] } }));
-  };
+  // Notification prefs — loaded from DB on open, auto-saved on toggle.
+  const [prefs, setPrefs] = useState<Record<string, { email: boolean; push: boolean }>>(NOTIF_DEFAULTS);
+
+  // Load real prefs from DB when the drawer opens.
+  useEffect(() => {
+    if (!open) return;
+    getNotificationPrefs().then((saved) => {
+      if (Object.keys(saved).length > 0) {
+        setPrefs((p) => ({ ...p, ...saved }));
+      }
+    });
+  }, [open]);
+
+  // Auto-save on toggle — fire-and-forget; failures logged server-side.
+  const togglePref = useCallback((id: string, ch: "email" | "push") => {
+    setPrefs((p) => {
+      const next = { ...p, [id]: { ...p[id]!, [ch]: !p[id]![ch] } };
+      void setNotificationPrefs(next);
+      return next;
+    });
+  }, []);
 
   // Local dismiss state — non-sticky updates can be cleared.
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());

@@ -56,7 +56,6 @@ import type { ReactNode } from "react";
 
 import {
   CHROME,
-  CHROME_RADII,
   CHROME_SHADOWS,
   DRAWER_WIDTHS,
   type DrawerKind,
@@ -147,6 +146,8 @@ interface DrawerHeadProps {
   saveChip?: ReactNode;
   /** Sub-line under the title row (e.g. "Hero section · last edit 2m ago"). */
   meta?: ReactNode;
+  /** When true, meta renders as wrapped content instead of one-line truncation. */
+  metaWrap?: boolean;
   /** Tool callbacks. Tools render only for handlers that are provided. */
   onExpand?: () => void;
   onFullscreen?: () => void;
@@ -159,6 +160,7 @@ export function DrawerHead({
   icon,
   saveChip,
   meta,
+  metaWrap = false,
   onExpand,
   onFullscreen,
   onClose,
@@ -207,7 +209,7 @@ export function DrawerHead({
         </div>
         {meta ? (
           <div
-            className="mt-1 ml-[40px] truncate"
+            className={metaWrap ? "mt-1 ml-[40px]" : "mt-1 ml-[40px] truncate"}
             style={{ fontSize: 11, color: CHROME.muted }}
           >
             {meta}

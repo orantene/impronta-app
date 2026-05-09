@@ -160,7 +160,7 @@ export async function updateTalentIdentity(
   }
 
   // Refresh server-rendered roster list + drawer surface.
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
 
   return { ok: true, talent_profile_id: v.talent_profile_id };
 }

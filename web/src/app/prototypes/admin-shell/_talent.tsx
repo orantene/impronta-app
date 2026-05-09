@@ -4535,10 +4535,7 @@ function PersonalPageBand() {
           </div>
         </div>
         <button
-          onClick={() => {
-            toast("You're on the waitlist — we'll email you when Pro launches");
-            openDrawer("talent-tier-compare");
-          }}
+          onClick={() => openDrawer("talent-tier-compare")}
           style={{
             flexShrink: 0,
             padding: "10px 20px",
@@ -9804,7 +9801,8 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
             <button
               key={a.label}
               type="button"
-              onClick={() => { toast(`${a.label} — coming soon`); setAttachOpen(false); }}
+              onClick={() => setAttachOpen(false)}
+              disabled
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -9812,9 +9810,10 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
                 gap: 4,
                 padding: "10px 6px",
                 background: "transparent",
+                opacity: 0.38,
+                cursor: "not-allowed",
                 border: "none",
                 borderRadius: 8,
-                cursor: "pointer",
                 fontFamily: FONTS.body,
                 fontSize: 11,
                 color: COLORS.inkMuted,
@@ -10324,23 +10323,6 @@ function AIReplyAssistant({ item }: { item: InboxItem | null }) {
                 }}
               >
                 Send →
-              </button>
-              <button
-                type="button"
-                onClick={() => toast("Edit composer · coming next sprint")}
-                style={{
-                  background: "transparent",
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  borderRadius: 8,
-                  padding: "8px 14px",
-                  fontFamily: FONTS.body,
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  color: COLORS.ink,
-                  cursor: "pointer",
-                }}
-              >
-                Edit before sending
               </button>
             </div>
           )}
@@ -15142,7 +15124,6 @@ function WeekRhythmStrip() {
 
 function AgenciesPage() {
   const { openDrawer, setTalentPage, toast, bridgeTalentAgencies } = useProto();
-  const [requestSent, setRequestSent] = useState<string | null>(null);
 
   // Bridge-aware: when the layout supplied real agency relationships, use
   // them (even if empty — a freshly-provisioned talent has zero agencies
@@ -15290,30 +15271,26 @@ function AgenciesPage() {
         </button>
       </section>
 
-      {/* Request representation */}
+      {/* Share profile with agencies */}
       <section>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkDim, fontFamily: FONTS.body, marginBottom: 12 }}>
-          Request representation
+          Work with more agencies
         </div>
         <p style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, margin: "0 0 12px" }}>
-          Search the Tulala network to find an agency that fits your market and reach goals.
+          On Tulala, agencies invite talent — not the other way around. Share your public profile with an agency and they can request you onto their roster.
         </p>
         <button
           type="button"
-          onClick={() => {
-            setRequestSent("sent");
-            toast("Request sent — the agency will be notified.", { tone: "success" });
-          }}
+          onClick={() => openDrawer("talent-agency-relationship", { mode: "add" })}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
-            background: requestSent ? COLORS.surfaceAlt : COLORS.fill,
-            color: requestSent ? COLORS.inkMuted : "#fff",
+            background: COLORS.fill, color: "#fff",
             border: "none", borderRadius: RADIUS.md,
             padding: "8px 16px", fontSize: 13, fontWeight: 600,
-            cursor: requestSent ? "default" : "pointer", fontFamily: FONTS.body,
+            cursor: "pointer", fontFamily: FONTS.body,
           }}
         >
-          {requestSent ? "✓ Request sent" : "Find an agency →"}
+          Share my profile →
         </button>
       </section>
     </div>

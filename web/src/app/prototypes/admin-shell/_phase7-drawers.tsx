@@ -469,8 +469,7 @@ export function TrustBadgesPanel({
       <div style={{
         fontSize: 11.5, color: T.inkMuted, marginBottom: 12, lineHeight: 1.5,
       }}>
-        Verification badges earned by this talent. Higher trust = better
-        access to clients via the trust ladder filter.
+        Verified talent get more visibility and higher-quality inquiries. Each badge requires supporting evidence.
       </div>
 
       {loading && <div style={{ color: T.inkMuted, fontSize: 12 }}>Loading…</div>}
@@ -494,7 +493,7 @@ export function TrustBadgesPanel({
                 </div>
                 {badge ? (
                   <div style={{ fontSize: 10.5, color: T.inkMuted, marginTop: 1 }}>
-                    Started {badge.scope === "platform" ? "by Tulala" : "by your agency"}
+                    Submitted {badge.scope === "platform" ? "by Tulala" : "by your agency"} · pending review
                     {badge.verified_at && ` · verified ${new Date(badge.verified_at).toLocaleDateString()}`}
                     {badge.expires_at && ` · expires ${new Date(badge.expires_at).toLocaleDateString()}`}
                   </div>

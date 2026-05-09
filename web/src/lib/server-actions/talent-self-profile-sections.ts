@@ -377,3 +377,84 @@ export async function updateSelfEmergencyContact(input: {
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
 }
+
+// ─── Contact policy ───────────────────────────────────────────────────────────
+//
+// Which client trust tiers can initiate inbound contact with this talent.
+// Stored in talent_profiles.contact_policy JSONB.
+
+export async function updateSelfContactPolicy(input: {
+  talent_profile_id: string;
+  policy: Record<string, boolean>;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth;
+
+  const { error } = await supabase
+    .from("talent_profiles")
+    .update({ contact_policy: input.policy, updated_at: new Date().toISOString() })
+    .eq("id", input.talent_profile_id);
+  if (error) { logServerError("self-sections.contact-policy", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  return { ok: true };
+}
+
+// ─── Leave agency ─────────────────────────────────────────────────────────────
+//
+// Talent sends a 14-day end-relationship notice. Sets roster status to
+// "inactive" so they lose distribution but retain profile access during
+// the wind-down period.
+
+export async function selfLeaveAgency(input: {
+  talent_profile_id: string;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const { error } = await supabase
+    .from("agency_talent_roster")
+    .update({ status: "inactive" })
+    .eq("talent_profile_id", input.talent_profile_id)
+    .eq("tenant_id", tenantId)
+    .in("status", ["active", "pending"]);
+
+  if (error) { logServerError("self-sections.leave-agency", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  return { ok: true };
+}
+
+// ─── Set primary agency ───────────────────────────────────────────────────────
+//
+// Marks one roster row as the talent's primary agency (is_primary = true) and
+// clears all other roster rows for this talent (is_primary = false).
+// The agency_id uniquely identifies the row via agencies.id FK.
+
+export async function selfSetPrimaryAgency(input: {
+  talent_profile_id: string;
+  agency_id: string;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth;
+
+  // Clear all primaries for this talent first.
+  const { error: clearErr } = await supabase
+    .from("agency_talent_roster")
+    .update({ is_primary: false })
+    .eq("talent_profile_id", input.talent_profile_id)
+    .neq("status", "removed");
+  if (clearErr) { logServerError("self-sections.set-primary.clear", clearErr); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  // Set the chosen agency as primary.
+  const { error: setErr } = await supabase
+    .from("agency_talent_roster")
+    .update({ is_primary: true })
+    .eq("talent_profile_id", input.talent_profile_id)
+    .eq("tenant_id", input.agency_id)
+    .neq("status", "removed");
+  if (setErr) { logServerError("self-sections.set-primary.set", setErr); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  return { ok: true };
+}

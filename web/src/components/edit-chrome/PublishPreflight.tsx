@@ -27,6 +27,7 @@ const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   link_integrity: "Link integrity",
   seo: "SEO",
   layout: "Layout",
+  performance: "Performance",
 };
 
 interface Props {
@@ -117,9 +118,28 @@ export function PublishPreflight({
   });
   const blockingIssues = ordered.filter((i) => i.severity === "error");
   const warningIssues = ordered.filter((i) => i.severity === "warn");
+  const blockingCategorySummary = blockingIssues.reduce<
+    Array<{ category: PreflightIssue["category"]; count: number }>
+  >((acc, issue) => {
+    const existing = acc.find((entry) => entry.category === issue.category);
+    if (existing) {
+      existing.count += 1;
+      return acc;
+    }
+    acc.push({ category: issue.category, count: 1 });
+    return acc;
+  }, []);
+  const firstFocusableBlockingSectionId =
+    onFocusSection
+      ? blockingIssues.find((issue) => typeof issue.sectionId === "string")
+          ?.sectionId ?? null
+      : null;
 
   const renderIssue = (issue: PreflightIssue, index: number) => (
-    <li key={`${issue.category}:${index}`} className="flex items-start gap-2">
+    <li
+      key={`${issue.category}:${issue.sectionId ?? "global"}:${issue.message}:${issue.severity}:${index}`}
+      className="flex items-start gap-2"
+    >
       <span
         aria-hidden
         className={`mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
@@ -165,12 +185,36 @@ export function PublishPreflight({
       </div>
       {blockingIssues.length > 0 ? (
         <div className="rounded-md border border-rose-300/70 bg-rose-50/50 p-2">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-            Publish blockers ({blockingIssues.length})
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+              Publish blockers ({blockingIssues.length})
+            </span>
+            {firstFocusableBlockingSectionId ? (
+              <button
+                type="button"
+                onClick={() => onFocusSection?.(firstFocusableBlockingSectionId)}
+                className="inline-flex cursor-pointer items-center rounded border border-rose-300/80 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 hover:bg-rose-50"
+              >
+                Focus first blocker
+              </button>
+            ) : null}
           </div>
           <ul className="flex flex-col gap-1.5 text-rose-950">
             {blockingIssues.map((issue, index) => renderIssue(issue, index))}
           </ul>
+          {blockingCategorySummary.length > 1 ? (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {blockingCategorySummary.map((entry) => (
+                <span
+                  key={entry.category}
+                  className="inline-flex items-center rounded border border-rose-300/70 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-rose-700"
+                  title={`${entry.count} blocker${entry.count === 1 ? "" : "s"} in ${CATEGORY_LABEL[entry.category]}`}
+                >
+                  {CATEGORY_LABEL[entry.category]} · {entry.count}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
       {warningIssues.length > 0 ? (

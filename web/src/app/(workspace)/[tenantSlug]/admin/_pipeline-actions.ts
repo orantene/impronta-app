@@ -103,7 +103,7 @@ export async function convertInquiryToBookingAction(
       return { ok: false, error: friendly };
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true, data: { bookingId: result.data!.bookingId } };
   } catch (err) {
     logServerError("admin._pipeline-actions.convertInquiryToBooking", err);
@@ -155,7 +155,7 @@ export async function submitTalentRate(
       return { ok: false, error: friendly };
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.submitTalentRate", err);
@@ -197,7 +197,7 @@ export async function counterOfferAction(
     if (!result.success) {
       return { ok: false, error: (result as { reason?: string; error?: string }).reason ?? (result as { error?: string }).error ?? "Could not start counter offer." };
     }
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     const offerId = (result as { data?: { offerId?: string } }).data?.offerId;
     if (!offerId) return { ok: false, error: "Counter offer created but no id returned." };
     return { ok: true, data: { offerId } };
@@ -277,7 +277,7 @@ async function withInquiryBooking<T>(
 
   try {
     const data = await fn({ supabase, userId: user.id, tenantId, bookingId: booking.id as string });
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true, data };
   } catch (err) {
     logServerError("admin._pipeline-actions.withInquiryBooking", err);
@@ -410,7 +410,7 @@ export async function createInquiryTransactionDraft(
     });
     if (!result.ok) return { ok: false, error: result.error };
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.createInquiryTransactionDraft", err);
@@ -512,7 +512,7 @@ export async function sendOfferAction(
     if (!result.success) {
       return { ok: false, error: (result as { reason?: string; error?: string }).reason ?? (result as { error?: string }).error ?? "Could not send offer." };
     }
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.sendOfferAction", err);
@@ -551,7 +551,7 @@ export async function approveOfferAction(
     if (!result.success) {
       return { ok: false, error: (result as { reason?: string; error?: string }).reason ?? (result as { error?: string }).error ?? "Could not approve offer." };
     }
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.approveOfferAction", err);
@@ -593,7 +593,7 @@ export async function rejectOfferAction(
     if (!result.success) {
       return { ok: false, error: (result as { reason?: string; error?: string }).reason ?? (result as { error?: string }).error ?? "Could not reject offer." };
     }
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.rejectOfferAction", err);
@@ -657,7 +657,7 @@ export async function patchAgencySettingsNamespace(
       return { ok: false, error: "Could not save workspace settings." };
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.patchAgencySettings", err);
@@ -739,7 +739,7 @@ export async function rescheduleInquiry(
     }
     if (!data) return { ok: false, error: "Inquiry not found in this workspace." };
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true, data: { eventDate: (data.event_date as string | null) ?? null } };
   } catch (err) {
     logServerError("admin._pipeline-actions.rescheduleInquiry", err);
@@ -790,7 +790,7 @@ async function setInquiryUserFlag(
       return { ok: false, error: "Could not save flag." };
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.setInquiryUserFlag", err);
@@ -842,7 +842,7 @@ export async function duplicateInquiryBooking(
     } catch {
       // duplicateBooking calls redirect() — the throw is the success path.
     }
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.duplicateInquiryBooking", err);
@@ -953,7 +953,7 @@ export async function removeInquiryLineupParticipant(
     const result = await rosterRemoveParticipant(fd);
     if (!result.ok) return { ok: false, error: result.message ?? "Could not remove." };
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.removeInquiryLineupParticipant", err);
@@ -992,7 +992,7 @@ export async function addInquiryLineupTalent(
     const result = await rosterAddTalent(fd);
     if (!result.ok) return { ok: false, error: result.message ?? "Could not add talent." };
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.addInquiryLineupTalent", err);
@@ -1140,7 +1140,7 @@ export async function uploadInquiryAttachment(
       return { ok: false, error: "Could not save file metadata." };
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true, data: { attachmentId: row.id as string } };
   } catch (err) {
     logServerError("admin._pipeline-actions.uploadInquiryAttachment", err);
@@ -1172,7 +1172,7 @@ export async function deleteInquiryAttachment(
       return { ok: false, error: "Could not delete file." };
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.deleteInquiryAttachment", err);
@@ -1355,7 +1355,7 @@ export async function saveOfferDraft(
       return { ok: false, error: friendly };
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.saveOfferDraft", err);
@@ -1490,7 +1490,7 @@ export async function reorderInquiryLineup(
         ?? "Could not reorder.";
       return { ok: false, error: reason };
     }
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.reorderInquiryLineup", err);
@@ -1550,7 +1550,7 @@ export async function bulkNudgeInquiries(
       else okCount++;
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true, data: { ok: okCount, failed } };
   } catch (err) {
     logServerError("admin._pipeline-actions.bulkNudgeInquiries", err);
@@ -1583,7 +1583,7 @@ export async function bulkReassignInquiriesToMe(
       else okCount++;
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true, data: { ok: okCount, failed } };
   } catch (err) {
     logServerError("admin._pipeline-actions.bulkReassignInquiriesToMe", err);
@@ -1623,7 +1623,7 @@ export async function bulkSetInquiryArchived(
       else okCount++;
     }
 
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true, data: { ok: okCount, failed } };
   } catch (err) {
     logServerError("admin._pipeline-actions.bulkSetInquiryArchived", err);
@@ -1663,7 +1663,7 @@ export async function createOfferAction(
     if (!result.success) {
       return { ok: false, error: (result as { reason?: string; error?: string }).reason ?? (result as { error?: string }).error ?? "Could not create offer." };
     }
-    revalidatePath("/", "layout");
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
     const offerId = (result as { data?: { offerId?: string } }).data?.offerId;
     if (!offerId) return { ok: false, error: "Offer created but no id returned." };
     return { ok: true, data: { offerId } };

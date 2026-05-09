@@ -147,11 +147,11 @@ export const CHROME_SHADOWS = {
 
 /** Standard radii — match the mockup `--r-*` scale. */
 export const CHROME_RADII = {
-  xs: 4,
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 18,
+  xs: 0,
+  sm: 0,
+  md: 0,
+  lg: 0,
+  xl: 0,
 } as const;
 
 /** Drawer widths by kind, taken from the mockup's `.dw-*` classes. */

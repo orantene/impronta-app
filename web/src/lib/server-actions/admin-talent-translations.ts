@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireStaff } from "@/lib/server/action-guards";
+import { pgUuidSchema } from "@/lib/site-admin/validators";
 import {
   aiFillMissingSpanishBio,
   aiRefreshSpanishBioLive,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/translation/talent-bio-translation-service";
 
 const idSchema = z.object({
-  talent_profile_id: z.string().uuid(),
+  talent_profile_id: pgUuidSchema(),
 });
 
 export type TranslationActionResult = { error?: string; success?: true };

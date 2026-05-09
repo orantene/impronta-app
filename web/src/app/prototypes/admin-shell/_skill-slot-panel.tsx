@@ -348,50 +348,52 @@ export function SkillSlotPanel({
 
   return (
     <div style={{ fontFamily: F_BODY }}>
-      {/* Header counter */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "10px 12px",
-          borderRadius: 10,
-          background: T.indigoSoft,
-          border: `1px solid rgba(91,107,160,0.18)`,
-          fontSize: 12,
-          marginBottom: 14,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <div style={{ fontWeight: 600, color: T.indigoDeep }}>
-            {totalSkills} of {MAX_TOTAL_SKILLS} skills used
-          </div>
-          <div style={{ fontSize: 10.5, color: T.inkMuted }}>
-            One primary category · up to two secondary categories · max 9
-            skills total
-          </div>
-        </div>
+      {/* Header counter — only show after first skill is added */}
+      {totalSkills > 0 && (
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 4,
+            justifyContent: "space-between",
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: T.indigoSoft,
+            border: `1px solid rgba(91,107,160,0.18)`,
+            fontSize: 12,
+            marginBottom: 14,
           }}
         >
-          {Array.from({ length: MAX_TOTAL_SKILLS }).map((_, i) => (
-            <span
-              key={i}
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background:
-                  i < totalSkills ? T.indigoDeep : "rgba(11,11,13,0.15)",
-              }}
-            />
-          ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div style={{ fontWeight: 600, color: T.indigoDeep }}>
+              {totalSkills} of {MAX_TOTAL_SKILLS} skills used
+            </div>
+            <div style={{ fontSize: 10.5, color: T.inkMuted }}>
+              One primary category · up to two secondary categories · max 9
+              skills total
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            {Array.from({ length: MAX_TOTAL_SKILLS }).map((_, i) => (
+              <span
+                key={i}
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background:
+                    i < totalSkills ? T.indigoDeep : "rgba(11,11,13,0.15)",
+                }}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {error && (
         <div
@@ -462,7 +464,7 @@ export function SkillSlotPanel({
       ))}
 
       {/* Add new secondary category button */}
-      {canAddSecondaryParent && totalSkills < MAX_TOTAL_SKILLS && (
+      {primaryGroup && canAddSecondaryParent && totalSkills < MAX_TOTAL_SKILLS && (
         <button
           type="button"
           onClick={() => setAddingForRole({ role: "secondary" })}
@@ -489,11 +491,13 @@ export function SkillSlotPanel({
       {/* Q2: Career interests / aspirations — talent_types they're open to
           growing into. Stored in talent_profile_taxonomy with
           relationship_type='aspiration' (added via 20260907220000). */}
-      <CareerInterestsSection
-        talentProfileId={talentProfileId}
-        existingSkillIds={new Set((skills ?? []).map((s) => s.skill_term_id))}
-        initialAspirations={aspirations}
-      />
+      {primaryGroup && (
+        <CareerInterestsSection
+          talentProfileId={talentProfileId}
+          existingSkillIds={new Set((skills ?? []).map((s) => s.skill_term_id))}
+          initialAspirations={aspirations}
+        />
+      )}
 
       {/* Add-skill drawer */}
       {addingForRole && (

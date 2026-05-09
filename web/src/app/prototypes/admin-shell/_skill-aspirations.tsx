@@ -79,18 +79,14 @@ export function CareerInterestsSection({
   return (
     <div
       style={{
-        marginTop: 16,
-        padding: 14,
-        borderRadius: 10,
-        background: T.surfaceWarm,
-        border: `1px solid ${T.borderSoft}`,
+        marginTop: 20,
         fontFamily: F_BODY,
       }}
     >
       <div
         style={{
           fontSize: 11,
-          fontWeight: 700,
+          fontWeight: 600,
           color: T.inkMuted,
           textTransform: "uppercase",
           letterSpacing: 0.5,

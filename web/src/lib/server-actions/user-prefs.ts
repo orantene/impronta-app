@@ -19,6 +19,7 @@ import { logServerError } from "@/lib/server/safe-error";
 export type UserPrefs = {
   preferredSurface: "talent" | "workspace" | null;
   firstRunToggleTipSeen: boolean;
+  notificationPrefs: Record<string, { email: boolean; push: boolean }>;
 };
 
 /**
@@ -33,7 +34,7 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
 
     const { data, error } = await supabase
       .from("user_prefs")
-      .select("preferred_surface, first_run_toggle_tip_seen")
+      .select("preferred_surface, first_run_toggle_tip_seen, notification_prefs")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -51,6 +52,7 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
     const row = data as {
       preferred_surface: string | null;
       first_run_toggle_tip_seen: boolean;
+      notification_prefs: Record<string, { email: boolean; push: boolean }> | null;
     };
 
     return {
@@ -59,6 +61,7 @@ export async function loadUserPrefs(userId: string): Promise<UserPrefs | null> {
           ? row.preferred_surface
           : null,
       firstRunToggleTipSeen: row.first_run_toggle_tip_seen ?? false,
+      notificationPrefs: (row.notification_prefs as Record<string, { email: boolean; push: boolean }>) ?? {},
     };
   } catch (err) {
     logServerError("user-prefs.loadUserPrefs", err);
@@ -127,5 +130,57 @@ export async function markToggleTipSeen(): Promise<void> {
     }
   } catch (err) {
     logServerError("user-prefs.markToggleTipSeen", err);
+  }
+}
+
+/**
+ * Persist notification preferences. Fire-and-forget.
+ * Auth required — reads user from session cookie.
+ */
+export async function setNotificationPrefs(
+  prefs: Record<string, { email: boolean; push: boolean }>,
+): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase.from("user_prefs").upsert(
+      { user_id: user.id, notification_prefs: prefs, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" },
+    );
+
+    if (error) {
+      logServerError("user-prefs.setNotificationPrefs", error);
+    }
+  } catch (err) {
+    logServerError("user-prefs.setNotificationPrefs", err);
+  }
+}
+
+/**
+ * Load notification preferences for the current session user.
+ * Returns empty object on error (caller uses defaults).
+ */
+export async function getNotificationPrefs(): Promise<Record<string, { email: boolean; push: boolean }>> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return {};
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return {};
+
+    const { data, error } = await supabase
+      .from("user_prefs")
+      .select("notification_prefs")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error || !data) return {};
+    return (data as { notification_prefs: Record<string, { email: boolean; push: boolean }> | null }).notification_prefs ?? {};
+  } catch {
+    return {};
   }
 }

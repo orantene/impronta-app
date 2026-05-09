@@ -149,10 +149,12 @@ export function AddSkillSearch({
           </div>
           <div style={{ fontSize: 12, color: T.inkMuted }}>
             {fixedParentId
-              ? "Pick a talent type within this category."
-              : role === "primary"
-                ? "Pick the category that defines this person's main work."
-                : "Pick a category they also work in."}
+              ? "Pick a role within this category."
+              : !selectedParentId
+                ? role === "primary"
+                  ? "Step 1 — pick a category. Step 2 — pick the specific role."
+                  : "Step 1 — pick a category. Step 2 — pick the specific role."
+                : "Now pick the specific role within this category."}
           </div>
         </div>
 
@@ -226,6 +228,22 @@ export function AddSkillSearch({
           </div>
         )}
 
+        {error && (
+          <div
+            style={{
+              margin: "12px 20px 0",
+              padding: 10,
+              borderRadius: 8,
+              background: T.redSoft,
+              border: `1px solid ${T.red}`,
+              fontSize: 12,
+              color: T.ink,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
         {/* Types list */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
           {!selectedParentId && (
@@ -252,11 +270,45 @@ export function AddSkillSearch({
           )}
           {types.map((t) => {
             const alreadyAdded = existingSkillIds.has(t.id);
+            if (alreadyAdded) {
+              return (
+                <div
+                  key={t.id}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    marginBottom: 4,
+                    borderRadius: 8,
+                    border: `1px solid ${T.borderSoft}`,
+                    background: T.surfaceAlt,
+                    fontFamily: F_BODY,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    opacity: 0.55,
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.inkMuted }}>
+                      {t.name_en}
+                    </div>
+                    {t.category_group_name && (
+                      <div style={{ fontSize: 10.5, color: T.inkMuted, marginTop: 1 }}>
+                        {t.category_group_name}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 10.5, color: T.inkMuted, fontWeight: 600 }}>
+                    ✓ On profile
+                  </span>
+                </div>
+              );
+            }
             return (
               <button
                 key={t.id}
                 type="button"
-                disabled={alreadyAdded || submittingTypeId === t.id}
+                disabled={submittingTypeId === t.id}
                 onClick={() => handleAdd(t.id)}
                 style={{
                   width: "100%",
@@ -265,44 +317,24 @@ export function AddSkillSearch({
                   marginBottom: 4,
                   borderRadius: 8,
                   border: `1px solid ${T.border}`,
-                  background: alreadyAdded ? T.surfaceAlt : T.surface,
-                  cursor: alreadyAdded ? "not-allowed" : "pointer",
+                  background: T.surface,
+                  cursor: "pointer",
                   fontFamily: F_BODY,
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  opacity: alreadyAdded ? 0.6 : 1,
                 }}
               >
                 <div style={{ flex: 1 }}>
-                  <div
-                    style={{ fontSize: 13, fontWeight: 600, color: T.ink }}
-                  >
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>
                     {t.name_en}
                   </div>
                   {t.category_group_name && (
-                    <div
-                      style={{
-                        fontSize: 10.5,
-                        color: T.inkMuted,
-                        marginTop: 1,
-                      }}
-                    >
+                    <div style={{ fontSize: 10.5, color: T.inkMuted, marginTop: 1 }}>
                       {t.category_group_name}
                     </div>
                   )}
                 </div>
-                {alreadyAdded && (
-                  <span
-                    style={{
-                      fontSize: 10.5,
-                      color: T.inkMuted,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Already added
-                  </span>
-                )}
                 {submittingTypeId === t.id && (
                   <span style={{ fontSize: 10.5, color: T.inkMuted }}>
                     adding…
@@ -312,22 +344,6 @@ export function AddSkillSearch({
             );
           })}
         </div>
-
-        {error && (
-          <div
-            style={{
-              margin: "0 20px 12px",
-              padding: 10,
-              borderRadius: 8,
-              background: T.redSoft,
-              border: `1px solid ${T.red}`,
-              fontSize: 12,
-              color: T.ink,
-            }}
-          >
-            {error}
-          </div>
-        )}
 
         <div
           style={{
@@ -372,7 +388,7 @@ export function AddSkillSearch({
               fontFamily: F_BODY,
             }}
           >
-            Done
+            Close
           </button>
         </div>
       </div>

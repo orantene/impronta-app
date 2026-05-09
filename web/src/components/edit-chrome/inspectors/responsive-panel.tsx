@@ -38,9 +38,15 @@ import {
   collectBreakpointCascadeRisks,
   collectBreakpointOrderRisks,
   collectBreakpointVisibilityRisks,
+  collectLayoutOverflowRisks,
+  isLayoutOverflowRiskBlocking,
+  type BreakpointCascadeRisk,
+  type BreakpointOrderRisk,
+  type BreakpointVisibilityRisk,
+  type LayoutOverflowRisk,
 } from "@/lib/site-admin/edit-mode/publish-preflight-layout-rules";
 
-import { useMemo, type ReactElement } from "react";
+import { useCallback, useMemo, type ReactElement } from "react";
 
 import { useEditContext, type EditDevice } from "../edit-context";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
@@ -204,6 +210,10 @@ export function ResponsivePanel({
     (overrideObject[k] as string | undefined) ?? "";
   const hasAnyOverride = OVERRIDE_KEYS.some((k) => overrideVal(k) !== "");
   const responsiveDiagnostics = useMemo(() => {
+    const overflow = collectLayoutOverflowRisks(
+      { breakpoints },
+      "presentation.breakpoints",
+    );
     const visibility = collectBreakpointVisibilityRisks(
       { breakpoints },
       "presentation",
@@ -213,7 +223,7 @@ export function ResponsivePanel({
       "presentation",
     );
     const order = collectBreakpointOrderRisks({ breakpoints }, "presentation");
-    return { visibility, cascade, order };
+    return { overflow, visibility, cascade, order };
   }, [breakpoints]);
 
   /**
@@ -247,6 +257,15 @@ export function ResponsivePanel({
     onDeepPatch({
       breakpoints: {
         [device]: cleared,
+      },
+    });
+  }
+
+  function clearOverride(k: OverrideKey) {
+    if (isDesktop || overrideVal(k) === "") return;
+    onDeepPatch({
+      breakpoints: {
+        [device]: { [k]: undefined },
       },
     });
   }
@@ -323,6 +342,8 @@ export function ResponsivePanel({
                     PRESENTATION_OPTIONS[k].find((o) => o.value === v)
                       ?.label ?? v
                   }
+                  canClear={!isDesktop && overrideValue !== ""}
+                  onClear={() => clearOverride(k)}
                 />
                 <div
                   className="grid items-center gap-2.5"
@@ -356,6 +377,8 @@ export function ResponsivePanel({
                   override={overrideValue}
                   inherited={desktop}
                   shortLabelFn={(v) => shortLabel(k, v)}
+                  canClear={!isDesktop && overrideValue !== ""}
+                  onClear={() => clearOverride(k)}
                 />
                 <div
                   style={{ opacity: isDesktop ? 0.5 : 1 }}
@@ -387,6 +410,8 @@ export function ResponsivePanel({
                 override={overrideValue}
                 inherited={desktop}
                 shortLabelFn={(v) => shortLabel(k, v)}
+                canClear={!isDesktop && overrideValue !== ""}
+                onClear={() => clearOverride(k)}
               />
               <div style={{ opacity: isDesktop ? 0.5 : 1 }}>
                 <ChipRowWithDesktopDot
@@ -407,9 +432,17 @@ export function ResponsivePanel({
       </section>
 
       <ResponsiveDiagnosticsCard
-        visibilityCount={responsiveDiagnostics.visibility.length}
-        cascadeCount={responsiveDiagnostics.cascade.length}
-        orderCount={responsiveDiagnostics.order.length}
+        breakpoints={breakpoints}
+        overflow={responsiveDiagnostics.overflow}
+        visibility={responsiveDiagnostics.visibility}
+        cascade={responsiveDiagnostics.cascade}
+        order={responsiveDiagnostics.order}
+        onJumpToBreakpoint={setDevice}
+        onApplyBreakpointPatch={(patch) => {
+          onDeepPatch({
+            breakpoints: patch,
+          });
+        }}
       />
 
       <p className={HINT}>
@@ -422,16 +455,90 @@ export function ResponsivePanel({
 }
 
 function ResponsiveDiagnosticsCard({
-  visibilityCount,
-  cascadeCount,
-  orderCount,
+  breakpoints,
+  overflow,
+  visibility,
+  cascade,
+  order,
+  onJumpToBreakpoint,
+  onApplyBreakpointPatch,
 }: {
-  visibilityCount: number;
-  cascadeCount: number;
-  orderCount: number;
+  breakpoints: { tablet?: Record<string, unknown>; mobile?: Record<string, unknown> };
+  overflow: ReadonlyArray<LayoutOverflowRisk>;
+  visibility: ReadonlyArray<BreakpointVisibilityRisk>;
+  cascade: ReadonlyArray<BreakpointCascadeRisk>;
+  order: ReadonlyArray<BreakpointOrderRisk>;
+  onJumpToBreakpoint: (device: EditDevice) => void;
+  onApplyBreakpointPatch: (patch: {
+    tablet?: Record<string, unknown>;
+    mobile?: Record<string, unknown>;
+  }) => void;
 }) {
-  const total = visibilityCount + cascadeCount + orderCount;
+  const total =
+    overflow.length + visibility.length + cascade.length + order.length;
+  const blockingCount = overflow.filter(isLayoutOverflowRiskBlocking).length;
   const ok = total === 0;
+
+  const inferBreakpointFromPath = useCallback((path: string): EditDevice | null => {
+    if (path.includes(".breakpoints.mobile.")) return "mobile";
+    if (path.includes(".breakpoints.tablet.")) return "tablet";
+    return null;
+  }, []);
+
+  const diagnostics = useMemo<
+    ReadonlyArray<{
+      id: string;
+      message: string;
+      breakpoint: EditDevice | null;
+      quickFix?: {
+        label: string;
+        patch: { tablet?: Record<string, unknown>; mobile?: Record<string, unknown> };
+      };
+    }>
+  >(() => {
+    const lines = [
+      ...overflow.slice(0, 2).map((risk) => ({
+        id: `overflow-${risk.path}`,
+        message: `${isLayoutOverflowRiskBlocking(risk) ? "Critical" : "Long"} unbroken text at ${risk.path} (${risk.length} chars). Add spaces, wraps, or shorter copy.`,
+        breakpoint: inferBreakpointFromPath(risk.path),
+      })),
+      ...visibility.slice(0, 2).map((risk) => ({
+        id: `visibility-${risk.path}`,
+        message: `${risk.breakpoint} visibility hides content at ${risk.path}. Confirm this is intentional.`,
+        breakpoint: risk.breakpoint,
+        quickFix: {
+          label: `Show on ${risk.breakpoint}`,
+          patch: { [risk.breakpoint]: { visibility: "visible" } },
+        },
+      })),
+      ...cascade.slice(0, 2).map((risk) => {
+        const mobileValue = breakpoints.mobile?.[risk.field];
+        const canCopyToTablet = mobileValue !== undefined;
+        return {
+          id: `cascade-${risk.path}`,
+          message: `${risk.field} on mobile has no tablet override (${risk.path}). Add tablet intent or reset mobile.`,
+          breakpoint: "mobile" as const,
+          quickFix: canCopyToTablet
+            ? {
+                label: "Copy to tablet",
+                patch: { tablet: { [risk.field]: mobileValue } },
+              }
+            : undefined,
+        };
+      }),
+      ...order.slice(0, 2).map((risk) => ({
+        id: `order-${risk.path}`,
+        message: `${risk.field} mobile (${risk.mobileValue}) is larger than tablet (${risk.tabletValue}) at ${risk.path}.`,
+        breakpoint: "mobile" as const,
+        quickFix: {
+          label: "Match tablet",
+          patch: { mobile: { [risk.field]: risk.tabletValue } },
+        },
+      })),
+    ];
+    return lines.slice(0, 6);
+  }, [breakpoints.mobile, cascade, inferBreakpointFromPath, order, overflow, visibility]);
+
   return (
     <div
       className="rounded-md p-3"
@@ -455,23 +562,72 @@ function ResponsiveDiagnosticsCard({
         </p>
       ) : (
         <div className="mt-2 flex flex-col gap-1.5 text-[10.5px] leading-snug text-zinc-600">
-          {visibilityCount > 0 ? (
+          {overflow.length > 0 ? (
             <p>
-              {visibilityCount} hidden-on-breakpoint override
-              {visibilityCount === 1 ? "" : "s"}.
+              {overflow.length} potential overflow risk
+              {overflow.length === 1 ? "" : "s"}.
             </p>
           ) : null}
-          {cascadeCount > 0 ? (
+          {visibility.length > 0 ? (
             <p>
-              {cascadeCount} mobile override
-              {cascadeCount === 1 ? "" : "s"} without tablet intent.
+              {visibility.length} hidden-on-breakpoint override
+              {visibility.length === 1 ? "" : "s"}.
             </p>
           ) : null}
-          {orderCount > 0 ? (
+          {cascade.length > 0 ? (
             <p>
-              {orderCount} mobile spacing value{orderCount === 1 ? "" : "s"} larger
+              {cascade.length} mobile override
+              {cascade.length === 1 ? "" : "s"} without tablet intent.
+            </p>
+          ) : null}
+          {order.length > 0 ? (
+            <p>
+              {order.length} mobile spacing value{order.length === 1 ? "" : "s"} larger
               than tablet.
             </p>
+          ) : null}
+          {blockingCount > 0 ? (
+            <p className="font-semibold text-rose-700">
+              {blockingCount} publish blocker{blockingCount === 1 ? "" : "s"} from
+              extreme overflow tokens.
+            </p>
+          ) : null}
+          {diagnostics.length > 0 ? (
+            <div className="mt-1 rounded-md border border-zinc-200 bg-white/70 px-2.5 py-2 text-[10px] leading-snug text-zinc-700">
+              {diagnostics.map((item) => {
+                const quickFix = item.quickFix;
+                return (
+                  <div
+                    key={item.id}
+                    className="mb-1.5 flex items-start justify-between gap-2 last:mb-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="min-w-0 break-words">{item.message}</p>
+                      {quickFix ? (
+                        <button
+                          type="button"
+                          onClick={() => onApplyBreakpointPatch(quickFix.patch)}
+                          className="mt-1 rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-zinc-600 hover:bg-zinc-50"
+                        >
+                          {quickFix.label}
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="shrink-0">
+                      {item.breakpoint ? (
+                        <button
+                          type="button"
+                          onClick={() => onJumpToBreakpoint(item.breakpoint ?? "desktop")}
+                          className="rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-zinc-600 hover:bg-zinc-50"
+                        >
+                          {item.breakpoint}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : null}
         </div>
       )}
@@ -484,11 +640,15 @@ function FieldHeader({
   override,
   inherited,
   shortLabelFn,
+  canClear,
+  onClear,
 }: {
   label: string;
   override: string;
   inherited: string;
   shortLabelFn: (value: string) => string;
+  canClear?: boolean;
+  onClear?: () => void;
 }) {
   // Three states the operator needs to read at a glance:
   //   - Override + desktop differ → show "Override · Desktop is X"
@@ -509,7 +669,18 @@ function FieldHeader({
   return (
     <div className="flex items-baseline justify-between">
       <span className={FIELD_LABEL}>{label}</span>
-      <span className={tone}>{trailing}</span>
+      <span className="inline-flex items-center gap-2">
+        <span className={tone}>{trailing}</span>
+        {canClear && onClear ? (
+          <button
+            type="button"
+            onClick={onClear}
+            className="rounded-[4px] border border-zinc-300 bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.04em] text-zinc-600 hover:bg-zinc-50"
+          >
+            Reset
+          </button>
+        ) : null}
+      </span>
     </div>
   );
 }

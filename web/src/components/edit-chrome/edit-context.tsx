@@ -64,9 +64,12 @@ import {
   BUILDER_NODE_REGISTRY,
   createBuilderNodeCompositionPreset,
   builderNodeKindAllowedAtRoot,
+  createBuilderMutationAuditEvent,
+  createEditorDispatchAuditEvent,
   createBuilderNode,
   deriveLegacySectionChildNodes,
   formatBuilderNodeMutationError,
+  recordBuilderMutationAuditEvent,
   summarizeBuilderNodeIssues,
   reconcileBuilderTreeWithLegacySlots,
   validateBuilderNodeTree,
@@ -628,6 +631,15 @@ function normalizeMutationError(
     details:
       input.details && input.details.length > 0 ? input.details : undefined,
   };
+}
+
+function mutationErrorFingerprint(input: EditMutationError): string {
+  return [
+    input.message,
+    input.operation ?? "",
+    input.code ?? "",
+    ...(input.details ?? []),
+  ].join("|");
 }
 
 /**
@@ -1237,7 +1249,11 @@ export function EditProvider({
     // Clear any active selection — the inspector dock would obscure
     // the page area the operator is trying to test. Drawer state stays
     // available; flipping back to edit mode shows it again.
-    if (next) setSelectedSectionIdRaw(null);
+    if (next) {
+      setSelectedSectionIdRaw(null);
+      setSelectedBuilderNodeIdOverride(null);
+      setAdditionalSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+    }
   }, []);
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -1363,6 +1379,16 @@ export function EditProvider({
     },
     [],
   );
+
+  // Selection-sync invariant:
+  // when no primary section is selected, clear any residual multi-select ids
+  // and child-node override so navigator/canvas/inspector all resolve to the
+  // same "nothing selected" state.
+  useEffect(() => {
+    if (selectedSectionId !== null) return;
+    setSelectedBuilderNodeIdOverride((prev) => (prev === null ? prev : null));
+    setAdditionalSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+  }, [selectedSectionId]);
 
   // ── composition state ───────────────────────────────────────────────
   // T1-2 — seed state from the server-prefetched composition when present.
@@ -1564,9 +1590,28 @@ export function EditProvider({
   const [mutationError, setMutationError] = useState<EditMutationError | null>(
     null,
   );
+  const lastMutationErrorRef = useRef<{
+    fingerprint: string;
+    at: number;
+  } | null>(null);
   const reportMutationError = useCallback(
     (message: string | EditMutationError) => {
-      setMutationError(normalizeMutationError(message));
+      const normalized = normalizeMutationError(message);
+      const fingerprint = mutationErrorFingerprint(normalized);
+      const now = Date.now();
+      const previous = lastMutationErrorRef.current;
+      // De-noise repeated failures fired in the same user gesture cycle
+      // (e.g. keyboard-repeat at layout boundaries). Keep the first toast
+      // visible and avoid replacing it with identical copies.
+      if (
+        previous &&
+        previous.fingerprint === fingerprint &&
+        now - previous.at < 1200
+      ) {
+        return;
+      }
+      lastMutationErrorRef.current = { fingerprint, at: now };
+      setMutationError(normalized);
     },
     [],
   );
@@ -1892,6 +1937,15 @@ export function EditProvider({
 
   const dispatch = useCallback(
     async (mutation: EditorMutation): Promise<DispatchResult> => {
+      const recordDispatchAudit = (sectionId?: string | null) => {
+        recordBuilderMutationAuditEvent(
+          createEditorDispatchAuditEvent({
+            mutationKind: mutation.kind,
+            sectionId,
+            tree: builderTreeRef.current,
+          }),
+        );
+      };
       switch (mutation.kind) {
         case "section.setVisibility": {
           // Optimistic local state update + revert closure. We snapshot
@@ -1935,6 +1989,7 @@ export function EditProvider({
           }
           // Storefront DOM cache bust — fire-and-forget.
           router.refresh();
+          recordDispatchAudit(mutation.sectionId);
           return { ok: true };
         }
 
@@ -2005,6 +2060,7 @@ export function EditProvider({
             props: mutation.props,
           });
           router.refresh();
+          recordDispatchAudit(mutation.sectionId);
           return { ok: true };
         }
 
@@ -2119,6 +2175,7 @@ export function EditProvider({
             );
           }
           router.refresh();
+          recordDispatchAudit(mutation.sectionId);
           return { ok: true };
         }
 
@@ -2141,9 +2198,11 @@ export function EditProvider({
             if (!removed) return null;
             return { slots: nextSlots, metadata: prev.metadata };
           });
-          return result.ok
-            ? { ok: true }
-            : { ok: false, error: result.error ?? "Remove failed" };
+          if (result.ok) {
+            recordDispatchAudit(mutation.sectionId);
+            return { ok: true };
+          }
+          return { ok: false, error: result.error ?? "Remove failed" };
         }
 
         case "composition.metadata": {
@@ -2158,9 +2217,11 @@ export function EditProvider({
             // charter — server actions are not normalized globally.
             metadata: metadata as unknown as typeof prev.metadata,
           }));
-          return result.ok
-            ? { ok: true }
-            : { ok: false, error: result.error ?? "Save failed" };
+          if (result.ok) {
+            recordDispatchAudit(null);
+            return { ok: true };
+          }
+          return { ok: false, error: result.error ?? "Save failed" };
         }
 
         case "composition.move": {
@@ -2175,9 +2236,11 @@ export function EditProvider({
             mutation.targetSlotKey,
             mutation.targetSortOrder,
           );
-          return result.ok
-            ? { ok: true }
-            : { ok: false, error: result.error ?? "Move failed" };
+          if (result.ok) {
+            recordDispatchAudit(mutation.sectionId);
+            return { ok: true };
+          }
+          return { ok: false, error: result.error ?? "Move failed" };
         }
 
         case "composition.insert": {
@@ -2188,9 +2251,11 @@ export function EditProvider({
           const fn = insertSectionRef.current;
           if (!fn) return { ok: false, error: "Dispatcher not ready" };
           const result = await fn(mutation.target, mutation.sectionTypeKey);
-          return result.ok
-            ? { ok: true, data: { newSectionId: result.newSectionId } }
-            : { ok: false, error: result.error ?? "Insert failed" };
+          if (result.ok) {
+            recordDispatchAudit(result.newSectionId ?? null);
+            return { ok: true, data: { newSectionId: result.newSectionId } };
+          }
+          return { ok: false, error: result.error ?? "Insert failed" };
         }
 
         case "composition.duplicate": {
@@ -2200,9 +2265,11 @@ export function EditProvider({
           const fn = duplicateSectionRef.current;
           if (!fn) return { ok: false, error: "Dispatcher not ready" };
           const result = await fn(mutation.sectionId);
-          return result.ok
-            ? { ok: true, data: { newSectionId: result.newSectionId } }
-            : { ok: false, error: result.error ?? "Duplicate failed" };
+          if (result.ok) {
+            recordDispatchAudit(result.newSectionId ?? mutation.sectionId);
+            return { ok: true, data: { newSectionId: result.newSectionId } };
+          }
+          return { ok: false, error: result.error ?? "Duplicate failed" };
         }
 
         default:
@@ -2756,6 +2823,7 @@ export function EditProvider({
         return guarded;
       }
 
+      const previousTree = builderTreeRef.current;
       const operationResult = input.run(builderTreeRef.current);
       if (!operationResult.ok) {
         const error = formatBuilderNodeMutationError({
@@ -2781,13 +2849,31 @@ export function EditProvider({
           error: persisted.error,
         };
       }
+      recordBuilderMutationAuditEvent(
+        createBuilderMutationAuditEvent({
+          operation: input.operation,
+          nodeId: input.nodeId,
+          parentId: input.parentId,
+          resultNodeId: operationResult.nodeId ?? null,
+          activeSelectionSectionId: selectedSectionId ?? null,
+          activeSelectionNodeId: selectedBuilderNodeId ?? null,
+          previousTree,
+          tree: operationResult.tree,
+        }),
+      );
       return {
         ok: true,
         tree: operationResult.tree,
         nodeId: operationResult.nodeId,
       };
     },
-    [canEditSiteShell, commitBuilderTreeMutation, reportMutationError],
+    [
+      canEditSiteShell,
+      commitBuilderTreeMutation,
+      reportMutationError,
+      selectedBuilderNodeId,
+      selectedSectionId,
+    ],
   );
   const runBuilderNodeOp = useCallback(
     (input: Parameters<typeof applyBuilderNodeOperation>[0]): BuilderNodeMutationResult => {
@@ -2951,6 +3037,9 @@ export function EditProvider({
     EditContextValue["removeBuilderNode"]
   >(
     async (nodeId) => {
+      const ownerSectionId =
+        sectionIdByBuilderNodeId.get(nodeId) ?? selectedSectionId ?? null;
+      const removingActiveNode = selectedBuilderNodeId === nodeId;
       const removed = await executeBuilderNodeOperation({
         operation: "remove",
         nodeId,
@@ -2964,9 +3053,25 @@ export function EditProvider({
       if (!removed.ok) {
         return { ok: false, error: removed.error };
       }
+      if (removingActiveNode) {
+        // Keep section/canvas/inspector selection aligned immediately after
+        // delete, without relying on later stale-node effects.
+        if (ownerSectionId) {
+          setSelectedSectionId(ownerSectionId);
+        } else {
+          setSelectedBuilderNodeIdOverride(null);
+        }
+      }
       return { ok: true };
     },
-    [executeBuilderNodeOperation, runBuilderNodeOp],
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      sectionIdByBuilderNodeId,
+      selectedBuilderNodeId,
+      selectedSectionId,
+      setSelectedSectionId,
+    ],
   );
   const duplicateBuilderNode = useCallback<
     EditContextValue["duplicateBuilderNode"]
@@ -3013,7 +3118,11 @@ export function EditProvider({
           error: "Sections use the section duplicate action.",
         };
       }
-      setCopiedBuilderNode(cloneBuilderNode(location.node));
+      const copiedNode = cloneBuilderNode(location.node);
+      setCopiedBuilderNode(copiedNode);
+      // Persist immediately so paste stays reliable even if an interaction
+      // sequence closes the action row before the state effect runs.
+      writeStoredBuilderNodeClipboard(copiedNode);
       return { ok: true };
     },
     [builderTree],

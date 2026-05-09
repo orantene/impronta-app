@@ -96,7 +96,7 @@ export function MetricsRibbon({ talentProfileId }: { talentProfileId: string }) 
         }}
       >
         <span style={{ fontSize: 14 }}>✨</span>
-        <span>New on Tulala — earned-trust signals appear once they start booking.</span>
+        <span>New here — activity and booking history will appear once they complete their first booking.</span>
       </div>
     );
   }

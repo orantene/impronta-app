@@ -22,23 +22,28 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadTalentSelfProfile,
   loadTalentInquiries,
+  loadTalentAgencies,
 } from "@/app/prototypes/admin-shell/_data-bridge";
 import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
 import type { TalentPage } from "@/app/prototypes/admin-shell/_state";
+import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
 
 export const dynamic = "force-dynamic";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
 const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
-  today:     "today",
-  inbox:     "messages",
-  profile:   "profile",
-  calendar:  "calendar",
-  agencies:  "agencies",
-  settings:  "settings",
+  today:        "today",
+  inbox:        "messages",
+  messages:     "messages",
+  profile:      "profile",
+  calendar:     "calendar",
+  agencies:     "agencies",
+  reach:        "agencies", // legacy alias
+  "public-page": "public-page",
+  settings:     "settings",
 };
 
 function deriveInitialTalentPage(pathname: string, tenantSlug: string): TalentPage {
@@ -87,15 +92,39 @@ export default async function TalentLayout({
   // below, but each loader returns a safe default for non-hybrid users
   // (0 / null), so doing them speculatively here is cheaper than a second
   // sequential await on every page load.
-  const [talentInquiries, membership, workspaceUnreadRaw, userPrefsRaw] = await Promise.all([
+  const [
+    talentInquiries,
+    talentAgencies,
+    membership,
+    workspaceUnreadRaw,
+    userPrefsRaw,
+    tenantIdentity,
+    profileDisplayName,
+  ] = await Promise.all([
     loadTalentInquiries(talentSelfProfile.id, tenantId),
+    // Talent's agency relationships (cross-tenant — a talent can be on
+    // multiple agency rosters). Used by /talent/agencies and the talent
+    // identity bar's "Acting as <agency>" subtext.
+    loadTalentAgencies(talentSelfProfile.id),
     findTenantMembership(tenantId),
     loadWorkspaceUnreadCount(tenantId),
     loadUserPrefs(session.user.id),
+    // Identity for the persistent chrome — without these, the talent
+    // surface fell back to the mock TENANT ("Atelier Roma") instead of
+    // showing the real tenant name + branding.
+    loadTenantIdentity(tenantId),
+    loadProfileDisplayName(session.user.id),
   ]);
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
   const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
+
+  const sessionIdentity = {
+    userId: session.user.id,
+    email: session.user.email ?? "",
+    role: membership?.role ?? "viewer",
+    displayName: profileDisplayName,
+  };
 
   return (
     <TalentShellPrototypePageClient
@@ -112,9 +141,15 @@ export default async function TalentLayout({
         pitches: null,
         teamMembers: null,
         totalUnread: 0,
+        // Identity for the chrome (top bar + acting-as label). Without
+        // these the prototype shell fell back to its mock TENANT
+        // ("Atelier Roma") even on the real talent route.
+        tenantIdentity,
+        sessionIdentity,
         // Talent self-surface fields
         talentSelfProfile,
         talentInquiries,
+        talentAgencies,
         // Phase 0 — hybrid signal drives the Talent | Workspace toggle
         isHybrid,
         // Phase 5 — cross-mode unread + user prefs

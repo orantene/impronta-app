@@ -36,12 +36,15 @@ import {
   collectBreakpointOrderRisks,
   collectBreakpointVisibilityRisks,
   collectLayoutOverflowRisks,
+  isLayoutOverflowRiskBlocking,
 } from "./publish-preflight-layout-rules";
 import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talent/schema";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
 import {
+  collectBuilderPerformanceIssues,
+  collectBuilderPerformanceMetrics,
   collectBuilderTreeLayoutFindings,
   collectBuilderDataBindingTreeFindings,
   isBlockingLayoutFindingId,
@@ -64,7 +67,8 @@ export interface PreflightIssue {
     | "data_binding"
     | "link_integrity"
     | "seo"
-    | "layout";
+    | "layout"
+    | "performance";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
   message: string;
@@ -265,11 +269,14 @@ export async function runPublishPreflight(input?: {
     for (const risk of collectLayoutOverflowRisks(props).slice(0, 2)) {
       const preview =
         risk.token.length > 24 ? `${risk.token.slice(0, 24)}…` : risk.token;
+      const blocking = isLayoutOverflowRiskBlocking(risk);
       issues.push({
-        severity: "warn",
+        severity: blocking ? "error" : "warn",
         category: "layout",
         sectionId: r.id,
-        message: `${sectionName}: possible mobile overflow from long unbroken text in ${risk.path} (${risk.length} chars: "${preview}").`,
+        message: blocking
+          ? `${sectionName}: blocking mobile overflow risk from long unbroken text in ${risk.path} (${risk.length} chars: "${preview}"). Add wraps/spacing or shorten before publish.`
+          : `${sectionName}: possible mobile overflow from long unbroken text in ${risk.path} (${risk.length} chars: "${preview}").`,
       });
     }
     for (const risk of collectBreakpointVisibilityRisks(props).slice(0, 1)) {
@@ -366,6 +373,15 @@ export async function runPublishPreflight(input?: {
             .join("; ")}`,
         });
       } else {
+        for (const finding of collectBuilderPerformanceIssues(
+          collectBuilderPerformanceMetrics(validation.tree),
+        )) {
+          issues.push({
+            severity: finding.severity === "error" ? "error" : "warn",
+            category: "performance",
+            message: `Builder performance: ${finding.message}`,
+          });
+        }
         for (const finding of collectBuilderDataBindingTreeFindings(validation.tree, {
           workspacePlan,
         })) {

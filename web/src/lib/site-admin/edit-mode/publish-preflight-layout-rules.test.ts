@@ -6,6 +6,7 @@ import {
   collectBreakpointOrderRisks,
   collectBreakpointVisibilityRisks,
   collectLayoutOverflowRisks,
+  isLayoutOverflowRiskBlocking,
 } from "./publish-preflight-layout-rules";
 
 test("collectLayoutOverflowRisks detects long unbroken copy tokens", () => {
@@ -91,4 +92,13 @@ test("collectBreakpointOrderRisks detects mobile values larger than tablet", () 
     "props.presentation.breakpoints.mobile.paddingInlinePx",
   );
   assert.equal(risks[0]?.reason, "mobile-exceeds-tablet");
+});
+
+test("isLayoutOverflowRiskBlocking returns true for extreme token length", () => {
+  const risks = collectLayoutOverflowRisks({
+    headline:
+      "SupercalifragilisticexpialidociousPlusEvenMoreCharactersToTripBlockingThreshold",
+  });
+  assert.equal(risks.length, 1);
+  assert.equal(isLayoutOverflowRiskBlocking(risks[0]!), true);
 });

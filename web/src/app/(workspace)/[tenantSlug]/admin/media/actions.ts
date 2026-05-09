@@ -12,7 +12,7 @@ type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string
 
 export type RegisterMediaResult = ActionResult<{ id: string; publicUrl: string }>;
 
-export type UploadVariant = "gallery" | "card" | "banner" | "lightbox";
+export type UploadVariant = "gallery" | "card" | "hero" | "lightbox" | "polaroid" | "reel";
 
 export async function actionUploadAndAssignMedia(
   formData: FormData,
@@ -57,9 +57,9 @@ export async function actionUploadAndAssignMedia(
     return { ok: false, error: "Upload failed. Try again." };
   }
 
-  // Singletons: card and banner each have one row at a time. Soft-delete
+  // Singletons: card and hero each have one row at a time. Soft-delete
   // any existing rows for this talent + variant before inserting the new one.
-  const isSingleton = variantKind === "card" || variantKind === "banner";
+  const isSingleton = variantKind === "card" || variantKind === "hero";
   if (isSingleton) {
     const now = new Date().toISOString();
     await admin
@@ -105,7 +105,7 @@ export async function actionUploadAndAssignMedia(
 
   const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { id: (inserted as { id: string }).id, publicUrl: urlData.publicUrl } };
 }
 
@@ -158,7 +158,7 @@ export async function actionAssignMediaToTalent(
     return { ok: false, error: "Could not assign. Try again." };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { count: storagePaths.length } };
 }
 
@@ -189,7 +189,7 @@ export async function actionDeleteMediaAssets(
     return { ok: false, error: "Delete failed. Try again." };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { count: count ?? ids.length } };
 }
 
@@ -220,7 +220,7 @@ export async function actionSetApprovalState(
     return { ok: false, error: "Could not update. Try again." };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { count: count ?? ids.length } };
 }
 
@@ -260,7 +260,7 @@ export async function actionReassignMediaToTalent(
     return { ok: false, error: "Could not reassign. Try again." };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { count: count ?? ids.length } };
 }
 
@@ -288,7 +288,7 @@ export async function actionSetMediaWatermarkOverride(
     return { ok: false, error: "Could not update. Try again." };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: null };
 }
 
@@ -364,7 +364,7 @@ export async function actionSetAsCardPhoto(
     .from((source as { bucket_id: string; storage_path: string }).bucket_id)
     .getPublicUrl((source as { bucket_id: string; storage_path: string }).storage_path);
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { id: (inserted as { id: string }).id, publicUrl: urlData.publicUrl } };
 }
 
@@ -402,7 +402,7 @@ export async function actionReorderMediaAssets(
     return { ok: false, error: "Some reorder updates failed." };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { count: orderedIds.length } };
 }
 
@@ -512,7 +512,7 @@ export async function actionBulkAssignStagedMedia(
     return { ok: false, error: "Could not save. Try again." };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { count: rows.length } };
 }
 
@@ -732,14 +732,16 @@ export type TalentMediaItem = {
 };
 
 export type TalentMediaBundle = {
-  /** Gallery photos that AREN'T polaroids — sorted by sort_order. */
+  /** Gallery photos — sorted by sort_order. */
   gallery: TalentMediaItem[];
-  /** Cover banner — at most one (singleton). */
-  cover: TalentMediaItem | null;
+  /** Hero image (4:5 portrait) — at most one (singleton). */
+  hero: TalentMediaItem | null;
   /** Card / headshot — at most one (singleton). */
   card: TalentMediaItem | null;
   /** Polaroids keyed by their slot id (e.g. "front", "side", "smile"). */
   polaroids: Record<string, TalentMediaItem>;
+  /** Hello reel — at most one video (singleton). */
+  reel: TalentMediaItem | null;
 };
 
 /** Per-variant gallery loader kept for backwards-compat (the drawer's
@@ -795,7 +797,7 @@ export async function actionLoadTalentMediaBundle(
     created_at: string;
   };
 
-  const bundle: TalentMediaBundle = { gallery: [], cover: null, card: null, polaroids: {} };
+  const bundle: TalentMediaBundle = { gallery: [], hero: null, card: null, polaroids: {}, reel: null };
 
   for (const r of (data as Row[] | null ?? [])) {
     const item: TalentMediaItem = {
@@ -805,17 +807,223 @@ export async function actionLoadTalentMediaBundle(
       sortOrder: r.sort_order ?? 0,
       metadata: r.metadata ?? {},
     };
-    const slot = (item.metadata.polaroidSlot ?? item.metadata.slot) as string | undefined;
-    if (slot) {
+    if (r.variant_kind === "polaroid") {
+      const slot = (item.metadata.polaroidSlot ?? item.metadata.slot ?? r.id) as string;
       bundle.polaroids[slot] = item;
-    } else if (r.variant_kind === "banner") {
-      if (!bundle.cover) bundle.cover = item;
+    } else if (r.variant_kind === "hero") {
+      if (!bundle.hero) bundle.hero = item;
     } else if (r.variant_kind === "card") {
       if (!bundle.card) bundle.card = item;
+    } else if (r.variant_kind === "reel") {
+      if (!bundle.reel) bundle.reel = item;
     } else if (r.variant_kind === "gallery") {
       bundle.gallery.push(item);
     }
   }
 
   return { ok: true, data: bundle };
+}
+
+// ─── Media count (used by drive import progress polling) ─────────────────────
+
+export async function actionGetMediaCount(): Promise<ActionResult<{ count: number }>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { count, error } = await admin
+    .from("media_assets")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", auth.tenantId)
+    .is("deleted_at", null);
+
+  if (error) return { ok: false, error: "Could not count." };
+  return { ok: true, data: { count: count ?? 0 } };
+}
+
+// ─── Google Drive import ──────────────────────────────────────────────────────
+
+export type DriveImportResult = ActionResult<{ assets: Array<{ id: string; publicUrl: string }> }>;
+
+/** Phase 1 — list files without downloading. Returns file IDs and count. */
+export async function actionListDriveFolder(
+  driveUrl: string,
+): Promise<ActionResult<{ fileIds: string[]; count: number }>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const parsed = parseDriveUrl(driveUrl);
+  if (!parsed) return { ok: false, error: "Paste a Google Drive file or folder share link." };
+
+  if (parsed.kind === "file") {
+    return { ok: true, data: { fileIds: [parsed.fileId], count: 1 } };
+  }
+
+  const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
+  if (!apiKey) return { ok: false, error: "Google Drive API key not configured." };
+
+  const q = encodeURIComponent(`'${parsed.folderId}' in parents and mimeType contains 'image/'`);
+  const listUrl = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=200&key=${encodeURIComponent(apiKey)}`;
+  let listRes: Response;
+  try {
+    listRes = await fetch(listUrl);
+  } catch {
+    return { ok: false, error: "Could not reach Google Drive API." };
+  }
+  if (!listRes.ok) {
+    return { ok: false, error: "Could not list folder — make sure it is shared as 'Anyone with the link'." };
+  }
+  const listData = await listRes.json() as { files?: Array<{ id: string; mimeType: string }> };
+  const images = (listData.files ?? []).filter((f) => f.mimeType.startsWith("image/"));
+  if (images.length === 0) return { ok: false, error: "No images found in this folder." };
+
+  return { ok: true, data: { fileIds: images.map((f) => f.id), count: images.length } };
+}
+
+function parseDriveUrl(url: string): { kind: "file"; fileId: string } | { kind: "folder"; folderId: string } | null {
+  try {
+    const u = new URL(url.trim());
+    const fileMatch = u.pathname.match(/\/file\/d\/([^/]+)/);
+    if (fileMatch) return { kind: "file", fileId: fileMatch[1]! };
+    const folderMatch = u.pathname.match(/\/folders\/([^/?]+)/);
+    if (folderMatch) return { kind: "folder", folderId: folderMatch[1]! };
+    const id = u.searchParams.get("id");
+    if (id) return { kind: "file", fileId: id };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function downloadDriveFile(fileId: string): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
+  const url = `https://drive.usercontent.google.com/u/0/uc?id=${encodeURIComponent(fileId)}&export=download`;
+  let res: Response;
+  try {
+    res = await fetch(url, { redirect: "follow" });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.startsWith("image/")) return null;
+  const buffer = await res.arrayBuffer();
+  if (buffer.byteLength < 1000) return null; // likely an error HTML page
+  return { buffer, contentType };
+}
+
+export async function actionImportFromGoogleDrive(
+  driveUrl: string,
+  talentProfileId: string,
+): Promise<DriveImportResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const parsed = parseDriveUrl(driveUrl);
+  if (!parsed) return { ok: false, error: "Paste a Google Drive file or folder share link." };
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const fileIds: string[] = [];
+
+  if (parsed.kind === "file") {
+    fileIds.push(parsed.fileId);
+  } else {
+    const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
+    if (!apiKey) {
+      return { ok: false, error: "Folder import requires a Google Drive API key — set GOOGLE_DRIVE_API_KEY in your environment, or paste individual file links instead." };
+    }
+    const q = encodeURIComponent(`'${parsed.folderId}' in parents and mimeType contains 'image/'`);
+    const listUrl = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=50&key=${encodeURIComponent(apiKey)}`;
+    let listRes: Response;
+    try {
+      listRes = await fetch(listUrl);
+    } catch {
+      return { ok: false, error: "Could not reach Google Drive API." };
+    }
+    if (!listRes.ok) {
+      return { ok: false, error: "Could not list folder — make sure it is shared as 'Anyone with the link'." };
+    }
+    const listData = await listRes.json() as { files?: Array<{ id: string; name: string; mimeType: string }> };
+    const images = (listData.files ?? []).filter((f) => f.mimeType.startsWith("image/"));
+    if (images.length === 0) return { ok: false, error: "No images found in this folder." };
+    for (const f of images) fileIds.push(f.id);
+  }
+
+  const { data: maxRow } = await admin
+    .from("media_assets")
+    .select("sort_order")
+    .eq("owner_talent_profile_id", talentProfileId)
+    .eq("variant_kind", "gallery")
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let nextOrder = ((maxRow as { sort_order: number } | null)?.sort_order ?? 0) + 1;
+
+  const results: Array<{ id: string; publicUrl: string }> = [];
+  const errors: string[] = [];
+
+  for (const fileId of fileIds) {
+    const downloaded = await downloadDriveFile(fileId);
+    if (!downloaded) {
+      errors.push(`Could not download file ${fileId} — make sure it's shared as "Anyone with the link."`);
+      continue;
+    }
+
+    const ext = downloaded.contentType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+    const storagePath = `${talentProfileId}/gallery/${randomUUID()}.${ext}`;
+
+    const { error: upErr } = await admin.storage
+      .from("media-public")
+      .upload(storagePath, downloaded.buffer, { contentType: downloaded.contentType, upsert: false });
+
+    if (upErr) {
+      errors.push(`Upload failed for one file.`);
+      continue;
+    }
+
+    const { data: inserted, error: insErr } = await admin
+      .from("media_assets")
+      .insert({
+        tenant_id: tenantId,
+        owner_talent_profile_id: talentProfileId,
+        bucket_id: "media-public",
+        storage_path: storagePath,
+        variant_kind: "gallery",
+        approval_state: "approved",
+        sort_order: nextOrder++,
+        metadata: { source: "google_drive", drive_file_id: fileId },
+      })
+      .select("id")
+      .single();
+
+    if (insErr || !inserted) {
+      void admin.storage.from("media-public").remove([storagePath]);
+      errors.push(`Could not register one file.`);
+      continue;
+    }
+
+    const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
+    results.push({ id: (inserted as { id: string }).id, publicUrl: urlData.publicUrl });
+  }
+
+  if (results.length === 0) {
+    return { ok: false, error: errors[0] ?? "Import failed." };
+  }
+
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  return { ok: true, data: { assets: results } };
 }

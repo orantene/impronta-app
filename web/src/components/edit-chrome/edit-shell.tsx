@@ -294,10 +294,14 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     function onKey(e: KeyboardEvent) {
       const tgt = e.target as HTMLElement | null;
       const tag = tgt?.tagName;
+      const withinContentEditable =
+        tgt?.closest('[contenteditable="true"]') !== null;
       const editable =
         tag === "INPUT" ||
         tag === "TEXTAREA" ||
-        tgt?.isContentEditable === true;
+        tag === "SELECT" ||
+        tgt?.isContentEditable === true ||
+        withinContentEditable;
       if (editable) return;
 
       const mod = e.metaKey || e.ctrlKey;
@@ -456,9 +460,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
           e.preventDefault();
           void removeBuilderNode(selectedBuilderNode.id).then((res) => {
-            if (res.ok) {
-              setSelectedSectionId(selectedSectionId);
-            } else if (res.error) {
+            if (res.error) {
               reportMutationError(res.error);
             }
           });
@@ -803,26 +805,61 @@ function DraftSavedToast() {
 function MutationErrorToast() {
   const { mutationError, clearMutationError } = useEditContext();
   if (!mutationError) return null;
-  const detailLines = mutationError.details?.slice(0, 2) ?? [];
+  const detailLines = mutationError.details?.slice(0, 3) ?? [];
+  const operationLabel = mutationError.operation
+    ? humanizeMutationOperation(mutationError.operation)
+    : null;
+  const suggestion = mutationError.code
+    ? mutationCodeSuggestion(mutationError.code)
+    : null;
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-edit-overlay='command-palette']")) return;
+      clearMutationError();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [clearMutationError]);
+
   return (
     <div
       data-edit-overlay="mutation-toast"
+      role="alert"
+      aria-live="assertive"
       className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex max-w-[min(92vw,680px)] -translate-x-1/2 items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 shadow-lg"
     >
       <span className="min-w-0 flex-1">
+        <span className="block text-[10px] uppercase tracking-[0.06em] text-amber-700">
+          Builder change blocked
+        </span>
         <span className="block leading-snug">{mutationError.message}</span>
-        {mutationError.code ? (
+        {operationLabel || mutationError.code ? (
           <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] text-amber-700">
-            {mutationError.code.replaceAll("_", " ")}
+            {[operationLabel, mutationError.code?.replaceAll("_", " ")]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        ) : null}
+        {suggestion ? (
+          <span className="mt-1 block text-[11px] font-normal leading-snug text-amber-900">
+            Next step: {suggestion}
           </span>
         ) : null}
         {detailLines.length > 0 ? (
           <span className="mt-1 block text-[11px] font-normal leading-snug text-amber-800/90">
-            {detailLines.map((line, index) => (
-              <span key={`${line}-${index}`} className="block truncate">
-                {line}
-              </span>
-            ))}
+            <span className="block text-[10px] uppercase tracking-[0.04em] text-amber-700">
+              Details
+            </span>
+            <span className="mt-0.5 block">
+              {detailLines.map((line, index) => (
+                <span key={`${line}-${index}`} className="block break-words">
+                  • {line}
+                </span>
+              ))}
+            </span>
           </span>
         ) : null}
       </span>
@@ -840,6 +877,51 @@ function MutationErrorToast() {
       </button>
     </div>
   );
+}
+
+function humanizeMutationOperation(operation: string): string {
+  switch (operation) {
+    case "insert":
+      return "Insert";
+    case "move":
+      return "Move";
+    case "remove":
+      return "Delete";
+    case "duplicate":
+      return "Duplicate";
+    case "paste":
+      return "Paste";
+    case "patch":
+      return "Update";
+    default:
+      return operation.charAt(0).toUpperCase() + operation.slice(1);
+  }
+}
+
+function mutationCodeSuggestion(code: string): string | null {
+  switch (code) {
+    case "NODE_NOT_FOUND":
+      return "This block is stale or already removed. Refresh and try the action again.";
+    case "PARENT_NOT_FOUND":
+      return "Destination container no longer exists. Pick a different target or refresh.";
+    case "INVALID_MOVE_TARGET":
+      return "Choose another destination or move the parent group first.";
+    case "CHILD_KIND_NOT_ALLOWED":
+    case "PARENT_DOES_NOT_ALLOW_CHILDREN":
+      return "Pick a compatible container/section for this block type.";
+    case "ROOT_KIND_NOT_ALLOWED":
+      return "Insert this block inside a section or layout group.";
+    case "VALIDATION_FAILED":
+      return "Adjust incompatible settings, then try again.";
+    case "GUARDED_NODE":
+      return "This area is protected by plan or shell rules.";
+    case "VERSION_CONFLICT":
+      return "State has been refreshed. Re-apply your change.";
+    case "SAVE_FAILED":
+      return "Try again. If it persists, reload the editor.";
+    default:
+      return null;
+  }
 }
 
 /**

@@ -1761,6 +1761,83 @@ test.describe("smoke: login → builder → publish → share", () => {
       .toBe(0);
   });
 
+  test("impronta navigator child reorder works via action buttons and drag-drop", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await openImprontaBuilder(page);
+
+    const blankCanvasHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (await blankCanvasHeading.isVisible().catch(() => false)) {
+      await addHeroFromBlankState(page);
+    }
+
+    const firstLayeredSection = page
+      .locator("[data-navigator-section-row]")
+      .filter({ has: page.locator("[data-navigator-block-count]") })
+      .first();
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    const sectionId = await firstLayeredSection.getAttribute("data-section-id");
+    expect(sectionId).toBeTruthy();
+
+    const childList = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionId}"]`,
+    );
+    await firstLayeredSection.locator("[data-navigator-section-collapse-trigger]").click();
+    await expect(childList).toBeVisible({ timeout: 10_000 });
+    const childRows = childList.locator("[data-navigator-child-node]");
+    const childCount = await childRows.count();
+    expect(childCount).toBeGreaterThan(1);
+
+    const childIdAt = async (index: number) =>
+      await childRows.nth(index).getAttribute("data-builder-node-id");
+
+    const topBefore = await childIdAt(0);
+    const secondBefore = await childIdAt(1);
+    expect(topBefore).toBeTruthy();
+    expect(secondBefore).toBeTruthy();
+    expect(topBefore).not.toEqual(secondBefore);
+
+    await childRows.first().click();
+    await childRows.first().getByRole("button", { name: /move .* down/i }).click();
+
+    await expect
+      .poll(async () => [await childIdAt(0), await childIdAt(1)])
+      .toEqual([secondBefore, topBefore]);
+
+    await childRows.first().click();
+    await childRows.first().getByRole("button", { name: /move .* down/i }).click();
+
+    await expect
+      .poll(async () => [await childIdAt(0), await childIdAt(1)])
+      .toEqual([topBefore, secondBefore]);
+
+    const dragSource = childRows.first();
+    const dragTarget = childRows.nth(1);
+    const targetBox = await dragTarget.boundingBox();
+    expect(targetBox).not.toBeNull();
+    const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+    await dragSource.dispatchEvent("dragstart", { dataTransfer });
+    await dragTarget.dispatchEvent("dragover", {
+      dataTransfer,
+      clientX: targetBox!.x + Math.min(20, targetBox!.width / 2),
+      clientY: targetBox!.y + targetBox!.height - 2,
+    });
+    await dragTarget.dispatchEvent("drop", {
+      dataTransfer,
+      clientX: targetBox!.x + Math.min(20, targetBox!.width / 2),
+      clientY: targetBox!.y + targetBox!.height - 2,
+    });
+    await dragSource.dispatchEvent("dragend", { dataTransfer });
+    await dataTransfer.dispose();
+
+    await expect
+      .poll(async () => [await childIdAt(0), await childIdAt(1)])
+      .toEqual([secondBefore, topBefore]);
+  });
+
   test("impronta navigator supports keyboard resize controls", async ({ page }) => {
     test.setTimeout(120_000);
     await openImprontaBuilder(page);
@@ -1842,6 +1919,150 @@ test.describe("smoke: login → builder → publish → share", () => {
     await expect(
       page.locator('[data-selection-chip][data-selection-chip-scope="section"]'),
     ).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("impronta keyboard delete promotes child selection back to section", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await openImprontaBuilder(page);
+
+    const blankCanvasHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (await blankCanvasHeading.isVisible().catch(() => false)) {
+      await addHeroFromBlankState(page);
+    }
+
+    const firstLayeredSection = page
+      .locator("[data-navigator-section-row]")
+      .filter({ has: page.locator("[data-navigator-block-count]") })
+      .first();
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    await firstLayeredSection
+      .locator("[data-navigator-section-collapse-trigger]")
+      .click();
+
+    const firstChildRow = page.locator("[data-navigator-child-node]").first();
+    await expect(firstChildRow).toBeVisible({ timeout: 20_000 });
+    const nodeId = await firstChildRow.getAttribute("data-builder-node-id");
+    expect(nodeId).toBeTruthy();
+    if (!nodeId) {
+      throw new Error("Expected navigator child row to expose a builder node id.");
+    }
+
+    await firstChildRow.click();
+    await expect(firstChildRow).toHaveAttribute("data-selected", "true", {
+      timeout: 10_000,
+    });
+
+    await page.keyboard.press("Backspace");
+    await expect(
+      page.locator(`[data-navigator-child-node][data-builder-node-id="${nodeId}"]`),
+    ).toHaveCount(0, { timeout: 45_000 });
+    await expect(
+      page.locator('[data-navigator-child-node][data-selected="true"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-selection-chip][data-selection-chip-scope="section"]'),
+    ).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("impronta backspace inside navigator search does not delete selected child", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await openImprontaBuilder(page);
+
+    const blankCanvasHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (await blankCanvasHeading.isVisible().catch(() => false)) {
+      await addHeroFromBlankState(page);
+    }
+
+    const firstLayeredSection = page
+      .locator("[data-navigator-section-row]")
+      .filter({ has: page.locator("[data-navigator-block-count]") })
+      .first();
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    await firstLayeredSection
+      .locator("[data-navigator-section-collapse-trigger]")
+      .click();
+
+    const firstChildRow = page.locator("[data-navigator-child-node]").first();
+    await expect(firstChildRow).toBeVisible({ timeout: 20_000 });
+    const nodeId = await firstChildRow.getAttribute("data-builder-node-id");
+    expect(nodeId).toBeTruthy();
+    if (!nodeId) {
+      throw new Error("Expected navigator child row to expose a builder node id.");
+    }
+
+    await firstChildRow.click();
+    await expect(firstChildRow).toHaveAttribute("data-selected", "true", {
+      timeout: 10_000,
+    });
+
+    const searchInput = page.locator('input[placeholder^="Search sections"]');
+    await searchInput.focus();
+    await searchInput.fill("");
+    await searchInput.press("Backspace");
+
+    await expect(
+      page.locator(`[data-navigator-child-node][data-builder-node-id="${nodeId}"]`),
+    ).toHaveCount(1);
+    await expect(
+      page.locator(
+        `[data-navigator-child-node][data-builder-node-id="${nodeId}"][data-selected="true"]`,
+      ),
+    ).toHaveCount(1);
+  });
+
+  test("impronta backspace inside rich editor does not delete selected child", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await openImprontaBuilder(page);
+
+    const blankCanvasHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (await blankCanvasHeading.isVisible().catch(() => false)) {
+      await addHeroFromBlankState(page);
+    }
+
+    const firstLayeredSection = page
+      .locator("[data-navigator-section-row]")
+      .filter({ has: page.locator("[data-navigator-block-count]") })
+      .first();
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    await firstLayeredSection
+      .locator("[data-navigator-section-collapse-trigger]")
+      .click();
+
+    const firstChildRow = page.locator("[data-navigator-child-node]").first();
+    await expect(firstChildRow).toBeVisible({ timeout: 20_000 });
+    const nodeId = await firstChildRow.getAttribute("data-builder-node-id");
+    expect(nodeId).toBeTruthy();
+    if (!nodeId) {
+      throw new Error("Expected navigator child row to expose a builder node id.");
+    }
+
+    await firstChildRow.click();
+    await expect(firstChildRow).toHaveAttribute("data-selected", "true", {
+      timeout: 10_000,
+    });
+
+    const richEditable = page
+      .locator('[data-edit-rich-field] [contenteditable="true"]')
+      .first();
+    await expect(richEditable).toBeVisible({ timeout: 20_000 });
+    await richEditable.click();
+    await page.keyboard.press("Backspace");
+
+    await expect(
+      page.locator(`[data-navigator-child-node][data-builder-node-id="${nodeId}"]`),
+    ).toHaveCount(1);
   });
 
   test("impronta navigator layer actions copy paste and duplicate child nodes", async ({ page }) => {

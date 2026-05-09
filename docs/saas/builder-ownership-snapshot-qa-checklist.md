@@ -45,6 +45,7 @@ Public render contract:
 Before QA sign-off:
 
 ```bash
+npm --prefix web run qa:builder-focused
 npm --prefix web run backfill:page-snapshots -- --all-active --apply
 npm --prefix web run verify:published-page-snapshots -- --all-active
 npm --prefix web run verify:published-page-snapshots -- --all-active --require-builder-tree
@@ -52,6 +53,8 @@ npm --prefix web run verify:published-page-snapshots -- --all-active --require-b
 
 Expected:
 
+- `qa:builder-focused` exits `0` and includes strict snapshot verification
+  (`verify:published-page-snapshots:strict`) as a mandatory gate.
 - Backfill run reports zero failures.
 - Verification run exits `0` with `totalMissing = 0`,
   `totalMissingBuilderTree = 0`, and `totalInvalidBuilderTree = 0`.

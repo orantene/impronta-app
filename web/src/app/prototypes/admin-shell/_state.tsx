@@ -26,7 +26,9 @@ import type {
   WorkspaceTeamMember as BridgeTeamMember,
   TalentSelfProfile as BridgeTalentSelfProfile,
   TalentInquiryRow,
+  TalentAgencyRow,
   WorkspaceMediaPhoto as BridgeMediaPhoto,
+  WorkspaceMediaFolder as BridgeMediaFolder,
 } from "./_data-bridge";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
@@ -6680,12 +6682,21 @@ type Ctx = {
    * null = mock mode; `_talent.tsx` falls back to MY_TALENT_PROFILE.
    */
   bridgeTalentSelfProfile: BridgeTalentSelfProfile | null;
+  /**
+   * The talent's agency relationships (cross-tenant). `null` means the
+   * layout didn't load them (workspace-only entry). Empty array means the
+   * bridge IS in scope but the talent has zero agency relationships —
+   * render an empty state, NOT Marta's MY_AGENCIES mocks.
+   */
+  bridgeTalentAgencies: TalentAgencyRow[] | null;
 
   /**
    * Media photos from the bridge. `null` = mock mode (Media page falls
    * back to MOCK_MEDIA). Empty array = live mode with zero photos.
    */
   bridgeMediaPhotos: BridgeMediaPhoto[] | null;
+  /** Virtual folders — always an array (empty when none or mock mode). */
+  bridgeMediaFolders: BridgeMediaFolder[];
 
   // ── Phase 1 (master plan) — chrome identity bridge ────────────────────────
   /**
@@ -6711,6 +6722,21 @@ type Ctx = {
     role: string;
     displayName: string | null;
   } | null;
+  /**
+   * Effective tenant values for rendering — derived from bridgeTenantIdentity
+   * in production mode, or from the TENANT mock in standalone demo mode.
+   * Use this everywhere instead of TENANT.xxx to avoid SSR/CSR hydration
+   * mismatches (the old TENANT mutation ran on the server but not during
+   * client hydration, causing React to throw and reset the state machine).
+   */
+  effectiveTenant: {
+    name: string;
+    slug: string;
+    domain: string;
+    customDomain: string;
+    initials: string;
+    entityType: EntityType;
+  };
 };
 
 /** Agency-defined custom field. Renders in Profile Shell's "Profile details"
@@ -7128,6 +7154,11 @@ function talentPageToSegment(p: TalentPage): string {
   return map[p] ?? p;
 }
 
+// Segments the talent layout serves — used by the prefetcher below.
+const TALENT_ROUTE_SEGMENTS = TALENT_PAGES.map(talentPageToSegment).filter(
+  (s, i, a) => a.indexOf(s) === i,
+);
+
 export function ProtoProvider({
   children,
   initialBridgeData = null,
@@ -7171,13 +7202,37 @@ export function ProtoProvider({
   const tenantSlugRef = useRef(tenantSlug);
   useEffect(() => { tenantSlugRef.current = tenantSlug; }, [tenantSlug]);
 
+  // P3.4 — Prefetch all talent tab routes on mount so cold tab-switches
+  // feel instant. Only fires when we're in production talent mode (slug
+  // set + initialSurface === "talent"). Prefetch is fire-and-forget;
+  // failures are silently ignored by Next.js.
+  useEffect(() => {
+    if (!tenantSlug || initialSurface !== "talent") return;
+    for (const seg of TALENT_ROUTE_SEGMENTS) {
+      router.prefetch(`/${tenantSlug}/talent/${seg}`);
+    }
+    // Only run once on mount — deps are stable (tenantSlug and initialSurface
+    // are server-provided props that never change within a mounted provider).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Phase 5 — preferred surface from DB user prefs. Priority order:
-  //   1. preferredSurface from bridge (DB pref) — if the user has a stored pref
-  //   2. initialSurface from the route (admin vs talent layout)
+  //   1. initialSurface from the route — the URL is an EXPLICIT user
+  //      intent ("/talent/today" wants the talent surface, period). It
+  //      always wins.
+  //   2. preferredSurface from bridge (DB pref) — used only when the
+  //      route is ambiguous (e.g. the bare /admin entry from a hybrid
+  //      user who last left the app on the talent surface).
   //   3. default "workspace"
-  // In standalone prototype mode (no bridge), initialSurface drives it.
+  //
+  // Earlier this was inverted (pref won over route), which produced the
+  // bug where `/talent/today` rendered the workspace shell because the
+  // user had once toggled to workspace and the pref was sticky.
   const [surface, setSurface] = useState<Surface>(
     (() => {
+      if (initialSurface === "talent" || initialSurface === "workspace") {
+        return initialSurface;
+      }
       const pref = initialBridgeData?.preferredSurface;
       if (pref === "talent" || pref === "workspace") return pref;
       return initialSurface ?? "workspace";
@@ -7202,29 +7257,11 @@ export function ProtoProvider({
       : "owner";
   })();
 
-  // Phase 1 (master plan) — mutate the singleton TENANT mock with real
-  // tenant identity at init. The constant has ~30 references across
-  // _pages.tsx, _drawers.tsx, _messages.tsx (all tenant name/slug/domain
-  // displays). Patching every call site is tedious and merge-conflict
-  // prone with the parallel page-builder agent. Mutating the singleton
-  // once at init cascades through every consumer in a single shot.
-  // In standalone /prototypes/admin-shell mode there's no bridge identity,
-  // so TENANT keeps its hardcoded "Atelier Roma" demo values.
-  if (initialBridgeData?.tenantIdentity) {
-    const ti = initialBridgeData.tenantIdentity;
-    TENANT.name = ti.displayName;
-    TENANT.slug = ti.slug;
-    // Initials: prefer first letter of each word (max 2 chars).
-    const words = ti.displayName.split(/\s+/u).filter(Boolean);
-    TENANT.initials =
-      ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? "")).toUpperCase() ||
-      ti.displayName.slice(0, 2).toUpperCase();
-    // Domain shapes — derive from slug. Subdomain on platform host;
-    // custom domain only when one's been provisioned (out of scope for
-    // Phase 1; leave as derived placeholder).
-    TENANT.domain = `${ti.slug}.tulala.digital`;
-    TENANT.customDomain = `${ti.slug}.com`;
-  }
+  // (Phase 1 mutation removed — the old `useState(() => { TENANT.xxx = ... })`
+  // approach mutated a module-level singleton during the server render but
+  // React does not re-run `useState` initializers during client hydration,
+  // so SSR and CSR produced different TENANT values → hydration mismatch →
+  // state machine reset. Replaced by `effectiveTenant` in the context value.)
 
   const [plan, setPlan] = useState<Plan>(initialPlan);
   const [role, setRole] = useState<Role>(initialRole);
@@ -7263,12 +7300,18 @@ export function ProtoProvider({
   const setTalentPage = useCallback((p: TalentPage) => {
     setTalentPageRaw(p);
     const slug = tenantSlugRef.current;
-    if (slug && initialSurface === "talent") {
-      const segment = talentPageToSegment(p);
-      const targetHref = `/${slug}/talent/${segment}`;
-      if (typeof window !== "undefined" && window.location.pathname !== targetHref) {
-        router.push(targetHref);
-      }
+    if (!slug) return;
+    // URL belongs to the *route*, not the surface. So we only push a real
+    // navigation when the user landed on a `/talent/*` route. When the user
+    // is on `/admin/*` and flipped to Talent via the toggle pill, the
+    // intended UX is an in-shell mode change — the workspace URL stays put
+    // and the talent surface renders inline. Pushing /talent/<segment> here
+    // would break that and yank the user out of the admin shell.
+    if (initialSurface !== "talent") return;
+    const segment = talentPageToSegment(p);
+    const targetHref = `/${slug}/talent/${segment}`;
+    if (typeof window !== "undefined" && window.location.pathname !== targetHref) {
+      router.push(targetHref);
     }
   }, [router, initialSurface]);
   // client
@@ -7913,22 +7956,50 @@ export function ProtoProvider({
   }, []);
 
   // Hybrid-mode toggle. Only meaningful for a user who is BOTH talent and
-  // workspace owner. Flips between the two surfaces, preserving the rest of
-  // the state shape. The reset-to-default-page rule from handleSetSurface
-  // is intentional — switching modes implies switching context.
+  // workspace owner. Flips between the two surfaces.
   //
-  // Phase 5 — fire-and-forget setPreferredSurface to persist the choice.
-  // Only runs when there's a real bridge (not standalone prototype mode).
+  // CRITICAL UX RULE: in production (cutover) mode the URL must lead, not
+  // follow. Optimistically flipping `state.surface` and then calling
+  // `router.push` produces a multi-second window where the URL still
+  // points at /talent/X but the inline render already shows the workspace
+  // shell — which the user (correctly) reads as "URL is stuck." So in
+  // bridge mode we navigate FIRST and let the destination layout's
+  // `initialSurface` drive the surface change. The destination layout's
+  // `loading.tsx` covers the brief render gap.
+  //
+  // In standalone prototype mode (no tenantSlug, no bridge) we keep the
+  // legacy behavior — flip state inline since there's no real route to
+  // navigate to.
+  //
+  // Phase 5 — fire-and-forget setPreferredSurface persists the choice.
   const flipMode = useCallback(() => {
     if (!alsoTalent) return; // gated to hybrid users only
     let nextSurface: Surface | null = null;
-    if (surface === "talent") {
-      nextSurface = "workspace";
-    } else if (surface === "workspace") {
-      nextSurface = "talent";
-    }
+    if (surface === "talent") nextSurface = "workspace";
+    else if (surface === "workspace") nextSurface = "talent";
     if (!nextSurface) return;
-    handleSetSurface(nextSurface);
+
+    const slug = tenantSlugRef.current;
+    if (slug) {
+      // Production / cutover mode — URL leads.
+      let nextHref: string;
+      if (nextSurface === "workspace") {
+        // Preserve the workspace page the user last had (so toggling
+        // /talent → workspace returns them to /admin/roster, not /admin).
+        const segment = pageToSegment(page);
+        nextHref = segment ? `/${slug}/admin/${segment}` : `/${slug}/admin`;
+      } else {
+        // Preserve last talent page similarly.
+        const segment = talentPageToSegment(talentPage);
+        nextHref = `/${slug}/talent/${segment}`;
+      }
+      router.push(nextHref);
+      setDrawer({ drawerId: null });
+    } else {
+      // Standalone prototype mode — just flip state inline.
+      handleSetSurface(nextSurface);
+    }
+
     // Persist preference when in production (bridge) mode.
     if (initialBridgeData != null) {
       const target = nextSurface as "talent" | "workspace";
@@ -7937,7 +8008,7 @@ export function ProtoProvider({
         .then(({ setPreferredSurface }) => setPreferredSurface(target))
         .catch((err: unknown) => console.error("[flipMode] pref persist failed", err));
     }
-  }, [alsoTalent, surface, handleSetSurface, initialBridgeData]);
+  }, [alsoTalent, surface, page, talentPage, handleSetSurface, initialBridgeData, router]);
 
   // Impersonation: HQ user starts viewing a tenant's workspace. We jump to
   // the workspace surface in read-only mode, with a banner overlay (rendered
@@ -8035,6 +8106,27 @@ export function ProtoProvider({
   const bridgeTenantIdentity = initialBridgeData?.tenantIdentity ?? null;
   const bridgeSessionIdentity = initialBridgeData?.sessionIdentity ?? null;
 
+  // Stable, serialization-safe tenant values for all JSX renders.
+  // Computed from the bridge in production; falls back to the TENANT mock
+  // in standalone prototype mode. Stable reference (memoised on bridgeTenantIdentity
+  // which is itself derived from the stable initialBridgeData prop).
+  const effectiveTenant = useMemo(() => {
+    if (!bridgeTenantIdentity) return TENANT;
+    const { displayName, slug, kind } = bridgeTenantIdentity;
+    const words = displayName.split(/\s+/u).filter(Boolean);
+    const initials =
+      ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? "")).toUpperCase() ||
+      displayName.slice(0, 2).toUpperCase();
+    return {
+      name: displayName,
+      slug,
+      domain: `${slug}.tulala.digital`,
+      customDomain: `${slug}.com`,
+      initials,
+      entityType: (kind === "hub" ? "hub" : "agency") as EntityType,
+    };
+  }, [bridgeTenantIdentity]);
+
   // Phase 3.12.2 — talent self-surface bridge
   const effectiveTalentInquiries = useMemo<TalentInquiryRow[]>(
     () => initialBridgeData?.talentInquiries ?? [],
@@ -8042,10 +8134,15 @@ export function ProtoProvider({
     [initialBridgeData?.talentInquiries],
   );
   const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;
+  // Talent's agency relationships. `null` means the layout didn't load
+  // them (workspace-only entry); empty array means "real bridge, no
+  // agency relationships yet" — render empty state, not Marta's mocks.
+  const bridgeTalentAgencies = initialBridgeData?.talentAgencies ?? null;
 
   // Media gallery bridge — `null` falls back to MOCK_MEDIA in WorkspaceMediaPage,
   // empty array means "live mode, no photos yet" → renders empty state.
   const bridgeMediaPhotos = initialBridgeData?.mediaPhotos ?? null;
+  const bridgeMediaFolders: BridgeMediaFolder[] = initialBridgeData?.mediaFolders ?? [];
 
   const value: Ctx = useMemo(
     () => ({
@@ -8151,9 +8248,12 @@ export function ProtoProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentAgencies,
       bridgeMediaPhotos,
+      bridgeMediaFolders,
       bridgeTenantIdentity,
       bridgeSessionIdentity,
+      effectiveTenant,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
@@ -8241,9 +8341,12 @@ export function ProtoProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentAgencies,
       bridgeMediaPhotos,
+      bridgeMediaFolders,
       bridgeTenantIdentity,
       bridgeSessionIdentity,
+      effectiveTenant,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
