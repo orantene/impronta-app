@@ -185,6 +185,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openShortcutOverlay,
     closeShortcutOverlay,
     saveDraft,
+    pagesPickerOpenNonce,
+    requestPagesPickerOpen,
     pageMetadata,
     pageId,
     selectedSectionId,
@@ -221,6 +223,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
   // convergence plan, the canvas itself IS the section navigator, so
   // landing on `?edit=1` is sufficient. We still consume the param so the
   // URL clears on first paint.
+  //
+  // `panel=pages` bumps EditContext → opens the TopBar Pages dropdown (§24).
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -237,6 +241,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       comments: openComments,
       templates: () => openStarterTemplateGallery(templateSlug),
       templateGallery: () => openStarterTemplateGallery(templateSlug),
+      pages: requestPagesPickerOpen,
       // Canvas is the sections navigator; landing in edit mode is enough.
       sections: "noop",
     };
@@ -588,6 +593,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onShare={(opts) => handleShareClick(opts, reportMutationError)}
           pageTitle={pageMetadata?.title ?? undefined}
           pageId={pageId}
+          pagesPickerOpenNonce={pagesPickerOpenNonce}
           activeLocale={locale}
           availableLocales={availableLocales}
         />

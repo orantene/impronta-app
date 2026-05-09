@@ -298,6 +298,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           onClose();
         },
       ),
+      drawerRow(
+        "open-pages-picker",
+        "Open Pages menu",
+        "Switch page or open Manage pages",
+        ["pages", "switch page", "multi-page", "slug", "homepage"],
+        () => {
+          ctx.requestPagesPickerOpen();
+          onClose();
+        },
+      ),
     );
     if (!ctx.pageSlug) {
       rows.push(

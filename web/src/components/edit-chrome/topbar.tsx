@@ -205,10 +205,13 @@ function PagePicker({
   title,
   pageId: currentPageId,
   dirty,
+  pagesPickerOpenNonce,
 }: {
   title: string;
   pageId?: string | null;
   dirty?: boolean;
+  /** Bumped by EditShell when URL contains `?panel=pages` (legacy admin redirect). */
+  pagesPickerOpenNonce?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [pages, setPages] = useState<PagePickerItem[] | null>(null);
@@ -219,6 +222,10 @@ function PagePicker({
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if ((pagesPickerOpenNonce ?? 0) > 0) setOpen(true);
+  }, [pagesPickerOpenNonce]);
 
   // Reset page list when popover closes so it always re-fetches on next open
   // (picks up pages created/renamed in another tab or from Manage pages).
@@ -1796,6 +1803,8 @@ export interface TopBarProps {
   /** The DB id of the page currently open in the editor. Used by PagePicker
    *  to highlight the active row in the full page list. */
   pageId?: string | null;
+  /** Opens the Pages dropdown when incremented (deep-link `?panel=pages`). */
+  pagesPickerOpenNonce?: number;
   /** The locale the editor is currently bound to. Drives the locale-switcher
    *  pill's active state. Optional — single-locale tenants render no pill. */
   activeLocale?: string;
@@ -1840,6 +1849,7 @@ export function TopBar({
   onShare,
   pageTitle,
   pageId,
+  pagesPickerOpenNonce,
   activeLocale,
   availableLocales = [],
 }: TopBarProps) {
@@ -1888,7 +1898,12 @@ export function TopBar({
       {/* ── Left cluster ── */}
       <BrandMark />
       <TbDivider />
-      <PagePicker title={pageTitle ?? "Homepage"} pageId={pageId} dirty={dirty} />
+      <PagePicker
+        title={pageTitle ?? "Homepage"}
+        pageId={pageId}
+        dirty={dirty}
+        pagesPickerOpenNonce={pagesPickerOpenNonce}
+      />
       {activeLocale && availableLocales.length > 1 ? (
         <LocaleSwitcher
           activeLocale={activeLocale}

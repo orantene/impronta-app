@@ -422,6 +422,13 @@ export interface EditContextValue {
   openPageSettings: () => void;
   closePageSettings: () => void;
 
+  /**
+   * Legacy admin redirects (`/?edit=1&panel=pages`) bump `pagesPickerOpenNonce`
+   * so the TopBar Pages dropdown opens on first paint. Mirrors §24 picker affordance.
+   */
+  pagesPickerOpenNonce: number;
+  requestPagesPickerOpen: () => void;
+
   // ── revisions drawer (Phase 4) ──
   /**
    * Visibility flag for the RevisionsDrawer. The topbar's revisions icon
@@ -1497,6 +1504,8 @@ export function EditProvider({
 
   // page settings drawer state
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
+
+  const [pagesPickerOpenNonce, setPagesPickerOpenNonce] = useState(0);
 
   // revisions drawer state (Phase 4)
   const [revisionsOpen, setRevisionsOpen] = useState(false);
@@ -3615,6 +3624,10 @@ export function EditProvider({
   }, []);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
 
+  const requestPagesPickerOpen = useCallback(() => {
+    setPagesPickerOpenNonce((n) => n + 1);
+  }, []);
+
   const openRevisions = useCallback(() => {
     setPublishOpen(false);
     setPageSettingsOpen(false);
@@ -3900,6 +3913,8 @@ export function EditProvider({
       pageSettingsOpen,
       openPageSettings,
       closePageSettings,
+      pagesPickerOpenNonce,
+      requestPagesPickerOpen,
       savePageMetadata,
 
       revisionsOpen,
@@ -4030,6 +4045,8 @@ export function EditProvider({
       pageSettingsOpen,
       openPageSettings,
       closePageSettings,
+      pagesPickerOpenNonce,
+      requestPagesPickerOpen,
       savePageMetadata,
       revisionsOpen,
       openRevisions,
