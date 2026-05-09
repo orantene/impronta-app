@@ -85,6 +85,7 @@ import {
   normalizeBuilderWorkspacePlan,
 } from "@/lib/site-admin/builder-capabilities";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { normalizeCompositionSlots } from "./composition-slots";
 
@@ -155,6 +156,12 @@ export interface EditContextValue {
   workspacePlan: string;
   canEditSiteShell: boolean;
   locale: string;
+  /**
+   * Tenant default storefront locale (URL may omit prefix). TopBar locale
+   * switcher builds destinations with `withLocalePath` using this — required
+   * when default locale is not English.
+   */
+  defaultLocale: string;
   /** The slug of the page currently being edited, or null for the homepage. */
   pageSlug: string | null;
   /** The cms_pages.id for the page currently being edited. Resolved from the
@@ -1217,6 +1224,8 @@ interface EditProviderProps {
   workspacePlan?: string | null;
   /** Falls back to `en` if omitted; edit chrome today operates on the platform default. */
   locale?: string;
+  /** Tenant default storefront locale (`agency_business_identity`). LocaleSwitcher URLs. */
+  defaultLocale?: string;
   /** When non-null the editor is on a non-homepage page with this slug.
    *  Threaded from EditChromeMount via the URL pathname. */
   pageSlug?: string | null;
@@ -1242,6 +1251,7 @@ export function EditProvider({
   tenantId,
   workspacePlan = null,
   locale = "en",
+  defaultLocale = DEFAULT_PLATFORM_LOCALE,
   pageSlug = null,
   initialAvailableLocales,
   initialComposition = null,
@@ -3834,6 +3844,7 @@ export function EditProvider({
       workspacePlan: normalizedWorkspacePlan,
       canEditSiteShell,
       locale,
+      defaultLocale,
       pageSlug,
       pageId,
       selectedSectionId,
@@ -3980,6 +3991,7 @@ export function EditProvider({
       normalizedWorkspacePlan,
       canEditSiteShell,
       locale,
+      defaultLocale,
       pageSlug,
       pageId,
       selectedSectionId,

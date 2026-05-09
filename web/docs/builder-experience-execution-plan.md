@@ -145,7 +145,7 @@ Goal: the editor should never present a non-functional control to the user.
 
 **Tasks:**
 1. **Wire PagePicker** (`topbar.tsx` ~L180-227). Add dropdown using kit primitives; populate from `loadPagesForTenant`; navigate via `router.push` to `?page=<slug>&edit=1`.
-2. **Diagnose LocaleSwitcher click** (same file, ~L370-510). Click handler exists but has no effect in `?edit=1` context. Likely `e.preventDefault()` upstream or edit-mode router intercept. Fix until ES actually navigates.
+2. **LocaleSwitcher navigation** (`topbar.tsx`). Canvas link interceptor already skips `[data-edit-chrome]`. Failure mode was **pathname logic assuming English is always the unprefixed default**. **Done (2026-05):** `defaultLocale` from `loadTenantLocaleSettings` flows through `EditChromeMount` → `EditProvider` → `TopBar`; destination URLs use `withLocalePath` + `pathnameWithoutAnyLocalePrefix` (aligned with middleware).
 3. **Fix Page Settings empty body** (`page-settings-drawer.tsx`). Trace data-loading guard that's returning early. Likely a missing `pageId` prop or a hook that returns null while loading without skeleton.
 4. **Drawer-exclusivity mutex** (Root cause 1). New `useEditorPanel` slice + refactor each drawer open call site.
 5. **Investigate Comments error chip** (`comments-drawer.tsx` "Could not find"). Likely RPC failure — log it, then either fix or hide the surface gracefully.

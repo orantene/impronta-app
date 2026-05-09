@@ -22,7 +22,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
+import { pathnameWithoutAnyLocalePrefix, withLocalePath } from "@/i18n/pathnames";
+import type { LanguageSettings } from "@/lib/language-settings/types";
 import { localeMetadata } from "@/i18n/config";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
   listPagesForPickerAction,
   duplicatePageAction,
@@ -32,50 +35,42 @@ import {
 import type { EditDevice } from "./edit-context";
 import { CHROME } from "./kit";
 
-// Platform default locale — when the URL has no locale prefix the storefront
-// resolves this. Must match the static fallback in `@/i18n/config`. Dynamic
-// per-tenant defaults aren't surfaced into the editor today; the cost of
-// mis-routing during a dirty draft (briefly land on a sibling locale) is
-// strictly milder than threading `getLanguageSettings()` into a client tree.
-const DEFAULT_LOCALE_FOR_PATH = "en";
-
-function stripKnownLocalePrefix(
-  pathname: string,
-  knownLocales: ReadonlyArray<string>,
-): string {
-  const p = pathname.startsWith("/") ? pathname : `/${pathname}`;
-  const seg = p.split("/")[1] ?? "";
-  if (knownLocales.includes(seg)) {
-    const rest = p.slice(`/${seg}`.length);
-    return rest === "" ? "/" : rest;
-  }
-  return p;
-}
-
-function pathForLocale(
-  pathname: string,
-  newLocale: string,
-  knownLocales: ReadonlyArray<string>,
-): string {
-  const stripped = stripKnownLocalePrefix(pathname, knownLocales);
-  if (newLocale === DEFAULT_LOCALE_FOR_PATH) return stripped;
-  return stripped === "/" ? `/${newLocale}` : `/${newLocale}${stripped}`;
+/** Minimal `LanguageSettings` for `withLocalePath` / strip-prefix helpers. */
+function localePathSettings(
+  defaultLocale: string,
+  availableLocales: ReadonlyArray<string>,
+): LanguageSettings {
+  const publicLocales = Array.from(
+    new Set([defaultLocale, ...availableLocales]),
+  );
+  return {
+    locales: [],
+    defaultLocale,
+    publicLocales,
+    adminLocales: [],
+    fallbackMode: "default_then_chain",
+    publicSwitcherMode: "prefix",
+    translationInventoryVersion: 0,
+    translationInventoryRefreshedAt: null,
+  };
 }
 
 /**
  * Build the destination URL for a locale switch. Preserves the active
  * search string (e.g. `?edit=1`, share-link query, ad UTM) and hash so a
  * mid-edit locale flip doesn't drop into the visitor view or lose scroll
- * anchors. Only the pathname segment moves between locales.
+ * anchors. Path shaping matches middleware (`withLocalePath`): the tenant
+ * default locale has no URL prefix; others use `/{code}/…`.
  */
 function urlForLocale(
   pathname: string,
   search: string,
   hash: string,
   newLocale: string,
-  knownLocales: ReadonlyArray<string>,
+  pathSettings: LanguageSettings,
 ): string {
-  const path = pathForLocale(pathname, newLocale, knownLocales);
+  const stripped = pathnameWithoutAnyLocalePrefix(pathname, pathSettings);
+  const path = withLocalePath(stripped, newLocale, pathSettings);
   const q = search ? (search.startsWith("?") ? search : `?${search}`) : "";
   const h = hash ? (hash.startsWith("#") ? hash : `#${hash}`) : "";
   return `${path}${q}${h}`;
@@ -788,18 +783,20 @@ const VIEWPORT_OPTS: ReadonlyArray<{
  */
 function LocaleSwitcher({
   activeLocale,
+  defaultLocale,
   availableLocales,
   dirty,
 }: {
   activeLocale: string;
+  defaultLocale: string;
   availableLocales: ReadonlyArray<string>;
   dirty: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
-  const knownLocales = useMemo(
-    () => Array.from(new Set([...availableLocales, "en"])),
-    [availableLocales],
+  const pathSettings = useMemo(
+    () => localePathSettings(defaultLocale, availableLocales),
+    [defaultLocale, availableLocales],
   );
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
   // `isPending` reflects React 19 transition state — true from the moment
@@ -820,7 +817,7 @@ function LocaleSwitcher({
       }
       const search = typeof window !== "undefined" ? window.location.search : "";
       const hash = typeof window !== "undefined" ? window.location.hash : "";
-      const target = urlForLocale(pathname, search, hash, code, knownLocales);
+      const target = urlForLocale(pathname, search, hash, code, pathSettings);
       const doNavigate = () =>
         startTransition(() => {
           router.push(target);
@@ -846,7 +843,7 @@ function LocaleSwitcher({
         doNavigate();
       }
     },
-    [activeLocale, dirty, knownLocales, pathname, router],
+    [activeLocale, dirty, pathSettings, pathname, router],
   );
 
   // Arrow-key navigation: ←/→ cycle through locales. Operators using a
@@ -1808,6 +1805,11 @@ export interface TopBarProps {
   /** The locale the editor is currently bound to. Drives the locale-switcher
    *  pill's active state. Optional — single-locale tenants render no pill. */
   activeLocale?: string;
+  /**
+   * Tenant default storefront locale — determines which locale gets no URL
+   * prefix (must match `loadTenantLocaleSettings` / middleware).
+   */
+  defaultLocale?: string;
   /** Locales the active tenant publishes. Empty/single-entry → no switcher. */
   availableLocales?: ReadonlyArray<string>;
 }
@@ -1851,6 +1853,7 @@ export function TopBar({
   pageId,
   pagesPickerOpenNonce,
   activeLocale,
+  defaultLocale = DEFAULT_PLATFORM_LOCALE,
   availableLocales = [],
 }: TopBarProps) {
   const router = useRouter();
@@ -1907,6 +1910,7 @@ export function TopBar({
       {activeLocale && availableLocales.length > 1 ? (
         <LocaleSwitcher
           activeLocale={activeLocale}
+          defaultLocale={defaultLocale}
           availableLocales={availableLocales}
           dirty={dirty}
         />

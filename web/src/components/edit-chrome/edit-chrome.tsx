@@ -77,6 +77,8 @@ interface EditChromeProps {
    *  locale switcher renders on first paint without waiting for the
    *  composition load round-trip. Empty array → no switcher. */
   availableLocales?: ReadonlyArray<string>;
+  /** Tenant default storefront locale for LocaleSwitcher path shaping. */
+  defaultLocale?: string;
   /**
    * T1-2 — server-prefetched composition snapshot. EditChromeMount loads
    * this when editActive is true so EditProvider seeds its state from real
@@ -94,6 +96,7 @@ export function EditChrome({
   locale,
   pageSlug,
   availableLocales,
+  defaultLocale,
   initialComposition,
 }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
@@ -126,6 +129,7 @@ export function EditChrome({
         locale={locale}
         pageSlug={pageSlug}
         availableLocales={availableLocales}
+        defaultLocale={defaultLocale}
         initialComposition={initialComposition}
       />
     );
@@ -152,6 +156,7 @@ export function EditChrome({
         locale={locale}
         pageSlug={pageSlug}
         availableLocales={availableLocales}
+        defaultLocale={defaultLocale}
         initialComposition={initialComposition}
       />
     </>

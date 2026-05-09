@@ -47,6 +47,7 @@ interface IframeChildProps {
   locale?: string;
   pageSlug?: string | null;
   availableLocales?: ReadonlyArray<string>;
+  defaultLocale?: string;
   initialComposition?: import("@/lib/site-admin/edit-mode/composition-actions").CompositionData | null;
 }
 
@@ -56,6 +57,7 @@ export function IframeChild({
   locale,
   pageSlug,
   availableLocales,
+  defaultLocale,
   initialComposition,
 }: IframeChildProps) {
   return (
@@ -75,6 +77,7 @@ export function IframeChild({
         tenantId={tenantId}
         workspacePlan={workspacePlan}
         locale={locale}
+        defaultLocale={defaultLocale}
         pageSlug={pageSlug}
         initialAvailableLocales={availableLocales}
         initialComposition={initialComposition}

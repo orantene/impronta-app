@@ -196,6 +196,7 @@ export async function EditChromeMount() {
       locale={localeContext.locale}
       pageSlug={pageSlug}
       availableLocales={localeSettings.supportedLocales}
+      defaultLocale={localeSettings.defaultLocale}
       initialComposition={initialComposition}
       workspacePlan={workspacePlan}
     />

@@ -69,6 +69,8 @@ interface EditShellProps {
    *  composition load round-trip. EditProvider keeps a local state copy
    *  that the composition response refreshes when it lands. */
   availableLocales?: ReadonlyArray<string>;
+  /** Tenant default storefront locale — LocaleSwitcher builds prefixed URLs. */
+  defaultLocale?: string;
   /**
    * T1-2 — server-prefetched composition snapshot. EditChromeMount loads
    * this server-side when the editor mounts engaged so the EditProvider
@@ -87,6 +89,7 @@ export function EditShell({
   locale,
   pageSlug,
   availableLocales,
+  defaultLocale,
   initialComposition,
   children,
 }: EditShellProps) {
@@ -96,6 +99,7 @@ export function EditShell({
         tenantId={tenantId}
         workspacePlan={workspacePlan}
         locale={locale}
+        defaultLocale={defaultLocale}
         pageSlug={pageSlug}
         initialAvailableLocales={availableLocales}
         initialComposition={initialComposition}
@@ -212,6 +216,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     toggleNavigator,
     reportMutationError,
     locale,
+    defaultLocale,
     availableLocales,
     pageSlug,
   } = useEditContext();
@@ -635,6 +640,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           pageId={pageId}
           pagesPickerOpenNonce={pagesPickerOpenNonce}
           activeLocale={locale}
+          defaultLocale={defaultLocale}
           availableLocales={availableLocales}
         />
         <div
