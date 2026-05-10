@@ -650,7 +650,7 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 | **3** | Partial | `moveSectionTo` shared with canvas + navigator; scroll-into-view after drop; navigator rail `aria-labelledby`; drop polish ongoing. |
 | **4–5** | Partial / open | Library: empty-search recovery + “no section types” banner when kits/starters still match; category UX + advanced copy ([composition-library.tsx](../src/components/edit-chrome/composition-library.tsx)); inline WYSIWYG: floating toolbar, canvas overlay, link popover. |
 | **6** | Partial | Header/footer sections + shell republish on publish; **`storefront` cache bust** with shell ([composition-actions.ts](../src/lib/site-admin/edit-mode/composition-actions.ts)); full parity per [phase-b-site-shell.md](./phase-b-site-shell.md). |
-| **7** | Partial | Roadmap: §3 **7A before 7B**; §4 **P7A-0…7** + **P7B-1/2**. **7A not shipped** until allow-list + persistence truth hold. Hero honest-UI work continues; **governed Hero composition = P7B** after 7A primitives are real. |
+| **7** | Partial | **Code:** allow-list kinds, draft/publish tree paths, nested insert governance, Free draft save + publish preflight, Card / CTA group kinds ([§7A MVP](#7a-mvp-element-allow-list)). **Product:** **7A not claimed shipped** until **7A Reality Test** + demo evidence on a registered host. **P7B** Hero remains **after** 7A acceptance. |
 | **8** | Partial | Viewport switcher `title` clarifies layout simulation vs per-section responsive fields; device preview + mobile chrome hint; per-breakpoint authoring ongoing. |
 | **9** | Partial | Coalesced `router.refresh` via `queueRouterRefresh` ([edit-context.tsx](../src/components/edit-chrome/edit-context.tsx)); labelled drawers/overlays + assertive errors on key flows; `Drawer` focus restore + hidden closed state (`aria-hidden`, no pointer hit-target) per [DRAWER-MUTEX.md](../src/components/edit-chrome/DRAWER-MUTEX.md). |
 
@@ -660,21 +660,17 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 **Product direction:** **Advanced Mode is 7A-first.** Primary engineering track is **Element Library MVP** (P7A-*), not Hero-only composition. Hero belongs to **P7B** and assumes **7A primitives are real.**
 
-**Status:** The **P0-2 CMS insert → canvas** fix is **implemented**. **Phase 2 publish trust copy** (save pill + publish drawer lines) is **landed**; remaining Phase 2 risk is **automatic publish blocking** when canvas and persisted state disagree — needs a defined technical signal ([human QA BUG-005](./builder-human-qa-run-2026-05-09.md)).
+**Status:** **P0-2** CMS insert → canvas and **Phase 2** publish-trust copy are **landed**. **P7A-0** persistence contract doc + server paths and **P7A-1** element library (registry, inserts, picker, shipped catalog, Free vs Advanced gates, draft save guard, publish preflight) are **in codebase**. Remaining Phase 2 risk: publish blocking when canvas and persisted state disagree — track with [BUG-005](./builder-human-qa-run-2026-05-09.md).
 
-**Next suggested merges:**
+**Next priorities:**
 
-1. **P0 / prerequisite QA:** Stabilize **Impronta** baseline (prefer **draft-only** reset; see **No destructive QA reset** in Strategic framing). Verify **add → edit → reorder → publish → reopen** on a **clean** state.
+1. **Human QA (blocking “7A shipped”):** Stabilize **Impronta** baseline (prefer **draft-only** reset). Run **add → edit → reorder → publish → hard refresh → reopen** on a **registered host** and capture **7A Demo Evidence** (screens or recording — see §7A guardrails).
 
-2. **P7A-0 + Gate 0 (blocking):** Define and **verify** persistence contracts — **before** Add Element UI **(no P7A-1 until Gate 0 passes)**. Includes tenant flag / kill switch shape.
+2. **P7A-2 / P7A-3 / P7A-4 acceptance:** Validate **honest selection** (inspector ↔ persisted tree), **navigator/canvas reorder** for library-backed nodes, and **full round-trip** per **7A Reality Test** — fix gaps QA finds (insert/canvas iframe issues: [BUG-002 / BUG-003](./builder-human-qa-run-2026-05-09.md)).
 
-3. **P7A-1:** Element registry / Add Element UI — **only after** Gate 0 (see **Phase 7A guardrails**).
+3. **P7B** governed Hero — **only after** 7A is accepted with evidence, not as a substitute for element primitives.
 
-4. **P7A-2 / P7A-3:** **Slot targeting**, honest selection, **navigator + canvas reorder parity** for library-backed nodes.
-
-**Still blocking trustworthy QA if unfixed:** Insert/canvas mismatch + mobile iframe blank canvas ([BUG-002 / BUG-003](./builder-human-qa-run-2026-05-09.md)) — address **alongside or before** broad 7A demos.
-
-**Parallel (non-code):** Phase **0** registered-host matrix ([phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md)) remains **required** before declaring pilot-ready.
+**Parallel (non-code):** Phase **0** registered-host viewport matrix ([phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md)) remains **required** before declaring pilot-ready.
 
 ---
 
@@ -682,6 +678,7 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 | Date | Change |
 |------|--------|
+| 2026-05-09 | **§8 + Phase 7 implementation row:** Reflect **P7A-0 / P7A-1 landed in code**; next = human QA + **P7A-2…4** acceptance vs **7A Reality Test** (not Gate 0 blocking P7A-1). |
 | 2026-05-09 | **Tests:** [`builder-node.test.ts`](../src/lib/site-admin/builder-node/builder-node.test.ts) asserts registry allow-lists + validation rejects container-under-card and heading-under-cta_group. |
 | 2026-05-09 | **Child governance (Card / CTA group):** registry aligned with § parent/child table — [`CARD_CHILD_KINDS`](../src/lib/site-admin/builder-node/registry.ts) (heading, paragraph, button, image); [`CTA_GROUP_CHILD_KINDS`](../src/lib/site-admin/builder-node/registry.ts) (button only). |
 | 2026-05-09 | **7A kinds — Card + CTA group:** [`card` / `cta_group`](../src/lib/site-admin/builder-node/types.ts) registered in [`registry.ts`](../src/lib/site-admin/builder-node/registry.ts), [`createBuilderNode`](../src/lib/site-admin/builder-node/create.ts) defaults, [`render.tsx`](../src/lib/site-admin/builder-node/render.tsx), Layout tab ([`layout-panel.tsx`](../src/components/edit-chrome/inspectors/layout-panel.tsx)), MVP catalog ([`mvp-allow-list.ts`](../src/lib/site-admin/builder-node/mvp-allow-list.ts)). |
