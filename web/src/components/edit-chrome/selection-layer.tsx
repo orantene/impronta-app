@@ -260,6 +260,7 @@ export function SelectionLayer() {
     selectedSectionId,
     selectedBuilderNodeId,
     setSelectedSectionId,
+    focusSectionForEdit,
     selectBuilderNode,
     additionalSelectedIds,
     extendSelection,
@@ -524,7 +525,7 @@ export function SelectionLayer() {
         if (builderNodeId) {
           selectBuilderNode(builderNodeId);
         } else {
-          setSelectedSectionId(id);
+          focusSectionForEdit(id);
         }
       }
       setContextMenu(null);
@@ -551,7 +552,7 @@ export function SelectionLayer() {
       if (builderNodeId) {
         selectBuilderNode(builderNodeId);
       } else {
-        setSelectedSectionId(id);
+        focusSectionForEdit(id);
       }
       setContextMenu({
         x: e.clientX,
@@ -863,7 +864,7 @@ export function SelectionLayer() {
       if (builderNodeId) {
         selectBuilderNode(builderNodeId);
       } else {
-        setSelectedSectionId(sectionId);
+        focusSectionForEdit(sectionId);
       }
     }
     setDrag({
@@ -1467,7 +1468,10 @@ export function SelectionLayer() {
             isScrolling={isScrollingRef.current}
             isDragging={isDragging}
             onSelectNode={selectBuilderNode}
-            onSelectSection={setSelectedSectionId}
+            onSelectSection={(sectionId) => {
+              if (sectionId === null) setSelectedSectionId(null);
+              else focusSectionForEdit(sectionId);
+            }}
           />
 
           {drag.phase === "idle" && (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
@@ -1687,7 +1691,7 @@ export function SelectionLayer() {
               if (!contextMenu?.sectionId) return;
               void duplicateSection(contextMenu.sectionId).then((result) => {
                 if (result.ok && result.newSectionId) {
-                  setSelectedSectionId(result.newSectionId);
+                  focusSectionForEdit(result.newSectionId);
                 } else if (!result.ok && result.error) {
                   reportMutationError(result.error);
                 }
@@ -1696,7 +1700,7 @@ export function SelectionLayer() {
             }}
             onDeleteSection={() => {
               if (!contextMenu?.sectionId) return;
-              setSelectedSectionId(contextMenu.sectionId);
+              focusSectionForEdit(contextMenu.sectionId);
               setConfirmRemove(true);
               closeContextMenu();
             }}
@@ -1707,7 +1711,7 @@ export function SelectionLayer() {
                   reportMutationError(removed.error);
                   return;
                 }
-                setSelectedSectionId(contextMenu.sectionId);
+                focusSectionForEdit(contextMenu.sectionId);
               });
               closeContextMenu();
             }}
@@ -1962,7 +1966,7 @@ export function SelectionLayer() {
                       (r) => r.ok && r.newSectionId,
                     );
                     if (firstNew && "newSectionId" in firstNew && firstNew.newSectionId) {
-                      setSelectedSectionId(firstNew.newSectionId);
+                      focusSectionForEdit(firstNew.newSectionId);
                     }
                   });
                 }}

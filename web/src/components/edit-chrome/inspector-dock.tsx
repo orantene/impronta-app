@@ -235,6 +235,7 @@ export function InspectorDock() {
     selectedSectionId,
     selectedBuilderNodeId,
     setSelectedSectionId,
+    focusSectionForEdit,
     selectBuilderNode,
     loadedSection,
     setLoadedSection,
@@ -771,12 +772,12 @@ export function InspectorDock() {
     (crumb: InspectorBreadcrumbCrumb) => {
       if (!crumb.selectable) return;
       if (crumb.kind === "section") {
-        setSelectedSectionId(crumb.id);
+        focusSectionForEdit(crumb.id);
         return;
       }
       selectBuilderNode(crumb.id);
     },
-    [selectBuilderNode, setSelectedSectionId],
+    [selectBuilderNode, focusSectionForEdit],
   );
   const headerMeta = useMemo(() => {
     if (!sectionMeta && inspectorBreadcrumbCrumbs.length === 0) return undefined;
