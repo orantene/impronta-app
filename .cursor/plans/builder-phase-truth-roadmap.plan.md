@@ -19,7 +19,7 @@ todos:
     status: completed
   - id: exec-p7a-1-library-ui
     content: P7A-1 — Element registry / library UI foundation (blank or custom section → pick from allow-list).
-    status: pending
+    status: completed
   - id: exec-p7a-2-selection
     content: P7A-2 — Slot targeting + honest selection (inspector matches persisted tree).
     status: pending
