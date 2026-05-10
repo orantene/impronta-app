@@ -848,8 +848,12 @@ export function InspectorDock() {
   // had Motion open for Hero, then selects Trust Strip which doesn't
   // surface Motion), fall back to Content so we never render an
   // orphaned-but-active tab.
+  //
+  // Same adjustment when moving from a nested builder node (extra tabs like
+  // Data) back to the section root: root `selectedBuilderNodeId` is still
+  // truthy while `selectedStandaloneBuilderNode` is null, but `visibleTabs`
+  // shrinks — do not skip correction for that case (P7A-2 honest inspector).
   useEffect(() => {
-    if (selectedBuilderNodeId && !selectedStandaloneBuilderNode) return;
     if (!visibleTabs.includes(tab)) {
       setTab("content");
     }
