@@ -41,7 +41,12 @@ import {
   migrateSectionPayload,
   type SectionRegistryEntry,
 } from "@/lib/site-admin/sections/types";
-import { presentationScopedCss, presentationVideoBackground } from "@/lib/site-admin/sections/shared/presentation";
+import {
+  presentationDataAttrs,
+  presentationInlineStyles,
+  presentationScopedCss,
+  presentationVideoBackground,
+} from "@/lib/site-admin/sections/shared/presentation";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
@@ -180,6 +185,7 @@ export async function HomepageCmsSections({
         const presentation = (payload?.presentation ?? undefined) as Parameters<typeof presentationScopedCss>[1];
         const scopedCss = presentationScopedCss(entry.sectionId, presentation);
         const videoBg = presentationVideoBackground(presentation);
+        const isBlankSection = entry.sectionTypeKey === "blank_section";
         const builderNodeId = builderSectionNodeIds.get(
           builderSectionNodeAddressKey({
             sectionId: entry.sectionId,
@@ -240,18 +246,34 @@ export async function HomepageCmsSections({
         // positioned container (relative + overflow:hidden) and a <video>
         // is injected as the first child, behind the section content via
         // z-index. The actual section markup is unchanged.
+        const wrapperPresentationStyles =
+          isBlankSection || videoBg
+            ? {
+                ...(isBlankSection ? presentationInlineStyles(presentation) : {}),
+                ...(videoBg
+                  ? {
+                      position: "relative" as const,
+                      overflow: "hidden" as const,
+                      isolation: "isolate" as const,
+                    }
+                  : {}),
+              }
+            : undefined;
         return (
           <div
             key={`wrap:${key}`}
+            {...(isBlankSection ? presentationDataAttrs(presentation) : {})}
             data-cms-section=""
             data-section-id={entry.sectionId}
             data-section-type-key={entry.sectionTypeKey}
             data-slot-key={entry.slotKey}
             data-sort-order={entry.sortOrder}
             data-builder-node-id={builderNodeId}
+            className={isBlankSection ? "site-blank-section" : undefined}
             style={
-              videoBg
-                ? { position: "relative", overflow: "hidden", isolation: "isolate" }
+              wrapperPresentationStyles &&
+              Object.keys(wrapperPresentationStyles).length > 0
+                ? wrapperPresentationStyles
                 : undefined
             }
           >

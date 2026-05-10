@@ -1424,10 +1424,27 @@ function siteFooterChildNodes(
   return children;
 }
 
+/**
+ * CMS section types whose nested builder nodes are **persisted composition**
+ * only (7A blank canvas). They never mirror flat props into synthetic tree rows,
+ * and `syncBuilderTreeSectionChildren` must not overwrite inserted blocks with an
+ * empty legacy derivation.
+ */
+export const COMPOSITION_OWNED_SECTION_TYPE_KEYS = new Set<string>([
+  "blank_section",
+]);
+
+export function isCompositionOwnedSectionType(sectionTypeKey: string): boolean {
+  return COMPOSITION_OWNED_SECTION_TYPE_KEYS.has(sectionTypeKey);
+}
+
 export function deriveLegacySectionChildNodes(
   sectionNodeId: string,
   slot: LegacySnapshotSlot,
 ): BuilderNode[] {
+  if (isCompositionOwnedSectionType(slot.sectionTypeKey)) {
+    return [];
+  }
   if (slot.sectionTypeKey === "hero") {
     return heroChildNodes(sectionNodeId, slot.props);
   }

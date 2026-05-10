@@ -645,6 +645,10 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
   // tenant's shell row with conservative starting content the operator
   // edits afterward. Brand label is intentionally generic; tenants will
   // overwrite via the Theme drawer + identity record on first edit.
+  blank_section: {
+    name: "Blank section",
+    props: {},
+  },
   site_header: {
     name: "Site header",
     props: {

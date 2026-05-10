@@ -1,4 +1,5 @@
 import { anchorNavMeta } from "./anchor_nav/meta";
+import { blankSectionMeta } from "./blank_section/meta";
 import { beforeAfterMeta } from "./before_after/meta";
 import { blogDetailMeta } from "./blog_detail/meta";
 import { blogIndexMeta } from "./blog_index/meta";
@@ -46,6 +47,7 @@ import type { SectionMeta } from "./types";
 
 const SECTION_META_REGISTRY = {
   anchor_nav: anchorNavMeta,
+  blank_section: blankSectionMeta,
   before_after: beforeAfterMeta,
   blog_detail: blogDetailMeta,
   blog_index: blogIndexMeta,

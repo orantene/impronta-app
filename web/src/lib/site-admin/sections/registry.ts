@@ -332,6 +332,16 @@ import { bookingWidgetSchemasByVersion, type BookingWidgetV1 } from "./booking_w
 import { BookingWidgetComponent } from "./booking_widget/Component";
 import { BookingWidgetEditor } from "./booking_widget/Editor";
 
+// ── Phase 7A — blank composition surface (Advanced Mode) ────────────────
+import { blankSectionMeta } from "./blank_section/meta";
+import { blankSectionMigrations } from "./blank_section/migrations";
+import {
+  blankSectionSchemasByVersion,
+  type BlankSectionV1,
+} from "./blank_section/schema";
+import { BlankSectionComponent } from "./blank_section/Component";
+import { BlankSectionEditor } from "./blank_section/Editor";
+
 // ── Phase B.1 site shell sections (header + footer) ─────────────────────
 // Registry-only registration. visibleToAgency=false on both meta files
 // keeps them out of the section-add picker; they're managed exclusively
@@ -668,6 +678,14 @@ export const lookbookSection: SectionRegistryEntry<LookbookV1> = {
 export const bookingWidgetSection: SectionRegistryEntry<BookingWidgetV1> = {
   meta: bookingWidgetMeta, currentVersion: 1, schemasByVersion: bookingWidgetSchemasByVersion, migrations: bookingWidgetMigrations, Component: BookingWidgetComponent, Editor: BookingWidgetEditor,
 };
+export const blankSectionSection: SectionRegistryEntry<BlankSectionV1> = {
+  meta: blankSectionMeta,
+  currentVersion: 1,
+  schemasByVersion: blankSectionSchemasByVersion,
+  migrations: blankSectionMigrations,
+  Component: BlankSectionComponent,
+  Editor: BlankSectionEditor,
+};
 // Phase B.1 — site shell section types. Not in the agency-visible add picker
 // (meta.visibleToAgency=false); only ever placed in the site_shell row.
 export const siteHeaderSection: SectionRegistryEntry<SiteHeaderV1> = {
@@ -726,6 +744,7 @@ export const SECTION_REGISTRY = {
   event_listing: eventListingSection,
   lookbook: lookbookSection,
   booking_widget: bookingWidgetSection,
+  blank_section: blankSectionSection,
   // Phase B.1 — shell-only section types.
   site_header: siteHeaderSection,
   site_footer: siteFooterSection,

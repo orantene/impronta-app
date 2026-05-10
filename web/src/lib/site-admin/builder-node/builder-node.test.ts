@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildLegacySectionBuilderTree } from "./legacy-section-tree";
+import {
+  buildLegacySectionBuilderTree,
+  deriveLegacySectionChildNodes,
+  isCompositionOwnedSectionType,
+} from "./legacy-section-tree";
 import {
   builderSectionNodeAddressKey,
   indexBuilderSectionChildNodes,
@@ -3028,6 +3032,21 @@ test("reconcileBuilderTreeWithLegacySlots preserves non-section roots and stable
     assert.equal(next[1].props.label, "Moved Hero");
     assert.equal(next[1].children?.[0]?.id, `legacy:hero:0:${sectionId}:heading:headline`);
   }
+});
+
+test("blank_section has composition-owned semantics (no legacy-derived children)", () => {
+  assert.equal(isCompositionOwnedSectionType("blank_section"), true);
+  assert.equal(
+    deriveLegacySectionChildNodes("sec-node", {
+      slotKey: "primary",
+      sortOrder: 1,
+      sectionId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      sectionTypeKey: "blank_section",
+      name: "Blank",
+      props: {},
+    }).length,
+    0,
+  );
 });
 
 test("card and cta_group child policies match §7A governance", () => {

@@ -69,6 +69,7 @@ import {
   createBuilderNode,
   deriveLegacySectionChildNodes,
   formatBuilderNodeMutationError,
+  isCompositionOwnedSectionType,
   recordBuilderMutationAuditEvent,
   summarizeBuilderNodeIssues,
   reconcileBuilderTreeWithLegacySlots,
@@ -925,6 +926,9 @@ function syncBuilderTreeSectionChildren(
 
   const visit = (node: BuilderNode): BuilderNode => {
     if (node.kind === "section" && node.props.sectionId === input.sectionId) {
+      if (isCompositionOwnedSectionType(input.sectionTypeKey)) {
+        return node;
+      }
       const nextChildren = deriveLegacySectionChildNodes(node.id, {
         slotKey: node.props.slotKey ?? "body",
         sortOrder: node.props.sortOrder ?? 0,
