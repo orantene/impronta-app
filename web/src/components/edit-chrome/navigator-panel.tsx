@@ -85,6 +85,7 @@ import {
   type BuilderNodeKind,
 } from "@/lib/site-admin/builder-node";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
+import { siblingDropGapToMoveIndex } from "./builder-node-sibling-drop";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { HeadingLintBadge } from "./inspectors/HeadingLintBadge";
 import { loadHeadingProbeForLint } from "@/lib/site-admin/edit-mode/heading-lint-action";
@@ -937,14 +938,12 @@ export function NavigatorPanel() {
       const targetParentId = childDropTarget.parentId;
       const dropIndex = childDropTarget.index;
       const sameParent = sourceParentId === targetParentId;
-      if (sameParent && (dropIndex === sourceIndex || dropIndex === sourceIndex + 1)) {
-        onChildDragEnd();
-        return;
-      }
-
-      const nextIndex =
-        sameParent && dropIndex > sourceIndex ? dropIndex - 1 : dropIndex;
-      if (nextIndex < 0) {
+      const resolved = siblingDropGapToMoveIndex({
+        dropGapIndex: dropIndex,
+        sourceSiblingIndex: sourceIndex,
+        sameParent,
+      });
+      if (resolved.kind === "noop") {
         onChildDragEnd();
         return;
       }
@@ -954,7 +953,7 @@ export function NavigatorPanel() {
       const moved = await moveBuilderNodeToParentIndex(
         nodeId,
         targetParentId,
-        nextIndex,
+        resolved.targetSiblingIndex,
       );
       if (!moved.ok && moved.error) {
         reportMutationError(moved.error);

@@ -38,6 +38,8 @@ import {
   type DragEvent,
 } from "react";
 import { createPortal } from "react-dom";
+
+import { siblingDropGapToMoveIndex } from "./builder-node-sibling-drop";
 import {
   ArrowDown,
   ArrowUp,
@@ -2699,15 +2701,18 @@ function CanvasNodeChildrenPanel({
     }
     event.preventDefault();
     event.stopPropagation();
-    const finalIndex =
-      dropIndex > draggingNode.sourceIndex ? dropIndex - 1 : dropIndex;
-    if (finalIndex === draggingNode.sourceIndex) {
+    const resolved = siblingDropGapToMoveIndex({
+      dropGapIndex: dropIndex,
+      sourceSiblingIndex: draggingNode.sourceIndex,
+      sameParent: true,
+    });
+    if (resolved.kind === "noop") {
       clearDragState();
       return;
     }
     const nodeId = draggingNode.nodeId;
     clearDragState();
-    await onMoveToIndex(nodeId, parentNodeId, finalIndex);
+    await onMoveToIndex(nodeId, parentNodeId, resolved.targetSiblingIndex);
   };
   return (
     <div

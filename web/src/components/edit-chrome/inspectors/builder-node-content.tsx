@@ -23,6 +23,7 @@ import {
   type BuilderBlockPreset,
   type BuilderNodePastePreview,
 } from "../edit-context";
+import { siblingDropGapToMoveIndex } from "../builder-node-sibling-drop";
 import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
@@ -844,15 +845,18 @@ function NestedBlocksCard({
     }
     event.preventDefault();
     event.stopPropagation();
-    const finalIndex =
-      dropIndex > draggingNode.sourceIndex ? dropIndex - 1 : dropIndex;
-    if (finalIndex === draggingNode.sourceIndex) {
+    const resolved = siblingDropGapToMoveIndex({
+      dropGapIndex: dropIndex,
+      sourceSiblingIndex: draggingNode.sourceIndex,
+      sameParent: true,
+    });
+    if (resolved.kind === "noop") {
       clearDragState();
       return;
     }
     const nodeId = draggingNode.nodeId;
     clearDragState();
-    await onMoveToIndex(nodeId, parentNodeId, finalIndex);
+    await onMoveToIndex(nodeId, parentNodeId, resolved.targetSiblingIndex);
   };
   const renderInsertPicker = (index: number) =>
     insertAt === index ? (
