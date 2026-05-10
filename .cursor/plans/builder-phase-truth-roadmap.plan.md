@@ -1,6 +1,6 @@
 ---
 name: Builder roadmap unified 2026
-overview: "Large execution backlog (~270 items). Canonical: web/docs/builder-execution-plan-2026.md. Many todos are parallel tracks or future phases — use filters; do not treat as strict sequential homework."
+overview: "Large execution backlog (~270 YAML todos). Canonical: web/docs/builder-execution-plan-2026.md. Todo statuses synced 2026-05-10 to shipped 7A MVP allow-list (incl. Blank Section) plus granular P7A-1 picker / P7A-6 hooks / scoped QA gate; acceptance gates (P7A-2…4, human QA) stay pending. Many items are parallel tracks — use filters; not strict sequential homework."
 todos:
   - id: exec-p0-impronta-baseline
     content: Stabilize local Impronta QA baseline (prefer draft-only reset; no destructive publish purge unless explicitly requested).
@@ -88,7 +88,7 @@ todos:
     status: completed
   - id: pr-p7a-6
     content: P7A-6 — QA regression hooks (smoke/e2e/critical path checklist).
-    status: pending
+    status: completed
   - id: pr-p7a-7
     content: P7A-7 — Doc + changelog alignment after each milestone.
     status: completed
@@ -112,193 +112,193 @@ todos:
     status: pending
   - id: el-blank-section-types
     content: "7A allow-list — Blank Section: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-blank-section-registry
     content: "7A allow-list — Blank Section: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-blank-section-insert
     content: "7A allow-list — Blank Section: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-blank-section-inspector
     content: "7A allow-list — Blank Section: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-blank-section-persist
     content: "7A allow-list — Blank Section: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-blank-section-canvas
     content: "7A allow-list — Blank Section: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-blank-section-navigator
     content: "7A allow-list — Blank Section: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-blank-section-dup-del
     content: "7A allow-list — Blank Section: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-blank-section-a11y
     content: "7A allow-list — Blank Section: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: el-container-types
     content: "7A allow-list — Container: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-container-registry
     content: "7A allow-list — Container: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-container-insert
     content: "7A allow-list — Container: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-container-inspector
     content: "7A allow-list — Container: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-container-persist
     content: "7A allow-list — Container: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-container-canvas
     content: "7A allow-list — Container: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-container-navigator
     content: "7A allow-list — Container: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-container-dup-del
     content: "7A allow-list — Container: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-container-a11y
     content: "7A allow-list — Container: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: el-columns-types
     content: "7A allow-list — Columns: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-columns-registry
     content: "7A allow-list — Columns: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-columns-insert
     content: "7A allow-list — Columns: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-columns-inspector
     content: "7A allow-list — Columns: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-columns-persist
     content: "7A allow-list — Columns: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-columns-canvas
     content: "7A allow-list — Columns: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-columns-navigator
     content: "7A allow-list — Columns: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-columns-dup-del
     content: "7A allow-list — Columns: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-columns-a11y
     content: "7A allow-list — Columns: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: el-heading-types
     content: "7A allow-list — Heading: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-heading-registry
     content: "7A allow-list — Heading: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-heading-insert
     content: "7A allow-list — Heading: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-heading-inspector
     content: "7A allow-list — Heading: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-heading-persist
     content: "7A allow-list — Heading: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-heading-canvas
     content: "7A allow-list — Heading: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-heading-navigator
     content: "7A allow-list — Heading: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-heading-dup-del
     content: "7A allow-list — Heading: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-heading-a11y
     content: "7A allow-list — Heading: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: el-paragraph-types
     content: "7A allow-list — Paragraph: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-paragraph-registry
     content: "7A allow-list — Paragraph: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-paragraph-insert
     content: "7A allow-list — Paragraph: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-paragraph-inspector
     content: "7A allow-list — Paragraph: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-paragraph-persist
     content: "7A allow-list — Paragraph: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-paragraph-canvas
     content: "7A allow-list — Paragraph: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-paragraph-navigator
     content: "7A allow-list — Paragraph: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-paragraph-dup-del
     content: "7A allow-list — Paragraph: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-paragraph-a11y
     content: "7A allow-list — Paragraph: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: el-button-types
     content: "7A allow-list — Button: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-button-registry
     content: "7A allow-list — Button: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-button-insert
     content: "7A allow-list — Button: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-button-inspector
     content: "7A allow-list — Button: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-button-persist
     content: "7A allow-list — Button: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-button-canvas
     content: "7A allow-list — Button: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-button-navigator
     content: "7A allow-list — Button: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-button-dup-del
     content: "7A allow-list — Button: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-button-a11y
     content: "7A allow-list — Button: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: el-image-types
     content: "7A allow-list — Image: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-image-registry
     content: "7A allow-list — Image: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-image-insert
     content: "7A allow-list — Image: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-image-inspector
     content: "7A allow-list — Image: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-image-persist
     content: "7A allow-list — Image: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-image-canvas
     content: "7A allow-list — Image: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-image-navigator
     content: "7A allow-list — Image: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-image-dup-del
     content: "7A allow-list — Image: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-image-a11y
     content: "7A allow-list — Image: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: el-divider-types
     content: "7A allow-list — Divider: types + builder-node contract"
     status: completed
@@ -328,85 +328,85 @@ todos:
     status: completed
   - id: el-spacer-types
     content: "7A allow-list — Spacer: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-spacer-registry
     content: "7A allow-list — Spacer: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-spacer-insert
     content: "7A allow-list — Spacer: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-spacer-inspector
     content: "7A allow-list — Spacer: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-spacer-persist
     content: "7A allow-list — Spacer: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-spacer-canvas
     content: "7A allow-list — Spacer: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-spacer-navigator
     content: "7A allow-list — Spacer: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-spacer-dup-del
     content: "7A allow-list — Spacer: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-spacer-a11y
     content: "7A allow-list — Spacer: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: el-card-types
     content: "7A allow-list — Card: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-card-registry
     content: "7A allow-list — Card: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-card-insert
     content: "7A allow-list — Card: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-card-inspector
     content: "7A allow-list — Card: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-card-persist
     content: "7A allow-list — Card: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-card-canvas
     content: "7A allow-list — Card: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-card-navigator
     content: "7A allow-list — Card: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-card-dup-del
     content: "7A allow-list — Card: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-card-a11y
     content: "7A allow-list — Card: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: el-cta-group-types
     content: "7A allow-list — CTA Group: types + builder-node contract"
-    status: pending
+    status: completed
   - id: el-cta-group-registry
     content: "7A allow-list — CTA Group: registry/catalog entry + labels"
-    status: pending
+    status: completed
   - id: el-cta-group-insert
     content: "7A allow-list — CTA Group: insert flow + persisted default node"
-    status: pending
+    status: completed
   - id: el-cta-group-inspector
     content: "7A allow-list — CTA Group: inspector fields bound to persisted props"
-    status: pending
+    status: completed
   - id: el-cta-group-persist
     content: "7A allow-list — CTA Group: draft + publish round-trip for this type"
-    status: pending
+    status: completed
   - id: el-cta-group-canvas
     content: "7A allow-list — CTA Group: canvas selection + hit targets"
-    status: pending
+    status: completed
   - id: el-cta-group-navigator
     content: "7A allow-list — CTA Group: navigator tree node + ordering"
-    status: pending
+    status: completed
   - id: el-cta-group-dup-del
     content: "7A allow-list — CTA Group: duplicate + delete semantics"
-    status: pending
+    status: completed
   - id: el-cta-group-a11y
     content: "7A allow-list — CTA Group: basic aria labelling on chrome"
-    status: pending
+    status: completed
   - id: p7a-0-design-review
     content: "P7A-0 — Design review: schema boundaries vs legacy-section-tree honesty."
     status: completed
@@ -421,7 +421,7 @@ todos:
     status: cancelled
   - id: p7a-1-search-cats
     content: "P7A-1 — Library UI: search + categories for element picker."
-    status: pending
+    status: completed
   - id: p7a-1-empty-states
     content: P7A-1 — Empty/error states when library loading fails.
     status: pending
@@ -517,7 +517,7 @@ todos:
     status: completed
   - id: ci-scope-touch
     content: AGENTS — scoped lint/typecheck on touched paths when repo ESLint baseline noisy.
-    status: pending
+    status: completed
   - id: defer-video-forms
     content: Explicit defer — Video/Forms/slider items/repeaters/custom code out of 7A MVP.
     status: completed
@@ -812,8 +812,7 @@ todos:
   - id: p6-spot-tenant-nav
     content: "P6 — publish/cache spot check: tenant-nav"
     status: pending
-isProject: false
----
+isProject: false---
 
 # Builder roadmap — unified execution plan (2026)
 
@@ -1465,7 +1464,7 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 | **3** | Partial | `moveSectionTo` shared with canvas + navigator; scroll-into-view after drop; navigator rail `aria-labelledby`; drop polish ongoing. |
 | **4–5** | Partial / open | Library: empty-search recovery + “no section types” banner when kits/starters still match; category UX + advanced copy ([composition-library.tsx](../web/src/components/edit-chrome/composition-library.tsx)); inline WYSIWYG: floating toolbar, canvas overlay, link popover. |
 | **6** | Partial | Header/footer sections + shell republish on publish; **`storefront` cache bust** with shell ([composition-actions.ts](../web/src/lib/site-admin/edit-mode/composition-actions.ts)); full parity per [phase-b-site-shell.md](../web/docs/phase-b-site-shell.md). |
-| **7** | Partial | **Code:** allow-list kinds, draft/publish tree paths, nested insert governance, Free draft save + publish preflight, Card / CTA group kinds ([§7A MVP](../web/docs/builder-execution-plan-2026.md#7a-mvp-element-allow-list)). **Product:** **7A not claimed shipped** until **7A Reality Test** + demo evidence on a registered host. **P7B** Hero remains **after** 7A acceptance. |
+| **7** | Partial | **Code:** allow-list kinds (incl. **Blank Section** / `blank_section`), draft/publish tree paths, nested insert governance, Free draft save + publish preflight, Card / CTA group kinds ([§7A MVP](../web/docs/builder-execution-plan-2026.md#7a-mvp-element-allow-list)). **Plan YAML:** per-kind backlog rows for shipped MVP marked completed (2026-05-10). **Product:** **7A not claimed shipped** until **7A Reality Test** + demo evidence on a registered host. **P7B** Hero remains **after** 7A acceptance. |
 | **8** | Partial | Viewport switcher `title` clarifies layout simulation vs per-section responsive fields; device preview + mobile chrome hint; per-breakpoint authoring ongoing. |
 | **9** | Partial | Coalesced `router.refresh` via `queueRouterRefresh` ([edit-context.tsx](../web/src/components/edit-chrome/edit-context.tsx)); labelled drawers/overlays + assertive errors on key flows; `Drawer` focus restore + hidden closed state (`aria-hidden`, no pointer hit-target) per [DRAWER-MUTEX.md](../web/src/components/edit-chrome/DRAWER-MUTEX.md). |
 
@@ -1493,6 +1492,7 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 | Date | Change |
 |------|--------|
+| 2026-05-10 | **Cursor YAML todos:** Marked **completed** for all **`el-*` rows** covering shipped **[§7A MVP allow-list](../web/docs/builder-execution-plan-2026.md#7a-mvp-element-allow-list)** kinds (Blank Section through CTA group), plus **`p7a-1-search-cats`** ([element-library-insert-picker.tsx](../web/src/components/edit-chrome/element-library-insert-picker.tsx)), **`pr-p7a-6`** (Playwright smoke + scripts), **`ci-scope-touch`** (AGENTS scoped lint/typecheck). **`exec-p7a-2`…`4`** and human QA gates unchanged (**pending**). |
 | 2026-05-09 | **Changelog hygiene:** Tag **(Historical)** rows that described **Gate 0 → P7A-1** sequencing so they are not read as current policy. Canonical: [builder-execution-plan-2026.md](../web/docs/builder-execution-plan-2026.md). |
 | 2026-05-09 | **Gate 0 + planning freeze + §7A task table:** Gate 0 reframed as **post-ship regression checklist**; planning freeze / **Current execution priority** / **P7A-1** row aligned with **P7A-0+P7A-1 in code** and **next = QA + P7A-2…4 acceptance**. Canonical: [builder-execution-plan-2026.md](../web/docs/builder-execution-plan-2026.md). |
 | 2026-05-09 | **§8 + Phase 7 implementation row:** Reflect **P7A-0 / P7A-1 landed in code**; next = human QA + **P7A-2…4** acceptance vs **7A Reality Test** (not Gate 0 blocking P7A-1). Canonical: [builder-execution-plan-2026.md](../web/docs/builder-execution-plan-2026.md). |
