@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   findBuilderNodeById,
   resolveStandaloneBuilderNodeForContent,
+  treeContainsBuilderNodeId,
 } from "./builder-node-content-utils";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 
@@ -85,4 +86,10 @@ test("resolveStandaloneBuilderNodeForContent ignores section roots", () => {
   const tree = makeTree();
   const node = resolveStandaloneBuilderNodeForContent(tree, "section-1");
   assert.equal(node, null);
+});
+
+test("treeContainsBuilderNodeId matches findBuilderNodeById presence", () => {
+  const tree = makeTree();
+  assert.equal(treeContainsBuilderNodeId(tree, "builder-heading-freeform"), true);
+  assert.equal(treeContainsBuilderNodeId(tree, "missing-id"), false);
 });

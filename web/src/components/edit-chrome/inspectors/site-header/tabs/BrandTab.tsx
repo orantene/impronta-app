@@ -25,6 +25,7 @@
 
 import { useEffect, useState } from "react";
 
+import { useEditContext } from "../../../edit-context";
 import { InspectorGroup, KIT } from "../../kit";
 import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
 import {
@@ -95,6 +96,11 @@ const LAYOUT_OPTIONS = [
 ];
 
 export function BrandTab({ config, patch, tenantId }: Props) {
+  const { workspaceMembershipSlug } = useEditContext();
+  const designSettingsHref =
+    workspaceMembershipSlug != null && workspaceMembershipSlug !== ""
+      ? `/${workspaceMembershipSlug}/admin/website`
+      : "/admin/site-settings/design";
   const layout =
     config.branding.themeJson["shell.header-brand-layout"] ?? "inline";
   const position =
@@ -253,7 +259,7 @@ export function BrandTab({ config, patch, tenantId }: Props) {
             </span>
           </div>
           <a
-            href="/admin/site-settings/design"
+            href={designSettingsHref}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11.5px] font-medium text-indigo-600 transition-colors hover:text-indigo-800"

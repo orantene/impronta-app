@@ -91,6 +91,7 @@ import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { normalizeCompositionSlots } from "./composition-slots";
+import { treeContainsBuilderNodeId } from "./inspectors/builder-node-content-utils";
 
 /** Dispatched from storefront surfaces outside `EditProvider` (empty canvas) to open the template gallery overlay. */
 export const IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT = "impronta:open-template-gallery";
@@ -169,6 +170,11 @@ export interface EditContextValue {
    * context stays obvious (human QA BUG-006).
    */
   tenantSiteLabel: string | null;
+  /**
+   * Workspace path segment for `/{slug}/admin/*` (agency storefront hosts).
+   * `null` when unknown — prefer legacy `/admin/site-settings/*` hrefs that redirect.
+   */
+  workspaceMembershipSlug: string | null;
   workspacePlan: string;
   canEditSiteShell: boolean;
   /**
@@ -593,10 +599,11 @@ export interface EditContextValue {
   setNavigatorWidth: (width: number) => void;
   /**
    * Short-lived selection feedback for freshly inserted/duplicated content.
-   * The navigator uses this to open, scroll, expand, and fade-highlight the
-   * row so operators can immediately see what changed.
+   * The navigator uses this to open, scroll, expand, and tier-highlight the
+   * most recent rows so operators can immediately see what changed.
    */
-  recentNavigatorAddition: NavigatorRecentAddition | null;
+  recentNavigatorAdditions: ReadonlyArray<NavigatorRecentAddition>;
+  clearNavigatorRecentAdditions: () => void;
 
   /**
    * Set a section's `presentation.visibility`. Used by the Navigator
@@ -1294,6 +1301,11 @@ interface EditProviderProps {
   initialComposition?: CompositionData | null;
   /** Storefront label threaded from EditChromeMount for top-bar tenant context. */
   tenantSiteLabel?: string | null;
+  /**
+   * Workspace admin URL segment (`/{slug}/admin/website`, …). Set on agency
+   * storefronts; null on hub — callers fall back to legacy `/admin/site-settings/*`.
+   */
+  workspaceMembershipSlug?: string | null;
   children: ReactNode;
 }
 
@@ -1306,6 +1318,7 @@ export function EditProvider({
   initialAvailableLocales,
   initialComposition = null,
   tenantSiteLabel = null,
+  workspaceMembershipSlug = null,
   children,
 }: EditProviderProps) {
   const router = useRouter();
@@ -1697,8 +1710,9 @@ export function EditProvider({
   const [navigatorWidth, setNavigatorWidthState] = useState(
     NAVIGATOR_WIDTH_DEFAULT,
   );
-  const [recentNavigatorAddition, setRecentNavigatorAddition] =
-    useState<NavigatorRecentAddition | null>(null);
+  const [recentNavigatorAdditions, setRecentNavigatorAdditions] = useState<
+    NavigatorRecentAddition[]
+  >([]);
   const markNavigatorAddition = useCallback(
     (
       sectionId: string,
@@ -1706,24 +1720,28 @@ export function EditProvider({
       kind: NavigatorRecentAddition["kind"] = "section",
     ) => {
       setNavigatorOpen(true);
-      setRecentNavigatorAddition({
+      const nextAddition: NavigatorRecentAddition = {
         sectionId,
         builderNodeId,
         kind,
         nonce: Date.now(),
+      };
+      setRecentNavigatorAdditions((current) => {
+        const withoutDuplicate = current.filter(
+          (item) =>
+            item.sectionId !== nextAddition.sectionId ||
+            item.builderNodeId !== nextAddition.builderNodeId,
+        );
+        return [nextAddition, ...withoutDuplicate].slice(0, 3);
       });
     },
     [],
   );
-  useEffect(() => {
-    if (!recentNavigatorAddition) return;
-    const timeout = window.setTimeout(() => {
-      setRecentNavigatorAddition((current) =>
-        current?.nonce === recentNavigatorAddition.nonce ? null : current,
-      );
-    }, 5400);
-    return () => window.clearTimeout(timeout);
-  }, [recentNavigatorAddition]);
+  const clearNavigatorRecentAdditions = useCallback(() => {
+    setRecentNavigatorAdditions((current) =>
+      current.length === 0 ? current : [],
+    );
+  }, []);
   const setNavigatorWidth = useCallback((width: number) => {
     if (!Number.isFinite(width)) return;
     const rounded = Math.round(width);
@@ -1923,6 +1941,12 @@ export function EditProvider({
   }, [liveSectionIds, selectedSectionId]);
   useEffect(() => {
     if (!selectedBuilderNodeIdOverride) return;
+    // P7A-2 — drop stale child selection if the reconciled tree no longer
+    // contains this id (defense in depth alongside sectionIdByBuilderNodeId).
+    if (!treeContainsBuilderNodeId(builderTree, selectedBuilderNodeIdOverride)) {
+      setSelectedBuilderNodeIdOverride(null);
+      return;
+    }
     const ownerSectionId =
       sectionIdByBuilderNodeId.get(selectedBuilderNodeIdOverride) ?? null;
     // Selection-sync hardening: if the selected child node disappeared from
@@ -1932,6 +1956,7 @@ export function EditProvider({
       setSelectedBuilderNodeIdOverride(null);
     }
   }, [
+    builderTree,
     selectedBuilderNodeIdOverride,
     sectionIdByBuilderNodeId,
     selectedSectionId,
@@ -1943,12 +1968,13 @@ export function EditProvider({
     : null;
   const selectBuilderNode = useCallback(
     (nodeId: string) => {
+      if (!treeContainsBuilderNodeId(builderTree, nodeId)) return;
       const sectionId = sectionIdByBuilderNodeId.get(nodeId);
       if (!sectionId) return;
       setSelectedSectionId(sectionId);
       setSelectedBuilderNodeIdOverride(nodeId);
     },
-    [sectionIdByBuilderNodeId, setSelectedSectionId],
+    [builderTree, sectionIdByBuilderNodeId, setSelectedSectionId],
   );
 
   const focusSectionForEdit = useCallback(
@@ -2863,12 +2889,9 @@ export function EditProvider({
         // Same-slot case: handled by overwriting targetSlotKey above.
         return { slots: nextSlots, metadata: prev.metadata };
       });
-      if (result.ok) {
-        markNavigatorAddition(sectionId);
-      }
       return result;
     },
-    [dispatchMutation, slotDefs, slots, reportMutationError, markNavigatorAddition],
+    [dispatchMutation, slotDefs, slots, reportMutationError],
   );
 
   moveSectionToRef.current = moveSectionTo;
@@ -4010,6 +4033,9 @@ export function EditProvider({
     () => ({
       tenantId,
       tenantSiteLabel: tenantSiteLabel ?? null,
+      workspaceMembershipSlug: workspaceMembershipSlug?.trim()
+        ? workspaceMembershipSlug.trim()
+        : null,
       workspacePlan: normalizedWorkspacePlan,
       canEditSiteShell,
       advancedElementLibraryEnabled,
@@ -4147,7 +4173,8 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
-      recentNavigatorAddition,
+      recentNavigatorAdditions,
+      clearNavigatorRecentAdditions,
       setSectionVisibility,
 
       saveDraft,
@@ -4161,6 +4188,7 @@ export function EditProvider({
     [
       tenantId,
       tenantSiteLabel,
+      workspaceMembershipSlug,
       normalizedWorkspacePlan,
       canEditSiteShell,
       advancedElementLibraryEnabled,
@@ -4278,7 +4306,8 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
-      recentNavigatorAddition,
+      recentNavigatorAdditions,
+      clearNavigatorRecentAdditions,
       setSectionVisibility,
       saveDraft,
       lastDraftSavedAt,

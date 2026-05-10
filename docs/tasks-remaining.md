@@ -1,8 +1,43 @@
 # Tulala — Remaining Work Plan
 
 **Source-of-truth task plan for everything left to ship.**
-**Updated 2026-05-05 — Phase 8 (all four billing lanes) marked shipped per `docs/handoffs/phase-8-3-audit-2026-05-04.md`; obsolete messages-3-thread migration row removed; capability count in OPERATING.md §12 updated to 64.**
+**Updated 2026-05-09 — Inventory recount: sequenced roadmap items reconciled to repo (`(dashboard)` route group absent → F4 marked shipped); F1 legacy-dashboard sweep verified empty; extended backlog cross-linked with checkbox totals.**
+
 **Conflicts with `plan-execution.md` resolve in favor of this document.**
+
+---
+
+## Executive summary — what is left (counts)
+
+Use these totals depending on what you are scheduling:
+
+| Bucket | Count | What it is |
+|--------|------:|------------|
+| **Roadmap — active build** | **1** | **Phase 4** — custom domain end-to-end (`<customdomain>.com/*`) |
+| **Roadmap — explicitly deferred** | **1** | **Phase X** — workspace × talent hybrid mode (large lift; not scheduled) |
+| **Roadmap — shipped since 2026-05-05 inventory** | — | **F4** — legacy `web/src/app/(dashboard)/admin/*` route tree **removed from repo** (verify no external bookmarks need 308 redirects) |
+| **Product decisions (Part 6)** | **7** | **Q1–Q7** — strategy/legal/product; unblock builds but are not dev tickets by themselves |
+| **Post-AI + CMS extended backlog** | **16** | Checkboxed tracks in [`docs/post-ai-quality-cms-backlog.md`](post-ai-quality-cms-backlog.md) (search merge, CMS remainder, refine, explanations) |
+
+**Single-number answers:**
+
+- **“How many roadmap phases left in Part 5?”** → **2** rows still listed (**Phase 4** open, **Phase X** deferred). If you only count shippable work (exclude deferrals): **1**.
+- **“How many checkbox tasks in the post-AI/CMS backlog doc?”** → **16**.
+- **“How many open decision rows?”** → **7** (Part 6).
+
+**Grand total of tracked engineering backlog lines (roadmap open + extended CMS/AI checkboxes, excluding deferrals and decisions):** **1 + 16 = 17**.
+
+### Parallel backlog — builder / edit chrome (~270 Cursor plan jobs)
+
+The **“270 jobs / plan YAML”** counter in Cursor is **not** a superset of the table above. It is a **separate** execution tree for the **page builder and admin-shell cutover** work, stored as many small YAML `todos` in **`.cursor/plans/builder-phase-truth-roadmap.plan.md`**.
+
+| Question | Answer |
+|----------|--------|
+| **Canonical human doc for that work** | [`web/docs/builder-execution-plan-2026.md`](../web/docs/builder-execution-plan-2026.md) — *single source of truth for builder phases, P7A/P7B, PR tasks* |
+| **Machine list (≈270 items)** | `.cursor/plans/builder-phase-truth-roadmap.plan.md` — *stays in sync with the doc when you update the plan* |
+| **How to ensure nothing is “missing”** | (1) **Do not** expect every YAML row to appear in *this* file — different product surface. (2) **Do** reconcile by mapping **high-level IDs** (P7A-2, `pr-p1-1`, etc.) from §4 of `builder-execution-plan-2026.md` to plan `todos` **id** fields. (3) When a builder slice touches **Tulala-wide** concerns (e.g. custom domains), add or update a row **here** in Part 5 / Phase 4. |
+
+**Rule of thumb:** *Product + SaaS roadmap* → **`docs/tasks-remaining.md`**. *CMS builder + convergence* → **`web/docs/builder-execution-plan-2026.md`** (+ YAML plan).
 
 ---
 
@@ -164,23 +199,17 @@ The mode-switcher UI (top nav) lets the user flip between dashboards within the 
 | **Platform super_admin console**                         | `app.tulala.digital/platform/admin/{today,tenants,users,network,billing,operations,settings}` | live (this commit) |
 | Public marketing pages                                   | `tulala.digital/{pricing,faq,operators,...}`              | live         |
 
-### ❌ Major gaps (work below)
+### ❌ Major gaps (current — 2026-05-09)
 
-1. Path-based public workspace on `tulala.digital/<slug>` (Free plan storefront)
-2. Path-based talent on `tulala.digital/<slug>/t/<talentSlug>`
-3. Branded admin shortcut on `<slug>.tulala.digital/admin`
-4. Branded client dashboard on `<slug>.tulala.digital/client`
-5. Branded talent dashboard on `<slug>.tulala.digital/talent` (today's `/<slug>/talent` is app-host only)
-6. Branded talent registration `<slug>.tulala.digital/talent/register` + `/join`
-7. Branded client registration `<slug>.tulala.digital/client/register`
-8. Custom domain support `<customdomain>.com/*`
-9. Inquiry source attribution (`source_workspace_id`, `origin_domain`)
-10. Real-time messages (3-thread model + Supabase Realtime)
-11. Trust badge ladder display + verification flow
-12. Stripe billing integration (Phase 8 — workspace plans, talent subscriptions, trust verification fee)
-13. Field catalog frontend cutover (constants → `loadFieldCatalog()`)
-14. Capability migration of 27 legacy callers in `(dashboard)/*` to `lib/access/`
-15. Legacy `(dashboard)/admin/*` deletion per surface (Phase 4 cleanup)
+Everything in the previous long list through **Phase 3.15**, **F2**, **F3**, **realtime messaging**, **billing Phase 8**, **trust foundations**, **branded hosts**, etc. is treated as **shipped or superseded** per **Part 5** below and repo state.
+
+**What actually remains at the roadmap level:**
+
+1. **Phase 4 — Custom domains** — verification + Vercel provisioning + workspace UI for arbitrary domains on `agency_domains` (see Phase 4 section).
+2. **Phase X — Hybrid workspace × talent** — deferred (see Phase X section).
+3. **Extended quality/CMS work** — not duplicated here; tracked as **16** checkbox items in [`docs/post-ai-quality-cms-backlog.md`](post-ai-quality-cms-backlog.md) (AI merge/refine/explain + posts/navigation/8.6B/audit/RLS polish).
+
+**Hygiene:** Confirm **308 redirects** from any bookmarked legacy URLs if analytics show traffic (legacy `(dashboard)` tree is gone from source).
 
 ---
 
@@ -421,16 +450,11 @@ Big lift, deferred.
 
 ### F1 — Phase 2 capability migration (legacy callers → lib/access/)
 
-**Status:** 27 legacy callers remain in `web/src/app/(dashboard)/*`.
+**Status (2026-05-09):** **`web/src/app/(dashboard)/`** route group is **not present** in the tree — legacy-dashboard migration targets are **gone**. Remaining `requirePhase5Capability` / `hasPhase5Capability` usages are **intentional** calls into `web/src/lib/site-admin/capabilities.ts`, which **delegates** to `@/lib/access` (deprecated shim by design).
 
-**Action:** for each call site, swap:
-- `hasPhase5Capability(...)` → `userHasCapability(...)` from `@/lib/access`
-- `requirePhase5Capability(...)` → `requireCapability(...)` from `@/lib/access`
-- `hasCapability(...)` from `@/lib/saas/capabilities` → same swap
+**Optional follow-up (cosmetic):** replace site-admin call sites with direct `requireCapability` imports for clarity; not blocking.
 
-Already-existing `lib/saas/capabilities.ts` and `lib/site-admin/capabilities.ts` become thin re-export shims with `@deprecated` JSDoc.
-
-**Done when:** `git grep "hasPhase5Capability\|requirePhase5Capability"` matches only the deprecated re-export shims, parity test green, capability-keys check intact.
+**Original done criterion:** parity tests + `check:capability-keys` green when touching auth surfaces.
 
 ### F2 — Field catalog frontend cutover
 
@@ -440,9 +464,8 @@ Already-existing `lib/saas/capabilities.ts` and `lib/site-admin/capabilities.ts`
 
 ### F3 — Inquiry source attribution migration
 
-**Status:** schema and code don't carry source attribution today.
+**Status (2026-05-09):** **Shipped** (columns + write paths per Phase 5 items 3–4). The SQL below is **historical reference** only — do not re-run blindly.
 
-**Migration:**
 ```sql
 ALTER TABLE inquiries
   ADD COLUMN source_workspace_id uuid NULL REFERENCES agencies(id),
@@ -460,15 +483,9 @@ ALTER TABLE agency_client_relationship
   ADD COLUMN origin_domain text NULL;
 ```
 
-Backfill: existing rows get `source_workspace_id = tenant_id` (best guess).
-
-Wire writes: every server action that creates an inquiry / talent registration / client registration sets these from the resolved host context.
-
 ### F4 — Phase 4 cleanup (delete legacy `(dashboard)/admin/*` per surface)
 
-After each Phase 3 promotion verifies, delete the legacy equivalent under `(dashboard)/admin/<feature>/`. Add 308 redirect from legacy URL to new canonical URL. Delete hardcoded plan/role/capability strings.
-
-When all surfaces are deleted: remove `(dashboard)/` route group entirely.
+**Status (2026-05-09):** **`(dashboard)` route group removed** from `web/src/app`. Remaining work is **redirect hygiene** if analytics show hits to old URLs — add 308s to canonical `/(workspace)/[tenantSlug]/admin/*` routes.
 
 ### F5 — Verification + documentation
 
@@ -516,9 +533,9 @@ After each phase:
 11. ✅ **Phase 3.14** — Branded registration flows + `/join` alias (role-specific register pages, `/join`, branded onboarding intent, relationship/roster creation, portal-safe tenant resolution, public profile CTA handoff, and client `/inquiries/new` creation flow are wired)
 12. ✅ **Phase 3.15** — Path-based public workspace on `tulala.digital/<slug>` (implemented with localhost QA support and path-prefix-safe public links)
 13. ✅ **F2** — Field catalog frontend cutover (production settings reads `loadFieldCatalog()`; prototype constants remain prototype-only)
-14. ⏳ **Phase 4 (custom domains)** — `<customdomain>.com/*` support
-15. ⏳ **F4** — Per-surface deletion of legacy `(dashboard)/admin/*` after parity confirmation
-16. ⏳ **Phase X** — Workspace × Talent hybrid mode (deferred, big lift)
+14. ⏳ **Phase 4 (custom domains)** — `<customdomain>.com/*` support (DNS verify, Vercel provision, Domains UI)
+15. ✅ **F4** — Legacy `(dashboard)/admin/*` **removed** from repo (2026-05-09 tree check — no `(dashboard)` segment under `web/src/app`). Add redirects only if external links still hit old paths.
+16. ⏳ **Phase X** — Workspace × Talent hybrid mode (**deferred**, big lift — do not schedule until Phase 4 + extended backlog priorities are clear)
 
 ---
 

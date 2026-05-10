@@ -33,6 +33,7 @@ import {
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
+import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import {
   SECTION_REGISTRY,
   type SectionTypeKey,
@@ -66,10 +67,27 @@ export async function HomepageCmsSections({
   locale,
   onlySlot,
 }: HomepageCmsSectionsProps) {
+  const [editMode, previewActive, publicPathPrefix] = await Promise.all([
+    isEditModeActiveForTenant(tenantId),
+    isPreviewActiveForTenant(tenantId),
+    getPublicPathPrefix(),
+  ]);
+
   const entries = onlySlot
     ? snapshot.slots.filter((s) => s.slotKey === onlySlot)
     : snapshot.slots;
-  if (entries.length === 0) return null;
+
+  if (entries.length === 0) {
+    if (!editMode && !previewActive) return null;
+    return (
+      <div
+        className="min-h-[50vh] w-full"
+        data-cms-page-empty=""
+        aria-hidden
+      />
+    );
+  }
+
   const builderTreeResolution = resolveSnapshotBuilderTree(snapshot);
   const builderSectionNodeIds = indexBuilderSectionNodeIds(builderTreeResolution.tree);
   const builderSectionNodes = indexBuilderSectionNodes(builderTreeResolution.tree);
@@ -90,14 +108,6 @@ export async function HomepageCmsSections({
       issues: builderTreeResolution.issues,
     });
   }
-
-  // Edit-mode wrapper: when active, each rendered section is wrapped in a
-  // div carrying section identity so the client chrome can target it for
-  // hover/selection overlays. View mode renders identically to before.
-  const [editMode, publicPathPrefix] = await Promise.all([
-    isEditModeActiveForTenant(tenantId),
-    getPublicPathPrefix(),
-  ]);
 
   return (
     <>

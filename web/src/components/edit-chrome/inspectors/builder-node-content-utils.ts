@@ -4,6 +4,14 @@ import {
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
 
+/** Returns true when `nodeId` exists in the current reconciled tree (P7A-2 honest selection). */
+export function treeContainsBuilderNodeId(
+  tree: BuilderNodeTree,
+  nodeId: string,
+): boolean {
+  return findBuilderNodeById(tree, nodeId) != null;
+}
+
 export function findBuilderNodeById(
   tree: BuilderNodeTree,
   nodeId: string | null,

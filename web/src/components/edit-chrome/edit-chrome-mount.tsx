@@ -207,6 +207,11 @@ export async function EditChromeMount() {
     }
   }
 
+  const workspaceMembershipSlug =
+    ctx.kind === "agency" && ctx.tenantSlug.trim() !== ""
+      ? ctx.tenantSlug
+      : null;
+
   return (
     <EditChrome
       tenantId={ctx.tenantId}
@@ -218,6 +223,7 @@ export async function EditChromeMount() {
       initialComposition={initialComposition}
       workspacePlan={workspacePlan}
       tenantSiteLabel={tenantSiteLabel}
+      workspaceMembershipSlug={workspaceMembershipSlug}
     />
   );
 }

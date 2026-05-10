@@ -172,6 +172,10 @@ export function ImageCopyAlternatingComponent({
     nodePresentation,
     presentation,
   } = props;
+  const resolvedImageRatio =
+    typeof imageRatio === "string" && imageRatio.includes("/")
+      ? imageRatio
+      : "5/6";
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
   const eyebrowNode = nodePresentation?.subheadline;
   const headlineNode = nodePresentation?.headline;
@@ -208,7 +212,7 @@ export function ImageCopyAlternatingComponent({
       data-gap={gap}
       {...presentationDataAttrs(presentation)}
       style={{
-        ["--ic-ratio" as string]: imageRatio.replace("/", " / "),
+        ["--ic-ratio" as string]: resolvedImageRatio.replace("/", " / "),
         ...presentationInlineStyles(presentation),
       }}
     >

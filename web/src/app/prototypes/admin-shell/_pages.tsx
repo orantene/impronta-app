@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
 import {
   buildPostPublicPathname,
   buildPublicPathname,
@@ -8605,10 +8606,108 @@ function resolveWebsiteEditorBaseUrl({
   return liveOrigin;
 }
 
+/** Website → Pages grid filter — matches `WebsitePageRow["status"]` plus All. */
+type WebsitePagesTabId = "all" | WebsitePageRow["status"];
+
+function WebsitePagesStatusTabs({
+  active,
+  onChange,
+  counts,
+}: {
+  active: WebsitePagesTabId;
+  onChange: (id: WebsitePagesTabId) => void;
+  counts: Record<WebsitePagesTabId, number>;
+}) {
+  const tabs: { id: WebsitePagesTabId; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "published", label: "Live" },
+    { id: "draft", label: "Draft" },
+    { id: "scheduled", label: "Scheduled" },
+    { id: "archived", label: "Archived" },
+  ];
+  return (
+    <div
+      role="group"
+      aria-label="Filter pages by publication status"
+      data-tulala-pages-status-filter
+      style={{
+        display: "inline-flex",
+        flexWrap: "wrap",
+        gap: 6,
+        marginBottom: 12,
+        position: "relative",
+        zIndex: 1,
+        background: COLORS.surfaceAlt,
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 999,
+        padding: 3,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {tabs.map(t => {
+        const n = counts[t.id];
+        const isActive = active === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            aria-pressed={isActive}
+            aria-label={`${t.label}: ${n} pages`}
+            onClick={() => onChange(t.id)}
+            style={{
+              padding: "6px 12px",
+              fontSize: 11.5,
+              fontWeight: 600,
+              letterSpacing: 0.15,
+              borderRadius: 999,
+              border: "none",
+              cursor: "pointer",
+              background: isActive ? "#fff" : "transparent",
+              color: isActive ? COLORS.ink : COLORS.inkMuted,
+              boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
+              transition: "all 120ms ease",
+              fontFamily: FONTS.body,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {t.label}
+            <span
+              style={{
+                fontVariantNumeric: "tabular-nums",
+                fontSize: 10.5,
+                fontWeight: 700,
+                color: isActive ? COLORS.inkDim : COLORS.inkMuted,
+                opacity: 0.85,
+              }}
+            >
+              {n}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function WebsitePage() {
-  const { state, openDrawer, toast, effectiveWebsiteState, locale, tenantSlug } = useProto();
+  const router = useRouter();
+  const {
+    state,
+    openDrawer,
+    toast,
+    effectiveWebsiteState,
+    locale,
+    tenantSlug,
+    websiteUsesLiveCms,
+  } = useProto();
   const canEdit = meetsRole(state.role, "admin");
   const w = effectiveWebsiteState;
+
+  const [isCreatingPage, startCreatePageTransition] = useTransition();
+
+  const [pagesTab, setPagesTab] = useState<WebsitePagesTabId>("all");
 
   const [windowOrigin, setWindowOrigin] = useState("");
   useEffect(() => {
@@ -8673,13 +8772,70 @@ function WebsitePage() {
     window.open(`${editorBaseUrl}?edit=1&panel=sections`, "_blank", "noopener,noreferrer");
     toast("Opening homepage editor…");
   }, [editorBaseUrl, toast]);
+
+  const handleAddPage = useCallback(() => {
+    startCreatePageTransition(() => {
+      void (async () => {
+        const res = await createDraftPageAction();
+        if (!res.ok) {
+          toast(res.error);
+          return;
+        }
+        await router.refresh();
+        if (!editorBaseUrl) {
+          toast("Draft page created — open it from the list with Visual editor.");
+          return;
+        }
+        const inner = normalizeSlugPath(res.slug.replace(/^\/+/u, ""));
+        if (!isValidSlugPath(inner)) {
+          toast("Draft page created — open it from the list.");
+          return;
+        }
+        const pathname = buildPublicPathname(locale as Locale, inner);
+        window.open(
+          `${editorBaseUrl}${pathname}?edit=1&panel=pageSettings`,
+          "_blank",
+          "noopener,noreferrer",
+        );
+        toast("Opening visual editor…");
+      })();
+    });
+  }, [
+    editorBaseUrl,
+    locale,
+    router,
+    startCreatePageTransition,
+    toast,
+  ]);
+
   const totals = {
     publishedPages: w.pages.filter(p => p.status === "published").length,
     draftPages: w.pages.filter(p => p.status === "draft").length,
     scheduledPages: w.pages.filter(p => p.status === "scheduled").length,
+    archivedPages: w.pages.filter(p => p.status === "archived").length,
     publishedPosts: w.posts.filter(p => p.status === "published").length,
     activeRedirects: w.redirects.filter(r => r.active).length,
   };
+
+  const pagesTabCounts = useMemo(
+    (): Record<WebsitePagesTabId, number> => ({
+      all: w.pages.length,
+      published: totals.publishedPages,
+      draft: totals.draftPages,
+      scheduled: totals.scheduledPages,
+      archived: totals.archivedPages,
+    }),
+    [
+      w.pages.length,
+      totals.publishedPages,
+      totals.draftPages,
+      totals.scheduledPages,
+      totals.archivedPages,
+    ],
+  );
+
+  const filteredPages =
+    pagesTab === "all" ? w.pages : w.pages.filter(p => p.status === pagesTab);
   const fmtMoney = (n: number) => `€${n.toLocaleString()}`;
 
   return (
@@ -8704,6 +8860,17 @@ function WebsitePage() {
                 <Icon name="pencil" size={12} stroke={1.7} /> Edit homepage
               </span>
             </SecondaryButton>
+            {websiteUsesLiveCms && canEdit ? (
+              <PrimaryButton
+                size="sm"
+                disabled={!liveOrigin || isCreatingPage}
+                onClick={handleAddPage}
+              >
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="plus" size={12} stroke={1.7} /> Add page
+                </span>
+              </PrimaryButton>
+            ) : null}
           </>
         }
       />
@@ -8768,6 +8935,7 @@ function WebsitePage() {
           <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>Pages</h2>
           <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
             {totals.publishedPages} live · {totals.draftPages} draft · {totals.scheduledPages} scheduled
+            {totals.archivedPages > 0 ? ` · ${totals.archivedPages} archived` : ""}
           </span>
         </div>
         <p style={{ margin: "0 0 12px", fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, lineHeight: 1.45 }}>
@@ -8782,19 +8950,51 @@ function WebsitePage() {
             compact
           />
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-            {(() => {
-              const maxHits = Math.max(...w.pages.map(p => p.hits7d ?? 0), 1);
-              return w.pages.map(p => (
-                <PageVisualCard
-                  key={p.id}
-                  page={p}
-                  maxHits={maxHits}
-                  onClick={() => openPageVisualEditor(p)}
-                />
-              ));
-            })()}
-          </div>
+          <>
+            <WebsitePagesStatusTabs active={pagesTab} onChange={setPagesTab} counts={pagesTabCounts} />
+            {filteredPages.length === 0 ? (
+              <EmptyState
+                icon="info"
+                title={
+                  pagesTab === "draft"
+                    ? "No draft pages"
+                    : pagesTab === "scheduled"
+                      ? "Nothing scheduled"
+                      : pagesTab === "archived"
+                        ? "No archived pages"
+                        : pagesTab === "published"
+                          ? "No live pages"
+                          : "No pages"
+                }
+                body={
+                  pagesTab === "draft"
+                    ? "Drafts you save before publishing will appear here."
+                    : pagesTab === "scheduled"
+                      ? "Pages with a future publish time show under Scheduled."
+                      : pagesTab === "archived"
+                        ? "Archived pages are hidden from the live site but stay in your workspace."
+                        : pagesTab === "published"
+                          ? "Publish a draft or pick another tab."
+                          : "Try another filter."
+                }
+                compact
+              />
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+                {(() => {
+                  const maxHits = Math.max(...filteredPages.map(p => p.hits7d ?? 0), 1);
+                  return filteredPages.map(p => (
+                    <PageVisualCard
+                      key={p.id}
+                      page={p}
+                      maxHits={maxHits}
+                      onClick={() => openPageVisualEditor(p)}
+                    />
+                  ));
+                })()}
+              </div>
+            )}
+          </>
         )}
       </section>
 

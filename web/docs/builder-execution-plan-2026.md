@@ -678,6 +678,8 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 | Date | Change |
 |------|--------|
+| 2026-05-10 | **P7A-2 (partial, code):** `selectBuilderNode` + selection-sync effect reject **stale ids** not present in the reconciled `builderTree` (`treeContainsBuilderNodeId` in [`builder-node-content-utils.ts`](../src/components/edit-chrome/inspectors/builder-node-content-utils.ts)). **Full P7A-2 acceptance** still requires manual **inspector ↔ tree** QA on a registered host (roadmap table). |
+| 2026-05-10 | **CI sanity:** `npm run test:builder-capabilities` → **68/68 pass** on repo HEAD. This validates helpers/policies only — **Phase 0 registered-host matrix**, **exec-p0-edit-loop** evidence, and **P7A-2…4** acceptance remain **human / integration** work per §Current execution priority. The Cursor YAML plan (`.cursor/plans/builder-phase-truth-roadmap.plan.md`) lists **~100 `pending`** todos — execute in roadmap order; statuses live in that file + Cursor UI (batch completion is **multi-session**). |
 | 2026-05-09 | **Changelog hygiene:** Tag **(Historical)** rows that described **Gate 0 → P7A-1** sequencing so they are not read as current policy. |
 | 2026-05-09 | **Gate 0 + planning freeze + §7A task table:** Gate 0 reframed as **post-ship regression checklist**; planning freeze / **Current execution priority** / **P7A-1** row aligned with **P7A-0+P7A-1 in code** and **next = QA + P7A-2…4 acceptance**. |
 | 2026-05-09 | **§8 + Phase 7 implementation row:** Reflect **P7A-0 / P7A-1 landed in code**; next = human QA + **P7A-2…4** acceptance vs **7A Reality Test** (not Gate 0 blocking P7A-1). |

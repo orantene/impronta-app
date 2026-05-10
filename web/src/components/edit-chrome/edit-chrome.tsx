@@ -89,6 +89,11 @@ interface EditChromeProps {
   initialComposition?: import("@/lib/site-admin/edit-mode/composition-actions").CompositionData | null;
   /** Storefront public name — top bar shows Tulala Builder vs this tenant site. */
   tenantSiteLabel?: string | null;
+  /**
+   * `agencies.slug` / workspace URL segment for `/{slug}/admin/*`.
+   * Null on hub storefronts (no host-level slug); edit chrome falls back to legacy `/admin/site-settings/*` redirects.
+   */
+  workspaceMembershipSlug?: string | null;
 }
 
 export function EditChrome({
@@ -101,6 +106,7 @@ export function EditChrome({
   defaultLocale,
   initialComposition,
   tenantSiteLabel = null,
+  workspaceMembershipSlug = null,
 }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
   // stable; the EditPill branch ignores the subscription.
@@ -135,6 +141,7 @@ export function EditChrome({
         defaultLocale={defaultLocale}
         initialComposition={initialComposition}
         tenantSiteLabel={tenantSiteLabel}
+        workspaceMembershipSlug={workspaceMembershipSlug}
       />
     );
   }
@@ -163,6 +170,7 @@ export function EditChrome({
         defaultLocale={defaultLocale}
         initialComposition={initialComposition}
         tenantSiteLabel={tenantSiteLabel}
+        workspaceMembershipSlug={workspaceMembershipSlug}
       />
     </>
   );

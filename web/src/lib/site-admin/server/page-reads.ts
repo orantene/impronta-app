@@ -36,6 +36,7 @@ import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/legacy-se
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -159,14 +160,11 @@ export async function loadDraftCmsPageBySlug(
   const supabase = createServiceRoleClient();
   if (!supabase) return null;
 
-  const platformLocale: PlatformLocale = isPlatformLocale(locale)
+  const requestedLocale: PlatformLocale = isPlatformLocale(locale)
     ? locale
     : DEFAULT_PLATFORM_LOCALE;
 
-  const { data: pageRow, error: pageErr } = await supabase
-    .from("cms_pages")
-    .select(
-      `
+  const PAGE_SELECT = `
       id,
       tenant_id,
       locale,
@@ -184,16 +182,9 @@ export async function loadDraftCmsPageBySlug(
       version,
       published_at,
       system_template_key
-    `,
-    )
-    .eq("tenant_id", tenantId)
-    .eq("locale", platformLocale)
-    .eq("slug", slug)
-    .neq("status", "archived")
-    .maybeSingle();
-  if (pageErr || !pageRow) return null;
+    `;
 
-  const pr = pageRow as {
+  type DraftPageRow = {
     id: string;
     tenant_id: string;
     locale: string;
@@ -212,6 +203,45 @@ export async function loadDraftCmsPageBySlug(
     published_at: string | null;
     system_template_key: string | null;
   };
+
+  let pageRow: DraftPageRow | null = null;
+
+  const { data: strictMatch, error: strictErr } = await supabase
+    .from("cms_pages")
+    .select(PAGE_SELECT)
+    .eq("tenant_id", tenantId)
+    .eq("locale", requestedLocale)
+    .eq("slug", slug)
+    .neq("status", "archived")
+    .maybeSingle<DraftPageRow>();
+
+  if (!strictErr && strictMatch) {
+    pageRow = strictMatch;
+  } else {
+    const { data: looseList, error: looseErr } = await supabase
+      .from("cms_pages")
+      .select(PAGE_SELECT)
+      .eq("tenant_id", tenantId)
+      .eq("slug", slug)
+      .neq("status", "archived");
+
+    if (looseErr) return null;
+    const list = (looseList ?? []) as DraftPageRow[];
+    if (list.length === 0) return null;
+    if (list.length === 1) {
+      pageRow = list[0]!;
+    } else {
+      const tenantLocales = await loadTenantLocaleSettings(tenantId);
+      pageRow =
+        list.find((r) => r.locale === requestedLocale) ??
+        list.find((r) => r.locale === tenantLocales.defaultLocale) ??
+        list[0]!;
+    }
+  }
+
+  if (!pageRow) return null;
+
+  const pr = pageRow;
 
   if (pr.system_template_key === "homepage") return null;
 
@@ -308,11 +338,15 @@ export async function loadDraftCmsPageBySlug(
     builderTree: preferredBuilderTree,
   });
 
+  const snapshotLocale: PlatformLocale = isPlatformLocale(pr.locale)
+    ? pr.locale
+    : DEFAULT_PLATFORM_LOCALE;
+
   const snapshot: HomepageSnapshot = {
     version: 1,
     publishedAt: pr.published_at ?? new Date().toISOString(),
     pageVersion: pr.version,
-    locale: platformLocale,
+    locale: snapshotLocale,
     fields: {
       title: pr.title,
       metaDescription: pr.meta_description,

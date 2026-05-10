@@ -1,5 +1,7 @@
 # Post–AI quality + CMS completion (follow-up track)
 
+**Tracked checkbox items (Tracks A + D + B + C):** **16** *(updated 2026-05-09 — see checklist sections below).*
+
 This document is the **detail companion** for the **Next execution track** in [docs/execution-plan.md](execution-plan.md). It sits **after** the closed baseline (**Phases 9–13** + first-pass 8.8 / 8.9): **do not reopen** those phases here — only **extend** quality and CMS remainder.
 
 It includes an **implementation audit** (honest gaps vs docs) and **checklisted workstreams** in the **mandatory execution order: A → D → B → C**.

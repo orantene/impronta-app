@@ -106,6 +106,32 @@ const NAVIGATOR_ROW_FONT_SIZE = 14;
 const NAVIGATOR_SECTION_FONT_SIZE = 15;
 const NAVIGATOR_ICON_SIZE = 16;
 const NAVIGATOR_ACTION_ICON_SIZE = 15;
+const NAVIGATOR_RECENT_STYLES = [
+  {
+    label: "Newest",
+    background: "rgba(250, 205, 62, 0.34)",
+    inset: "#f2b705",
+    ring: "rgba(242,183,5,0.40)",
+    chipBackground: "#f2b705",
+    chipColor: "#221a00",
+  },
+  {
+    label: "Recent",
+    background: "rgba(250, 205, 62, 0.18)",
+    inset: "rgba(242,183,5,0.68)",
+    ring: "rgba(242,183,5,0.20)",
+    chipBackground: "rgba(242,183,5,0.26)",
+    chipColor: "#5f4700",
+  },
+  {
+    label: "Added",
+    background: "rgba(250, 205, 62, 0.08)",
+    inset: "rgba(242,183,5,0.36)",
+    ring: "rgba(242,183,5,0.12)",
+    chipBackground: "rgba(242,183,5,0.14)",
+    chipColor: "#7a5a00",
+  },
+] as const;
 
 interface FlatRow {
   ref: CompositionSectionRef;
@@ -217,7 +243,8 @@ export function NavigatorPanel() {
     canEditSiteShell,
     navigatorOpen,
     navigatorWidth,
-    recentNavigatorAddition,
+    recentNavigatorAdditions,
+    clearNavigatorRecentAdditions,
     setNavigatorWidth,
     toggleNavigator,
     setSectionVisibility,
@@ -262,13 +289,6 @@ export function NavigatorPanel() {
   const [hoveredChildNodeId, setHoveredChildNodeId] = useState<string | null>(null);
   const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
   const [focusedChildNodeId, setFocusedChildNodeId] = useState<string | null>(null);
-  const [navigatorFlash, setNavigatorFlash] = useState<{
-    sectionId: string;
-    builderNodeId: string | null;
-    kind: "section" | "block";
-    nonce: number;
-    phase: "fresh" | "fade";
-  } | null>(null);
   const [resizing, setResizing] = useState(false);
   const [resizeHandleHovered, setResizeHandleHovered] = useState(false);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
@@ -531,56 +551,37 @@ export function NavigatorPanel() {
     }
     return labels;
   }, [flat, headingProbe]);
+  const newestNavigatorAddition = recentNavigatorAdditions[0] ?? null;
   useEffect(() => {
-    if (!recentNavigatorAddition) return;
+    if (!newestNavigatorAddition) return;
     setSearch("");
-    setNavigatorFlash({ ...recentNavigatorAddition, phase: "fresh" });
 
-    if (recentNavigatorAddition.builderNodeId) {
+    if (newestNavigatorAddition.builderNodeId) {
       setExpandedSectionIds((prev) => {
-        if (prev.has(recentNavigatorAddition.sectionId)) return prev;
+        if (prev.has(newestNavigatorAddition.sectionId)) return prev;
         const next = new Set(prev);
-        next.add(recentNavigatorAddition.sectionId);
+        next.add(newestNavigatorAddition.sectionId);
         return next;
       });
     }
 
-    let firstFrame = 0;
-    let secondFrame = 0;
     const scrollTimeout = window.setTimeout(() => {
-      const selector = recentNavigatorAddition.builderNodeId
+      const selector = newestNavigatorAddition.builderNodeId
         ? `[data-navigator-child-node][data-builder-node-id="${CSS.escape(
-            recentNavigatorAddition.builderNodeId,
+            newestNavigatorAddition.builderNodeId,
           )}"]`
         : `[data-navigator-section-row][data-section-id="${CSS.escape(
-            recentNavigatorAddition.sectionId,
+            newestNavigatorAddition.sectionId,
           )}"]`;
       document
         .querySelector<HTMLElement>(selector)
         ?.scrollIntoView({ block: "center", behavior: "smooth" });
     }, 80);
-    firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => {
-        setNavigatorFlash((current) =>
-          current?.nonce === recentNavigatorAddition.nonce
-            ? { ...current, phase: "fade" }
-            : current,
-        );
-      });
-    });
-    const clearTimeoutId = window.setTimeout(() => {
-      setNavigatorFlash((current) =>
-        current?.nonce === recentNavigatorAddition.nonce ? null : current,
-      );
-    }, 5200);
 
     return () => {
       window.clearTimeout(scrollTimeout);
-      window.clearTimeout(clearTimeoutId);
-      window.cancelAnimationFrame(firstFrame);
-      window.cancelAnimationFrame(secondFrame);
     };
-  }, [recentNavigatorAddition]);
+  }, [newestNavigatorAddition]);
   const labelFor = useCallback(
     (row: FlatRow) =>
       displayNameById.get(row.ref.sectionId) ??
@@ -723,6 +724,10 @@ export function NavigatorPanel() {
       builderNodeId: string | null,
       e: React.MouseEvent | React.KeyboardEvent,
     ) => {
+      const clickedRecent = recentNavigatorAdditions.some(
+        (item) => item.sectionId === sectionId && item.builderNodeId === null,
+      );
+      if (!clickedRecent) clearNavigatorRecentAdditions();
       if (e.shiftKey) {
         extendSelection(sectionId);
         return;
@@ -737,7 +742,14 @@ export function NavigatorPanel() {
         focusSectionForEdit(sectionId);
       }
     },
-    [extendSelection, selectBuilderNode, toggleSelection, focusSectionForEdit],
+    [
+      clearNavigatorRecentAdditions,
+      extendSelection,
+      focusSectionForEdit,
+      recentNavigatorAdditions,
+      selectBuilderNode,
+      toggleSelection,
+    ],
   );
 
   /** Inspector/canvas parity when section chrome fires without a prior row click. */
@@ -1918,11 +1930,15 @@ export function NavigatorPanel() {
             );
             const moveInFlight = Boolean(pendingMoveKey);
             const sectionActionRight = row.childNodes.length > 0 ? 92 : 44;
-            const rowFlashActive =
-              navigatorFlash?.sectionId === row.ref.sectionId &&
-              navigatorFlash.builderNodeId === null;
-            const rowFlashFresh =
-              rowFlashActive && navigatorFlash?.phase === "fresh";
+            const rowRecentIndex = recentNavigatorAdditions.findIndex(
+              (item) =>
+                item.sectionId === row.ref.sectionId &&
+                item.builderNodeId === null,
+            );
+            const rowRecentStyle =
+              rowRecentIndex >= 0
+                ? NAVIGATOR_RECENT_STYLES[rowRecentIndex]
+                : null;
             const rowBaseBackground = isPrimary
               ? "rgba(42, 49, 71, 0.10)"
               : isAdditional
@@ -2030,8 +2046,8 @@ export function NavigatorPanel() {
                     minHeight: 34,
                     padding: "5px 8px",
                     borderRadius: CHROME_RADII.sm,
-                    background: rowFlashFresh
-                      ? "rgba(250, 205, 62, 0.36)"
+                    background: rowRecentStyle
+                      ? rowRecentStyle.background
                       : rowBaseBackground,
                     color: hidden ? CHROME.muted2 : CHROME.text,
                     fontSize: 15,
@@ -2044,16 +2060,15 @@ export function NavigatorPanel() {
                         : hidden && !selected
                           ? 0.6
                           : 1,
-                    boxShadow: rowFlashFresh
-                      ? `inset 4px 0 0 #f2b705, 0 0 0 1px rgba(242,183,5,0.38)`
+                    boxShadow: rowRecentStyle
+                      ? `inset 4px 0 0 ${rowRecentStyle.inset}, 0 0 0 1px ${rowRecentStyle.ring}`
                       : rowBaseBoxShadow,
-                    transition: rowFlashActive
-                      ? "background 4.8s ease-out, color 80ms ease, opacity 120ms ease, box-shadow 4.8s ease-out"
-                      : "background 80ms ease, color 80ms ease, opacity 120ms ease, box-shadow 120ms ease",
+                    transition:
+                      "background 140ms ease, color 80ms ease, opacity 120ms ease, box-shadow 140ms ease",
                   }}
                   onMouseEnter={(e) => {
                     setHoveredSectionId(row.ref.sectionId);
-                    if (!selected && !rowFlashActive) {
+                    if (!selected && !rowRecentStyle) {
                       e.currentTarget.style.background =
                         "rgba(42,49,71,0.045)";
                     }
@@ -2074,7 +2089,7 @@ export function NavigatorPanel() {
                     setHoveredSectionId((current) =>
                       current === row.ref.sectionId ? null : current,
                     );
-                    if (!selected && !rowFlashActive) {
+                    if (!selected && !rowRecentStyle) {
                       e.currentTarget.style.background = CHROME.surface;
                     }
                   }}
@@ -2153,28 +2168,26 @@ export function NavigatorPanel() {
                       marginTop: 0,
                     }}
                   >
-                    {rowFlashActive ? (
+                    {rowRecentStyle ? (
                       <span
-                        aria-label="Newly added section"
-                        title="Newly added section"
+                        aria-label={`${rowRecentStyle.label} added section`}
+                        title={`${rowRecentStyle.label} added section`}
                         style={{
                           height: 18,
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
                           padding: "0 6px",
-                          background: "#f2b705",
-                          color: "#221a00",
+                          background: rowRecentStyle.chipBackground,
+                          color: rowRecentStyle.chipColor,
                           fontSize: 9,
                           fontWeight: 800,
                           lineHeight: 1,
                           textTransform: "uppercase",
                           letterSpacing: "0.04em",
-                          opacity: rowFlashFresh ? 1 : 0,
-                          transition: "opacity 4.8s ease-out",
                         }}
                       >
-                        New
+                        {rowRecentStyle.label}
                       </span>
                     ) : null}
                     {row.childNodes.length > 0 &&
@@ -2448,10 +2461,13 @@ export function NavigatorPanel() {
                         `node:${child.id}:`,
                       );
                       const moveInFlight = Boolean(pendingMoveKey);
-                      const childFlashActive =
-                        navigatorFlash?.builderNodeId === child.id;
-                      const childFlashFresh =
-                        childFlashActive && navigatorFlash?.phase === "fresh";
+                      const childRecentIndex = recentNavigatorAdditions.findIndex(
+                        (item) => item.builderNodeId === child.id,
+                      );
+                      const childRecentStyle =
+                        childRecentIndex >= 0
+                          ? NAVIGATOR_RECENT_STYLES[childRecentIndex]
+                          : null;
                       const childBaseBackground = childSelected
                         ? "rgba(42, 49, 71, 0.08)"
                         : "transparent";
@@ -2525,12 +2541,14 @@ export function NavigatorPanel() {
                             onDrop={(e) => void onChildDrop(e)}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (!childRecentStyle) clearNavigatorRecentAdditions();
                               selectBuilderNode(child.id);
                             }}
                             onKeyDown={(e) => {
                               if (!e.altKey && (e.key === "Enter" || e.key === " ")) {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                if (!childRecentStyle) clearNavigatorRecentAdditions();
                                 selectBuilderNode(child.id);
                                 return;
                               }
@@ -2571,8 +2589,8 @@ export function NavigatorPanel() {
                               paddingLeft: 8 + Math.max(0, (child.depth - 1) * 13),
                               borderRadius: 0,
                               border: `1px solid transparent`,
-                              background: childFlashFresh
-                                ? "rgba(250, 205, 62, 0.34)"
+                              background: childRecentStyle
+                                ? childRecentStyle.background
                                 : childBaseBackground,
                               color: childSelected ? CHROME.text : CHROME.muted,
                               textAlign: "left",
@@ -2580,16 +2598,14 @@ export function NavigatorPanel() {
                               fontWeight: childSelected ? 600 : 500,
                               cursor: "pointer",
                               opacity: childMovePending ? 0.72 : 1,
-                              boxShadow: childFlashFresh
-                                ? `inset 4px 0 0 #f2b705, 0 0 0 1px rgba(242,183,5,0.32)`
+                              boxShadow: childRecentStyle
+                                ? `inset 4px 0 0 ${childRecentStyle.inset}, 0 0 0 1px ${childRecentStyle.ring}`
                                 : childBaseBoxShadow,
-                              transition: childFlashActive
-                                ? "background 4.8s ease-out, box-shadow 4.8s ease-out"
-                                : "background 100ms ease, box-shadow 120ms ease",
+                              transition: "background 140ms ease, box-shadow 140ms ease",
                             }}
                             onMouseEnter={(e) => {
                               setHoveredChildNodeId(child.id);
-                              if (!childSelected && !childFlashActive) {
+                              if (!childSelected && !childRecentStyle) {
                                 e.currentTarget.style.background = "rgba(42,49,71,0.045)";
                               }
                             }}
@@ -2609,7 +2625,7 @@ export function NavigatorPanel() {
                               setHoveredChildNodeId((current) =>
                                 current === child.id ? null : current,
                               );
-                              if (!childSelected && !childFlashActive) {
+                              if (!childSelected && !childRecentStyle) {
                                 e.currentTarget.style.background = "transparent";
                               }
                             }}
@@ -2656,25 +2672,23 @@ export function NavigatorPanel() {
                                 justifyContent: "center",
                               }}
                             >
-                              {childFlashActive ? (
+                              {childRecentStyle ? (
                                 <span
-                                  aria-label="Newly added block"
+                                  aria-label={`${childRecentStyle.label} added block`}
                                   style={{
                                     width: "fit-content",
                                     marginBottom: 2,
                                     padding: "2px 5px",
-                                    background: "#f2b705",
-                                    color: "#221a00",
+                                    background: childRecentStyle.chipBackground,
+                                    color: childRecentStyle.chipColor,
                                     fontSize: 8,
                                     fontWeight: 800,
                                     lineHeight: 1,
                                     textTransform: "uppercase",
                                     letterSpacing: "0.04em",
-                                    opacity: childFlashFresh ? 1 : 0,
-                                    transition: "opacity 4.8s ease-out",
                                   }}
                                 >
-                                  New
+                                  {childRecentStyle.label}
                                 </span>
                               ) : null}
                               <span

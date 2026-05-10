@@ -23,6 +23,7 @@
 
 import { useState } from "react";
 
+import { useEditContext } from "../../../edit-context";
 import { InspectorGroup, KIT } from "../../kit";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
@@ -49,6 +50,12 @@ const BACKGROUND_MODES: Array<{
 ];
 
 export function StyleTab({ config, patch }: Props) {
+  const { workspaceMembershipSlug } = useEditContext();
+  const designSettingsHref =
+    workspaceMembershipSlug != null && workspaceMembershipSlug !== ""
+      ? `/${workspaceMembershipSlug}/admin/website`
+      : "/admin/site-settings/design";
+
   const primary = config.branding.primaryColor ?? "";
   const accent = config.branding.accentColor ?? "";
   const bgMode = config.branding.themeJson["background.mode"] ?? "plain";
@@ -156,7 +163,7 @@ export function StyleTab({ config, patch }: Props) {
             </span>
           </div>
           <a
-            href="/admin/site-settings/design"
+            href={designSettingsHref}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11.5px] font-medium text-indigo-600 transition-colors hover:text-indigo-800"

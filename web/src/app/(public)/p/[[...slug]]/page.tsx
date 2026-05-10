@@ -98,13 +98,11 @@ export default async function CmsPublicPage({
   const publicScope = await getPublicTenantScope();
   if (!publicScope) notFound();
 
-  // Phase 7 — first try the section-composed snapshot. If the page has
-  // one, render it via the same HomepageCmsSections renderer used for
-  // the homepage. Falls through to legacy body-rendering if the snapshot
-  // is null (legacy compatibility path; backfill/removal sequencing tracked
-  // in docs/saas/page-builder-package-audit-2026-05-06.md).
+  // Phase 7 — section-composed snapshot (draft-first while edit/preview).
+  // Empty slot arrays still render through HomepageCmsSections so brand-new
+  // draft pages do not fall through to `cms_public_pages_for_tenant` (published-only).
   const sectionPage = await loadPageForRender(publicScope.tenantId, locale as Locale, slugPath);
-  if (sectionPage?.snapshot && sectionPage.snapshot.slots?.length > 0) {
+  if (sectionPage?.snapshot) {
     return (
       <>
         <PublicHeader />

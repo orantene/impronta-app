@@ -18,7 +18,7 @@
  * positions via MutationObserver + scroll/resize listeners.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -100,6 +100,8 @@ interface EditShellProps {
   initialComposition?: import("@/lib/site-admin/edit-mode/composition-actions").CompositionData | null;
   /** Public storefront name for top-bar tenant context (Tulala vs site). */
   tenantSiteLabel?: string | null;
+  /** Workspace URL segment (`/{slug}/admin/*`). See EditChrome. */
+  workspaceMembershipSlug?: string | null;
   children?: React.ReactNode;
 }
 
@@ -112,6 +114,7 @@ export function EditShell({
   defaultLocale,
   initialComposition,
   tenantSiteLabel = null,
+  workspaceMembershipSlug = null,
   children,
 }: EditShellProps) {
   return (
@@ -125,6 +128,7 @@ export function EditShell({
         initialAvailableLocales={availableLocales}
         initialComposition={initialComposition}
         tenantSiteLabel={tenantSiteLabel}
+        workspaceMembershipSlug={workspaceMembershipSlug}
       >
         <EditShellInner>{children}</EditShellInner>
       </EditProvider>
@@ -246,7 +250,28 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     slots,
     slotDefs,
     openLibrary,
+    compositionLoaded,
   } = useEditContext();
+
+  /** Opens Page settings once per cms page id for default draft titles (workspace Add page). */
+  const autoPageSettingsForUntitledRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!compositionLoaded || !pageId || !pageMetadata) return;
+    if (pageSlug == null) return;
+    if (autoPageSettingsForUntitledRef.current.has(pageId)) return;
+    if (pageMetadata.title.trim().toLowerCase() !== "untitled page") return;
+    autoPageSettingsForUntitledRef.current.add(pageId);
+    dismissCompetingEditorChrome();
+    openPageSettings();
+  }, [
+    compositionLoaded,
+    pageId,
+    pageMetadata,
+    pageSlug,
+    dismissCompetingEditorChrome,
+    openPageSettings,
+  ]);
 
   // Phase A (2026-04-26) — convergence-plan §1 deep-link contract.
   //

@@ -30,6 +30,7 @@ import {
   signPreviewJwt,
   requirePhase5Capability,
 } from "@/lib/site-admin";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
   archivePage,
   deletePage,
@@ -561,6 +562,94 @@ export async function listPagesForPickerAction(): Promise<
   };
 
   return { ok: true, pages: (data ?? []) as PagePickerItem[], availability };
+}
+
+// ---- create blank draft page ---------------------------------------------
+
+/**
+ * Creates a new draft `standard_page` with a unique slug and opens the
+ * visual editor path `/p/{slug}?edit=1` after the client refreshes.
+ *
+ * Gated the same way as insert + extra-page plan limits (`upsertPage`).
+ */
+export async function createDraftPageAction(): Promise<
+  { ok: true; id: string; slug: string } | { ok: false; error: string }
+> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Select an agency workspace before creating pages.",
+    };
+  }
+
+  const localeSettings = await loadTenantLocaleSettings(scope.tenantId);
+  const locale = localeSettings.defaultLocale;
+
+  const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
+    onError: (message) =>
+      logServerError(
+        "site-admin/pages/create-draft.plan",
+        new Error(message),
+      ),
+  });
+  const denyReason = cmsAdditionalPageDeniedReason(workspacePlan);
+  if (denyReason) {
+    return { ok: false, error: denyReason };
+  }
+
+  const base = `untitled-${Date.now().toString(36)}`;
+  let slug = base;
+  for (let i = 2; i <= 30; i++) {
+    const { data: existing } = await auth.supabase
+      .from("cms_pages")
+      .select("id")
+      .eq("tenant_id", scope.tenantId)
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!existing) break;
+    slug = `${base}-${i}`;
+    if (i === 30) {
+      slug = `${base}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+  }
+
+  const parsed = pageUpsertSchema.safeParse({
+    id: null,
+    tenantId: scope.tenantId,
+    locale,
+    slug,
+    templateKey: "standard_page",
+    templateSchemaVersion: 1,
+    title: "Untitled page",
+    body: "",
+    hero: {},
+    noindex: false,
+    includeInSitemap: false,
+    expectedVersion: 0,
+  });
+
+  if (!parsed.success) {
+    const msg = parsed.error.issues[0]?.message ?? "Validation failed.";
+    return { ok: false, error: msg };
+  }
+
+  try {
+    const result = await upsertPage(auth.supabase, {
+      tenantId: scope.tenantId,
+      values: parsed.data,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) {
+      return { ok: false, error: result.message ?? "Could not create page." };
+    }
+    return { ok: true, id: result.data.id, slug };
+  } catch (error) {
+    logServerError("site-admin/pages/create-draft", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
 }
 
 // ---- duplicate page -------------------------------------------------------

@@ -6776,6 +6776,11 @@ type Ctx = {
 
   /** Workspace Website surface — live CMS rows merged with mock fallbacks. */
   effectiveWebsiteState: WebsiteState;
+  /**
+   * Website tab reads real `cms_pages` / bridge payloads (vs prototype-only mocks).
+   * When false, destructive CMS actions should stay hidden.
+   */
+  websiteUsesLiveCms: boolean;
 };
 
 /** Agency-defined custom field. Renders in Profile Shell's "Profile details"
@@ -8192,6 +8197,7 @@ export function ProtoProvider({
   const bridgeMediaFolders: BridgeMediaFolder[] = initialBridgeData?.mediaFolders ?? [];
 
   const bridgeWebsite = initialBridgeData?.website;
+  const websiteUsesLiveCms = bridgeWebsite != null;
   const effectiveWebsiteState = useMemo(
     () =>
       bridgeWebsite != null
@@ -8311,6 +8317,7 @@ export function ProtoProvider({
       bridgeSessionIdentity,
       effectiveTenant,
       effectiveWebsiteState,
+      websiteUsesLiveCms,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
@@ -8407,6 +8414,7 @@ export function ProtoProvider({
       bridgeSessionIdentity,
       effectiveTenant,
       effectiveWebsiteState,
+      websiteUsesLiveCms,
       // Phase 5
       bridgeTalentUnread,
       bridgeWorkspaceUnread,

@@ -8,8 +8,8 @@
  *
  * Layout (left to right):
  *   Brand mark → divider → page picker → save status → divider →
- *   undo/redo → [spacer] → viewport switcher → [spacer] →
- *   page-settings · revisions · preview · share → divider →
+ *   undo/redo → [spacer] → viewport switcher · preview toggle → [spacer] →
+ *   comments · preview · page-settings · More (⋯) → divider →
  *   Save draft · Publish split-button → divider → Exit
  *
  * Visual language: 54px glass bar, warm-white tint, hairline border —
@@ -246,6 +246,13 @@ function PagePicker({
   /** Bumped by EditShell when URL contains `?panel=pages` (legacy admin redirect). */
   pagesPickerOpenNonce?: number;
 }) {
+  const editCtx = useMaybeEditContext();
+  const workspaceWebsiteHref =
+    editCtx?.workspaceMembershipSlug != null &&
+    editCtx.workspaceMembershipSlug !== ""
+      ? `/${editCtx.workspaceMembershipSlug}/admin/website`
+      : "/admin/site-settings/pages";
+
   const [open, setOpen] = useState(false);
   const [pages, setPages] = useState<PagePickerItem[] | null>(null);
   const [availability, setAvailability] = useState<PagePickerAvailability | null>(
@@ -339,7 +346,9 @@ function PagePicker({
       if (result.ok) {
         setOpen(false);
         router.push(
-          result.slug === "" ? "/?edit=1" : `/${result.slug}?edit=1`,
+          result.slug === ""
+            ? "/?edit=1&panel=pageSettings"
+            : `/${result.slug}?edit=1&panel=pageSettings`,
         );
       } else {
         setPages(null); // re-fetch on next open
@@ -472,7 +481,7 @@ function PagePicker({
             </div>
           ) : (
             <Link
-              href="/admin/site-settings/pages/new"
+              href={workspaceWebsiteHref}
               target="_blank"
               role="menuitem"
               className="flex cursor-pointer items-center gap-[8px] rounded-[6px] px-[10px] py-[7px] no-underline transition-colors"
@@ -663,7 +672,7 @@ function PagePicker({
           {/* ── Footer: Manage pages link ── */}
           <div aria-hidden style={{ height: 1, background: CHROME.line, margin: "6px 2px" }} />
           <Link
-            href="/admin/site-settings/pages"
+            href={workspaceWebsiteHref}
             role="menuitem"
             className="flex cursor-pointer items-center gap-[8px] rounded-[6px] px-[10px] py-[7px] no-underline transition-colors"
             style={{ color: CHROME.text }}
@@ -1403,13 +1412,10 @@ function MenuItem({
 }
 
 /**
- * MoreMenu — overflow popover that hosts the secondary topbar actions.
+ * MoreMenu — overflow popover that hosts secondary topbar actions.
  *
- * The 2026-04-28 compression sprint pulled five dedicated icon buttons
- * (Page settings · Revisions · Theme · Assets · Share) out of the
- * topbar and into this single popover. Comments + Preview stayed
- * surfaced — Comments because it carries a badge, Preview because it
- * is the highest-frequency secondary action.
+ * Page settings moved back to a dedicated cog (next to Preview). This menu
+ * keeps Revisions · Theme · Assets · Share.
  *
  * Each entry calls the open-handler the topbar already received from
  * EditShell; if a handler is missing, the row renders disabled. The
@@ -1417,14 +1423,12 @@ function MenuItem({
  * the operator never leaves the popover to mint a link.
  */
 function MoreMenu({
-  onPageSettings,
   onRevisions,
   onTheme,
   onAssets,
   onTemplates,
   onShare,
 }: {
-  onPageSettings?: () => void;
   onRevisions?: () => void;
   onTheme?: () => void;
   onAssets?: () => void;
@@ -1543,18 +1547,6 @@ function MoreMenu({
         >
           {!shareOpen ? (
             <>
-              <MoreRow
-                disabled={!onPageSettings}
-                onClick={() => handlePick(onPageSettings)}
-                icon={
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                  </svg>
-                }
-                label="Page settings"
-                hint="SEO, social, routing"
-              />
               <MoreRow
                 disabled={!onRevisions}
                 onClick={() => handlePick(onRevisions)}
@@ -2090,16 +2082,11 @@ export function TopBar({
 
       {/* ── Right cluster — surfaced primaries only ──
        *
-       * Compression sprint (2026-04-28): the topbar used to render eight
-       * icon buttons + a Save draft text button on the right. Now it
-       * renders three. Comments stays surfaced because it carries an
-       * unread badge that needs to be glanceable; Preview stays because
-       * it's the highest-frequency secondary action; everything else
-       * (Page settings · Revisions · Theme · Assets · Share) collapses
-       * into the More menu so the eye lands on Publish without sweeping
-       * past a row of equal-weight icons. Save draft is handled by
-       * autosave + the Publish split-button's "Save as named draft…"
-       * checkpoint entry — no dedicated button needed.
+       * Compression sprint (2026-04-28): secondary actions collapse into the
+       * More menu except where glanceability matters. Surfaced on the right:
+       * Comments (badge), Preview (visitor view), Page settings (slug/SEO —
+       * operators hit this constantly on new pages). Revisions · Theme ·
+       * Assets · Share stay under More (⋯).
        */}
       <TbIconBtn
         title="Comments"
@@ -2116,8 +2103,18 @@ export function TopBar({
           <circle cx="12" cy="12" r="3" />
         </svg>
       </TbIconBtn>
+      <TbIconBtn
+        title="Page settings (,)"
+        ariaLabel="Page settings"
+        disabled={!onPageSettings}
+        onClick={onPageSettings}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </TbIconBtn>
       <MoreMenu
-        onPageSettings={onPageSettings}
         onRevisions={onRevisions}
         onTheme={onTheme}
         onAssets={onAssets}
