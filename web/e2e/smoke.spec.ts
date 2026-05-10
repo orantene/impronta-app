@@ -71,6 +71,29 @@ async function dismissBuilderTipIfPresent(page: Page) {
   await dismissTip.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => {});
 }
 
+async function waitForImprontaDraftSaved(page: Page) {
+  await expect(page.locator("[data-edit-topbar]").first()).toContainText(
+    /Draft up to date|Draft saved/i,
+    { timeout: 180_000 },
+  );
+}
+
+async function insertHeadingViaNavigatorFirstLayeredSection(page: Page) {
+  const sectionRow = page
+    .locator("[data-navigator-section-row]")
+    .filter({ has: page.locator("[data-navigator-block-count]") })
+    .first();
+  await expect(sectionRow).toBeVisible({ timeout: 30_000 });
+  await sectionRow.hover();
+  const trigger = sectionRow.locator("[data-builder-node-add-trigger]").first();
+  await expect(trigger).toBeVisible({ timeout: 20_000 });
+  await trigger.click();
+  const menu = page.locator("[data-builder-node-insert-menu]").first();
+  await expect(menu).toBeVisible({ timeout: 15_000 });
+  await menu.locator('[data-builder-node-insert-kind="heading"]').first().click();
+  await menu.waitFor({ state: "hidden", timeout: 60_000 }).catch(() => {});
+}
+
 async function closeBuilderDrawersIfPresent(page: Page) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const closeButtons = page
@@ -1955,6 +1978,125 @@ test.describe("smoke: login → builder → publish → share", () => {
 
     await expect
       .poll(async () => [await childIdAt(0), await childIdAt(1)])
+      .toEqual([secondBefore, topBefore]);
+  });
+
+  test("impronta Phase 0 edit loop: reorder draft reload publish reopen", async ({
+    page,
+  }) => {
+    test.setTimeout(480_000);
+    await openImprontaBuilder(page);
+
+    const blankCanvasHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (await blankCanvasHeading.isVisible().catch(() => false)) {
+      await addHeroFromBlankState(page);
+    }
+
+    let firstLayeredSection = page
+      .locator("[data-navigator-section-row]")
+      .filter({ has: page.locator("[data-navigator-block-count]") })
+      .first();
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    const sectionId = await firstLayeredSection.getAttribute("data-section-id");
+    expect(sectionId).toBeTruthy();
+
+    let childList = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionId}"]`,
+    );
+    await firstLayeredSection.locator("[data-navigator-section-collapse-trigger]").click();
+    await expect(childList).toBeVisible({ timeout: 10_000 });
+    let childRows = childList.locator("[data-navigator-child-node]");
+    let childCount = await childRows.count();
+    if (childCount < 2) {
+      await insertHeadingViaNavigatorFirstLayeredSection(page);
+      await waitForImprontaDraftSaved(page);
+      childRows = childList.locator("[data-navigator-child-node]");
+      await expect
+        .poll(async () => await childRows.count(), { timeout: 60_000 })
+        .toBeGreaterThan(1);
+      childCount = await childRows.count();
+    }
+    expect(childCount).toBeGreaterThan(1);
+
+    const childIdAt = async (index: number) =>
+      await childRows.nth(index).getAttribute("data-builder-node-id");
+
+    const topBefore = await childIdAt(0);
+    const secondBefore = await childIdAt(1);
+    expect(topBefore).toBeTruthy();
+    expect(secondBefore).toBeTruthy();
+    expect(topBefore).not.toEqual(secondBefore);
+
+    await childRows.first().click();
+    await childRows.first().getByRole("button", { name: /move .* down/i }).click();
+
+    await expect
+      .poll(async () => [await childIdAt(0), await childIdAt(1)])
+      .toEqual([secondBefore, topBefore]);
+
+    await waitForImprontaDraftSaved(page);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await ensureBuilderEditMode(page, "/impronta?edit=1");
+    await closeBuilderDrawersIfPresent(page);
+    await dismissBuilderTipIfPresent(page);
+
+    firstLayeredSection = page.locator(
+      `[data-navigator-section-row][data-section-id="${sectionId}"]`,
+    );
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    childList = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionId}"]`,
+    );
+    await firstLayeredSection.locator("[data-navigator-section-collapse-trigger]").click();
+    await expect(childList).toBeVisible({ timeout: 10_000 });
+    childRows = childList.locator("[data-navigator-child-node]");
+    await expect
+      .poll(async () => [
+        await childRows.nth(0).getAttribute("data-builder-node-id"),
+        await childRows.nth(1).getAttribute("data-builder-node-id"),
+      ])
+      .toEqual([secondBefore, topBefore]);
+
+    await page.getByRole("button", { name: /^publish$/i }).click();
+    const publishDrawer = page.locator('[data-edit-drawer="publish"]');
+    await expect(publishDrawer).toBeVisible({ timeout: 15_000 });
+
+    const publishNow = publishDrawer.getByRole("button", { name: /publish now/i });
+    await expect(publishNow).toBeVisible({ timeout: 30_000 });
+    await expect(publishNow).toBeEnabled({ timeout: 240_000 });
+
+    await publishNow.click();
+    await expect(publishDrawer.getByText(/^Published\b/i)).toBeVisible({
+      timeout: 180_000,
+    });
+
+    await publishDrawer.getByRole("button", { name: /^close$/i }).click();
+    await publishDrawer.waitFor({ state: "hidden", timeout: 15_000 }).catch(() =>
+      closeBuilderDrawersIfPresent(page),
+    );
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await ensureBuilderEditMode(page, "/impronta?edit=1");
+    await closeBuilderDrawersIfPresent(page);
+
+    firstLayeredSection = page.locator(
+      `[data-navigator-section-row][data-section-id="${sectionId}"]`,
+    );
+    await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
+    childList = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionId}"]`,
+    );
+    await firstLayeredSection.locator("[data-navigator-section-collapse-trigger]").click();
+    await expect(childList).toBeVisible({ timeout: 10_000 });
+    childRows = childList.locator("[data-navigator-child-node]");
+    await expect
+      .poll(async () => [
+        await childRows.nth(0).getAttribute("data-builder-node-id"),
+        await childRows.nth(1).getAttribute("data-builder-node-id"),
+      ])
       .toEqual([secondBefore, topBefore]);
   });
 

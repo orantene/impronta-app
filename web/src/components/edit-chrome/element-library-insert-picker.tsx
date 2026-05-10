@@ -121,6 +121,27 @@ export function ElementLibraryInsertPicker({
       ? "rgb(79 70 229)"
       : "rgba(255,255,255,0.45)";
 
+  if (allowedKinds.length === 0) {
+    return (
+      <div
+        role="alert"
+        aria-live="polite"
+        data-element-library-catalog-empty=""
+        style={{
+          fontSize: 11,
+          fontWeight: 500,
+          lineHeight: 1.45,
+          color: emptySearchColor,
+          padding: "8px 2px",
+        }}
+      >
+        No elements can be inserted here right now (catalog empty). Reload the page
+        or pick another section — if this persists, the builder tree may still be
+        loading.
+      </div>
+    );
+  }
+
   return (
     <>
       <label className="sr-only" htmlFor={searchId}>

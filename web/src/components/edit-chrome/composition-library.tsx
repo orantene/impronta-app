@@ -1401,7 +1401,11 @@ export function CompositionLibraryOverlay() {
       </div>
 
       {error ? (
-        <div className="border-b border-red-100 bg-red-50 px-[18px] py-2 text-xs text-red-700">
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="border-b border-red-100 bg-red-50 px-[18px] py-2 text-xs text-red-700"
+        >
           {error}
         </div>
       ) : null}
