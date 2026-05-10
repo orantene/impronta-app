@@ -2925,26 +2925,38 @@ function CanvasNodeChildrenPanel({
                 <CanvasMiniButton
                   label={`Move ${canvasChildPrimaryLabel(node)} up`}
                   disabled={index === 0}
-                  onClick={() => void onMove(node.id, "up")}
+                  onClick={() => {
+                    onSelect(node.id);
+                    void onMove(node.id, "up");
+                  }}
                 >
                   <ArrowUp size={13} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
                   label={`Move ${canvasChildPrimaryLabel(node)} down`}
                   disabled={index === nodes.length - 1}
-                  onClick={() => void onMove(node.id, "down")}
+                  onClick={() => {
+                    onSelect(node.id);
+                    void onMove(node.id, "down");
+                  }}
                 >
                   <ArrowDown size={13} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
                   label={`Duplicate ${canvasChildPrimaryLabel(node)}`}
-                  onClick={() => void onDuplicate(node.id)}
+                  onClick={() => {
+                    onSelect(node.id);
+                    void onDuplicate(node.id);
+                  }}
                 >
                   <Files size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
                   label={`Copy ${canvasChildPrimaryLabel(node)}`}
-                  onClick={() => void onCopy(node.id)}
+                  onClick={() => {
+                    onSelect(node.id);
+                    void onCopy(node.id);
+                  }}
                 >
                   <Copy size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
@@ -2952,7 +2964,10 @@ function CanvasNodeChildrenPanel({
                   <CanvasMiniButton
                     label={pastePreview?.message ?? `Paste copied ${BUILDER_NODE_REGISTRY[copiedKind].label}`}
                     disabled={pastePreview?.mode === "blocked"}
-                    onClick={() => void onPaste(node.id)}
+                    onClick={() => {
+                      onSelect(node.id);
+                      void onPaste(node.id);
+                    }}
                   >
                     <ClipboardPaste size={12} strokeWidth={2.1} aria-hidden />
                   </CanvasMiniButton>
@@ -2965,7 +2980,10 @@ function CanvasNodeChildrenPanel({
                 </CanvasMiniButton>
                 <CanvasMiniButton
                   label={`Remove ${canvasChildPrimaryLabel(node)}`}
-                  onClick={() => void onRemove(node.id)}
+                  onClick={() => {
+                    onSelect(node.id);
+                    void onRemove(node.id);
+                  }}
                 >
                   <Trash2 size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
