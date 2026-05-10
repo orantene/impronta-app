@@ -2799,7 +2799,7 @@ export function EditProvider({
         }
       }
 
-      return dispatchMutation((prev) => {
+      const result = await dispatchMutation((prev) => {
         // Locate the source section.
         let sourceSlot: string | null = null;
         let sourceIdx = -1;
@@ -2863,8 +2863,12 @@ export function EditProvider({
         // Same-slot case: handled by overwriting targetSlotKey above.
         return { slots: nextSlots, metadata: prev.metadata };
       });
+      if (result.ok) {
+        markNavigatorAddition(sectionId);
+      }
+      return result;
     },
-    [dispatchMutation, slotDefs, slots, reportMutationError],
+    [dispatchMutation, slotDefs, slots, reportMutationError, markNavigatorAddition],
   );
 
   moveSectionToRef.current = moveSectionTo;
