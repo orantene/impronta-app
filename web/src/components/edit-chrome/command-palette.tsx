@@ -230,7 +230,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             if (builderNodeId) {
               ctx.selectBuilderNode(builderNodeId);
             } else {
-              ctx.setSelectedSectionId(ref.sectionId);
+              ctx.focusSectionForEdit(ref.sectionId);
             }
             // Scroll into view if it's mounted on the page.
             if (el && "scrollIntoView" in el) {
@@ -269,7 +269,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             if (builderNodeId) {
               ctx.selectBuilderNode(builderNodeId);
             } else {
-              ctx.setSelectedSectionId(ref.sectionId);
+              ctx.focusSectionForEdit(ref.sectionId);
             }
             onClose();
           },

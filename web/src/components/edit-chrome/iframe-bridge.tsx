@@ -105,6 +105,7 @@ export function IframeBridgeChild() {
     selectedBuilderNodeId,
     selectBuilderNode,
     setSelectedSectionId,
+    focusSectionForEdit,
     hoveredSectionId,
     setPreviewing,
   } = useEditContext();
@@ -164,8 +165,10 @@ export function IframeBridgeChild() {
         );
         if (msg.sectionId && msg.builderNodeId) {
           selectBuilderNode(msg.builderNodeId);
+        } else if (msg.sectionId) {
+          focusSectionForEdit(msg.sectionId);
         } else {
-          setSelectedSectionId(msg.sectionId);
+          setSelectedSectionId(null);
         }
         return;
       }
@@ -188,7 +191,7 @@ export function IframeBridgeChild() {
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [setSelectedSectionId, selectBuilderNode, setPreviewing]);
+  }, [setSelectedSectionId, selectBuilderNode, focusSectionForEdit, setPreviewing]);
 
   // Announce readiness exactly once on mount.
   useEffect(() => {
@@ -218,7 +221,7 @@ export function IframeBridgeParent() {
     selectedSectionId,
     selectedBuilderNodeId,
     selectBuilderNode,
-    setSelectedSectionId,
+    focusSectionForEdit,
     setHoveredSectionId,
     device,
     previewing,
@@ -258,7 +261,7 @@ export function IframeBridgeParent() {
         if (msg.builderNodeId) {
           selectBuilderNode(msg.builderNodeId);
         } else {
-          setSelectedSectionId(msg.sectionId);
+          focusSectionForEdit(msg.sectionId);
         }
         return;
       }
@@ -302,7 +305,7 @@ export function IframeBridgeParent() {
   }, [
     selectBuilderNode,
     selectedBuilderNodeId,
-    setSelectedSectionId,
+    focusSectionForEdit,
     setHoveredSectionId,
   ]);
 
