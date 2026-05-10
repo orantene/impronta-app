@@ -338,7 +338,9 @@ function PagePicker({
       const result = await duplicatePageAction(sourceId);
       if (result.ok) {
         setOpen(false);
-        router.push(`/admin/site-settings/pages/${result.id}`);
+        router.push(
+          result.slug === "" ? "/?edit=1" : `/${result.slug}?edit=1`,
+        );
       } else {
         setPages(null); // re-fetch on next open
         setFetchErr(result.error);
