@@ -154,6 +154,13 @@ export interface BuilderBlockPreset {
   createdAt: string;
 }
 
+export interface NavigatorRecentAddition {
+  sectionId: string;
+  builderNodeId: string | null;
+  kind: "section" | "block";
+  nonce: number;
+}
+
 export interface EditContextValue {
   tenantId: string;
   /**
@@ -584,6 +591,12 @@ export interface EditContextValue {
   toggleNavigator: () => void;
   navigatorWidth: number;
   setNavigatorWidth: (width: number) => void;
+  /**
+   * Short-lived selection feedback for freshly inserted/duplicated content.
+   * The navigator uses this to open, scroll, expand, and fade-highlight the
+   * row so operators can immediately see what changed.
+   */
+  recentNavigatorAddition: NavigatorRecentAddition | null;
 
   /**
    * Set a section's `presentation.visibility`. Used by the Navigator
@@ -1684,6 +1697,33 @@ export function EditProvider({
   const [navigatorWidth, setNavigatorWidthState] = useState(
     NAVIGATOR_WIDTH_DEFAULT,
   );
+  const [recentNavigatorAddition, setRecentNavigatorAddition] =
+    useState<NavigatorRecentAddition | null>(null);
+  const markNavigatorAddition = useCallback(
+    (
+      sectionId: string,
+      builderNodeId: string | null = null,
+      kind: NavigatorRecentAddition["kind"] = "section",
+    ) => {
+      setNavigatorOpen(true);
+      setRecentNavigatorAddition({
+        sectionId,
+        builderNodeId,
+        kind,
+        nonce: Date.now(),
+      });
+    },
+    [],
+  );
+  useEffect(() => {
+    if (!recentNavigatorAddition) return;
+    const timeout = window.setTimeout(() => {
+      setRecentNavigatorAddition((current) =>
+        current?.nonce === recentNavigatorAddition.nonce ? null : current,
+      );
+    }, 5400);
+    return () => window.clearTimeout(timeout);
+  }, [recentNavigatorAddition]);
   const setNavigatorWidth = useCallback((width: number) => {
     if (!Number.isFinite(width)) return;
     const rounded = Math.round(width);
@@ -2603,6 +2643,7 @@ export function EditProvider({
       pageVersionRef.current = res.pageVersion;
       setPageVersion(res.pageVersion);
       setSelectedSectionId(res.section.id);
+      markNavigatorAddition(res.section.id);
       await queueRouterRefresh();
       return { ok: true, section: { id: res.section.id, sortOrder: insertAt } };
     },
@@ -2617,6 +2658,7 @@ export function EditProvider({
       syncBuilderNodeChildrenForSection,
       reportMutationError,
       setSelectedSectionId,
+      markNavigatorAddition,
     ],
   );
 
@@ -2706,6 +2748,7 @@ export function EditProvider({
       setPageVersion(res.pageVersion);
       pageVersionRef.current = res.pageVersion;
       setSelectedSectionId(res.section.id);
+      markNavigatorAddition(res.section.id);
       await queueRouterRefresh();
       return { ok: true, newSectionId: res.section.id };
     },
@@ -2722,6 +2765,7 @@ export function EditProvider({
       syncBuilderNodeChildrenForSection,
       reportMutationError,
       setSelectedSectionId,
+      markNavigatorAddition,
     ],
   );
 
@@ -3169,10 +3213,16 @@ export function EditProvider({
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
         setSelectedBuilderNodeIdOverride(node.id);
+        markNavigatorAddition(ownerSectionId, node.id, "block");
       }
       return { ok: true, nodeId: node.id };
     },
-    [executeBuilderNodeOperation, runBuilderNodeOp, setSelectedSectionId],
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      markNavigatorAddition,
+    ],
   );
   const insertBuilderNodeCompositionPreset = useCallback<
     EditContextValue["insertBuilderNodeCompositionPreset"]
@@ -3202,10 +3252,16 @@ export function EditProvider({
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
         setSelectedBuilderNodeIdOverride(node.id);
+        markNavigatorAddition(ownerSectionId, node.id, "block");
       }
       return { ok: true, nodeId: node.id };
     },
-    [executeBuilderNodeOperation, runBuilderNodeOp, setSelectedSectionId],
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      markNavigatorAddition,
+    ],
   );
   const removeBuilderNode = useCallback<
     EditContextValue["removeBuilderNode"]
@@ -3276,10 +3332,16 @@ export function EditProvider({
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
         setSelectedBuilderNodeIdOverride(duplicatedNodeId);
+        markNavigatorAddition(ownerSectionId, duplicatedNodeId, "block");
       }
       return { ok: true, nodeId: duplicatedNodeId };
     },
-    [executeBuilderNodeOperation, runBuilderNodeOp, setSelectedSectionId],
+    [
+      executeBuilderNodeOperation,
+      runBuilderNodeOp,
+      setSelectedSectionId,
+      markNavigatorAddition,
+    ],
   );
   const copyBuilderNode = useCallback<EditContextValue["copyBuilderNode"]>(
     (nodeId) => {
@@ -3405,6 +3467,7 @@ export function EditProvider({
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
         setSelectedBuilderNodeIdOverride(pastedNodeId);
+        markNavigatorAddition(ownerSectionId, pastedNodeId, "block");
       }
       return { ok: true, nodeId: pastedNodeId };
     },
@@ -3413,6 +3476,7 @@ export function EditProvider({
       executeBuilderNodeOperation,
       runBuilderNodeOp,
       setSelectedSectionId,
+      markNavigatorAddition,
     ],
   );
   const pasteCopiedBuilderNode = useCallback<
@@ -3458,6 +3522,7 @@ export function EditProvider({
       if (ownerSectionId) {
         setSelectedSectionId(ownerSectionId);
         setSelectedBuilderNodeIdOverride(pastedNodeId);
+        markNavigatorAddition(ownerSectionId, pastedNodeId, "block");
       }
       return { ok: true, nodeId: pastedNodeId };
     },
@@ -3466,6 +3531,7 @@ export function EditProvider({
       executeBuilderNodeOperation,
       runBuilderNodeOp,
       setSelectedSectionId,
+      markNavigatorAddition,
     ],
   );
   const patchBuilderNodeProps = useCallback<
@@ -4077,6 +4143,7 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      recentNavigatorAddition,
       setSectionVisibility,
 
       saveDraft,
@@ -4207,6 +4274,7 @@ export function EditProvider({
       toggleNavigator,
       navigatorWidth,
       setNavigatorWidth,
+      recentNavigatorAddition,
       setSectionVisibility,
       saveDraft,
       lastDraftSavedAt,
