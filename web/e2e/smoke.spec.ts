@@ -92,6 +92,17 @@ async function getFirstSectionBlockAddTrigger(page: Page) {
   return trigger;
 }
 
+async function getSectionBlockAddTriggerForType(page: Page, sectionTypeKey: string) {
+  const row = page
+    .locator(`[data-navigator-section-row][data-section-type-key="${sectionTypeKey}"]`)
+    .first();
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.hover();
+  const trigger = row.locator("[data-builder-node-add-trigger]").first();
+  await expect(trigger).toBeVisible({ timeout: 20_000 });
+  return trigger;
+}
+
 async function insertBuilderNodeFromFirstSection(
   page: Page,
   kindLabel: string,
@@ -943,6 +954,44 @@ test.describe("smoke: login → builder → publish → share", () => {
         await removeBuilderNodeFromNavigator(page, nodeId);
       }
     }
+  });
+
+  test("impronta blank_section composition inserts heading via navigator add block", async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
+    await openImprontaBuilderDirect(page);
+
+    const blankCanvasHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (await blankCanvasHeading.isVisible().catch(() => false)) {
+      await addHeroFromBlankState(page);
+    }
+
+    await addSectionFromLibrary(page, "blank_section", "Blank section");
+
+    const blankWrap = page
+      .locator('[data-cms-section][data-section-type-key="blank_section"]')
+      .first();
+    await expect(blankWrap).toBeVisible({ timeout: 90_000 });
+
+    const headingsInBlank = blankWrap.locator(
+      ".site-builder-node--heading[data-builder-node-id]",
+    );
+    const beforeHeadingCount = await headingsInBlank.count();
+
+    const addBlock = await getSectionBlockAddTriggerForType(page, "blank_section");
+    await addBlock.click();
+
+    const insertMenu = page.locator("[data-builder-node-insert-menu]").first();
+    await expect(insertMenu).toBeVisible({ timeout: 10_000 });
+    await insertMenu.getByRole("button", { name: "Heading", exact: true }).click();
+
+    await expect
+      .poll(async () => headingsInBlank.count(), { timeout: 90_000 })
+      .toBeGreaterThan(beforeHeadingCount);
+    await expect(headingsInBlank.first()).toBeVisible({ timeout: 90_000 });
   });
 
   test("impronta canvas selection context menu opens section actions", async ({ page }) => {
