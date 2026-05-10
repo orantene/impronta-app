@@ -681,6 +681,15 @@ export function NavigatorPanel() {
     [extendSelection, selectBuilderNode, toggleSelection, setSelectedSectionId],
   );
 
+  /** Inspector/canvas parity when section chrome fires without a prior row click. */
+  const selectNavigatorSectionRow = useCallback(
+    (row: FlatRow) => {
+      if (row.builderNodeId) selectBuilderNode(row.builderNodeId);
+      else setSelectedSectionId(row.ref.sectionId);
+    },
+    [selectBuilderNode, setSelectedSectionId],
+  );
+
   const onDragStart = useCallback(
     (e: DragEvent<HTMLDivElement>, sectionId: string) => {
       setDraggingId(sectionId);
@@ -1907,6 +1916,7 @@ export function NavigatorPanel() {
                       e.preventDefault();
                       e.stopPropagation();
                       if (moveInFlight || !moveUpTarget || !canMoveSectionUp) return;
+                      selectNavigatorSectionRow(row);
                       void commitSectionMoveTo(row.ref.sectionId, moveUpTarget);
                       return;
                     }
@@ -1914,6 +1924,7 @@ export function NavigatorPanel() {
                       e.preventDefault();
                       e.stopPropagation();
                       if (moveInFlight || !moveDownTarget || !canMoveSectionDown) return;
+                      selectNavigatorSectionRow(row);
                       void commitSectionMoveTo(row.ref.sectionId, moveDownTarget);
                     }
                   }}
@@ -2136,6 +2147,7 @@ export function NavigatorPanel() {
                         onClick={(e) => {
                           e.stopPropagation();
                           if (moveInFlight || !moveUpTarget || !canMoveSectionUp) return;
+                          selectNavigatorSectionRow(row);
                           void commitSectionMoveTo(row.ref.sectionId, moveUpTarget);
                         }}
                         compact
@@ -2154,6 +2166,7 @@ export function NavigatorPanel() {
                         onClick={(e) => {
                           e.stopPropagation();
                           if (moveInFlight || !moveDownTarget || !canMoveSectionDown) return;
+                          selectNavigatorSectionRow(row);
                           void commitSectionMoveTo(row.ref.sectionId, moveDownTarget);
                         }}
                         compact
@@ -2201,6 +2214,7 @@ export function NavigatorPanel() {
                           const parentId = row.builderNodeId;
                           if (!parentId) return;
                           e.stopPropagation();
+                          selectNavigatorSectionRow(row);
                           toggleNodeInsertTarget({
                             key: `section:${parentId}`,
                             parentId,
@@ -2224,6 +2238,7 @@ export function NavigatorPanel() {
                       label={`Duplicate ${labelFor(row)}`}
                       onClick={(e) => {
                         e.stopPropagation();
+                        selectNavigatorSectionRow(row);
                         void commitSectionDuplicate(row.ref.sectionId);
                       }}
                       inverted={selected}
@@ -2237,6 +2252,7 @@ export function NavigatorPanel() {
                       visibility={visibility}
                       tabIndex={sectionActionsVisible ? 0 : -1}
                       onToggle={() => {
+                        selectNavigatorSectionRow(row);
                         const next: SectionVisibilityT =
                           visibility === "hidden" ? "always" : "hidden";
                         void setSectionVisibility(row.ref.sectionId, next);
