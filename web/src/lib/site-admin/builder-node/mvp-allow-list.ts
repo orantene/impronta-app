@@ -19,11 +19,16 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "spacer",
 ];
 
-/** Section templates use `section`; structural columns use `split` until a dedicated columns primitive ships. */
+/**
+ * Builder-node `section` rows map CMS slot instances — **not** the CMS section type
+ * `blank_section` (registry composition shell).
+ *
+ * Structural columns use `split` until a dedicated columns primitive ships.
+ */
 export const MVP_ROADMAP_LABEL_BY_KIND: Readonly<
   Partial<Record<BuilderNodeKind, string>>
 > = {
-  section: "Blank / custom section shell",
+  section: "CMS section row",
   container: "Container",
   card: "Card",
   cta_group: "CTA group",
@@ -98,6 +103,7 @@ export function elementLibraryPrimaryLabel(kind: BuilderNodeKind): string {
  */
 export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   const extras: Partial<Record<BuilderNodeKind, string>> = {
+    section: "cms slot composition outline layer tree wrapper",
     container: "stack band wrapper content block panel",
     card: "tile panel boxed elevated outline band content",
     cta_group: "cta call to action buttons row actions conversion",

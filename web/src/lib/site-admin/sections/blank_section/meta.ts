@@ -4,7 +4,7 @@ export const blankSectionMeta: SectionMeta = {
   key: "blank_section",
   label: "Blank section",
   description:
-    "Empty composition surface for Advanced Mode — add headings, copy, media, and layout blocks from the element library. Nothing renders until you add blocks.",
+    "Blank canvas for Advanced Mode — compose headings, copy, media, and layout blocks from the element library (real persisted nodes). Nothing renders until you add blocks; turn on Show advanced sections or search blank canvas / custom composition.",
   businessPurpose: "feature",
   visibleToAgency: true,
   category: "story",
