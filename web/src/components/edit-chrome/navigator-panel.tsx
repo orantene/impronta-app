@@ -2039,6 +2039,7 @@ export function NavigatorPanel() {
                     <span
                       onDoubleClick={(e) => {
                         e.stopPropagation();
+                        selectNavigatorSectionRow(row);
                         setRenamingId(row.ref.sectionId);
                       }}
                       title={`Double-click to rename · ${labelFor(row)}`}
@@ -2083,6 +2084,7 @@ export function NavigatorPanel() {
                         }
                         onClick={(e) => {
                           e.stopPropagation();
+                          selectNavigatorSectionRow(row);
                           toggleSectionExpanded(row.ref.sectionId);
                         }}
                         inverted={selected}
