@@ -13,6 +13,7 @@ import {
   resolveSnapshotBuilderTreeForPublish,
   summarizeBuilderTreeIssues,
 } from "./snapshot-tree";
+import { BUILDER_NODE_REGISTRY } from "./registry";
 import { validateBuilderNodeTree } from "./validate";
 
 test("validates a registry-backed node tree", () => {
@@ -3027,4 +3028,64 @@ test("reconcileBuilderTreeWithLegacySlots preserves non-section roots and stable
     assert.equal(next[1].props.label, "Moved Hero");
     assert.equal(next[1].children?.[0]?.id, `legacy:hero:0:${sectionId}:heading:headline`);
   }
+});
+
+test("card and cta_group child policies match §7A governance", () => {
+  const cardPolicy = BUILDER_NODE_REGISTRY.card.children;
+  const ctaPolicy = BUILDER_NODE_REGISTRY.cta_group.children;
+  assert.equal(cardPolicy.type, "allow_list");
+  assert.equal(ctaPolicy.type, "allow_list");
+  if (cardPolicy.type === "allow_list") {
+    assert.deepEqual(cardPolicy.kinds, ["heading", "paragraph", "button", "image"]);
+  }
+  if (ctaPolicy.type === "allow_list") {
+    assert.deepEqual(ctaPolicy.kinds, ["button"]);
+  }
+
+  const nestedContainerUnderCard = validateBuilderNodeTree([
+    {
+      id: "sec-card-governance",
+      kind: "section",
+      props: { sectionTypeKey: "custom" },
+      children: [
+        {
+          id: "card-x",
+          kind: "card",
+          props: {},
+          children: [
+            {
+              id: "illegal-container",
+              kind: "container",
+              props: { layout: "stack" },
+              children: [],
+            },
+          ],
+        },
+      ],
+    },
+  ]);
+  assert.equal(nestedContainerUnderCard.ok, false);
+
+  const headingInsideCtaGroup = validateBuilderNodeTree([
+    {
+      id: "sec-cta-governance",
+      kind: "section",
+      props: { sectionTypeKey: "custom" },
+      children: [
+        {
+          id: "cta-x",
+          kind: "cta_group",
+          props: {},
+          children: [
+            {
+              id: "illegal-heading",
+              kind: "heading",
+              props: { text: "No", level: 2 },
+            },
+          ],
+        },
+      ],
+    },
+  ]);
+  assert.equal(headingInsideCtaGroup.ok, false);
 });

@@ -682,6 +682,7 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 | Date | Change |
 |------|--------|
+| 2026-05-09 | **Tests:** [`builder-node.test.ts`](../src/lib/site-admin/builder-node/builder-node.test.ts) asserts registry allow-lists + validation rejects container-under-card and heading-under-cta_group. |
 | 2026-05-09 | **Child governance (Card / CTA group):** registry aligned with § parent/child table — [`CARD_CHILD_KINDS`](../src/lib/site-admin/builder-node/registry.ts) (heading, paragraph, button, image); [`CTA_GROUP_CHILD_KINDS`](../src/lib/site-admin/builder-node/registry.ts) (button only). |
 | 2026-05-09 | **7A kinds — Card + CTA group:** [`card` / `cta_group`](../src/lib/site-admin/builder-node/types.ts) registered in [`registry.ts`](../src/lib/site-admin/builder-node/registry.ts), [`createBuilderNode`](../src/lib/site-admin/builder-node/create.ts) defaults, [`render.tsx`](../src/lib/site-admin/builder-node/render.tsx), Layout tab ([`layout-panel.tsx`](../src/components/edit-chrome/inspectors/layout-panel.tsx)), MVP catalog ([`mvp-allow-list.ts`](../src/lib/site-admin/builder-node/mvp-allow-list.ts)). |
 | 2026-05-09 | **Element library search aliases:** [`elementLibrarySearchExtraTerms`](../src/lib/site-admin/builder-node/mvp-allow-list.ts) (card/cta/columns/…) wired into [`ElementLibraryInsertPicker`](../src/components/edit-chrome/element-library-insert-picker.tsx) haystack — roadmap labels without new node kinds. |
