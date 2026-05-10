@@ -499,7 +499,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           () => {
             void ctx.duplicateSection(id).then((res) => {
               if (res.ok && res.newSectionId) {
-                ctx.setSelectedSectionId(res.newSectionId);
+                ctx.focusSectionForEdit(res.newSectionId);
               } else if (!res.ok && res.error) {
                 ctx.reportMutationError(res.error);
               }

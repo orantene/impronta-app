@@ -551,9 +551,9 @@ export function NavigatorPanel() {
         row.childNodes.some((child) => child.id === selectedBuilderNodeId),
     );
     if (owner && owner.ref.sectionId !== selectedSectionId) {
-      setSelectedSectionId(owner.ref.sectionId);
+      focusSectionForEdit(owner.ref.sectionId);
     }
-  }, [flat, selectedBuilderNodeId, selectedSectionId, setSelectedSectionId]);
+  }, [flat, selectedBuilderNodeId, selectedSectionId, focusSectionForEdit]);
   const searchQuery = search.trim().toLowerCase();
   const layeredSectionIds = useMemo(
     () => visible.filter((row) => row.childNodes.length > 0).map((row) => row.ref.sectionId),
@@ -578,7 +578,7 @@ export function NavigatorPanel() {
           if (selectedChildHiddenByCollapse) {
             // Keep inspector/canvas/navigator in sync: collapsing a section with
             // a selected child should promote selection back to the section row.
-            setSelectedSectionId(sectionId);
+            focusSectionForEdit(sectionId);
           }
         }
       }
@@ -592,7 +592,7 @@ export function NavigatorPanel() {
         return next;
       });
     },
-    [expandedSectionIds, flat, selectedBuilderNodeId, setSelectedSectionId],
+    [expandedSectionIds, flat, selectedBuilderNodeId, focusSectionForEdit],
   );
   const expandAllLayeredSections = useCallback(() => {
     setExpandedSectionIds((prev) => {
@@ -607,7 +607,7 @@ export function NavigatorPanel() {
         row.childNodes.some((child) => child.id === selectedBuilderNodeId),
       );
       if (owner) {
-        setSelectedSectionId(owner.ref.sectionId);
+        focusSectionForEdit(owner.ref.sectionId);
       }
     }
     setExpandedSectionIds((prev) => {
@@ -615,7 +615,7 @@ export function NavigatorPanel() {
       for (const id of layeredSectionIds) next.delete(id);
       return next;
     });
-  }, [flat, layeredSectionIds, selectedBuilderNodeId, setSelectedSectionId]);
+  }, [flat, layeredSectionIds, selectedBuilderNodeId, focusSectionForEdit]);
 
   // Sprint 4 — outline mode data. Builds the operator-facing heading
   // tree from the same flat + headingProbe combo the lint already uses.
@@ -676,19 +676,19 @@ export function NavigatorPanel() {
       if (builderNodeId) {
         selectBuilderNode(builderNodeId);
       } else {
-        setSelectedSectionId(sectionId);
+        focusSectionForEdit(sectionId);
       }
     },
-    [extendSelection, selectBuilderNode, toggleSelection, setSelectedSectionId],
+    [extendSelection, selectBuilderNode, toggleSelection, focusSectionForEdit],
   );
 
   /** Inspector/canvas parity when section chrome fires without a prior row click. */
   const selectNavigatorSectionRow = useCallback(
     (row: FlatRow) => {
       if (row.builderNodeId) selectBuilderNode(row.builderNodeId);
-      else setSelectedSectionId(row.ref.sectionId);
+      else focusSectionForEdit(row.ref.sectionId);
     },
-    [selectBuilderNode, setSelectedSectionId],
+    [selectBuilderNode, focusSectionForEdit],
   );
 
   /** Same targeting by cms section id (e.g. heading lint jump-to-section). */
@@ -711,13 +711,13 @@ export function NavigatorPanel() {
       // the operator clicked last, so dragging Hero while Site header was
       // selected left the inspector stuck on Site header even as Hero
       // visually became the active drag source.
-      setSelectedSectionId(sectionId);
+      focusSectionForEdit(sectionId);
       e.dataTransfer.effectAllowed = "move";
       // We ignore dataTransfer payload — id is in component state — but
       // setting *something* keeps Firefox from cancelling the drag.
       e.dataTransfer.setData("text/plain", sectionId);
     },
-    [setSelectedSectionId],
+    [focusSectionForEdit],
   );
 
   const onDragEnd = useCallback(() => {
@@ -1405,7 +1405,7 @@ export function NavigatorPanel() {
                       if (row.builderNodeId) {
                         selectBuilderNode(row.builderNodeId);
                       } else {
-                        setSelectedSectionId(row.sectionId);
+                        focusSectionForEdit(row.sectionId);
                       }
                     }}
                     role="button"
@@ -1416,7 +1416,7 @@ export function NavigatorPanel() {
                         if (row.builderNodeId) {
                           selectBuilderNode(row.builderNodeId);
                         } else {
-                          setSelectedSectionId(row.sectionId);
+                          focusSectionForEdit(row.sectionId);
                         }
                       }
                     }}

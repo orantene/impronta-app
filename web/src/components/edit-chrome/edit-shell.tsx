@@ -224,6 +224,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     selectedSectionId,
     selectedBuilderNodeId,
     setSelectedSectionId,
+    focusSectionForEdit,
     builderTree,
     copiedBuilderNodeKind,
     copyBuilderNode,
@@ -563,7 +564,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         e.preventDefault();
         void duplicateSection(selectedSectionId).then((res) => {
           if (res.ok && res.newSectionId) {
-            setSelectedSectionId(res.newSectionId);
+            focusSectionForEdit(res.newSectionId);
           } else if (!res.ok && res.error) {
             reportMutationError(res.error);
           }
@@ -614,6 +615,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     selectedSectionId,
     selectedBuilderNodeId,
     setSelectedSectionId,
+    focusSectionForEdit,
     builderTree,
     copiedBuilderNodeKind,
     copyBuilderNode,
