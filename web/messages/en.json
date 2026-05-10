@@ -902,7 +902,7 @@
       "phoneLabel": "Phone",
       "locationLabel": "Location",
       "updateAtIdentity": "Update at",
-      "siteIdentityLink": "Site → Identity",
+      "siteIdentityLink": "Workspace settings",
       "unavailable": "Account details unavailable.",
       "payoutSection": "Payout Accounts",
       "workspaceAccount": "Workspace account",

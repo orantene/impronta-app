@@ -19,6 +19,19 @@ export async function redirectLegacySiteSettingsToWorkspaceWebsite(): Promise<ne
 }
 
 /**
+ * Legacy `/admin/site-settings/identity` (and similar) bookmarks → workspace **Settings**
+ * (`/{tenantSlug}/admin/settings`). Agency identity / branding controls live in the prototype
+ * settings shell, not under `site-settings`.
+ */
+export async function redirectLegacySiteSettingsToWorkspaceSettings(): Promise<never> {
+  const scope = await getTenantScope();
+  if (!scope) {
+    redirect("/admin");
+  }
+  redirect(`/${scope.membership.slug}/admin/settings`);
+}
+
+/**
  * Legacy `/admin/site-settings/pages/<cms_pages.id>` deep links (page picker duplicate,
  * bookmarks). Resolves the row and sends staff to the **in-place storefront builder**
  * for that page — same destination shape as the builder page picker (`slug → /${slug}?edit=1`).

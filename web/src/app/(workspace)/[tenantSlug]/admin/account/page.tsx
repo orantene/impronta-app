@@ -562,12 +562,12 @@ export default async function WorkspaceAccountPage({
                   fontFamily: FONT,
                 }}
               >
-                Update at{" "}
+                {t("admin.account.updateAtIdentity")}{" "}
                 <Link
-                  href={`/${tenantSlug}/admin/site-settings/identity`}
+                  href={`/${tenantSlug}/admin/settings`}
                   style={{ color: C.accent, textDecoration: "underline" }}
                 >
-                  Site → Identity
+                  {t("admin.account.siteIdentityLink")}
                 </Link>
               </p>
             )}
