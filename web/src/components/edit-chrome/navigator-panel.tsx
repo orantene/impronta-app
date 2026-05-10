@@ -690,6 +690,16 @@ export function NavigatorPanel() {
     [selectBuilderNode, setSelectedSectionId],
   );
 
+  /** Same targeting by cms section id (e.g. heading lint jump-to-section). */
+  const selectNavigatorSectionById = useCallback(
+    (sectionId: string) => {
+      const row = flat.find((r) => r.ref.sectionId === sectionId);
+      if (row) selectNavigatorSectionRow(row);
+      else setSelectedSectionId(sectionId);
+    },
+    [flat, selectNavigatorSectionRow, setSelectedSectionId],
+  );
+
   const onDragStart = useCallback(
     (e: DragEvent<HTMLDivElement>, sectionId: string) => {
       setDraggingId(sectionId);
@@ -1689,9 +1699,7 @@ export function NavigatorPanel() {
           <div style={{ padding: "2px 8px 4px" }}>
             <HeadingLintBadge
               issues={headingIssues}
-              onFocusSection={(sectionId) =>
-                setSelectedSectionId(sectionId)
-              }
+              onFocusSection={selectNavigatorSectionById}
             />
           </div>
         ) : null}
