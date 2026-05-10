@@ -172,6 +172,28 @@ function scoreRow(query: string, row: ResultRow): number | null {
   return best;
 }
 
+/** ⌘K jump-to-section — extra haystack tokens for types operators search by intent. */
+function sectionJumpKeywords(
+  sectionTypeKey: string,
+  includeGoToPhrase: boolean,
+): string[] {
+  const base = [
+    sectionTypeKey,
+    "section",
+    ...(includeGoToPhrase ? (["go to"] as const) : []),
+  ];
+  if (sectionTypeKey === "blank_section") {
+    return [
+      ...base,
+      "blank canvas",
+      "custom composition",
+      "advanced composition",
+      "element library",
+    ];
+  }
+  return [...base];
+}
+
 // ── component ───────────────────────────────────────────────────────────
 
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
@@ -214,7 +236,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           // T2-2 — clean seeder suffix from palette labels
           label: cleanSectionName(ref.name) || ref.name,
           meta: slotLabelByKey.get(def.key) ?? def.key,
-          keywords: [ref.sectionTypeKey, "section", "go to"],
+          keywords: sectionJumpKeywords(ref.sectionTypeKey, true),
           icon: (
             <SectionTypeIcon
               typeKey={ref.sectionTypeKey}
@@ -253,7 +275,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           group: "section",
           label: cleanSectionName(ref.name) || ref.name,
           meta: slotKey,
-          keywords: [ref.sectionTypeKey, "section"],
+          keywords: sectionJumpKeywords(ref.sectionTypeKey, false),
           icon: (
             <SectionTypeIcon
               typeKey={ref.sectionTypeKey}
