@@ -201,6 +201,16 @@ function GenericBlockIcon({ size = 16, ...p }: IconProps): ReactElement {
   );
 }
 
+/** CMS **blank_section** — dashed canvas frame + centered dot (empty compose surface). */
+function BlankSectionIcon({ size = 16, ...p }: IconProps): ReactElement {
+  return (
+    <svg {...svgProps(size, p)}>
+      <rect x="2.5" y="3" width="11" height="10" rx="1.2" strokeDasharray="2 1.8" />
+      <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   hero: HeroIcon,
   category_grid: CategoryGridIcon,
@@ -214,6 +224,7 @@ const ICONS: Record<string, (p: IconProps) => ReactElement> = {
   press_strip: PressStripIcon,
   destinations_mosaic: DestinationsMosaicIcon,
   image_copy_alternating: ImageCopyAlternatingIcon,
+  blank_section: BlankSectionIcon,
 };
 
 interface SectionTypeIconProps extends IconProps {
