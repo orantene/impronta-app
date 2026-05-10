@@ -1043,14 +1043,11 @@ export function SelectionLayer() {
       reportMutationError(removed.error);
       return;
     }
-    setSelectedSectionId(selectedSectionId);
   }, [
     canRemoveSelectedNode,
     removeBuilderNode,
     reportMutationError,
     selectedCanvasNodeId,
-    selectedSectionId,
-    setSelectedSectionId,
   ]);
   const commitChildMove = useCallback(
     async (nodeId: string, direction: "up" | "down") => {
@@ -1081,17 +1078,8 @@ export function SelectionLayer() {
         reportMutationError(removed.error);
         return;
       }
-      if (selectedBuilderNodeId === nodeId) {
-        setSelectedSectionId(selectedSectionId);
-      }
     },
-    [
-      removeBuilderNode,
-      reportMutationError,
-      selectedBuilderNodeId,
-      selectedSectionId,
-      setSelectedSectionId,
-    ],
+    [removeBuilderNode, reportMutationError],
   );
   const commitChildDuplicate = useCallback(
     async (nodeId: string) => {

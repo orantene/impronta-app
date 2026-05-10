@@ -3225,9 +3225,9 @@ export function EditProvider({
       }
       if (removingActiveNode) {
         // Keep section/canvas/inspector selection aligned immediately after
-        // delete, without relying on later stale-node effects.
+        // delete: prefer the section root builder node (honest selection).
         if (ownerSectionId) {
-          setSelectedSectionId(ownerSectionId);
+          focusSectionForEdit(ownerSectionId);
         } else {
           setSelectedBuilderNodeIdOverride(null);
         }
@@ -3240,7 +3240,8 @@ export function EditProvider({
       sectionIdByBuilderNodeId,
       selectedBuilderNodeId,
       selectedSectionId,
-      setSelectedSectionId,
+      focusSectionForEdit,
+      setSelectedBuilderNodeIdOverride,
     ],
   );
   const duplicateBuilderNode = useCallback<

@@ -479,9 +479,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           ["remove", "trash", "block"],
           () => {
             void ctx.removeBuilderNode(id).then((res) => {
-              if (res.ok) {
-                ctx.setSelectedSectionId(ctx.selectedSectionId);
-              } else if (res.error) {
+              if (!res.ok && res.error) {
                 ctx.reportMutationError(res.error);
               }
             });
