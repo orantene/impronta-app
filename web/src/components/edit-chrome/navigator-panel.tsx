@@ -85,7 +85,7 @@ import {
   type BuilderNodeKind,
 } from "@/lib/site-admin/builder-node";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
-import { siblingDropGapToMoveIndex } from "./builder-node-sibling-drop";
+import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { HeadingLintBadge } from "./inspectors/HeadingLintBadge";
 import { loadHeadingProbeForLint } from "@/lib/site-admin/edit-mode/heading-lint-action";

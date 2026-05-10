@@ -307,6 +307,12 @@ const CASES: ReadonlyArray<BindingCase> = [
     componentPath: "src/lib/site-admin/sections/before_after/Component.tsx",
   },
   {
+    sectionTypeKey: "blank_section",
+    props: {},
+    expectedRoles: [],
+    componentPath: "src/lib/site-admin/sections/blank_section/Component.tsx",
+  },
+  {
     sectionTypeKey: "booking_widget",
     props: {
       eyebrow: "Booking",

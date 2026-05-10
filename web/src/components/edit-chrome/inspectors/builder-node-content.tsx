@@ -23,7 +23,7 @@ import {
   type BuilderBlockPreset,
   type BuilderNodePastePreview,
 } from "../edit-context";
-import { siblingDropGapToMoveIndex } from "../builder-node-sibling-drop";
+import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";

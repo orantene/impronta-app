@@ -1,12 +1,12 @@
 /**
- * P7A-3 — Shared semantics for drag-reorder of builder-node siblings.
+ * P7A-3 — Drag-reorder gap index → `moveBuilderNode` sibling index.
  *
  * Drop targets use a **gap index** between siblings: `0` is before the first
- * child, `length` is after the last. `moveBuilderNodeToParentIndex` expects a
- * **sibling index** after the node is logically removed from its current parent.
+ * child, `length` is after the last. `moveBuilderNode` / server actions expect
+ * the **insert index in the post-removal sibling list** under the target parent.
  *
- * Navigator child rows, canvas nested-blocks panel, and inspector child list
- * must all agree — keep the math in one place.
+ * Shared by navigator child rows, canvas nested-blocks panel, and inspector
+ * child list (`@/components/edit-chrome/*`).
  */
 export type SiblingDropGapToMoveIndexResult =
   | { kind: "noop" }

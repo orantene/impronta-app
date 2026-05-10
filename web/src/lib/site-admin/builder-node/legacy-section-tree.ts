@@ -1442,6 +1442,9 @@ export function deriveLegacySectionChildNodes(
   sectionNodeId: string,
   slot: LegacySnapshotSlot,
 ): BuilderNode[] {
+  if (slot.sectionTypeKey === "blank_section") {
+    return [];
+  }
   if (isCompositionOwnedSectionType(slot.sectionTypeKey)) {
     return [];
   }

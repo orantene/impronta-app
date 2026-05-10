@@ -39,7 +39,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import { siblingDropGapToMoveIndex } from "./builder-node-sibling-drop";
+import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import {
   ArrowDown,
   ArrowUp,

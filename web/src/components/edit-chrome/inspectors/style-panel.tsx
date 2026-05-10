@@ -348,6 +348,7 @@ const EDITABLE_ROLES_BY_SECTION: Record<string, ReadonlyArray<EditableNodeRole>>
   image_copy_alternating: ["subheadline", "headline"],
   split_screen: ["subheadline", "headline", "copy", "primaryCta", "secondaryCta"],
   before_after: ["subheadline", "headline"],
+  blank_section: [],
   booking_widget: ["subheadline", "headline", "copy", "primaryCta"],
   lookbook: ["subheadline", "headline"],
   magazine_layout: ["subheadline", "headline"],
