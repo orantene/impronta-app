@@ -29,9 +29,11 @@ import {
   isPreviewActiveForTenant,
   loadHomepageForRender,
 } from "@/lib/site-admin/server/homepage-reads";
+import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isLocale } from "@/lib/site-admin/locales";
+import { homepageMeta } from "@/lib/site-admin/templates/homepage/meta";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { EmptyCanvasStarter } from "@/components/edit-chrome/empty-canvas-starter";
 // Phase B.2.A — snapshot site shell wrappers. Two server components that
@@ -46,6 +48,20 @@ import {
   shouldRenderSnapshotShell,
 } from "@/components/site-shell/PublishedShell";
 import { getPublicPathPrefix } from "@/lib/saas";
+
+const HOMEPAGE_SLOT_ORDER = new Map(
+  homepageMeta.slots.map((slot, index) => [slot.key, index] as const),
+);
+
+function compareHomepageSlotEntries(
+  a: HomepageSnapshot["slots"][number],
+  b: HomepageSnapshot["slots"][number],
+): number {
+  const aSlot = HOMEPAGE_SLOT_ORDER.get(a.slotKey) ?? Number.MAX_SAFE_INTEGER;
+  const bSlot = HOMEPAGE_SLOT_ORDER.get(b.slotKey) ?? Number.MAX_SAFE_INTEGER;
+  if (aSlot !== bSlot) return aSlot - bSlot;
+  return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+}
 
 /**
  * Agency-surface storefront (what was the old root homepage).
@@ -319,7 +335,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           {hasRenderableNonHeroSlots && cmsHomepage?.snapshot ? (
             cmsHomepage.snapshot.slots
               .filter((s) => s.slotKey !== "hero")
-              .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+              .sort(compareHomepageSlotEntries)
               .map((entry) => {
                 const snap = cmsHomepage.snapshot!;
                 return (

@@ -307,3 +307,234 @@ After fixes, rerun:
 9. Move the section up/down.
 10. Confirm canvas and navigator order match.
 11. Only then test publish.
+
+## Fix / Retest Update - 2026-05-09
+
+Scope retested:
+
+- Local QA tenant: `http://localhost:3000/impronta?edit=1`
+- Section under test: `Directory Search Hero`
+- Browser method: Codex in-app browser, visual + DOM-facing checks
+
+Code changes verified in this pass:
+
+1. Coalesced the builder canvas refresh path after mutations so repeated save/insert/duplicate operations do not fight each other or call the router refresh path as if it returned a promise.
+2. Added a selection-layer retry window for newly inserted/selected sections so the canvas can scroll/highlight after the refreshed server DOM actually mounts.
+3. Confirmed the Directory Search Hero schema/renderer/editor support the search form and category chips used by the starter.
+4. Removed a viewport-switcher group `title` attribute that triggered a hydration mismatch warning in the local browser log.
+5. Hardened the inspector dock so it only renders loaded section data when that data belongs to the currently selected section. During slow selection changes, the dock now falls back to the selected row skeleton hint instead of showing the previous section title/tabs/content.
+6. Restored missing publish split-menu ids with stable React ids so the publish options trigger and menu have valid ARIA wiring and typecheck passes.
+
+Automated checks:
+
+- `npm run typecheck`: pass.
+- Scoped lint on `src/components/edit-chrome/edit-context.tsx` and `src/components/edit-chrome/selection-layer.tsx`: pass.
+- `npm run test:builder-capabilities`: pass, 57 tests.
+- After the viewport-switcher warning fix, `npm run typecheck` and scoped lint on `edit-context.tsx`, `selection-layer.tsx`, and `topbar.tsx` passed again.
+- After the stale-inspector and publish-menu fixes, `npm run typecheck`, scoped lint on touched edit chrome files, and `npm run test:builder-capabilities` passed again.
+
+Human/browser retest findings:
+
+- `Directory Search Hero` is now visible on the canvas after selection.
+- The canvas shows the expected headline, supporting copy, search input, Search button, and category chips.
+- Navigator, canvas, and inspector can align on the inserted search hero in desktop mode.
+- Mobile preview no longer produces the previously logged blank canvas. The search hero is visible in the mobile viewport.
+- Mobile canvas overlay was adjusted so the floating nested-block manager does not cover narrow iframe/mobile canvases.
+
+Updated issue status:
+
+- BUG-002, add-section render mismatch: **improved / needs one clean add-from-empty retest**.
+- BUG-003, mobile blank canvas: **improved / no blank frame observed in this pass**.
+- Mobile overlay obstruction: **improved in code / needs one fresh browser retest after local performance stabilizes**.
+- Stale inspector context on slow section selection: **improved in code / needs one fresh browser retest after local performance stabilizes**.
+- BUG-005, publish trust: **still blocked from pass** until a clean add/edit/publish/reopen loop is completed.
+
+Remaining friction observed:
+
+- Impronta homepage is polluted with duplicate test sections, which makes selection and confidence harder than it should be.
+- Mobile mode is visually usable now, but still needs another pass for touch ergonomics and inspector/navigator clarity.
+- Need a clean baseline page before declaring the add-section flow truly fixed. Current page has several duplicate hero/search sections from earlier QA.
+- Local browser QA remains slow under the current Impronta page load. During the last reload, local requests reached multi-second and occasional 40s+ response times, and the browser screenshot call timed out. This keeps BUG-001 open as a trust issue.
+- A hydration warning appeared around the viewport switcher title attribute in the edit topbar. The static group title was removed; this needs one fresh browser reload check once local browser responsiveness stabilizes.
+- The Codex in-app browser was able to read the public Impronta page and confirm the public search hero is visible, but navigation back into `?edit=1` timed out. This confirms BUG-001 remains a practical human-QA blocker: the local edit surface must be responsive before the full usability script is meaningful.
+
+Next recommended execution order:
+
+1. Reset or create a controlled Impronta QA homepage snapshot with one known baseline section set — see [impronta-local-qa-homepage-baseline.md](./impronta-local-qa-homepage-baseline.md) (discard draft junction rows or curate in-builder).
+2. Run the full Scenario 2 add-section test from a clean page: add `Directory Search Hero`, verify navigator, canvas, inspector, desktop/tablet/mobile, save, refresh.
+3. Run a publish/reopen loop only after Scenario 2 is clean.
+4. Keep logging every pass/fail in this document so the QA history stays in one place.
+5. Investigate the viewport switcher hydration warning and the local performance spikes before asking a human tester to run the full script.
+6. Re-attempt the inspector-sync retest only after local `?edit=1` can load reliably within a normal browser timeout.
+
+## Fix / Retest Update - 2026-05-09, Pass 2
+
+Scope:
+
+- Local QA tenant remains `http://localhost:3000/impronta?edit=1`.
+- Work stayed inside the existing edit surface and current builder foundation.
+- No Playwright/browser-runner automation was used in this pass.
+
+Code changes verified in this pass:
+
+1. The navigator heading probe is now page-scoped. It sends only the visible page section ids into `loadHeadingProbeForLint()` instead of loading every tenant section for every navigator pass.
+2. Added `listSectionsByIdsForStaff()` so the heading probe keeps tenant filtering while avoiding tenant-wide section scans.
+3. Memoized the navigator section-id input list so heading lint can refresh on page version/section shape changes without React hook dependency warnings or unnecessary probe churn.
+4. Added a navigator request key so the same heading probe is not re-fired repeatedly for the same page version and section-id set.
+5. Inspector stale-section protection remains in place: if a slow section load belongs to the previously selected section, the inspector does not render that stale title/content against the newly selected row.
+6. Publish split-menu ARIA ids remain stable after the topbar fix.
+
+Automated checks:
+
+- `npm run typecheck`: pass.
+- Scoped lint on touched builder/server files: pass.
+- `npm run test:builder-capabilities`: pass, 57 tests.
+- `npm run test:tenant-isolation`: pass, 26 tests.
+- After the duplicate-probe guard, `npm run typecheck`, scoped lint on the navigator/server files, and `npm run test:builder-capabilities` passed again.
+
+Human/browser retest findings:
+
+- The Codex in-app browser opened `http://localhost:3000/impronta?edit=1` successfully in this pass.
+- The DOM confirmed the edit chrome is present: Navigator, Publish, Inspector, Page settings, and Revisions are all mounted.
+- The public/canvas body is still polluted by duplicate QA sections, so this was not a clean human add/edit/reorder/publish script.
+- Server logs improved after earlier 50-60s edit loads: the latest observed `GET /impronta?edit=1` completed around 4s, and the heading probe ran against page section ids. The probe is still roughly 1-1.6s and should remain on the performance watch list.
+
+Updated issue status:
+
+- Heading probe performance risk: **improved in code** by narrowing server reads to page section ids.
+- React hook warning in navigator probe: **fixed**.
+- Tenant safety for narrowed section reads: **verified** by `test:tenant-isolation`.
+- Duplicate heading-probe calls for the same page version: **improved in code** with a client-side request key.
+- BUG-001, local edit performance/reliability: **improved but open**. The editor loaded in this pass, but the run history still includes severe slow loads and the next gate needs repeat consistency.
+- BUG-005, publish trust: **still blocked from pass** until a clean add/edit/publish/reopen loop is completed.
+
+Next recommended execution order:
+
+1. Create or restore a clean Impronta QA page state so the next human test is not polluted by duplicate sections.
+2. Run Scenario 2 from the human QA plan on that clean page state.
+3. Then run section reorder and publish/reopen before moving back to premium feature expansion.
+4. Keep the heading probe on the performance watch list; if the edit surface becomes slow again, profile duplicate server requests and heavy navigator/inspector refresh paths before adding more UX features.
+
+## Fix / Retest Update - 2026-05-09, Pass 3
+
+Scope:
+
+- Local QA tenant: `http://localhost:3000/impronta?edit=1`.
+- Focus: section reorder trust, canvas render ordering, and one hydration warning caught by the in-app browser.
+- Browser method: Codex in-app browser only.
+
+Code changes verified in this pass:
+
+1. Navigator section move buttons now resolve the previous/next target from the full flattened page order, not only the current slot. This makes the arrows behave like a page builder reorder control instead of silently trapping sections inside invisible template slots.
+2. The move buttons still respect slot compatibility. For example, the hero slot remains protected from non-hero sections.
+3. Drag/drop now uses the same flat-order target resolver, so button reorder and drag reorder share one interpretation of where the section should land.
+4. Storefront canvas rendering now sorts non-hero CMS entries by homepage template slot order first, then `sortOrder`. This fixes unpredictable interleaving caused by multiple slots all starting their local order at `0`.
+5. Removed the viewport-switcher group `title` attribute that produced a hydration mismatch in the local browser console.
+
+Automated checks:
+
+- `npm run typecheck`: pass.
+- Scoped lint on `navigator-panel.tsx`, `agency-home-storefront.tsx`, and `topbar.tsx`: pass.
+- `npm run test:builder-capabilities`: pass, 57 tests.
+
+Human/browser retest findings:
+
+- The in-app browser loaded the editor and confirmed Navigator + Publish were mounted.
+- Clicking the `Move Hero — new down` control succeeded.
+- Navigator order changed after the click:
+  - Before: `A house of curated talent.` → `Hero — new` → `A house of curated talent. (2)`
+  - After: `A house of curated talent.` → `A house of curated talent. (2)` → `Hero — new`
+- This proves at least one real section reorder now works through the visible navigator button path.
+- A fresh reload after the viewport-switcher title fix mounted Navigator + Publish again. The browser log API still showed the older hydration error timestamp from before the fix, but no new current hydration error was observed in that reload window.
+
+Updated issue status:
+
+- Section reorder via navigator buttons: **improved / partially verified**.
+- Cross-slot reorder affordance: **improved in code** by using flat page order.
+- Canvas render order across slots: **fixed in code** by using template slot order.
+- Viewport-switcher hydration mismatch: **fixed in code / no new error observed after reload, but browser log history still contains the old entry**.
+- Full publish/reopen trust: **still blocked from pass** until tested on a clean page state.
+
+Next recommended execution order:
+
+1. Create/restore a clean Impronta QA page state.
+2. Run the complete human loop: add section, reorder, edit text, publish, reload visitor page.
+3. Only after that, continue deeper premium builder work.
+
+## Fix / Retest Update - 2026-05-09, Pass 4
+
+Scope:
+
+- Local QA tenant: `http://localhost:3000/impronta?edit=1`.
+- Admin bridge under test: `http://localhost:3000/impronta/admin/website`.
+- Browser method: Codex in-app browser only.
+
+Code changes verified in this pass:
+
+1. Fixed a runtime navigator crash after the reorder patch by moving the flat-order drop-target resolver into stable component scope. The editor no longer falls into `EditErrorBoundary` with `resolveSectionDropTarget is not defined`.
+2. Confirmed section move buttons remain visible and keyboard/button reachable after the runtime fix.
+3. Re-tested a real navigator reorder: `Move Hero — new down` changes the visible navigator order and does not throw a builder error.
+4. Split Website admin URL handling into live-view origin and editor origin. On localhost, the Website page now opens visual editing through the tenant path base (`http://localhost:3000/impronta?edit=1&panel=sections`) instead of handing authenticated QA to the production/custom host.
+5. Production/live view behavior is preserved: View live and posts still use the configured live origin.
+
+Automated checks:
+
+- `npm run typecheck`: pass.
+- Scoped lint on `navigator-panel.tsx`, `agency-home-storefront.tsx`, and `topbar.tsx`: pass.
+- `npm run test:builder-capabilities`: pass, 57 tests.
+- After adding `panel=sections` to Website edit links, `npm run typecheck` and focused edit-chrome lint passed again.
+- Linting the full prototype shell file still fails because of pre-existing baseline issues in unrelated Settings components. This pass did not attempt a broad `_pages.tsx` cleanup.
+
+Human/browser retest findings:
+
+- The in-app browser loaded `http://localhost:3000/impronta?edit=1&qaReload=navfix`.
+- Navigator and Publish were mounted.
+- No current `EditErrorBoundary` / `resolveSectionDropTarget` error appeared after the reload.
+- A move button click completed without a recent builder error log.
+- The browser log still contains an older viewport-switcher hydration record from before the title fix; no new builder crash was observed in this pass.
+
+Updated issue status:
+
+- Section reorder crash: **fixed and browser-retested**.
+- Section reorder via navigator buttons: **working for the tested section path**.
+- Website admin to builder handoff on localhost: **improved in code**. The target URL is now the tenant-scoped localhost editor with the sections panel open.
+- Publish/reopen trust: **still blocked from pass** until tested on a clean page state.
+
+Next recommended execution order:
+
+1. Click through `http://localhost:3000/impronta/admin/website` -> Edit homepage and confirm the opened URL is `http://localhost:3000/impronta?edit=1`.
+2. Create/restore a clean Impronta QA page state.
+3. Run the complete human loop: add section, reorder, edit text, publish, reload visitor page.
+
+## Fix / Retest Update - 2026-05-09, Pass 5
+
+Scope:
+
+- Focus: making the next clean Impronta QA reset safer.
+- No tenant content was changed in this pass.
+
+Code/documentation changes:
+
+1. Added `--draft-only` support to `scripts/reset-impronta-homepage.ts`.
+2. Added `npm run reset:impronta-homepage:draft`.
+3. Updated [impronta-local-qa-homepage-baseline.md](./impronta-local-qa-homepage-baseline.md) to recommend the draft-only reset for normal human QA cleanup.
+4. Documented that the existing empty-homepage reset remains intentionally destructive and should be kept for blank-canvas e2e only.
+
+Safe dry-run result:
+
+- Command: `npm run reset:impronta-homepage:draft`
+- Tenant: `impronta` (`00000000-0000-0000-0000-000000000001`)
+- Homepage locale: `en`
+- Draft rows currently detected: `11`
+- Live rows currently detected: `0`
+- Apply effect if run with `-- --apply`: delete draft `cms_page_sections` only; leave `cms_pages` and published snapshots unchanged.
+
+Automated checks:
+
+- `npm run typecheck`: pass.
+- `npm run reset:impronta-homepage:draft`: dry-run pass.
+
+Updated issue status:
+
+- Clean QA reset tooling: **improved / dry-run verified**.
+- Clean page state: **not applied yet**. The user or next operator must intentionally run `npm run reset:impronta-homepage:draft -- --apply` before the clean human QA loop.

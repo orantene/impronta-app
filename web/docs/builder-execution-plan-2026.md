@@ -1,6 +1,326 @@
-# Builder execution roadmap — 2026
+# Builder roadmap — unified execution plan (2026)
+
+**Single source of truth** for the builder: locked phases, PR tasks, readiness gates, honesty principle, implementation status, first-PR guidance, and changelog — **edit only this file** for roadmap changes.
 
 **Canonical working roadmap for Tulala / Impronta.** Use this for daily prioritization. Detailed evidence and discovery lives in [builder-deep-audit-2026-05-09.md](./builder-deep-audit-2026-05-09.md). Strategic alignment: [builder-convergence-plan.md](./builder-convergence-plan.md). Surface scorecard: [builder-experience-execution-plan.md](./builder-experience-execution-plan.md).
+
+**Advanced Mode is gated on 7A. Phase 5 templates do not equal Advanced Mode.**
+
+## Strategic framing and execution truth
+
+### Strategic stance
+
+- **Phase 7 is not “done” because `BuilderNode` (or builder infrastructure) exists.** **Advanced Mode begins only when Phase 7A (Element Library MVP)** ships. The “advanced builder” story is **gated on 7A**, not on Phase 5 template polish alone.
+- **Simple Mode** — templates, inserter, and Phase 5 flows: polished pages without governed **element** primitives.
+- **Advanced Mode** — begins at **7A**: blank/minimal section → insert **elements** from a governed library → reorder → edit → publish → hard refresh → **persists**, with an **honest** builder tree (no synthetic “layers”).
+
+### Guardrails
+
+| Trap | Rule |
+|------|------|
+| Docs vs reality | Updating the roadmap **≠** shipping; verify against code and QA. |
+| Templates vs element library | **Section templates ≠ element library.** Do not treat template volume as “library MVP.” |
+| Milestones before 7A | Do **not** make **template count expansion** the main milestone **ahead of 7A** unless product escalates. |
+| Fake layers | Do not present **field-backed** props as **reorderable child nodes**; stay aligned with section 7 (honest UI) and [`legacy-section-tree.ts`](../src/lib/site-admin/builder-node/legacy-section-tree.ts). |
+| Phase numbers vs build order | **Phase 6 (shell)** and **Phase 7A** are **different tracks** — dependency wins, not numeric order. |
+
+### First 7A demo target (acceptance)
+
+On a **registered tenant host** (see [AGENTS.md](../../AGENTS.md), [OPERATING.md](../../OPERATING.md), [web/AGENTS.md](../AGENTS.md), and [Phase 0 registered-host QA](./phase-0-qa-registered-host.md)):
+
+The **first true product proof** for 7A must follow **First 7A proof must use Blank Section** below — **not** Hero, **not** a starter template, and **not** a locked section preset. Quick exploratory demos may use a minimal scaffold only when labeled **non-shipping**.
+
+Every element inserted through the Element Library must pass the **7A Reality Test** (below).
+
+If any step fails, **7A is not done**.
+
+### Governed composition: 7A–7D (product framing)
+
+Communicate nested composition as **sub-phases**, not one blob named “Phase 7”:
+
+| Subphase | Name | Goal (one line) |
+|----------|------|-----------------|
+| **7A** | Element Library MVP | Real persisted nodes from a library; insert/reorder; honest inspector — **mandatory** before “Advanced Mode” claims. |
+| **7B** | Hero pilot | First vertical composition pilot (variants, slots, media). Current roadmap “Phase 7 Hero” tasks belong **here**; **does not replace 7A**. |
+| **7C** | Repeat pattern | CTA, gallery, slider, testimonials, talent grid, contact — same governance pattern as Hero. |
+| **7D** | Governance scale | Depth limits, allowed parents, validation, perf budgets as composition spreads. |
+
+Phases **8–10** in §3 stay as written (responsive authoring, perf/a11y, post-v1).
+
+### PR task IDs
+
+Full task rows (files, risk, test) live in **§4** — **Phase 7A — Element Library MVP** (P7A-0 … P7A-7) and **Phase 7B — Governed Hero** (P7B-1, P7B-2). Use **P7B-*** for Hero-only work so it is never mistaken for the element-library MVP.
+
+### What 7A is not
+
+Claiming **7A** requires real library-backed **persisted** elements — not any of the following:
+
+- More **ready-made section templates** (that is Phase 5 / library density, not 7A).
+- **Synthetic child rows** derived from legacy flat props.
+- A **visual list of fields** pretending to be layers.
+- A **Hero-only variant picker** (that is **7B**, on top of 7A).
+- A **template gallery** relabeled as “element library.”
+
+### 7A MVP element allow-list
+
+Lock first-ship scope to:
+
+**In MVP:** Blank Section, Container, Columns, Heading, Paragraph, Button, Image, Divider, Spacer, Card, CTA Group.
+
+**Not in MVP:** Video, Forms, Slider items, dynamic repeater cards, arbitrary custom code — pull forward only by explicit product call.
+
+### Persistence truth (7A)
+
+7A nodes must persist through the **same builder tree / snapshot path** used for **draft and publish** (the path real sections use today). If an element exists only in **client-only state**, **localStorage**, **inspector draft props without persisted nodes**, or a **synthetic legacy projection**, **7A is not shipped**.
+
+### Migration rule (legacy sections)
+
+**Do not break** current shipped sections. **Legacy sections stay supported.** 7A lands on **blank/custom** composition surfaces first. **7A must not rewrite** existing Hero, CTA, Gallery, Talent Grid, Contact, or similar legacy sections — those migrate **later** through **7B / 7C**. **Do not rewrite all legacy sections inside the first 7A PRs.**
+
+### Simple vs Advanced Mode UX rule
+
+- **Simple Mode** is the **default** for non-technical users (templates, starters, Phase 5 library).
+- **Advanced Mode** is **opt-in inside the builder**, beginning with **Blank Section / Custom Section** flows that expose **real element composition**.
+- The UI must **say plainly** when the user is editing a **ready-made section** versus **composing real persisted elements**, so we never imply Webflow-level freedom without the data model.
+
+### No destructive QA reset (Impronta)
+
+Impronta is both the **QA tenant** and a **real brand surface**. QA cleanup must **prefer draft-only reset** (discard draft `cms_page_sections`, use runbooks). **Do not** clear **published** homepage snapshots or **purge** production sections unless the user **explicitly** asks for blank-canvas destructive testing.
+
+### Roadmap revision checklist
+
+Ongoing hygiene:
+
+- [ ] Append a **changelog** row after substantive roadmap edits.
+- [ ] If code ships with roadmap edits, run **`npm run typecheck`** (and scoped lint / `npm run ci` per AGENTS.md).
+
+---
+
+## Phase 7A guardrails (execution)
+
+These guardrails prevent **7A** from becoming another **fake layer** system or an internal registry dressed as a library.
+
+### 7A Reality Test
+
+For **every** element inserted through the **Element Library**, verify **before** claiming 7A shipped:
+
+| Check | Requirement |
+|-------|-------------|
+| Persisted identity | It has a **real persisted** builder/node ID on the **server-backed** tree (not props-only illusion). |
+| Navigator | It appears in the **navigator** as a **real** node — not a synthetic row from legacy flat props. |
+| Selection | It can be **selected independently** from sibling nodes. |
+| Edit | It can be **edited independently** (inspector drives **persisted** fields / children). |
+| Reorder | It can be **reordered** wherever governance allows (navigator **and** canvas stay aligned). |
+| Draft | Changes **survive draft save** / autosave path used by real sections. |
+| Publish | Changes **survive publish** (snapshot matches intent). |
+| Reopen | After **hard refresh** or **reopen**, the tree **matches** what was edited — **no client-only recovery**. |
+| Not legacy-derived | It is **not** represented **only** as derived children from **legacy section props** without persisted nodes. |
+| Not client-only | It is **not** **local-only** / transient UI state without persisted backing. |
+
+If **any** check fails for **any** allow-list element, **7A is not shipped**.
+
+### First 7A proof must use Blank Section
+
+**Blank Section is the first product proof.** The **first Advanced Mode proof** must **not** use Hero, a **starter template**, or a **locked section preset**.
+
+Minimum sequence on a **registered host**:
+
+1. Insert **Blank Section** / **custom blank** composition surface (not a marketing starter).
+2. **Add** at least **Heading**, **Paragraph**, **Button**, **Image**, and **Divider** or **Spacer** — each as **persisted** nodes from the library.
+3. **Reorder** nodes within governance rules.
+4. **Edit** each independently; confirm inspector honesty.
+5. **Publish** → **hard refresh** → **reopen** → confirm **identical** persisted tree.
+
+**Why:** Starting from Hero or templates lets the team slide back into **template wiring** instead of **real architecture**.
+
+### 7A Gate 0 — before P7A-1 (no Add Element UI yet)
+
+**Do not build the Add Element / library picker UI until P7A-0’s persistence contract is verified.** Otherwise UI work discovers persistence failures late.
+
+Before **P7A-1**, confirm in code/review:
+
+- **Persisted node shape** for library inserts (IDs, types, parent pointers).
+- **Allowed parent/child rules** (see governance table below).
+- **Draft save path** for mutations.
+- **Publish snapshot path** (what SSR/routes read).
+- **Reopen/read path** after refresh (RSC + client reconcile).
+- **Tenant scoping** (RLS / agency isolation).
+- **Undo/redo expectation** (explicit MVP behavior — even if “limited”).
+- **Kill switch / tenant feature flag** path (safe disable without destroying legacy pages).
+- **Non-interference** with existing legacy sections (no mandatory migration inside 7A).
+
+### P7A-0 deliverable format
+
+**P7A-0 must produce a concrete technical deliverable** — not architecture vibes. Before **P7A-1**, the output should be **written down and/or coded** to the point another engineer can implement UI against it without guessing.
+
+**1. BuilderNode persistence contract**
+
+- **Node shape** — fields for type, payload, metadata.
+- **IDs** — stable identity for persisted nodes (draft + publish).
+- **Parent/child relationship** — how nesting is stored and validated.
+- **Ordering** — sibling order key / array semantics.
+- **Allowed node types** — enum or equivalent aligned with allow-list.
+- **Style/content payload location** — where typography/spacing/content live vs structural props.
+
+**2. Allowed parent/child matrix** — explicit for **Blank Section**, **Container**, **Columns**, **Column**, **Card**, **CTA Group** (and how it ties to the **Parent / child governance** table below — **frozen** as schema rules / validation, not prose-only).
+
+**3. Draft mutation path** — how **insert / update / move / delete** persist **before** publish (server actions, RPC shape, optimistic behavior if any).
+
+**4. Publish snapshot path** — how the **custom tree** becomes **public output** (what tables/snapshots SSR reads).
+
+**5. Reopen/read path** — how **SSR / RSC / client** load the **same tree** after **hard refresh** (no orphan client-only state).
+
+**6. Renderer path** — where each **MVP element** renders from; how **unknown / invalid** nodes **fail safely** (no white-screen / silent drop).
+
+**7. Inspector routing** — how selecting **Heading** vs **Button** vs **Image** routes to the **correct** inspector surface.
+
+**8. Navigator routing** — how **real** nodes appear in the tree; how **synthetic legacy** rows stay **visually distinct** (honesty).
+
+**9. Feature flag / kill switch** — how **7A is disabled per tenant** without damaging **existing** pages.
+
+**10. Test proof**
+
+- **`npm run typecheck`**
+- **`npm run test:tenant-isolation`** when server/tenant paths touched
+- **One manual** draft → publish → reopen proof for a **seed node** (or smallest persisted insert) **if possible** before UI ramp.
+
+**Acceptance for P7A-0**
+
+We know **exactly**:
+
+- **Where** custom element nodes **persist**.
+- **How** they **render**.
+- **How** they **publish**.
+- **How** they **reopen** after refresh.
+- **How** they are **scoped** by tenant.
+- **How** to **disable** the feature safely.
+
+→ **Only then is P7A-1 safe to start.**
+
+**P7A-0 close-out:** End with one explicit line — **`Proceed to P7A-1`** **or** **`Blocked because ___`** (specific blocker, owner, next step).
+
+### 7A Inspector MVP (lock scope)
+
+Do **not** ship animation suites, forms, video, arbitrary **custom CSS**, or arbitrary code in **7A**. Lock inspectors to:
+
+| Element | Controls (MVP) |
+|---------|------------------|
+| **Heading** | Text, level, alignment, color, size, spacing |
+| **Paragraph** | Text, alignment, color, size, spacing |
+| **Button** | Label, URL, style, size, alignment, open in new tab |
+| **Image** | Source, alt text, width, radius, alignment |
+| **Container** | Width, padding, gap, alignment |
+| **Columns** | Column count, gap, ratio, mobile stack |
+
+*(Divider, Spacer, Card, CTA Group: minimal geometric/spacing + content fields only — no new subsystem per component beyond this discipline.)*
+
+### Parent / child governance (7A)
+
+Allowed structure **for 7A** (evolves in **7B/7C** with review):
+
+| Parent | Allowed children |
+|--------|------------------|
+| **Blank Section** | Container, Heading, Paragraph, Button, Image, Divider, Spacer, Columns, Card |
+| **Container** | Heading, Paragraph, Button, Image, Divider, Spacer, Columns, Card, CTA Group |
+| **Columns** | Column only |
+| **Column** | Heading, Paragraph, Button, Image, Divider, Spacer, Card, CTA Group |
+| **Card** | Heading, Paragraph, Button, Image |
+| **CTA Group** | Button only |
+
+Invalid drops should **fail closed** (no silent coercion).
+
+### No legacy migration inside 7A
+
+**7A does not migrate or rewrite** existing Hero, CTA, Gallery, Talent Grid, Contact, or similar sections. It lands on **Blank Section / Custom Section** first. **Existing sections migrate later** through **7B** and **7C** with explicit plans.
+
+### Feature flag / kill switch (required)
+
+**7A ships behind a tenant feature flag** until **publish / hard refresh / reopen** QA is stable on real tenants. If rendering or persistence is wrong, operators need a **safe disable** path that **does not** corrupt existing published pages.
+
+### Element Library UX standard
+
+The **Add Element** experience must feel like a **premium builder**, not a **developer registry**:
+
+- **Categories:** Layout, Text, Media, Actions, Structure (or equivalent plain-language buckets).
+- **Names:** user-facing (**Heading**, **Text**, **Button**, **Image**, **Divider**, **Spacer**, **Columns**…) — **no raw internal node type strings** in the default UI.
+- **Short descriptions** under each choice where helpful.
+- **Small preview or icon** per item.
+- **Disabled** choices only with a **clear** reason (governance, plan, or parent mismatch).
+- **Premium density** — calm spacing, readable hierarchy; not a flat dump of types.
+
+### Simple Mode must stay clean
+
+**Advanced Mode is opt-in.** **Simple Mode** remains the default path: **premium ready-made sections** and **starters** (Phase 5). Users reach element composition through **Blank Section / Custom Section** (or explicit Advanced entry) — **never** by forcing non-technical users through raw element assembly.
+
+### 7A Demo Evidence
+
+The **first 7A proof** must include **screenshots or a short screen recording** — text-only claims are **not** enough for product-ready acceptance.
+
+Capture **all** of the following:
+
+1. **Blank Section** inserted (composition surface visible).
+2. **Heading**, **Paragraph**, **Button**, **Image**, and **Divider** or **Spacer** inserted as **real persisted** elements (not props theatre).
+3. **Navigator** showing those nodes as **real** tree entries.
+4. **Inspector** editing **one** selected element **independently** of siblings.
+5. A **reorder** action (navigator and/or canvas, per governance).
+6. **Publish**.
+7. **Hard refresh** / **reopen** session.
+8. The **same custom section** still **renders correctly** and matches persisted structure.
+
+Without **visual proof**, **7A is not accepted** as product-ready (“works in code” is insufficient).
+
+### 7A Design Guardrails
+
+Element Library MVP must be **flexible but not visually unsafe**. Defaults must be **premium**, not raw HTML chaos:
+
+- **Heading** — sensible default **size** and **line-height**.
+- **Paragraph** — readable **max width** (or governed measure).
+- **Button** — uses **brand tokens** (not ad-hoc hex soup).
+- **Image** — safe default **radius** / crop framing.
+- **Container** — **governed spacing** (padding/gap presets tied to design system).
+- **Columns** — sensible **gap**, **ratio**, and **mobile stack** defaults.
+- **Divider / Spacer** — **controlled presets** only — not arbitrary pixel sliders that invite ugly layouts.
+
+Default-inserted elements should look **polished**, not “developer playground.” The goal is **not only** “can insert elements” — it is **insert elements and still ship a premium page** inside governed defaults.
+
+---
+
+## Planning freeze
+
+After this roadmap update, **no new broad builder planning documents** should be created until **P7A-0** and **P7A-1** have **shipped**, or **implementation exposes a real blocker** that requires a scoped doc.
+
+**Allowed next work:**
+
+- Impronta **QA baseline** cleanup (non-destructive where possible).
+- **Core loop** verification (add → edit → reorder → publish → reopen).
+- **P7A-0** persistence contract + **Gate 0**.
+- **P7A-1** Add Element UI.
+- **Critical bug fixes** discovered during those tasks.
+
+**Not allowed:**
+
+- More **abstract roadmap reshuffling** without shipped code.
+- **Template expansion** as the **main** milestone (that is **not** Element Library MVP).
+- New **“future builder”** essays **without** matching implementation progress.
+- **Hero-only composition** pretending to be **Element Library MVP** — Hero is **P7B**, **after** **7A** primitives exist.
+
+**Why:** Otherwise agents (and humans) can keep producing excellent documents while the **element library still does not exist.**
+
+---
+
+## Current execution priority (final order)
+
+1. Stabilize **Impronta QA baseline** (non-destructive where possible).
+2. Verify **add → edit → reorder → publish → reopen** on a clean state.
+3. **Execute P7A-0** — persistence contract + **Gate 0** verified (**no P7A-1 until then**).
+4. **Execute P7A-1** — Add Element UI + library UX standard.
+5. Produce **first Blank Section demo evidence** (**7A Demo Evidence** above — screenshots or recording).
+6. Convert **Hero under P7B only after** 7A primitives pass **7A Reality Test** + evidence.
+7. Resume **Phase 6 shell** / header-footer parity **without** a parallel fake component model.
+
+**Product direction:** **Simple Mode** = premium ready-made sections and starters. **Advanced Mode** = **Blank Section** + **Element Library** + **real persisted elements**.
+
+**No more broad planning** unless implementation exposes a **blocker** — see **Planning freeze** above.
 
 ---
 
@@ -26,8 +346,10 @@ The builder must feel:
 - The editor is **past prototype**: EditShell, navigator, inspector, drawers, publish, revisions, section insert, and **builder-node** architecture are **largely implemented**.
 - **Some** child selections map to **real persisted nodes**; **many legacy sections** still expose **synthetic children** derived from flat props ([legacy-section-tree.ts](../src/lib/site-admin/builder-node/legacy-section-tree.ts)); see audit §12.
 - **Editable header/footer shell** (Phase B / convergence capability **#1**) remains the **largest product gap** vs “full site builder.”
-- **Real-browser QA on registered tenant hosts** was **not completed** in the automated audit session (`agency_domains` / `CLAUDE.md`). Treat this as **Phase 0 gate**.
+- **Real-browser QA on registered tenant hosts** was **not completed** in the automated audit session (`agency_domains`; see [AGENTS.md](../../AGENTS.md), [OPERATING.md](../../OPERATING.md)). Treat this as **Phase 0 gate**.
 - **`npm run lint` repo-wide** is **baseline debt**, not builder readiness; use **scoped lint** on touched paths until baseline improves.
+- **Parallel truth:** Phases advance **in parallel**; status is **per-phase**, not one linear step.
+- **Stabilization bridge:** Phase **0–3** issues (insert/canvas, iframe preview, publish trust) can **block demos** even while 7A is scheduled — track them explicitly.
 
 ---
 
@@ -107,17 +429,31 @@ The builder must feel:
 
 ---
 
-### Phase 7 — Governed nested composition
+### Phase 7 — Advanced Mode foundation
 
-**Goal:** Real layout flexibility **without** unlimited nesting chaos.
+Phase 7 is split into **7A–7D**. **Do not claim Phase 7 is shipped** until each subphase passes its own acceptance gate. **Having builder infrastructure or `BuilderNode` types is not Phase 7 complete.**
 
 **Model:** **Section → Layout → Slot → Element.** No Webflow-freeform until governance proves out.
 
-**Pilot:** **Hero** first — variants (centered, split, image left/right), background image/gradient/color, overlay, eyebrow, headline, subheadline, CTA group, media, badge, optional form; **safe** reorder; responsive order; hide/show per device.
+#### Phase 7A — Element Library MVP
 
-**Acceptance:** Hero is **not** only flat props + synthetic nodes; users change structure via **governed** layout/slots; UI stays **honest** (section 7).
+**Goal:** Governed insert, reorder, edit, publish, and reopen for **real persisted** elements from the **allow-list** (Strategic framing), starting from **blank/custom** composition — **before** Hero-specific vertical work.
 
-**Then repeat:** CTA banner, gallery, slider, testimonials, talent grid, contact — same pattern.
+**Acceptance:** **First 7A demo target** passes on a registered host; **persistence truth** holds; UI never fakes layers for props-only data.
+
+#### Phase 7B — Governed Hero pilot
+
+**Goal:** Hero as the first **vertical** composition pilot — **only after 7A primitives are real.** Variants (centered, split, image left/right), background image/gradient/color, overlay, eyebrow, headline, subheadline, CTA group, media, badge, optional form; **safe** reorder; responsive order; hide/show per device.
+
+**Acceptance:** Hero **consumes the same element/slot/persistence model as 7A** — not a parallel “Hero-only” fake stack; UI stays honest (see **§7 Important product principle** below).
+
+#### Phase 7C — Repeat pattern
+
+**Goal:** CTA banner, gallery, slider, testimonials, talent grid, contact — **same governance pattern** as Hero, reusing 7A primitives.
+
+#### Phase 7D — Governance scale
+
+**Goal:** Depth limits, allowed parents, validation, perf budgets as composition spreads.
 
 ---
 
@@ -205,12 +541,25 @@ Use task IDs in commits/PR titles when helpful (e.g. `feat(edit-chrome): P3-2 dr
 | P6-1 | Shell selection + inspect MVP | Public shell components, edit chrome | **High** | Header/footer selectable | Manual + tenant tests |
 | P6-2 | Shell publish + `tagFor` / revalidate audit | [phase-b-site-shell.md](./phase-b-site-shell.md), site-admin | **High** | No stale shell | Smoke + isolation |
 
-### Phase 7 — Governed Hero
+### Phase 7A — Element Library MVP
 
 | Task ID | Task | Files likely involved | Risk | Acceptance | Test |
 |---------|------|------------------------|------|------------|------|
-| P7-1 | Hero variant + slot schema (governed) | hero section, [legacy-section-tree.ts](../src/lib/site-admin/builder-node/legacy-section-tree.ts), builder-node | **High** | Honest UI | Manual |
-| P7-2 | Inspector: layout/slot controls vs props-only | [inspector-dock](../src/components/edit-chrome/inspector-dock.tsx), builders | **High** | Matches section 7 | Manual |
+| P7A-0 | Builder-node schema + persistence contracts + **P7A-0 deliverable format** (concrete spec, not notes) | builder-node, edit-mode actions, migrations as needed | **High** | Deliverable + acceptance met; **Proceed / Blocked** close-out | Tenant isolation + typecheck |
+| P7A-1 | Element registry / library UI foundation (blank section → pick element) — **after Gate 0** | composition UI, library chrome | **High** | Insert creates **persisted** nodes; **no P7A-1 until P7A-0 contract verified** | Manual |
+| P7A-2 | Slot targeting + honest selection for library nodes | inspector, selection-layer, navigator | **High** | Inspector matches **actual** tree | Manual |
+| P7A-3 | Reorder / move parity (navigator + canvas) | edit-context, selection-layer | **High** | Same order both surfaces | Manual |
+| P7A-4 | Draft → publish → hard refresh → reopen | composition actions, page reads | **High** | Tree matches persisted snapshot | Manual |
+| P7A-5 | Tenant **feature flag / kill switch** (required for 7A rollout) | feature flags, shell | Med | **7A stays off until stable**; disable path does not break legacy pages | Manual + tests |
+| P7A-6 | QA / regression hooks (smoke, critical paths) | e2e, builder tests | Med | Regressions caught in CI or checklist | CI / manual |
+| P7A-7 | Doc + changelog alignment | `web/docs/` | Low | Roadmap reflects shipped truth | Review |
+
+### Phase 7B — Governed Hero pilot
+
+| Task ID | Task | Files likely involved | Risk | Acceptance | Test |
+|---------|------|------------------------|------|------------|------|
+| P7B-1 | Hero variant + governed slot schema | hero section, [legacy-section-tree.ts](../src/lib/site-admin/builder-node/legacy-section-tree.ts), builder-node | **High** | Honest UI; builds on **7A** primitives | Manual |
+| P7B-2 | Inspector: Hero layout/slot controls vs props-only | [inspector-dock](../src/components/edit-chrome/inspector-dock.tsx), builders | **High** | Matches **§7** honesty table | Manual |
 
 ### Phase 8 — Responsive authoring
 
@@ -241,6 +590,7 @@ Track in [builder-excellence-execution-plan.md](./builder-excellence-execution-p
 - Main builder routes work on a **registered** host.
 - No major console errors in smoke.
 - **Phase 0 real-host QA** completed (or explicitly waived with risk note).
+- **7A demo gate:** Before claiming “element library shipped,” the **First 7A demo target** (Strategic framing above) passes end-to-end.
 
 ### Pilot agency ready
 
@@ -255,7 +605,7 @@ Track in [builder-excellence-execution-plan.md](./builder-excellence-execution-p
 - Header/footer **editable** and publish-safe.
 - Publish trust + recovery complete.
 - Responsive authoring **strong** (Phase 8).
-- Hero + key sections on **governed** composition path (Phase 7).
+- **7A + 7B:** Element Library MVP (7A) complete and Hero pilot (7B) on **honest** governed composition — not props-only “layers.”
 - Onboarding/empty states clear.
 - No major broken controls.
 - Performance acceptable on **large** pages.
@@ -288,15 +638,41 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 ---
 
+## Implementation status (rolled summary)
+
+| Phase | Status | Notes |
+|-------|--------|--------|
+| **0** | Partial | P0-2 CMS draft canvas landed; **automation** (`test:e2e:registered-host`, curl to https://tulala.digital) proves `agency_domains` path. **Human matrix** (390 / ~820 / 1440, insert, publish, console) still required per [phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md). **Local human QA** ([builder-human-qa-run-2026-05-09.md](./builder-human-qa-run-2026-05-09.md)): first pass failed internal/pilot/premium gates; Pass 1–2 retests improved insert→canvas, mobile frame, page-scoped heading probe; **clean baseline page**, reliable local load (**BUG-001**), and trustworthy publish loop (**BUG-005**) still open. |
+| **1** | Partial | Legacy redirects + `?panel=` (incl. library); converge orphan admin links incrementally. |
+| **2** | Partial | Publish drawer + save pill (**Draft up to date** / unsaved / saving tooltips) + tenant-branded top bar (**Tulala Builder** + site name); Publish / **More** menus (`role="menu"` + trigger ids); inspector tab hints; drawers + modals; navigator empty states. |
+| **3** | Partial | `moveSectionTo` shared with canvas + navigator; scroll-into-view after drop; navigator rail `aria-labelledby`; drop polish ongoing. |
+| **4–5** | Partial / open | Library: empty-search recovery + “no section types” banner when kits/starters still match; category UX + advanced copy ([composition-library.tsx](../src/components/edit-chrome/composition-library.tsx)); inline WYSIWYG: floating toolbar, canvas overlay, link popover. |
+| **6** | Partial | Header/footer sections + shell republish on publish; **`storefront` cache bust** with shell ([composition-actions.ts](../src/lib/site-admin/edit-mode/composition-actions.ts)); full parity per [phase-b-site-shell.md](./phase-b-site-shell.md). |
+| **7** | Partial | Roadmap: §3 **7A before 7B**; §4 **P7A-0…7** + **P7B-1/2**. **7A not shipped** until allow-list + persistence truth hold. Hero honest-UI work continues; **governed Hero composition = P7B** after 7A primitives are real. |
+| **8** | Partial | Viewport switcher `title` clarifies layout simulation vs per-section responsive fields; device preview + mobile chrome hint; per-breakpoint authoring ongoing. |
+| **9** | Partial | Coalesced `router.refresh` via `queueRouterRefresh` ([edit-context.tsx](../src/components/edit-chrome/edit-context.tsx)); labelled drawers/overlays + assertive errors on key flows; `Drawer` focus restore + hidden closed state (`aria-hidden`, no pointer hit-target) per [DRAWER-MUTEX.md](../src/components/edit-chrome/DRAWER-MUTEX.md). |
+
+---
+
 ## 8. First PR recommendation (prioritized)
 
-**Status:** The **P0-2 CMS insert → canvas** fix above is **implemented**; treat **Phase 2 starter — publish trust copy** as the next **code** PR unless QA surfaces regressions.
+**Product direction:** **Advanced Mode is 7A-first.** Primary engineering track is **Element Library MVP** (P7A-*), not Hero-only composition. Hero belongs to **P7B** and assumes **7A primitives are real.**
+
+**Status:** The **P0-2 CMS insert → canvas** fix is **implemented**. **Phase 2 publish trust copy** (save pill + publish drawer lines) is **landed**; remaining Phase 2 risk is **automatic publish blocking** when canvas and persisted state disagree — needs a defined technical signal ([human QA BUG-005](./builder-human-qa-run-2026-05-09.md)).
 
 **Next suggested merges:**
 
-1. **Phase 2 starter:** Publish drawer / preflight hierarchy + draft vs published clarity (**low risk**, no architecture churn).
+1. **P0 / prerequisite QA:** Stabilize **Impronta** baseline (prefer **draft-only** reset; see **No destructive QA reset** in Strategic framing). Verify **add → edit → reorder → publish → reopen** on a **clean** state.
 
-2. **Parallel (non-code):** Phase **0** registered-host QA checklist — **required** before declaring pilot-ready.
+2. **P7A-0 + Gate 0 (blocking):** Define and **verify** persistence contracts — **before** Add Element UI **(no P7A-1 until Gate 0 passes)**. Includes tenant flag / kill switch shape.
+
+3. **P7A-1:** Element registry / Add Element UI — **only after** Gate 0 (see **Phase 7A guardrails**).
+
+4. **P7A-2 / P7A-3:** **Slot targeting**, honest selection, **navigator + canvas reorder parity** for library-backed nodes.
+
+**Still blocking trustworthy QA if unfixed:** Insert/canvas mismatch + mobile iframe blank canvas ([BUG-002 / BUG-003](./builder-human-qa-run-2026-05-09.md)) — address **alongside or before** broad 7A demos.
+
+**Parallel (non-code):** Phase **0** registered-host matrix ([phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md)) remains **required** before declaring pilot-ready.
 
 ---
 
@@ -304,5 +680,39 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 | Date | Change |
 |------|--------|
+| 2026-05-09 | **P7A-0 deliverable format:** concrete outputs (persistence, matrix, draft/publish/reopen/renderer/inspector/navigator, flag, tests) + acceptance bullets + **Proceed / Blocked** close-out before P7A-1. |
+| 2026-05-09 | **Planning freeze** + **7A Demo Evidence** (screens/recording required) + **7A Design Guardrails** (premium defaults); **final execution order** tightened; no broad planning until **P7A-0 + P7A-1** ship or blocker. |
+| 2026-05-09 | **Phase 7A guardrails:** **7A Reality Test** table; **Blank Section first proof**; **Gate 0 before P7A-1**; **Inspector MVP** matrix; **parent/child governance** table; **no legacy migration in 7A**; **feature flag required**; **Element Library UX standard**; **Simple Mode stays default**. Current execution priority → **P7A-0 then P7A-1**; stop broad planning. |
+| 2026-05-09 | **7A-first roadmap:** §3 Phase 7 rewritten (**Advanced Mode foundation**, **7A Element Library MVP before 7B Hero**); §4 **P7A-0…P7A-7** + **P7B-1/P7B-2**; §8 First PR → **P7A** track; added **allow-list**, **persistence truth**, **migration rule**, **Simple vs Advanced UX**, **no destructive QA reset**, **Current execution priority**; heart line (**Advanced Mode gated on 7A**); refs → **AGENTS.md** / **OPERATING.md** / Phase 0 QA docs (not CLAUDE-only). |
+| 2026-05-09 | **Unified roadmap + Cursor Plans:** Strategic framing (7A–7D, P7A/P7B, guardrails) merged into this file; title updated. Full mirror for Cursor: [.cursor/plans/builder-phase-truth-roadmap.plan.md](../.cursor/plans/builder-phase-truth-roadmap.plan.md) (YAML frontmatter; links adjusted). **Edit roadmap content here**; refresh the `.plan.md` copy after substantive edits. |
 | 2026-05-09 | Initial canonical roadmap; supersedes ad-hoc mixing of audit/backlog/phases for day-to-day execution. |
 | 2026-05-09 | P0-2: CMS draft canvas — `loadPageForRender` + select inserted section + `await router.refresh()` ([page-reads](../src/lib/site-admin/server/page-reads.ts), [edit-context](../src/components/edit-chrome/edit-context.tsx)). |
+| 2026-05-09 | P6-2 / P9-1: Shell publish revalidates `storefront`; edit context coalesces `router.refresh` (`queueRouterRefresh`). P8-2: narrow-screen builder hint. § Implementation status table added. |
+| 2026-05-09 | P2/P5: Revisions drawer `aria-labelledby` + load error `aria-live`; composition library helper copy under search. `phase-b-site-shell.md` cache note updated. |
+| 2026-05-09 | P2/P9 a11y: Page settings, Theme, Assets, Comments, Schedule drawers + section picker (`aria-labelledby` / `titleId`); error banners `aria-live`; mobile library sheet `role="dialog"`. |
+| 2026-05-09 | P2/P9 a11y: Media picker modal (`aria-modal`, labelled heading, alert errors); inline section popover labelled title + insert errors `aria-live`. |
+| 2026-05-09 | P2/P9 a11y: Starter template gallery + workspace template apply/archive dialogs use `aria-labelledby`; command palette uses sr-only title + `aria-labelledby`. |
+| 2026-05-09 | P2/P9 / P4: Color picker dialog `aria-modal` + labelled title; eyedropper error `aria-live`; kit/starter review overlays as dialogs; rich-text link popover dialog labeling. |
+| 2026-05-09 | P4: Rich-text floating toolbar `role="toolbar"` + `aria-label`; canvas inline-edit overlay `role="region"` + `aria-label`. |
+| 2026-05-09 | P0: `test:e2e:registered-host` (default `tulala.digital`) + curl log in phase-0 doc. P5: library full-empty + partial-empty search copy. P8: viewport group `title` (preview vs responsive fields). |
+| 2026-05-09 | P2: Publish drawer copy — autosave vs publish vs public; `role="status"` + `aria-live` on publish-blocked list. |
+| 2026-05-09 | P2: Top bar `SaveStatus` — polite live region on save states; steady label **Draft up to date** + clearer tooltips (draft vs published). |
+| 2026-05-09 | P2: Inspector tab hover hints (`DrawerTab` `title` prop + `INSPECTOR_TAB_HINT` map). |
+| 2026-05-09 | P9-2: `Drawer` restores focus to pre-open `activeElement` on close (`restoreFocusOnClose`, optional opt-out). |
+| 2026-05-09 | P9 / a11y: closed `Drawer` panels use `aria-hidden` + `pointer-events: none` while off-screen. |
+| 2026-05-09 | P3/P9: Structure navigator `<aside>` named via `aria-labelledby` (`structure-navigator-label`). |
+| 2026-05-09 | P2/P9: Publish split control `role="group"` `aria-label="Publish"`; primary Publish button `title` (preflight + go live). |
+| 2026-05-09 | P2/P9: Publish chevron dropdown — `role="menu"`, `aria-expanded` / `aria-controls`, separator roles; menu item Space key fixed. |
+| 2026-05-09 | P2/P9: More menu (`⋯`) — `TbIconBtn` optional menu attrs; `aria-labelledby` + separator on dropdown. |
+| 2026-05-09 | P2: Publish + More top-bar menus — **Escape** closes menu (capture); More menu exits Share sub-step first. |
+| 2026-05-09 | P2/P9: Page picker menu — `id` + `aria-labelledby` (trigger ↔ menu); Escape-to-close (already wired). Agent QA: typecheck + tenant + builder-capabilities + publish-preflight + Playwright smokes pass. |
+| 2026-05-09 | Agent: full `npm run ci` **fails at repo-wide ESLint** (~759 findings — baseline debt across prototypes/admin/etc.). Same session: scoped `eslint topbar.tsx` + CI subsets **pass**. |
+| 2026-05-09 | **Human QA (local `/impronta?edit=1`):** Full narrative + BUG-001–008 + Pass 1–2 retests in [builder-human-qa-run-2026-05-09.md](./builder-human-qa-run-2026-05-09.md). Gates remain **fail** until clean Scenario 2 + publish/reopen on a reset baseline; Implementation status § Phase 0 updated. |
+| 2026-05-09 | **Local QA baseline:** Runbook [impronta-local-qa-homepage-baseline.md](./impronta-local-qa-homepage-baseline.md) — SQL inspect + discard homepage **draft** `cms_page_sections` so builder falls back to published composition. |
+| 2026-05-09 | **P2 trust:** Edit topbar shows **Tulala Builder** + tenant public name (`agency_business_identity.public_name`) so product vs storefront context is obvious (human QA BUG-006). `OPERATING.md` § deploy ladder notes `NODE_OPTIONS` heap workaround for local Next OOM (BUG-001). |
+| 2026-05-09 | **P5 starter review:** Human labels — **Editing approach** (+ plain-language blurb per `editModel`), **Section type** / **Content source**, **What you can change**, **Fine-tune in inspector**; capability badge **Data** → **Live data** ([composition-library.tsx](../src/components/edit-chrome/composition-library.tsx); human QA BUG-008). |
+| 2026-05-09 | **P5 library density:** Kit/starter facet filters (Kind, Source, Plan…) **collapsed by default** behind **More filters for kits & starters**; badge shows active filter count when collapsed; opening library resets facets + disclosure (**BUG-007**). Fixed missing reset of **Control** (`starterCapabilityFilter`) when library reopens. |
+| 2026-05-09 | **P2 publish trust (BUG-005):** Top bar steady save pill **All changes saved** → **Draft up to date** + clearer `title` / `aria-label`. Publish drawer “What publishing does” adds a line that **saving ≠ live**, suggests canvas scroll + Preview + preflight before publish ([topbar.tsx](../src/components/edit-chrome/topbar.tsx), [publish-drawer.tsx](../src/components/edit-chrome/publish-drawer.tsx)). |
+| 2026-05-09 | **P8:** Viewport switcher group `title` — preview width is layout simulation; breakpoint editing stays in the inspector ([topbar.tsx](../src/components/edit-chrome/topbar.tsx)). First PR § updated — next focus insert/canvas + mobile iframe reliability vs duplicate publish-copy PR. |
+| 2026-05-09 | **P3 / BUG-003:** Device preview `<iframe>` key now includes **`pageVersion`** so tablet/mobile preview remounts after draft mutations (`router.refresh()` does not refresh nested iframe documents). Wired from `EditShellInner` → `DeviceFrameSurface` ([edit-shell.tsx](../src/components/edit-chrome/edit-shell.tsx)). |
+| 2026-05-09 | **P3 / BUG-002 (mitigation):** Selection-layer auto-scroll retries **`[data-cms-section]`** longer (30×100ms) and re-runs when **`pageVersion`** changes so post-insert scroll/selection rings catch slow RSC/streaming after `router.refresh()` ([selection-layer.tsx](../src/components/edit-chrome/selection-layer.tsx)). |

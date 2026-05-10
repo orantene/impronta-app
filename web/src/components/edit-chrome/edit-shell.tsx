@@ -98,6 +98,8 @@ interface EditShellProps {
    * called out as the biggest first-paint trust issue.
    */
   initialComposition?: import("@/lib/site-admin/edit-mode/composition-actions").CompositionData | null;
+  /** Public storefront name for top-bar tenant context (Tulala vs site). */
+  tenantSiteLabel?: string | null;
   children?: React.ReactNode;
 }
 
@@ -109,6 +111,7 @@ export function EditShell({
   availableLocales,
   defaultLocale,
   initialComposition,
+  tenantSiteLabel = null,
   children,
 }: EditShellProps) {
   return (
@@ -121,6 +124,7 @@ export function EditShell({
         pageSlug={pageSlug}
         initialAvailableLocales={availableLocales}
         initialComposition={initialComposition}
+        tenantSiteLabel={tenantSiteLabel}
       >
         <EditShellInner>{children}</EditShellInner>
       </EditProvider>
@@ -237,6 +241,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     defaultLocale,
     availableLocales,
     pageSlug,
+    pageVersion,
     slots,
     slotDefs,
     openLibrary,
@@ -697,6 +702,15 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           ["--primary-foreground" as string]: "#fafafa",
         }}
       >
+        {/* P8-2 — inspector dock is `max-lg:hidden`; help operators on phones/tablets. */}
+        <p
+          className="fixed left-0 right-0 z-[79] border-b border-amber-200/90 bg-amber-50 px-3 py-1.5 text-center text-[11px] leading-snug text-amber-950 lg:hidden"
+          style={{ top: 52 }}
+          role="note"
+        >
+          On small screens, use Structure and the canvas — the full inspector opens on wider
+          breakpoints.
+        </p>
         <TopBar
           device={device}
           setDevice={setDevice}
@@ -767,6 +781,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <DeviceFrameSurface
           device={device}
           pageSlug={pageSlug}
+          pageVersion={pageVersion}
           navigatorOpen={navigatorOpen}
           navigatorWidth={navigatorWidth}
           inspectorOpen={!!selectedSectionId}
@@ -1081,6 +1096,11 @@ function mutationCodeSuggestion(code: string): string | null {
  * branch (see `iframe-child.tsx`) renders the storefront DOM with its
  * own minimal SelectionLayer + postMessage bridge.
  *
+ * **Stale iframe:** `router.refresh()` does not update an already-mounted
+ * nested iframe document. The iframe `key` includes `pageVersion` (draft
+ * CAS counter) so successful mutations remount the preview (full
+ * navigation to the same URL).
+ *
  * Selection sync: clicks inside the iframe set the iframe's local
  * `selectedSectionId`, which IframeBridgeChild posts up to the parent.
  * IframeBridgeParent (mounted alongside this component) updates the
@@ -1093,12 +1113,15 @@ function mutationCodeSuggestion(code: string): string | null {
 function DeviceFrameSurface({
   device,
   pageSlug,
+  pageVersion,
   navigatorOpen,
   navigatorWidth,
   inspectorOpen,
 }: {
   device: EditDevice;
   pageSlug?: string | null;
+  /** Draft CAS version — bumps on successful mutations; included in iframe `key` so device preview reloads. */
+  pageVersion: number | null;
   navigatorOpen: boolean;
   navigatorWidth: number;
   inspectorOpen: boolean;
@@ -1203,7 +1226,7 @@ function DeviceFrameSurface({
           }}
         >
           <iframe
-            key={`${device}:${pageSlug ?? "/"}`}
+            key={`${device}:${pageSlug ?? "/"}:${pageVersion ?? "pending"}`}
             src={iframeSrc}
             title={`${device} preview`}
             style={{

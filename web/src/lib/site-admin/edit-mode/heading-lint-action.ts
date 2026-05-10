@@ -15,7 +15,10 @@
 
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
-import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
+import {
+  listSectionsByIdsForStaff,
+  listSectionsForStaff,
+} from "@/lib/site-admin/server/sections-reads";
 
 export interface SectionHeadingProbe {
   sectionId: string;
@@ -74,13 +77,19 @@ const HEADLINE_PROP_BY_TYPE: Record<string, "headline" | "eyebrow"> = {
   // blog_detail uses a different prop name; treated separately below.
 };
 
-export async function loadHeadingProbeForLint(): Promise<HeadingProbeResult> {
+export async function loadHeadingProbeForLint(
+  sectionIds?: ReadonlyArray<string>,
+): Promise<HeadingProbeResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
-  const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);
+  const requestedIds = Array.from(new Set((sectionIds ?? []).filter(Boolean)));
+  const rows =
+    requestedIds.length > 0
+      ? await listSectionsByIdsForStaff(auth.supabase, scope.tenantId, requestedIds)
+      : await listSectionsForStaff(auth.supabase, scope.tenantId);
   const sections: SectionHeadingProbe[] = [];
   for (const r of rows) {
     const props = (r.props_jsonb as Record<string, unknown> | null) ?? {};

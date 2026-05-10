@@ -417,8 +417,14 @@ export function AssetsDrawer(): ReactElement | null {
       : `${items.length} asset${items.length === 1 ? "" : "s"} · ${tab === "all" ? "all" : "filtered"}`;
 
   return (
-    <Drawer kind="assets" open={assetsOpen} zIndex={87}>
+    <Drawer
+      kind="assets"
+      open={assetsOpen}
+      zIndex={87}
+      ariaLabelledBy="assets-drawer-title"
+    >
       <DrawerHead
+        titleId="assets-drawer-title"
         title="Asset library"
         icon={<FolderIcon />}
         meta={
@@ -970,6 +976,8 @@ function ErrorBanner({ children }: { children: ReactNode }) {
         border: `1px solid ${CHROME.roseLine}`,
         color: CHROME.rose,
       }}
+      role="alert"
+      aria-live="assertive"
     >
       {children}
     </div>

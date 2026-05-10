@@ -81,6 +81,9 @@ export function LinkPickerPopover({ anchor, tenantId, onClose }: Props) {
     <div
       ref={popoverRef}
       data-edit-overlay="rich-link-popover"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rich-link-popover-title"
       onMouseDown={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
@@ -92,7 +95,10 @@ export function LinkPickerPopover({ anchor, tenantId, onClose }: Props) {
       className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 shadow-2xl"
     >
       <div className="flex items-center justify-between pb-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-stone-400">
+        <span
+          id="rich-link-popover-title"
+          className="text-xs font-medium uppercase tracking-wide text-stone-400"
+        >
           Link target
         </span>
         <button

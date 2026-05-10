@@ -272,8 +272,14 @@ export function RevisionsDrawer(): ReactElement | null {
   }
 
   return (
-    <Drawer kind="revisions" open={revisionsOpen} zIndex={87}>
+    <Drawer
+      kind="revisions"
+      open={revisionsOpen}
+      zIndex={87}
+      ariaLabelledBy="revisions-drawer-title"
+    >
       <DrawerHead
+        titleId="revisions-drawer-title"
         title={`Revisions · ${pageMetadata?.title ?? "Homepage"}`}
         icon={<ClockIcon />}
         meta={
@@ -329,6 +335,8 @@ export function RevisionsDrawer(): ReactElement | null {
               border: `1px solid ${CHROME.roseLine}`,
               color: CHROME.rose,
             }}
+            role="alert"
+            aria-live="assertive"
           >
             {error}
           </div>

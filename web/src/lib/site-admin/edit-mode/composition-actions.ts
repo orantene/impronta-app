@@ -1631,6 +1631,8 @@ export async function publishHomepageFromEditModeAction(input: {
       // shows up immediately on the storefront.
       try {
         revalidateTag(tagFor(scope.tenantId, "pages-all"), "default");
+        // Shell snapshot is embedded on every tenant route — bust storefront reads.
+        revalidateTag(tagFor(scope.tenantId, "storefront"), "default");
       } catch {
         // tag system not initialised in test contexts; safe to ignore.
       }

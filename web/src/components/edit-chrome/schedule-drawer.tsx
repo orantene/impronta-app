@@ -227,8 +227,14 @@ export function ScheduleDrawer() {
   const justSucceeded = state.kind === "success";
 
   return (
-    <Drawer kind="schedule" open={open} data-edit-drawer="schedule">
+    <Drawer
+      kind="schedule"
+      open={open}
+      data-edit-drawer="schedule"
+      ariaLabelledBy="schedule-drawer-title"
+    >
       <DrawerHead
+        titleId="schedule-drawer-title"
         icon={<ClockIcon />}
         title="Schedule publish"
         meta={
@@ -302,6 +308,7 @@ export function ScheduleDrawer() {
           {errorMessage ? (
             <div
               role="alert"
+              aria-live="assertive"
               style={{
                 padding: "10px 12px",
                 fontSize: 13,

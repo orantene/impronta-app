@@ -16,7 +16,15 @@
  * tokens, heights, radii, shadows all match the mockup §1 spec.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,7 +40,7 @@ import {
   type PagePickerItem,
   type PagePickerAvailability,
 } from "@/lib/server-actions/admin-site-pages";
-import type { EditDevice } from "./edit-context";
+import { useMaybeEditContext, type EditDevice } from "./edit-context";
 import { CHROME } from "./kit";
 
 /** Minimal `LanguageSettings` for `withLocalePath` / strip-prefix helpers. */
@@ -99,6 +107,10 @@ function TbDivider() {
 interface TbIconBtnProps {
   title: string;
   ariaLabel?: string;
+  id?: string;
+  ariaExpanded?: boolean;
+  ariaHaspopup?: boolean | "menu" | "dialog";
+  ariaControls?: string;
   onClick?: () => void;
   disabled?: boolean;
   badge?: number;
@@ -108,6 +120,10 @@ interface TbIconBtnProps {
 function TbIconBtn({
   title,
   ariaLabel,
+  id,
+  ariaExpanded,
+  ariaHaspopup,
+  ariaControls,
   onClick,
   disabled,
   badge,
@@ -116,10 +132,14 @@ function TbIconBtn({
   return (
     <button
       type="button"
+      id={id}
       onClick={onClick}
       disabled={disabled}
       title={title}
       aria-label={ariaLabel ?? title}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHaspopup}
+      aria-controls={ariaControls}
       className="relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-transparent transition-colors disabled:cursor-not-allowed"
       style={{
         width: 36,
@@ -158,9 +178,16 @@ function TbIconBtn({
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
-function BrandMark() {
+function BrandMark({ tenantSiteLabel }: { tenantSiteLabel: string | null }) {
+  const product = "Tulala Builder";
+  const aria = tenantSiteLabel
+    ? `${product} — editing ${tenantSiteLabel}`
+    : product;
   return (
-    <div className="inline-flex shrink-0 items-center gap-[10px] pr-3">
+    <div
+      className="inline-flex min-w-0 shrink-0 items-center gap-[10px] pr-2"
+      aria-label={aria}
+    >
       <span
         className="inline-flex shrink-0 items-center justify-center rounded-[7px] text-[12px] font-bold text-white"
         style={{
@@ -175,12 +202,23 @@ function BrandMark() {
       >
         T
       </span>
-      <span
-        className="text-[13px] font-bold tracking-[-0.01em]"
-        style={{ color: CHROME.ink }}
-      >
-        Tulala
-      </span>
+      <div className="flex min-w-0 flex-col justify-center gap-px leading-none">
+        <span
+          className="text-[12px] font-bold tracking-[-0.01em]"
+          style={{ color: CHROME.ink }}
+        >
+          {product}
+        </span>
+        {tenantSiteLabel ? (
+          <span
+            className="max-w-[min(200px,28vw)] truncate text-[10px] font-semibold tracking-[0.01em]"
+            style={{ color: CHROME.muted }}
+            title={tenantSiteLabel}
+          >
+            {tenantSiteLabel}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -217,6 +255,8 @@ function PagePicker({
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const router = useRouter();
+  const pagePickerMenuId = useId();
+  const pagePickerTriggerId = useId();
 
   useEffect(() => {
     if ((pagesPickerOpenNonce ?? 0) > 0) setOpen(true);
@@ -267,6 +307,18 @@ function PagePicker({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    }
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open]);
+
   function navToPage(slug: string) {
     if (dirty && !confirm("You have unsaved changes. Leave this page?")) return;
     setOpen(false);
@@ -301,9 +353,11 @@ function PagePicker({
       {/* ── Trigger ── */}
       <button
         type="button"
+        id={pagePickerTriggerId}
         title="Switch page"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={pagePickerMenuId}
         onClick={() => setOpen((o) => !o)}
         className="inline-flex shrink-0 cursor-pointer items-center gap-[7px] rounded-[7px] border border-transparent transition-colors"
         style={{
@@ -349,7 +403,9 @@ function PagePicker({
 
       {open ? (
         <div
+          id={pagePickerMenuId}
           role="menu"
+          aria-labelledby={pagePickerTriggerId}
           className="absolute left-0 top-[42px] z-[120] min-w-[280px] rounded-[10px] p-[6px]"
           style={{
             background: CHROME.surface,
@@ -659,6 +715,9 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
   if (saving) {
     return (
       <span
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
         className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
         style={{
           padding: "4px 11px 4px 9px",
@@ -679,6 +738,9 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
   if (dirty) {
     return (
       <span
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
         className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
         style={{
           padding: "4px 11px 4px 9px",
@@ -686,7 +748,7 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           color: CHROME.amber,
           borderColor: CHROME.amberLine,
         }}
-        title="Draft changes are not published yet"
+        title="Edits are only in your draft until you publish"
       >
         <span
           className={dot}
@@ -700,6 +762,9 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
   if (justSaved) {
     return (
       <span
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
         className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
         style={{
           padding: "4px 11px 4px 9px",
@@ -720,6 +785,9 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
   }
   return (
     <span
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
       className="inline-flex shrink-0 items-center gap-[6px] rounded-full border text-[11px] font-semibold"
       style={{
         padding: "4px 11px 4px 9px",
@@ -728,14 +796,15 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
         borderColor: CHROME.greenLine,
         opacity: 0.7,
       }}
-      title="All edits saved to draft — not live until you Publish"
+        title="Draft is saved on our servers — visitors still see the published site until you click Publish. Preview the page if something looks off."
+      aria-label="Draft up to date on the server. The live site still shows the last published version until you publish."
     >
       <span
         className={dot}
         style={{ width: 6, height: 6, background: CHROME.green }}
         aria-hidden
       />
-      Draft saved
+      Draft up to date
     </span>
   );
 }
@@ -1112,6 +1181,8 @@ function PublishSplitButton({
   disabled?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const publishMenuId = useId();
+  const publishMenuTriggerId = useId();
 
   // Close on outside click
   useEffect(() => {
@@ -1126,10 +1197,24 @@ function PublishSplitButton({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [menuOpen]);
+
   return (
     <div className="relative shrink-0" data-publish-split>
       <div
         className="inline-flex items-stretch overflow-hidden rounded-[8px]"
+        role="group"
+        aria-label="Publish"
         style={{
           height: 36,
           // Sprint 3.2 — primary CTA uses the operator-chrome slate accent
@@ -1146,6 +1231,7 @@ function PublishSplitButton({
           type="button"
           onClick={onPublish}
           disabled={disabled}
+          title="Review preflight and publish your draft to the live site"
           className="cursor-pointer border-none text-[13px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
           style={{ padding: "0 16px", background: "transparent" }}
         >
@@ -1157,8 +1243,12 @@ function PublishSplitButton({
         />
         <button
           type="button"
+          id={publishMenuTriggerId}
           onClick={() => setMenuOpen((o) => !o)}
           aria-label="Publish options"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          aria-controls={publishMenuId}
           className="inline-flex cursor-pointer items-center justify-center border-none transition hover:bg-white/10"
           style={{
             width: 32,
@@ -1184,6 +1274,9 @@ function PublishSplitButton({
 
       {menuOpen ? (
         <div
+          id={publishMenuId}
+          role="menu"
+          aria-labelledby={publishMenuTriggerId}
           className="absolute right-0 top-[42px] z-[120] min-w-[240px] rounded-[10px] p-[6px] text-[12.5px]"
           style={{
             background: CHROME.surface,
@@ -1204,7 +1297,7 @@ function PublishSplitButton({
             onClick={() => { onMenuSelect("schedule"); setMenuOpen(false); }}
           />
           <div
-            aria-hidden
+            role="separator"
             style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
           />
           <MenuItem
@@ -1264,7 +1357,10 @@ function MenuItem({
       role="menuitem"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onClick?.();
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
       }}
     >
       <span
@@ -1342,6 +1438,8 @@ function MoreMenu({
   const [shareTtl, setShareTtl] =
     useState<(typeof SHARE_TTL_CHOICES)[number]["id"]>(SHARE_TTL_DEFAULT);
   const [shareBusy, setShareBusy] = useState(false);
+  const moreMenuId = useId();
+  const moreMenuTriggerId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -1355,6 +1453,22 @@ function MoreMenu({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (shareOpen) {
+        setShareOpen(false);
+      } else {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open, shareOpen]);
 
   useEffect(() => {
     if (!open) {
@@ -1397,8 +1511,12 @@ function MoreMenu({
   return (
     <div className="relative shrink-0" data-more-menu>
       <TbIconBtn
+        id={moreMenuTriggerId}
         title="More actions"
         ariaLabel="More actions"
+        ariaExpanded={open}
+        ariaHaspopup="menu"
+        ariaControls={moreMenuId}
         onClick={() => setOpen((o) => !o)}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1410,7 +1528,9 @@ function MoreMenu({
 
       {open ? (
         <div
+          id={moreMenuId}
           role="menu"
+          aria-labelledby={moreMenuTriggerId}
           className="absolute right-0 top-[44px] z-[120] min-w-[260px] rounded-[10px] p-[6px]"
           style={{
             background: CHROME.surface,
@@ -1484,7 +1604,7 @@ function MoreMenu({
                 hint="Starter layouts"
               />
               <div
-                aria-hidden
+                role="separator"
                 style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
               />
               <MoreRow
@@ -1864,6 +1984,8 @@ export function TopBar({
   availableLocales = [],
 }: TopBarProps) {
   const router = useRouter();
+  const editCtx = useMaybeEditContext();
+  const tenantSiteLabel = editCtx?.tenantSiteLabel ?? null;
 
   function handleMenuSelect(opt: PublishMenuOption) {
     if (opt === "schedule") {
@@ -1906,7 +2028,7 @@ export function TopBar({
       }}
     >
       {/* ── Left cluster ── */}
-      <BrandMark />
+      <BrandMark tenantSiteLabel={tenantSiteLabel} />
       <TbDivider />
       <PagePicker
         title={pageTitle ?? "Homepage"}

@@ -201,7 +201,8 @@ export function SectionPickerPopover() {
       ref={popRef}
       data-section-picker-popover
       role="dialog"
-      aria-label="Add a section"
+      aria-modal="true"
+      aria-labelledby="section-picker-popover-title"
       style={{
         position: "fixed",
         top: pos?.top ?? -9999,
@@ -228,6 +229,7 @@ export function SectionPickerPopover() {
         }}
       >
         <div
+          id="section-picker-popover-title"
           style={{
             fontSize: 13,
             fontWeight: 600,
@@ -516,6 +518,8 @@ export function SectionPickerPopover() {
       >
         {error ? (
           <div
+            role="alert"
+            aria-live="assertive"
             style={{
               fontSize: 11.5,
               color: CHROME.amber,

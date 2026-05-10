@@ -39,9 +39,7 @@ import {
 import {
   Avatar,
   ClientTrustBadge,
-  ClientTrustChip,
   DrawerShell,
-  EmptyState,
   GhostButton,
   Icon,
   PrimaryButton,
@@ -283,6 +281,24 @@ const DAYS: { key: DayKey; short: string }[] = [
 
 type LockScreenPrivacy = "full" | "name-only" | "none";
 
+function NotifUrgencyHeader({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        padding: "6px 14px",
+        background: "rgba(11,11,13,0.02)",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        fontSize: 10,
+        fontWeight: 700,
+        color: COLORS.inkMuted,
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
 export function NotificationsPrefsDrawer() {
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "notifications-prefs";
@@ -313,20 +329,6 @@ export function NotificationsPrefsDrawer() {
   // Group events by urgency for visual hierarchy
   const highEvents   = NOTIF_EVENTS.filter((e) => e.urgency === "high");
   const mediumEvents = NOTIF_EVENTS.filter((e) => e.urgency !== "high");
-
-  const UrgencyHeader = ({ label }: { label: string }) => (
-    <div style={{
-      padding: "6px 14px",
-      background: "rgba(11,11,13,0.02)",
-      borderBottom: `1px solid ${COLORS.borderSoft}`,
-      borderTop: `1px solid ${COLORS.borderSoft}`,
-      fontSize: 10,
-      fontWeight: 700,
-            color: COLORS.inkMuted,
-    }}>
-      {label}
-    </div>
-  );
 
   return (
     <DrawerShell
@@ -405,7 +407,7 @@ export function NotificationsPrefsDrawer() {
             ))}
           </div>
 
-          <UrgencyHeader label="Action required" />
+          <NotifUrgencyHeader label="Action required" />
           {highEvents.map((ev, i) => (
             <NotifPrefsRow
               key={ev.id}
@@ -418,7 +420,7 @@ export function NotificationsPrefsDrawer() {
             />
           ))}
 
-          <UrgencyHeader label="Updates" />
+          <NotifUrgencyHeader label="Updates" />
           {mediumEvents.map((ev, i) => (
             <NotifPrefsRow
               key={ev.id}
@@ -731,7 +733,7 @@ export function DataExportDrawer() {
               lineHeight: 1.55,
             }}
           >
-            <strong>Export queued.</strong> We'll email a download link to{" "}
+            <strong>Export queued.</strong> We&apos;ll email a download link to{" "}
             <span style={{ fontFamily: FONTS.mono }}>orantene@gmail.com</span> within 10 minutes.
             Link is valid for 24 hours.
           </div>
@@ -886,27 +888,6 @@ export function AuditLogDrawer() {
 // network hub. The switcher needs to surface BOTH dimensions per row.
 type TenantTier = "free" | "studio" | "agency" | "network";
 type TenantRole = "Owner" | "Admin" | "Coordinator" | "Editor" | "Talent";
-const MOCK_TENANTS: Array<{
-  id: string; name: string; role: TenantRole; tier: TenantTier; initials: string;
-  /** Talents on the roster (current). Used to render the M/N seat
-   *  meter alongside the tier badge so the user sees how full each
-   *  workspace is at-a-glance. */
-  seatsUsed: number;
-  /** Plan-tier seat cap for this tenant. Free=5 / Studio=15 /
-   *  Agency=50 / Network=unlimited (rendered as ∞). */
-  seatsCap: number | "∞";
-  /** Workspace's reachable URL. Free tier gets a sub-path on the hub
-   *  (tulala-hub.com/<slug>); Studio/Agency/Network get a tulala
-   *  subdomain by default and can attach a custom domain on paid
-   *  tiers. Surfacing it in the switcher gives users an at-a-glance
-   *  identity signal — same as how Slack / Linear show team URLs. */
-  domain: string;
-}> = [
-  { id: "atelier-roma", name: "Atelier Roma",       role: "Owner",        tier: "agency",  initials: "A", seatsUsed: 47,  seatsCap: 50,  domain: "atelier-roma.tulala.digital" },
-  { id: "northcoast",   name: "North Coast Talent", role: "Coordinator",  tier: "studio",  initials: "N", seatsUsed: 8,   seatsCap: 15,  domain: "northcoast.tulala.digital" },
-  { id: "vela",         name: "Vela Hub",           role: "Admin",        tier: "network", initials: "V", seatsUsed: 124, seatsCap: "∞", domain: "velahub.network" },
-  { id: "marta-solo",   name: "Marta Reyes",        role: "Owner",        tier: "free",    initials: "M", seatsUsed: 1,   seatsCap: 5,   domain: "tulala-hub.com/marta" },
-];
 
 // Tone palette per tier — Free is neutral, Studio is amber-warm,
 // Agency is indigo (premium), Network is emerald (federation).
@@ -1240,7 +1221,7 @@ export function TenantSwitcherDrawer() {
                 </span>
               </div>
               <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45, fontFamily: FONTS.body }}>
-                You'll be its Owner. Pick the tier that fits — you can upgrade later.
+                You&apos;ll be its Owner. Pick the tier that fits — you can upgrade later.
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {(["free", "studio", "agency", "network"] as const).map(tier => {
@@ -1326,9 +1307,11 @@ export function TalentAgencySwitcherDrawer() {
 
   function navigate(slug: string) {
     closeDrawer();
-    const isLocalhost = typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    window.location.href = isLocalhost ? `/${slug}/talent` : `https://${slug}.tulala.digital/talent`;
+    if (typeof window === "undefined") return;
+    const isLocalhost =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    const url = isLocalhost ? `/${slug}/talent` : `https://${slug}.tulala.digital/talent`;
+    window.location.assign(url);
   }
 
   return (
@@ -1359,7 +1342,7 @@ export function TalentAgencySwitcherDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {agencies.length === 0 && (
           <div style={{ padding: "24px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 13, fontFamily: FONTS.body }}>
-            You're not affiliated with any agency yet.
+            You&apos;re not affiliated with any agency yet.
           </div>
         )}
 
@@ -1593,7 +1576,7 @@ export function WorkspaceProfileDrawer() {
                 </span>
               </div>
               <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, fontFamily: FONTS.body }}>
-                {previewUrl} · You're <strong>{myRole}</strong>
+                {previewUrl} · You&apos;re <strong>{myRole}</strong>
               </div>
             </div>
           </div>
@@ -1603,7 +1586,7 @@ export function WorkspaceProfileDrawer() {
               background: "rgba(11,11,13,0.05)",
               fontSize: 11, color: COLORS.inkMuted, fontFamily: FONTS.body,
             }}>
-              You're {myRole.toLowerCase()} on this workspace — identity edits require Owner or Admin role.
+              You&apos;re {myRole.toLowerCase()} on this workspace — identity edits require Owner or Admin role.
             </div>
           )}
         </section>
@@ -2171,7 +2154,7 @@ const NOTIF_ROWS: { id: string; label: string; description: string }[] = [
 ];
 
 export function TalentNotificationsDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-notifications";
   // A9: deep-link from Settings → opens with settings pane expanded
   const [settingsOpen, setSettingsOpen] = useState(
@@ -2782,7 +2765,7 @@ export function TalentFunnelCard({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
-          Inquiries you're in
+          Inquiries you&apos;re in
         </div>
         <span
           aria-hidden
@@ -2799,7 +2782,7 @@ export function TalentFunnelCard({
         </span>
       </div>
       <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-        Who else you're up against, and where each is in the pipeline.
+        Who else you&apos;re up against, and where each is in the pipeline.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 12 }}>
         {useConvs
@@ -3424,7 +3407,7 @@ export function ICalSubscribeCard({ talentName, slug }: { talentName: string; sl
             Sync to your calendar
           </div>
           <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
-            Subscribe to {talentName}'s confirmed bookings and holds in your phone or laptop calendar app. Updates automatically.
+            {`Subscribe to ${talentName}'s confirmed bookings and holds in your phone or laptop calendar app. Updates automatically.`}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <SecondaryButton
@@ -4128,21 +4111,21 @@ const MOCK_MENTIONS = [
 export function MentionTypeahead({
   value,
   onChange,
-  textareaRef,
+  selectionStart,
 }: {
   value: string;
   onChange: (next: string) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  /** Caret index in `value` — must be updated by the parent textarea on change/select/keyup/click. */
+  selectionStart: number;
 }) {
-  // Detect @<chars> at the current cursor position.
+  // Detect @<chars> at the current cursor position (no ref reads during render).
   const match = useMemo(() => {
-    if (typeof window === "undefined" || !textareaRef.current) return null;
-    const ta = textareaRef.current;
-    const upTo = value.slice(0, ta.selectionStart);
+    const pos = Math.max(0, Math.min(selectionStart, value.length));
+    const upTo = value.slice(0, pos);
     const m = /@([\w]*)$/.exec(upTo);
     if (!m) return null;
     return { query: m[1] ?? "", offset: m.index, full: m[0] };
-  }, [value, textareaRef]);
+  }, [value, selectionStart]);
 
   if (!match) return null;
   const filtered = MOCK_MENTIONS.filter((u) =>
@@ -4511,7 +4494,7 @@ type ActivationStep = {
 export function WorkspaceActivationBanner() {
   const { openDrawer, toast } = useProto();
   const [dismissed, setDismissed] = useState(false);
-  const [reminded, setReminded] = useState(false);
+  const [, setReminded] = useState(false);
 
   const steps: ActivationStep[] = [
     { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: true,  cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },

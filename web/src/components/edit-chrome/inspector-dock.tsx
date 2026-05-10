@@ -83,6 +83,16 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "motion", label: "Motion" },
 ];
 
+/** Short hover hints — non-technical language (Phase 2 trust). */
+const INSPECTOR_TAB_HINT: Record<TabKey, string> = {
+  content: "Edit text, images, and controls for this block",
+  layout: "Spacing, width, and how the block sits on the page",
+  style: "Colors, type, borders, and surfaces",
+  data: "Connect this block to live roster or catalog data",
+  responsive: "Tweak behavior on smaller or larger screens",
+  motion: "Entrance motion when visitors scroll to this block",
+};
+
 /**
  * Per-section-type tab visibility.
  *
@@ -255,25 +265,33 @@ export function InspectorDock() {
     () => findBuilderNodePath(builderTree, selectedBuilderNodeId),
     [builderTree, selectedBuilderNodeId],
   );
+  const currentLoadedSection =
+    loadedSection?.id === selectedSectionId ? loadedSection : null;
+  const currentDraftProps = currentLoadedSection ? draftProps : null;
 
   const selectedDataTargetNode = useMemo<BuilderNode | null>(() => {
     if (selectedStandaloneBuilderNode) return selectedStandaloneBuilderNode;
     if (selectedBuilderNodeId) return null;
-    if (!loadedSection || !draftProps) return null;
+    if (!currentLoadedSection || !currentDraftProps) return null;
     return {
-      id: loadedSection.id,
+      id: currentLoadedSection.id,
       kind: "section",
       props: {
-        sectionId: loadedSection.id,
-        sectionTypeKey: loadedSection.sectionTypeKey,
-        label: cleanSectionName(loadedSection.name),
+        sectionId: currentLoadedSection.id,
+        sectionTypeKey: currentLoadedSection.sectionTypeKey,
+        label: cleanSectionName(currentLoadedSection.name),
         dataBinding: normalizeBuilderDataBinding(
-          (draftProps as Record<string, unknown>).dataBinding,
+          (currentDraftProps as Record<string, unknown>).dataBinding,
         ) ?? undefined,
       },
       children: [],
     };
-  }, [draftProps, loadedSection, selectedBuilderNodeId, selectedStandaloneBuilderNode]);
+  }, [
+    currentDraftProps,
+    currentLoadedSection,
+    selectedBuilderNodeId,
+    selectedStandaloneBuilderNode,
+  ]);
 
   // T2-1 — Look up the selected section's name + type from the composition
   // BEFORE the field-draft fetch resolves. The audit said the skeleton's
@@ -397,6 +415,7 @@ export function InspectorDock() {
   useEffect(() => {
     if (!dirty) return;
     if (!loadedSection || !draftProps) return;
+    if (loadedSection.id !== selectedSectionId) return;
 
     // Capture the section id at scheduling time so an in-flight save that
     // returns after the operator switches sections can't clobber the new
@@ -665,14 +684,14 @@ export function InspectorDock() {
   );
 
   // ---- render -------------------------------------------------------------
-  const registryEntry = loadedSection
-    ? (SECTION_EDITOR_REGISTRY[loadedSection.sectionTypeKey] ?? null)
+  const registryEntry = currentLoadedSection
+    ? (SECTION_EDITOR_REGISTRY[currentLoadedSection.sectionTypeKey] ?? null)
     : null;
   const shellSectionLocked =
     !canEditSiteShell &&
     (isSiteHeaderSelected ||
-      loadedSection?.sectionTypeKey === "site_header" ||
-      loadedSection?.sectionTypeKey === "site_footer");
+      currentLoadedSection?.sectionTypeKey === "site_header" ||
+      currentLoadedSection?.sectionTypeKey === "site_footer");
 
   const dockOpen = !!selectedSectionId;
 
@@ -687,12 +706,12 @@ export function InspectorDock() {
   // surfaces, one rule.
   const sectionTitle = selectedStandaloneBuilderNode
     ? builderNodeTitle(selectedStandaloneBuilderNode)
-    : loadedSection
+    : currentLoadedSection
       ? (sectionDisplayName({
-        typeKey: loadedSection.sectionTypeKey,
-        rawName: loadedSection.name,
-        props: loadedSection.props as Record<string, unknown> | null,
-        }) || humanizeTypeKey(loadedSection.sectionTypeKey))
+        typeKey: currentLoadedSection.sectionTypeKey,
+        rawName: currentLoadedSection.name,
+        props: currentLoadedSection.props as Record<string, unknown> | null,
+        }) || humanizeTypeKey(currentLoadedSection.sectionTypeKey))
       : skeletonHint
         ? skeletonHint.name
         : selectedSectionId && loadingId
@@ -702,8 +721,8 @@ export function InspectorDock() {
     ? "Site shell"
     : selectedStandaloneBuilderNode
       ? `Builder block · ${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label}`
-      : loadedSection
-        ? humanizeTypeKey(loadedSection.sectionTypeKey)
+      : currentLoadedSection
+        ? humanizeTypeKey(currentLoadedSection.sectionTypeKey)
         : skeletonHint
           ? humanizeTypeKey(skeletonHint.typeKey)
           : undefined;
@@ -812,15 +831,15 @@ export function InspectorDock() {
       }
       return tabs;
     }
-    const allowed = loadedSection
-      ? tabsForSection(loadedSection.sectionTypeKey)
+    const allowed = currentLoadedSection
+      ? tabsForSection(currentLoadedSection.sectionTypeKey)
       : skeletonHint
         ? tabsForSection(skeletonHint.typeKey)
         : DEFAULT_TABS;
     const set = new Set(allowed);
     // Preserve the canonical TABS order.
     return TABS.filter((t) => set.has(t.key)).map((t) => t.key);
-  }, [loadedSection, selectedStandaloneBuilderNode, skeletonHint]);
+  }, [currentLoadedSection, selectedStandaloneBuilderNode, skeletonHint]);
 
   // If the active tab disappears for the new section type (e.g. operator
   // had Motion open for Hero, then selects Trust Strip which doesn't
@@ -850,9 +869,9 @@ export function InspectorDock() {
         icon={
           isSiteHeaderSelected ? (
             <SiteHeaderHeadIcon />
-          ) : loadedSection ? (
+          ) : currentLoadedSection ? (
             <SectionTypeIcon
-              typeKey={loadedSection.sectionTypeKey}
+              typeKey={currentLoadedSection.sectionTypeKey}
               size={15}
             />
           ) : skeletonHint ? (
@@ -860,7 +879,7 @@ export function InspectorDock() {
           ) : undefined
         }
         saveChip={
-          loadedSection ? (
+          currentLoadedSection ? (
             <PanelSaveChip dirty={dirty} saving={saving} error={saveError} />
           ) : undefined
         }
@@ -884,7 +903,7 @@ export function InspectorDock() {
         >
           {loadError}
         </div>
-      ) : !selectedStandaloneBuilderNode && (!loadedSection || !registryEntry) ? (
+      ) : !selectedStandaloneBuilderNode && (!currentLoadedSection || !registryEntry) ? (
         <InspectorSkeleton />
       ) : (
         <>
@@ -899,6 +918,7 @@ export function InspectorDock() {
                     key={t.key}
                     active={tab === t.key}
                     onClick={() => setTab(t.key)}
+                    title={INSPECTOR_TAB_HINT[t.key]}
                   >
                     {t.label}
                   </DrawerTab>
@@ -923,23 +943,23 @@ export function InspectorDock() {
             {tab === "content" ? (
               <>
                 <SectionA11yWarning
-                  sectionTypeKey={loadedSection?.sectionTypeKey ?? "custom"}
-                  draftProps={draftProps}
+                  sectionTypeKey={currentLoadedSection?.sectionTypeKey ?? "custom"}
+                  draftProps={currentDraftProps}
                 />
                 <ContentTab
-                  sectionTypeKey={loadedSection?.sectionTypeKey ?? "custom"}
-                  schemaVersion={loadedSection?.schemaVersion ?? 1}
+                  sectionTypeKey={currentLoadedSection?.sectionTypeKey ?? "custom"}
+                  schemaVersion={currentLoadedSection?.schemaVersion ?? 1}
                   tenantId={tenantId}
-                  draftProps={draftProps ?? {}}
+                  draftProps={currentDraftProps ?? {}}
                   selectedBuilderNodeId={selectedBuilderNodeId}
                   onChange={handleContentChange}
                 />
                 {/* AI translate — secondary tool at the foot of Content */}
-                {loadedSection && draftProps ? (
+                {currentLoadedSection && currentDraftProps ? (
                   <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: CHROME.line }}>
                     <AiTranslateSectionButton
-                      sectionTypeKey={loadedSection.sectionTypeKey}
-                      currentProps={draftProps}
+                      sectionTypeKey={currentLoadedSection.sectionTypeKey}
+                      currentProps={currentDraftProps}
                       onApply={(translations) => {
                         setDraftProps((prev) => {
                           if (!prev) return prev;
@@ -959,7 +979,7 @@ export function InspectorDock() {
             {tab === "layout" ? (
               <LayoutPanel
                 presentation={
-                  (draftProps?.presentation as
+                  (currentDraftProps?.presentation as
                     | Record<string, unknown>
                     | undefined) ?? {}
                 }
@@ -969,8 +989,8 @@ export function InspectorDock() {
             ) : null}
             {tab === "style" ? (
               <StylePanel
-                sectionTypeKey={loadedSection?.sectionTypeKey ?? "custom"}
-                draftProps={draftProps ?? {}}
+                sectionTypeKey={currentLoadedSection?.sectionTypeKey ?? "custom"}
+                draftProps={currentDraftProps ?? {}}
                 selectedBuilderNodeId={selectedBuilderNodeId}
                 onPatch={handleStylePatch}
               />
@@ -979,7 +999,7 @@ export function InspectorDock() {
               <DataPanel
                 selectedBuilderNode={selectedDataTargetNode}
                 onPatchBuilderNodeProps={async (nodeId, patch) => {
-                  if (loadedSection && nodeId === loadedSection.id) {
+                  if (currentLoadedSection && nodeId === currentLoadedSection.id) {
                     setDraftProps((prev) => {
                       if (!prev) return prev;
                       const next: Record<string, unknown> = {
@@ -1003,7 +1023,7 @@ export function InspectorDock() {
             {tab === "responsive" ? (
               <ResponsivePanel
                 presentation={
-                  (draftProps?.presentation as
+                  (currentDraftProps?.presentation as
                     | Record<string, unknown>
                     | undefined) ?? {}
                 }
@@ -1013,7 +1033,7 @@ export function InspectorDock() {
             {tab === "motion" ? (
               <MotionPanel
                 presentation={
-                  (draftProps?.presentation as
+                  (currentDraftProps?.presentation as
                     | Record<string, unknown>
                     | undefined) ?? {}
                 }

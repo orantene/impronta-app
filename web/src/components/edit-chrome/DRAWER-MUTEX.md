@@ -26,7 +26,9 @@ Operators must never see **two right-rail drawers** open at once, or **palette +
 
 ## Focus / keyboard (audit)
 
-Right-rail drawers are `<aside>` panels, **not** modal dialogs: focus is **not** fully trapped (operators tab into the iframe preview). **Escape** order is centralized in [`edit-shell.tsx`](./edit-shell.tsx) (shortcut overlay → command palette → right-rail drawers). Close restores prior interaction without a dedicated focus-return stack — acceptable for non-modal panels; revisit with `react-focus-lock` or Radix **only** if a drawer becomes modal-scale.
+Right-rail drawers are `<aside>` panels, **not** modal dialogs: focus is **not** fully trapped (operators tab into the iframe preview). **Escape** order is centralized in [`edit-shell.tsx`](./edit-shell.tsx) (shortcut overlay → command palette → right-rail drawers).
+
+On close, the shared [`Drawer`](./kit/drawer.tsx) primitive returns focus to the element that had focus when the drawer **opened** (`restoreFocusOnClose`, default `true`, ~220ms after slide-out). This is a single-slot restore, not a stack — still no full trap; revisit `react-focus-lock` or Radix **only** if a drawer becomes modal-scale.
 
 ## Related
 

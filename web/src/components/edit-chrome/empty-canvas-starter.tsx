@@ -743,7 +743,7 @@ export function StarterTemplateGalleryModal({
       className="fixed inset-0 z-[120] flex items-center justify-center bg-zinc-950/45 px-4 py-6 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Template gallery"
+      aria-labelledby="empty-canvas-starter-gallery-title"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -756,7 +756,10 @@ export function StarterTemplateGalleryModal({
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
               Template gallery
             </div>
-            <h3 className="mt-1 text-xl font-semibold tracking-tight text-zinc-950">
+            <h3
+              id="empty-canvas-starter-gallery-title"
+              className="mt-1 text-xl font-semibold tracking-tight text-zinc-950"
+            >
               Start from a flexible composition
             </h3>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-500">
@@ -1273,7 +1276,7 @@ function TemplateApplyReviewDialog({
       className="fixed inset-0 z-[130] flex items-center justify-center bg-zinc-950/45 px-4 py-6"
       role="dialog"
       aria-modal="true"
-      aria-label={`Review applying ${tile.label}`}
+      aria-labelledby={`starter-apply-review-title-${tile.slug}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -1284,7 +1287,10 @@ function TemplateApplyReviewDialog({
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
               Review draft replacement
             </div>
-            <h4 className="mt-1 text-xl font-semibold tracking-tight text-zinc-950">
+            <h4
+              id={`starter-apply-review-title-${tile.slug}`}
+              className="mt-1 text-xl font-semibold tracking-tight text-zinc-950"
+            >
               Apply {tile.label}
             </h4>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-500">

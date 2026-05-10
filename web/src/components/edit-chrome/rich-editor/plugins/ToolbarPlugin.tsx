@@ -132,6 +132,8 @@ export function ToolbarPlugin({ onRequestLink }: Props) {
   return createPortal(
     <div
       data-edit-overlay="rich-toolbar"
+      role="toolbar"
+      aria-label="Text formatting"
       onMouseDown={(e) => e.preventDefault()}
       style={{
         position: "fixed",

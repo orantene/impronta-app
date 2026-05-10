@@ -278,6 +278,8 @@ export function SelectionLayer() {
     setSectionVisibility,
     openPickerPopover,
     saving,
+    /** Bumps after persisted mutations — canvas DOM may lag until RSC refresh completes. */
+    pageVersion,
     loadedSection,
     slots,
     slotDefs,
@@ -301,6 +303,7 @@ export function SelectionLayer() {
   );
   const [drag, setDrag] = useState<DragState>({ phase: "idle" });
   const autoscrollRafRef = useRef<number | null>(null);
+  const selectionScrollRetryRef = useRef<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
   // Scroll-lag fix: suppress the hover-ring's position CSS transition while
@@ -378,6 +381,7 @@ export function SelectionLayer() {
     selectedSectionId,
     selectedBuilderNodeId,
     hoveredSectionId,
+    pageVersion,
     getSelectedSectionEl,
     getSelectedBuilderNodeEl,
   ]);
@@ -401,34 +405,72 @@ export function SelectionLayer() {
   );
 
   // Sprint 4 — auto-scroll the canvas to the selected section when it's
-  // off-screen. Triggered any time `selectedSectionId` changes (typically
-  // from a navigator click or a cmd-K target). We bail when the section
-  // is already "comfortably" visible (its rect intersects the viewport's
-  // safe band) so re-clicking the currently-visible section doesn't
-  // jolt the page. `behavior: smooth` matches the chip's anim feel.
+  // off-screen. New sections can be selected before the refreshed server DOM
+  // has mounted, so retry briefly instead of giving up on the first null.
+  //
+  // Inserts await `router.refresh()` but RSC can still stream for hundreds of
+  // ms (longer in dev). Keep retrying long enough for `[data-cms-section]` to
+  // appear; `pageVersion` in deps re-runs this after CAS bumps so we catch up
+  // even when selection id was already set.
   useEffect(() => {
     if (!selectedSectionId || typeof window === "undefined") return;
-    const sectionEl = getSelectedSectionEl();
-    if (!sectionEl) return;
-    const nodeEl = getSelectedBuilderNodeEl();
-    const targetEl =
-      nodeEl && sectionEl.contains(nodeEl) ? nodeEl : sectionEl;
-    const r = targetEl.getBoundingClientRect();
-    const vh = window.innerHeight;
-    // Treat the section as "comfortably visible" when its top is below
-    // the topbar (54px) AND the section's bottom is above the viewport
-    // bottom OR the section is taller than the viewport but at least
-    // partially in the upper half.
-    const TOPBAR = 54;
-    const SAFE_TOP = TOPBAR + 24;
-    const SAFE_BOTTOM = vh - 24;
-    const fullyVisible =
-      r.top >= SAFE_TOP && r.bottom <= SAFE_BOTTOM;
-    const tallButHeaderVisible =
-      r.height > vh - TOPBAR && r.top >= SAFE_TOP - 4 && r.top <= SAFE_TOP + 200;
-    if (fullyVisible || tallButHeaderVisible) return;
-    targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [selectedSectionId, selectedBuilderNodeId, getSelectedSectionEl, getSelectedBuilderNodeEl]);
+    if (selectionScrollRetryRef.current !== null) {
+      window.clearTimeout(selectionScrollRetryRef.current);
+      selectionScrollRetryRef.current = null;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const scrollWhenReady = () => {
+      if (cancelled) return;
+      const sectionEl = getSelectedSectionEl();
+      if (!sectionEl) {
+        if (attempts < 30) {
+          attempts += 1;
+          selectionScrollRetryRef.current = window.setTimeout(
+            scrollWhenReady,
+            100,
+          );
+        }
+        return;
+      }
+
+      const nodeEl = getSelectedBuilderNodeEl();
+      const targetEl =
+        nodeEl && sectionEl.contains(nodeEl) ? nodeEl : sectionEl;
+      const r = targetEl.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const TOPBAR = 54;
+      const SAFE_TOP = TOPBAR + 24;
+      const SAFE_BOTTOM = vh - 24;
+      const fullyVisible = r.top >= SAFE_TOP && r.bottom <= SAFE_BOTTOM;
+      const tallButHeaderVisible =
+        r.height > vh - TOPBAR &&
+        r.top >= SAFE_TOP - 4 &&
+        r.top <= SAFE_TOP + 200;
+      if (!fullyVisible && !tallButHeaderVisible) {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      setSelectedRect(rectOf(targetEl));
+      setSelectedTypeKey(sectionEl.getAttribute("data-section-type-key"));
+    };
+
+    scrollWhenReady();
+    return () => {
+      cancelled = true;
+      if (selectionScrollRetryRef.current !== null) {
+        window.clearTimeout(selectionScrollRetryRef.current);
+        selectionScrollRetryRef.current = null;
+      }
+    };
+  }, [
+    selectedSectionId,
+    selectedBuilderNodeId,
+    pageVersion,
+    getSelectedSectionEl,
+    getSelectedBuilderNodeEl,
+  ]);
 
   useEffect(() => {
     scheduleRectRecompute();
@@ -2649,6 +2691,7 @@ function CanvasNodeChildrenPanel({
     typeof window === "undefined" ? selectedRect.top + selectedRect.height + 220 : window.innerHeight;
   const viewportWidth =
     typeof window === "undefined" ? selectedRect.left + 308 : window.innerWidth;
+  if (viewportWidth <= 520) return null;
   const clearDragState = () => {
     setDraggingNode(null);
     setDropIndex(null);

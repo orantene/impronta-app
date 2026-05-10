@@ -16,6 +16,8 @@
  *   - "Show advanced sections" toggle (off by default) reveals the
  *     remaining ~27 types in their category groups, each with an
  *     "Advanced" pill.
+ *   - Kit/starter facet row (Kind, Source, Plan, …) is behind **More filters**
+ *     by default so search + categories stay the primary path (BUG-007).
  *   - When opened from a slot inserter, allowed-types filter still
  *     applies — a slot may only accept a subset of the catalog.
  *   - Click a tile → `insertSection(target, typeKey)` runs the existing
@@ -62,6 +64,7 @@ import {
   type SectionTemplateKit,
   type SectionTemplateStarter,
   type SectionTemplateStarterId,
+  type SectionTemplateStarterEditModel,
   type SectionTemplateStarterKind,
   type SectionTemplateStarterReadiness,
   type SectionTemplateStarterSourceKind,
@@ -242,6 +245,8 @@ export function CompositionLibraryOverlay() {
     useState<StarterCapabilityFilter>("all");
   const [starterPlanFilter, setStarterPlanFilter] =
     useState<StarterPlanFilter>("all");
+  /** BUG-007 — collapsed by default so search + categories stay primary. */
+  const [starterFacetFiltersOpen, setStarterFacetFiltersOpen] = useState(false);
   const [dragSource, setDragSource] = useState<TemplateDragSource | null>(null);
   const [templateDropTarget, setTemplateDropTarget] =
     useState<TemplateDropTarget | null>(null);
@@ -280,7 +285,9 @@ export function CompositionLibraryOverlay() {
     setStarterSourceFilter("all");
     setStarterReadinessFilter("all");
     setStarterDataBindingFilter("all");
+    setStarterCapabilityFilter("all");
     setStarterPlanFilter("all");
+    setStarterFacetFiltersOpen(false);
     setError(null);
     setReviewKit(null);
     setReviewStarter(null);
@@ -1035,6 +1042,24 @@ export function CompositionLibraryOverlay() {
     slotFiltered.length - slotFiltered.filter((e) => e.inDefault).length;
   const isMobile = viewportMode === "mobile";
 
+  const starterFacetActiveCount = useMemo(() => {
+    let n = 0;
+    if (starterKindFilter !== "all") n++;
+    if (starterSourceFilter !== "all") n++;
+    if (starterReadinessFilter !== "all") n++;
+    if (starterDataBindingFilter !== "all") n++;
+    if (starterCapabilityFilter !== "all") n++;
+    if (starterPlanFilter !== "all") n++;
+    return n;
+  }, [
+    starterCapabilityFilter,
+    starterDataBindingFilter,
+    starterKindFilter,
+    starterPlanFilter,
+    starterReadinessFilter,
+    starterSourceFilter,
+  ]);
+
   if (!drawerOpen && !reviewKit && !reviewStarter && !dragSource) {
     return null;
   }
@@ -1084,6 +1109,24 @@ export function CompositionLibraryOverlay() {
             className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] py-2 pl-9 pr-3 text-[13px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
           />
         </div>
+        {totalSearchable > 0 ? (
+          <p className="mt-2 text-[11px] leading-snug text-zinc-500">
+            {advancedHiddenCount > 0 ? (
+              <>
+                Search or pick a category. Rare layouts stay behind{" "}
+                <span className="font-medium text-zinc-600">Show advanced sections</span>.
+                Optional kit filters live under{" "}
+                <span className="font-medium text-zinc-600">More filters</span>.
+              </>
+            ) : (
+              <>
+                Search or pick a category — all listed types work in this slot. Use{" "}
+                <span className="font-medium text-zinc-600">More filters</span>{" "}
+                to narrow kits and starters.
+              </>
+            )}
+          </p>
+        ) : null}
 
         {/* Tab strip: All + 8 category tabs (only those with at least one
             tile in the current visible-tier set are shown). On mobile we
@@ -1149,7 +1192,42 @@ export function CompositionLibraryOverlay() {
         ) : null}
 
         {templateStarterFacetBase.length > 0 ? (
-          <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
+          <div className="mt-2">
+            {!starterFacetFiltersOpen ? (
+              <button
+                type="button"
+                data-section-template-filters-disclosure
+                onClick={() => setStarterFacetFiltersOpen(true)}
+                className="flex w-full items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-left text-[12px] font-medium text-zinc-800 transition hover:border-[#3d4f7c]/25 hover:bg-white"
+              >
+                <span className="min-w-0">
+                  More filters for kits & starters
+                  {starterFacetActiveCount > 0 ? (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-900">
+                      {starterFacetActiveCount} active
+                    </span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 text-[11px] font-normal text-zinc-500">
+                  Kind, source, plan…
+                </span>
+              </button>
+            ) : (
+              <>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                    Kit & starter filters
+                  </span>
+                  <button
+                    type="button"
+                    data-section-template-filters-hide
+                    onClick={() => setStarterFacetFiltersOpen(false)}
+                    className="text-[11px] font-semibold text-indigo-700 hover:underline"
+                  >
+                    Hide filters
+                  </button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
             <label className="flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600">
               <span className="shrink-0 font-semibold uppercase tracking-wide text-zinc-400">
                 Kind
@@ -1315,6 +1393,9 @@ export function CompositionLibraryOverlay() {
             >
               Reset
             </button>
+                </div>
+              </>
+            )}
           </div>
         ) : null}
       </div>
@@ -1333,6 +1414,8 @@ export function CompositionLibraryOverlay() {
             templateStarters={visibleTemplateStarters}
             startersById={startersById}
             grouped={grouped}
+            showAdvanced={showAdvanced}
+            advancedHiddenCount={advancedHiddenCount}
             isSearching={isSearching}
             query={query}
             busyTypeKey={busyTypeKey}
@@ -1357,6 +1440,8 @@ export function CompositionLibraryOverlay() {
             templateStarters={visibleTemplateStarters}
             startersById={startersById}
             grouped={grouped}
+            showAdvanced={showAdvanced}
+            advancedHiddenCount={advancedHiddenCount}
             isSearching={isSearching}
             query={query}
             busyTypeKey={busyTypeKey}
@@ -1382,8 +1467,15 @@ export function CompositionLibraryOverlay() {
   if (!isMobile) {
     const drawerWidth = viewportMode === "tablet" ? tabletWidth : undefined;
     return (
-      <Drawer kind="picker" open={drawerOpen} zIndex={110} width={drawerWidth}>
+      <Drawer
+        kind="picker"
+        open={drawerOpen}
+        zIndex={110}
+        width={drawerWidth}
+        ariaLabelledBy="composition-library-drawer-title"
+      >
         <DrawerHead
+          titleId="composition-library-drawer-title"
           title="Add a section"
           meta={insertingMeta}
           onClose={closeLibrary}
@@ -1470,6 +1562,10 @@ export function CompositionLibraryOverlay() {
       {/* Sheet */}
       <div
         className="absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col rounded-t-2xl bg-white shadow-2xl transition-transform duration-200 ease-out"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden={!drawerOpen}
+        aria-labelledby="composition-library-mobile-title"
         style={{
           transform: drawerOpen ? "translateY(0)" : "translateY(100%)",
         }}
@@ -1489,7 +1585,10 @@ export function CompositionLibraryOverlay() {
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Add section
             </span>
-            <span className="text-base font-semibold text-zinc-900">
+            <span
+              id="composition-library-mobile-title"
+              className="text-base font-semibold text-zinc-900"
+            >
               Pick a section
             </span>
             <span className="text-xs text-zinc-500">{insertingMeta}</span>
@@ -1584,6 +1683,9 @@ interface DrawerBodyInnerProps {
   templateStarters: readonly SectionTemplateStarter[];
   startersById: ReadonlyMap<string, SectionTemplateStarter>;
   grouped: Record<string, LibraryEntryView[]>;
+  /** When search is empty but advanced types are hidden, surface recovery copy. */
+  showAdvanced: boolean;
+  advancedHiddenCount: number;
   isSearching: boolean;
   query: string;
   busyTypeKey: string | null;
@@ -1605,6 +1707,8 @@ function DrawerBodyInner({
   templateStarters,
   startersById,
   grouped,
+  showAdvanced,
+  advancedHiddenCount,
   isSearching,
   query,
   busyTypeKey,
@@ -1624,16 +1728,46 @@ function DrawerBodyInner({
     (starter) => getStarterCompatibility(starter).ok,
   ).length;
   if (visible.length === 0 && templateStarters.length === 0 && templateKits.length === 0) {
+    const recovery =
+      isSearching && advancedHiddenCount > 0 && !showAdvanced
+        ? " Clear the search, pick another category, or turn on Show advanced sections."
+        : isSearching
+          ? " Clear the search or try another category tab."
+          : "";
     return (
-      <p className="py-12 text-center text-sm text-zinc-500">
-        {isSearching
-          ? `No section templates or types match "${query.trim()}".`
-          : "No section templates or types available for this slot."}
-      </p>
+      <div className="space-y-2 py-12 text-center text-sm text-zinc-500">
+        <p className="m-0">
+          {isSearching
+            ? `No kits, templates, or section types match "${query.trim()}".`
+            : "No section templates or types available for this slot."}
+        </p>
+        {recovery ? <p className="m-0 text-xs leading-relaxed text-zinc-400">{recovery}</p> : null}
+      </div>
     );
   }
+  const showNoSectionTypeMatchBanner =
+    isSearching &&
+    visible.length === 0 &&
+    (templateKits.length > 0 || templateStarters.length > 0);
   return (
     <div className="space-y-6">
+      {showNoSectionTypeMatchBanner ? (
+        <div className="rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-[11px] text-zinc-700">
+          <p className="m-0 font-medium text-zinc-900">
+            No section types match this search in the categories above.
+          </p>
+          <p className="mt-1 m-0 text-zinc-600">
+            Kits and starter templates below still match your search.
+            {advancedHiddenCount > 0 && !showAdvanced ? (
+              <>
+                {" "}
+                Rare single-section types may need{" "}
+                <strong className="font-semibold text-zinc-800">Show advanced sections</strong>.
+              </>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
       <section>
         <button
           type="button"
@@ -1863,6 +1997,9 @@ function KitReviewOverlay({
     <div
       data-section-kit-review={kit.id}
       className="fixed inset-0 z-[125] flex items-center justify-center bg-[#242942]/35 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={`kit-review-heading-${kit.id}`}
       onClick={onClose}
     >
       <div
@@ -1874,7 +2011,10 @@ function KitReviewOverlay({
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
               Review kit
             </p>
-            <h3 className="mt-1 text-lg font-semibold text-zinc-950">
+            <h3
+              id={`kit-review-heading-${kit.id}`}
+              className="mt-1 text-lg font-semibold text-zinc-950"
+            >
               {kit.label}
             </h3>
             <p className="mt-1 text-sm leading-relaxed text-zinc-500">
@@ -2124,6 +2264,9 @@ function StarterReviewOverlay({
     <div
       data-section-starter-review={starter.id}
       className="fixed inset-0 z-[125] flex items-center justify-center bg-[#242942]/35 px-4 py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={`starter-review-heading-${starter.id}`}
       onClick={onClose}
     >
       <div
@@ -2139,7 +2282,10 @@ function StarterReviewOverlay({
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
                 Review section
               </p>
-              <h3 className="mt-1 text-lg font-semibold text-zinc-950">
+              <h3
+                id={`starter-review-heading-${starter.id}`}
+                className="mt-1 text-lg font-semibold text-zinc-950"
+              >
                 {starter.label}
               </h3>
               <p className="mt-1 text-sm leading-relaxed text-zinc-500">
@@ -2160,13 +2306,17 @@ function StarterReviewOverlay({
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <StarterReviewFact label="Type" value={starter.sectionTypeKey.replace(/_/g, " ")} />
-            <StarterReviewFact label="Source" value={sourceKindLabel(starter.sourceKind)} />
+            <StarterReviewFact label="Section type" value={starter.sectionTypeKey.replace(/_/g, " ")} />
+            <StarterReviewFact label="Content source" value={sourceKindLabel(starter.sourceKind)} />
             <StarterReviewFact
               label="Readiness"
               value={starter.readiness === "ready-now" ? "Ready now" : "Needs setup"}
             />
-            <StarterReviewFact label="Edit model" value={starter.editModel.replace(/-/g, " ")} />
+            <StarterReviewFact
+              label="Editing approach"
+              value={editModelHeadline(starter.editModel)}
+              detail={editModelBlurb(starter.editModel)}
+            />
           </div>
           {stylePresets.length > 0 ? (
             <div className="mt-3 rounded-xl border border-[#eee9dd] bg-white p-3">
@@ -2213,10 +2363,11 @@ function StarterReviewOverlay({
               {starter.componentRecipe.join(" + ")}
             </span>
             <span className="mt-2 block text-[11px] leading-relaxed text-zinc-500">
-              Edit scope: {starter.editScope}
+              <span className="font-medium text-zinc-600">What you can change: </span>
+              {starter.editScope}
             </span>
             <span className="mt-2 block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
-              Editable controls
+              Fine-tune in inspector
             </span>
             <span className="mt-1 flex">
               <EditableCapabilityBadges starter={starter} />
@@ -2254,9 +2405,12 @@ function StarterReviewOverlay({
 function StarterReviewFact({
   label,
   value,
+  detail,
 }: {
   label: string;
   value: string;
+  /** Optional short explanation under the headline (starter review only). */
+  detail?: string;
 }) {
   return (
     <div className="rounded-xl border border-[#eee9dd] bg-[#fbfaf7] p-3">
@@ -2266,6 +2420,9 @@ function StarterReviewFact({
       <span className="mt-1 block text-xs font-medium leading-snug text-zinc-700">
         {value}
       </span>
+      {detail ? (
+        <span className="mt-1.5 block text-[11px] leading-relaxed text-zinc-500">{detail}</span>
+      ) : null}
     </div>
   );
 }
@@ -2505,6 +2662,37 @@ function sourceKindLabel(kind: SectionTemplateStarterSourceKind): string {
   }
 }
 
+/** Plain-language summary for the starter review dialog (human QA — internal jargon). */
+function editModelHeadline(model: SectionTemplateStarterEditModel): string {
+  switch (model) {
+    case "section-props":
+      return "Standard section fields";
+    case "live-data":
+      return "Connected live data";
+    case "navigation":
+      return "Menus and links";
+    case "action-route":
+      return "Calls to action";
+    case "asset":
+      return "Images and media";
+  }
+}
+
+function editModelBlurb(model: SectionTemplateStarterEditModel): string {
+  switch (model) {
+    case "section-props":
+      return "You edit copy, layout, and presentation in the inspector — like a form, not raw code.";
+    case "live-data":
+      return "Sections stay wired to your roster or directory; you adjust how results show.";
+    case "navigation":
+      return "You change labels, destinations, and layout for menus and link rows.";
+    case "action-route":
+      return "You tune conversion copy, buttons, and where taps go.";
+    case "asset":
+      return "You swap visuals, alt text, and supporting copy around hero-style imagery.";
+  }
+}
+
 function SourceKindBadge({
   kind,
   count,
@@ -2581,7 +2769,7 @@ function editableCapabilityLabel(capability: SectionTemplateStarter["editableCap
     case "layout":
       return "Layout";
     case "data":
-      return "Data";
+      return "Live data";
     case "navigation":
       return "Navigation";
     case "media":

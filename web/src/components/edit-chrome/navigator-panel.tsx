@@ -131,6 +131,59 @@ interface NodeInsertTarget {
   label: string;
 }
 
+interface SectionDropTarget {
+  moved: FlatRow;
+  targetSlotKey: string;
+  targetSlotIndex: number;
+}
+
+function resolveSectionDropTarget(
+  flat: ReadonlyArray<FlatRow>,
+  sectionId: string,
+  targetIndexAfterRemoval: number,
+): SectionDropTarget | null {
+  const moved = flat.find((row) => row.ref.sectionId === sectionId);
+  if (!moved) return null;
+
+  const remaining = flat.filter((row) => row.ref.sectionId !== sectionId);
+  if (remaining.length === 0) return null;
+  if (targetIndexAfterRemoval < 0 || targetIndexAfterRemoval > remaining.length) {
+    return null;
+  }
+
+  const anchor =
+    targetIndexAfterRemoval < remaining.length
+      ? remaining[targetIndexAfterRemoval]
+      : remaining[remaining.length - 1];
+  if (!anchor) return null;
+
+  const targetSlotKey = anchor.slotKey;
+  const targetIndexAfterRemovalInSlot =
+    targetIndexAfterRemoval < remaining.length
+      ? remaining
+          .slice(0, targetIndexAfterRemoval)
+          .filter((row) => row.slotKey === targetSlotKey).length
+      : remaining.filter((row) => row.slotKey === targetSlotKey).length;
+
+  const targetSlotIndex =
+    targetSlotKey === moved.slotKey &&
+    targetIndexAfterRemovalInSlot > moved.slotIndex
+      ? targetIndexAfterRemovalInSlot + 1
+      : targetIndexAfterRemovalInSlot;
+
+  if (targetSlotKey === moved.slotKey) {
+    const adjusted =
+      targetSlotIndex > moved.slotIndex ? targetSlotIndex - 1 : targetSlotIndex;
+    if (adjusted === moved.slotIndex) return null;
+  }
+
+  return {
+    moved,
+    targetSlotKey,
+    targetSlotIndex,
+  };
+}
+
 export function NavigatorPanel() {
   const {
     selectedSectionId,
@@ -143,9 +196,9 @@ export function NavigatorPanel() {
     renameSection,
     slots,
     slotDefs,
+    pageVersion,
     pageMetadata,
     moveSectionTo,
-    moveSection,
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     insertBuilderNode,
@@ -403,13 +456,28 @@ export function NavigatorPanel() {
   const [headingProbe, setHeadingProbe] = useState<
     Record<string, string> | null
   >(null);
-  const flatIdsKey = flat.map((r) => r.ref.sectionId).sort().join(",");
+  const headingProbeRequestKeyRef = useRef<string | null>(null);
+  const flatSectionIds = useMemo(
+    () => flat.map((r) => r.ref.sectionId),
+    [flat],
+  );
+  const flatIdsKey = useMemo(
+    () => [...flatSectionIds].sort().join(","),
+    [flatSectionIds],
+  );
   useEffect(() => {
     let cancelled = false;
-    if (!navigatorOpen || flat.length === 0) return;
+    if (!navigatorOpen || flatSectionIds.length === 0) return;
+    const requestKey = `${pageVersion}:${flatIdsKey}`;
+    if (headingProbeRequestKeyRef.current === requestKey) return;
+    headingProbeRequestKeyRef.current = requestKey;
     void (async () => {
-      const result = await loadHeadingProbeForLint();
-      if (cancelled || !result.ok) return;
+      const result = await loadHeadingProbeForLint(flatSectionIds);
+      if (!result.ok) {
+        if (!cancelled) headingProbeRequestKeyRef.current = null;
+        return;
+      }
+      if (cancelled) return;
       const map: Record<string, string> = {};
       for (const s of result.sections) map[s.sectionId] = s.headlineText;
       setHeadingProbe(map);
@@ -417,7 +485,7 @@ export function NavigatorPanel() {
     return () => {
       cancelled = true;
     };
-  }, [navigatorOpen, flatIdsKey, flat.length]);
+  }, [navigatorOpen, flatIdsKey, flatSectionIds, pageVersion]);
 
   // QA-4 fix — when two sections share the same display name (e.g. homepage
   // with two `cta_banner` sections both seeded as "Final CTA — new"), the
@@ -664,13 +732,17 @@ export function NavigatorPanel() {
     },
     [duplicateSection, reportMutationError],
   );
-  const commitSectionMove = useCallback(
-    async (sectionId: string, direction: "up" | "down") => {
+  const commitSectionMoveTo = useCallback(
+    async (sectionId: string, target: SectionDropTarget) => {
       if (pendingMoveKey) return;
-      const moveKey = `section:${sectionId}:${direction}`;
+      const moveKey = `section:${sectionId}:${target.targetSlotKey}:${target.targetSlotIndex}`;
       setPendingMoveKey(moveKey);
       try {
-        const moved = await moveSection(sectionId, direction);
+        const moved = await moveSectionTo(
+          sectionId,
+          target.targetSlotKey,
+          target.targetSlotIndex,
+        );
         if (!moved.ok && moved.error) {
           reportMutationError(moved.error);
         }
@@ -678,7 +750,7 @@ export function NavigatorPanel() {
         setPendingMoveKey((current) => (current === moveKey ? null : current));
       }
     },
-    [moveSection, pendingMoveKey, reportMutationError],
+    [moveSectionTo, pendingMoveKey, reportMutationError],
   );
   const commitNodeDuplicate = useCallback(
     async (nodeId: string) => {
@@ -821,38 +893,21 @@ export function NavigatorPanel() {
         onDragEnd();
         return;
       }
-      // dropAt is the post-removal flat-index where the row should land.
-      // To translate into (slotKey, slotIndex) we walk the slot order
-      // counting visible rows in each slot until we hit dropAt.
-      const order = slotDefsOrder(slotDefs, slots);
-      let consumed = 0;
-      let targetSlotKey = order[order.length - 1] ?? moved.slotKey;
-      let targetSlotIndex = 0;
-      for (const slotKey of order) {
-        let count = (slots[slotKey] ?? []).length;
-        // Removing the dragged row from its source slot reduces that
-        // slot's count by one when computing destination indices.
-        if (slotKey === moved.slotKey) count -= 1;
-        if (consumed + count >= dropAt) {
-          targetSlotKey = slotKey;
-          targetSlotIndex = dropAt - consumed;
-          break;
-        }
-        consumed += count;
-      }
-      // No-op when the drop position equals the source position.
-      if (
-        targetSlotKey === moved.slotKey &&
-        (targetSlotIndex === moved.slotIndex ||
-          targetSlotIndex === moved.slotIndex + 1)
-      ) {
+      const targetIndexAfterRemoval =
+        dropAt > moved.flatIndex ? dropAt - 1 : dropAt;
+      const target = resolveSectionDropTarget(
+        flat,
+        moved.ref.sectionId,
+        targetIndexAfterRemoval,
+      );
+      if (!target) {
         onDragEnd();
         return;
       }
 
       const compatibility = checkSlotTypeCompatibility({
         slotDefs,
-        targetSlotKey,
+        targetSlotKey: target.targetSlotKey,
         sectionTypeKey: moved.ref.sectionTypeKey,
       });
       if (!compatibility.ok) {
@@ -862,13 +917,16 @@ export function NavigatorPanel() {
       }
 
       onDragEnd();
-      await moveSectionTo(moved.ref.sectionId, targetSlotKey, targetSlotIndex);
+      await moveSectionTo(
+        moved.ref.sectionId,
+        target.targetSlotKey,
+        target.targetSlotIndex,
+      );
     },
     [
       draggingId,
       dropAt,
       flat,
-      slots,
       slotDefs,
       moveSectionTo,
       onDragEnd,
@@ -923,6 +981,7 @@ export function NavigatorPanel() {
   return (
     <aside
       data-edit-overlay="navigator-panel"
+      aria-labelledby="structure-navigator-label"
       style={{
         position: "fixed",
         left: 0,
@@ -1076,8 +1135,9 @@ export function NavigatorPanel() {
                 borderRadius: 999,
                 background: CHROME.green,
               }}
+              aria-hidden
             />
-            Navigator
+            <span id="structure-navigator-label">Navigator</span>
             {builderPerformanceIssues.length > 0 ? (
               <span
                 title={builderPerformanceIssues.map((issue) => issue.message).join("\n")}
@@ -1743,9 +1803,32 @@ export function NavigatorPanel() {
               sectionFocused ||
               nodeInsertTarget?.key === `section:${row.builderNodeId ?? ""}`;
             const sectionDragEnabled = !searchQuery && visible.length > 1;
-            const slotCount = (slots[row.slotKey] ?? []).length;
-            const canMoveSectionUp = row.slotIndex > 0;
-            const canMoveSectionDown = row.slotIndex < slotCount - 1;
+            const moveUpTarget = resolveSectionDropTarget(
+              flat,
+              row.ref.sectionId,
+              row.flatIndex - 1,
+            );
+            const moveDownTarget = resolveSectionDropTarget(
+              flat,
+              row.ref.sectionId,
+              row.flatIndex + 1,
+            );
+            const moveUpCompatibility = moveUpTarget
+              ? checkSlotTypeCompatibility({
+                  slotDefs,
+                  targetSlotKey: moveUpTarget.targetSlotKey,
+                  sectionTypeKey: row.ref.sectionTypeKey,
+                })
+              : null;
+            const moveDownCompatibility = moveDownTarget
+              ? checkSlotTypeCompatibility({
+                  slotDefs,
+                  targetSlotKey: moveDownTarget.targetSlotKey,
+                  sectionTypeKey: row.ref.sectionTypeKey,
+                })
+              : null;
+            const canMoveSectionUp = moveUpCompatibility?.ok ?? false;
+            const canMoveSectionDown = moveDownCompatibility?.ok ?? false;
             const sectionMovePending = pendingMoveKey?.startsWith(
               `section:${row.ref.sectionId}:`,
             );
@@ -1815,15 +1898,15 @@ export function NavigatorPanel() {
                     if (e.key === "ArrowUp") {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (moveInFlight || !canMoveSectionUp) return;
-                      void commitSectionMove(row.ref.sectionId, "up");
+                      if (moveInFlight || !moveUpTarget || !canMoveSectionUp) return;
+                      void commitSectionMoveTo(row.ref.sectionId, moveUpTarget);
                       return;
                     }
                     if (e.key === "ArrowDown") {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (moveInFlight || !canMoveSectionDown) return;
-                      void commitSectionMove(row.ref.sectionId, "down");
+                      if (moveInFlight || !moveDownTarget || !canMoveSectionDown) return;
+                      void commitSectionMoveTo(row.ref.sectionId, moveDownTarget);
                     }
                   }}
                   data-builder-node-id={row.builderNodeId ?? undefined}
@@ -2021,7 +2104,7 @@ export function NavigatorPanel() {
                       </span>
                     ) : null}
                   </span>
-                  {slotCount > 1 ? (
+                  {flat.length > 1 ? (
                     <span
                       data-navigator-section-reorder-controls=""
                       aria-label={`Reorder ${labelFor(row)}`}
@@ -2044,8 +2127,8 @@ export function NavigatorPanel() {
                         }
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (moveInFlight || !canMoveSectionUp) return;
-                          void commitSectionMove(row.ref.sectionId, "up");
+                          if (moveInFlight || !moveUpTarget || !canMoveSectionUp) return;
+                          void commitSectionMoveTo(row.ref.sectionId, moveUpTarget);
                         }}
                         compact
                       >
@@ -2062,8 +2145,8 @@ export function NavigatorPanel() {
                         }
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (moveInFlight || !canMoveSectionDown) return;
-                          void commitSectionMove(row.ref.sectionId, "down");
+                          if (moveInFlight || !moveDownTarget || !canMoveSectionDown) return;
+                          void commitSectionMoveTo(row.ref.sectionId, moveDownTarget);
                         }}
                         compact
                       >

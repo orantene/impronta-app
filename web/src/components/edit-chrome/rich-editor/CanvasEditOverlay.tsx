@@ -165,6 +165,8 @@ export function CanvasEditOverlay({
     <div
       ref={overlayRef}
       data-edit-overlay="canvas-edit"
+      role="region"
+      aria-label="Inline text editor"
       style={{
         position: "fixed",
         top: rect.top,

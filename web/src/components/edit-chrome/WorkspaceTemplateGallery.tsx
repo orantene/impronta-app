@@ -900,7 +900,7 @@ function WorkspaceTemplateApplyReviewDialog({
       className="fixed inset-0 z-[135] flex items-center justify-center bg-zinc-950/45 px-4 py-6"
       role="dialog"
       aria-modal="true"
-      aria-label={`Review applying ${template.name}`}
+      aria-labelledby={`workspace-template-apply-title-${template.id}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -911,7 +911,10 @@ function WorkspaceTemplateApplyReviewDialog({
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
               Review saved template
             </div>
-            <h4 className="mt-1 text-xl font-semibold tracking-tight">
+            <h4
+              id={`workspace-template-apply-title-${template.id}`}
+              className="mt-1 text-xl font-semibold tracking-tight"
+            >
               Apply {template.name}
             </h4>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-500">
@@ -1045,7 +1048,7 @@ function WorkspaceTemplateArchiveDialog({
       className="fixed inset-0 z-[135] flex items-center justify-center bg-zinc-950/45 px-4 py-6"
       role="dialog"
       aria-modal="true"
-      aria-label={`Archive ${template.name}`}
+      aria-labelledby={`workspace-template-archive-title-${template.id}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -1055,7 +1058,10 @@ function WorkspaceTemplateArchiveDialog({
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
             Archive template
           </div>
-          <h4 className="mt-1 text-xl font-semibold tracking-tight">
+          <h4
+            id={`workspace-template-archive-title-${template.id}`}
+            className="mt-1 text-xl font-semibold tracking-tight"
+          >
             Archive {template.name}
           </h4>
           <p className="mt-2 text-sm leading-relaxed text-zinc-500">

@@ -191,6 +191,29 @@ export async function listSectionsForStaff(
   return (data ?? []) as SectionRow[];
 }
 
+export async function listSectionsByIdsForStaff(
+  supabase: SupabaseClient,
+  tenantId: string,
+  sectionIds: ReadonlyArray<string>,
+): Promise<SectionRow[]> {
+  const ids = Array.from(new Set(sectionIds.filter(Boolean)));
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from("cms_sections")
+    .select(SECTION_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .in("id", ids);
+  if (error) {
+    console.warn("[site-admin/sections-reads] staff list-by-ids failed", {
+      tenantId,
+      count: ids.length,
+      error: error.message,
+    });
+    return [];
+  }
+  return (data ?? []) as SectionRow[];
+}
+
 // ---- usage (page-reference summary) --------------------------------------
 
 /**

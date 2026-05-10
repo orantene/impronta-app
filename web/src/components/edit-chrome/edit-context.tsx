@@ -153,6 +153,12 @@ export interface BuilderBlockPreset {
 
 export interface EditContextValue {
   tenantId: string;
+  /**
+   * Storefront public name (`agency_business_identity.public_name`, else
+   * `agencies.display_name` / slug). Shown in the top bar so product vs tenant
+   * context stays obvious (human QA BUG-006).
+   */
+  tenantSiteLabel: string | null;
   workspacePlan: string;
   canEditSiteShell: boolean;
   locale: string;
@@ -1244,6 +1250,8 @@ interface EditProviderProps {
    * recovery, locale switch revalidation).
    */
   initialComposition?: CompositionData | null;
+  /** Storefront label threaded from EditChromeMount for top-bar tenant context. */
+  tenantSiteLabel?: string | null;
   children: ReactNode;
 }
 
@@ -1255,9 +1263,33 @@ export function EditProvider({
   pageSlug = null,
   initialAvailableLocales,
   initialComposition = null,
+  tenantSiteLabel = null,
   children,
 }: EditProviderProps) {
   const router = useRouter();
+  /** P9-1 — coalesce burst refreshes in one animation frame (insert + CAS + overlay). */
+  const routerRefreshPromiseRef = useRef<Promise<void> | null>(null);
+  const queueRouterRefresh = useCallback((): Promise<void> => {
+    if (routerRefreshPromiseRef.current) {
+      return routerRefreshPromiseRef.current;
+    }
+    const p = new Promise<void>((resolve, reject) => {
+      requestAnimationFrame(() => {
+        try {
+          router.refresh();
+          requestAnimationFrame(() => {
+            routerRefreshPromiseRef.current = null;
+            resolve();
+          });
+        } catch (err: unknown) {
+          routerRefreshPromiseRef.current = null;
+          reject(err);
+        }
+      });
+    });
+    routerRefreshPromiseRef.current = p;
+    return p;
+  }, [router]);
   const normalizedWorkspacePlan = normalizeBuilderWorkspacePlan(workspacePlan);
   const canEditSiteShell = builderPlanAllows(
     normalizedWorkspacePlan,
@@ -1935,7 +1967,7 @@ export function EditProvider({
     const onStarterApplied = () => {
       void (async () => {
         await refreshComposition();
-        router.refresh();
+        void queueRouterRefresh();
         window.dispatchEvent(new CustomEvent("impronta:starter-sync-complete"));
       })();
     };
@@ -1948,7 +1980,7 @@ export function EditProvider({
       window.removeEventListener("impronta:starter-applied", onStarterApplied);
       window.removeEventListener(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT, onOpenTemplateGallery);
     };
-  }, [openStarterTemplateGallery, refreshComposition, router]);
+  }, [openStarterTemplateGallery, refreshComposition, queueRouterRefresh]);
 
   // ── mutation helper ─────────────────────────────────────────────────
   const currentSnapshot = useCallback<() => CompositionSnapshot>(() => {
@@ -2071,7 +2103,7 @@ export function EditProvider({
             return { ok: false, error: result.error };
           }
           // Storefront DOM cache bust — fire-and-forget.
-          router.refresh();
+          void queueRouterRefresh();
           recordDispatchAudit(mutation.sectionId);
           return { ok: true };
         }
@@ -2142,7 +2174,7 @@ export function EditProvider({
             sectionTypeKey: snapshot.sectionTypeKey,
             props: mutation.props,
           });
-          router.refresh();
+          void queueRouterRefresh();
           recordDispatchAudit(mutation.sectionId);
           return { ok: true };
         }
@@ -2257,7 +2289,7 @@ export function EditProvider({
                 : prev,
             );
           }
-          router.refresh();
+          void queueRouterRefresh();
           recordDispatchAudit(mutation.sectionId);
           return { ok: true };
         }
@@ -2364,7 +2396,7 @@ export function EditProvider({
       }
     },
     [
-      router,
+      queueRouterRefresh,
       loadedSection,
       selectedSectionId,
       setSlotsAndBuilderTree,
@@ -2377,7 +2409,7 @@ export function EditProvider({
    * Run a snapshot-producing mutation. Captures pre-state onto the history
    * stack, clears the redo stack, applies the optimistic slots/metadata
    * locally, then saves via CAS. On conflict or server error, rolls back.
-   * Triggers `router.refresh()` on success so the server-rendered page
+   * Triggers a coalesced `queueRouterRefresh()` on success so the server-rendered page
    * picks up the new composition.
    */
   const dispatchMutation = useCallback(
@@ -2436,7 +2468,7 @@ export function EditProvider({
       }
       setPageVersion(save.pageVersion);
       pageVersionRef.current = save.pageVersion;
-      router.refresh();
+      void queueRouterRefresh();
       return { ok: true };
     },
     [
@@ -2444,7 +2476,7 @@ export function EditProvider({
       locale,
       pageId,
       refreshComposition,
-      router,
+      queueRouterRefresh,
       capHistory,
       setSlotsAndBuilderTree,
       reportMutationError,
@@ -2498,7 +2530,7 @@ export function EditProvider({
       }
       // Splice the new section into local slots using the response payload
       // instead of awaiting a second round-trip to refreshComposition. The
-      // server-rendered DOM wrappers still need router.refresh() to catch
+      // server-rendered DOM wrappers still need queueRouterRefresh() to catch
       // up, but the inspector / overlays read from context state and can
       // engage the new section immediately.
       const insertAt =
@@ -2529,7 +2561,7 @@ export function EditProvider({
       pageVersionRef.current = res.pageVersion;
       setPageVersion(res.pageVersion);
       setSelectedSectionId(res.section.id);
-      await router.refresh();
+      await queueRouterRefresh();
       return { ok: true, section: { id: res.section.id, sortOrder: insertAt } };
     },
     [
@@ -2537,7 +2569,7 @@ export function EditProvider({
       locale,
       pageId,
       refreshComposition,
-      router,
+      queueRouterRefresh,
       capHistory,
       setSlotsAndBuilderTree,
       syncBuilderNodeChildrenForSection,
@@ -2593,7 +2625,7 @@ export function EditProvider({
         return { ok: false, error: res.error };
       }
       // Optimistically splice the duplicate right after the source so the
-      // inspector + overlays can engage it immediately — then router.refresh
+      // inspector + overlays can engage it immediately — then queueRouterRefresh
       // fills in the server-rendered section wrapper in the background.
       // Skip the blocking refreshComposition round-trip (~300 ms saved).
       setSlotsAndBuilderTree((prev) => {
@@ -2632,7 +2664,7 @@ export function EditProvider({
       setPageVersion(res.pageVersion);
       pageVersionRef.current = res.pageVersion;
       setSelectedSectionId(res.section.id);
-      await router.refresh();
+      await queueRouterRefresh();
       return { ok: true, newSectionId: res.section.id };
     },
     [
@@ -2641,7 +2673,7 @@ export function EditProvider({
       locale,
       pageId,
       refreshComposition,
-      router,
+      queueRouterRefresh,
       capHistory,
       builderTree,
       setSlotsAndBuilderTree,
@@ -2846,7 +2878,7 @@ export function EditProvider({
       }
       pageVersionRef.current = save.pageVersion;
       setPageVersion(save.pageVersion);
-      router.refresh();
+      void queueRouterRefresh();
       return { ok: true as const };
     },
     [
@@ -2854,7 +2886,7 @@ export function EditProvider({
       locale,
       pageId,
       refreshComposition,
-      router,
+      queueRouterRefresh,
       reportMutationError,
     ],
   );
@@ -3469,10 +3501,10 @@ export function EditProvider({
         return false;
       }
       setPageVersion(save.pageVersion);
-      router.refresh();
+      void queueRouterRefresh();
       return true;
     },
-    [locale, pageId, refreshComposition, router, setSlotsAndBuilderTree],
+    [locale, pageId, refreshComposition, queueRouterRefresh, setSlotsAndBuilderTree],
   );
 
   /**
@@ -3766,13 +3798,13 @@ export function EditProvider({
       }
       // Restored composition lands as is_draft=TRUE — pull the
       // authoritative state so slots, metadata, and pageVersion all
-      // reflect what the operator just rolled back to. router.refresh()
+      // reflect what the operator just rolled back to. queueRouterRefresh()
       // re-renders the storefront so the canvas reflects the change too.
       await refreshComposition();
-      router.refresh();
+      void queueRouterRefresh();
       return { ok: true };
     },
-    [pageVersion, locale, refreshComposition, router, reportMutationError],
+    [pageVersion, locale, refreshComposition, queueRouterRefresh, reportMutationError],
   );
 
   // Sprint 5 — public setSectionVisibility now routes through the
@@ -3862,6 +3894,7 @@ export function EditProvider({
   const value = useMemo<EditContextValue>(
     () => ({
       tenantId,
+      tenantSiteLabel: tenantSiteLabel ?? null,
       workspacePlan: normalizedWorkspacePlan,
       canEditSiteShell,
       locale,
@@ -4009,6 +4042,7 @@ export function EditProvider({
     }),
     [
       tenantId,
+      tenantSiteLabel,
       normalizedWorkspacePlan,
       canEditSiteShell,
       locale,

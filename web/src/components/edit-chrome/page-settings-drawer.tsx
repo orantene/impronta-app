@@ -340,8 +340,14 @@ export function PageSettingsDrawer() {
   const chipStatus = submitting || saving ? "saving" : dirty ? "dirty" : "saved";
 
   return (
-    <Drawer kind="pageSettings" open={pageSettingsOpen} zIndex={87}>
+    <Drawer
+      kind="pageSettings"
+      open={pageSettingsOpen}
+      zIndex={87}
+      ariaLabelledBy="page-settings-drawer-title"
+    >
       <DrawerHead
+        titleId="page-settings-drawer-title"
         title="Page settings"
         icon={<CogIcon />}
         saveChip={<SaveChip status={chipStatus} />}
@@ -370,6 +376,8 @@ export function PageSettingsDrawer() {
               border: `1px solid ${CHROME.roseLine}`,
               color: CHROME.rose,
             }}
+            role="alert"
+            aria-live="assertive"
           >
             {errorMsg}
           </div>

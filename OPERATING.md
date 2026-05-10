@@ -32,7 +32,7 @@ The operating contract for this repo. Every contributor — human or agent — r
 local → push to phase-1 → Vercel builds preview → (optional) alias to staging.tulala.digital → vercel promote → smoke-test
 ```
 
-1. **Local:** `npm run dev` (port 3000). Add `node scripts/local-host-proxy.mjs 3102 app.local` only if you're testing host routing.
+1. **Local:** `npm run dev` (port 3000). Add `node scripts/local-host-proxy.mjs 3102 app.local` only if you're testing host routing. If the Next dev server **runs out of heap** while compiling large admin/builder routes (OOM during first `/login` or `?edit=1`), raise the limit temporarily, e.g. `export NODE_OPTIONS='--max-old-space-size=8192'` before `npm run dev`. Treat repeated OOM as a signal to profile bundles—not only a machine setting (human QA BUG-001).
 2. **Pre-commit:** `npm run typecheck && npm run lint`. If you touched middleware / tenant / RLS / server-actions / AI / i18n, also `npm run ci`.
 3. **Push:** to `phase-1`. Commit format `<surface>: <what>` (e.g. `admin/drawer: …`).
 4. **Preview:** Vercel auto-builds. The preview URL is in the GitHub commit status.

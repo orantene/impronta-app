@@ -109,7 +109,8 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
       data-edit-overlay="media-picker"
       className="fixed inset-0 z-[120] flex items-center justify-center bg-[#242942]/60 p-6 backdrop-blur-sm"
       role="dialog"
-      aria-label="Media library"
+      aria-modal="true"
+      aria-labelledby="media-picker-dialog-title"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -134,6 +135,7 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
           }}
         />
         <DrawerHead
+          titleId="media-picker-dialog-title"
           title="Replace image"
           saveChip={
             <button
@@ -149,7 +151,11 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
         />
 
         {uploadError ? (
-          <p className="border-b border-red-100 bg-red-50 px-5 py-2 text-xs text-red-700">
+          <p
+            className="border-b border-red-100 bg-red-50 px-5 py-2 text-xs text-red-700"
+            role="alert"
+            aria-live="assertive"
+          >
             Upload failed — {uploadError}
           </p>
         ) : null}
@@ -158,7 +164,11 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
           {loading ? (
             <p className="text-sm text-zinc-500">Loading…</p>
           ) : error ? (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p
+              className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              role="alert"
+              aria-live="assertive"
+            >
               {error}
             </p>
           ) : items && items.length > 0 ? (

@@ -7,6 +7,8 @@ Per [builder-execution-plan-2026.md §4](builder-execution-plan-2026.md) **P0-1*
 - Tenant host present in `agency_domains` (e.g. production alias domain).
 - Authenticated builder session (agency admin).
 
+**Automation cannot replace this doc:** filling the matrix requires a human on a registered host. To **waive** Phase 0 for a release, record the risk note + approver in **Deferred bugs** and update [builder-execution-plan-2026.md § Implementation status](./builder-execution-plan-2026.md).
+
 ## Viewport matrix
 
 For each width, complete the checklist and note **Pass / Fail** and **Issue ID** (ticket or PR).
@@ -33,10 +35,13 @@ For each width, complete the checklist and note **Pass / Fail** and **Issue ID**
 
 ## Automated substitute (local dev only)
 
+**Dirty local homepage:** If Impronta `/impronta?edit=1` is full of duplicate QA sections, see [impronta-local-qa-homepage-baseline.md](./impronta-local-qa-homepage-baseline.md) (inspect SQL + optional draft reset) before scoring human scenarios.
+
 Not a replacement for registered-host QA. From repo root:
 
 ```bash
 cd web && npm run test:e2e:browser-health
+cd web && npm run test:e2e:registered-host   # loads https://tulala.digital — verifies no middleware host block (override with PLAYWRIGHT_REGISTERED_HOST_URL)
 cd web && npm run test:e2e:impronta-local   # requires dev stack + seed
 ```
 
@@ -45,6 +50,9 @@ Record last run date and result here:
 | Date | Command | Result |
 |------|---------|--------|
 | 2026-05-09 | `npm run test:e2e:browser-health` | Pass (Chromium) |
+| 2026-05-09 | HTTPS GET https://tulala.digital (curl) | HTTP 200; HTML body does not contain Host not registered |
+| 2026-05-09 | `npm run test:e2e:registered-host` | Pass (Chromium) — default URL `https://tulala.digital` |
+| 2026-05-09 | `npm run typecheck` + `npm run test:tenant-isolation` + `npm run test:builder-capabilities` + `npm run test:publish-preflight` + `test:e2e:browser-health` + `test:e2e:registered-host` (single batch) | Pass (local) |
 
 ## Sign-off
 

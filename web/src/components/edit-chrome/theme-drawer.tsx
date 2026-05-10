@@ -565,8 +565,14 @@ export function ThemeDrawer(): ReactElement | null {
   if (!themeOpen) return null;
 
   return (
-    <Drawer kind="theme" open={themeOpen} zIndex={87}>
+    <Drawer
+      kind="theme"
+      open={themeOpen}
+      zIndex={87}
+      ariaLabelledBy="theme-drawer-title"
+    >
       <DrawerHead
+        titleId="theme-drawer-title"
         title={
           snapshot?.presetSlug
             ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
@@ -1156,6 +1162,8 @@ function ErrorBanner({ children }: { children: React.ReactNode }) {
         border: `1px solid ${CHROME.roseLine}`,
         color: CHROME.rose,
       }}
+      role="alert"
+      aria-live="assertive"
     >
       {children}
     </div>

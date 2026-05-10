@@ -495,6 +495,16 @@ test.describe("smoke: login → builder → publish → share", () => {
   );
 
   test("admin can edit, publish, and view a share link", async ({ page }) => {
+    const base = process.env.PLAYWRIGHT_BASE_URL ?? "";
+    const forceLegacy =
+      process.env.PLAYWRIGHT_LEGACY_ADMIN_SMOKE === "1";
+    test.skip(
+      USE_DEV_SIGNIN &&
+        (base.includes("localhost") || base.includes("127.0.0.1")) &&
+        !forceLegacy,
+      "On localhost the legacy /admin smoke does not match slugged tenant routes (e.g. /impronta). Run Impronta tests or set PLAYWRIGHT_LEGACY_ADMIN_SMOKE=1 with a host-proxy base URL.",
+    );
+
     // Step 1 — login
     await signIn(page, "/admin");
     await page.waitForURL(/\/admin/);
@@ -564,6 +574,16 @@ test.describe("smoke: login → builder → publish → share", () => {
     test.setTimeout(90_000);
     await openImprontaBuilder(page);
 
+    const blankHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (!(await blankHeading.isVisible().catch(() => false))) {
+      test.skip(
+        true,
+        "Homepage already has sections — use impronta-local-qa-homepage-baseline.sql reset or an empty tenant for this smoke.",
+      );
+    }
+
     await addHeroFromBlankState(page);
 
     await page.getByRole("button", { name: /^publish$/i }).click();
@@ -576,6 +596,17 @@ test.describe("smoke: login → builder → publish → share", () => {
   test("impronta can build core body sections one by one", async ({ page }) => {
     test.setTimeout(360_000);
     await openImprontaBuilder(page);
+
+    const blankHeading = page.getByRole("heading", {
+      name: /your homepage is a blank canvas/i,
+    });
+    if (!(await blankHeading.isVisible().catch(() => false))) {
+      test.skip(
+        true,
+        "Requires blank homepage — reset draft composition or use an empty tenant.",
+      );
+    }
+
     await addHeroFromBlankState(page);
 
     await addSectionFromLibrary(page, "faq_accordion", "FAQ accordion");
@@ -1142,6 +1173,12 @@ test.describe("smoke: login → builder → publish → share", () => {
       "data-section-template-compatible",
       "true",
     );
+    const facetFiltersDisclosure = picker.locator(
+      "[data-section-template-filters-disclosure]",
+    );
+    if (await facetFiltersDisclosure.isVisible().catch(() => false)) {
+      await facetFiltersDisclosure.click();
+    }
     const capabilityFilter = picker.locator(
       "[data-section-template-capability-filter]",
     );

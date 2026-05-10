@@ -35,6 +35,7 @@ import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-loca
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
 import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
+import { loadTenantSiteLabelForEditChrome } from "@/lib/site-admin/edit-mode/tenant-site-label";
 import { EditChrome } from "./edit-chrome";
 import { resolvePublicSurfaceOwnershipFromPath } from "./edit-path";
 
@@ -165,6 +166,23 @@ export async function EditChromeMount() {
   // above) so an unauthenticated path reaching this branch would still get
   // a typed error result we ignore — we never throw on prefetch failure;
   // the client-side fetch retry path is the safety net.
+  let tenantSiteLabel: string | null = null;
+  if (ctx.kind === "agency" || ctx.kind === "hub") {
+    try {
+      tenantSiteLabel = await loadTenantSiteLabelForEditChrome(
+        staff.supabase,
+        ctx.tenantId,
+      );
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[edit-mode] loadTenantSiteLabelForEditChrome failed:",
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+  }
+
   let initialComposition: CompositionData | null = null;
   if (editActive) {
     try {
@@ -199,6 +217,7 @@ export async function EditChromeMount() {
       defaultLocale={localeSettings.defaultLocale}
       initialComposition={initialComposition}
       workspacePlan={workspacePlan}
+      tenantSiteLabel={tenantSiteLabel}
     />
   );
 }

@@ -237,7 +237,8 @@ export function ColorPickerPopover({
     <div
       ref={popoverRef}
       role="dialog"
-      aria-label="Color picker"
+      aria-modal="true"
+      aria-labelledby="color-picker-dialog-title"
       style={{
         position: "fixed",
         top: position?.top ?? -9999,
@@ -253,6 +254,7 @@ export function ColorPickerPopover({
       }}
     >
       <label
+        id="color-picker-dialog-title"
         htmlFor={inputId}
         style={{
           display: "block",
@@ -377,6 +379,8 @@ export function ColorPickerPopover({
       </div>
       {eyedropperError ? (
         <div
+          role="alert"
+          aria-live="polite"
           style={{
             marginTop: 6,
             fontSize: 10.5,

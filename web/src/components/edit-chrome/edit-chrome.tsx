@@ -87,6 +87,8 @@ interface EditChromeProps {
    * the client-side action round-trips.
    */
   initialComposition?: import("@/lib/site-admin/edit-mode/composition-actions").CompositionData | null;
+  /** Storefront public name — top bar shows Tulala Builder vs this tenant site. */
+  tenantSiteLabel?: string | null;
 }
 
 export function EditChrome({
@@ -98,6 +100,7 @@ export function EditChrome({
   availableLocales,
   defaultLocale,
   initialComposition,
+  tenantSiteLabel = null,
 }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
   // stable; the EditPill branch ignores the subscription.
@@ -131,6 +134,7 @@ export function EditChrome({
         availableLocales={availableLocales}
         defaultLocale={defaultLocale}
         initialComposition={initialComposition}
+        tenantSiteLabel={tenantSiteLabel}
       />
     );
   }
@@ -158,6 +162,7 @@ export function EditChrome({
         availableLocales={availableLocales}
         defaultLocale={defaultLocale}
         initialComposition={initialComposition}
+        tenantSiteLabel={tenantSiteLabel}
       />
     </>
   );

@@ -8581,8 +8581,32 @@ function resolveWebsiteLiveOrigin(
   return windowOriginFallback;
 }
 
+function isLocalWebsiteOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+function resolveWebsiteEditorBaseUrl({
+  liveOrigin,
+  tenantSlug,
+  windowOrigin,
+}: {
+  liveOrigin: string;
+  tenantSlug: string | undefined;
+  windowOrigin: string;
+}): string {
+  if (windowOrigin && tenantSlug && isLocalWebsiteOrigin(windowOrigin)) {
+    return `${windowOrigin}/${tenantSlug}`;
+  }
+  return liveOrigin;
+}
+
 function WebsitePage() {
-  const { state, openDrawer, toast, effectiveWebsiteState, locale } = useProto();
+  const { state, openDrawer, toast, effectiveWebsiteState, locale, tenantSlug } = useProto();
   const canEdit = meetsRole(state.role, "admin");
   const w = effectiveWebsiteState;
 
@@ -8595,10 +8619,14 @@ function WebsitePage() {
     () => resolveWebsiteLiveOrigin(w.domain.primaryDomain, windowOrigin),
     [w.domain.primaryDomain, windowOrigin],
   );
+  const editorBaseUrl = useMemo(
+    () => resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin }),
+    [liveOrigin, tenantSlug, windowOrigin],
+  );
 
   const openPageVisualEditor = useCallback(
     (page: WebsitePageRow) => {
-      if (!liveOrigin) {
+      if (!editorBaseUrl) {
         toast("Live site URL isn’t available yet — check Domain below.");
         return;
       }
@@ -8615,11 +8643,11 @@ function WebsitePage() {
       }
       const pathname =
         inner === "" ? "/" : buildPublicPathname(locale as Locale, inner);
-      const url = `${liveOrigin}${pathname}?edit=1`;
+      const url = `${editorBaseUrl}${pathname}?edit=1&panel=sections`;
       window.open(url, "_blank", "noopener,noreferrer");
       toast("Opening visual editor…");
     },
-    [liveOrigin, locale, toast],
+    [editorBaseUrl, locale, toast],
   );
 
   const openPostOnLive = useCallback(
@@ -8638,13 +8666,13 @@ function WebsitePage() {
   );
 
   const openHomepageEditor = useCallback(() => {
-    if (!liveOrigin) {
+    if (!editorBaseUrl) {
       toast("Live site URL isn’t available yet.");
       return;
     }
-    window.open(`${liveOrigin}/?edit=1`, "_blank", "noopener,noreferrer");
+    window.open(`${editorBaseUrl}?edit=1&panel=sections`, "_blank", "noopener,noreferrer");
     toast("Opening homepage editor…");
-  }, [liveOrigin, toast]);
+  }, [editorBaseUrl, toast]);
   const totals = {
     publishedPages: w.pages.filter(p => p.status === "published").length,
     draftPages: w.pages.filter(p => p.status === "draft").length,

@@ -6,6 +6,7 @@ interface CliArgs {
   slug: string;
   apply: boolean;
   purgeClearedSections: boolean;
+  draftOnly: boolean;
 }
 
 interface AgencyRow {
@@ -37,6 +38,7 @@ function parseArgs(argv: string[]): CliArgs {
     slug: "impronta",
     apply: false,
     purgeClearedSections: false,
+    draftOnly: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -51,6 +53,10 @@ function parseArgs(argv: string[]): CliArgs {
     }
     if (arg === "--purge-cleared-sections") {
       out.purgeClearedSections = true;
+      continue;
+    }
+    if (arg === "--draft-only") {
+      out.draftOnly = true;
       continue;
     }
   }
@@ -150,14 +156,66 @@ async function main() {
   });
 
   if (!args.apply) {
+    const dryRunHomepages = args.draftOnly
+      ? summary.map((row) => ({
+          pageId: row.pageId,
+          locale: row.locale,
+          status: row.status,
+          version: row.version,
+          draftCount: row.draftCount,
+          liveCount: row.liveCount,
+          applyEffect: "delete draft cms_page_sections only; cms_pages and published snapshots unchanged",
+        }))
+      : summary;
     console.log(
       JSON.stringify(
         {
           mode: "dry-run",
+          resetMode: args.draftOnly ? "draft-only" : "empty-homepage",
           tenant: agency,
           purgeClearedSections: args.purgeClearedSections,
+          purgeWillRun: args.purgeClearedSections && !args.draftOnly,
           referencedSectionCount: allReferencedSectionIds.length,
-          homepages: summary,
+          homepages: dryRunHomepages,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  if (args.draftOnly) {
+    for (const row of homepageRows) {
+      const { error: deleteDraftRowsError } = await supabase
+        .from("cms_page_sections")
+        .delete()
+        .eq("tenant_id", agency.id)
+        .eq("page_id", row.id)
+        .eq("is_draft", true);
+      if (deleteDraftRowsError) {
+        throw new Error(
+          `Couldn't clear homepage draft rows for ${row.locale}: ${deleteDraftRowsError.message}`,
+        );
+      }
+    }
+
+    console.log(
+      JSON.stringify(
+        {
+          mode: "apply",
+          resetMode: "draft-only",
+          tenant: agency,
+          purgeSkipped: args.purgeClearedSections
+            ? "Draft-only reset never purges cms_sections."
+            : null,
+          homepages: summary.map((row) => ({
+            pageId: row.pageId,
+            locale: row.locale,
+            clearedDraftRows: row.draftCount,
+            liveRowsPreserved: row.liveCount,
+            pageVersionUnchanged: row.version,
+          })),
         },
         null,
         2,
@@ -245,6 +303,7 @@ async function main() {
     JSON.stringify(
       {
         mode: "apply",
+        resetMode: "empty-homepage",
         tenant: agency,
         referencedSectionCount: allReferencedSectionIds.length,
         purgedSectionCount: purgedSectionIds.length,

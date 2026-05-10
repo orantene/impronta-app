@@ -413,8 +413,14 @@ export function CommentsDrawer() {
     : `${threads.length} open thread${threads.length === 1 ? "" : "s"}`;
 
   return (
-    <Drawer kind="comments" open={open} testId="comments-drawer">
+    <Drawer
+      kind="comments"
+      open={open}
+      testId="comments-drawer"
+      ariaLabelledBy="comments-drawer-title"
+    >
       <DrawerHead
+        titleId="comments-drawer-title"
         icon={<CommentIcon />}
         title={focusSectionId ? "Section comments" : "Comments"}
         meta={<span>{headerMeta}</span>}

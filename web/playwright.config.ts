@@ -13,6 +13,10 @@
  * Override the base URL when QAing a deployed environment:
  *   PLAYWRIGHT_BASE_URL=https://staging.tulala.digital npx playwright test
  *
+ * Legacy `/admin` smoke is skipped on localhost unless:
+ *   PLAYWRIGHT_LEGACY_ADMIN_SMOKE=1
+ * (slugged tenants use `/impronta/...`; use Impronta smoke tests instead.)
+ *
  * Use the installed Google Chrome (not bundled Chromium):
  *   PLAYWRIGHT_CHANNEL=chrome npx playwright test
  */

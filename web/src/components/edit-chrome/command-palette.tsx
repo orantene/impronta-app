@@ -719,7 +719,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       data-edit-overlay="command-palette"
       role="dialog"
       aria-modal="true"
-      aria-label="Command palette"
+      aria-labelledby="command-palette-title"
       className="fixed inset-0 z-[150] flex items-start justify-center"
       style={{
         background: "rgba(11, 11, 13, 0.32)",
@@ -745,6 +745,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           maxHeight: "76vh",
         }}
       >
+        <span id="command-palette-title" className="sr-only">
+          Command palette
+        </span>
         {/* search row */}
         <div
           style={{

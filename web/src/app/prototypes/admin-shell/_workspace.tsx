@@ -22,7 +22,7 @@
  *   - talent  → sees ONLY the group thread + their own line item + booking
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 /** Maps scrollBehavior() to Virtuoso's "smooth"|"auto" (no "instant"). */
@@ -37,7 +37,6 @@ import {
   COLORS,
   FONTS,
   INQUIRY_STAGE_META,
-  PAGE_META,
   PAYOUT_RECEIVER_KIND_LABEL,
   PAYOUT_STATUS_META,
   RADIUS,
@@ -45,12 +44,10 @@ import {
   REQUIREMENT_ROLE_META,
   RICH_INQUIRIES,
   ROSTER_AGENCY,
-  WORKSPACE_PAGES,
   describeSource,
   getPaymentSummary,
   getRichInquiry,
   useProto,
-  type AgencyReliability,
   type Offer,
   type RichInquiry,
   type ThreadMessage,
@@ -73,7 +70,6 @@ import {
   SecondaryButton,
   StatDot,
   DrawerShell,
-  scrollBehavior,
   useViewport,
   type Attachment,
 } from "./_primitives";
@@ -516,7 +512,7 @@ function PhoneWorkspaceLayout({ inquiry, pov }: { inquiry: RichInquiry; pov: Inq
       )}
 
       {/* WS-10.3 — Files panel */}
-      {showFiles && <WorkspaceFilesPanel inquiry={inquiry} pov={pov} />}
+      {showFiles && <WorkspaceFilesPanel pov={pov} />}
 
       {/* ── Message stream + composer (phone variant) ── */}
       {!showFiles && <PhoneMessagingStream inquiry={inquiry} pov={pov} active={active} />}
@@ -538,6 +534,7 @@ function PhoneMessagingStream({
   const { toast } = useProto();
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [mentionCursor, setMentionCursor] = useState(0);
 
   const messages = inquiry.messages.filter((m) => m.threadType === active);
   const renderables = useMemo(() => buildMessageRenderables(messages), [messages]);
@@ -550,6 +547,7 @@ function PhoneMessagingStream({
     if (!draft.trim()) return;
     toast(`Message sent in ${active === "private" ? "client" : "group"} thread`);
     setDraft("");
+    setMentionCursor(0);
   };
 
   return (
@@ -634,11 +632,17 @@ function PhoneMessagingStream({
         }}
       >
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <MentionTypeahead value={draft} onChange={setDraft} textareaRef={textareaRef} />
+          <MentionTypeahead value={draft} onChange={setDraft} selectionStart={mentionCursor} />
           <textarea
             ref={textareaRef}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setMentionCursor(e.target.selectionStart);
+            }}
+            onSelect={(e) => setMentionCursor(e.currentTarget.selectionStart)}
+            onKeyUp={(e) => setMentionCursor(e.currentTarget.selectionStart)}
+            onClick={(e) => setMentionCursor(e.currentTarget.selectionStart)}
             placeholder={
               active === "private"
                 ? pov === "client" ? "Send your coordinator a note…" : "Reply to client…"
@@ -1265,18 +1269,21 @@ function MessagingPanel({
     if (typeof window === "undefined") return "";
     return localStorage.getItem(draftKey) ?? "";
   });
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [mentionCursor, setMentionCursor] = useState(0);
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (draft) { localStorage.setItem(draftKey, draft); }
     else        { localStorage.removeItem(draftKey); }
   }, [draft, draftKey]);
-  // When the active thread changes, load its saved draft
+  // When the active thread changes, load its saved draft and move the caret to the end.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setDraft(localStorage.getItem(draftKey) ?? "");
+    const next = localStorage.getItem(draftKey) ?? "";
+    setDraft(next);
+    setMentionCursor(next.length);
   }, [active, draftKey]);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useProto();
 
   // WS-1.D.1 — Typing indicators (mocked). After a message is sent the
@@ -1382,6 +1389,7 @@ function MessagingPanel({
     if (!draft.trim()) return;
     toast(`Message sent in ${active === "private" ? "client" : "group"} thread`);
     setDraft("");
+    setMentionCursor(0);
     localStorage.removeItem(draftKey);
     // WS-1.D.1 — simulate the other side typing
     const name = TYPING_NAMES[active];
@@ -1678,7 +1686,7 @@ function MessagingPanel({
       )}
 
       {/* WS-10.3 — Files panel (replaces stream + composer when active) */}
-      {showFiles && <WorkspaceFilesPanel inquiry={inquiry} pov={pov} />}
+      {showFiles && <WorkspaceFilesPanel pov={pov} />}
 
       {/* Single-thread header (client / talent POV, or forced dual-pane) — hidden in files view */}
       {!showFiles && (visible.length === 1 || forcedThread) && (
@@ -1712,7 +1720,7 @@ function MessagingPanel({
             <>
               <Bullet />
               <span style={{ fontSize: 11.5, color: COLORS.inkDim }}>
-                Direct line to your coordinator. Talent can't see this.
+                Direct line to your coordinator. Talent can&apos;t see this.
               </span>
             </>
           )}
@@ -1720,7 +1728,7 @@ function MessagingPanel({
             <>
               <Bullet />
               <span style={{ fontSize: 11.5, color: COLORS.inkDim }}>
-                You and the other booked talent. The client can't see this.
+                You and the other booked talent. The client can&apos;t see this.
               </span>
             </>
           )}
@@ -1995,11 +2003,17 @@ function MessagingPanel({
           )}
           {/* Input pill */}
           <div style={{ flex: 1, position: "relative" }}>
-            <MentionTypeahead value={draft} onChange={setDraft} textareaRef={textareaRef} />
+            <MentionTypeahead value={draft} onChange={setDraft} selectionStart={mentionCursor} />
             <textarea
               ref={textareaRef}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setMentionCursor(e.target.selectionStart);
+              }}
+              onSelect={(e) => setMentionCursor(e.currentTarget.selectionStart)}
+              onKeyUp={(e) => setMentionCursor(e.currentTarget.selectionStart)}
+              onClick={(e) => setMentionCursor(e.currentTarget.selectionStart)}
               placeholder={
                 active === "private"
                   ? pov === "client" ? "Send your coordinator a note…" : "Message…"
@@ -2218,10 +2232,8 @@ const WORKSPACE_FILES_COUNT = WORKSPACE_MOCK_FILES.length;
 type FilesFilter = "all" | "pdf" | "image" | "other";
 
 function WorkspaceFilesPanel({
-  inquiry,
   pov,
 }: {
-  inquiry: RichInquiry;
   pov: InquiryWorkspacePov;
 }) {
   const { toast } = useProto();
@@ -2232,7 +2244,8 @@ function WorkspaceFilesPanel({
   const toggleGroup = (g: string) =>
     setExpandedGroups((s) => {
       const next = new Set(s);
-      next.has(g) ? next.delete(g) : next.add(g);
+      if (next.has(g)) next.delete(g);
+      else next.add(g);
       return next;
     });
 
@@ -2367,7 +2380,7 @@ function WorkspaceFilesPanel({
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column" }}>
-          {filtered.map((file, i) => {
+          {filtered.map((file) => {
             const vGroup = file.versionGroup
               ? versionGroups.get(file.versionGroup)!
               : null;
@@ -3430,11 +3443,9 @@ const WORKSPACE_TZ = "Europe/Lisbon";     // agency local time
 const BOOKING_TZ   = "Europe/Paris";      // shoot location
 
 function DualTimeBadge({
-  callTime,
   localLabel,
   remoteLabel,
 }: {
-  callTime: string;  // e.g. "09:00"
   localLabel: string;  // e.g. "09:00 LIS"
   remoteLabel: string; // e.g. "10:00 PAR"
 }) {
@@ -3492,7 +3503,6 @@ function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
           </span>
           <div style={{ marginTop: 4 }}>
             <DualTimeBadge
-              callTime="09:00"
               localLabel={`09:00 ${WORKSPACE_TZ.split("/")[1]?.slice(0, 3).toUpperCase()}`}
               remoteLabel={`10:00 ${BOOKING_TZ.split("/")[1]?.slice(0, 3).toUpperCase()}`}
             />

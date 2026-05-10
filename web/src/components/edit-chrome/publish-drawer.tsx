@@ -538,12 +538,18 @@ export function PublishDrawer() {
             >
               <strong style={{ color: CHROME.text }}>What publishing does</strong>
               <p style={{ margin: "6px 0 0", fontSize: 11.5, color: CHROME.muted }}>
-                Visitors will see this <strong style={{ color: CHROME.text }}>draft</strong> on
-                the live site. Publishing replaces the current{" "}
+                <strong style={{ color: CHROME.text }}>Autosave</strong> keeps your in-progress
+                work as a <strong style={{ color: CHROME.text }}>draft</strong>.{" "}
+                <strong style={{ color: CHROME.text }}>Publishing</strong> replaces the current{" "}
                 <strong style={{ color: CHROME.text }}>public</strong> version of{" "}
-                {pageSlug ? "this page" : "your homepage"} — not other pages. Use{" "}
-                <strong style={{ color: CHROME.text }}>Revisions</strong> if you need to roll
-                back a draft snapshot before publishing again.
+                {pageSlug ? "this page" : "your homepage"} with that draft — so visitors then
+                see this page as you have it now. Other pages are unchanged. Use{" "}
+                <strong style={{ color: CHROME.text }}>Revisions</strong> to roll back to a
+                previous snapshot if needed.
+              </p>
+              <p style={{ margin: "8px 0 0", fontSize: 11, color: CHROME.muted2, lineHeight: 1.45 }}>
+                Saving only stores your draft — it does not mean visitors see these changes. Scroll the
+                canvas, try Preview mode, and review preflight below before publishing.
               </p>
             </div>
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}
@@ -1085,6 +1091,8 @@ export function PublishDrawer() {
             {state.kind !== "publishing" &&
             publishBlockReasons.length > 0 ? (
               <div
+                role="status"
+                aria-live="polite"
                 style={{
                   marginTop: 10,
                   borderRadius: 8,

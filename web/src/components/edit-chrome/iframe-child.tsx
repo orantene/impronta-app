@@ -49,6 +49,7 @@ interface IframeChildProps {
   availableLocales?: ReadonlyArray<string>;
   defaultLocale?: string;
   initialComposition?: import("@/lib/site-admin/edit-mode/composition-actions").CompositionData | null;
+  tenantSiteLabel?: string | null;
 }
 
 export function IframeChild({
@@ -59,6 +60,7 @@ export function IframeChild({
   availableLocales,
   defaultLocale,
   initialComposition,
+  tenantSiteLabel = null,
 }: IframeChildProps) {
   return (
     <EditErrorBoundary>
@@ -81,6 +83,7 @@ export function IframeChild({
         pageSlug={pageSlug}
         initialAvailableLocales={availableLocales}
         initialComposition={initialComposition}
+        tenantSiteLabel={tenantSiteLabel}
       >
         {/* The storefront DOM is rendered by the host page (page.tsx →
             AgencyHomeStorefront). All we add here is the selection

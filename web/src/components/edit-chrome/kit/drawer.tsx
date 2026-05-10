@@ -52,7 +52,7 @@
  * doesn't manage state — that lives in the consumer (or in EditContext).
  */
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import {
   CHROME,
@@ -84,6 +84,12 @@ interface DrawerProps {
    * when the drawer is rendered without the topbar (e.g. in storybook).
    */
   topPx?: number;
+  /**
+   * When the drawer closes, move focus back to the element that had focus when
+   * it opened (typically the toolbar control that opened it). Does **not** trap
+   * focus inside the drawer — see DRAWER-MUTEX.md.
+   */
+  restoreFocusOnClose?: boolean;
   className?: string;
   children: ReactNode;
 }
@@ -96,9 +102,44 @@ export function Drawer({
   testId,
   zIndex = 80,
   topPx = 52,
+  restoreFocusOnClose = true,
   className,
   children,
 }: DrawerProps) {
+  const priorFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!restoreFocusOnClose) return;
+
+    if (open) {
+      const captureId = window.setTimeout(() => {
+        const ae = document.activeElement;
+        if (
+          ae instanceof HTMLElement &&
+          ae !== document.body &&
+          ae !== document.documentElement
+        ) {
+          priorFocusRef.current = ae;
+        }
+      }, 0);
+      return () => window.clearTimeout(captureId);
+    }
+
+    const el = priorFocusRef.current;
+    priorFocusRef.current = null;
+    const slideMs = 220;
+    const restoreId = window.setTimeout(() => {
+      if (el && document.body.contains(el)) {
+        try {
+          el.focus({ preventScroll: true });
+        } catch {
+          /* detached or non-focusable */
+        }
+      }
+    }, slideMs);
+    return () => window.clearTimeout(restoreId);
+  }, [open, restoreFocusOnClose]);
+
   const resolvedWidth =
     width === "fullscreen"
       ? "100vw"
@@ -110,6 +151,7 @@ export function Drawer({
       data-edit-drawer={kind}
       data-testid={testId}
       aria-labelledby={ariaLabelledBy}
+      aria-hidden={!open}
       className={`fixed flex flex-col font-sans ${className ?? ""}`}
       style={{
         top: topPx,
@@ -120,6 +162,7 @@ export function Drawer({
         borderLeft: `1px solid ${CHROME.line}`,
         boxShadow: CHROME_SHADOWS.drawer,
         zIndex,
+        pointerEvents: open ? "auto" : "none",
         transform: open ? "translateX(0)" : "translateX(100%)",
         transition:
           "width 220ms cubic-bezier(0.32, 0.72, 0, 1), transform 200ms ease-out",
@@ -362,6 +405,8 @@ interface DrawerTabProps {
   /** Small dot to flag overrides / unsaved per tab. */
   dot?: boolean;
   onClick?: () => void;
+  /** Hover tooltip — use for plain-language tab hints in the inspector. */
+  title?: string;
   children: ReactNode;
 }
 
@@ -369,6 +414,7 @@ export function DrawerTab({
   active = false,
   dot = false,
   onClick,
+  title,
   children,
 }: DrawerTabProps) {
   // The active underline is rendered as a child <span> rather than a
@@ -382,6 +428,7 @@ export function DrawerTab({
       role="tab"
       aria-selected={active}
       onClick={onClick}
+      title={title}
       className="group relative inline-flex shrink-0 items-center gap-1.5 bg-transparent px-0.5 pb-2.5 pt-2 transition-colors"
       style={{
         fontSize: 13,
