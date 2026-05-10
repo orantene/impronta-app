@@ -331,6 +331,25 @@ const S_STATS = (
   </g>
 );
 
+/** Advanced blank composition — dashed canvas + seed dot (blocks added after insert). */
+const S_BLANK_SECTION = (
+  <g>
+    <rect
+      x="28"
+      y="22"
+      width="144"
+      height="66"
+      rx="4"
+      fill="none"
+      stroke="currentColor"
+      strokeOpacity="0.38"
+      strokeWidth="1.5"
+      strokeDasharray="8 6"
+    />
+    <circle cx="100" cy="55" r="5" fill="currentColor" fillOpacity="0.18" />
+  </g>
+);
+
 const SECTION_WIRES: Record<string, React.ReactNode> = {
   // default tier (15)
   hero: S_HERO,
@@ -348,6 +367,7 @@ const SECTION_WIRES: Record<string, React.ReactNode> = {
   split_screen: S_SPLIT_SCREEN,
   image_copy_alternating: S_IMAGE_COPY_ALT,
   stats: S_STATS,
+  blank_section: S_BLANK_SECTION,
   // advanced tier (subset that already had wireframes)
   process_steps: S_PROCESS,
   destinations_mosaic: S_DESTINATIONS,
