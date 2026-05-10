@@ -2684,6 +2684,9 @@ function CanvasNodeChildrenPanel({
     (event: DragEvent<HTMLDivElement>) => {
       if (!parentNodeId || nodes.length <= 1) return;
       event.stopPropagation();
+      // Match navigator child-row drag: promote the dragged node so inspector,
+      // chip, and reorder targets agree (P7A-3 parity).
+      onSelect(nodeId);
       setDraggingNode({ nodeId, sourceIndex });
       setDropIndex(null);
       event.dataTransfer.effectAllowed = "move";
