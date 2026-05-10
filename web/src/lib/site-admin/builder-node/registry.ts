@@ -217,6 +217,11 @@ const spacerPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const dividerPropsSchema = z.object({
+  tone: z.enum(["default", "muted"]).optional(),
+  style: builderNodeStyleSchema,
+});
+
 export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNodeRegistryEntry>> =
   {
     section: {
@@ -236,6 +241,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "paragraph",
           "button",
           "image",
+          "divider",
           "spacer",
         ],
       },
@@ -258,6 +264,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "paragraph",
           "button",
           "image",
+          "divider",
           "spacer",
         ],
       },
@@ -274,6 +281,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "paragraph",
           "button",
           "image",
+          "divider",
           "spacer",
           "container",
           "carousel",
@@ -298,7 +306,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Single accordion item with nested content.",
       children: {
         type: "allow_list",
-        kinds: ["heading", "paragraph", "button", "image", "spacer", "container"],
+        kinds: ["heading", "paragraph", "button", "image", "divider", "spacer", "container"],
       },
       propsSchema: accordionItemPropsSchema,
     },
@@ -318,7 +326,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Single tab panel with nested content.",
       children: {
         type: "allow_list",
-        kinds: ["heading", "paragraph", "button", "image", "spacer", "container"],
+        kinds: ["heading", "paragraph", "button", "image", "divider", "spacer", "container"],
       },
       propsSchema: tabPanelPropsSchema,
     },
@@ -328,7 +336,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Carousel/slider container.",
       children: {
         type: "allow_list",
-        kinds: ["image", "heading", "paragraph", "button", "container"],
+        kinds: ["image", "heading", "paragraph", "button", "divider", "container"],
       },
       propsSchema: carouselPropsSchema,
     },
@@ -338,7 +346,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Masonry grid container.",
       children: {
         type: "allow_list",
-        kinds: ["image", "heading", "paragraph", "button", "container"],
+        kinds: ["image", "heading", "paragraph", "button", "divider", "container"],
       },
       propsSchema: masonryPropsSchema,
     },
@@ -369,6 +377,13 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Standalone image node.",
       children: { type: "none" },
       propsSchema: imagePropsSchema,
+    },
+    divider: {
+      kind: "divider",
+      label: "Divider",
+      description: "Horizontal rule separator.",
+      children: { type: "none" },
+      propsSchema: dividerPropsSchema,
     },
     spacer: {
       kind: "spacer",

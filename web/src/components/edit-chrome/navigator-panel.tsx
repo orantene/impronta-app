@@ -78,12 +78,14 @@ import {
   BUILDER_NODE_REGISTRY,
   collectBuilderPerformanceIssues,
   collectBuilderPerformanceMetrics,
+  gateNestedInsertKinds,
   indexBuilderSectionChildNodes,
   indexBuilderSectionNodeIds,
   type BuilderSectionChildNode,
   type BuilderNodeKind,
 } from "@/lib/site-admin/builder-node";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
+import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { HeadingLintBadge } from "./inspectors/HeadingLintBadge";
 import { loadHeadingProbeForLint } from "@/lib/site-admin/edit-mode/heading-lint-action";
 import {
@@ -220,6 +222,7 @@ export function NavigatorPanel() {
     openLibrary,
     reportMutationError,
     builderTree,
+    advancedElementLibraryEnabled,
   } = useEditContext();
 
   const [search, setSearch] = useState("");
@@ -707,6 +710,11 @@ export function NavigatorPanel() {
       return policy.type === "allow_list" ? policy.kinds : [];
     },
     [],
+  );
+  const gateChildInsertKinds = useCallback(
+    (kinds: ReadonlyArray<BuilderNodeKind>) =>
+      gateNestedInsertKinds(kinds, advancedElementLibraryEnabled),
+    [advancedElementLibraryEnabled],
   );
   const toggleNodeInsertTarget = useCallback((target: NodeInsertTarget) => {
     setNodeInsertTarget((prev) => (prev?.key === target.key ? null : target));
@@ -2184,7 +2192,9 @@ export function NavigatorPanel() {
                       zIndex: 2,
                     }}
                   >
-                    {row.builderNodeId ? (
+                    {row.builderNodeId &&
+                    gateChildInsertKinds(allowedChildKindsForParent("section"))
+                      .length > 0 ? (
                       <NodeInlineActionButton
                         label={`Add block to ${labelFor(row)}`}
                         onClick={(e) => {
@@ -2197,7 +2207,9 @@ export function NavigatorPanel() {
                             index: row.childNodes.filter(
                               (node) => node.parentId === parentId,
                             ).length,
-                            allowedKinds: allowedChildKindsForParent("section"),
+                            allowedKinds: gateChildInsertKinds(
+                              allowedChildKindsForParent("section"),
+                            ),
                             label: labelFor(row),
                           });
                         }}
@@ -2275,7 +2287,9 @@ export function NavigatorPanel() {
                         childHovered ||
                         childFocused ||
                         nodeInsertTarget?.key === `child:${child.id}`;
-                      const childAllowedKinds = allowedChildKindsForParent(child.kind);
+                      const childAllowedKinds = gateChildInsertKinds(
+                        allowedChildKindsForParent(child.kind),
+                      );
                       const pastePreview = getCopiedBuilderNodePastePreview(child.id);
                       const hasClipboardPasteTarget =
                         Boolean(copiedBuilderNodeKind) &&
@@ -3142,35 +3156,11 @@ function NodeInsertMenu({
           ×
         </button>
       </div>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 6,
-        }}
-      >
-        {target.allowedKinds.map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            onClick={() => void onInsert(kind)}
-            style={{
-              minHeight: 24,
-              padding: "0 8px",
-              borderRadius: 999,
-              border: `1px solid ${CHROME.line}`,
-              background: CHROME.paper,
-              color: CHROME.text,
-              fontSize: 10.5,
-              fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {BUILDER_NODE_REGISTRY[kind].label}
-          </button>
-        ))}
-      </div>
+      <ElementLibraryInsertPicker
+        variant="navigator"
+        allowedKinds={target.allowedKinds}
+        onPick={(kind) => void onInsert(kind)}
+      />
     </div>
   );
 }

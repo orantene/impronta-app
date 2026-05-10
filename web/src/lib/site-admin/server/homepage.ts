@@ -83,6 +83,7 @@ import {
   summarizeBuilderTreeIssues,
 } from "@/lib/site-admin/builder-node/snapshot-tree";
 
+import { enforceFreePlanNestedBuilderDraftGuard } from "./free-plan-draft-save-guard";
 import type { PageRow } from "./pages";
 
 // ---- row shapes -----------------------------------------------------------
@@ -688,6 +689,27 @@ export async function saveHomepageDraftComposition(
     }
   }
 
+  const compositionSnapshot = buildSnapshotSlots(values.slots, factsById);
+
+  const draftGuard = await enforceFreePlanNestedBuilderDraftGuard({
+    supabase,
+    tenantId,
+    pageId: beforeRow.id,
+    pageVersion: beforeRow.version,
+    logTag: "homepage-draft-save-builder-plan",
+    baselineLegacyTree: resolveBuilderTreeForComposition({
+      composition: compositionSnapshot,
+      preferredBuilderTree: undefined,
+    }),
+    nextTree: resolveBuilderTreeForComposition({
+      composition: compositionSnapshot,
+      preferredBuilderTree: values.builderTree,
+    }),
+  });
+  if (!draftGuard.ok) {
+    return fail("VALIDATION_FAILED", draftGuard.message);
+  }
+
   // --- apply: bump version, update page fields ---
   const nextVersion = beforeRow.version + 1;
   const { data: updatedPage, error: updErr } = await supabase
@@ -780,7 +802,6 @@ export async function saveHomepageDraftComposition(
   }
 
   // --- revision snapshot (draft) ---
-  const compositionSnapshot = buildSnapshotSlots(values.slots, factsById);
   const draftBuilderTree = resolveBuilderTreeForComposition({
     composition: compositionSnapshot,
     preferredBuilderTree: values.builderTree,

@@ -160,6 +160,8 @@ function builderNodeTitle(node: Exclude<BuilderNode, { kind: "section" }>): stri
     case "accordion_item":
     case "tab_panel":
       return node.props.title || BUILDER_NODE_REGISTRY[node.kind].label;
+    case "divider":
+      return node.props.tone === "muted" ? "Divider · muted" : "Divider";
     case "spacer":
       return `Spacer · ${node.props.size.toUpperCase()}`;
     default:
@@ -212,6 +214,7 @@ function nodeUsesLayoutInspector(
     case "tabs":
     case "carousel":
     case "masonry":
+    case "divider":
     case "spacer":
       return true;
     default:

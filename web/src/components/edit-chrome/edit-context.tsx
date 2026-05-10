@@ -73,6 +73,8 @@ import {
   summarizeBuilderNodeIssues,
   reconcileBuilderTreeWithLegacySlots,
   validateBuilderNodeTree,
+  assertAdvancedLibraryAllowsOperation,
+  isAdvancedElementLibraryEnabledForPlan,
   type BuilderNode,
   type BuilderNodeMutationCode,
   type BuilderNodeCompositionPresetId,
@@ -161,6 +163,11 @@ export interface EditContextValue {
   tenantSiteLabel: string | null;
   workspacePlan: string;
   canEditSiteShell: boolean;
+  /**
+   * Phase 7A — governed nested builder nodes / element library affordances.
+   * False on **free** workspaces (Simple Mode); paid plans enable Advanced surfaces.
+   */
+  advancedElementLibraryEnabled: boolean;
   locale: string;
   /**
    * Tenant default storefront locale (URL may omit prefix). TopBar locale
@@ -1057,9 +1064,22 @@ function guardBuilderNodeMutation(input: {
   tree: BuilderNodeTree;
   operation: BuilderNodeOperationKind;
   canEditSiteShell: boolean;
+  advancedElementLibraryEnabled: boolean;
   nodeId?: string;
   parentId?: string | null;
 }): Extract<BuilderNodeMutationResult, { ok: false }> | null {
+  const advancedGate = assertAdvancedLibraryAllowsOperation(
+    input.operation,
+    input.advancedElementLibraryEnabled,
+  );
+  if (!advancedGate.ok) {
+    return {
+      ok: false,
+      code: "GUARDED_NODE",
+      error: advancedGate.message,
+    };
+  }
+
   if (input.canEditSiteShell) return null;
 
   const guardedMessage =
@@ -1294,6 +1314,10 @@ export function EditProvider({
   const canEditSiteShell = builderPlanAllows(
     normalizedWorkspacePlan,
     "builder.shell.edit",
+  );
+  const advancedElementLibraryEnabled = useMemo(
+    () => isAdvancedElementLibraryEnabledForPlan(normalizedWorkspacePlan),
+    [normalizedWorkspacePlan],
   );
 
   // ── inspector state ─────────────────────────────────────────────────
@@ -2939,6 +2963,7 @@ export function EditProvider({
       const guarded = guardBuilderNodeMutation({
         tree: builderTreeRef.current,
         canEditSiteShell,
+        advancedElementLibraryEnabled,
         operation: input.operation,
         nodeId: input.nodeId,
         parentId: input.parentId,
@@ -2998,6 +3023,7 @@ export function EditProvider({
       };
     },
     [
+      advancedElementLibraryEnabled,
       canEditSiteShell,
       commitBuilderTreeMutation,
       reportMutationError,
@@ -3897,6 +3923,7 @@ export function EditProvider({
       tenantSiteLabel: tenantSiteLabel ?? null,
       workspacePlan: normalizedWorkspacePlan,
       canEditSiteShell,
+      advancedElementLibraryEnabled,
       locale,
       defaultLocale,
       pageSlug,
@@ -4045,6 +4072,7 @@ export function EditProvider({
       tenantSiteLabel,
       normalizedWorkspacePlan,
       canEditSiteShell,
+      advancedElementLibraryEnabled,
       locale,
       defaultLocale,
       pageSlug,

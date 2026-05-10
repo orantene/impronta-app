@@ -12,6 +12,7 @@ import {
 import {
   BUILDER_NODE_COMPOSITION_PRESETS,
   BUILDER_NODE_REGISTRY,
+  gateNestedInsertKinds,
   type BuilderNode,
   type BuilderNodeCompositionPreset,
   type BuilderNodeCompositionPresetId,
@@ -22,6 +23,7 @@ import {
   type BuilderBlockPreset,
   type BuilderNodePastePreview,
 } from "../edit-context";
+import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
@@ -53,6 +55,7 @@ export function BuilderNodeContentInspector({
     reportMutationError,
     saveCopiedBuilderNodeAsPreset,
     selectBuilderNode,
+    advancedElementLibraryEnabled,
   } = useEditContext();
 
   async function commitPatch(patch: Record<string, unknown>) {
@@ -170,7 +173,11 @@ export function BuilderNodeContentInspector({
   }
 
   const nestedChildren = childNodes(node);
-  const quickAddKinds = allowedChildKinds(node);
+  const quickAddKinds = useMemo(
+    () =>
+      gateNestedInsertKinds(allowedChildKinds(node), advancedElementLibraryEnabled),
+    [node, advancedElementLibraryEnabled],
+  );
   const groupPastePreview = getCopiedBuilderNodePastePreview(node.id);
 
   if (node.kind === "heading") {
@@ -890,28 +897,19 @@ function NestedBlocksCard({
               ))}
             </div>
           ) : null}
-          <div className="flex flex-wrap gap-1.5">
-            {addKinds.map((kind) => (
-              <button
-                key={`${index}-${kind}`}
-                type="button"
-                className={KIT.ghostButton}
-                onClick={() => {
-                  closeInsertPicker();
-                  void onAdd(kind, index);
-                }}
-              >
-                + {BUILDER_NODE_REGISTRY[kind].label}
-              </button>
-            ))}
-            <button
-              type="button"
-              className={KIT.subtleButton}
-              onClick={closeInsertPicker}
-            >
-              Cancel
-            </button>
-          </div>
+          {addKinds.length > 0 ? (
+            <ElementLibraryInsertPicker
+              variant="inspector"
+              allowedKinds={addKinds}
+              onPick={(kind) => {
+                closeInsertPicker();
+                void onAdd(kind, index);
+              }}
+            />
+          ) : null}
+          <button type="button" className={KIT.subtleButton} onClick={closeInsertPicker}>
+            Cancel
+          </button>
         </div>
       </div>
     ) : null;
@@ -1451,6 +1449,8 @@ function contentHint(node: Exclude<BuilderNode, { kind: "section" }>): string {
       return "Carousel content comes from its nested blocks. Add slides or cards in Structure, then tune autoplay and controls in Layout.";
     case "masonry":
       return "Masonry content is managed through its child blocks. Add images or cards in Structure; columns and gap live in Layout.";
+    case "divider":
+      return "Divider blocks render a horizontal rule. Use Layout to switch tone and Style for spacing.";
     case "spacer":
       return "Spacer blocks have no direct content. Use Layout to change their size and keep page rhythm tidy.";
     default:
@@ -1528,6 +1528,8 @@ function childSecondaryLabel(node: BuilderNode): string {
     case "carousel":
     case "masonry":
       return `${childNodes(node).length} nested block${childNodes(node).length === 1 ? "" : "s"}`;
+    case "divider":
+      return node.props.tone === "muted" ? "Divider · muted" : "Divider";
     case "spacer":
       return `Spacer · ${node.props.size.toUpperCase()}`;
     case "section":

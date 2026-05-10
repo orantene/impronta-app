@@ -91,6 +91,8 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--carousel-arrow{display:inline-flex;height:2rem;width:2rem;align-items:center;justify-content:center;border:1px solid rgba(18,18,18,0.16);border-radius:999px;background:#fff;color:#111;font-weight:700;text-decoration:none}
 .site-builder-node--carousel-dots{display:flex;justify-content:center;gap:0.4rem}
 .site-builder-node--carousel-dot{height:0.45rem;width:0.45rem;border:0;border-radius:999px;background:rgba(18,18,18,0.28);padding:0;cursor:pointer}
+.site-builder-node--divider{border:0;margin:1rem 0;height:1px;background:rgba(18,18,18,0.16);width:100%}
+.site-builder-node--divider[data-builder-divider-tone="muted"]{background:rgba(18,18,18,0.09)}
 .site-builder-node--masonry{width:100%;max-width:1120px;margin:0 auto;column-count:var(--bn-columns,3);column-gap:var(--bn-gap,1.25rem)}
 .site-builder-node--masonry>*{break-inside:avoid;margin-bottom:var(--bn-gap,1.25rem)}
 .site-builder-node--live-talent-grid{display:grid;grid-template-columns:repeat(var(--bn-live-columns,4),minmax(0,1fr));gap:var(--bn-gap,1.25rem);width:100%}
@@ -789,6 +791,21 @@ function renderBuilderNode(
             maxWidth: "100%",
             objectFit: node.props.style?.objectFit ?? "cover",
             aspectRatio: NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "auto"],
+            ...sharedNodeStyle(node.props.style),
+            ...alignSelfStyle(node.props.style),
+          }}
+        />
+      );
+    case "divider":
+      return (
+        <hr
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-builder-divider-tone={node.props.tone ?? "default"}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--divider"
+          style={{
             ...sharedNodeStyle(node.props.style),
             ...alignSelfStyle(node.props.style),
           }}

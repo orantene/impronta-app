@@ -226,6 +226,12 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       return createButton("Button");
     case "image":
       return createImage(0);
+    case "divider":
+      return {
+        id: makeId("divider"),
+        kind: "divider",
+        props: { tone: "default" },
+      };
     case "spacer":
       return {
         id: makeId("spacer"),

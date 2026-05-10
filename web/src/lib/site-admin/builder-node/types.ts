@@ -12,6 +12,7 @@ export type BuilderNodeKind =
   | "paragraph"
   | "button"
   | "image"
+  | "divider"
   | "spacer";
 
 export interface BuilderNodeBase {
@@ -212,6 +213,14 @@ export interface BuilderSpacerNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderDividerNode extends BuilderNodeBase {
+  kind: "divider";
+  props: {
+    tone?: "default" | "muted";
+    style?: BuilderNodeStyle;
+  };
+}
+
 export type BuilderNode =
   | BuilderSectionNode
   | BuilderContainerNode
@@ -226,6 +235,7 @@ export type BuilderNode =
   | BuilderParagraphNode
   | BuilderButtonNode
   | BuilderImageNode
+  | BuilderDividerNode
   | BuilderSpacerNode;
 
 export type BuilderNodeTree = BuilderNode[];

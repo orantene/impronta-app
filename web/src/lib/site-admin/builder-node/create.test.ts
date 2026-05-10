@@ -38,6 +38,7 @@ function wrapCreatedNodeForValidation(node: ReturnType<typeof createBuilderNode>
     node.kind === "paragraph" ||
     node.kind === "button" ||
     node.kind === "image" ||
+    node.kind === "divider" ||
     node.kind === "spacer"
   ) {
     return {
@@ -65,6 +66,7 @@ test("createBuilderNode returns valid defaults for every node kind", () => {
     "paragraph",
     "button",
     "image",
+    "divider",
     "spacer",
   ] as const;
 

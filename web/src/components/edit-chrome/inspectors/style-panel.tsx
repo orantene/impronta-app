@@ -949,7 +949,7 @@ function standaloneStylePresetsForNode(
     ];
   }
 
-  if (node.kind === "spacer") {
+  if (node.kind === "spacer" || node.kind === "divider") {
     return [
       {
         id: "micro-gap",

@@ -36,6 +36,7 @@ import type {
   BuilderAccordionNode,
   BuilderCarouselNode,
   BuilderContainerNode,
+  BuilderDividerNode,
   BuilderMasonryNode,
   BuilderNode,
   BuilderNodeTree,
@@ -608,6 +609,7 @@ type AdvancedEditableBuilderNode =
   | BuilderTabsNode
   | BuilderCarouselNode
   | BuilderMasonryNode
+  | BuilderDividerNode
   | BuilderSpacerNode;
 
 type ContainerResponsiveViewport = "tablet" | "mobile";
@@ -644,6 +646,8 @@ function nodeKindLabel(kind: AdvancedEditableBuilderNode["kind"]): string {
       return "Carousel";
     case "masonry":
       return "Masonry";
+    case "divider":
+      return "Divider";
     case "spacer":
       return "Spacer";
   }
@@ -723,6 +727,10 @@ function nodeLayoutResetPatch(
       return {
         columns: 3,
         gap: "m",
+      };
+    case "divider":
+      return {
+        tone: undefined,
       };
     case "spacer":
       return {
@@ -1460,6 +1468,47 @@ function AdvancedNodeLayoutEditor({
     );
   }
 
+  if (node.kind === "divider") {
+    const DIVIDER_TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+      { value: "default", label: "Default" },
+      { value: "muted", label: "Muted" },
+    ];
+    return (
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="divider">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Divider tone</span>
+          <Segmented
+            fullWidth
+            compact
+            value={node.props.tone ?? "default"}
+            onChange={(next) =>
+              onPatch({
+                tone: next === "default" ? undefined : (next as "muted"),
+              })
+            }
+            options={DIVIDER_TONE_OPTIONS}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (node.kind === "spacer") {
     return (
       <div className="flex flex-col gap-3" data-builder-node-layout-panel="spacer">
@@ -1675,6 +1724,7 @@ const {
       case "tabs":
       case "carousel":
       case "masonry":
+      case "divider":
       case "spacer":
         return resolved;
       default:

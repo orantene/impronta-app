@@ -36,6 +36,8 @@ interface Props {
   /** Bumps when the publish drawer opens — re-fetches issues each time. */
   refreshKey: number;
   locale?: string;
+  /** Non-homepage CMS page being edited — scopes builder preflight to `published_page_snapshot`. */
+  pageId?: string | null;
   onStatusChange?: (status: {
     loading: boolean;
     blockingErrors: number;
@@ -47,6 +49,7 @@ export function PublishPreflight({
   enabled = true,
   refreshKey,
   locale,
+  pageId,
   onStatusChange,
   onFocusSection,
 }: Props) {
@@ -85,7 +88,7 @@ export function PublishPreflight({
     return () => {
       cancelled = true;
     };
-  }, [enabled, refreshKey, locale, onStatusChange]);
+  }, [enabled, refreshKey, locale, pageId, onStatusChange]);
 
   if (loading) {
     return (

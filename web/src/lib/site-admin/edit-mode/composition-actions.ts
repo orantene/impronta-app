@@ -69,6 +69,7 @@ import {
   type LegacySnapshotSlot,
 } from "@/lib/site-admin/builder-node/legacy-section-tree";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
+import { enforceFreePlanNestedBuilderDraftGuard } from "@/lib/site-admin/server/free-plan-draft-save-guard";
 import { isShellMutationAllowedForPlan } from "@/lib/site-admin/edit-mode/shell-plan-guard";
 
 // ── types ─────────────────────────────────────────────────────────────────
@@ -662,6 +663,80 @@ export async function saveHomepageCompositionAction(
         };
       }
 
+      const allSectionIds = Array.from(
+        new Set(
+          Object.values(input.slots)
+            .flatMap((entries) => entries ?? [])
+            .map((entry) => entry.sectionId),
+        ),
+      );
+      const factsById = new Map<
+        string,
+        {
+          section_type_key: string;
+          name: string;
+          props_jsonb: Record<string, unknown> | null;
+        }
+      >();
+      if (allSectionIds.length > 0) {
+        const { data: sectionRows } = await admin
+          .from("cms_sections")
+          .select("id, section_type_key, name, props_jsonb")
+          .eq("tenant_id", scope.tenantId)
+          .in("id", allSectionIds);
+        for (const row of sectionRows ?? []) {
+          factsById.set(row.id as string, {
+            section_type_key: row.section_type_key as string,
+            name: row.name as string,
+            props_jsonb: (row.props_jsonb as Record<string, unknown> | null) ?? {},
+          });
+        }
+      }
+
+      const compositionSnapshot: LegacySnapshotSlot[] = [];
+      for (const [slotKey, entries] of Object.entries(input.slots)) {
+        for (const entry of entries ?? []) {
+          const facts = factsById.get(entry.sectionId);
+          if (!facts) continue;
+          compositionSnapshot.push({
+            slotKey,
+            sortOrder: entry.sortOrder,
+            sectionId: entry.sectionId,
+            sectionTypeKey: facts.section_type_key,
+            name: facts.name,
+            props: facts.props_jsonb ?? {},
+          });
+        }
+      }
+      compositionSnapshot.sort((a, b) => {
+        if (a.slotKey < b.slotKey) return -1;
+        if (a.slotKey > b.slotKey) return 1;
+        return a.sortOrder - b.sortOrder;
+      });
+
+      const draftGuard = await enforceFreePlanNestedBuilderDraftGuard({
+        supabase: admin,
+        tenantId: scope.tenantId,
+        pageId: input.pageId,
+        pageVersion: pageRow.version,
+        logTag: "page-draft-save-builder-plan",
+        baselineLegacyTree: resolveBuilderTreeForSnapshot({
+          slots: compositionSnapshot,
+          preferredBuilderTree: undefined,
+        }),
+        nextTree: resolveBuilderTreeForSnapshot({
+          slots: compositionSnapshot,
+          preferredBuilderTree: input.builderTree,
+        }),
+      });
+      if (!draftGuard.ok) {
+        return {
+          ok: false,
+          error: draftGuard.message,
+          code: "VALIDATION_FAILED",
+        };
+      }
+
       const nextVersion = pageRow.version + 1;
 
       // Update page metadata fields (introTagline is homepage-only; skip).
@@ -722,56 +797,6 @@ export async function saveHomepageCompositionAction(
         }
       }
 
-      const allSectionIds = Array.from(
-        new Set(
-          Object.values(input.slots)
-            .flatMap((entries) => entries ?? [])
-            .map((entry) => entry.sectionId),
-        ),
-      );
-      const factsById = new Map<
-        string,
-        {
-          section_type_key: string;
-          name: string;
-          props_jsonb: Record<string, unknown> | null;
-        }
-      >();
-      if (allSectionIds.length > 0) {
-        const { data: sectionRows } = await admin
-          .from("cms_sections")
-          .select("id, section_type_key, name, props_jsonb")
-          .eq("tenant_id", scope.tenantId)
-          .in("id", allSectionIds);
-        for (const row of sectionRows ?? []) {
-          factsById.set(row.id as string, {
-            section_type_key: row.section_type_key as string,
-            name: row.name as string,
-            props_jsonb: (row.props_jsonb as Record<string, unknown> | null) ?? {},
-          });
-        }
-      }
-
-      const compositionSnapshot: LegacySnapshotSlot[] = [];
-      for (const [slotKey, entries] of Object.entries(input.slots)) {
-        for (const entry of entries ?? []) {
-          const facts = factsById.get(entry.sectionId);
-          if (!facts) continue;
-          compositionSnapshot.push({
-            slotKey,
-            sortOrder: entry.sortOrder,
-            sectionId: entry.sectionId,
-            sectionTypeKey: facts.section_type_key,
-            name: facts.name,
-            props: facts.props_jsonb ?? {},
-          });
-        }
-      }
-      compositionSnapshot.sort((a, b) => {
-        if (a.slotKey < b.slotKey) return -1;
-        if (a.slotKey > b.slotKey) return 1;
-        return a.sortOrder - b.sortOrder;
-      });
       const draftBuilderTree = resolveBuilderTreeForSnapshot({
         slots: compositionSnapshot,
         preferredBuilderTree: input.builderTree,

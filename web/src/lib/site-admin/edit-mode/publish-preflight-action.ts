@@ -42,6 +42,7 @@ import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talen
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
+import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/legacy-section-tree";
 import {
   collectBuilderPerformanceIssues,
   collectBuilderPerformanceMetrics,
@@ -50,6 +51,11 @@ import {
   isBlockingLayoutFindingId,
   validateBuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
+import {
+  collectFreePlanPublishNestedViolations,
+} from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
+import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
+import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 export type PreflightSeverity = "error" | "warn";
@@ -113,8 +119,22 @@ const ARRAY_IMAGE_FIELDS: Record<
   magazine_layout: { arrayKey: "secondary", urlKey: "imageUrl", altKey: "imageAlt" },
 };
 
+type PreflightPageContext = {
+  id: string;
+  version: number;
+  canonical_url: string | null;
+  noindex: boolean | null;
+  publishedCompositionSnapshot: HomepageSnapshot | null;
+};
+
 export async function runPublishPreflight(input?: {
   locale?: string;
+  /**
+   * When the editor is on a non-homepage CMS page, pass that row’s id so draft
+   * revision + `published_page_snapshot` participate in builder preflight (including
+   * Free nested-node policy). Omit for homepage (resolved via `locale`).
+   */
+  pageId?: string | null;
 }): Promise<PreflightResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -124,18 +144,62 @@ export async function runPublishPreflight(input?: {
   const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
     logTag: "publish-preflight",
   });
-  const { data: homepageMeta } = await auth.supabase
-    .from("cms_pages")
-    .select("id, version, canonical_url, noindex")
-    .eq("tenant_id", scope.tenantId)
-    .eq("locale", locale)
-    .eq("system_template_key", "homepage")
-    .maybeSingle<{
-      id: string;
-      version: number;
-      canonical_url: string | null;
-      noindex: boolean | null;
-    }>();
+
+  let preflightPage: PreflightPageContext | null = null;
+  if (input?.pageId) {
+    const { data: row } = await auth.supabase
+      .from("cms_pages")
+      .select(
+        "id, version, canonical_url, noindex, published_homepage_snapshot, published_page_snapshot, system_template_key",
+      )
+      .eq("tenant_id", scope.tenantId)
+      .eq("id", input.pageId)
+      .maybeSingle<{
+        id: string;
+        version: number;
+        canonical_url: string | null;
+        noindex: boolean | null;
+        published_homepage_snapshot: HomepageSnapshot | null;
+        published_page_snapshot: HomepageSnapshot | null;
+        system_template_key: string | null;
+      }>();
+    if (row) {
+      const publishedCompositionSnapshot =
+        row.system_template_key === "homepage"
+          ? row.published_homepage_snapshot
+          : row.published_page_snapshot;
+      preflightPage = {
+        id: row.id,
+        version: row.version,
+        canonical_url: row.canonical_url,
+        noindex: row.noindex,
+        publishedCompositionSnapshot,
+      };
+    }
+  } else {
+    const { data: homepageMeta } = await auth.supabase
+      .from("cms_pages")
+      .select("id, version, canonical_url, noindex, published_homepage_snapshot")
+      .eq("tenant_id", scope.tenantId)
+      .eq("locale", locale)
+      .eq("system_template_key", "homepage")
+      .maybeSingle<{
+        id: string;
+        version: number;
+        canonical_url: string | null;
+        noindex: boolean | null;
+        published_homepage_snapshot: HomepageSnapshot | null;
+      }>();
+    if (homepageMeta) {
+      preflightPage = {
+        id: homepageMeta.id,
+        version: homepageMeta.version,
+        canonical_url: homepageMeta.canonical_url,
+        noindex: homepageMeta.noindex,
+        publishedCompositionSnapshot: homepageMeta.published_homepage_snapshot,
+      };
+    }
+  }
 
   const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);
   const issues: PreflightIssue[] = [];
@@ -345,13 +409,13 @@ export async function runPublishPreflight(input?: {
   // BuilderTree data-binding guardrails. Section schema validation catches
   // section props; this checks the newer freeform/nested BuilderNode layer
   // before it becomes the published snapshot.
-  if (homepageMeta?.id && typeof homepageMeta.version === "number") {
+  if (preflightPage?.id && typeof preflightPage.version === "number") {
     const { data: revisionRow } = await auth.supabase
       .from("cms_page_revisions")
       .select("snapshot")
       .eq("tenant_id", scope.tenantId)
-      .eq("page_id", homepageMeta.id)
-      .eq("version", homepageMeta.version)
+      .eq("page_id", preflightPage.id)
+      .eq("version", preflightPage.version)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
@@ -403,14 +467,46 @@ export async function runPublishPreflight(input?: {
               : `${finding.nodeKind} ${finding.nodeId}: ${finding.message}`,
           });
         }
+
+        if (
+          workspacePlan === "free" &&
+          preflightPage?.publishedCompositionSnapshot &&
+          Array.isArray(preflightPage.publishedCompositionSnapshot.slots)
+        ) {
+          const snap = preflightPage.publishedCompositionSnapshot;
+          const legacySlots: LegacySnapshotSlot[] = snap.slots.map((s) => ({
+            slotKey: s.slotKey,
+            sortOrder: s.sortOrder,
+            sectionId: s.sectionId,
+            sectionTypeKey: s.sectionTypeKey,
+            name: s.name,
+            props: s.props,
+          }));
+          const publishedResolved = resolveSnapshotBuilderTree({
+            slots: legacySlots,
+            builderTree: snap.builderTree,
+          });
+          const publishedSectionIds = new Set(snap.slots.map((s) => s.sectionId));
+          for (const msg of collectFreePlanPublishNestedViolations(
+            publishedResolved.tree,
+            validation.tree,
+            publishedSectionIds,
+          )) {
+            issues.push({
+              severity: "error",
+              category: "builder_payload",
+              message: msg,
+            });
+          }
+        }
       }
     }
   }
 
   // SEO baseline audit.
   for (const issue of classifyCanonicalIssue({
-    canonicalUrl: homepageMeta?.canonical_url ?? null,
-    noindex: homepageMeta?.noindex ?? false,
+    canonicalUrl: preflightPage?.canonical_url ?? null,
+    noindex: preflightPage?.noindex ?? false,
   })) {
     issues.push({
       severity: issue.severity,

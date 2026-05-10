@@ -558,6 +558,7 @@ export function PublishDrawer() {
                 enabled={publishOpen}
                 refreshKey={publishOpen ? 1 : 0}
                 locale={locale}
+                pageId={pageSlug ? pageId : undefined}
                 onStatusChange={handlePreflightStatusChange}
                 onFocusSection={(sectionId) => {
                   setSelectedSectionId(sectionId);

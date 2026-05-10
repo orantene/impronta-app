@@ -51,6 +51,7 @@ import {
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import {
   BUILDER_NODE_REGISTRY,
+  gateNestedInsertKinds,
   resolveBuilderNodeRole,
   type BuilderNode,
   type BuilderNodeKind,
@@ -65,6 +66,7 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
 import { CHROME } from "./kit/tokens";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 
@@ -289,6 +291,7 @@ export function SelectionLayer() {
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
     reportMutationError,
+    advancedElementLibraryEnabled,
   } = useEditContext();
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
@@ -932,8 +935,9 @@ export function SelectionLayer() {
   const selectedNodeAllowedKinds = useMemo(() => {
     if (!selectedBuilderNode) return [];
     const policy = BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].children;
-    return policy.type === "allow_list" ? [...policy.kinds] : [];
-  }, [selectedBuilderNode]);
+    const raw = policy.type === "allow_list" ? [...policy.kinds] : [];
+    return gateNestedInsertKinds(raw, advancedElementLibraryEnabled);
+  }, [selectedBuilderNode, advancedElementLibraryEnabled]);
   const selectedNodeChildren = useMemo(
     () =>
       selectedBuilderNode && "children" in selectedBuilderNode
@@ -983,7 +987,10 @@ export function SelectionLayer() {
       parentNodeId: parentNode.id,
       beforeIndex: selectedIndex,
       afterIndex: selectedIndex + 1,
-      allowedKinds: [...policy.kinds],
+      allowedKinds: gateNestedInsertKinds(
+        [...policy.kinds],
+        advancedElementLibraryEnabled,
+      ),
       canMoveUp: selectedIndex > 0,
       canMoveDown: selectedIndex < parentChildren.length - 1,
     };
@@ -991,6 +998,7 @@ export function SelectionLayer() {
     selectedBuilderNode,
     selectedNodeIsEditableBlock,
     selectedNodePath,
+    advancedElementLibraryEnabled,
   ]);
   const selectionBreadcrumb = useMemo<SelectionBreadcrumbCrumb[]>(() => {
     if (!selectedSectionId) return [];
@@ -2541,10 +2549,10 @@ function CanvasNodeInsertMenu({
           92,
         ),
         left: Math.max(
-          Math.min(selectedRect.left + selectedRect.width - 240, viewportWidth - 248),
+          Math.min(selectedRect.left + selectedRect.width - 256, viewportWidth - 264),
           8,
         ),
-        width: 232,
+        width: 248,
         padding: "10px 10px 11px",
         borderRadius: CANVAS_CHROME_RADIUS,
         border: `1px solid rgba(255,255,255,0.09)`,
@@ -2611,36 +2619,11 @@ function CanvasNodeInsertMenu({
           ×
         </button>
       </div>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 6,
-        }}
-      >
-        {target.allowedKinds.map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            data-builder-node-canvas-insert-kind={kind}
-            onClick={() => void onInsert(kind)}
-            style={{
-              minHeight: 25,
-              padding: "0 8px",
-              borderRadius: CANVAS_CHROME_RADIUS,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.07)",
-              color: "white",
-              fontSize: 10.5,
-              fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {BUILDER_NODE_REGISTRY[kind].label}
-          </button>
-        ))}
-      </div>
+      <ElementLibraryInsertPicker
+        variant="canvas"
+        allowedKinds={target.allowedKinds}
+        onPick={(kind) => void onInsert(kind)}
+      />
     </div>
   );
 }
@@ -3088,6 +3071,8 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
     case "carousel":
     case "masonry":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
+    case "divider":
+      return node.props.tone === "muted" ? "Divider · muted" : "Divider";
     case "spacer":
       return `Spacer · ${node.props.size.toUpperCase()}`;
     case "section":

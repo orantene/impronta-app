@@ -3,6 +3,7 @@ import type {
   BuilderAccordionNode,
   BuilderCarouselNode,
   BuilderContainerNode,
+  BuilderDividerNode,
   BuilderNode,
   BuilderNodeKind,
   BuilderNodeTree,
@@ -20,6 +21,7 @@ export type BuilderNodeLayoutHealthNode =
   | BuilderTabsNode
   | BuilderCarouselNode
   | BuilderMasonryNode
+  | BuilderDividerNode
   | BuilderSpacerNode;
 
 export type BuilderNodeLayoutFindingLevel = "info" | "warning";
@@ -60,6 +62,7 @@ function isLayoutHealthNode(node: BuilderNode): node is BuilderNodeLayoutHealthN
     node.kind === "tabs" ||
     node.kind === "carousel" ||
     node.kind === "masonry" ||
+    node.kind === "divider" ||
     node.kind === "spacer"
   );
 }
@@ -94,6 +97,10 @@ export function getBuilderNodeLayoutFindings(
   node: BuilderNodeLayoutHealthNode,
 ): ReadonlyArray<BuilderNodeLayoutFinding> {
   const findings: BuilderNodeLayoutFinding[] = [];
+
+  if (node.kind === "divider") {
+    return findings;
+  }
 
   if (node.kind === "container") {
     const columns = node.props.columns ?? 1;

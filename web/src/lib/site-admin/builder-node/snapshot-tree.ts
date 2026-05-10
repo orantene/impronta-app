@@ -83,6 +83,9 @@ function resolveBuilderNodeLabel(node: BuilderNode): string {
     const alt = truncateLabel(node.props.alt ?? "");
     return alt ? `Image: ${alt}` : "Image";
   }
+  if (node.kind === "divider") {
+    return node.props.tone === "muted" ? "Divider (muted)" : "Divider";
+  }
   if (node.kind === "spacer") {
     return `Spacer (${String(node.props.size).toUpperCase()})`;
   }
