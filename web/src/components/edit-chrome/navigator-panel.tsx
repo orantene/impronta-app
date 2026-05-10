@@ -2408,6 +2408,7 @@ export function NavigatorPanel() {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 if (moveInFlight || !canMoveUp) return;
+                                selectBuilderNode(child.id);
                                 void commitNodeMoveWithinParent(child.id, "up");
                                 return;
                               }
@@ -2415,6 +2416,7 @@ export function NavigatorPanel() {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 if (moveInFlight || !canMoveDown) return;
+                                selectBuilderNode(child.id);
                                 void commitNodeMoveWithinParent(child.id, "down");
                               }
                             }}
@@ -2558,6 +2560,7 @@ export function NavigatorPanel() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (moveInFlight || !canMoveUp) return;
+                                    selectBuilderNode(child.id);
                                     void commitNodeMoveWithinParent(child.id, "up");
                                   }}
                                   compact
@@ -2574,6 +2577,7 @@ export function NavigatorPanel() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (moveInFlight || !canMoveDown) return;
+                                    selectBuilderNode(child.id);
                                     void commitNodeMoveWithinParent(child.id, "down");
                                   }}
                                   compact
@@ -2620,6 +2624,7 @@ export function NavigatorPanel() {
                                   label={`Add block inside ${child.label}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    selectBuilderNode(child.id);
                                     toggleNodeInsertTarget({
                                       key: `child:${child.id}`,
                                       parentId: child.id,
@@ -2645,6 +2650,7 @@ export function NavigatorPanel() {
                                 label={`Duplicate ${child.label}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  selectBuilderNode(child.id);
                                   void commitNodeDuplicate(child.id);
                                 }}
                                 inverted={childSelected}
@@ -2661,6 +2667,7 @@ export function NavigatorPanel() {
                                 label={`Copy ${child.label}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  selectBuilderNode(child.id);
                                   commitNodeCopy(child.id);
                                 }}
                                 inverted={childSelected}
@@ -2684,6 +2691,7 @@ export function NavigatorPanel() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (!canPaste) return;
+                                  selectBuilderNode(child.id);
                                   if (!copiedBuilderNodeKind) {
                                     void commitNodeDuplicate(child.id);
                                     return;
@@ -2704,6 +2712,7 @@ export function NavigatorPanel() {
                                 label={`Remove ${child.label}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  selectBuilderNode(child.id);
                                   void commitNodeRemoval(child.id);
                                 }}
                                 inverted={childSelected}
