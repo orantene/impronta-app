@@ -1,552 +1,819 @@
 ---
 name: Builder roadmap unified 2026
-overview: >-
-  Large execution backlog (~270 items). Canonical: web/docs/builder-execution-plan-2026.md.
-  Many todos are parallel tracks or future phases — use filters; do not treat as strict sequential homework.
+overview: "Large execution backlog (~270 items). Canonical: web/docs/builder-execution-plan-2026.md. Many todos are parallel tracks or future phases — use filters; do not treat as strict sequential homework."
 todos:
   - id: exec-p0-impronta-baseline
     content: Stabilize local Impronta QA baseline (prefer draft-only reset; no destructive publish purge unless explicitly requested).
+    status: completed
   - id: exec-p0-edit-loop
     content: Verify add → edit → reorder → publish → reopen on a clean baseline (same path real users use).
+    status: pending
   - id: exec-p0-registered-host
     content: Run Phase 0 human registered-host matrix (390 / ~820 / 1440) per phase-0-qa-registered-host.md.
+    status: pending
   - id: exec-bugs-canvas-iframe
     content: Close or mitigate BUG-002 / BUG-003 (insert/canvas + mobile iframe) if they still block trustworthy 7A demos.
+    status: pending
   - id: exec-p7a-0-schema
     content: P7A-0 — Builder-node schema + persistence contracts so library inserts round-trip draft + publish.
+    status: completed
   - id: exec-p7a-1-library-ui
     content: P7A-1 — Element registry / library UI foundation (blank or custom section → pick from allow-list).
+    status: pending
   - id: exec-p7a-2-selection
     content: P7A-2 — Slot targeting + honest selection (inspector matches persisted tree).
+    status: pending
   - id: exec-p7a-3-reorder
     content: P7A-3 — Reorder/move parity for library-backed nodes (navigator + canvas).
+    status: pending
   - id: exec-p7a-4-roundtrip
     content: P7A-4 — Draft → publish → hard refresh → reopen; tree matches persisted snapshot (persistence truth).
+    status: pending
   - id: exec-p7b-after-7a
     content: Defer P7B Hero governed composition until 7A allow-list + persistence truth are demonstrably shipped.
+    status: completed
   - id: pr-p0-1
     content: P0-1 — Run real-host QA matrix (390/820/1440); log bugs with severity.
+    status: pending
   - id: pr-p0-2
     content: P0-2 — CMS insert → canvas parity + selection-layer scroll (regression watch).
+    status: pending
   - id: pr-p0-3
     content: P0-3 — Document deferred bugs with owner + severity.
+    status: pending
   - id: pr-p1-1
     content: P1-1 — Legacy /admin/site-settings/* redirects → workspace Website (no bookmark 404).
+    status: pending
   - id: pr-p1-2
     content: P1-2 — Audit orphan server actions; wire or remove per convergence.
+    status: pending
   - id: pr-p1-3
     content: P1-3 — Drawer mutex checklist + new drawers follow DRAWER-MUTEX.
+    status: pending
   - id: pr-p2-1
     content: P2-1 — Publish drawer copy hierarchy (blocking vs advisory preflight).
+    status: pending
   - id: pr-p2-2
     content: P2-2 — Draft vs published indicator pass (top bar + context).
+    status: pending
   - id: pr-p2-3
     content: P2-3 — Publish failure aria-live / SR parity.
+    status: pending
   - id: pr-p3-1
     content: P3-1 — Canvas drag parity with navigator (moveSectionTo shared semantics).
+    status: pending
   - id: pr-p3-2
     content: P3-2 — Drop zones / handles visual polish (premium feel).
+    status: pending
   - id: pr-p4-1
     content: P4-1 — Inline editor toolbar + marker cleanup.
+    status: pending
   - id: pr-p4-2
     content: P4-2 — Link/CTA inline safety + policy alignment.
+    status: pending
   - id: pr-p5-1
     content: P5-1 — Library Advanced gate + category copy (no flat wall).
+    status: pending
   - id: pr-p5-2
     content: P5-2 — Starter default content quality for top templates.
+    status: pending
   - id: pr-p6-1
     content: P6-1 — Shell selection + inspect MVP (header/footer).
+    status: pending
   - id: pr-p6-2
     content: P6-2 — Shell publish + tagFor/revalidate audit (no stale shell).
+    status: pending
   - id: pr-p7a-5
     content: P7A-5 — Rollout guard / tenant kill switch for library path.
+    status: completed
   - id: pr-p7a-6
     content: P7A-6 — QA regression hooks (smoke/e2e/critical path checklist).
+    status: pending
   - id: pr-p7a-7
     content: P7A-7 — Doc + changelog alignment after each milestone.
+    status: completed
   - id: pr-p7b-1
     content: P7B-1 — Hero variant + governed slot schema (after 7A primitives real).
+    status: pending
   - id: pr-p7b-2
     content: P7B-2 — Hero inspector layout/slot controls vs props-only.
+    status: pending
   - id: pr-p8-1
     content: P8-1 — Per-breakpoint visibility MVP.
+    status: pending
   - id: pr-p8-2
     content: P8-2 — Builder chrome 390px usability pass.
+    status: pending
   - id: pr-p9-1
     content: P9-1 — router.refresh batch/debounce audit.
+    status: pending
   - id: pr-p9-2
     content: P9-2 — Drawer focus trap + restore audit.
+    status: pending
   - id: el-blank-section-types
-    content: 7A allow-list — Blank Section: types + builder-node contract
+    content: "7A allow-list — Blank Section: types + builder-node contract"
+    status: pending
   - id: el-blank-section-registry
-    content: 7A allow-list — Blank Section: registry/catalog entry + labels
+    content: "7A allow-list — Blank Section: registry/catalog entry + labels"
+    status: pending
   - id: el-blank-section-insert
-    content: 7A allow-list — Blank Section: insert flow + persisted default node
+    content: "7A allow-list — Blank Section: insert flow + persisted default node"
+    status: pending
   - id: el-blank-section-inspector
-    content: 7A allow-list — Blank Section: inspector fields bound to persisted props
+    content: "7A allow-list — Blank Section: inspector fields bound to persisted props"
+    status: pending
   - id: el-blank-section-persist
-    content: 7A allow-list — Blank Section: draft + publish round-trip for this type
+    content: "7A allow-list — Blank Section: draft + publish round-trip for this type"
+    status: pending
   - id: el-blank-section-canvas
-    content: 7A allow-list — Blank Section: canvas selection + hit targets
+    content: "7A allow-list — Blank Section: canvas selection + hit targets"
+    status: pending
   - id: el-blank-section-navigator
-    content: 7A allow-list — Blank Section: navigator tree node + ordering
+    content: "7A allow-list — Blank Section: navigator tree node + ordering"
+    status: pending
   - id: el-blank-section-dup-del
-    content: 7A allow-list — Blank Section: duplicate + delete semantics
+    content: "7A allow-list — Blank Section: duplicate + delete semantics"
+    status: pending
   - id: el-blank-section-a11y
-    content: 7A allow-list — Blank Section: basic aria labelling on chrome
+    content: "7A allow-list — Blank Section: basic aria labelling on chrome"
+    status: pending
   - id: el-container-types
-    content: 7A allow-list — Container: types + builder-node contract
+    content: "7A allow-list — Container: types + builder-node contract"
+    status: pending
   - id: el-container-registry
-    content: 7A allow-list — Container: registry/catalog entry + labels
+    content: "7A allow-list — Container: registry/catalog entry + labels"
+    status: pending
   - id: el-container-insert
-    content: 7A allow-list — Container: insert flow + persisted default node
+    content: "7A allow-list — Container: insert flow + persisted default node"
+    status: pending
   - id: el-container-inspector
-    content: 7A allow-list — Container: inspector fields bound to persisted props
+    content: "7A allow-list — Container: inspector fields bound to persisted props"
+    status: pending
   - id: el-container-persist
-    content: 7A allow-list — Container: draft + publish round-trip for this type
+    content: "7A allow-list — Container: draft + publish round-trip for this type"
+    status: pending
   - id: el-container-canvas
-    content: 7A allow-list — Container: canvas selection + hit targets
+    content: "7A allow-list — Container: canvas selection + hit targets"
+    status: pending
   - id: el-container-navigator
-    content: 7A allow-list — Container: navigator tree node + ordering
+    content: "7A allow-list — Container: navigator tree node + ordering"
+    status: pending
   - id: el-container-dup-del
-    content: 7A allow-list — Container: duplicate + delete semantics
+    content: "7A allow-list — Container: duplicate + delete semantics"
+    status: pending
   - id: el-container-a11y
-    content: 7A allow-list — Container: basic aria labelling on chrome
+    content: "7A allow-list — Container: basic aria labelling on chrome"
+    status: pending
   - id: el-columns-types
-    content: 7A allow-list — Columns: types + builder-node contract
+    content: "7A allow-list — Columns: types + builder-node contract"
+    status: pending
   - id: el-columns-registry
-    content: 7A allow-list — Columns: registry/catalog entry + labels
+    content: "7A allow-list — Columns: registry/catalog entry + labels"
+    status: pending
   - id: el-columns-insert
-    content: 7A allow-list — Columns: insert flow + persisted default node
+    content: "7A allow-list — Columns: insert flow + persisted default node"
+    status: pending
   - id: el-columns-inspector
-    content: 7A allow-list — Columns: inspector fields bound to persisted props
+    content: "7A allow-list — Columns: inspector fields bound to persisted props"
+    status: pending
   - id: el-columns-persist
-    content: 7A allow-list — Columns: draft + publish round-trip for this type
+    content: "7A allow-list — Columns: draft + publish round-trip for this type"
+    status: pending
   - id: el-columns-canvas
-    content: 7A allow-list — Columns: canvas selection + hit targets
+    content: "7A allow-list — Columns: canvas selection + hit targets"
+    status: pending
   - id: el-columns-navigator
-    content: 7A allow-list — Columns: navigator tree node + ordering
+    content: "7A allow-list — Columns: navigator tree node + ordering"
+    status: pending
   - id: el-columns-dup-del
-    content: 7A allow-list — Columns: duplicate + delete semantics
+    content: "7A allow-list — Columns: duplicate + delete semantics"
+    status: pending
   - id: el-columns-a11y
-    content: 7A allow-list — Columns: basic aria labelling on chrome
+    content: "7A allow-list — Columns: basic aria labelling on chrome"
+    status: pending
   - id: el-heading-types
-    content: 7A allow-list — Heading: types + builder-node contract
+    content: "7A allow-list — Heading: types + builder-node contract"
+    status: pending
   - id: el-heading-registry
-    content: 7A allow-list — Heading: registry/catalog entry + labels
+    content: "7A allow-list — Heading: registry/catalog entry + labels"
+    status: pending
   - id: el-heading-insert
-    content: 7A allow-list — Heading: insert flow + persisted default node
+    content: "7A allow-list — Heading: insert flow + persisted default node"
+    status: pending
   - id: el-heading-inspector
-    content: 7A allow-list — Heading: inspector fields bound to persisted props
+    content: "7A allow-list — Heading: inspector fields bound to persisted props"
+    status: pending
   - id: el-heading-persist
-    content: 7A allow-list — Heading: draft + publish round-trip for this type
+    content: "7A allow-list — Heading: draft + publish round-trip for this type"
+    status: pending
   - id: el-heading-canvas
-    content: 7A allow-list — Heading: canvas selection + hit targets
+    content: "7A allow-list — Heading: canvas selection + hit targets"
+    status: pending
   - id: el-heading-navigator
-    content: 7A allow-list — Heading: navigator tree node + ordering
+    content: "7A allow-list — Heading: navigator tree node + ordering"
+    status: pending
   - id: el-heading-dup-del
-    content: 7A allow-list — Heading: duplicate + delete semantics
+    content: "7A allow-list — Heading: duplicate + delete semantics"
+    status: pending
   - id: el-heading-a11y
-    content: 7A allow-list — Heading: basic aria labelling on chrome
+    content: "7A allow-list — Heading: basic aria labelling on chrome"
+    status: pending
   - id: el-paragraph-types
-    content: 7A allow-list — Paragraph: types + builder-node contract
+    content: "7A allow-list — Paragraph: types + builder-node contract"
+    status: pending
   - id: el-paragraph-registry
-    content: 7A allow-list — Paragraph: registry/catalog entry + labels
+    content: "7A allow-list — Paragraph: registry/catalog entry + labels"
+    status: pending
   - id: el-paragraph-insert
-    content: 7A allow-list — Paragraph: insert flow + persisted default node
+    content: "7A allow-list — Paragraph: insert flow + persisted default node"
+    status: pending
   - id: el-paragraph-inspector
-    content: 7A allow-list — Paragraph: inspector fields bound to persisted props
+    content: "7A allow-list — Paragraph: inspector fields bound to persisted props"
+    status: pending
   - id: el-paragraph-persist
-    content: 7A allow-list — Paragraph: draft + publish round-trip for this type
+    content: "7A allow-list — Paragraph: draft + publish round-trip for this type"
+    status: pending
   - id: el-paragraph-canvas
-    content: 7A allow-list — Paragraph: canvas selection + hit targets
+    content: "7A allow-list — Paragraph: canvas selection + hit targets"
+    status: pending
   - id: el-paragraph-navigator
-    content: 7A allow-list — Paragraph: navigator tree node + ordering
+    content: "7A allow-list — Paragraph: navigator tree node + ordering"
+    status: pending
   - id: el-paragraph-dup-del
-    content: 7A allow-list — Paragraph: duplicate + delete semantics
+    content: "7A allow-list — Paragraph: duplicate + delete semantics"
+    status: pending
   - id: el-paragraph-a11y
-    content: 7A allow-list — Paragraph: basic aria labelling on chrome
+    content: "7A allow-list — Paragraph: basic aria labelling on chrome"
+    status: pending
   - id: el-button-types
-    content: 7A allow-list — Button: types + builder-node contract
+    content: "7A allow-list — Button: types + builder-node contract"
+    status: pending
   - id: el-button-registry
-    content: 7A allow-list — Button: registry/catalog entry + labels
+    content: "7A allow-list — Button: registry/catalog entry + labels"
+    status: pending
   - id: el-button-insert
-    content: 7A allow-list — Button: insert flow + persisted default node
+    content: "7A allow-list — Button: insert flow + persisted default node"
+    status: pending
   - id: el-button-inspector
-    content: 7A allow-list — Button: inspector fields bound to persisted props
+    content: "7A allow-list — Button: inspector fields bound to persisted props"
+    status: pending
   - id: el-button-persist
-    content: 7A allow-list — Button: draft + publish round-trip for this type
+    content: "7A allow-list — Button: draft + publish round-trip for this type"
+    status: pending
   - id: el-button-canvas
-    content: 7A allow-list — Button: canvas selection + hit targets
+    content: "7A allow-list — Button: canvas selection + hit targets"
+    status: pending
   - id: el-button-navigator
-    content: 7A allow-list — Button: navigator tree node + ordering
+    content: "7A allow-list — Button: navigator tree node + ordering"
+    status: pending
   - id: el-button-dup-del
-    content: 7A allow-list — Button: duplicate + delete semantics
+    content: "7A allow-list — Button: duplicate + delete semantics"
+    status: pending
   - id: el-button-a11y
-    content: 7A allow-list — Button: basic aria labelling on chrome
+    content: "7A allow-list — Button: basic aria labelling on chrome"
+    status: pending
   - id: el-image-types
-    content: 7A allow-list — Image: types + builder-node contract
+    content: "7A allow-list — Image: types + builder-node contract"
+    status: pending
   - id: el-image-registry
-    content: 7A allow-list — Image: registry/catalog entry + labels
+    content: "7A allow-list — Image: registry/catalog entry + labels"
+    status: pending
   - id: el-image-insert
-    content: 7A allow-list — Image: insert flow + persisted default node
+    content: "7A allow-list — Image: insert flow + persisted default node"
+    status: pending
   - id: el-image-inspector
-    content: 7A allow-list — Image: inspector fields bound to persisted props
+    content: "7A allow-list — Image: inspector fields bound to persisted props"
+    status: pending
   - id: el-image-persist
-    content: 7A allow-list — Image: draft + publish round-trip for this type
+    content: "7A allow-list — Image: draft + publish round-trip for this type"
+    status: pending
   - id: el-image-canvas
-    content: 7A allow-list — Image: canvas selection + hit targets
+    content: "7A allow-list — Image: canvas selection + hit targets"
+    status: pending
   - id: el-image-navigator
-    content: 7A allow-list — Image: navigator tree node + ordering
+    content: "7A allow-list — Image: navigator tree node + ordering"
+    status: pending
   - id: el-image-dup-del
-    content: 7A allow-list — Image: duplicate + delete semantics
+    content: "7A allow-list — Image: duplicate + delete semantics"
+    status: pending
   - id: el-image-a11y
-    content: 7A allow-list — Image: basic aria labelling on chrome
+    content: "7A allow-list — Image: basic aria labelling on chrome"
+    status: pending
   - id: el-divider-types
-    content: 7A allow-list — Divider: types + builder-node contract
+    content: "7A allow-list — Divider: types + builder-node contract"
+    status: completed
   - id: el-divider-registry
-    content: 7A allow-list — Divider: registry/catalog entry + labels
+    content: "7A allow-list — Divider: registry/catalog entry + labels"
+    status: completed
   - id: el-divider-insert
-    content: 7A allow-list — Divider: insert flow + persisted default node
+    content: "7A allow-list — Divider: insert flow + persisted default node"
+    status: completed
   - id: el-divider-inspector
-    content: 7A allow-list — Divider: inspector fields bound to persisted props
+    content: "7A allow-list — Divider: inspector fields bound to persisted props"
+    status: completed
   - id: el-divider-persist
-    content: 7A allow-list — Divider: draft + publish round-trip for this type
+    content: "7A allow-list — Divider: draft + publish round-trip for this type"
+    status: completed
   - id: el-divider-canvas
-    content: 7A allow-list — Divider: canvas selection + hit targets
+    content: "7A allow-list — Divider: canvas selection + hit targets"
+    status: completed
   - id: el-divider-navigator
-    content: 7A allow-list — Divider: navigator tree node + ordering
+    content: "7A allow-list — Divider: navigator tree node + ordering"
+    status: completed
   - id: el-divider-dup-del
-    content: 7A allow-list — Divider: duplicate + delete semantics
+    content: "7A allow-list — Divider: duplicate + delete semantics"
+    status: completed
   - id: el-divider-a11y
-    content: 7A allow-list — Divider: basic aria labelling on chrome
+    content: "7A allow-list — Divider: basic aria labelling on chrome"
+    status: completed
   - id: el-spacer-types
-    content: 7A allow-list — Spacer: types + builder-node contract
+    content: "7A allow-list — Spacer: types + builder-node contract"
+    status: pending
   - id: el-spacer-registry
-    content: 7A allow-list — Spacer: registry/catalog entry + labels
+    content: "7A allow-list — Spacer: registry/catalog entry + labels"
+    status: pending
   - id: el-spacer-insert
-    content: 7A allow-list — Spacer: insert flow + persisted default node
+    content: "7A allow-list — Spacer: insert flow + persisted default node"
+    status: pending
   - id: el-spacer-inspector
-    content: 7A allow-list — Spacer: inspector fields bound to persisted props
+    content: "7A allow-list — Spacer: inspector fields bound to persisted props"
+    status: pending
   - id: el-spacer-persist
-    content: 7A allow-list — Spacer: draft + publish round-trip for this type
+    content: "7A allow-list — Spacer: draft + publish round-trip for this type"
+    status: pending
   - id: el-spacer-canvas
-    content: 7A allow-list — Spacer: canvas selection + hit targets
+    content: "7A allow-list — Spacer: canvas selection + hit targets"
+    status: pending
   - id: el-spacer-navigator
-    content: 7A allow-list — Spacer: navigator tree node + ordering
+    content: "7A allow-list — Spacer: navigator tree node + ordering"
+    status: pending
   - id: el-spacer-dup-del
-    content: 7A allow-list — Spacer: duplicate + delete semantics
+    content: "7A allow-list — Spacer: duplicate + delete semantics"
+    status: pending
   - id: el-spacer-a11y
-    content: 7A allow-list — Spacer: basic aria labelling on chrome
+    content: "7A allow-list — Spacer: basic aria labelling on chrome"
+    status: pending
   - id: el-card-types
-    content: 7A allow-list — Card: types + builder-node contract
+    content: "7A allow-list — Card: types + builder-node contract"
+    status: pending
   - id: el-card-registry
-    content: 7A allow-list — Card: registry/catalog entry + labels
+    content: "7A allow-list — Card: registry/catalog entry + labels"
+    status: pending
   - id: el-card-insert
-    content: 7A allow-list — Card: insert flow + persisted default node
+    content: "7A allow-list — Card: insert flow + persisted default node"
+    status: pending
   - id: el-card-inspector
-    content: 7A allow-list — Card: inspector fields bound to persisted props
+    content: "7A allow-list — Card: inspector fields bound to persisted props"
+    status: pending
   - id: el-card-persist
-    content: 7A allow-list — Card: draft + publish round-trip for this type
+    content: "7A allow-list — Card: draft + publish round-trip for this type"
+    status: pending
   - id: el-card-canvas
-    content: 7A allow-list — Card: canvas selection + hit targets
+    content: "7A allow-list — Card: canvas selection + hit targets"
+    status: pending
   - id: el-card-navigator
-    content: 7A allow-list — Card: navigator tree node + ordering
+    content: "7A allow-list — Card: navigator tree node + ordering"
+    status: pending
   - id: el-card-dup-del
-    content: 7A allow-list — Card: duplicate + delete semantics
+    content: "7A allow-list — Card: duplicate + delete semantics"
+    status: pending
   - id: el-card-a11y
-    content: 7A allow-list — Card: basic aria labelling on chrome
+    content: "7A allow-list — Card: basic aria labelling on chrome"
+    status: pending
   - id: el-cta-group-types
-    content: 7A allow-list — CTA Group: types + builder-node contract
+    content: "7A allow-list — CTA Group: types + builder-node contract"
+    status: pending
   - id: el-cta-group-registry
-    content: 7A allow-list — CTA Group: registry/catalog entry + labels
+    content: "7A allow-list — CTA Group: registry/catalog entry + labels"
+    status: pending
   - id: el-cta-group-insert
-    content: 7A allow-list — CTA Group: insert flow + persisted default node
+    content: "7A allow-list — CTA Group: insert flow + persisted default node"
+    status: pending
   - id: el-cta-group-inspector
-    content: 7A allow-list — CTA Group: inspector fields bound to persisted props
+    content: "7A allow-list — CTA Group: inspector fields bound to persisted props"
+    status: pending
   - id: el-cta-group-persist
-    content: 7A allow-list — CTA Group: draft + publish round-trip for this type
+    content: "7A allow-list — CTA Group: draft + publish round-trip for this type"
+    status: pending
   - id: el-cta-group-canvas
-    content: 7A allow-list — CTA Group: canvas selection + hit targets
+    content: "7A allow-list — CTA Group: canvas selection + hit targets"
+    status: pending
   - id: el-cta-group-navigator
-    content: 7A allow-list — CTA Group: navigator tree node + ordering
+    content: "7A allow-list — CTA Group: navigator tree node + ordering"
+    status: pending
   - id: el-cta-group-dup-del
-    content: 7A allow-list — CTA Group: duplicate + delete semantics
+    content: "7A allow-list — CTA Group: duplicate + delete semantics"
+    status: pending
   - id: el-cta-group-a11y
-    content: 7A allow-list — CTA Group: basic aria labelling on chrome
+    content: "7A allow-list — CTA Group: basic aria labelling on chrome"
+    status: pending
   - id: p7a-0-design-review
-    content: P7A-0 — Design review: schema boundaries vs legacy-section-tree honesty.
+    content: "P7A-0 — Design review: schema boundaries vs legacy-section-tree honesty."
+    status: completed
   - id: p7a-0-actions
     content: P7A-0 — Server actions / mutations for insert-patch-remove library nodes.
+    status: completed
   - id: p7a-0-migrate
     content: P7A-0 — Migrations if new tables/columns required (coordinate with tenant isolation).
+    status: completed
   - id: p7a-0-tenant-test
     content: P7A-0 — tenant-isolation tests for new mutations.
+    status: cancelled
   - id: p7a-1-search-cats
-    content: P7A-1 — Library UI: search + categories for element picker.
+    content: "P7A-1 — Library UI: search + categories for element picker."
+    status: pending
   - id: p7a-1-empty-states
     content: P7A-1 — Empty/error states when library loading fails.
+    status: pending
   - id: p7a-2-multi-select
-    content: P7A-2 — Deep selection: nested library nodes without synthetic layers.
+    content: "P7A-2 — Deep selection: nested library nodes without synthetic layers."
+    status: pending
   - id: p7a-3-undo
     content: P7A-3 — Undo/redo coherence after reorder for library nodes (if applicable).
+    status: pending
   - id: p7a-4-cache
     content: P7A-4 — RSC/cache invalidation after publish matches navigator/canvas.
+    status: pending
   - id: gate-qa-typecheck
     content: Gate — npm run typecheck green on builder paths.
+    status: completed
   - id: gate-qa-tenant
     content: Gate — npm run test:tenant-isolation when tenant/server touched.
+    status: pending
   - id: gate-qa-registered-host
     content: Gate — builder smoke on registered host (no console explosions).
+    status: pending
   - id: gate-qa-phase0-waive
     content: Gate — Phase 0 real-host QA done OR explicit waive note with risk.
+    status: pending
   - id: gate-qa-7a-demo
     content: Gate — First 7A demo target passes end-to-end before claiming library shipped.
+    status: pending
   - id: gate-pilot-publish-safe
     content: Pilot gate — publish flow feels safe (Phase 2 minimum).
+    status: pending
   - id: gate-pilot-shell
     content: Pilot gate — shell editable OR limitation clearly communicated.
+    status: pending
   - id: gate-pilot-mqa
     content: Pilot gate — mobile/tablet/desktop QA once.
+    status: pending
   - id: gate-pilot-library
     content: Pilot gate — section library usable for real pages.
+    status: pending
   - id: gate-premium-shell
     content: Premium gate — header/footer editable + publish-safe.
+    status: pending
   - id: gate-premium-trust
     content: Premium gate — publish trust + recovery complete.
+    status: pending
   - id: gate-premium-rsp
     content: Premium gate — responsive authoring strong (Phase 8 direction).
+    status: pending
   - id: gate-premium-7a7b
     content: Premium gate — 7A library + 7B governed sections on honest path.
+    status: pending
   - id: acc-ph0
     content: §3 Phase 0 acceptance — QA notes + deferred bugs documented.
+    status: pending
   - id: acc-ph1
     content: §3 Phase 1 acceptance — single canonical builder path; no dead controls.
+    status: pending
   - id: acc-ph2
     content: §3 Phase 2 acceptance — user understands selection/save/publish.
+    status: pending
   - id: acc-ph3
     content: §3 Phase 3 acceptance — canvas + navigator order aligned.
+    status: pending
   - id: acc-ph4
     content: §3 Phase 4 acceptance — inline edit without schema thinking.
+    status: pending
   - id: acc-ph5
     content: §3 Phase 5 acceptance — polished homepage in ~15 min from library.
+    status: pending
   - id: acc-ph6
     content: §3 Phase 6 acceptance — whole branded surface editable; shell not stale.
+    status: pending
   - id: acc-ph7a
     content: §3 Phase 7A acceptance — allow-list + persistence truth + First 7A demo.
+    status: pending
   - id: acc-ph7b
     content: §3 Phase 7B acceptance — Hero on 7A model (not parallel fake stack).
+    status: pending
   - id: acc-ph8
     content: §3 Phase 8 acceptance — intentional responsive authoring.
+    status: pending
   - id: acc-ph9
     content: §3 Phase 9 acceptance — perf + keyboard/SR viable on major flows.
+    status: pending
   - id: strat-simple-advanced-copy
     content: UX copy — Simple vs Advanced surfaces when editing template vs composing elements.
+    status: pending
   - id: strat-no-fake-layers
     content: Review — no new UI that implies layers without persisted child nodes.
+    status: pending
   - id: strat-changelog
     content: Process — append changelog row after substantive roadmap or code milestone.
+    status: completed
   - id: ci-scope-touch
     content: AGENTS — scoped lint/typecheck on touched paths when repo ESLint baseline noisy.
+    status: pending
   - id: defer-video-forms
     content: Explicit defer — Video/Forms/slider items/repeaters/custom code out of 7A MVP.
+    status: completed
   - id: shell-no-fake-model
     content: Phase 6 — shell/header/footer parity without parallel fake component model.
+    status: pending
   - id: pv1-revision-diff
     content: Post-v1 — visual revision diff (beyond restore UX).
+    status: pending
   - id: pv1-comments
     content: Post-v1 — comments/presence depth.
+    status: pending
   - id: pv1-share-analytics
     content: Post-v1 — share analytics.
+    status: pending
   - id: pv1-prototype-import
     content: Post-v1 — prototype import.
+    status: pending
   - id: pv1-ai-layout
     content: Post-v1 — arbitrary AI layout generation (policy-gated).
+    status: pending
   - id: pv1-theme-polish
     content: Post-v1 — HSL/eyedropper theme polish non-blocking.
+    status: pending
   - id: pv1-design-ref-import
     content: Post-v1 — design-reference import.
+    status: pending
   - id: qa-bug-001
     content: Human QA — resolve or explicitly defer BUG-001 (builder-human-qa-run).
+    status: pending
   - id: qa-bug-002
     content: Human QA — resolve or explicitly defer BUG-002 (builder-human-qa-run).
+    status: pending
   - id: qa-bug-003
     content: Human QA — resolve or explicitly defer BUG-003 (builder-human-qa-run).
+    status: pending
   - id: qa-bug-004
     content: Human QA — resolve or explicitly defer BUG-004 (builder-human-qa-run).
+    status: pending
   - id: qa-bug-005
     content: Human QA — resolve or explicitly defer BUG-005 (builder-human-qa-run).
+    status: pending
   - id: qa-bug-006
     content: Human QA — resolve or explicitly defer BUG-006 (builder-human-qa-run).
+    status: pending
   - id: qa-bug-007
     content: Human QA — resolve or explicitly defer BUG-007 (builder-human-qa-run).
+    status: pending
   - id: qa-bug-008
     content: Human QA — resolve or explicitly defer BUG-008 (builder-human-qa-run).
+    status: pending
   - id: 7c-cta-banner-inventory
-    content: Phase 7C — CTA banner: inventory
+    content: "Phase 7C — CTA banner: inventory"
+    status: pending
   - id: 7c-cta-banner-governance-model
-    content: Phase 7C — CTA banner: governance model
+    content: "Phase 7C — CTA banner: governance model"
+    status: pending
   - id: 7c-cta-banner-schema
-    content: Phase 7C — CTA banner: schema
+    content: "Phase 7C — CTA banner: schema"
+    status: pending
   - id: 7c-cta-banner-vertical-pilot
-    content: Phase 7C — CTA banner: vertical pilot
+    content: "Phase 7C — CTA banner: vertical pilot"
+    status: pending
   - id: 7c-cta-banner-inspector-honesty
-    content: Phase 7C — CTA banner: inspector honesty
+    content: "Phase 7C — CTA banner: inspector honesty"
+    status: pending
   - id: 7c-cta-banner-canvas-nav-parity
-    content: Phase 7C — CTA banner: canvas nav parity
+    content: "Phase 7C — CTA banner: canvas nav parity"
+    status: pending
   - id: 7c-cta-banner-publish-loop
-    content: Phase 7C — CTA banner: publish loop
+    content: "Phase 7C — CTA banner: publish loop"
+    status: pending
   - id: 7c-cta-banner-sign-off
-    content: Phase 7C — CTA banner: sign off
+    content: "Phase 7C — CTA banner: sign off"
+    status: pending
   - id: 7c-gallery-inventory
-    content: Phase 7C — Gallery: inventory
+    content: "Phase 7C — Gallery: inventory"
+    status: pending
   - id: 7c-gallery-governance-model
-    content: Phase 7C — Gallery: governance model
+    content: "Phase 7C — Gallery: governance model"
+    status: pending
   - id: 7c-gallery-schema
-    content: Phase 7C — Gallery: schema
+    content: "Phase 7C — Gallery: schema"
+    status: pending
   - id: 7c-gallery-vertical-pilot
-    content: Phase 7C — Gallery: vertical pilot
+    content: "Phase 7C — Gallery: vertical pilot"
+    status: pending
   - id: 7c-gallery-inspector-honesty
-    content: Phase 7C — Gallery: inspector honesty
+    content: "Phase 7C — Gallery: inspector honesty"
+    status: pending
   - id: 7c-gallery-canvas-nav-parity
-    content: Phase 7C — Gallery: canvas nav parity
+    content: "Phase 7C — Gallery: canvas nav parity"
+    status: pending
   - id: 7c-gallery-publish-loop
-    content: Phase 7C — Gallery: publish loop
+    content: "Phase 7C — Gallery: publish loop"
+    status: pending
   - id: 7c-gallery-sign-off
-    content: Phase 7C — Gallery: sign off
+    content: "Phase 7C — Gallery: sign off"
+    status: pending
   - id: 7c-slider-inventory
-    content: Phase 7C — Slider: inventory
+    content: "Phase 7C — Slider: inventory"
+    status: pending
   - id: 7c-slider-governance-model
-    content: Phase 7C — Slider: governance model
+    content: "Phase 7C — Slider: governance model"
+    status: pending
   - id: 7c-slider-schema
-    content: Phase 7C — Slider: schema
+    content: "Phase 7C — Slider: schema"
+    status: pending
   - id: 7c-slider-vertical-pilot
-    content: Phase 7C — Slider: vertical pilot
+    content: "Phase 7C — Slider: vertical pilot"
+    status: pending
   - id: 7c-slider-inspector-honesty
-    content: Phase 7C — Slider: inspector honesty
+    content: "Phase 7C — Slider: inspector honesty"
+    status: pending
   - id: 7c-slider-canvas-nav-parity
-    content: Phase 7C — Slider: canvas nav parity
+    content: "Phase 7C — Slider: canvas nav parity"
+    status: pending
   - id: 7c-slider-publish-loop
-    content: Phase 7C — Slider: publish loop
+    content: "Phase 7C — Slider: publish loop"
+    status: pending
   - id: 7c-slider-sign-off
-    content: Phase 7C — Slider: sign off
+    content: "Phase 7C — Slider: sign off"
+    status: pending
   - id: 7c-testimonials-inventory
-    content: Phase 7C — Testimonials: inventory
+    content: "Phase 7C — Testimonials: inventory"
+    status: pending
   - id: 7c-testimonials-governance-model
-    content: Phase 7C — Testimonials: governance model
+    content: "Phase 7C — Testimonials: governance model"
+    status: pending
   - id: 7c-testimonials-schema
-    content: Phase 7C — Testimonials: schema
+    content: "Phase 7C — Testimonials: schema"
+    status: pending
   - id: 7c-testimonials-vertical-pilot
-    content: Phase 7C — Testimonials: vertical pilot
+    content: "Phase 7C — Testimonials: vertical pilot"
+    status: pending
   - id: 7c-testimonials-inspector-honesty
-    content: Phase 7C — Testimonials: inspector honesty
+    content: "Phase 7C — Testimonials: inspector honesty"
+    status: pending
   - id: 7c-testimonials-canvas-nav-parity
-    content: Phase 7C — Testimonials: canvas nav parity
+    content: "Phase 7C — Testimonials: canvas nav parity"
+    status: pending
   - id: 7c-testimonials-publish-loop
-    content: Phase 7C — Testimonials: publish loop
+    content: "Phase 7C — Testimonials: publish loop"
+    status: pending
   - id: 7c-testimonials-sign-off
-    content: Phase 7C — Testimonials: sign off
+    content: "Phase 7C — Testimonials: sign off"
+    status: pending
   - id: 7c-talent-grid-inventory
-    content: Phase 7C — Talent grid: inventory
+    content: "Phase 7C — Talent grid: inventory"
+    status: pending
   - id: 7c-talent-grid-governance-model
-    content: Phase 7C — Talent grid: governance model
+    content: "Phase 7C — Talent grid: governance model"
+    status: pending
   - id: 7c-talent-grid-schema
-    content: Phase 7C — Talent grid: schema
+    content: "Phase 7C — Talent grid: schema"
+    status: pending
   - id: 7c-talent-grid-vertical-pilot
-    content: Phase 7C — Talent grid: vertical pilot
+    content: "Phase 7C — Talent grid: vertical pilot"
+    status: pending
   - id: 7c-talent-grid-inspector-honesty
-    content: Phase 7C — Talent grid: inspector honesty
+    content: "Phase 7C — Talent grid: inspector honesty"
+    status: pending
   - id: 7c-talent-grid-canvas-nav-parity
-    content: Phase 7C — Talent grid: canvas nav parity
+    content: "Phase 7C — Talent grid: canvas nav parity"
+    status: pending
   - id: 7c-talent-grid-publish-loop
-    content: Phase 7C — Talent grid: publish loop
+    content: "Phase 7C — Talent grid: publish loop"
+    status: pending
   - id: 7c-talent-grid-sign-off
-    content: Phase 7C — Talent grid: sign off
+    content: "Phase 7C — Talent grid: sign off"
+    status: pending
   - id: 7c-contact-inventory
-    content: Phase 7C — Contact: inventory
+    content: "Phase 7C — Contact: inventory"
+    status: pending
   - id: 7c-contact-governance-model
-    content: Phase 7C — Contact: governance model
+    content: "Phase 7C — Contact: governance model"
+    status: pending
   - id: 7c-contact-schema
-    content: Phase 7C — Contact: schema
+    content: "Phase 7C — Contact: schema"
+    status: pending
   - id: 7c-contact-vertical-pilot
-    content: Phase 7C — Contact: vertical pilot
+    content: "Phase 7C — Contact: vertical pilot"
+    status: pending
   - id: 7c-contact-inspector-honesty
-    content: Phase 7C — Contact: inspector honesty
+    content: "Phase 7C — Contact: inspector honesty"
+    status: pending
   - id: 7c-contact-canvas-nav-parity
-    content: Phase 7C — Contact: canvas nav parity
+    content: "Phase 7C — Contact: canvas nav parity"
+    status: pending
   - id: 7c-contact-publish-loop
-    content: Phase 7C — Contact: publish loop
+    content: "Phase 7C — Contact: publish loop"
+    status: pending
   - id: 7c-contact-sign-off
-    content: Phase 7C — Contact: sign off
+    content: "Phase 7C — Contact: sign off"
+    status: pending
   - id: p7b-var-centered
-    content: P7B — Hero variant concern: centered
+    content: "P7B — Hero variant concern: centered"
+    status: pending
   - id: p7b-var-split
-    content: P7B — Hero variant concern: split
+    content: "P7B — Hero variant concern: split"
+    status: pending
   - id: p7b-var-image-left
-    content: P7B — Hero variant concern: image left
+    content: "P7B — Hero variant concern: image left"
+    status: pending
   - id: p7b-var-image-right
-    content: P7B — Hero variant concern: image right
+    content: "P7B — Hero variant concern: image right"
+    status: pending
   - id: p7b-var-overlay-depth
-    content: P7B — Hero variant concern: overlay depth
+    content: "P7B — Hero variant concern: overlay depth"
+    status: pending
   - id: p7b-var-responsive-hide-show
-    content: P7B — Hero variant concern: responsive hide show
+    content: "P7B — Hero variant concern: responsive hide show"
+    status: pending
   - id: p7b-var-cta-group-bindings
-    content: P7B — Hero variant concern: cta group bindings
+    content: "P7B — Hero variant concern: cta group bindings"
+    status: pending
   - id: p7b-var-media-slot
-    content: P7B — Hero variant concern: media slot
+    content: "P7B — Hero variant concern: media slot"
+    status: pending
   - id: verify-p0-1
     content: Verify/reconcile roadmap — PP0-1 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p0-2
     content: Verify/reconcile roadmap — PP0-2 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p0-3
     content: Verify/reconcile roadmap — PP0-3 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p1-1
     content: Verify/reconcile roadmap — PP1-1 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p1-2
     content: Verify/reconcile roadmap — PP1-2 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p1-3
     content: Verify/reconcile roadmap — PP1-3 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p2-1
     content: Verify/reconcile roadmap — PP2-1 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p2-2
     content: Verify/reconcile roadmap — PP2-2 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p2-3
     content: Verify/reconcile roadmap — PP2-3 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p3-1
     content: Verify/reconcile roadmap — PP3-1 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p3-2
     content: Verify/reconcile roadmap — PP3-2 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p4-1
     content: Verify/reconcile roadmap — PP4-1 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p4-2
     content: Verify/reconcile roadmap — PP4-2 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p5-1
     content: Verify/reconcile roadmap — PP5-1 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p5-2
     content: Verify/reconcile roadmap — PP5-2 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p6-1
     content: Verify/reconcile roadmap — PP6-1 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p6-2
     content: Verify/reconcile roadmap — PP6-2 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p8-1
     content: Verify/reconcile roadmap — PP8-1 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p8-2
     content: Verify/reconcile roadmap — PP8-2 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p9-1
     content: Verify/reconcile roadmap — PP9-1 status vs implementation (close or update doc).
+    status: pending
   - id: verify-p9-2
     content: Verify/reconcile roadmap — PP9-2 status vs implementation (close or update doc).
+    status: pending
   - id: p6-spot-homepage
-    content: P6 — publish/cache spot check: homepage
+    content: "P6 — publish/cache spot check: homepage"
+    status: pending
   - id: p6-spot-cms-page
-    content: P6 — publish/cache spot check: cms-page
+    content: "P6 — publish/cache spot check: cms-page"
+    status: pending
   - id: p6-spot-storefront-shell
-    content: P6 — publish/cache spot check: storefront-shell
+    content: "P6 — publish/cache spot check: storefront-shell"
+    status: pending
   - id: p6-spot-tenant-nav
-    content: P6 — publish/cache spot check: tenant-nav
+    content: "P6 — publish/cache spot check: tenant-nav"
+    status: pending
+isProject: false
 ---
-
-
 
 # Builder roadmap — unified execution plan (2026)
 
