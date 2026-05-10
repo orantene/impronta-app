@@ -19,6 +19,17 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "spacer",
 ];
 
+/** §7A parent/child governance — Card (typography + media + actions; no layout shells inside). */
+const CARD_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
+  "heading",
+  "paragraph",
+  "button",
+  "image",
+];
+
+/** §7A parent/child governance — CTA group is buttons only. */
+const CTA_GROUP_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = ["button"];
+
 export type BuilderNodeChildrenPolicy =
   | { type: "none" }
   | { type: "any" }
@@ -277,20 +288,20 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
     card: {
       kind: "card",
       label: "Card",
-      description: "Bounded surface for grouped content and nested layout.",
+      description: "Bounded surface for heading, copy, image, and buttons — no nested containers.",
       children: {
         type: "allow_list",
-        kinds: [...COMPOSABLE_LAYOUT_CHILD_KINDS],
+        kinds: [...CARD_CHILD_KINDS],
       },
       propsSchema: cardPropsSchema,
     },
     cta_group: {
       kind: "cta_group",
       label: "CTA group",
-      description: "Row or stack of headings, copy, and action buttons.",
+      description: "Inline primary and secondary actions (buttons only).",
       children: {
         type: "allow_list",
-        kinds: [...COMPOSABLE_LAYOUT_CHILD_KINDS],
+        kinds: [...CTA_GROUP_CHILD_KINDS],
       },
       propsSchema: ctaGroupPropsSchema,
     },

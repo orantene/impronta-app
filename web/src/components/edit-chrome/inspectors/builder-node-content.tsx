@@ -1452,9 +1452,9 @@ function contentHint(node: Exclude<BuilderNode, { kind: "section" }>): string {
     case "masonry":
       return "Masonry content is managed through its child blocks. Add images or cards in Structure; columns and gap live in Layout.";
     case "card":
-      return "Card blocks wrap nested content in a bounded surface. Edit children in Structure; pick surface style in Layout.";
+      return "Card blocks wrap heading, paragraph, image, and button children — not nested layout shells. Edit blocks in Structure; surface style in Layout.";
     case "cta_group":
-      return "CTA groups align buttons and supporting copy. Add or reorder actions in Structure; row vs stack lives in Layout.";
+      return "CTA groups hold buttons only. Add headline or body copy as sibling blocks outside this group (e.g. in a container). Row vs stack lives in Layout.";
     case "divider":
       return "Divider blocks render a horizontal rule. Use Layout to switch tone and Style for spacing.";
     case "spacer":
