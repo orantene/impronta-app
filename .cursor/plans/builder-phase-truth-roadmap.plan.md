@@ -950,11 +950,13 @@ Minimum sequence on a **registered host**:
 
 **Why:** Starting from Hero or templates lets the team slide back into **template wiring** instead of **real architecture**.
 
-### 7A Gate 0 — before P7A-1 (no Add Element UI yet)
+### 7A Gate 0 — persistence checklist (historical discipline)
 
-**Do not build the Add Element / library picker UI until P7A-0’s persistence contract is verified.** Otherwise UI work discovers persistence failures late.
+**Originally:** Library UI (**P7A-1**) was intentionally **after** **P7A-0** so insert flows did not land on broken persistence.
 
-Before **P7A-1**, confirm in code/review:
+**Today:** **P7A-0** paths and **P7A-1** UI are **in the codebase**. Treat the bullets below as **regression / review criteria** when changing draft, publish, or tree validation — not as a blocker to new UI work.
+
+When auditing or refactoring persistence, confirm:
 
 - **Persisted node shape** for library inserts (IDs, types, parent pointers).
 - **Allowed parent/child rules** (see governance table below).
@@ -1104,14 +1106,13 @@ Default-inserted elements should look **polished**, not “developer playground.
 
 ## Planning freeze
 
-After this roadmap update, **no new broad builder planning documents** should be created until **P7A-0** and **P7A-1** have **shipped**, or **implementation exposes a real blocker** that requires a scoped doc.
+After this roadmap update, **no new broad builder planning documents** should be created until **P7A-2…4 are accepted** against the **7A Reality Test** (with demo evidence) **or** **implementation exposes a real blocker** that requires a scoped doc.
 
 **Allowed next work:**
 
 - Impronta **QA baseline** cleanup (non-destructive where possible).
-- **Core loop** verification (add → edit → reorder → publish → reopen).
-- **P7A-0** persistence contract + **Gate 0**.
-- **P7A-1** Add Element UI.
+- **Core loop** verification (add → edit → reorder → publish → reopen) on a **registered host**.
+- **P7A-2 / P7A-3 / P7A-4** — honest selection, reorder parity, full round-trip acceptance (fix QA gaps).
 - **Critical bug fixes** discovered during those tasks.
 
 **Not allowed:**
@@ -1121,19 +1122,18 @@ After this roadmap update, **no new broad builder planning documents** should be
 - New **“future builder”** essays **without** matching implementation progress.
 - **Hero-only composition** pretending to be **Element Library MVP** — Hero is **P7B**, **after** **7A** primitives exist.
 
-**Why:** Otherwise agents (and humans) can keep producing excellent documents while the **element library still does not exist.**
+**Why:** Otherwise agents (and humans) can keep producing excellent documents while **builder QA and acceptance** stall.
 
 ---
 
 ## Current execution priority (final order)
 
 1. Stabilize **Impronta QA baseline** (non-destructive where possible).
-2. Verify **add → edit → reorder → publish → reopen** on a clean state.
-3. **Execute P7A-0** — persistence contract + **Gate 0** verified (**no P7A-1 until then**).
-4. **Execute P7A-1** — Add Element UI + library UX standard.
-5. Produce **first Blank Section demo evidence** (**7A Demo Evidence** above — screenshots or recording).
-6. Convert **Hero under P7B only after** 7A primitives pass **7A Reality Test** + evidence.
-7. Resume **Phase 6 shell** / header-footer parity **without** a parallel fake component model.
+2. **Registered-host proof:** **add → edit → reorder → publish → hard refresh → reopen** + **7A Demo Evidence** (screens or recording).
+3. **Accept P7A-2 / P7A-3 / P7A-4** — honest selection, navigator/canvas reorder parity, persisted round-trip — against **7A Reality Test**; fix gaps QA finds.
+4. **P7A-5…7** as needed — kill switch hardening, regression hooks, doc truth.
+5. Convert **Hero under P7B only after** 7A is **accepted** with evidence (not “code exists”).
+6. Resume **Phase 6 shell** / header-footer parity **without** a parallel fake component model.
 
 **Product direction:** **Simple Mode** = premium ready-made sections and starters. **Advanced Mode** = **Blank Section** + **Element Library** + **real persisted elements**.
 
@@ -1363,7 +1363,7 @@ Use task IDs in commits/PR titles when helpful (e.g. `feat(edit-chrome): P3-2 dr
 | Task ID | Task | Files likely involved | Risk | Acceptance | Test |
 |---------|------|------------------------|------|------------|------|
 | P7A-0 | Builder-node schema + persistence contracts + **P7A-0 deliverable format** (concrete spec, not notes) | builder-node, edit-mode actions, migrations as needed | **High** | Deliverable + acceptance met; **Proceed / Blocked** close-out | Tenant isolation + typecheck |
-| P7A-1 | Element registry / library UI foundation (blank section → pick element) — **after Gate 0** | composition UI, library chrome | **High** | Insert creates **persisted** nodes; **no P7A-1 until P7A-0 contract verified** | Manual |
+| P7A-1 | Element registry / library UI foundation (blank section → pick element) — **shipped** | composition UI, library chrome, [`mvp-allow-list.ts`](../web/src/lib/site-admin/builder-node/mvp-allow-list.ts) | **High** | Insert creates **persisted** nodes; **product acceptance** = passes **7A Reality Test** on registered host | Manual + tests |
 | P7A-2 | Slot targeting + honest selection for library nodes | inspector, selection-layer, navigator | **High** | Inspector matches **actual** tree | Manual |
 | P7A-3 | Reorder / move parity (navigator + canvas) | edit-context, selection-layer | **High** | Same order both surfaces | Manual |
 | P7A-4 | Draft → publish → hard refresh → reopen | composition actions, page reads | **High** | Tree matches persisted snapshot | Manual |
@@ -1493,6 +1493,7 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 | Date | Change |
 |------|--------|
+| 2026-05-09 | **Gate 0 + planning freeze + §7A task table:** Gate 0 reframed as **post-ship regression checklist**; planning freeze / **Current execution priority** / **P7A-1** row aligned with **P7A-0+P7A-1 in code** and **next = QA + P7A-2…4 acceptance**. Canonical: [builder-execution-plan-2026.md](../web/docs/builder-execution-plan-2026.md). |
 | 2026-05-09 | **§8 + Phase 7 implementation row:** Reflect **P7A-0 / P7A-1 landed in code**; next = human QA + **P7A-2…4** acceptance vs **7A Reality Test** (not Gate 0 blocking P7A-1). Canonical: [builder-execution-plan-2026.md](../web/docs/builder-execution-plan-2026.md). |
 | 2026-05-09 | **Planning freeze** + **7A Demo Evidence** (screens/recording required) + **7A Design Guardrails** (premium defaults); **final execution order** tightened; no broad planning until **P7A-0 + P7A-1** ship or blocker. |
 | 2026-05-09 | **Phase 7A guardrails:** **7A Reality Test** table; **Blank Section first proof**; **Gate 0 before P7A-1**; **Inspector MVP** matrix; **parent/child governance** table; **no legacy migration in 7A**; **feature flag required**; **Element Library UX standard**; **Simple Mode stays default**. Current execution priority → **P7A-0 then P7A-1**; stop broad planning. |
