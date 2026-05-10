@@ -226,6 +226,11 @@ export interface EditContextValue {
    * future nested nodes can route through the same API without forking state.
    */
   selectBuilderNode: (nodeId: string) => void;
+  /**
+   * Jump the editor to a section by cms id — same targeting as a navigator row
+   * when the section root builder node is known (inspector + canvas parity).
+   */
+  focusSectionForEdit: (sectionId: string) => void;
   copiedBuilderNodeKind: BuilderNode["kind"] | null;
   builderBlockPresets: ReadonlyArray<BuilderBlockPreset>;
   getCopiedBuilderNodePastePreview: (
@@ -1900,6 +1905,15 @@ export function EditProvider({
       setSelectedBuilderNodeIdOverride(nodeId);
     },
     [sectionIdByBuilderNodeId, setSelectedSectionId],
+  );
+
+  const focusSectionForEdit = useCallback(
+    (sectionId: string) => {
+      const rootId = builderNodeIdBySectionId.get(sectionId);
+      if (rootId) selectBuilderNode(rootId);
+      else setSelectedSectionId(sectionId);
+    },
+    [builderNodeIdBySectionId, selectBuilderNode, setSelectedSectionId],
   );
 
   const applyComposition = useCallback((data: CompositionData) => {
@@ -3938,6 +3952,7 @@ export function EditProvider({
       getAllSelectedIds,
       selectedBuilderNodeId,
       selectBuilderNode,
+      focusSectionForEdit,
       copiedBuilderNodeKind: copiedBuilderNode?.kind ?? null,
       builderBlockPresets,
       getCopiedBuilderNodePastePreview,
@@ -4086,6 +4101,7 @@ export function EditProvider({
       getAllSelectedIds,
       selectedBuilderNodeId,
       selectBuilderNode,
+      focusSectionForEdit,
       copiedBuilderNode,
       setSelectedSectionId,
       hoveredSectionId,

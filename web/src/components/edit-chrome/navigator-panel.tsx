@@ -192,6 +192,7 @@ export function NavigatorPanel() {
     selectedBuilderNodeId,
     setSelectedSectionId,
     selectBuilderNode,
+    focusSectionForEdit,
     additionalSelectedIds,
     extendSelection,
     toggleSelection,
@@ -695,9 +696,9 @@ export function NavigatorPanel() {
     (sectionId: string) => {
       const row = flat.find((r) => r.ref.sectionId === sectionId);
       if (row) selectNavigatorSectionRow(row);
-      else setSelectedSectionId(sectionId);
+      else focusSectionForEdit(sectionId);
     },
-    [flat, selectNavigatorSectionRow, setSelectedSectionId],
+    [flat, selectNavigatorSectionRow, focusSectionForEdit],
   );
 
   const onDragStart = useCallback(
