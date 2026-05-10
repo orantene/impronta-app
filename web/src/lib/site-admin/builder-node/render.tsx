@@ -95,6 +95,12 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--divider[data-builder-divider-tone="muted"]{background:rgba(18,18,18,0.09)}
 .site-builder-node--masonry{width:100%;max-width:1120px;margin:0 auto;column-count:var(--bn-columns,3);column-gap:var(--bn-gap,1.25rem)}
 .site-builder-node--masonry>*{break-inside:avoid;margin-bottom:var(--bn-gap,1.25rem)}
+.site-builder-node--card{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);padding:1.25rem;box-sizing:border-box}
+.site-builder-node--card[data-builder-card-variant="elevated"]{background:rgba(255,255,255,0.96);box-shadow:0 10px 28px rgba(18,18,18,0.08)}
+.site-builder-node--card[data-builder-card-variant="outline"]{background:#fff;border:1px solid rgba(18,18,18,0.14)}
+.site-builder-node--card[data-builder-card-variant="ghost"]{background:rgba(246,241,232,0.55)}
+.site-builder-node--cta-group{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:var(--bn-gap,1rem);box-sizing:border-box}
+.site-builder-node--cta-group[data-builder-cta-layout="stack"]{flex-direction:column;align-items:stretch}
 .site-builder-node--live-talent-grid{display:grid;grid-template-columns:repeat(var(--bn-live-columns,4),minmax(0,1fr));gap:var(--bn-gap,1.25rem);width:100%}
 .site-builder-node--live-chip-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:0.75rem;width:100%}
 .site-builder-node--live-chip{display:inline-flex;align-items:center;gap:0.5rem;border:1px solid rgba(18,18,18,0.16);background:#fff;color:#111;padding:0.75rem 1rem;text-decoration:none}
@@ -513,6 +519,43 @@ function splitStyle(node: Extract<BuilderNode, { kind: "split" }>): CSSPropertie
   };
 }
 
+function cardStyle(node: Extract<BuilderNode, { kind: "card" }>): CSSProperties {
+  return {
+    ...builderNodeStyleVars({
+      "--bn-gap": GAP_BY_SIZE.m,
+    }),
+    ...sharedNodeStyle(node.props.style),
+  };
+}
+
+function ctaGroupStyle(node: Extract<BuilderNode, { kind: "cta_group" }>): CSSProperties {
+  const alignMap = {
+    start: "flex-start",
+    center: "center",
+    end: "flex-end",
+    stretch: "stretch",
+  } as const;
+  const layout = node.props.layout ?? "row";
+  const align = node.props.align ?? "center";
+  const base = {
+    ...builderNodeStyleVars({
+      "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
+    }),
+    ...sharedNodeStyle(node.props.style),
+  };
+  if (layout === "stack") {
+    return {
+      ...base,
+      alignItems: align === "stretch" ? "stretch" : alignMap[align],
+    };
+  }
+  return {
+    ...base,
+    justifyContent: alignMap[align === "stretch" ? "center" : align],
+    alignItems: "center",
+  };
+}
+
 function buttonStateAttrs(node: Extract<BuilderNode, { kind: "button" }>) {
   return {
     "data-builder-button-tone": node.props.tone ?? "primary",
@@ -712,6 +755,34 @@ function renderBuilderNode(
             }),
             ...sharedNodeStyle(node.props.style),
           }}
+        >
+          {renderChildren(node, options)}
+        </div>
+      );
+    case "card":
+      return (
+        <div
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-builder-card-variant={node.props.variant ?? "elevated"}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--card"
+          style={cardStyle(node)}
+        >
+          {renderChildren(node, options)}
+        </div>
+      );
+    case "cta_group":
+      return (
+        <div
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          data-builder-cta-layout={node.props.layout ?? "row"}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--cta-group"
+          style={ctaGroupStyle(node)}
         >
           {renderChildren(node, options)}
         </div>

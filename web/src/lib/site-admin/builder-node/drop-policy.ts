@@ -15,6 +15,8 @@ export type BuilderDropDecision =
 const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   "section",
   "container",
+  "card",
+  "cta_group",
   "split",
   "accordion",
   "tabs",

@@ -1,8 +1,10 @@
 import type {
   BuilderAccordionItemNode,
   BuilderAccordionNode,
+  BuilderCardNode,
   BuilderCarouselNode,
   BuilderContainerNode,
+  BuilderCtaGroupNode,
   BuilderDividerNode,
   BuilderNode,
   BuilderNodeKind,
@@ -16,6 +18,8 @@ import type {
 
 export type BuilderNodeLayoutHealthNode =
   | BuilderContainerNode
+  | BuilderCardNode
+  | BuilderCtaGroupNode
   | BuilderSplitNode
   | BuilderAccordionNode
   | BuilderTabsNode
@@ -57,6 +61,8 @@ export function isBlockingLayoutFindingId(id: string): boolean {
 function isLayoutHealthNode(node: BuilderNode): node is BuilderNodeLayoutHealthNode {
   return (
     node.kind === "container" ||
+    node.kind === "card" ||
+    node.kind === "cta_group" ||
     node.kind === "split" ||
     node.kind === "accordion" ||
     node.kind === "tabs" ||

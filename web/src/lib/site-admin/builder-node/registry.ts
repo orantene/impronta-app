@@ -1,6 +1,24 @@
 import { z } from "zod";
 import type { BuilderNodeKind } from "./types";
 
+/** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
+const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
+  "container",
+  "card",
+  "cta_group",
+  "split",
+  "accordion",
+  "tabs",
+  "carousel",
+  "masonry",
+  "heading",
+  "paragraph",
+  "button",
+  "image",
+  "divider",
+  "spacer",
+];
+
 export type BuilderNodeChildrenPolicy =
   | { type: "none" }
   | { type: "any" }
@@ -222,6 +240,18 @@ const dividerPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const cardPropsSchema = z.object({
+  variant: z.enum(["elevated", "outline", "ghost"]).optional(),
+  style: builderNodeStyleSchema,
+});
+
+const ctaGroupPropsSchema = z.object({
+  layout: z.enum(["row", "stack"]).optional(),
+  gap: z.enum(["s", "m", "l"]).optional(),
+  align: z.enum(["start", "center", "end", "stretch"]).optional(),
+  style: builderNodeStyleSchema,
+});
+
 export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNodeRegistryEntry>> =
   {
     section: {
@@ -230,20 +260,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Reference to a section-composition slot entry.",
       children: {
         type: "allow_list",
-        kinds: [
-          "container",
-          "split",
-          "accordion",
-          "tabs",
-          "carousel",
-          "masonry",
-          "heading",
-          "paragraph",
-          "button",
-          "image",
-          "divider",
-          "spacer",
-        ],
+        kinds: [...COMPOSABLE_LAYOUT_CHILD_KINDS],
       },
       propsSchema: sectionPropsSchema,
     },
@@ -253,22 +270,29 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Layout container for nested nodes.",
       children: {
         type: "allow_list",
-        kinds: [
-          "container",
-          "split",
-          "accordion",
-          "tabs",
-          "carousel",
-          "masonry",
-          "heading",
-          "paragraph",
-          "button",
-          "image",
-          "divider",
-          "spacer",
-        ],
+        kinds: [...COMPOSABLE_LAYOUT_CHILD_KINDS],
       },
       propsSchema: containerPropsSchema,
+    },
+    card: {
+      kind: "card",
+      label: "Card",
+      description: "Bounded surface for grouped content and nested layout.",
+      children: {
+        type: "allow_list",
+        kinds: [...COMPOSABLE_LAYOUT_CHILD_KINDS],
+      },
+      propsSchema: cardPropsSchema,
+    },
+    cta_group: {
+      kind: "cta_group",
+      label: "CTA group",
+      description: "Row or stack of headings, copy, and action buttons.",
+      children: {
+        type: "allow_list",
+        kinds: [...COMPOSABLE_LAYOUT_CHILD_KINDS],
+      },
+      propsSchema: ctaGroupPropsSchema,
     },
     split: {
       kind: "split",
@@ -284,6 +308,8 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
           "divider",
           "spacer",
           "container",
+          "card",
+          "cta_group",
           "carousel",
           "masonry",
         ],
@@ -306,7 +332,17 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Single accordion item with nested content.",
       children: {
         type: "allow_list",
-        kinds: ["heading", "paragraph", "button", "image", "divider", "spacer", "container"],
+        kinds: [
+          "heading",
+          "paragraph",
+          "button",
+          "image",
+          "divider",
+          "spacer",
+          "container",
+          "card",
+          "cta_group",
+        ],
       },
       propsSchema: accordionItemPropsSchema,
     },
@@ -326,7 +362,17 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Single tab panel with nested content.",
       children: {
         type: "allow_list",
-        kinds: ["heading", "paragraph", "button", "image", "divider", "spacer", "container"],
+        kinds: [
+          "heading",
+          "paragraph",
+          "button",
+          "image",
+          "divider",
+          "spacer",
+          "container",
+          "card",
+          "cta_group",
+        ],
       },
       propsSchema: tabPanelPropsSchema,
     },
@@ -336,7 +382,16 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Carousel/slider container.",
       children: {
         type: "allow_list",
-        kinds: ["image", "heading", "paragraph", "button", "divider", "container"],
+        kinds: [
+          "image",
+          "heading",
+          "paragraph",
+          "button",
+          "divider",
+          "container",
+          "card",
+          "cta_group",
+        ],
       },
       propsSchema: carouselPropsSchema,
     },
@@ -346,7 +401,16 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Masonry grid container.",
       children: {
         type: "allow_list",
-        kinds: ["image", "heading", "paragraph", "button", "divider", "container"],
+        kinds: [
+          "image",
+          "heading",
+          "paragraph",
+          "button",
+          "divider",
+          "container",
+          "card",
+          "cta_group",
+        ],
       },
       propsSchema: masonryPropsSchema,
     },

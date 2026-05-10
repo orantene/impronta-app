@@ -238,6 +238,27 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
         kind: "spacer",
         props: { size: "m" },
       };
+    case "card":
+      return {
+        id: makeId("card"),
+        kind: "card",
+        props: { variant: "elevated" },
+        children: [
+          createHeading("Card title", 3),
+          createParagraph("Supporting copy for this card."),
+          createButton("Primary action"),
+        ],
+      };
+    case "cta_group":
+      return {
+        id: makeId("cta_group"),
+        kind: "cta_group",
+        props: { layout: "row", gap: "m", align: "center" },
+        children: [
+          createButton("Primary", "/", "primary"),
+          createButton("Secondary", "/", "secondary"),
+        ],
+      };
   }
 }
 

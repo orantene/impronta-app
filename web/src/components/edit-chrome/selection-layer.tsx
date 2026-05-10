@@ -3065,6 +3065,8 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
     case "tab_panel":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
     case "container":
+    case "card":
+    case "cta_group":
     case "split":
     case "accordion":
     case "tabs":

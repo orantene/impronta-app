@@ -645,6 +645,8 @@ type StandaloneStyleClipboard = {
 function standaloneNodeLabel(node: StandaloneStyleNode): string {
   if (node.kind === "accordion_item") return "Accordion item";
   if (node.kind === "tab_panel") return "Tab panel";
+  if (node.kind === "card") return "Card";
+  if (node.kind === "cta_group") return "CTA group";
   return node.kind
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -902,7 +904,12 @@ function standaloneStylePresetsForNode(
     ];
   }
 
-  if (node.kind === "container" || node.kind === "split") {
+  if (
+    node.kind === "container" ||
+    node.kind === "split" ||
+    node.kind === "card" ||
+    node.kind === "cta_group"
+  ) {
     return [
       {
         id: "clean-stack",
@@ -3957,7 +3964,9 @@ export function StylePanel({
               />
             </div>
 
-            {["container", "split"].includes(selectedStandaloneStyleNode.kind) ? (
+            {["container", "split", "card", "cta_group"].includes(
+              selectedStandaloneStyleNode.kind,
+            ) ? (
               <div className="flex flex-col gap-1.5" data-builder-node-style-control="background">
                 <span className={FIELD_LABEL}>Background</span>
                 <Segmented
@@ -3970,7 +3979,7 @@ export function StylePanel({
               </div>
             ) : null}
 
-            {["container", "split", "button", "image"].includes(
+            {["container", "split", "card", "cta_group", "button", "image"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
               <div className="flex flex-col gap-1.5" data-builder-node-style-control="radius">
@@ -4008,7 +4017,7 @@ export function StylePanel({
               </div>
             </div>
 
-            {["container", "split", "button"].includes(
+            {["container", "split", "card", "cta_group", "button"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
               <div className="grid grid-cols-2 gap-2">

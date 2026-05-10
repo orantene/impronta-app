@@ -8,6 +8,8 @@ import type { BuilderNodeKind } from "./types";
 export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "section",
   "container",
+  "card",
+  "cta_group",
   "split",
   "heading",
   "paragraph",
@@ -23,6 +25,8 @@ export const MVP_ROADMAP_LABEL_BY_KIND: Readonly<
 > = {
   section: "Blank / custom section shell",
   container: "Container",
+  card: "Card",
+  cta_group: "CTA group",
   split: "Columns (split)",
   heading: "Heading",
   paragraph: "Paragraph",
@@ -59,6 +63,8 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
   {
     section: "layout",
     container: "layout",
+    card: "layout",
+    cta_group: "actions",
     split: "layout",
     carousel: "layout",
     masonry: "layout",
@@ -88,12 +94,13 @@ export function elementLibraryPrimaryLabel(kind: BuilderNodeKind): string {
 }
 
 /**
- * Roadmap / marketing terms that are not their own `BuilderNodeKind` (e.g. “Card”, “CTA group”).
- * Concatenated into element-library search haystacks so operators find primitives by intent.
+ * Extra search tokens for element-library haystacks (supplements label + description).
  */
 export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   const extras: Partial<Record<BuilderNodeKind, string>> = {
-    container: "card cta group stack band wrapper content block panel",
+    container: "stack band wrapper content block panel",
+    card: "tile panel boxed elevated outline band content",
+    cta_group: "cta call to action buttons row actions conversion",
     split: "columns column grid two side by side card row",
     button: "cta call to action link",
     heading: "title headline",

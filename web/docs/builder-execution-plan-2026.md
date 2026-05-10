@@ -65,9 +65,9 @@ Claiming **7A** requires real library-backed **persisted** elements — not any 
 
 Lock first-ship scope to:
 
-**In MVP (kinds):** Blank Section, Container, Columns (`split`), Heading, Paragraph, Button, Image, Divider, Spacer — each maps to a real `BuilderNodeKind` and persisted tree node.
+**In MVP (kinds):** Blank Section, Container, **Card** (`card`), **CTA group** (`cta_group`), Columns (`split`), Heading, Paragraph, Button, Image, Divider, Spacer — each maps to a real `BuilderNodeKind` and persisted tree node.
 
-**Product labels (same MVP):** “Card” and “CTA group” are **library discoverability** targets (search aliases in [`elementLibrarySearchExtraTerms`](../src/lib/site-admin/builder-node/mvp-allow-list.ts)) and are composed from **container / columns / button** until dedicated kinds ship.
+**Composition note:** Container and Columns remain general-purpose layout primitives; Card and CTA group add **named surfaces** (bounded panel + inline actions row) while staying nestable like containers.
 
 **Not in MVP:** Video, Forms, Slider items, dynamic repeater cards, arbitrary custom code — pull forward only by explicit product call.
 
@@ -682,7 +682,7 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 | Date | Change |
 |------|--------|
-| 2026-05-09 | **Allow-list honesty:** “Card” / “CTA group” documented as discoverability + composition from shipped kinds (search aliases), not separate `BuilderNodeKind`s yet — aligns this plan with [`mvp-allow-list.ts`](../src/lib/site-admin/builder-node/mvp-allow-list.ts) + [`types.ts`](../src/lib/site-admin/builder-node/types.ts). |
+| 2026-05-09 | **7A kinds — Card + CTA group:** [`card` / `cta_group`](../src/lib/site-admin/builder-node/types.ts) registered in [`registry.ts`](../src/lib/site-admin/builder-node/registry.ts), [`createBuilderNode`](../src/lib/site-admin/builder-node/create.ts) defaults, [`render.tsx`](../src/lib/site-admin/builder-node/render.tsx), Layout tab ([`layout-panel.tsx`](../src/components/edit-chrome/inspectors/layout-panel.tsx)), MVP catalog ([`mvp-allow-list.ts`](../src/lib/site-admin/builder-node/mvp-allow-list.ts)). |
 | 2026-05-09 | **Element library search aliases:** [`elementLibrarySearchExtraTerms`](../src/lib/site-admin/builder-node/mvp-allow-list.ts) (card/cta/columns/…) wired into [`ElementLibraryInsertPicker`](../src/components/edit-chrome/element-library-insert-picker.tsx) haystack — roadmap labels without new node kinds. |
 | 2026-05-09 | **Publish preflight (Free):** [`runPublishPreflight`](../src/lib/site-admin/edit-mode/publish-preflight-action.ts) compares draft nested builder-node ids vs last published composition **`published_homepage_snapshot` / `published_page_snapshot`** **per CMS section id** via [`collectFreePlanPublishNestedViolations`](../src/lib/site-admin/builder-node/free-plan-builder-tree-guard.ts). Homepage: locale only; **inner pages:** [`PublishPreflight`](../src/components/edit-chrome/PublishPreflight.tsx) passes `pageId`. Skips when that page was never published. |
 | 2026-05-09 | **Defense in depth (Free vs Advanced):** [`enforceFreePlanNestedBuilderDraftGuard`](../src/lib/site-admin/server/free-plan-draft-save-guard.ts) rejects draft saves that introduce **new nested builder-node ids** vs the prior draft revision (mirrors client insert/paste/duplicate); uses [`loadResolvedDraftBuilderTreeForPageVersion`](../src/lib/site-admin/server/draft-revision-builder-tree.ts) + [`assertFreePlanAllowsNestedBuilderMutation`](../src/lib/site-admin/builder-node/free-plan-builder-tree-guard.ts). Wired into [`saveHomepageDraftComposition`](../src/lib/site-admin/server/homepage.ts) + non-homepage [`saveHomepageCompositionAction`](../src/lib/site-admin/edit-mode/composition-actions.ts) (`input.pageId`). |

@@ -34,8 +34,9 @@ test("filterKindsForShippedElementCatalog keeps only shipped kinds", () => {
   );
 });
 
-test("elementLibrarySearchExtraTerms includes roadmap alias keywords", () => {
-  assert.ok(elementLibrarySearchExtraTerms("container").includes("card"));
+test("elementLibrarySearchExtraTerms adds intent keywords per kind", () => {
+  assert.ok(elementLibrarySearchExtraTerms("card").includes("panel"));
+  assert.ok(elementLibrarySearchExtraTerms("cta_group").includes("conversion"));
   assert.ok(elementLibrarySearchExtraTerms("button").includes("cta"));
 });
 

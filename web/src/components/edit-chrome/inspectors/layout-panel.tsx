@@ -34,8 +34,10 @@ import {
 } from "@/lib/site-admin/sections/shared/presentation";
 import type {
   BuilderAccordionNode,
+  BuilderCardNode,
   BuilderCarouselNode,
   BuilderContainerNode,
+  BuilderCtaGroupNode,
   BuilderDividerNode,
   BuilderMasonryNode,
   BuilderNode,
@@ -604,6 +606,8 @@ const RESPONSIVE_SPACING_TARGETS: ReadonlyArray<ResponsiveSpacingTarget> = [
 
 type AdvancedEditableBuilderNode =
   | BuilderContainerNode
+  | BuilderCardNode
+  | BuilderCtaGroupNode
   | BuilderSplitNode
   | BuilderAccordionNode
   | BuilderTabsNode
@@ -636,6 +640,10 @@ function nodeKindLabel(kind: AdvancedEditableBuilderNode["kind"]): string {
   switch (kind) {
     case "container":
       return "Container";
+    case "card":
+      return "Card";
+    case "cta_group":
+      return "CTA group";
     case "split":
       return "Split";
     case "accordion":
@@ -727,6 +735,16 @@ function nodeLayoutResetPatch(
       return {
         columns: 3,
         gap: "m",
+      };
+    case "card":
+      return {
+        variant: undefined,
+      };
+    case "cta_group":
+      return {
+        layout: undefined,
+        gap: undefined,
+        align: undefined,
       };
     case "divider":
       return {
@@ -1468,6 +1486,119 @@ function AdvancedNodeLayoutEditor({
     );
   }
 
+  if (node.kind === "card") {
+    const CARD_VARIANT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+      { value: "elevated", label: "Elevated" },
+      { value: "outline", label: "Outline" },
+      { value: "ghost", label: "Ghost" },
+    ];
+    return (
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="card">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Surface</span>
+          <Segmented
+            fullWidth
+            compact
+            value={node.props.variant ?? "elevated"}
+            onChange={(next) =>
+              onPatch({
+                variant: next === "elevated" ? undefined : (next as "outline" | "ghost"),
+              })
+            }
+            options={CARD_VARIANT_OPTIONS}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (node.kind === "cta_group") {
+    const CTA_LAYOUT_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
+      { value: "row", label: "Row" },
+      { value: "stack", label: "Stack" },
+    ];
+    return (
+      <div className="flex flex-col gap-3" data-builder-node-layout-panel="cta_group">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            data-builder-node-layout-reset=""
+            onClick={resetNodeLayout}
+            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: CHROME.muted,
+              padding: 0,
+            }}
+          >
+            Reset node
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Layout</span>
+            <Segmented
+              fullWidth
+              compact
+              value={node.props.layout ?? "row"}
+              onChange={(next) =>
+                onPatch({
+                  layout: next === "row" ? undefined : (next as "stack"),
+                })
+              }
+              options={CTA_LAYOUT_OPTIONS}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Gap</span>
+            <Segmented
+              fullWidth
+              compact
+              value={node.props.gap ?? "m"}
+              onChange={(next) =>
+                onPatch({
+                  gap: next === "m" ? undefined : (next as "s" | "l"),
+                })
+              }
+              options={NODE_GAP_OPTIONS}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Align</span>
+          <Segmented
+            fullWidth
+            compact
+            value={node.props.align ?? "center"}
+            onChange={(next) =>
+              onPatch({
+                align: next === "center" ? undefined : (next as "start" | "end" | "stretch"),
+              })
+            }
+            options={NODE_ALIGN_OPTIONS}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (node.kind === "divider") {
     const DIVIDER_TONE_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
       { value: "default", label: "Default" },
@@ -1719,6 +1850,8 @@ const {
     if (!resolved) return null;
     switch (resolved.kind) {
       case "container":
+      case "card":
+      case "cta_group":
       case "split":
       case "accordion":
       case "tabs":

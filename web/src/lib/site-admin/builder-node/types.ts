@@ -13,7 +13,9 @@ export type BuilderNodeKind =
   | "button"
   | "image"
   | "divider"
-  | "spacer";
+  | "spacer"
+  | "card"
+  | "cta_group";
 
 export interface BuilderNodeBase {
   id: string;
@@ -221,6 +223,28 @@ export interface BuilderDividerNode extends BuilderNodeBase {
   };
 }
 
+/** Bounded editorial surface (stacked children, variant presets). */
+export interface BuilderCardNode extends BuilderNodeBase {
+  kind: "card";
+  props: {
+    variant?: "elevated" | "outline" | "ghost";
+    style?: BuilderNodeStyle;
+  };
+  children: BuilderNode[];
+}
+
+/** Primary actions row: heading, copy, and button children with row/stack layout. */
+export interface BuilderCtaGroupNode extends BuilderNodeBase {
+  kind: "cta_group";
+  props: {
+    layout?: "row" | "stack";
+    gap?: "s" | "m" | "l";
+    align?: "start" | "center" | "end" | "stretch";
+    style?: BuilderNodeStyle;
+  };
+  children: BuilderNode[];
+}
+
 export type BuilderNode =
   | BuilderSectionNode
   | BuilderContainerNode
@@ -236,6 +260,8 @@ export type BuilderNode =
   | BuilderButtonNode
   | BuilderImageNode
   | BuilderDividerNode
-  | BuilderSpacerNode;
+  | BuilderSpacerNode
+  | BuilderCardNode
+  | BuilderCtaGroupNode;
 
 export type BuilderNodeTree = BuilderNode[];

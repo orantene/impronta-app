@@ -571,6 +571,8 @@ export function BuilderNodeContentInspector({
 
   if (
     node.kind === "container" ||
+    node.kind === "card" ||
+    node.kind === "cta_group" ||
     node.kind === "split" ||
     node.kind === "carousel" ||
     node.kind === "masonry"
@@ -1449,6 +1451,10 @@ function contentHint(node: Exclude<BuilderNode, { kind: "section" }>): string {
       return "Carousel content comes from its nested blocks. Add slides or cards in Structure, then tune autoplay and controls in Layout.";
     case "masonry":
       return "Masonry content is managed through its child blocks. Add images or cards in Structure; columns and gap live in Layout.";
+    case "card":
+      return "Card blocks wrap nested content in a bounded surface. Edit children in Structure; pick surface style in Layout.";
+    case "cta_group":
+      return "CTA groups align buttons and supporting copy. Add or reorder actions in Structure; row vs stack lives in Layout.";
     case "divider":
       return "Divider blocks render a horizontal rule. Use Layout to switch tone and Style for spacing.";
     case "spacer":
@@ -1522,6 +1528,8 @@ function childSecondaryLabel(node: BuilderNode): string {
     case "tab_panel":
       return `${node.children.length} nested block${node.children.length === 1 ? "" : "s"}`;
     case "container":
+    case "card":
+    case "cta_group":
     case "split":
     case "accordion":
     case "tabs":
