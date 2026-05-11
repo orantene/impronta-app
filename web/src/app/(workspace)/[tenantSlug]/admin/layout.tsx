@@ -27,11 +27,11 @@ import {
   loadWebsiteData,
   loadTalentSelfProfile,
   loadTalentInquiries,
-} from "@/app/prototypes/admin-shell/_data-bridge";
+} from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
-import { AdminShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
-import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
+import { AdminShellClient } from "@/components/admin/shell/admin-shell-client";
+import type { WorkspacePage } from "@/components/admin/shell/internal/state";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 import { RealIdentityBanner } from "./_real-identity-banner";
 import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
@@ -169,7 +169,7 @@ export default async function WorkspaceAdminLayout({
         user={{ id: session.user.id, email: session.user.email ?? undefined }}
         metrics={overviewMetrics}
       />
-      <AdminShellPrototypePageClient
+      <AdminShellClient
         tenantSlug={tenantSlug}
         initialPage={initialPage}
         initialBridgeData={{
@@ -198,7 +198,7 @@ export default async function WorkspaceAdminLayout({
       >
         {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}
         {children}
-      </AdminShellPrototypePageClient>
+      </AdminShellClient>
     </>
   );
 }

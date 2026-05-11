@@ -15,7 +15,7 @@ import { getFeeBasisPoints, feePercent } from "@/lib/bookings/commission";
 import { loadTransactionsForTenant } from "@/lib/bookings/transactions";
 
 // Type-only import — `_state.tsx` is "use client"; import type is erased.
-import type { TalentProfile } from "@/app/prototypes/admin-shell/_state";
+import type { TalentProfile } from "@/components/admin/shell/internal/state";
 
 // Site-admin helpers used by loadWebsiteData.
 import { listPagesForStaff } from "@/lib/site-admin/server/pages-reads";

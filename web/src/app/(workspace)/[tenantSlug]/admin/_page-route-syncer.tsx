@@ -15,11 +15,11 @@
  */
 
 import { useEffect } from "react";
-import { useProto } from "@/app/prototypes/admin-shell/_state";
-import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
+import { useAdminShell } from "@/components/admin/shell/internal/state";
+import type { WorkspacePage } from "@/components/admin/shell/internal/state";
 
 export function PageRouteSyncer({ page }: { page: WorkspacePage }) {
-  const { setPage } = useProto();
+  const { setPage } = useAdminShell();
 
   useEffect(() => {
     setPage(page);

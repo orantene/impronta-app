@@ -5,7 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
 // Type-only import — `_state.tsx` is "use client"; import type is erased.
-import type { TalentProfile } from "@/app/prototypes/admin-shell/_state";
+import type { TalentProfile } from "@/components/admin/shell/internal/state";
 
 /**
  * _data-bridge/roster.ts — agency roster loaders + derive helpers.

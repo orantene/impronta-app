@@ -15,11 +15,11 @@
  */
 
 import { useEffect } from "react";
-import { useProto } from "@/app/prototypes/admin-shell/_state";
-import type { TalentPage } from "@/app/prototypes/admin-shell/_state";
+import { useAdminShell } from "@/components/admin/shell/internal/state";
+import type { TalentPage } from "@/components/admin/shell/internal/state";
 
 export function TalentPageRouteSyncer({ page }: { page: TalentPage }) {
-  const { setTalentPage } = useProto();
+  const { setTalentPage } = useAdminShell();
 
   useEffect(() => {
     setTalentPage(page);
