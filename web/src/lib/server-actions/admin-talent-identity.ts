@@ -7,8 +7,9 @@
 // Phase 3 (master plan / deep QA fix) — agency-side persistence for the
 // rich talent profile editor's IDENTITY tab.
 //
-// The prototype's IdentityEditor (`web/src/app/prototypes/admin-shell/
-// _drawers.tsx:8619`) edits a `ProfileIdentity` shape. Until this action
+// The admin shell's IdentityEditor
+// (`web/src/components/admin/shell/internal/drawers.tsx`) edits a
+// `ProfileIdentity` shape. Until this action
 // the "Publish" / "Save" button just toasted via useSaveAndClose; nothing
 // reached the database. Filling out a talent's legal name or pronouns and
 // saving was a UI-only illusion.

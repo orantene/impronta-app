@@ -1,6 +1,6 @@
 /**
- * Admin documentation hub — sidebar order and hrefs mirror {@link ADMIN_PROTOTYPE_NAV} Docs group.
- * Single source for docs IA (prototype shell + in-app docs mini-nav).
+ * Admin documentation hub — sidebar order and hrefs mirror the canonical admin nav Docs group.
+ * Single source for docs IA (admin shell + in-app docs mini-nav).
  */
 export const ADMIN_DOCS_NAV_LINKS = [
   { label: "Overview", href: "/admin/docs" },

@@ -70,7 +70,7 @@ function navItem(
   };
 }
 
-export type PrototypeNavGroup = {
+export type AdminNavGroup = {
   id: string;
   label: string;
   items: AdminNavItem[];
@@ -78,7 +78,7 @@ export type PrototypeNavGroup = {
 
 /** Global sidebar order for sorting pinned items. */
 export function flattenAdminNavWithOrder(
-  nav: PrototypeNavGroup[],
+  nav: AdminNavGroup[],
 ): Array<{ item: AdminNavItem; order: number }> {
   let order = 0;
   const out: Array<{ item: AdminNavItem; order: number }> = [];
@@ -90,7 +90,7 @@ export function flattenAdminNavWithOrder(
   return out;
 }
 
-export function adminNavItemMap(nav: PrototypeNavGroup[]): Map<string, AdminNavItem> {
+export function adminNavItemMap(nav: AdminNavGroup[]): Map<string, AdminNavItem> {
   const m = new Map<string, AdminNavItem>();
   for (const group of nav) {
     for (const item of group.items) {
@@ -124,7 +124,7 @@ export function adminNavItemMap(nav: PrototypeNavGroup[]): Map<string, AdminNavI
  * Routes themselves are untouched — only the sidebar surface area is
  * consolidated. Cmd+K palette can still jump anywhere.
  */
-export const ADMIN_NAV: PrototypeNavGroup[] = [
+export const ADMIN_NAV: AdminNavGroup[] = [
   {
     id: "workspace",
     label: "Workspace",

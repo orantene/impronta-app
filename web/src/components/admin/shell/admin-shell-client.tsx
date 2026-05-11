@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Admin Shell — Clickable High-Fidelity Prototype (client shell)
+ * Admin Shell — canonical client shell
  *
- * This file holds the entire client-side prototype tree. It is rendered
+ * This file holds the entire client-side admin shell tree. It is rendered
  * by the server component at `./page.tsx`, which optionally pre-fetches
  * live Impronta data via `_data-bridge.ts` and passes it in as
  * `initialBridgeData`.
@@ -25,7 +25,7 @@
  *   _pages.tsx        — ControlBar, WorkspaceTopbar, all surface/page renderers
  *   _drawers.tsx      — DrawerRoot dispatcher, every drawer body, UpgradeModal
  *
- * Four prototype dimensions (set via the dark ControlBar at the top):
+ * Four dev dimensions (set via the dark ControlBar at the top):
  *   Surface           — workspace · talent · client · platform
  *   Plan              — free · studio · agency · network
  *   Role              — viewer → editor → coordinator → admin → owner
@@ -42,7 +42,7 @@ import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from
 import { usePathname } from "next/navigation";
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
 import {
-  AdminShellProvider, useAdminShell, COLORS, FONTS, RADIUS, TRANSITION, Z, meetsRole,
+  AdminShellProvider, useAdminShell, COLORS, FONTS, TRANSITION, Z, meetsRole,
   WORKSPACE_PAGES, PAGE_META,
   TALENT_PAGE_META, CLIENT_PAGE_META, PLATFORM_PAGE_META,
   FAB_PALETTE_OPEN_EVENT, FAB_PALETTE_CHANGED_EVENT,
@@ -51,7 +51,7 @@ import {
 // FeedbackButton intentionally NOT imported — it was the legacy bottom-right
 // FAB and now lives dormant in _primitives. The new unified BottomActionFab
 // owns that screen position; feedback is reachable via the FAB's Ask AI tab.
-import { Icon, ToastHost, BackToTop, OfflineBanner, ShortcutsModal } from "./internal/primitives";
+import { Icon, ToastHost, BackToTop, OfflineBanner, ShortcutsModal, type AdminShellIconName } from "./internal/primitives";
 import { AdminTour } from "./internal/admin-tour";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./internal/pages";
 import { DrawerRoot, UpgradeModal } from "./internal/drawers";
@@ -217,14 +217,14 @@ function pathIsCanonical(pathname: string | null): boolean {
   return CANONICAL_ROUTE_MATCHERS.some((match) => match(afterTenant));
 }
 
-function ConditionalPrototypeRoot() {
+function ConditionalAdminShellRoot() {
   // usePathname is null during initial server render, then resolves on
   // hydration. Returning null while it's null avoids a flash of the SPA
   // on hard-refresh of a canonical route.
   const pathname = usePathname();
   if (pathname == null) return null;
   if (pathIsCanonical(pathname)) return null;
-  return <PrototypeRoot />;
+  return <AdminShellRoot />;
 }
 
 /**
@@ -267,7 +267,7 @@ export function AdminShellClient({
         >
           {children}
           <RealtimeBridge />
-          <ConditionalPrototypeRoot />
+          <ConditionalAdminShellRoot />
         </AdminShellProvider>
       </Suspense>
     </ErrorBoundary>
@@ -281,8 +281,8 @@ export function AdminShellClient({
  * with `surface="talent"` and the talent-specific page routing. Mounted by
  * `/(workspace)/[tenantSlug]/talent/layout.tsx` after auth + data pre-fetch.
  *
- * The shell renders the full prototype UI (TalentSurface) without the
- * dark prototype ControlBar (which remains dev-only via ?dev=1).
+ * The shell renders the full talent surface without the dark ControlBar
+ * (which remains dev-only via ?dev=1).
  */
 export function TalentShellClient({
   initialBridgeData = null,
@@ -313,14 +313,14 @@ export function TalentShellClient({
         >
           {children}
           <RealtimeBridge />
-          <PrototypeRoot />
+          <AdminShellRoot />
         </AdminShellProvider>
       </Suspense>
     </ErrorBoundary>
   );
 }
 
-function PrototypeRoot() {
+function AdminShellRoot() {
   const defaultShow = useDevControlBar();
   const [showDevBar, setShowDevBar] = useState(defaultShow);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -337,20 +337,6 @@ function PrototypeRoot() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  // 2026 #11 — Service Worker for offline draft persistence. Scoped to
-  // /prototypes/admin-shell so we don't pollute production routes.
-  // Best-effort: registration failures are non-fatal.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!("serviceWorker" in navigator)) return;
-    if (!window.location.pathname.startsWith("/prototypes/admin-shell")) return;
-    navigator.serviceWorker
-      .register("/tulala-prototype-sw.js", { scope: "/prototypes/admin-shell/" })
-      .catch(() => {
-        // SW registration failed — prototype still works, just no offline.
-      });
   }, []);
 
   // Scroll-lock recovery — defends against the "stuck page" bug.
@@ -374,13 +360,13 @@ function PrototypeRoot() {
 
   return (
     <>
-      <ProtoProviderInnerOriginal showDevBar={showDevBar} />
+      <AdminShellContent showDevBar={showDevBar} />
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       {/* Floating toggle — always visible so users can reveal/hide the
-          prototype control bar without touching the URL. */}
+          dev control bar without touching the URL. */}
       <button
         type="button"
-        title={showDevBar ? "Hide prototype controls" : "Show prototype controls"}
+        title={showDevBar ? "Hide dev controls" : "Show dev controls"}
         onClick={() => setShowDevBar((v) => !v)}
         style={{
           position: "fixed",
@@ -514,7 +500,7 @@ function BottomActionFab() {
   // Quick-create + navigate items — surface-specific. The unified palette
   // mixes "create X" actions with "go to Y" jumps in one filterable list,
   // replacing the legacy Cmd-K palette's separate sections.
-  type Item = { id: string; label: string; sub: string; icon: string; shortcut?: string; canDo: boolean; run: () => void };
+  type Item = { id: string; label: string; sub: string; icon: AdminShellIconName; shortcut?: string; canDo: boolean; run: () => void };
   const items: Item[] = (() => {
     if (state.surface === "talent") {
       const create: Item[] = [
@@ -819,7 +805,7 @@ function BottomActionFab() {
                     flexShrink: 0, color: COLORS.ink,
                     boxShadow: selected ? `0 0 0 1px ${COLORS.borderSoft}` : "none",
                   }}>
-                    <Icon name={it.icon as any} size={14} stroke={1.7} />
+                    <Icon name={it.icon} size={14} stroke={1.7} />
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1 }}>
@@ -1076,7 +1062,7 @@ function RecentSection({ title, items }: {
 
 function FabTabButton({ label, icon, active, onClick, accent, badge }: {
   label: string;
-  icon: string;
+  icon: AdminShellIconName;
   active: boolean;
   onClick: () => void;
   accent?: "royal";
@@ -1095,7 +1081,7 @@ function FabTabButton({ label, icon, active, onClick, accent, badge }: {
       display: "inline-flex", alignItems: "center", gap: 5,
       position: "relative",
     }}>
-      <Icon name={icon as any} size={11} stroke={1.7} color={active ? activeFg : COLORS.inkMuted} />
+      <Icon name={icon} size={11} stroke={1.7} color={active ? activeFg : COLORS.inkMuted} />
       {label}
       {badge !== undefined && badge > 0 && (
         <span style={{
@@ -1240,54 +1226,11 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
   );
 }
 
-const SPECULATION_RULES = {
-  prerender: [
-    {
-      where: {
-        and: [
-          { href_matches: "/prototypes/admin-shell*" },
-          { not: { href_matches: "/prototypes/admin-shell?logout*" } },
-        ],
-      },
-      eagerness: "moderate",
-    },
-  ],
-  prefetch: [
-    {
-      where: { href_matches: "/prototypes/admin-shell*" },
-      eagerness: "moderate",
-    },
-  ],
-} as const;
-
-function SpeculationRulesScript() {
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const script = document.createElement("script");
-    script.type = "speculationrules";
-    script.text = JSON.stringify(SPECULATION_RULES);
-    document.head.appendChild(script);
-    return () => {
-      script.remove();
-    };
-  }, []);
-
-  return null;
-}
-
-function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
+function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
   return (
     <>
-        {/* 2026 #7 — Speculation Rules. Tells the browser to prerender
-            same-origin URLs the user is likely to visit next. Targets
-            internal nav links inside the prototype shell. The browser
-            holds prerenders for ~5 minutes; click → instant render with
-            no network or layout cost. Falls back silently on browsers
-            without support. Uses "moderate" eagerness so we prerender
-            on hover/focus rather than every link in viewport. */}
-        <SpeculationRulesScript />
-        {/* Global keyboard-focus styling for the prototype. Scoped via
-            `.tulala-shell` so we don't leak into other prototypes. Uses
+        {/* Global keyboard-focus styling for the admin shell. Scoped via
+            `.tulala-shell` so we don't leak into other surfaces. Uses
             :focus-visible so mouse clicks don't trigger the ring. */}
         <style>{`
           .tulala-shell button:focus-visible,

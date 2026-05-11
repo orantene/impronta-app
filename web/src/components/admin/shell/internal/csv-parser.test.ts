@@ -1,9 +1,9 @@
 /**
  * Unit tests for CSV parser helpers (WS-24.1 first scaffolding).
  *
- * Run with: npx tsx --test src/app/prototypes/admin-shell/_csv-parser.test.ts
+ * Run with: npx tsx --test src/components/admin/shell/internal/csv-parser.test.ts
  *
- * Lives next to the source per the prototype's "no test infra yet"
+ * Lives next to the source per the shell's "no test infra yet"
  * convention — `src/lib/*` does the same. When test count grows,
  * collect into `__tests__/` and add a glob to package.json.
  */

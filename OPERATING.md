@@ -8,12 +8,13 @@ The operating contract for this repo. Every contributor — human or agent — r
 
 ## 1. Trunk
 
-- Trunk is `phase-1`. Every change lands here.
+- Trunk is `stable-work`. Every change lands here.
 - `main` is retained only because Vercel's `link.productionBranch` is stuck on it (Hobby plan). Don't push to `main`. Don't merge into `main`. It is a frozen pointer.
-- Feature branches only when the work is risky enough to want to throw away. Default: commit straight to `phase-1`.
+- `phase-1` is historical and no longer the active trunk. Do not land new work there unless the user explicitly asks for a branch reconciliation.
+- Feature branches only when the work is risky enough to want to throw away. Default: commit straight to `stable-work`.
 - No long-lived branches. >7 days = land it or delete it.
-- Linear history. Rebase or fast-forward. No merge commits to `phase-1`.
-- No `--amend` of pushed commits. No `--force` to `phase-1`. No `--no-verify`.
+- Linear history. Rebase or fast-forward. No merge commits to `stable-work`.
+- No `--amend` of pushed commits. No `--force` to `stable-work`. No `--no-verify`.
 
 ## 2. Environments
 
@@ -29,16 +30,19 @@ The operating contract for this repo. Every contributor — human or agent — r
 ## 3. The deploy ladder
 
 ```
-local → push to phase-1 → Vercel builds preview → (optional) alias to staging.tulala.digital → vercel promote → smoke-test
+local → push to stable-work → Vercel builds preview → (optional) alias to staging.tulala.digital → vercel promote → ghost-domain alias → smoke-test
 ```
 
 1. **Local:** `npm run dev` (port 3000). Add `node scripts/local-host-proxy.mjs 3102 app.local` only if you're testing host routing. If the Next dev server **runs out of heap** while compiling large admin/builder routes (OOM during first `/login` or `?edit=1`), raise the limit temporarily, e.g. `export NODE_OPTIONS='--max-old-space-size=8192'` before `npm run dev`. Treat repeated OOM as a signal to profile bundles—not only a machine setting (human QA BUG-001).
 2. **Pre-commit:** `npm run typecheck && npm run lint`. If you touched middleware / tenant / RLS / server-actions / AI / i18n, also `npm run ci`.
-3. **Push:** to `phase-1`. Commit format `<surface>: <what>` (e.g. `admin/drawer: …`).
+3. **Push:** to `stable-work`. Commit format `<surface>: <what>` (e.g. `admin/drawer: …`).
 4. **Preview:** Vercel auto-builds. The preview URL is in the GitHub commit status.
 5. **Staging (when you want to click through):** `vercel alias set <preview-url> staging.tulala.digital --scope oran-tenes-projects`. Hit `https://staging.tulala.digital/...`.
-6. **Promote (pre-launch — ship straight):** `vercel promote <preview-url> --yes --scope oran-tenes-projects`. The post-deploy GitHub Action re-aliases the two ghost-locked hosts.
-7. **Smoke:** `./scripts/smoke-prod.sh`. Green or roll back.
+6. **Promote (pre-launch — ship straight):** `vercel promote <preview-url> --yes --scope oran-tenes-projects`.
+7. **Ghost-domain alias:** `vercel promote` does not fire the GitHub post-deploy alias workflow. Immediately run:
+   - `vercel alias set <deployment-url> tulala.digital --scope oran-tenes-projects`
+   - `vercel alias set <deployment-url> app.tulala.digital --scope oran-tenes-projects`
+8. **Smoke:** `./scripts/smoke-prod.sh`. Green or roll back.
 
 **Post-launch ("we are live"):** always alias to staging and click through 5–10 critical pages before `vercel promote`.
 
@@ -62,12 +66,12 @@ local → push to phase-1 → Vercel builds preview → (optional) alias to stag
 - Marketing/app/staging hosts: `tenant_id = NULL`, `kind ∈ {marketing, app, hub, subdomain}`.
 - Tenant subdomain/custom hosts: `tenant_id = <uuid>`, `kind ∈ {subdomain, custom}`.
 - Local dev hosts (`app.local`, `marketing.local`, `impronta.local` etc.) are seeded once.
-- Production hosts (`tulala.digital`, `app.tulala.digital`) are NEVER manually `vercel alias set` — they're managed by `vercel promote` + the post-deploy GitHub Action. Only `staging.tulala.digital` is yours to point.
+- Production hosts (`tulala.digital`, `app.tulala.digital`) are ghost-locked and must be re-aliased manually after `vercel promote` unless a GitHub production deployment event already did it. Verify with `./scripts/smoke-prod.sh`.
 
 ## 6. Vercel
 
 - Project `tulala`, team `oran-tenes-projects`, Hobby plan.
-- Push to `phase-1` builds **preview**, not production. Manual `vercel promote` for prod.
+- Push to `stable-work` builds **preview**, not production. Manual `vercel promote` for prod.
 - 9 production env vars set in Vercel dashboard. Updating env: dashboard → Settings → Environment Variables, then update `web/.env.example` in the same commit.
 - No `vercel.json`. All config in dashboard.
 - 2FA on Vercel: enable before launch.

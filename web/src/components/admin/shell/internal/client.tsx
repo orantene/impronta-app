@@ -293,7 +293,7 @@ function ClientFirstRunWizard({ onClose }: { onClose: () => void }) {
 }
 
 function ClientConciergeButton() {
-  const { state, toast, setClientPage } = useAdminShell();
+  const { state, setClientPage } = useAdminShell();
   const [open, setOpen] = useState(false);
   // #29 — Quick-dial menu for premium tier. Tapping the concierge button
   // opens a menu with: WhatsApp coordinator, in-app message, voice call.
@@ -301,7 +301,7 @@ function ClientConciergeButton() {
   return (
     <>
       <button type="button" aria-label="Concierge"
-        onClick={() => isPremium ? setOpen(o => !o) : (toast("Sara is online"), setClientPage("messages"))}
+        onClick={() => isPremium ? setOpen(o => !o) : setClientPage("messages")}
         style={{
           position: "fixed",
           right: 16,
@@ -336,9 +336,9 @@ function ClientConciergeButton() {
             <ConciergeMenuItem icon="💬" label="Message Sara" desc="Direct in-app DM"
               onClick={() => { setOpen(false); setClientPage("messages"); }} />
             <ConciergeMenuItem icon="📱" label="WhatsApp" desc="Premium support line"
-              onClick={() => { setOpen(false); toast("Opening WhatsApp…"); }} />
+              disabled />
             <ConciergeMenuItem icon="📞" label="Call Sara" desc="Quick voice call · &lt; 30s"
-              onClick={() => { setOpen(false); toast("Calling Sara…"); }} />
+              disabled />
           </div>
         </>
       )}
@@ -346,16 +346,28 @@ function ClientConciergeButton() {
   );
 }
 
-function ConciergeMenuItem({ icon, label, desc, onClick }: { icon: string; label: string; desc: string; onClick: () => void }) {
+function ConciergeMenuItem({
+  icon,
+  label,
+  desc,
+  onClick,
+  disabled,
+}: {
+  icon: string;
+  label: string;
+  desc: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <button type="button" onClick={onClick} style={{
+    <button type="button" onClick={onClick} disabled={disabled} title={disabled ? "Coming soon" : undefined} style={{
       width: "100%", padding: "10px 12px", background: "transparent",
-      border: "none", cursor: "pointer", textAlign: "left",
+      border: "none", cursor: disabled ? "not-allowed" : "pointer", textAlign: "left",
       display: "flex", alignItems: "center", gap: 12, borderRadius: 10,
-      fontFamily: FONTS.body,
+      fontFamily: FONTS.body, opacity: disabled ? 0.45 : 1,
     }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.04)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = "rgba(11,11,13,0.04)"; }}
+      onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.background = "transparent"; }}
     >
       <span style={{ fontSize: 18 }}>{icon}</span>
       <div>
@@ -653,7 +665,7 @@ function Grid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto" 
 // client approve/counter without entering the thread for obvious cases.
 // The header is one personal-status line + a single dismissible nag strip.
 function ClientTodayPage() {
-  const { openDrawer, setClientPage, toast } = useAdminShell();
+  const { openDrawer, setClientPage } = useAdminShell();
   const pendingDecisions = RICH_INQUIRIES.filter(
     (i) => i.stage === "offer_pending" && i.offer?.clientApproval === "pending",
   );
@@ -701,13 +713,14 @@ function ClientTodayPage() {
 
       {/* ── Single dismissible nag strip — replaces 3-banner stack. */}
       {showNag && (
-        <button type="button" onClick={() => toast("Verification flow — coming soon")} style={{
-          width: "100%", textAlign: "left", cursor: "pointer",
+        <button type="button" disabled title="Verification flow coming soon" style={{
+          width: "100%", textAlign: "left", cursor: "not-allowed",
           display: "flex", alignItems: "center", gap: 8,
           padding: "8px 12px", marginBottom: 14,
           borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
           background: COLORS.indigoSoft, color: COLORS.indigoDeep,
           fontFamily: FONTS.body, fontSize: 12, fontWeight: 500,
+          opacity: 0.65,
         }}>
           <span aria-hidden style={{ fontSize: 13 }}>✓</span>
           Verify your account to unlock top-tier agencies
@@ -874,7 +887,7 @@ function ClientTodaySection({
  *   - Approve/Counter buttons sit beneath, clearly distinct
  */
 function ClientNeedsYouRow({ inquiry }: { inquiry: RichInquiry }) {
-  const { setClientPage, toast } = useAdminShell();
+  const { setClientPage } = useAdminShell();
   const open = () => {
     const convId = INQUIRY_TO_CONV[inquiry.id];
     if (convId) pinNextConversation(convId);
@@ -911,15 +924,15 @@ function ClientNeedsYouRow({ inquiry }: { inquiry: RichInquiry }) {
       <div style={{
         display: "flex", gap: 8, padding: "0 16px 12px",
       }}>
-        <button type="button" onClick={() => toast("Counter sent")} style={{
+        <button type="button" disabled title="Counter offers coming soon" style={{
           flex: 1, padding: "9px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
           border: `1px solid ${COLORS.border}`, background: "#fff",
-          color: COLORS.ink, cursor: "pointer",
+          color: COLORS.ink, cursor: "not-allowed", opacity: 0.45,
         }}>Counter</button>
-        <button type="button" onClick={() => toast("Offer approved")} style={{
+        <button type="button" disabled title="Offer approval coming soon" style={{
           flex: 1, padding: "9px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
           border: "none", background: COLORS.success, color: "#fff",
-          cursor: "pointer",
+          cursor: "not-allowed", opacity: 0.45,
         }}>Approve</button>
       </div>
     </div>
@@ -1168,15 +1181,11 @@ function LegacyClientInquiryRow({ inquiry }: { inquiry: typeof CLIENT_INQUIRIES[
 type TalentCategory = "all" | "models" | "hosts" | "chefs" | "artists" | "djs" | "photographers" | "performers";
 
 function ClientDiscoverPage() {
-  const { state, openUpgrade, toast, getTrustSummary } = useAdminShell();
+  const { state, openUpgrade, getTrustSummary } = useAdminShell();
   // Discover is a PREMIUM feature — Basic clients see a paywall.
   // Premium tier (= "pro" or higher) gets first access to the full
   // Tulala roster, the AI search engine, and channel selection.
   const isPremium = meetsClientPlan(state.clientPlan, "pro");
-  if (!isPremium) {
-    return <ClientDiscoverPaywall onUpgrade={() => openUpgrade({ feature: "Discover", requiredPlan: "studio", why: "First access to every talent on Tulala plus AI search." })} />;
-  }
-
   const [category, setCategory] = useState<TalentCategory>("all");
   const [subcategory, setSubcategory] = useState<string | null>(null); // child taxonomy id
   const taxonomyParent = TAXONOMY.find(p => p.id === category);
@@ -1205,6 +1214,10 @@ function ClientDiscoverPage() {
     { id: "weekend-hosts", label: "Saturday hosts · Tulum", category: "hosts" as const },
     { id: "private-chefs", label: "Mexican chefs", category: "chefs" as const },
   ];
+
+  if (!isPremium) {
+    return <ClientDiscoverPaywall onUpgrade={() => openUpgrade({ feature: "Discover", requiredPlan: "studio", why: "First access to every talent on Tulala plus AI search." })} />;
+  }
 
   // Filtered roster — by category and search. AI search is mocked
   // (substring + category match); production wires to embeddings.
@@ -1352,10 +1365,10 @@ function ClientDiscoverPage() {
             }}>{s.label}</button>
           );
         })}
-        <button type="button" onClick={() => toast("Saved current filters")} style={{
+        <button type="button" disabled title="Saved searches coming soon" style={{
           padding: "5px 11px", borderRadius: 999,
           border: `1px dashed ${COLORS.border}`, background: "transparent",
-          color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+          color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "not-allowed", opacity: 0.45,
         }}>+ Save current</button>
       </div>
 
@@ -1588,7 +1601,7 @@ function ClientTalentDetailSheet({
   onClose: () => void;
   onInquire: () => void;
 }) {
-  const { toast, getTalentContactGate, canClientContactTalent } = useAdminShell();
+  const { getTalentContactGate, canClientContactTalent } = useAdminShell();
   const rosterId = mapDiscoverToRosterId(talent.id) ?? talent.id;
   // Demo: assume the current client is c1 (Vogue Italia, business_verified).
   // In production this resolves via auth context.
@@ -1644,14 +1657,15 @@ function ClientTalentDetailSheet({
             boxShadow: "0 2px 8px rgba(11,11,13,0.12)",
           }}>✕</button>
           {/* Save */}
-          <button type="button" onClick={() => toast(`Saved ${talent.name}`)} aria-label="Save"
+          <button type="button" disabled title="Saving talent is coming soon" aria-label="Save"
             style={{
               position: "absolute", top: 12, left: 12,
               width: 34, height: 34, borderRadius: "50%",
-              background: "rgba(255,255,255,0.92)", border: "none", cursor: "pointer",
+              background: "rgba(255,255,255,0.92)", border: "none", cursor: "not-allowed",
               display: "flex", alignItems: "center", justifyContent: "center",
               color: COLORS.ink, backdropFilter: "blur(8px)",
               boxShadow: "0 2px 8px rgba(11,11,13,0.12)",
+              opacity: 0.55,
             }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M4 2h8v12l-4-3-4 3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -1795,13 +1809,13 @@ function ClientTalentDetailSheet({
           display: "flex", gap: 8, alignItems: "center",
           flexShrink: 0,
         }}>
-          <button type="button" onClick={() => toast(`Added ${talent.name} to a shortlist`)} style={{
+          <button type="button" disabled title="Saving talent is coming soon" style={{
             padding: "11px 16px", borderRadius: 999,
             border: `1px solid ${COLORS.border}`, background: "#fff",
             color: COLORS.ink,
-            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "not-allowed", opacity: 0.45,
           }}>Save</button>
-          <button type="button" onClick={canContact ? onInquire : () => toast(`${talent.name} accepts inquiries from ${gate === "verified_only" ? "verified clients only" : "trusted clients only"}. Verify your business to send.`)}
+          <button type="button" onClick={canContact ? onInquire : undefined} disabled={!canContact}
             style={{
               flex: 1, padding: "12px 18px", borderRadius: 999,
               border: "none",
@@ -1833,11 +1847,10 @@ function ProfileKv({ label, value }: { label: string; value: string }) {
 }
 
 function ClientChannelPicker({ talent, onClose }: { talent: DiscoverTalent; onClose: () => void }) {
-  const { openDrawer, toast } = useAdminShell();
+  const { openDrawer } = useAdminShell();
   const send = (channel: typeof talent.channels[number]) => {
     onClose();
-    toast(`Sending inquiry via ${channel.name}…`);
-    openDrawer("client-send-inquiry");
+    openDrawer("client-send-inquiry", { channel: channel.name });
   };
   return (
     <div onClick={onClose} style={{
@@ -1924,7 +1937,7 @@ function ClientChannelPicker({ talent, onClose }: { talent: DiscoverTalent; onCl
 }
 
 function DiscoverCard({ talent, onPick }: { talent: DiscoverTalent; onPick?: () => void }) {
-  const { openDrawer, toast } = useAdminShell();
+  const { openDrawer } = useAdminShell();
   const repCount = talent.channels.length;
   const hasFreelance = talent.channels.some(c => c.kind === "freelance");
   const exclusiveAgency = talent.channels.length === 1 && talent.channels[0]?.kind === "agency";
@@ -1996,9 +2009,9 @@ function DiscoverCard({ talent, onPick }: { talent: DiscoverTalent; onPick?: () 
             fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
             background: repTone.bg, color: repTone.fg, lineHeight: 1.4,
           }}>{repLabel}</span>
-          <button type="button" onClick={(e) => { e.stopPropagation(); toast(`Saved ${talent.name}`); }} aria-label="Save" style={{
-            marginLeft: "auto", background: "transparent", border: "none", cursor: "pointer",
-            padding: 0, color: COLORS.inkMuted,
+          <button type="button" disabled title="Saving talent is coming soon" onClick={(e) => e.stopPropagation()} aria-label="Save" style={{
+            marginLeft: "auto", background: "transparent", border: "none", cursor: "not-allowed",
+            padding: 0, color: COLORS.inkMuted, opacity: 0.45,
           }}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M4 2h8v12l-4-3-4 3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -2136,7 +2149,7 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientBookingsPage() {
-  const { openDrawer, toast } = useAdminShell();
+  const { openDrawer } = useAdminShell();
   return (
     <>
       <PageHeader
@@ -2146,10 +2159,10 @@ function ClientBookingsPage() {
           /* #19 — iCal subscribe action. Opens a copyable feed URL.
              Each booking flows into the user's phone calendar with talent,
              location, and call time. */
-          <button type="button" onClick={() => toast("Calendar feed copied — paste into your phone's calendar")} style={{
+          <button type="button" disabled title="Calendar feed coming soon" style={{
             padding: "7px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
             border: `1px solid ${COLORS.border}`, background: "transparent",
-            color: COLORS.ink, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+            color: COLORS.ink, cursor: "not-allowed", display: "inline-flex", alignItems: "center", gap: 6, opacity: 0.45,
           }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <rect x="1.5" y="3" width="11" height="9" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
@@ -2219,7 +2232,7 @@ const INQUIRY_TO_CONV: Record<string, string> = {
 const BOOKING_TO_CONV = INQUIRY_TO_CONV;
 
 function ClientBookingRow({ booking }: { booking: ClientBooking }) {
-  const { setClientPage, openDrawer, toast } = useAdminShell();
+  const { setClientPage, openDrawer } = useAdminShell();
   const open = () => {
     // Route through the unified message shell instead of the legacy drawer.
     // Booked = "coming up" (still editable / cancellable); wrapped/invoiced
@@ -2235,7 +2248,6 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
   const repeat = (e: React.MouseEvent) => {
     e.stopPropagation();
     openDrawer("client-send-inquiry");
-    toast(`Re-booking ${booking.talent} · pre-filled with last brief`);
   };
   return (
     <button
@@ -2301,7 +2313,7 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientSettingsPage() {
-  const { openDrawer, state, toast } = useAdminShell();
+  const { openDrawer, state } = useAdminShell();
   const planMeta = CLIENT_PLAN_META[state.clientPlan];
   const profile = state.clientProfile === "gringo"
     ? { name: "The Gringo", industry: "Personal client", isBusiness: false, photoUrl: "https://i.pravatar.cc/300?img=33" }
@@ -2384,67 +2396,57 @@ function ClientSettingsPage() {
           label="Business details"
           desc="Tax/VAT ID, registered address, business email."
           comingSoon
-          onClick={() => toast("Coming soon — agencies + hubs handle this for you for now")}
         />
         <ClientSettingsRow
           label="Payment methods"
           desc="Card on file, ACH, wire — managed by your agency for now."
           comingSoon
-          onClick={() => toast("Coming soon — pay your agency directly for now")}
         />
         <ClientSettingsRow
           label="Invoicing entity"
           desc="W-9 / VAT certificate, default invoice recipient."
           comingSoon
-          onClick={() => toast("Coming soon")}
         />
         <ClientSettingsRow
           label="Brand kit"
           desc="Logo, colors, voice guidelines for inquiries."
           comingSoon
-          onClick={() => toast("Coming soon")}
         />
         {/* #26 — Escrow placeholder */}
         <ClientSettingsRow
           label="Escrow & milestone payments"
           desc="Funds held until booking wraps. Partial release on call-sheet send."
           comingSoon
-          onClick={() => toast("Escrow ships post-launch — direct payment to agency for now")}
         />
         {/* #27 — Privacy gate placeholder */}
         <ClientSettingsRow
           label="Privacy & verified categories"
           desc="Companion category requires verified client + opt-in talent."
           comingSoon
-          onClick={() => toast("Verification ships post-launch")}
         />
         {/* #32 — Privacy mode placeholder */}
         <ClientSettingsRow
           label="Anonymous discovery"
           desc="Hide your profile from talent until booking is confirmed."
           comingSoon
-          onClick={() => toast("Coming soon")}
         />
         {/* #30 — Recurring bookings placeholder */}
         <ClientSettingsRow
           label="Recurring bookings"
           desc="Auto-rebook the same lineup weekly or monthly."
           comingSoon
-          onClick={() => toast("Coming soon — use Repeat on Bookings for now")}
         />
         {/* #31 — Per-Profile billing placeholder */}
         <ClientSettingsRow
           label="Per-profile billing"
           desc="Separate cards on file and invoice addresses for each profile."
           comingSoon
-          onClick={() => toast("Coming soon")}
         />
         {/* #23 — Audit log placeholder */}
         <ClientSettingsRow
           label="Activity log"
           desc="Who in your team did what, when. Per-profile audit trail."
           comingSoon
-          onClick={() => toast("Coming soon")}
         />
       </ClientSettingsSection>
     </>
@@ -2481,19 +2483,19 @@ function ClientSettingsSection({ title, tone, children }: {
 }
 
 function ClientSettingsRow({ label, desc, comingSoon, onClick }: {
-  label: string; desc: string; comingSoon?: boolean; onClick: () => void;
+  label: string; desc: string; comingSoon?: boolean; onClick?: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick} style={{
+    <button type="button" onClick={onClick} disabled={comingSoon} title={comingSoon ? "Coming soon" : undefined} style={{
       display: "flex", alignItems: "center", gap: 12,
       width: "100%", padding: "13px 16px",
       background: "transparent", border: "none",
       borderTop: `1px solid ${COLORS.borderSoft}`,
-      cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
+      cursor: comingSoon ? "not-allowed" : "pointer", textAlign: "left", fontFamily: FONTS.body,
       opacity: comingSoon ? 0.7 : 1,
     }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+      onMouseEnter={(e) => { if (!comingSoon) e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
+      onMouseLeave={(e) => { if (!comingSoon) e.currentTarget.style.background = "transparent"; }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{label}</div>
@@ -2518,7 +2520,7 @@ function ClientSettingsRow({ label, desc, comingSoon, onClick }: {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientNotificationsPage() {
-  const { setClientPage, toast } = useAdminShell();
+  const { setClientPage } = useAdminShell();
   const [tab, setTab] = useState<"needs" | "updates" | "payments" | "all">("needs");
   // Mocked notifications — production reads from a feed
   type Notif = { id: string; cluster: "needs" | "updates" | "payments"; ts: string; actor: string; title: string; body: string; read: boolean; convId?: string };
@@ -2580,9 +2582,8 @@ function ClientNotificationsPage() {
           </div>
         )}
         {filtered.map((n, i) => (
-          <button key={n.id} type="button" onClick={() => {
+          <button key={n.id} type="button" disabled={!n.convId} title={!n.convId ? "Notification detail coming soon" : undefined} onClick={() => {
             if (n.convId) { pinNextConversation(n.convId); setClientPage("messages"); }
-            else toast(n.title);
           }}
             style={{
               display: "flex", alignItems: "flex-start", gap: 12, width: "100%",
@@ -2590,7 +2591,8 @@ function ClientNotificationsPage() {
               background: n.read ? "transparent" : "rgba(15,79,62,0.025)",
               border: "none",
               borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
-              cursor: "pointer", textAlign: "left",
+              cursor: n.convId ? "pointer" : "not-allowed", textAlign: "left",
+              opacity: n.convId ? 1 : 0.65,
             }}
           >
             <span style={{
@@ -2623,21 +2625,18 @@ function ClientNotificationsPage() {
 
 import { DrawerShell } from "./primitives";
 
-function useSaveAndClose(message = "Saved") {
-  const { closeDrawer, toast } = useAdminShell();
-  return () => {
-    toast(message);
-    closeDrawer();
-  };
-}
-
-function StandardFooter({ onSave, saveLabel = "Save" }: { onSave?: () => void; saveLabel?: string }) {
-  const save = useSaveAndClose();
+function StandardFooter({
+  onSave,
+  saveLabel = "Save",
+}: {
+  onSave?: () => void;
+  saveLabel?: string;
+}) {
   const { closeDrawer } = useAdminShell();
   return (
     <>
       <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-      <PrimaryButton onClick={onSave ?? save}>{saveLabel}</PrimaryButton>
+      <PrimaryButton onClick={onSave} disabled={!onSave}>{saveLabel}</PrimaryButton>
     </>
   );
 }
@@ -2707,7 +2706,7 @@ export function ClientTodayPulseDrawer() {
 }
 
 export function ClientTalentCardDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-talent-card";
   const id = state.drawer.payload?.id as string | undefined;
   const t = DISCOVER_TALENT.find((d) => d.id === id);
@@ -2726,7 +2725,7 @@ export function ClientTalentCardDrawer() {
       description={`${t.agency} · ${t.city} · ${t.height}`}
       footer={
         <>
-          <SecondaryButton onClick={() => toast(`Added ${t.name} to a shortlist`)}>Add to shortlist</SecondaryButton>
+          <SecondaryButton disabled>Add to shortlist</SecondaryButton>
           <PrimaryButton
             onClick={() => {
               closeDrawer();
@@ -2775,7 +2774,7 @@ function KvRow({ label, value }: { label: string; value: ReactNode }) {
 }
 
 export function ClientShortlistDetailDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-shortlist-detail";
   const id = state.drawer.payload?.id as string | undefined;
   const sl = MY_SHORTLISTS.find((s) => s.id === id) ?? MY_SHORTLISTS[0];
@@ -2893,14 +2892,13 @@ export function ClientShortlistDetailDrawer() {
 export function ClientNewShortlistDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-new-shortlist";
-  const save = useSaveAndClose("Shortlist created");
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="New shortlist"
       description="Group talent by brief, then send a single inquiry to all of them."
-      footer={<StandardFooter onSave={save} saveLabel="Create shortlist" />}
+      footer={<StandardFooter saveLabel="Create shortlist" />}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
         <FieldGroup label="Name" defaultValue="Editorial · SS27" placeholder="" />
@@ -2912,8 +2910,13 @@ export function ClientNewShortlistDrawer() {
 }
 
 export function ClientShareShortlistDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-share-shortlist";
+  const shareUrl = `https://${MY_CLIENT_BRAND.name.toLowerCase().replace(/\s+/g, "-")}.tulala.digital/sl/abc123`;
+  const copyLink = () => {
+    void navigator.clipboard?.writeText(shareUrl);
+    closeDrawer();
+  };
   return (
     <DrawerShell
       open={open}
@@ -2921,7 +2924,7 @@ export function ClientShareShortlistDrawer() {
       title="Share shortlist"
       description="Anyone with the link can view the shortlist read-only."
       footer={
-        <PrimaryButton onClick={() => { toast("Link copied"); closeDrawer(); }}>Copy link</PrimaryButton>
+        <PrimaryButton onClick={copyLink}>Copy link</PrimaryButton>
       }
     >
       <div
@@ -2936,31 +2939,29 @@ export function ClientShareShortlistDrawer() {
           wordBreak: "break-all",
         }}
       >
-        https://{MY_CLIENT_BRAND.name.toLowerCase().replace(/\s+/g, "-")}.tulala.digital/sl/abc123
+        {shareUrl}
       </div>
     </DrawerShell>
   );
 }
 
 export function ClientSendInquiryDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-send-inquiry";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="New inquiry"
-      description="Tell us what you need. Your coordinator will reply within hours."
+      description="Draft the request here. Sending is coming soon."
     >
       <InquiryComposerLazy
         mode="client"
         defaultClientName={MY_CLIENT_BRAND.name}
         embedded
+        submitDisabled
         onCancel={closeDrawer}
-        onSubmit={() => {
-          toast("Inquiry sent — coordinator will reply soon");
-          closeDrawer();
-        }}
+        onSubmit={closeDrawer}
       />
     </DrawerShell>
   );
@@ -3046,15 +3047,11 @@ export function ClientInquiryDetailDrawer() {
 // #18 — Review drawer. Three-axis rating after a wrapped booking.
 // Private to the platform — drives talent/coordinator trust scores.
 export function ClientReviewDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-review";
   const talentName = (state.drawer.payload?.talent as string) ?? "the talent";
   const [scores, setScores] = useState({ responsive: 0, professional: 0, fit: 0 });
   const [comment, setComment] = useState("");
-  const submit = () => {
-    toast(`Thanks — your review of ${talentName} has been recorded.`);
-    closeDrawer();
-  };
   const axes = [
     { id: "responsive" as const,    label: "Responsiveness",  desc: "How quickly did they reply and confirm?" },
     { id: "professional" as const,  label: "Professionalism", desc: "On-time, prepared, kept the brief in mind." },
@@ -3069,7 +3066,7 @@ export function ClientReviewDrawer() {
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Skip</SecondaryButton>
-          <PrimaryButton onClick={submit}>Submit review</PrimaryButton>
+          <PrimaryButton disabled>Submit review</PrimaryButton>
         </>
       }
     >
@@ -3118,7 +3115,7 @@ export function ClientReviewDrawer() {
 
 // WS-8.10  Counter-offer diff view — side-by-side current vs proposed
 export function ClientCounterOfferDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-counter-offer";
   const [counterRate, setCounterRate] = useState("2200");
   const [note, setNote] = useState("Budget is firm — can the agency hold rate within €2,200?");
@@ -3146,7 +3143,7 @@ export function ClientCounterOfferDrawer() {
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Counter sent to coordinator"); closeDrawer(); }}>Send counter</PrimaryButton>
+          <PrimaryButton disabled>Send counter</PrimaryButton>
         </>
       }
     >
@@ -3208,7 +3205,7 @@ export function ClientCounterOfferDrawer() {
 }
 
 export function ClientBookingDetailDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-booking-detail";
   const id = state.drawer.payload?.id as string | undefined;
   const b = CLIENT_BOOKINGS.find((b) => b.id === id) ?? CLIENT_BOOKINGS[0];
@@ -3261,20 +3258,10 @@ export function ClientBookingDetailDrawer() {
             Add {b.talent} to a shortlist so you can re-book them quickly without starting from scratch.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <SecondaryButton
-              size="sm"
-              onClick={() => {
-                toast(`${b.talent} added to shortlist`);
-              }}
-            >
+            <SecondaryButton size="sm" disabled>
               Add to shortlist
             </SecondaryButton>
-            <GhostButton
-              size="sm"
-              onClick={() => {
-                toast("Got it — you can always shortlist talent from the Discover page.");
-              }}
-            >
+            <GhostButton size="sm" disabled title="Coming soon">
               Not now
             </GhostButton>
           </div>
@@ -3285,7 +3272,7 @@ export function ClientBookingDetailDrawer() {
 }
 
 export function ClientContractsDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-contracts";
   return (
     <DrawerShell
@@ -3321,7 +3308,8 @@ export function ClientContractsDrawer() {
             <span style={{ color: COLORS.inkMuted, fontSize: 11.5 }}>{b.date}</span>
             <button
               type="button"
-              onClick={() => toast(`Contract PDF for ${b.talent} downloads in production.`)}
+              disabled
+              title="PDF download coming soon"
               style={{
                 fontFamily: FONTS.body,
                 fontSize: 11.5,
@@ -3331,7 +3319,8 @@ export function ClientContractsDrawer() {
                 background: "transparent",
                 border: 0,
                 padding: 0,
-                cursor: "pointer",
+                cursor: "not-allowed",
+                opacity: 0.45,
               }}
             >
               PDF
@@ -3344,7 +3333,7 @@ export function ClientContractsDrawer() {
 }
 
 export function ClientTeamDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-team";
   return (
     <DrawerShell
@@ -3353,7 +3342,7 @@ export function ClientTeamDrawer() {
       title="Team"
       description="Team members can see inquiry threads and bookings for this brand."
       footer={
-        <PrimaryButton onClick={() => { toast("Invite sent"); closeDrawer(); }}>Invite member</PrimaryButton>
+        <PrimaryButton disabled>Invite member</PrimaryButton>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -3456,7 +3445,7 @@ export function ClientBillingDrawer() {
 }
 
 export function ClientBrandSwitcherDrawer() {
-  const { state, closeDrawer, toast, setClientProfile } = useAdminShell();
+  const { state, closeDrawer, setClientProfile } = useAdminShell();
   const open = state.drawer.drawerId === "client-brand-switcher";
   // Profile = a booking identity. Each user can own multiple Profiles
   // (business + personal, or one producer with several client Profiles).
@@ -3478,7 +3467,7 @@ export function ClientBrandSwitcherDrawer() {
           return (
             <button
               key={p.id}
-              onClick={() => { setClientProfile(p.id); toast(`Switched to ${p.name}`); closeDrawer(); }}
+              onClick={() => { setClientProfile(p.id); closeDrawer(); }}
               style={{
                 display: "flex", alignItems: "center", gap: 12,
                 padding: "12px 14px",
@@ -3509,11 +3498,11 @@ export function ClientBrandSwitcherDrawer() {
             </button>
           );
         })}
-        <button type="button" onClick={() => toast("Add a new profile — coming soon")} style={{
+        <button type="button" disabled title="Coming soon" style={{
           padding: "11px 14px", borderRadius: 10,
           border: `1.5px dashed ${COLORS.border}`, background: "transparent",
           color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
-          cursor: "pointer", textAlign: "center",
+          cursor: "not-allowed", textAlign: "center", opacity: 0.55,
         }}>+ Add another profile</button>
       </div>
     </DrawerShell>
@@ -3522,7 +3511,7 @@ export function ClientBrandSwitcherDrawer() {
 
 // WS-8.8  Saved-search alerts — "Email me when matches" toggle per saved search
 export function ClientSavedSearchDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, setClientPage } = useAdminShell();
   const open = state.drawer.drawerId === "client-saved-search";
 
   const INIT_SEARCHES = [
@@ -3544,7 +3533,7 @@ export function ClientSavedSearchDrawer() {
       title="Saved searches"
       description="Save complex filters and get notified when matching talent becomes available."
       footer={
-        <PrimaryButton onClick={() => { toast("Alert preferences saved"); closeDrawer(); }}>
+        <PrimaryButton disabled>
           Save preferences
         </PrimaryButton>
       }
@@ -3562,7 +3551,7 @@ export function ClientSavedSearchDrawer() {
             {/* Search row */}
             <button
               type="button"
-              onClick={() => { toast(`Search "${s.name}" reopened`); closeDrawer(); }}
+              onClick={() => { setClientPage("discover"); closeDrawer(); }}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "12px 14px", width: "100%",
@@ -3634,7 +3623,7 @@ export function ClientSavedSearchDrawer() {
         {/* Add new saved search CTA */}
         <button
           type="button"
-          onClick={() => { toast("Go to Discover to save a new search"); closeDrawer(); }}
+          onClick={() => { setClientPage("discover"); closeDrawer(); }}
           style={{
             display: "flex", alignItems: "center", justifyContent: "center",
             gap: 6, padding: "10px 14px",
@@ -3652,7 +3641,7 @@ export function ClientSavedSearchDrawer() {
 }
 
 export function ClientQuickQuestionDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-quick-question";
   const [selectedAgency, setSelectedAgency] = useState("Acme Models");
   return (
@@ -3664,12 +3653,7 @@ export function ClientQuickQuestionDrawer() {
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton
-            onClick={() => {
-              toast("Message sent — your coordinator will reply shortly");
-              closeDrawer();
-            }}
-          >
+          <PrimaryButton disabled>
             Send message
           </PrimaryButton>
         </>
@@ -3743,14 +3727,13 @@ export function ClientQuickQuestionDrawer() {
 export function ClientSettingsDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-settings";
-  const save = useSaveAndClose();
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Notifications"
       description="Where you get pinged when an offer arrives or talent confirms."
-      footer={<StandardFooter onSave={save} />}
+      footer={<StandardFooter />}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 6, fontFamily: FONTS.body }}>
         {[
@@ -3804,7 +3787,7 @@ const MY_TALENT_DATA = [
 ];
 
 export function ClientMyTalentDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-my-talent";
   const [search, setSearch] = useState("");
 
@@ -3864,7 +3847,7 @@ export function ClientMyTalentDrawer() {
               <div style={{ fontSize: 12, color: COLORS.inkMuted }}>€{t.totalSpend.toLocaleString()}</div>
               <button
                 type="button"
-                onClick={() => { toast(`New inquiry for ${t.name}`); closeDrawer(); }}
+                onClick={() => { closeDrawer(); openDrawer("client-send-inquiry", { presetTalent: t.id }); }}
                 style={{
                   marginTop: 8, padding: "5px 12px",
                   background: COLORS.accent, color: "#fff",
@@ -3980,7 +3963,7 @@ export function ClientSpendReportDrawer() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function ClientBudgetDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-budget";
   const [budget, setBudget] = useState("50000");
   const [alertAt, setAlertAt] = useState("80");
@@ -4000,7 +3983,7 @@ export function ClientBudgetDrawer() {
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Budget settings saved"); closeDrawer(); }}>Save</PrimaryButton>
+          <PrimaryButton disabled>Save</PrimaryButton>
         </>
       }
     >

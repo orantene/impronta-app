@@ -1,6 +1,6 @@
 // Workspace admin layout — cutover version (Phase 3.12 — full surface bridge).
 //
-// Mounts the prototype shell at every /{tenantSlug}/admin/* route. Pre-fetches
+// Mounts the canonical admin shell at every /{tenantSlug}/admin/* route. Pre-fetches
 // all surface data in a single parallel Promise.all so the shell opens with
 // real data immediately — no loading spinners on first paint.
 //
@@ -196,7 +196,7 @@ export default async function WorkspaceAdminLayout({
           website: websiteData,
         }}
       >
-        {/* PageRouteSyncer lives here — inside ProtoProvider context, returns null */}
+        {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}
         {children}
       </AdminShellClient>
     </>

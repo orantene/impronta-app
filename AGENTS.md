@@ -11,7 +11,7 @@ You are working in a multi-tenant SaaS Next.js app at pre-launch. Read before an
 
 ## Standing rules
 
-1. **Trunk is `phase-1`.** Don't push to `main`. Don't create long-lived feature branches. Direct commits to `phase-1` are the default at pre-launch.
+1. **Trunk is `stable-work`.** Don't push to `main`. Don't create long-lived feature branches. Direct commits to `stable-work` are the default at pre-launch.
 2. **One canonical version per surface.** No `*-v2.tsx`, no `old-*` folders, no parallel mockups, no backup-named files. Edit live. If risky, branch in git — not in the filesystem.
 3. **Stay scoped.** A bug fix fixes one bug. A feature lands one feature. Refactors require explicit user authorization. "Consolidating" / "modernizing" without an ask = stop and ask.
 4. **No new top-level directories, env vars, npm dependencies, or branches that might survive >7 days without permission.**
@@ -19,7 +19,7 @@ You are working in a multi-tenant SaaS Next.js app at pre-launch. Read before an
 6. **Commit messages:** `<surface>: <terse what>`. Surfaces in active use: `admin/`, `talent/`, `client/`, `directory/`, `feat(api)/`, `feat(edit-chrome)/`, `docs/`, `chore/`, `ci/`. Don't invent prefixes.
 7. **Reporting:** files touched, behavior changed, what to verify. No marketing copy in agent summaries.
 8. **When in doubt, raise — don't work around.** A perceived contradiction in this file is escalation, not a license to choose.
-9. **Never:** `--amend` pushed commits. `--no-verify`. `git push --force` to `phase-1`. `git reset --hard` of pushed commits. Skipping `npm run ci` on tenant/RLS work.
+9. **Never:** `--amend` pushed commits. `--no-verify`. `git push --force` to `stable-work`. `git reset --hard` of pushed commits. Skipping `npm run ci` on tenant/RLS work.
 10. **Pre-launch (today):** ship straight to prod after `npm run ci` passes. No per-promote permission needed (see `feedback_pre_launch_shipping.md` in user memory). Post-launch ("we are live"): always alias to `staging.tulala.digital` and click through before `vercel promote`.
 
 ## Tenant-touching changes — extra inspection list

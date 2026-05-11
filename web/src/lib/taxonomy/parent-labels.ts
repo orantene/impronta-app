@@ -38,7 +38,7 @@ export const SHORT_PARENT_LABEL: Record<string, string> = {
   "production-bts": "Production",
   "animals-specialty-acts": "Animals",
 
-  // Prototype fixture ids (snake_case, used by web/src/app/prototypes/admin-shell)
+  // Admin shell fixture ids (snake_case, used by components/admin/shell)
   "hosts": "Hosts",
   "music": "Music",
   "chefs": "Chefs",

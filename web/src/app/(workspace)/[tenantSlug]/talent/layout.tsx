@@ -1,15 +1,15 @@
 // Phase 3.12.2 — Talent self-surface canonical shell.
 //
-// Mounts the prototype talent shell at every /{tenantSlug}/talent/* route.
+// Mounts the canonical talent shell at every /{tenantSlug}/talent/* route.
 // Mirrors the admin layout pattern (Phase 3.12): the server component does
-// auth + data pre-fetch; the client component renders the full prototype UI.
+// auth + data pre-fetch; the client component renders the full talent UI.
 //
 // Auth gate: user must be rostered talent for this agency. Uses
 // loadTalentSelfProfile() which also verifies agency_talent_roster membership.
 //
 // Bridge data pre-fetched in parallel:
 //   - talentSelfProfile  → TalentShellClient identity bar
-//   - talentInquiries    → ProtoProvider → effectiveTalentInquiries
+//   - talentInquiries    → AdminShellProvider → effectiveTalentInquiries
 //
 // initialTalentPage is derived from the request pathname so hard refreshes
 // land on the correct tab without a flash.
@@ -142,7 +142,7 @@ export default async function TalentLayout({
         teamMembers: null,
         totalUnread: 0,
         // Identity for the chrome (top bar + acting-as label). Without
-        // these the prototype shell fell back to its mock TENANT
+        // these the admin shell fell back to its mock TENANT
         // ("Atelier Roma") even on the real talent route.
         tenantIdentity,
         sessionIdentity,
@@ -158,7 +158,7 @@ export default async function TalentLayout({
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
       }}
     >
-      {/* TalentPageRouteSyncer lives here — inside ProtoProvider context, returns null */}
+      {/* TalentPageRouteSyncer lives here — inside AdminShellProvider context, returns null */}
       {children}
     </TalentShellClient>
   );

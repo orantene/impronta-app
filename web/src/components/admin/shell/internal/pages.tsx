@@ -2791,8 +2791,8 @@ function OverviewPage() {
   // When the bridge provides a real inquiry list (even an empty one), use it
   // and render the real empty state. The earlier `length > 0 ? real : MOCK`
   // pattern lied to operators when their tenant had zero inquiries.
-  // Standalone /prototypes/admin-shell still gets RICH_INQUIRIES because the
-  // upstream effectiveMessagesInquiries already falls back to it when the
+  // Standalone dev mode still gets RICH_INQUIRIES because the upstream
+  // effectiveMessagesInquiries already falls back to it when the
   // bridge wasn't populated by a workspace layout.
   const richInqs = effectiveMessagesInquiries;
   // Open inquiry count: prefer the pre-aggregated bridge metric over re-deriving.

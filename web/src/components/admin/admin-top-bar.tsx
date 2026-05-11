@@ -4,9 +4,9 @@
  * AdminTopBar — contextual mini-bar for /admin/site-settings/*.
  *
  * The breadcrumb + tier chip + locale + theme + Cmd+K previously lived here
- * (and on a SECOND row above the prototype shell's search bar). The audit
+ * (and on a second row above the shell's search bar). The audit
  * refactor consolidated all of that into the shell's single sticky header
- * (`admin-prototype-shell.tsx`).
+ * (`components/admin/shell/admin-shell.tsx`).
  *
  * What remains is one contextual "Open editor" pill that takes the operator
  * to the in-place storefront editor. The pill links to

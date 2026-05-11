@@ -139,42 +139,44 @@ function unlockScroll() {
 
 // ─── Inline icons (kept tiny + neutral) ──────────────────────────────
 
+export type AdminShellIconName =
+  | "arrow-right"
+  | "chevron-right"
+  | "chevron-down"
+  | "x"
+  | "lock"
+  | "check"
+  | "plus"
+  | "sparkle"
+  | "external"
+  | "search"
+  | "filter"
+  | "info"
+  | "user"
+  | "team"
+  | "globe"
+  | "palette"
+  | "credit"
+  | "settings"
+  | "calendar"
+  | "mail"
+  | "bolt"
+  | "circle"
+  | "alert"
+  | "star"
+  | "bell"
+  | "moon"
+  | "map-pin"
+  | "archive"
+  | "pencil";
+
 export function Icon({
   name,
   size = 14,
   stroke = 1.6,
   color = "currentColor",
 }: {
-  name:
-    | "arrow-right"
-    | "chevron-right"
-    | "chevron-down"
-    | "x"
-    | "lock"
-    | "check"
-    | "plus"
-    | "sparkle"
-    | "external"
-    | "search"
-    | "filter"
-    | "info"
-    | "user"
-    | "team"
-    | "globe"
-    | "palette"
-    | "credit"
-    | "settings"
-    | "calendar"
-    | "mail"
-    | "bolt"
-    | "circle"
-    | "alert"
-    | "star"
-    | "bell"
-    | "moon"
-    | "map-pin"
-    | "archive"
-    | "pencil";
+  name: AdminShellIconName;
   size?: number;
   stroke?: number;
   color?: string;
@@ -3746,10 +3748,10 @@ export function MoreWithSection({
 }) {
   // Count the children for the pill caption.
   const items = Children.toArray(children);
+  const proto = useAdminShell();
   const count = items.length;
   if (count === 0) return null;
   const planLabel = PLAN_META[plan].label;
-  const proto = useAdminShell();
   return (
     <div style={{ marginTop: 18, marginBottom: 4, display: "flex", justifyContent: "flex-start" }}>
       <button
@@ -3896,10 +3898,14 @@ export function GhostButton({
   onClick,
   children,
   size = "md",
+  disabled,
+  title,
 }: {
   onClick?: () => void;
   children: ReactNode;
   size?: "sm" | "md";
+  disabled?: boolean;
+  title?: string;
 }) {
   const sizes: Record<typeof size, CSSProperties> = {
     sm: { padding: "6px 10px", fontSize: 12.5 },
@@ -3909,6 +3915,8 @@ export function GhostButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
+      title={title}
       style={{
         ...sizes[size],
         fontFamily: FONTS.body,
@@ -3917,13 +3925,16 @@ export function GhostButton({
         color: COLORS.inkMuted,
         border: "1px solid transparent",
         borderRadius: 8,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.45 : 1,
       }}
       onMouseEnter={(e) => {
+        if (disabled) return;
         e.currentTarget.style.background = "rgba(11,11,13,0.04)";
         e.currentTarget.style.color = COLORS.ink;
       }}
       onMouseLeave={(e) => {
+        if (disabled) return;
         e.currentTarget.style.background = "transparent";
         e.currentTarget.style.color = COLORS.inkMuted;
       }}
@@ -7778,7 +7789,7 @@ export function GuidedTour({
   const vw = typeof window !== "undefined" ? window.innerWidth  : 1280;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
   const TOOLTIP_W = 280;
-  let tipLeft = rect ? Math.min(rect.left, vw - TOOLTIP_W - 16) : (vw - TOOLTIP_W) / 2;
+  const tipLeft = rect ? Math.min(rect.left, vw - TOOLTIP_W - 16) : (vw - TOOLTIP_W) / 2;
   let tipTop  = rect ? rect.bottom + 12 : vh * 0.42;
   if (rect && rect.bottom + 180 > vh) tipTop = rect.top - 180 - 12;
 

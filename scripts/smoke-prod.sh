@@ -24,13 +24,18 @@ FAIL=0
 for ENTRY in "${HOSTS[@]}"; do
   HOST="${ENTRY%:*}"
   WANT="${ENTRY#*:}"
-  GOT=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 20 "https://${HOST}/" || echo "ERR")
+  HEADERS=$(mktemp)
+  GOT=$(curl -sS -D "$HEADERS" -o /dev/null -w "%{http_code}" --max-time 20 "https://${HOST}/" || echo "ERR")
   if [[ "$GOT" == "$WANT" ]]; then
     printf "  %-30s  %-3s  ok\n" "$HOST" "$GOT"
   else
     printf "  %-30s  %-3s  FAIL (expected %s)\n" "$HOST" "$GOT" "$WANT"
+    if grep -qi "_vercel_sso_nonce\\|x-vercel-protection" "$HEADERS"; then
+      printf "  %-30s       hint: Vercel protection/SSO response detected\n" "$HOST"
+    fi
     FAIL=1
   fi
+  rm -f "$HEADERS"
 done
 
 if [[ $FAIL -ne 0 ]]; then

@@ -51,7 +51,7 @@ export type PipelineActionResult<T = undefined> =
 
 /**
  * Atomic conversion of an approved inquiry to a booking via the
- * `engine_convert_to_booking` Postgres RPC. Used by the prototype shell's
+ * `engine_convert_to_booking` Postgres RPC. Used by the admin shell's
  * StageTransitionMenu when the coordinator picks "Convert to booking".
  *
  * Preconditions enforced inside the engine + RPC:

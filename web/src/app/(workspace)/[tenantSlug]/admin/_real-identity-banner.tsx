@@ -1,18 +1,17 @@
 // _real-identity-banner.tsx
 //
 // A SERVER component that renders the *real* tenant + session identity at
-// the top of every workspace admin page, sitting above the prototype shell.
+// the top of every workspace admin page, sitting above the admin shell.
 //
 // WHY THIS EXISTS:
-// The prototype shell (web/src/app/prototypes/admin-shell/_pages.tsx
-// around line 1163) reads `TENANT.name` and `MY_TALENT_PROFILE.name` —
-// hardcoded constants from `_state.tsx`. Those files are 8k–9k lines and
+// The admin shell historically read `TENANT.name` and `MY_TALENT_PROFILE.name` —
+// hardcoded constants from `components/admin/shell/internal/state.tsx`.
+// Those files are large and
 // currently being edited by the page-builder agent, so we can't safely
 // touch them to inject real bridge data without merge conflicts.
 //
-// Until the prototype's identity rendering is migrated to consume
-// `useProto().tenantIdentity` (Phase 3.13 work, blocked on parallel
-// agent), this banner gives operators a permanent, visible source of
+// Until the shell's identity rendering is migrated to consume the bridge
+// identity directly, this banner gives operators a permanent, visible source of
 // truth on every admin page: which tenant they're actually scoped to,
 // who they're signed in as, and the live roster/inquiry metrics.
 //

@@ -2,15 +2,15 @@
 
 /**
  * PageRouteSyncer — cutover-mode bridge between Next.js routes and the
- * prototype shell's internal page state.
+ * admin shell's internal page state.
  *
  * Usage: render <PageRouteSyncer page="messages" /> as the sole content of
  * each admin surface page (admin/messages/page.tsx etc.). It must be a
- * descendant of AdminShellPrototypePageClient so it has ProtoProvider context.
+ * descendant of AdminShellClient so it has AdminShellProvider context.
  *
  * On mount it calls setPage(page) which updates the shell's active surface
  * WITHOUT triggering router.push (the URL is already correct — the guard in
- * ProtoProvider._state.tsx skips the push when pathname already matches).
+ * AdminShellProvider skips the push when pathname already matches).
  * This eliminates the flash-of-wrong-page on hard refresh.
  */
 

@@ -70,17 +70,16 @@ import type {
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 /**
- * _data-bridge.ts — Phase 1 server-side bridge for the admin-shell prototype.
+ * data-bridge.ts — server-side bridge for the canonical admin shell.
  *
  * Plan reference: `~/.claude/plans/ancient-gathering-sparkle.md` (Phase 1).
  * Task spec: `docs/handoffs/admin-shell-execution-task-package.md` Task P1.2.
  *
- * The prototype at `web/src/app/prototypes/admin-shell/*` is otherwise
- * 100% client-side mock. This module is the single doorway through which
- * live Impronta data enters the prototype tree. It runs on the server,
+ * The shell is otherwise client-side state. This module is the single doorway
+ * through which live Impronta data enters the admin shell. It runs on the server,
  * resolves the tenant scope from middleware-set headers + the user
  * session, queries Supabase under the user's RLS, and returns a payload
- * shaped exactly like the prototype's existing `TalentProfile` mock type.
+ * shaped exactly like the shell's existing `TalentProfile` type.
  *
  * Contract:
  *   - Server-only ("server-only" guard above will throw if any client
@@ -191,7 +190,7 @@ export type BridgeData = {
   /**
    * True when the signed-in user has BOTH a talent profile AND a workspace
    * membership in this tenant. Drives the `Talent | Workspace` mode toggle
-   * in the prototype shell — the toggle is hidden for non-hybrid users.
+   * in the admin shell — the toggle is hidden for non-hybrid users.
    *
    * Derived server-side in the layout:
    *   - admin/layout.tsx: true when loadTalentSelfProfile() returns non-null
@@ -209,7 +208,7 @@ export type BridgeData = {
    * prototype's chrome (top-bar workspace name, plan badge, domain
    * subline) reads from this instead of the hardcoded TENANT constant
    * in _state.tsx. `null` means the prototype runs in standalone demo
-   * mode (e.g. /prototypes/admin-shell directly) and falls back to mocks.
+   * mode and falls back to mocks.
    */
   tenantIdentity?: {
     tenantId: string;

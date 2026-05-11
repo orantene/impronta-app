@@ -64,7 +64,7 @@ export type WorkspacePage =
   | "production" // WS-28/29/30/33/34/35: casting, crew, on-set, rights, safety
   | "website"    // 2026 — premium site management (pages, posts, redirects, custom code, tracking, SEO, domain, maintenance, announcement)
   | "media"      // Agency/Studio — workspace media gallery + watermark control
-  | "pitches"    // Phase 9 — pitch history (admin curation of talent suggestions sent to clients). Renders via real server component, not the prototype shell.
+  | "pitches"    // Phase 9 — pitch history (admin curation of talent suggestions sent to clients). Renders via real server component, not the admin shell.
   | "settings"   // replaces workspace; billing folded in via anchor nav
   // ── legacy aliases (hidden from nav, kept for URL compat) ──
   | "inbox"
@@ -6459,7 +6459,7 @@ export type Impersonation = {
   readOnly: boolean;
 } | null;
 
-export type ProtoState = {
+export type AdminShellState = {
   surface: Surface;
   // workspace dimensions
   plan: Plan;
@@ -6539,7 +6539,7 @@ export type TelemetryEvent =
   | { type: "celebration-shown"; milestone: string; at: string };
 
 type Ctx = {
-  state: ProtoState;
+  state: AdminShellState;
   setSurface: (s: Surface) => void;
   /**
    * Hybrid-mode toggle for talents who also own a workspace.
@@ -7175,7 +7175,7 @@ function adaptBridgeTeamMember(m: BridgeTeamMember): TeamMember {
   };
 }
 
-const ProtoContext = createContext<Ctx | null>(null);
+const AdminShellContext = createContext<Ctx | null>(null);
 
 // 2026 #6 — Wrap a state mutation in document.startViewTransition() so
 // the browser interpolates DOM changes into a smooth crossfade. Falls
@@ -8443,11 +8443,11 @@ export function AdminShellProvider({
     ],
   );
 
-  return <ProtoContext.Provider value={value}>{children}</ProtoContext.Provider>;
+  return <AdminShellContext.Provider value={value}>{children}</AdminShellContext.Provider>;
 }
 
 export function useAdminShell(): Ctx {
-  const v = useContext(ProtoContext);
+  const v = useContext(AdminShellContext);
   if (!v) throw new Error("useAdminShell outside AdminShellProvider");
   return v;
 }

@@ -9107,7 +9107,7 @@ function draftToInquiry(draft: ComposerDraft, mode: ComposerMode): InquiryRecord
 }
 
 export function InquiryComposer({
-  mode, defaultClientName, onSubmit, onCancel, embedded,
+  mode, defaultClientName, onSubmit, onCancel, embedded, submitDisabled = false,
 }: {
   mode: ComposerMode;
   defaultClientName?: string;
@@ -9115,6 +9115,8 @@ export function InquiryComposer({
   onCancel: () => void;
   /** When true, skip the outer header/footer (host drawer provides chrome). */
   embedded?: boolean;
+  /** Host can disable submission when no real write path exists. */
+  submitDisabled?: boolean;
 }) {
   const { toast } = useAdminShell();
   const [draft, setDraft] = useState<ComposerDraft>(() => ({
@@ -9136,6 +9138,7 @@ export function InquiryComposer({
   const [isSaving, setIsSaving] = useState(false);
 
   const send = async () => {
+    if (submitDisabled) return;
     if (!draft.briefSummary.trim()) {
       toast("Add a brief so the agency can triage");
       return;
@@ -9190,7 +9193,6 @@ export function InquiryComposer({
       } catch (err) {
         // Network / unexpected error — keep the drawer open so the user
         // can retry without losing their draft.
-        // eslint-disable-next-line no-console
         console.error("[createAgencyInquiry] failed", err);
         toast("Couldn't create inquiry — try again.");
       } finally {
@@ -9390,7 +9392,17 @@ export function InquiryComposer({
         display: "flex", gap: 8, justifyContent: "flex-end",
       }}>
         <button type="button" onClick={onCancel} style={ghostBtn()}>Cancel</button>
-        <button type="button" onClick={send} style={primaryBtn(COLORS.accent)}>
+        <button
+          type="button"
+          onClick={send}
+          disabled={submitDisabled}
+          title={submitDisabled ? "Inquiry sending coming soon" : undefined}
+          style={{
+            ...primaryBtn(COLORS.accent),
+            cursor: submitDisabled ? "not-allowed" : "pointer",
+            opacity: submitDisabled ? 0.45 : 1,
+          }}
+        >
           {mode === "client" ? "Send to agency" : "Save inquiry"}
         </button>
       </div>
@@ -12717,7 +12729,7 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   // Even with zero files, render so the upload affordance is reachable.
 
   const remove = (id: string, name: string) => {
-    if (!confirm(`Delete ${name}? This can't be undone from the prototype shell.`)) return;
+    if (!confirm(`Delete ${name}? This can't be undone from the admin shell.`)) return;
     startTransition(async () => {
       const r = await deleteInquiryAttachment(TENANT.slug, id);
       if (!r.ok) toast(`Delete failed: ${r.error}`);

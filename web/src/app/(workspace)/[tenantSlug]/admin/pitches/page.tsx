@@ -2,7 +2,7 @@
  * Phase 9 — Pitches surface route stub.
  *
  * Cutover-mode bridge: data is fetched in `admin/layout.tsx` and passed
- * through `initialBridgeData.pitches`; the prototype shell's PageRouter
+ * through `initialBridgeData.pitches`; the admin shell's PageRouter
  * renders `<PitchesPage />` from `_pages.tsx` when page state === "pitches".
  *
  * This stub mounts <PageRouteSyncer> which returns null but tells the

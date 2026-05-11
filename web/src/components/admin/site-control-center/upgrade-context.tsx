@@ -4,7 +4,7 @@ import * as React from "react";
 
 /**
  * UpgradeModalContext — shared open-state for the "Choose your plan"
- * modal. Provider lives in the prototype shell so any admin surface
+ * modal. Provider lives in the admin shell so any admin surface
  * (tier-chip in the topbar, locked card drawers, tier-band CTAs) can
  * open the same modal.
  */

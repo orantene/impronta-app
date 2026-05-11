@@ -36,7 +36,7 @@ function updateGtagConsent(next: "granted" | "denied") {
 export function AnalyticsConsentBanner() {
   const [consent, setConsent] = useState<Consent>(null);
   const [mounted, setMounted] = useState(false);
-  // Prototype routes (e.g. /prototypes/admin-shell) are designer/dev
+  // Prototype routes (e.g. /prototypes/drawer-preview) are designer/dev
   // sandboxes, not customer-facing — the consent banner overlaps drawers
   // and clutters screenshots. Suppress on those paths.
   const pathname = usePathname();

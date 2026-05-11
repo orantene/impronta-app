@@ -119,7 +119,7 @@ function persistExpandedGroupIds(ids: Set<string>) {
   }
 }
 
-function PrototypeTopShortcutsBar({ shortcutIds }: { shortcutIds: string[] }) {
+function AdminTopShortcutsBar({ shortcutIds }: { shortcutIds: string[] }) {
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
   if (shortcutIds.length === 0) return null;
@@ -529,7 +529,7 @@ function AdminNavSections({
   );
 }
 
-export type AdminPrototypeChromeTheme = "dark" | "light";
+export type AdminChromeTheme = "dark" | "light";
 
 export type AdminDashboardShellProps = {
   children: React.ReactNode;
@@ -592,7 +592,7 @@ export function AdminDashboardShell({
   const [collapsed, setCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [chromeTheme, setChromeTheme] = useState<AdminPrototypeChromeTheme>("light");
+  const [chromeTheme, setChromeTheme] = useState<AdminChromeTheme>("light");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [shortcutIds, setShortcutIds] = useState<string[]>([]);
   const pathname = usePathname() ?? "/";
@@ -640,7 +640,7 @@ export function AdminDashboardShell({
     });
   }, []);
 
-  const setTheme = (next: AdminPrototypeChromeTheme) => {
+  const setTheme = (next: AdminChromeTheme) => {
     setChromeTheme(next);
     try {
       localStorage.setItem(ADMIN_THEME_KEY, next);
@@ -847,7 +847,7 @@ export function AdminDashboardShell({
             unreadAlerts={navBadges?.inquiries ?? 0}
           />
 
-          <PrototypeTopShortcutsBar shortcutIds={shortcutIds} />
+          <AdminTopShortcutsBar shortcutIds={shortcutIds} />
 
           {/* Main + optional right panel */}
           <div className="flex min-w-0 flex-1">

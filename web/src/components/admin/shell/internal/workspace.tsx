@@ -114,6 +114,8 @@ function povFromSurface(surface: string): InquiryWorkspacePov {
   return "admin";
 }
 
+const WORKSPACE_ACTIONS_COMING_SOON = "Coming soon";
+
 // ─── Body ────────────────────────────────────────────────────────
 //
 // WS-1.A — Responsive layout matrix:
@@ -531,7 +533,6 @@ function PhoneMessagingStream({
   pov: InquiryWorkspacePov;
   active: ThreadType;
 }) {
-  const { toast } = useAdminShell();
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mentionCursor, setMentionCursor] = useState(0);
@@ -542,13 +543,6 @@ function PhoneMessagingStream({
   // WS-13.3 — VirtuosoHandle replaces HTMLDivElement streamRef.
   const streamRef = useRef<VirtuosoHandle>(null);
   const [showLatestPill, setShowLatestPill] = useState(false);
-
-  const send = () => {
-    if (!draft.trim()) return;
-    toast(`Message sent in ${active === "private" ? "client" : "group"} thread`);
-    setDraft("");
-    setMentionCursor(0);
-  };
 
   return (
     <section
@@ -664,13 +658,13 @@ function PhoneMessagingStream({
               /* Prevent iOS zoom on focus (font-size >= 16px) */
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.preventDefault();
             }}
           />
-          <PrimaryButton onClick={send}>Send</PrimaryButton>
+          <PrimaryButton disabled>Send</PrimaryButton>
         </div>
         <div style={{ marginTop: 4, fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkDim }}>
-          {active === "private" ? "Visible to client + coordinator" : "Visible to coordinator + booked talent"}
+          Draft only. Message sending is not wired yet.
         </div>
       </div>
     </section>
@@ -1005,7 +999,6 @@ function buildMessageRenderables(messages: ThreadMessage[]): MessageRenderable[]
 // to miss while reading the thread.
 
 function ActionBanner({ message, onDismiss }: { message: ThreadMessage; onDismiss: () => void }) {
-  const { toast } = useAdminShell();
   return (
     <div
       data-tulala-action-banner
@@ -1032,7 +1025,8 @@ function ActionBanner({ message, onDismiss }: { message: ThreadMessage; onDismis
       <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
         <button
           type="button"
-          onClick={() => { toast(`Action: ${message.requiresActionCta ?? "Resolved"}`); onDismiss(); }}
+          disabled
+          title={WORKSPACE_ACTIONS_COMING_SOON}
           style={{
             padding: "5px 11px",
             background: COLORS.red,
@@ -1042,7 +1036,8 @@ function ActionBanner({ message, onDismiss }: { message: ThreadMessage; onDismis
             fontFamily: FONTS.body,
             fontSize: 11.5,
             fontWeight: 600,
-            cursor: "pointer",
+            cursor: "not-allowed",
+            opacity: 0.45,
             letterSpacing: 0.2,
           }}
         >
@@ -1284,15 +1279,9 @@ function MessagingPanel({
     setMentionCursor(next.length);
   }, [active, draftKey]);
 
-  const { toast } = useAdminShell();
-
-  // WS-1.D.1 — Typing indicators (mocked). After a message is sent the
-  // "other side" appears to start typing for ~2.5 s.
-  const [typingLabel, setTypingLabel] = useState<string | null>(null);
-  const TYPING_NAMES: Record<ThreadType, string> = {
-    private: inquiry.clientName.split(" ")[0] ?? inquiry.clientName,
-    group: inquiry.requirementGroups[0]?.talents[0]?.name.split(" ")[0] ?? "Talent",
-  };
+  // WS-1.D.1 — Typing indicators. Kept wired for real message events later;
+  // no mock typing is triggered while sending is disabled.
+  const [typingLabel] = useState<string | null>(null);
 
   // WS-1.E — dismissed action banners (session-only)
   const [dismissedActions, setDismissedActions] = useState<Set<string>>(new Set());
@@ -1383,18 +1372,6 @@ function MessagingPanel({
   const THREAD_BG: Record<ThreadType, string> = {
     private: "rgba(79,70,229,0.04)",
     group:   "rgba(217,119,6,0.04)",
-  };
-
-  const send = () => {
-    if (!draft.trim()) return;
-    toast(`Message sent in ${active === "private" ? "client" : "group"} thread`);
-    setDraft("");
-    setMentionCursor(0);
-    localStorage.removeItem(draftKey);
-    // WS-1.D.1 — simulate the other side typing
-    const name = TYPING_NAMES[active];
-    setTypingLabel(`${name} is typing…`);
-    setTimeout(() => setTypingLabel(null), 2600);
   };
 
   return (
@@ -1554,8 +1531,8 @@ function MessagingPanel({
             <button
               type="button"
               data-tulala-msg-mark-read
-              onClick={() => { if (unread[active] > 0) toast(`Marked ${labels[active]} as read`); }}
-              disabled={unread[active] === 0}
+              disabled
+              title={unread[active] > 0 ? "Read-state sync coming soon" : undefined}
               style={{
                 background: "transparent",
                 border: "none",
@@ -1563,8 +1540,8 @@ function MessagingPanel({
                 fontFamily: FONTS.body,
                 fontSize: 11.5,
                 fontWeight: 500,
-                color: unread[active] === 0 ? COLORS.inkDim : COLORS.inkMuted,
-                cursor: unread[active] === 0 ? "default" : "pointer",
+                color: COLORS.inkDim,
+                cursor: "not-allowed",
                 borderRadius: 7,
               }}
             >
@@ -2038,7 +2015,7 @@ function MessagingPanel({
                 overflow: "auto",
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.preventDefault();
                 if (e.key === "/" && !draft) { e.preventDefault(); setSearchActive(true); }
               }}
             />
@@ -2060,13 +2037,13 @@ function MessagingPanel({
           {/* Send */}
           <button
             type="button"
-            onClick={send}
-            disabled={!draft.trim()}
+            disabled
             aria-label="Send message"
+            title="Message sending coming soon"
             style={{
-              width: 32, height: 32, borderRadius: "50%", border: "none", cursor: draft.trim() ? "pointer" : "default",
-              background: draft.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
-              color: draft.trim() ? "#fff" : COLORS.inkDim,
+              width: 32, height: 32, borderRadius: "50%", border: "none", cursor: "not-allowed",
+              background: "rgba(11,11,13,0.10)",
+              color: COLORS.inkDim,
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
               transition: `background ${TRANSITION.sm}`,
             }}
@@ -2080,7 +2057,7 @@ function MessagingPanel({
         <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontFamily: FONTS.body, fontSize: 10, color: COLORS.inkDim }}>
           <span style={{ width: 5, height: 5, borderRadius: "50%", background: THREAD_ACCENT[active], display: "inline-block", flexShrink: 0 }} />
           <span>{active === "private" ? "Client thread" : "Talent group"} · {active === "private" ? "visible to client + coordinator" : "visible to coordinator + booked talent"}</span>
-          {draft.length > 0 && <><span>·</span><span style={{ fontStyle: "italic" }}>draft saved</span></>}
+          {draft.length > 0 && <><span>·</span><span style={{ fontStyle: "italic" }}>draft saved locally; sending coming soon</span></>}
         </div>
       </div>}
     </section>
@@ -2236,7 +2213,6 @@ function WorkspaceFilesPanel({
 }: {
   pov: InquiryWorkspacePov;
 }) {
-  const { toast } = useAdminShell();
   const [filter, setFilter] = useState<FilesFilter>("all");
   // WS-10.5 — track which version groups are expanded
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -2346,7 +2322,8 @@ function WorkspaceFilesPanel({
         {/* Download all */}
         <button
           type="button"
-          onClick={() => toast(`Preparing zip of ${WORKSPACE_MOCK_FILES.length} files…`)}
+          disabled
+          title="Bulk download coming soon"
           style={{
             flexShrink: 0,
             padding: "5px 10px",
@@ -2357,7 +2334,8 @@ function WorkspaceFilesPanel({
             fontFamily: FONTS.body,
             fontSize: 11.5,
             fontWeight: 500,
-            cursor: "pointer",
+            cursor: "not-allowed",
+            opacity: 0.45,
             display: "inline-flex",
             alignItems: "center",
             gap: 5,
@@ -2526,9 +2504,10 @@ function WorkspaceFilesPanel({
                       <button
                         type="button"
                         aria-label={`Preview ${file.name}`}
-                        onClick={() => toast(`Previewing ${file.name}`)}
+                        disabled
+                        title="File preview coming soon"
                         style={{
-                          background: "none", border: "none", cursor: "pointer",
+                          background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
                           padding: "5px 7px", borderRadius: 6, color: COLORS.inkMuted,
                           fontSize: 13,
                         }}
@@ -2541,9 +2520,10 @@ function WorkspaceFilesPanel({
                       <button
                         type="button"
                         aria-label={`Replace ${file.name}`}
-                        onClick={() => toast(`Upload new version — prior v${file.version} kept in history`)}
+                        disabled
+                        title="Version upload coming soon"
                         style={{
-                          background: "none", border: "none", cursor: "pointer",
+                          background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
                           padding: "5px 7px", borderRadius: 6, color: COLORS.inkMuted,
                           fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 500,
                         }}
@@ -2554,9 +2534,10 @@ function WorkspaceFilesPanel({
                     <button
                       type="button"
                       aria-label={`Download ${file.name}`}
-                      onClick={() => toast(`Downloading ${file.name}`)}
+                      disabled
+                      title="File download coming soon"
                       style={{
-                        background: "none", border: "none", cursor: "pointer",
+                        background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
                         padding: "5px 7px", borderRadius: 6, color: COLORS.inkMuted,
                         fontSize: 13,
                       }}
@@ -2600,9 +2581,10 @@ function WorkspaceFilesPanel({
                     <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
                       <button
                         type="button"
-                        onClick={() => toast(`Restoring v${oldFile.version} — current version archived`)}
+                        disabled
+                        title="Version restore coming soon"
                         style={{
-                          background: "none", border: "none", cursor: "pointer",
+                          background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
                           padding: "4px 8px", borderRadius: 6, color: COLORS.inkMuted,
                           fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 500,
                         }}
@@ -2612,9 +2594,10 @@ function WorkspaceFilesPanel({
                       <button
                         type="button"
                         aria-label={`Download ${oldFile.name}`}
-                        onClick={() => toast(`Downloading ${oldFile.name}`)}
+                        disabled
+                        title="File download coming soon"
                         style={{
-                          background: "none", border: "none", cursor: "pointer",
+                          background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
                           padding: "4px 7px", borderRadius: 6, color: COLORS.inkMuted,
                           fontSize: 13,
                         }}
@@ -2818,13 +2801,13 @@ function KvCompact({ label, value, mono }: { label: string; value: string; mono?
 }
 
 function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
-  const { toast } = useAdminShell();
   return (
     <RailCard
       title="Coordinator"
       action={
         <button
-          onClick={() => toast("Coordinator picker — coming soon")}
+          disabled
+          title="Coordinator picker coming soon"
           style={{
             background: "transparent",
             border: "none",
@@ -2833,7 +2816,8 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
             fontFamily: FONTS.body,
             fontSize: 11.5,
             fontWeight: 500,
-            cursor: "pointer",
+            cursor: "not-allowed",
+            opacity: 0.45,
           }}
         >
           Reassign
@@ -2876,14 +2860,16 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
           No coordinator assigned.{" "}
           <button
             type="button"
-            onClick={() => toast("Coordinator picker — coming soon")}
+            disabled
+            title="Coordinator picker coming soon"
             style={{
               color: COLORS.ink,
               fontWeight: 500,
               background: "transparent",
               border: 0,
               padding: 0,
-              cursor: "pointer",
+              cursor: "not-allowed",
+              opacity: 0.45,
               fontFamily: "inherit",
               fontSize: "inherit",
               textDecoration: "underline",
@@ -2971,7 +2957,6 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
 }
 
 function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
-  const { toast } = useAdminShell();
   return (
     <RailCard title="Roster">
       {inquiry.requirementGroups.map((g, i) => (
@@ -3078,7 +3063,7 @@ function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: I
       ))}
       {pov === "admin" && (
         <div style={{ marginTop: 12 }}>
-          <GhostButton onClick={() => toast("Add talent picker — coming soon")} size="sm">
+          <GhostButton disabled title="Talent picker coming soon" size="sm">
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
               <Icon name="plus" size={11} stroke={2} /> Add talent
             </span>
@@ -3090,7 +3075,6 @@ function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: I
 }
 
 function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
-  const { toast } = useAdminShell();
   if (!inquiry.offer) {
     return (
       <RailCard
@@ -3098,7 +3082,8 @@ function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorksp
         action={
           pov === "admin" ? (
             <button
-              onClick={() => toast("Offer composer — coming soon")}
+              disabled
+              title="Offer composer coming soon"
               style={{
                 background: "transparent",
                 border: "none",
@@ -3106,7 +3091,8 @@ function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorksp
                 fontFamily: FONTS.body,
                 fontSize: 11.5,
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: "not-allowed",
+                opacity: 0.45,
                 padding: 0,
               }}
             >
@@ -3138,7 +3124,7 @@ function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorksp
 }
 
 function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) {
-  const { toast, openDrawer, state } = useAdminShell();
+  const { openDrawer, state } = useAdminShell();
   const currentInquiryId = state.drawer.payload?.inquiryId;
   return (
     <>
@@ -3228,7 +3214,8 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
               {showLineCtAs ? (
                 <div style={{ display: "flex", gap: 5 }}>
                   <button
-                    onClick={() => toast(`Declined ${li.talentName} — coordinator notified`)}
+                    disabled
+                    title="Line-item decisions coming soon"
                     style={{
                       padding: "3px 8px",
                       borderRadius: 6,
@@ -3238,14 +3225,16 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
                       fontFamily: FONTS.body,
                       fontSize: 11,
                       fontWeight: 600,
-                      cursor: "pointer",
+                      cursor: "not-allowed",
+                      opacity: 0.45,
                       letterSpacing: 0.3,
                     }}
                   >
                     Decline
                   </button>
                   <button
-                    onClick={() => toast(`${li.talentName} approved`)}
+                    disabled
+                    title="Line-item decisions coming soon"
                     style={{
                       padding: "3px 8px",
                       borderRadius: 6,
@@ -3255,7 +3244,8 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
                       fontFamily: FONTS.body,
                       fontSize: 11,
                       fontWeight: 600,
-                      cursor: "pointer",
+                      cursor: "not-allowed",
+                      opacity: 0.45,
                       letterSpacing: 0.3,
                     }}
                   >
@@ -3350,21 +3340,21 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
       {/* Per-POV CTAs */}
       {pov === "client" && offer.clientApproval === "pending" && (
         <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-          <SecondaryButton size="sm" onClick={() => toast("Offer declined — coordinator notified")}>Decline</SecondaryButton>
-          <PrimaryButton size="sm" onClick={() => toast("Offer approved — booking will be created when all parties accept")}>
+          <SecondaryButton size="sm" disabled>Decline</SecondaryButton>
+          <PrimaryButton size="sm" disabled>
             Approve offer
           </PrimaryButton>
         </div>
       )}
       {pov === "talent" && offer.lineItems.some((l) => l.status === "pending") && (
         <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-          <SecondaryButton size="sm" onClick={() => toast("Your line declined — coordinator notified")}>Decline my line</SecondaryButton>
-          <PrimaryButton size="sm" onClick={() => toast("Your line approved")}>Approve my line</PrimaryButton>
+          <SecondaryButton size="sm" disabled>Decline my line</SecondaryButton>
+          <PrimaryButton size="sm" disabled>Approve my line</PrimaryButton>
         </div>
       )}
       {pov === "admin" && (
         <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-          <SecondaryButton size="sm" onClick={() => toast("Offer revision composer — coming soon — note: revising resets all approvals")}>Revise</SecondaryButton>
+          <SecondaryButton size="sm" disabled>Revise</SecondaryButton>
           <SecondaryButton
             size="sm"
             onClick={() => openDrawer("inquiry-workspace", { inquiryId: currentInquiryId, pov: "client" })}
@@ -3484,7 +3474,6 @@ function DualTimeBadge({
 }
 
 function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
-  const { toast } = useAdminShell();
   if (inquiry.bookingId) {
     return (
       <RailCard title="Booking">
@@ -3513,7 +3502,7 @@ function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
         </div>
 
         <div style={{ marginTop: 10 }}>
-          <SecondaryButton size="sm" onClick={() => toast("Booking detail — coming soon")}>Open booking →</SecondaryButton>
+          <SecondaryButton size="sm" disabled>Open booking</SecondaryButton>
         </div>
       </RailCard>
     );
@@ -3525,7 +3514,7 @@ function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
       </div>
       {pov === "admin" && (
         <div style={{ marginTop: 10 }}>
-          <PrimaryButton size="sm" onClick={() => toast("Booking conversion fires the convertToBooking engine action in production")}>
+          <PrimaryButton size="sm" disabled>
             Convert to booking
           </PrimaryButton>
         </div>

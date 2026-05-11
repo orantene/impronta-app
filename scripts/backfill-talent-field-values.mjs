@@ -2,7 +2,7 @@
 /**
  * One-time backfill: dynFields → talent_profile_field_values.
  *
- * The prototype keeps per-talent type-specific values in
+ * The admin shell keeps per-talent type-specific values in
  * `ProfileState.dynFields` (a flat key→value map) plus the override
  * store `__profileOverrides` (sparse merge). When Phase D goes live,
  * those values need to land in `talent_profile_field_values` rows
@@ -10,7 +10,7 @@
  *
  * This script reads the dynFields blob from a notional source
  * (production: a Postgres table that today stores the JSON; locally:
- * a JSON file you export from the prototype's localStorage) and emits
+ * a JSON file you export from the admin shell's localStorage) and emits
  * SQL inserts.
  *
  * Two modes:
@@ -77,8 +77,8 @@ if (!SOURCE) {
 
 // ─── Read catalog (we re-use the seed generator's parser) ──────────────
 
-const CATALOG_PATH = path.join(REPO_ROOT, "web/src/app/prototypes/admin-shell/_field-catalog.ts");
-const STATE_PATH   = path.join(REPO_ROOT, "web/src/app/prototypes/admin-shell/_state.tsx");
+const CATALOG_PATH = path.join(REPO_ROOT, "web/src/components/admin/shell/internal/field-catalog.ts");
+const STATE_PATH   = path.join(REPO_ROOT, "web/src/components/admin/shell/internal/state.tsx");
 
 function readFile(p) { return fs.readFileSync(p, "utf8"); }
 
