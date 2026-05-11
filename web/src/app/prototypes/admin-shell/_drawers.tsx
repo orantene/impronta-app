@@ -24,6 +24,8 @@ import {
   syncSelfTalentTypeTaxonomyFromShell,
   updateSelfProfileWorkflowFromShell,
   updateSelfProfileShellDynFields,
+  updateSelfMediaAlbums,
+  updateSelfTalentDocuments,
 } from "@/lib/server-actions/talent-self-profile-sections";
 import { dbToUiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import {
@@ -5399,6 +5401,8 @@ function TalentProfileShellDrawer() {
       updateSelfCredits(creditsPayload),
       updateSelfLimits(limitsPayload),
       updateSelfSocialProof(socialPayload),
+      updateSelfMediaAlbums({ talent_profile_id: tid, albums: albumsPayload.albums }),
+      updateSelfTalentDocuments({ talent_profile_id: tid, documents: documentsPayload.documents }),
       updateSelfProfileShellDynFields({ talent_profile_id: tid, dyn_fields: s.dynFields }),
       updateSelfProfileWorkflowFromShell({ talent_profile_id: tid, profile_status: s.profileStatus }),
     ];
@@ -5414,6 +5418,8 @@ function TalentProfileShellDrawer() {
       "Credits",
       "Limits",
       "Social proof",
+      "Portfolio albums",
+      "Documents",
       "Profile fields",
       "Profile status",
     ];

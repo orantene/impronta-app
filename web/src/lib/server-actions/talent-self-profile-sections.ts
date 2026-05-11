@@ -18,7 +18,15 @@ import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
-import type { TalentBio, RateCard, PackageRate, CreditEntry, PastClient } from "./admin-talent-profile-sections";
+import type {
+  TalentBio,
+  RateCard,
+  PackageRate,
+  CreditEntry,
+  PastClient,
+  MediaAlbumEntry,
+  TalentDocumentEntry,
+} from "./admin-talent-profile-sections";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -191,6 +199,59 @@ export async function updateSelfSocialProof(input: {
     .update({ social_proof_data: input.social_proof_data, updated_at: new Date().toISOString() })
     .eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.social-proof", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  return { ok: true };
+}
+
+// ─── Media albums (metadata list only; photos via media actions) ─────────────
+
+export async function updateSelfMediaAlbums(input: {
+  talent_profile_id: string;
+  albums: MediaAlbumEntry[];
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profileCode } = auth;
+
+  const { error } = await supabase
+    .from("talent_profiles")
+    .update({
+      media_albums_data: input.albums.map((a, i) => ({
+        id: a.id,
+        name: a.name,
+        sortOrder: a.sortOrder ?? i,
+      })),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.talent_profile_id);
+  if (error) {
+    logServerError("self-sections.media-albums", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  return { ok: true };
+}
+
+// ─── Work documents (metadata list; files uploaded separately) ─────────────
+
+export async function updateSelfTalentDocuments(input: {
+  talent_profile_id: string;
+  documents: TalentDocumentEntry[];
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profileCode } = auth;
+
+  const { error } = await supabase
+    .from("talent_profiles")
+    .update({ documents_data: input.documents, updated_at: new Date().toISOString() })
+    .eq("id", input.talent_profile_id);
+  if (error) {
+    logServerError("self-sections.documents", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
