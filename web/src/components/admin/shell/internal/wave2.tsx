@@ -2605,7 +2605,8 @@ export function TalentShareCardDrawer() {
             </div>
             <button
               type="button"
-              onClick={() => toast("Sample inquiry would prefill from this link")}
+              disabled
+              title="Preview only — clients click this on the shared link"
               style={{
                 marginTop: 12,
                 padding: "8px 14px",
@@ -2613,10 +2614,12 @@ export function TalentShareCardDrawer() {
                 color: "#fff",
                 border: "none",
                 borderRadius: 8,
-                cursor: "pointer",
+                cursor: "default",
                 fontFamily: FONTS.body,
                 fontSize: 12,
                 fontWeight: 500,
+                opacity: 0.7,
+                pointerEvents: "none",
               }}
             >
               Send inquiry →
@@ -3447,11 +3450,25 @@ export function ICalSubscribeCard({ talentName, slug }: { talentName: string; sl
             >
               Copy URL
             </SecondaryButton>
-            <GhostButton
-              onClick={() => toast("Webcal handler — coming soon")}
+            <button
+              type="button"
+              disabled
+              title="Coming soon"
+              style={{
+                padding: "8px 12px",
+                fontFamily: FONTS.body,
+                fontWeight: 500,
+                fontSize: 13,
+                background: "transparent",
+                color: COLORS.inkDim,
+                border: "1px solid transparent",
+                borderRadius: 8,
+                cursor: "not-allowed",
+                opacity: 0.5,
+              }}
             >
               Open in Calendar app
-            </GhostButton>
+            </button>
           </div>
         </div>
       </div>
@@ -4465,22 +4482,25 @@ export function HelpDrawer() {
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <button
               type="button"
-              onClick={() => toast("Docs site opens in production")}
-              style={helpRowStyle}
+              disabled
+              title="Coming soon"
+              style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
             >
               Read the docs →
             </button>
             <button
               type="button"
-              onClick={() => toast("Support chat — coming soon")}
-              style={helpRowStyle}
+              disabled
+              title="Coming soon"
+              style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
             >
               Chat with support →
             </button>
             <button
               type="button"
-              onClick={() => toast("Calendar booking — coming soon")}
-              style={helpRowStyle}
+              disabled
+              title="Coming soon"
+              style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
             >
               Book onboarding call →
             </button>
