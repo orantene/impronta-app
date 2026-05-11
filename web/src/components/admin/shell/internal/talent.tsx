@@ -8223,7 +8223,6 @@ function SendButtonWithSchedule({ disabled, onSend, onSchedule }: {
  * this component and seeded from MOCK_REACTIONS for demonstration.
  */
 function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: boolean; children: ReactNode }) {
-  const { toast } = useAdminShell();
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reactions, setReactions] = useState<string[]>(() => MOCK_REACTIONS[msg.id] ?? []);
@@ -8250,10 +8249,6 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
   };
   const addReaction = (e: string) => {
     setReactions((prev) => prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]);
-    close();
-  };
-  const action = (label: string) => {
-    toast(label);
     close();
   };
   return (
