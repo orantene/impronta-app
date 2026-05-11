@@ -4665,10 +4665,12 @@ export function TalentPolaroidsDrawer() {
 // ─── Credits ─────────────────────────────────────────────────────
 
 export function TalentCreditsDrawer() {
-  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-credits";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
-  const credits = MY_TALENT_PROFILE.credits;
+  const [credits, setCredits] = useState(() => MY_TALENT_PROFILE.credits);
+  const togglePin = (id: string) =>
+    setCredits((prev) => prev.map((c) => c.id === id ? { ...c, pinned: !c.pinned } : c));
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -4737,7 +4739,7 @@ export function TalentCreditsDrawer() {
               </div>
             </div>
             <button
-              onClick={() => toast(c.pinned ? "Unpinned" : "Pinned to top")}
+              onClick={() => togglePin(c.id)}
               style={{
                 background: "transparent",
                 border: `1px solid ${COLORS.borderSoft}`,
@@ -4833,10 +4835,11 @@ export function TalentSkillsDrawer() {
 // ─── Limits ─────────────────────────────────────────────────────
 
 export function TalentLimitsDrawer() {
-  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-limits";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
-  const limits = MY_TALENT_PROFILE.limits;
+  const [limits, setLimits] = useState(() => MY_TALENT_PROFILE.limits);
+  const removeLimit = (id: string) => setLimits((prev) => prev.filter((l) => l.id !== id));
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -4900,7 +4903,7 @@ export function TalentLimitsDrawer() {
               </div>
             </div>
             <button
-              onClick={() => toast("Limit removed")}
+              onClick={() => removeLimit(l.id)}
               style={{
                 background: "transparent",
                 border: "none",
