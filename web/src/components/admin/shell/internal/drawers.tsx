@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { addTalentToRoster, bulkAddTalentToRoster } from "./_actions";
-import { parseTalentCsv } from "./_csv-parser";
+import { addTalentToRoster, bulkAddTalentToRoster } from "./actions";
+import { parseTalentCsv } from "./csv-parser";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 import {
@@ -63,11 +63,11 @@ import {
   type CategoryFieldEntry,
 } from "@/lib/server-actions/admin-taxonomy";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
-import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
-import { prefetchSkillsData, SkillSlotPanel } from "./_skill-slot-panel";
-import { useDashboardText } from "./_dashboard-i18n";
-import { MetricsRibbon } from "./_metrics-ribbon";
-import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
+import { useLiveTaxonomy, type LiveTaxonomyParent } from "./use-taxonomy";
+import { prefetchSkillsData, SkillSlotPanel } from "./skill-slot-panel";
+import { useDashboardText } from "./dashboard-i18n";
+import { MetricsRibbon } from "./metrics-ribbon";
+import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./profile-store";
 import {
   CLIENT_TRUST_META,
   COLORS,
@@ -128,7 +128,7 @@ import {
   getPaymentSummary,
   meetsPlan,
   meetsRole,
-  useProto,
+  useAdminShell,
   type DrawerId,
   type NotificationItem,
   type Plan,
@@ -194,8 +194,8 @@ import {
   computeTrustTier,
   WEBSITE_STATE,
   splitShellContactPhone,
-} from "./_state";
-import type { TalentSelfProfile as BridgeTalentSelfProfile } from "./_data-bridge";
+} from "./state";
+import type { TalentSelfProfile as BridgeTalentSelfProfile } from "./data-bridge";
 import {
   sectionAppliesToType,
   isRequiredForType,
@@ -213,7 +213,7 @@ import {
   type DrawerSectionId,
   type WorkspaceFieldOverride,
   type FieldCatalogEntry,
-} from "./_field-catalog";
+} from "./field-catalog";
 import {
   ActivityFeedItem,
   Affordance,
@@ -246,14 +246,14 @@ import {
   DrawerShell,
   TrustBadgeGroup,
   RiskScorePill,
-} from "./_primitives";
-import { InquiryWorkspaceDrawer } from "./_workspace";
-import SkillOverridesPanel from "./_skill-overrides-panel";
-import SkillHintsBanner from "./_skill-hints-banner";
-import SkillFreshnessBanner from "./_skill-freshness-banner";
+} from "./primitives";
+import { InquiryWorkspaceDrawer } from "./workspace";
+import SkillOverridesPanel from "./skill-overrides-panel";
+import SkillHintsBanner from "./skill-hints-banner";
+import SkillFreshnessBanner from "./skill-freshness-banner";
 import dynamic from "next/dynamic";
 const InquiryComposerLazyD = dynamic(
-  () => import("./_messages").then((m) => m.InquiryComposer),
+  () => import("./messages").then((m) => m.InquiryComposer),
   { ssr: false },
 );
 import {
@@ -270,7 +270,7 @@ import {
   WhatsNewDrawer,
   HelpDrawer,
   TalentNotificationsDrawer,
-} from "./_wave2";
+} from "./wave2";
 import {
   TalentTodayPulseDrawer,
   TalentOfferDetailDrawer,
@@ -323,7 +323,7 @@ import {
   TalentCareerAnalyticsDrawer,
   TalentReceiveReviewDrawer,
   TalentAgencyAnalyticsDrawer,
-} from "./_talent_drawers";
+} from "./talent-drawers";
 import {
   ClientTodayPulseDrawer,
   ClientTalentCardDrawer,
@@ -345,7 +345,7 @@ import {
   ClientMyTalentDrawer,
   ClientSpendReportDrawer,
   ClientBudgetDrawer,
-} from "./_client";
+} from "./client";
 import {
   PlatformTodayPulseDrawer,
   PlatformTenantDetailDrawer,
@@ -368,19 +368,19 @@ import {
   PlatformAuditExportDrawer,
   PlatformHqTeamDrawer,
   PlatformRegionConfigDrawer,
-} from "./_platform";
+} from "./platform";
 
 // ════════════════════════════════════════════════════════════════════
 // Drawer root — reads drawer state and dispatches to the right body
 // ════════════════════════════════════════════════════════════════════
 //
-// Each drawer body is its own component so it can call `useProto()` at
+// Each drawer body is its own component so it can call `useAdminShell()` at
 // the top level (rules of hooks). `DrawerRoot` is just a switch on the
 // active drawer id; when no drawer is open it still renders an empty
 // closed shell so the slide-out animation can play in both directions.
 
 export function DrawerRoot() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const id = state.drawer.drawerId;
   if (!id) {
     // still render the shell closed so backdrop animates out
@@ -945,7 +945,7 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
 // ════════════════════════════════════════════════════════════════════
 
 function useSaveAndClose(message = "Saved") {
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast } = useAdminShell();
   return () => {
     toast(message);
     closeDrawer();
@@ -965,7 +965,7 @@ function StandardFooter({
    *  gate save on a pending mutation or "not yet loaded" state. */
   disabled?: boolean;
 }) {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   return (
     <>
       {destructive && (
@@ -1059,7 +1059,7 @@ function Section({
 // ════════════════════════════════════════════════════════════════════
 
 function TenantSummaryDrawer() {
-  const { state, closeDrawer, openDrawer, openUpgrade, effectiveRoster, effectiveTeamMembers, effectiveTenant } = useProto();
+  const { state, closeDrawer, openDrawer, openUpgrade, effectiveRoster, effectiveTeamMembers, effectiveTenant } = useAdminShell();
   const planMeta = PLAN_META[state.plan];
   const rosterCount = effectiveRoster.length;
   const rosterCap = state.plan === "free" ? 5 : state.plan === "studio" ? 50 : state.plan === "agency" ? 200 : 999;
@@ -1275,7 +1275,7 @@ function nextPlan(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 function SiteSetupDrawer() {
-  const { closeDrawer, openDrawer, toast } = useProto();
+  const { closeDrawer, openDrawer, toast } = useAdminShell();
   const [done, setDone] = useState<Set<string>>(new Set(["homepage"]));
   const steps = [
     { id: "homepage", label: "Homepage hero", desc: "Headline, sub, CTA. Sets the tone.", drawer: "homepage" },
@@ -1420,7 +1420,7 @@ function SiteSetupDrawer() {
 
 function ThemeFoundationsDrawer() {
   const router = useRouter();
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [theme, setTheme] = useState<"editorial-noir" | "modern-mono" | "warm-light">("editorial-noir");
   const [headingFont, setHeadingFont] = useState("Cormorant Garamond");
@@ -1604,7 +1604,7 @@ function ThemeFoundationsDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function PlanBillingDrawer() {
-  const { state, closeDrawer, openUpgrade, toast } = useProto();
+  const { state, closeDrawer, openUpgrade, toast } = useAdminShell();
   const planMeta = PLAN_META[state.plan];
 
   const invoices = [
@@ -1754,7 +1754,7 @@ function StateChipMini({ label, tone }: { label: string; tone: "green" | "amber"
 // ════════════════════════════════════════════════════════════════════
 
 function TeamDrawer() {
-  const { state, closeDrawer, toast, effectiveTeamMembers } = useProto();
+  const { state, closeDrawer, toast, effectiveTeamMembers } = useAdminShell();
   // Phase 3.12 — use live team members when available, fall back to mock.
   const team = effectiveTeamMembers.length > 0 ? effectiveTeamMembers : getTeam(state.plan);
   const canManage = meetsRole(state.role, "admin");
@@ -2509,7 +2509,7 @@ function CategoryExpandPanel({
 // ════════════════════════════════════════════════════════════════════
 
 function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [tree, setTree] = useState<TaxonomyNode[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2791,7 +2791,7 @@ function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClose: () =
 }
 
 function TalentTypesDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity } = useProto();
+  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity } = useAdminShell();
   const open = state.drawer.drawerId === "talent-types";
 
   // Live mode when we have a real tenant; legacy prototype when not.
@@ -2805,7 +2805,7 @@ function TalentTypesDrawer() {
 }
 
 function LegacyTalentTypesDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-types";
   const [settings, setSettings] = useState(WORKSPACE_TAXONOMY_DEFAULT);
   const limit = PLAN_TAXONOMY_LIMITS[state.plan as keyof typeof PLAN_TAXONOMY_LIMITS] ?? 3;
@@ -3043,7 +3043,7 @@ function TaxonomyToggleRow({ label, desc, value, onChange }: { label: string; de
 type RegValues = Record<string, string | string[]>;
 
 function TalentRegistrationDrawer() {
-  const { state, closeDrawer, toast, effectiveTenant } = useProto();
+  const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
   const open = state.drawer.drawerId === "talent-registration";
   const [step, setStep] = useState(0);
   const [stageName, setStageName] = useState("");
@@ -3948,7 +3948,7 @@ function RegFieldInput({ field, value, onChange, visibility, onVisibilityChange,
  * Talent must explicitly agree (via the Submit for review CTA).
  */
 function ConsentTwoCol({ agencyName }: { agencyName: string }) {
-  const { effectiveFieldVisibility, customFields } = useProto();
+  const { effectiveFieldVisibility, customFields } = useAdminShell();
   const allFieldIds = Object.keys(PROFILE_FIELD_META) as ProfileFieldId[];
   const publicLabels: string[] = [];
   const internalLabels: string[] = [];
@@ -4682,7 +4682,7 @@ function makeInitialProfileState(
 // ════════════════════════════════════════════════════════════════════
 
 function TalentProfileShellDrawer() {
-  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant } = useProto();
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant } = useAdminShell();
   const copy = useDashboardText();
   const shellRouter = useRouter();
   const drawerId = protoState.drawer.drawerId;
@@ -5531,7 +5531,7 @@ function TalentProfileShellDrawer() {
   // present we filter by allow_as_primary on the real overlay, instead
   // of the WORKSPACE_TAXONOMY_DEFAULT fixture. Falls back to the fixture
   // when not on a real tenant. (bridgeTenantIdentity is destructured from
-  // useProto at the top of TalentProfileShellDrawer.)
+  // useAdminShell at the top of TalentProfileShellDrawer.)
   const [liveEnabledPrimaryIds, setLiveEnabledPrimaryIds] = useState<Set<string> | null>(null);
   const [liveEnabledPrimarySlugs, setLiveEnabledPrimarySlugs] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -9092,7 +9092,7 @@ function PublishCelebrationModal({ stageName, slug, tenantSlug, onClose, onCopyL
   onCopyLink: () => void;
   onShare: () => void;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const profileUrl = `https://tulala.digital/${tenantSlug}/t/${slug}`;
   // 2026 #8 — Web Share API. Triggers the native iOS / Android / desktop
   // share sheet (Messages, WhatsApp, AirDrop, Slack, etc). Falls back
@@ -9207,7 +9207,7 @@ function ProfileOwnershipPanel({
   talentName: string;
   contactEmail?: string;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   type OwnershipState = "unclaimed" | "invited" | "claimed";
   const [state, setState] = useState<OwnershipState>("unclaimed");
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -9784,7 +9784,7 @@ type CoverPhotoEditorProps = {
   onMediaAssetIdChange?: (id: string | null) => void;
 };
 const CoverPhotoEditor = React.memo(({ url, onChange, talentProfileId, mediaAssetId, onMediaAssetIdChange }: CoverPhotoEditorProps) => {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const handleFile = async (f: File) => {
     if (!talentProfileId) { onChange(URL.createObjectURL(f)); return; }
@@ -9861,7 +9861,7 @@ type PolaroidsEditorProps = {
   talentProfileId?: string;
 };
 const PolaroidsEditor = React.memo(({ polaroids, onChange, talentProfileId }: PolaroidsEditorProps) => {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const fileRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const polaroidsRef = useRef(polaroids);
   polaroidsRef.current = polaroids;
@@ -10088,7 +10088,7 @@ type FilesEditorProps = {
   talentProfileId?: string;
 };
 const FilesEditor = React.memo(({ files, onChange, talentProfileId }: FilesEditorProps) => {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const filesRef = useRef(files);
   filesRef.current = files;
@@ -11454,7 +11454,7 @@ const LanguagesEditor = React.memo(({ value, onChange }: LanguagesEditorProps) =
 // ════════════════════════════════════════════════════════════════════
 
 function TalentApprovalsDrawer() {
-  const { state, closeDrawer, openDrawer, toast, pendingTalent, resolveApproval } = useProto();
+  const { state, closeDrawer, openDrawer, toast, pendingTalent, resolveApproval } = useAdminShell();
   const open = state.drawer.drawerId === "talent-approvals";
 
   // Read the queue from proto state so approve/reject changes propagate
@@ -12438,7 +12438,7 @@ type HelloReelEditorProps = {
   talentProfileId?: string;
 };
 const HelloReelEditor = React.memo(({ reel, onChange, talentProfileId }: HelloReelEditorProps) => {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const handleFile = async (f: File) => {
@@ -12525,7 +12525,7 @@ type PhotoGalleryProProps = {
   albumId?: string;
 };
 const PhotoGalleryPro = React.memo(({ items, onChange, talentProfileId, albumId }: PhotoGalleryProProps) => {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
@@ -13557,7 +13557,7 @@ function WatermarkPreviewCard({ preset, logoUrl }: { preset: WatermarkPreset; lo
 }
 
 function BrandingDrawer() {
-  const { state, closeDrawer, openUpgrade, toast, tenantSlug, effectiveTenant } = useProto();
+  const { state, closeDrawer, openUpgrade, toast, tenantSlug, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const isStudioPlus = meetsPlan(state.plan, "studio");
 
@@ -13790,7 +13790,7 @@ function BrandingDrawer() {
 }
 
 function WatermarkEditorDrawer() {
-  const { state, closeDrawer, openUpgrade, toast, tenantSlug } = useProto();
+  const { state, closeDrawer, openUpgrade, toast, tenantSlug } = useAdminShell();
   const isStudioPlus = meetsPlan(state.plan, "studio");
   const payload = state.drawer.payload as {
     mediaAssetId?: string;
@@ -13921,7 +13921,7 @@ function WatermarkEditorDrawer() {
 
 function DomainDrawer() {
   const router = useRouter();
-  const { state, closeDrawer, toast, effectiveTenant } = useProto();
+  const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const isLive = meetsPlan(state.plan, "studio");
   // I3 — read live domain status from the Website page's source of
@@ -14146,7 +14146,7 @@ function DomainDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function IdentityDrawer() {
-  const { closeDrawer, toast, tenantSlug, effectiveTenant } = useProto();
+  const { closeDrawer, toast, tenantSlug, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [displayName, setDisplayName] = useState(effectiveTenant.name);
   const [contactEmail, setContactEmail] = useState("");
@@ -14244,7 +14244,7 @@ function IdentityDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function WorkspaceSettingsDrawer() {
-  const { closeDrawer, toast, tenantSlug } = useProto();
+  const { closeDrawer, toast, tenantSlug } = useAdminShell();
   const router = useRouter();
   const [locale, setLocale] = useState<"en" | "es" | "pt" | "fr" | "it">("en");
   const [timezone, setTimezone] = useState("America/Cancun");
@@ -14419,7 +14419,7 @@ function SelectInput({
 
 function TalentProfileDrawer() {
   const router = useRouter();
-  const { state, closeDrawer, openDrawer, toast, effectiveRoster } = useProto();
+  const { state, closeDrawer, openDrawer, toast, effectiveRoster } = useAdminShell();
   const id = state.drawer.payload?.id as string | undefined;
   const profile = effectiveRoster.find((p) => p.id === id) ?? effectiveRoster[0];
   const canEdit = meetsRole(state.role, "editor");
@@ -14721,7 +14721,7 @@ function ToggleRow({
 // ════════════════════════════════════════════════════════════════════
 
 function NewTalentDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant } = useProto();
+  const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -16371,7 +16371,7 @@ function RadioCardGroup({ options, defaultId }: { options: { id: string; title: 
 }
 
 function MyProfileDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const onSave = useSaveAndClose("Your profile saved");
 
   return (
@@ -16461,7 +16461,7 @@ function MyProfileDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function InquiryPeekDrawer() {
-  const { state, closeDrawer, effectiveMessagesInquiries } = useProto();
+  const { state, closeDrawer, effectiveMessagesInquiries } = useAdminShell();
   const id = state.drawer.payload?.id as string | undefined;
   // Bridge path: adapt RichInquiry → old Inquiry shape used by this drawer.
   const richSource = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
@@ -16562,7 +16562,7 @@ function InquiryPeekDrawer() {
  * judge risk and priority without leaving the inquiry.
  */
 function InquiryTrustPanel({ clientName, talentNames }: { clientName: string; talentNames: string[] }) {
-  const { getTrustSummary, getRiskScore } = useProto();
+  const { getTrustSummary, getRiskScore } = useAdminShell();
   const allRoster = [...ROSTER_AGENCY, ...ROSTER_FREE];
   // Resolve first talent (most inquiries are single-talent for the demo)
   const talentName = talentNames[0];
@@ -16683,7 +16683,7 @@ function ConversationBubble({
 }
 
 function NewInquiryDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   return (
     <DrawerShell
       open
@@ -16707,7 +16707,7 @@ function NewInquiryDrawer() {
 // scheduled on that date so the coordinator can drill in without leaving
 // the calendar view.
 function DayDetailDrawer() {
-  const { state, closeDrawer, openDrawer, effectiveCalendarEvents, effectiveMessagesInquiries } = useProto();
+  const { state, closeDrawer, openDrawer, effectiveCalendarEvents, effectiveMessagesInquiries } = useAdminShell();
   const dateStr: string = (state.drawer.payload as { date?: string })?.date ?? "";
 
   // Parse "YYYY-MM-DD" → human-readable label and month index
@@ -16730,7 +16730,7 @@ function DayDetailDrawer() {
     id: string;
     clientName: string;
     brief: string;
-    stage: import("./_state").InquiryStage;
+    stage: import("./state").InquiryStage;
     location: string | null;
     requirementGroups: { id: string; role: string; needed: number; approved: number }[];
   };
@@ -16747,7 +16747,7 @@ function DayDetailDrawer() {
           : ev.status === "offer_pending" ? "offer_pending"
           : ev.status === "rejected" ? "rejected"
           : ev.status === "expired" ? "expired"
-          : "submitted") as import("./_state").InquiryStage,
+          : "submitted") as import("./state").InquiryStage,
         location: null,
         requirementGroups: [],
       }));
@@ -16884,7 +16884,7 @@ function DayDetailDrawer() {
 }
 
 function NewBookingDrawer() {
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast } = useAdminShell();
   const [title, setTitle] = useState("");
   const [clientName, setClientName] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -16995,7 +16995,7 @@ function NewBookingDrawer() {
 
 function ClientProfileDrawer() {
   const router = useRouter();
-  const { state, closeDrawer, toast, effectiveClients } = useProto();
+  const { state, closeDrawer, toast, effectiveClients } = useAdminShell();
   const id = state.drawer.payload?.id as string | undefined;
   const isNew = id === "new" || !id;
   const clientPool = effectiveClients.length > 0 ? effectiveClients : getClients(state.plan);
@@ -17317,7 +17317,7 @@ function ClientProfileDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function TodayPulseDrawer() {
-  const { state, closeDrawer, openDrawer, effectiveMessagesInquiries } = useProto();
+  const { state, closeDrawer, openDrawer, effectiveMessagesInquiries } = useAdminShell();
   // Phase 3.12 — use bridge inquiries when available, fall back to mock.
   const richInqs = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
   const items = [
@@ -17388,7 +17388,7 @@ function TodayPulseDrawer() {
 }
 
 function PipelineDrawer() {
-  const { state, closeDrawer, openDrawer, effectiveMessagesInquiries } = useProto();
+  const { state, closeDrawer, openDrawer, effectiveMessagesInquiries } = useAdminShell();
   // Phase 3.12 — use bridge RichInquiry data, mapped to the shape this drawer expects.
   const richSource = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
   const inquiries = richSource.map((i) => ({
@@ -17468,7 +17468,7 @@ function PipelineDrawer() {
 }
 
 function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting" | "confirmed" | "archived" }) {
-  const { state, closeDrawer, openDrawer, effectiveMessagesInquiries, effectiveBookings } = useProto();
+  const { state, closeDrawer, openDrawer, effectiveMessagesInquiries, effectiveBookings } = useAdminShell();
   const meta = {
     drafts: { title: "Drafts & holds", desc: "Inquiries you started but haven't sent.", stages: ["draft", "hold"] },
     awaiting: { title: "Awaiting client", desc: "Offers sent — waiting on confirmation.", stages: ["awaiting-client"] },
@@ -17606,7 +17606,7 @@ function batchNotifications(items: NotificationItem[]): NotifListItem[] {
 }
 
 function NotificationsDrawer() {
-  const { closeDrawer, openDrawer, toast } = useProto();
+  const { closeDrawer, openDrawer, toast } = useAdminShell();
   const [filter, setFilter] = useState<"all" | "unread" | "action">("all");
   // WS-11.2 — track which batches are expanded
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
@@ -17891,7 +17891,7 @@ function NotificationsDrawer() {
 }
 
 function ActivityFeedDrawer({ kind }: { kind: "team" | "talent" }) {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   type FeedItem = { actor: string; action: string; target: string; timestamp: string; iconName: "mail" | "check" | "user" | "team" | "settings" | "calendar" };
   const teamItems: FeedItem[] = [
     { actor: "Sara Bianchi",  action: "sent an offer to",         target: "Vogue Italia",                timestamp: "1h ago",   iconName: "mail"     },
@@ -17963,7 +17963,7 @@ const MY_ACTIONS: MyAction[] = [
 type ActivityCategory = MyAction["category"] | "all";
 
 function MyActivityDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   const [category, setCategory] = useState<ActivityCategory>("all");
 
   const CAT_OPTIONS: { key: ActivityCategory; label: string }[] = [
@@ -18063,7 +18063,7 @@ function MyActivityDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function PagesDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   const pages = [
     { id: "p1", title: "Home", status: "published", updated: "2d ago" },
     { id: "p2", title: "Roster", status: "published", updated: "5d ago" },
@@ -18121,7 +18121,7 @@ function PagesDrawer() {
 }
 
 function PostsDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   const posts = [
     { title: "Spring 2026 — what's moving", status: "published", at: "3d ago" },
     { title: "BTS · Vogue Italia editorial", status: "published", at: "1w ago" },
@@ -18173,7 +18173,7 @@ function PostsDrawer() {
 
 function NavigationDrawer() {
   const router = useRouter();
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [headerItems, setHeaderItems] = useState<string[]>([
     "Roster", "About", "Editorial", "Press", "Contact",
@@ -18265,7 +18265,7 @@ function ReorderList({ items }: { items: string[] }) {
 }
 
 function MediaDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   return (
     <DrawerShell
       open
@@ -18310,7 +18310,7 @@ function MediaDrawer() {
 
 function TranslationsDrawer() {
   const router = useRouter();
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const ALL = [
     { code: "EN", name: "English" },
@@ -18412,7 +18412,7 @@ function TranslationsDrawer() {
 
 function SeoDrawer() {
   const router = useRouter();
-  const { closeDrawer, toast, effectiveTenant } = useProto();
+  const { closeDrawer, toast, effectiveTenant } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [siteTitle, setSiteTitle] = useState(`${effectiveTenant.name} · Talent agency`);
   const [description, setDescription] = useState(
@@ -18538,7 +18538,7 @@ type CustomField = {
 // here. The talent drawer's REQUIRED/OPTIONAL pills already do.
 
 function WorkspaceFieldSettingsDrawer() {
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast } = useAdminShell();
   // Re-render on any override change so the "X overrides active"
   // counter + each row's badge stay in sync.
   useWorkspaceFieldOverrideSubscription();
@@ -18935,7 +18935,7 @@ function SettingToggleRow({
 }
 
 function FieldCatalogDrawer() {
-  const { state, closeDrawer, toast, customFields, addCustomField, removeCustomField } = useProto();
+  const { state, closeDrawer, toast, customFields, addCustomField, removeCustomField } = useAdminShell();
   const isAgency = state.plan === "agency" || state.plan === "network";
 
   const coreFields: { name: string; section: string; kind: CustomFieldKind }[] = [
@@ -19278,7 +19278,7 @@ function FieldPrivacyDrawer() {
     state, closeDrawer, openDrawer, toast,
     customFields, setCustomFieldVisibility,
     setFieldVisibility, effectiveFieldVisibility,
-  } = useProto();
+  } = useAdminShell();
   const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
     ?? FIELD_PRIVACY_PLAN_RULES.free;
   const isAgency = state.plan === "agency" || state.plan === "network";
@@ -19553,7 +19553,7 @@ const VR_STATUS_META: Record<VerificationRequestStatus, { label: string; tone: "
 // Compact risk-score row for admin detail panels — pulls live from
 // getRiskScore. Admin-only — never shown publicly.
 function SubjectRiskScoreRow({ subjectType, subjectId }: { subjectType: VerificationRequest["subjectType"]; subjectId: string }) {
-  const { getRiskScore } = useProto();
+  const { getRiskScore } = useAdminShell();
   const score = getRiskScore(subjectType, subjectId);
   return (
     <div style={{ marginTop: 14, marginBottom: 4, fontFamily: FONTS.body }}>
@@ -19651,7 +19651,7 @@ function ActivityLogPanel({ request }: { request: VerificationRequest }) {
 }
 
 function TrustVerificationQueueDrawer() {
-  const { closeDrawer, verificationRequests, approveVerificationRequest, rejectVerificationRequest, updateVerificationRequest, toast, isVerificationMethodEnabled } = useProto();
+  const { closeDrawer, verificationRequests, approveVerificationRequest, rejectVerificationRequest, updateVerificationRequest, toast, isVerificationMethodEnabled } = useAdminShell();
   type Tab = "all" | "submitted" | "in_review" | "needs_more_info" | "approved" | "rejected";
   const [activeTab, setActiveTab] = useState<Tab>("submitted");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -20124,7 +20124,7 @@ function TrustVerificationQueueDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function DisputedClaimsDrawer() {
-  const { closeDrawer, profileClaims, resolveProfileClaimDispute, toast } = useProto();
+  const { closeDrawer, profileClaims, resolveProfileClaimDispute, toast } = useAdminShell();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
 
@@ -20327,7 +20327,7 @@ function DisputedClaimsDrawer() {
 // the next 1-3 verifications that would lift the score the most.
 // Each suggestion is an actionable button that opens the right drawer.
 function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
-  const { getTrustSummary, getRiskScore, listEnabledMethods, openDrawer } = useProto();
+  const { getTrustSummary, getRiskScore, listEnabledMethods, openDrawer } = useAdminShell();
   const trust = getTrustSummary("talent_profile", talentId);
   const score = getRiskScore("talent_profile", talentId);
   const activeBadgeCount = trust.badges.filter(b => b.status === "active" && b.methodEnabled !== false).length;
@@ -20403,7 +20403,7 @@ type DrawerSuggestion =
   | "talent-payment-verify";
 
 function TalentTrustDetailDrawer() {
-  const { state, closeDrawer, toast, getTrustSummary, getRiskScore, createVerificationRequest, updateVerificationRequest, verificationRequests, isVerificationMethodEnabled, openDrawer, getTalentContactGate, setTalentContactGate } = useProto();
+  const { state, closeDrawer, toast, getTrustSummary, getRiskScore, createVerificationRequest, updateVerificationRequest, verificationRequests, isVerificationMethodEnabled, openDrawer, getTalentContactGate, setTalentContactGate } = useAdminShell();
   const open = state.drawer.drawerId === "talent-trust-detail";
   // Demo: prototype's "current talent" is roster id t1 (Marta).
   const TALENT_ID = "t1";
@@ -20930,7 +20930,7 @@ function InstagramVerificationInstructions({
 // ════════════════════════════════════════════════════════════════════
 
 function TalentClaimInviteDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-claim-invite";
   const [step, setStep] = useState<"review" | "claim" | "dispute">("review");
   const [email, setEmail] = useState("amelia.dorsey@example.com");
@@ -21114,7 +21114,7 @@ const TIER_LABEL: Record<"basic" | "pro" | "portfolio" | "all", string> = {
 };
 
 function PlatformVerificationMethodsDrawer() {
-  const { closeDrawer, verificationMethodConfigs, verificationMethodAudit, updateVerificationMethod, profileVerifications, toast } = useProto();
+  const { closeDrawer, verificationMethodConfigs, verificationMethodAudit, updateVerificationMethod, profileVerifications, toast } = useAdminShell();
   const [activeId, setActiveId] = useState<VerificationType | null>(null);
   const [confirmDisable, setConfirmDisable] = useState<{ type: VerificationType; label: string; activeCount: number } | null>(null);
 
@@ -21430,7 +21430,7 @@ function vmSmallHelpStyle(): React.CSSProperties {
 }
 
 function TalentPhoneVerifyDrawer() {
-  const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useProto();
+  const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useAdminShell();
   const open = state.drawer.drawerId === "talent-phone-verify";
   const TALENT_ID = "t1";
   const [phone, setPhone] = useState("");
@@ -21523,7 +21523,7 @@ function TalentPhoneVerifyDrawer() {
 }
 
 function TalentIdVerifyDrawer() {
-  const { state, closeDrawer, toast, createVerificationRequest, isVerificationMethodEnabled, getVerificationMethodConfig } = useProto();
+  const { state, closeDrawer, toast, createVerificationRequest, isVerificationMethodEnabled, getVerificationMethodConfig } = useAdminShell();
   const open = state.drawer.drawerId === "talent-id-verify";
   const TALENT_ID = "t1";
   const [docType, setDocType] = useState<"passport" | "drivers_license" | "national_id">("passport");
@@ -21596,7 +21596,7 @@ function TalentIdVerifyDrawer() {
 }
 
 function TalentBusinessVerifyDrawer() {
-  const { state, closeDrawer, toast, createVerificationRequest, isVerificationMethodEnabled, getVerificationMethodConfig } = useProto();
+  const { state, closeDrawer, toast, createVerificationRequest, isVerificationMethodEnabled, getVerificationMethodConfig } = useAdminShell();
   const open = state.drawer.drawerId === "talent-business-verify";
   const TALENT_ID = "t1";
   const [legalName, setLegalName] = useState("");
@@ -21652,7 +21652,7 @@ function TalentBusinessVerifyDrawer() {
 }
 
 function TalentDomainVerifyDrawer() {
-  const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useProto();
+  const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useAdminShell();
   const open = state.drawer.drawerId === "talent-domain-verify";
   const TALENT_ID = "t1";
   const [domain, setDomain] = useState("");
@@ -21748,7 +21748,7 @@ function TalentDomainVerifyDrawer() {
 }
 
 function TalentPaymentVerifyDrawer() {
-  const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useProto();
+  const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useAdminShell();
   const open = state.drawer.drawerId === "talent-payment-verify";
   const TALENT_ID = "t1";
   const [stage, setStage] = useState<"intro" | "running" | "done">("intro");
@@ -21821,7 +21821,7 @@ function TalentPaymentVerifyDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientCsvBulkAddDrawer() {
-  const { state, closeDrawer, bulkAddClient, toast } = useProto();
+  const { state, closeDrawer, bulkAddClient, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-csv-bulk-add";
   const [raw, setRaw] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -21975,7 +21975,7 @@ Net-a-Porter,Helena Ross,helena@net-a-porter.com`;
 }
 
 function TaxonomyDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   const taxonomies = [
     { label: "Niches", values: ["Editorial", "Commercial", "Runway", "Showroom", "Lookbook"] },
     { label: "Categories", values: ["Female", "Male", "Non-binary"] },
@@ -22031,7 +22031,7 @@ function TaxonomyDrawer() {
 }
 
 function WidgetsDrawer() {
-  const { closeDrawer, effectiveTenant } = useProto();
+  const { closeDrawer, effectiveTenant } = useAdminShell();
   return (
     <DrawerShell
       open
@@ -22082,7 +22082,7 @@ function WidgetsDrawer() {
 }
 
 function ApiKeysDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   return (
     <DrawerShell
       open
@@ -22121,7 +22121,7 @@ function ApiKeysDrawer() {
 }
 
 function SiteHealthDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   const checks = [
     { label: "Lighthouse score", value: "94", tone: "green" as const },
     { label: "Image optimization", value: "All optimized", tone: "green" as const },
@@ -22168,7 +22168,7 @@ function SiteHealthDrawer() {
 
 function StorefrontVisibilityDrawer() {
   const router = useRouter();
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
 
   // Defaults derived from the workspace plan — applied when the namespace
@@ -22232,7 +22232,7 @@ function StorefrontVisibilityDrawer() {
 }
 
 function HubDistributionDrawer() {
-  const { state, closeDrawer, openUpgrade } = useProto();
+  const { state, closeDrawer, openUpgrade } = useAdminShell();
   const isUnlocked = meetsPlan(state.plan, "network");
   return (
     <DrawerShell
@@ -22287,7 +22287,7 @@ function HubDistributionDrawer() {
 
 function FilterConfigDrawer() {
   const router = useRouter();
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [flags, setFlags] = useState({
     drafts: true,
@@ -22346,7 +22346,7 @@ function FilterConfigDrawer() {
 }
 
 function DangerZoneDrawer() {
-  const { closeDrawer, toast, effectiveTenant } = useProto();
+  const { closeDrawer, toast, effectiveTenant } = useAdminShell();
   return (
     <DrawerShell
       open
@@ -22500,7 +22500,7 @@ function SimpleStubDrawer({
   description?: string;
   sections: { label: string; input: string }[];
 }) {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   const onSave = useSaveAndClose("Saved");
   return (
     <DrawerShell
@@ -22530,7 +22530,7 @@ function SimpleStubDrawer({
 // ════════════════════════════════════════════════════════════════════
 
 export function UpgradeModal() {
-  const { state, closeUpgrade, setPlan, toast, openDrawer } = useProto();
+  const { state, closeUpgrade, setPlan, toast, openDrawer } = useAdminShell();
   const offer = state.upgrade;
   if (!offer.open) return null;
   const requiredPlan = offer.requiredPlan ?? "studio";
@@ -22804,7 +22804,7 @@ const PLAN_TIER_STYLE: Record<Plan, {
 };
 
 function PlanCompareDrawer() {
-  const { state, closeDrawer, openUpgrade, toast } = useProto();
+  const { state, closeDrawer, openUpgrade, toast } = useAdminShell();
   const open = state.drawer.drawerId === "plan-compare";
   const currentPlan = state.plan;
 
@@ -23186,7 +23186,7 @@ function PlanCompareDrawer() {
  * only per PLAN_FEE_META.
  */
 function PaymentsSetupDrawer() {
-  const { state, closeDrawer, openUpgrade } = useProto();
+  const { state, closeDrawer, openUpgrade } = useAdminShell();
   const payout = getWorkspacePayout(state.plan);
   const fee = PLAN_FEE_META[state.plan];
   const onSave = useSaveAndClose("Default receiver saved");
@@ -23339,7 +23339,7 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
  * the real write lands when payments are wired into state mutations.)
  */
 function PayoutReceiverPickerDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const payload = state.drawer.payload ?? {};
   const inquiryId = (payload as { inquiryId?: string }).inquiryId;
   const summary = inquiryId ? getPaymentSummary(inquiryId) : undefined;
@@ -23458,7 +23458,7 @@ function PayoutReceiverPickerDrawer() {
  * Payload: `{ id: string }` where `id` is a `WorkspacePaymentRow.id`.
  */
 function PaymentDetailDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const payload = state.drawer.payload ?? {};
   const rowId = (payload as { id?: string }).id;
   const row = WORKSPACE_PAYMENTS.find((r) => r.id === rowId) ?? WORKSPACE_PAYMENTS[0];
@@ -23657,7 +23657,7 @@ function BreakdownRow({
 // ════════════════════════════════════════════════════════════════════
 
 function ClientTrustDetailDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open  = state.drawer.drawerId === "client-trust-detail";
   const level = (state.drawer.payload?.level as string) ?? "basic";
 
@@ -23722,7 +23722,7 @@ function ClientTrustDetailDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function EscrowDetailDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open  = state.drawer.drawerId === "escrow-detail";
   const stage = (state.drawer.payload?.stage as string) ?? "held";
 
@@ -23772,7 +23772,7 @@ function EscrowDetailDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function RefundFlowDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "refund-flow";
   const [reason, setReason] = useState("");
   const [amount, setAmount] = useState<"full"|"partial">("full");
@@ -23799,7 +23799,7 @@ function RefundFlowDrawer() {
 }
 
 function DisputeFlowDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "dispute-flow";
   const [step, setStep] = useState<1|2|3>(1);
   const [type, setType] = useState("");
@@ -23830,7 +23830,7 @@ function DisputeFlowDrawer() {
 }
 
 function KycVerificationDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "kyc-verification";
   const [step, setStep] = useState<"intro"|"id"|"selfie"|"done">("intro");
   return (
@@ -23846,7 +23846,7 @@ function KycVerificationDrawer() {
 }
 
 function ProofOfFundsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "proof-of-funds";
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Proof of Funds" description="Required for Silver and Gold trust tiers" defaultSize="compact">
@@ -23860,7 +23860,7 @@ function ProofOfFundsDrawer() {
 }
 
 function PayoutMethodFailureDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "payout-method-failure";
   const reason = (state.drawer.payload?.reason as string) ?? "invalid_iban";
   const msgs: Record<string,string> = { invalid_iban: "The IBAN appears invalid. Please check and re-enter.", expired_card: "Your payout card has expired.", bank_rejected: "Your bank rejected the transfer — the account may be closed.", suspicious: "This transfer was flagged. Our team will contact you within 24h." };
@@ -23876,7 +23876,7 @@ function PayoutMethodFailureDrawer() {
 }
 
 function SubscriptionLifecycleDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open  = state.drawer.drawerId === "subscription-lifecycle";
   const phase = (state.drawer.payload?.phase as string) ?? "active";
   const phases: Record<string, { title: string; desc: string; cta: string; ctaColor: string }> = {
@@ -23899,7 +23899,7 @@ function SubscriptionLifecycleDrawer() {
 }
 
 function NotificationDetailDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "notification-detail";
   const n = state.drawer.payload?.notification as Record<string,string> | undefined;
   return (
@@ -23912,7 +23912,7 @@ function NotificationDetailDrawer() {
 }
 
 function AiDraftAssistDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "ai-draft-assist";
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
@@ -23952,7 +23952,7 @@ function AiDraftAssistDrawer() {
 }
 
 function AiSearchExplainDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open    = state.drawer.drawerId === "ai-search-explain";
   const query   = (state.drawer.payload?.query as string) ?? "";
   const results = (state.drawer.payload?.resultCount as number) ?? 0;
@@ -23971,7 +23971,7 @@ function AiSearchExplainDrawer() {
 // In production this would be generated server-side from the activity_log table.
 
 function AiWeeklyDigestDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "ai-weekly-digest";
 
   const DIGEST_SECTIONS = [
@@ -24146,7 +24146,7 @@ function AiWeeklyDigestDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function WorkspaceRevenueDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "workspace-revenue";
 
   const MONTHLY = [
@@ -24266,7 +24266,7 @@ function WorkspaceRevenueDrawer() {
 }
 
 function ConversionFunnelDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "conversion-funnel";
 
   const STAGES = [
@@ -24393,7 +24393,7 @@ function ConversionFunnelDrawer() {
 }
 
 function TopPerformersDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "top-performers";
   const [tab, setTab] = useState<"talent" | "clients">("talent");
 
@@ -24542,7 +24542,7 @@ function TopPerformersDrawer() {
 }
 
 function CoordinatorWorkloadDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "coordinator-workload";
 
   const COORDINATORS = [
@@ -24660,7 +24660,7 @@ function CoordinatorWorkloadDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function MyQueueDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "my-queue";
 
   type QueueItem = {
@@ -24765,7 +24765,7 @@ function MyQueueDrawer() {
 }
 
 function SlaTimersDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "sla-timers";
 
   type SlaRow = { id: string; client: string; stage: string; hoursLeft: number; assignee: string };
@@ -24861,7 +24861,7 @@ function SlaTimersDrawer() {
 }
 
 function RulesBuilderDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "rules-builder";
   const [showNew, setShowNew] = useState(false);
 
@@ -25025,7 +25025,7 @@ function RulesBuilderDrawer() {
 }
 
 function SavedRepliesDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "saved-replies";
   const [search, setSearch] = useState("");
 
@@ -25124,7 +25124,7 @@ function SavedRepliesDrawer() {
 }
 
 function VacationHandoverDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "vacation-handover";
   const [fromDate, setFromDate] = useState("2026-05-12");
   const [toDate,   setToDate]   = useState("2026-05-19");
@@ -25229,7 +25229,7 @@ function VacationHandoverDrawer() {
 }
 
 function OnCallRotationDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "on-call-rotation";
   const [activeTab, setActiveTab] = useState<"schedule" | "escalation">("schedule");
 
@@ -25365,7 +25365,7 @@ function OnCallRotationDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function GdprExportDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "gdpr-export";
 
   type DataType = { id: string; label: string; description: string; size: string; selected: boolean };
@@ -25508,7 +25508,7 @@ function GdprExportDrawer() {
 }
 
 function ConsentLogDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "consent-log";
 
   type ConsentEntry = { channel: string; status: "opted-in" | "opted-out" | "pending"; timestamp: string; method: string };
@@ -25603,7 +25603,7 @@ function ConsentLogDrawer() {
 }
 
 function ContractTemplatesDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "contract-templates";
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -25752,7 +25752,7 @@ function ContractTemplatesDrawer() {
 }
 
 function ReportContentDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "report-content";
   const [category, setCategory] = useState("Fake or misleading profile");
   const [detail, setDetail] = useState("");
@@ -25858,7 +25858,7 @@ function ReportContentDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function EmailTemplatesDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "email-templates";
   const [search, setSearch] = useState("");
 
@@ -25978,7 +25978,7 @@ function EmailTemplatesDrawer() {
 }
 
 function EmailBrandingDrawer() {
-  const { state, closeDrawer, toast, effectiveTenant } = useProto();
+  const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
   const open = state.drawer.drawerId === "email-branding";
   const [senderName,  setSenderName]  = useState(effectiveTenant.name);
   const [senderEmail, setSenderEmail] = useState(`hello@${effectiveTenant.name.toLowerCase().replace(/\s/g, "")}.com`);
@@ -26070,7 +26070,7 @@ function EmailBrandingDrawer() {
 }
 
 function EmailSequencesDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "email-sequences";
 
   type Sequence = { id: string; name: string; trigger: string; steps: number; active: boolean; description: string };
@@ -26135,7 +26135,7 @@ function EmailSequencesDrawer() {
 }
 
 function NotificationPrefsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "notification-prefs";
 
   type PrefRow = { id: string; label: string; description: string; email: boolean; push: boolean; sms: boolean };
@@ -26326,7 +26326,7 @@ function NotificationPrefsDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function InviteFlowDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "invite-flow";
   const [tab, setTab] = useState<"talent" | "client" | "agency">("talent");
   const [email, setEmail] = useState("");
@@ -26431,7 +26431,7 @@ function InviteFlowDrawer() {
 }
 
 function ReferralDashboardDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "referral-dashboard";
 
   const REFERRAL_CODE = "IMPRONTA-4X9Z";
@@ -26546,7 +26546,7 @@ function ReferralDashboardDrawer() {
 }
 
 function CalendarSyncDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "calendar-sync";
 
   const ICAL_URL = "https://app.tulala.digital/cal/export/impronta-oran.ics?token=abc123";
@@ -26640,7 +26640,7 @@ function CalendarSyncDrawer() {
 }
 
 function SystemStatusDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "system-status";
 
   type ComponentStatus = { name: string; status: "operational" | "degraded" | "outage"; latency?: string };
@@ -26765,7 +26765,7 @@ function SystemStatusDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function TelemetryDashboardDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "telemetry-dashboard";
 
   const METRICS = [
@@ -26854,7 +26854,7 @@ function TelemetryDashboardDrawer() {
 }
 
 function BetaProgramDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "beta-program";
 
   type Flag = { id: string; name: string; description: string; rollout: number; enrolled: boolean };
@@ -26936,7 +26936,7 @@ function BetaProgramDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function CsvImportDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "csv-import";
   const importType = (state.drawer.payload?.type as "talent" | "clients") ?? "talent";
   const [step, setStep] = useState<"upload" | "mapping" | "preview" | "done">("upload");
@@ -27103,7 +27103,7 @@ function CsvImportDrawer() {
 }
 
 function MigrationAssistantDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "migration-assistant";
   const [source, setSource] = useState<"excel" | "whatsapp" | "airtable">("excel");
   const [analysed, setAnalysed] = useState(false);
@@ -27233,7 +27233,7 @@ function MigrationAssistantDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function BriefBuilderDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "brief-builder";
   const [projectName, setProjectName] = useState("");
   const [category, setCategory] = useState("Editorial");
@@ -27318,7 +27318,7 @@ function BriefBuilderDrawer() {
 }
 
 function BrandAssetsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "brand-assets";
   const [filter, setFilter] = useState<"all" | "logo" | "photo" | "doc">("all");
 
@@ -27408,7 +27408,7 @@ function BrandAssetsDrawer() {
 }
 
 function ApprovalFlowDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "approval-flow";
 
   type ApprovalItem = { id: string; title: string; requester: string; type: string; status: "pending" | "approved" | "rejected"; daysAgo: number };
@@ -27550,7 +27550,7 @@ function ApprovalFlowDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function SiteContextSwitcherDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "site-context-switcher";
   const [active, setActive] = React.useState<string>("agency");
 
@@ -27632,7 +27632,7 @@ function SiteContextSwitcherDrawer() {
 }
 
 function PageSchedulerDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "page-scheduler";
   const [publishDate, setPublishDate] = React.useState("2026-05-15");
   const [publishTime, setPublishTime] = React.useState("09:00");
@@ -27713,7 +27713,7 @@ function PageSchedulerDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function CastingFlowDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "casting-flow";
   const [castingType, setCastingType] = React.useState<"open" | "closed">("open");
   const [rounds, setRounds] = React.useState(2);
@@ -27811,7 +27811,7 @@ function CastingFlowDrawer() {
 }
 
 function CallbackTrackerDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "callback-tracker";
   const [selectedRound, setSelectedRound] = React.useState(1);
 
@@ -27901,7 +27901,7 @@ function CallbackTrackerDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function CrewBookingDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "crew-booking";
   const [projectName, setProjectName] = React.useState("Spring Campaign 2026");
   const [shootDate, setShootDate] = React.useState("2026-05-20");
@@ -27983,7 +27983,7 @@ function CrewBookingDrawer() {
 }
 
 function ProductionTimelineDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "production-timeline";
 
   const events = [
@@ -28035,7 +28035,7 @@ function ProductionTimelineDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function UsageTrackerDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "usage-tracker";
   const [filter, setFilter] = React.useState<"all" | "active" | "expiring" | "expired">("all");
 
@@ -28121,7 +28121,7 @@ function UsageTrackerDrawer() {
 }
 
 function RelicenseFlowDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "relicense-flow";
   const [step, setStep] = React.useState<1 | 2 | 3>(1);
   const [regions, setRegions] = React.useState("UK, EU");
@@ -28227,7 +28227,7 @@ function RelicenseFlowDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function OwnershipTransferDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "ownership-transfer";
   const [newOwnerEmail, setNewOwnerEmail] = React.useState("");
   const [confirmed, setConfirmed] = React.useState(false);
@@ -28304,7 +28304,7 @@ function OwnershipTransferDrawer() {
 }
 
 function MinorAccountDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "minor-account";
   const [guardianName, setGuardianName] = React.useState("");
   const [guardianEmail, setGuardianEmail] = React.useState("");
@@ -28373,7 +28373,7 @@ function MinorAccountDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function DiscoveryFeedDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "discovery-feed";
   const [view, setView] = React.useState<"trending" | "editorial">("trending");
 
@@ -28461,7 +28461,7 @@ function DiscoveryFeedDrawer() {
 }
 
 function AvailSearchDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "avail-search";
   const [startDate, setStartDate] = React.useState("2026-05-20");
   const [endDate, setEndDate] = React.useState("2026-05-22");
@@ -28535,7 +28535,7 @@ function AvailSearchDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function CallSheetDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "call-sheet";
 
   const crew = [
@@ -28607,7 +28607,7 @@ function CallSheetDrawer() {
 }
 
 function OnsetCheckinDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "onset-checkin";
   const [checkedIn, setCheckedIn] = React.useState<Set<string>>(new Set(["Lucas Ferreira", "Nia Clarkson"]));
 
@@ -28694,7 +28694,7 @@ function OnsetCheckinDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function IncidentReportDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "incident-report";
   const [incidentType, setIncidentType] = React.useState<string>("safety");
   const [severity, setSeverity] = React.useState<"low" | "medium" | "high">("medium");
@@ -28794,7 +28794,7 @@ function IncidentReportDrawer() {
 }
 
 function DisputeResolutionDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "dispute-resolution";
   const [selectedDispute, setSelectedDispute] = React.useState<string | null>(null);
 
@@ -28914,7 +28914,7 @@ function DisputeResolutionDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function LocationsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "locations-drawer";
   const [view, setView] = React.useState<"list" | "add">("list");
   const [newName, setNewName] = React.useState("");
@@ -29018,7 +29018,7 @@ function LocationsDrawer() {
 }
 
 function AiWorkspaceDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "ai-workspace";
   const [activeTab, setActiveTab] = React.useState<"providers" | "usage" | "console">("providers");
   const [consoleInput, setConsoleInput] = React.useState("");
@@ -29305,7 +29305,7 @@ const audienceLabel = (a: string) =>
   : "Clients";
 
 function FeatureControlsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "feature-controls";
 
   // Initialise toggle state from defaults
@@ -29589,7 +29589,7 @@ const MOCK_CIRCLE: Array<{ id: string; name: string; role: string; tags: string[
 // from talent settings + (in future) auto-opens in the inquiry workspace
 // when a hub-freelancer-coordinator clicks "Add crew".
 function CircleManageDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "circle-manage";
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
@@ -29717,7 +29717,7 @@ function CircleManageDrawer() {
 // ── Recommend from circle drawer ──
 // Used by a coordinator to invite a circle member into a current booking.
 function CircleRecommendDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "circle-recommend";
   const inquiryId = (state.drawer.payload?.inquiryId as string) ?? "RI-201";
   const role = (state.drawer.payload?.role as string) ?? "any";

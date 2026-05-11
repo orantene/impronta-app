@@ -34,7 +34,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 
-import { COLORS, FONTS, useProto, type DrawerId } from "./_state";
+import { COLORS, FONTS, useAdminShell, type DrawerId } from "./state";
 
 // ─── Type definitions ────────────────────────────────────────────────
 
@@ -2900,7 +2900,7 @@ export function HelpPanel({
 // switches to a thank-you state with an "Undo" link in case of
 // fat-finger.
 function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
-  const proto = useProto();
+  const proto = useAdminShell();
   const [vote, setVote] = useState<HelpFeedback | null>(() =>
     getHelpFeedback(drawerId),
   );
@@ -3056,7 +3056,7 @@ function FooterActions({
   entry: HelpEntry;
   drawerId: DrawerId | null;
 }) {
-  const proto = useProto();
+  const proto = useAdminShell();
   if (!drawerId) return null;
   const slug = entry.supportSlug ?? drawerId;
 

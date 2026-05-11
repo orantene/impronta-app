@@ -37,8 +37,8 @@
  * model and field ids stay stable.
  */
 import { useEffect, useState } from "react";
-import type { TaxonomyParentId, RegFieldChannel, MyTalentProfile, RegFieldKind, RegField } from "./_state";
-import { TAXONOMY_FIELDS } from "./_state";
+import type { TaxonomyParentId, RegFieldChannel, MyTalentProfile, RegFieldKind, RegField } from "./state";
+import { TAXONOMY_FIELDS } from "./state";
 
 export type FieldTier = "universal" | "global" | "type-specific";
 

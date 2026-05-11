@@ -68,7 +68,7 @@ import {
   TALENT_TIER_META,
   summarizeLanguages,
   tierAllows,
-  useProto,
+  useAdminShell,
   TENANT,
   type TalentContactPolicy,
   type TalentCredit,
@@ -79,7 +79,7 @@ import {
   type TalentReview,
   type TalentSkill,
   type TalentSubscriptionTier,
-} from "./_state";
+} from "./state";
 import {
   Avatar,
   CapsLabel,
@@ -96,7 +96,7 @@ import {
   TextInput,
   Toggle,
   TrustBadgeGroup,
-} from "./_primitives";
+} from "./primitives";
 
 // ─── LockedBadge (inlined — also in _talent.tsx for MyProfilePage) ────────────
 /** Lock badge shown next to a feature card when the talent's tier doesn't unlock it. */
@@ -174,7 +174,7 @@ function RequestKindBadge({ kind, status }: { kind: TalentRequest["kind"]; statu
 
 // Helper — close + toast
 function useSaveAndClose(message = "Saved") {
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast } = useAdminShell();
   return () => {
     toast(message);
     closeDrawer();
@@ -218,7 +218,7 @@ function StandardFooter({
   saveLabel?: string;
   destructive?: { label: string; onClick: () => void };
 }) {
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   return (
     <>
       {destructive && (
@@ -249,7 +249,7 @@ function StandardFooter({
 // ─── Today pulse drawer ───────────────────────────────────────────
 
 export function TalentTodayPulseDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-today-pulse";
   const items = TALENT_REQUESTS.filter((r) => r.status === "needs-answer" || r.status === "viewed");
   return (
@@ -312,7 +312,7 @@ export function TalentTodayPulseDrawer() {
 // ─── Offer detail drawer ──────────────────────────────────────────
 
 export function TalentOfferDetailDrawer() {
-  const { state, closeDrawer, toast, openDrawer } = useProto();
+  const { state, closeDrawer, toast, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-offer-detail" || state.drawer.drawerId === "talent-request-detail";
   const id = (state.drawer.payload?.id as string) ?? "rq1";
   const r = TALENT_REQUESTS.find((x) => x.id === id) ?? TALENT_REQUESTS[0];
@@ -419,7 +419,7 @@ function KvRow({ label, value }: { label: string; value: ReactNode }) {
 // ─── Booking detail (call sheet) ──────────────────────────────────
 
 export function TalentBookingDetailDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-booking-detail";
   const id = (state.drawer.payload?.id as string) ?? "bk1";
   const b = TALENT_BOOKINGS.find((x) => x.id === id) ?? TALENT_BOOKINGS[0];
@@ -466,7 +466,7 @@ export function TalentBookingDetailDrawer() {
 // design: this isn't a booking workflow, it's a portfolio entry.
 
 export function TalentClosedBookingDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-closed-booking";
   const earningId = (state.drawer.payload?.earningId as string) ?? "e1";
   const e = EARNINGS_ROWS.find((x) => x.id === earningId) ?? EARNINGS_ROWS[0]!;
@@ -911,7 +911,7 @@ export function TalentClosedBookingDrawer() {
  *   studio      sage     studio / free-book partner
  *   marketplace amber    open marketplace
  */
-function SourceChip({ source }: { source: import("./_state").EarningSource }) {
+function SourceChip({ source }: { source: import("./state").EarningSource }) {
   const labelFor = (s: typeof source) => {
     switch (s.kind) {
       case "agency":
@@ -1206,7 +1206,7 @@ type AddEventMode = "pick" | "work" | "block";
 // talent commits. Avoids the "I joined this and now I'm spammed" problem.
 
 export function TalentHubDetailDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-hub-detail";
   const channelId = (state.drawer.payload?.channelId as string) ?? "";
   const channel =
@@ -1322,7 +1322,7 @@ export function TalentHubDetailDrawer() {
 }
 
 export function TalentAddEventDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-add-event";
   const initialMode = (state.drawer.payload?.mode as AddEventMode | undefined) ?? "pick";
   const [mode, setMode] = useState<AddEventMode>(initialMode);
@@ -2086,7 +2086,7 @@ function ToggleRow({
 
 export function TalentProfileSectionDrawer() {
   // TODO Phase 3+: generic section save requires section-specific field mapping. Save is disabled.
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-profile-section";
   const label = (state.drawer.payload?.label as string) ?? "Section";
 
@@ -2116,7 +2116,7 @@ export function TalentProfileSectionDrawer() {
 // ─── Availability ────────────────────────────────────────────────
 
 export function TalentAvailabilityDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-availability";
   return (
     <DrawerShell
@@ -2178,7 +2178,7 @@ export function TalentAvailabilityDrawer() {
  * for travel) than blocking specific date ranges.
  */
 export function TalentBlockDatesDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-block-dates";
   const p = MY_TALENT_PROFILE;
 
@@ -2669,7 +2669,7 @@ function AvailabilityToggleRow({
 
 export function TalentPortfolioDrawer() {
   // TODO Phase 3+: portfolio sort requires real media IDs from bridge data. Save is disabled.
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-portfolio";
   const shots = ["🌸", "🌊", "🍃", "🌷", "🌹", "🪷", "🌾", "🌺", "🌿", "🌳", "🍂", "🌲"];
   return (
@@ -2734,7 +2734,7 @@ export function TalentPortfolioDrawer() {
 // ─── Agency relationship ─────────────────────────────────────────
 
 export function TalentAgencyRelationshipDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentAgencies } = useProto();
+  const { state, closeDrawer, openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
   const open = state.drawer.drawerId === "talent-agency-relationship";
   const mode = state.drawer.payload?.mode;
 
@@ -2919,7 +2919,7 @@ export function TalentAgencyRelationshipDrawer() {
 // ─── Leave agency ───────────────────────────────────────────────
 
 export function TalentLeaveAgencyDrawer() {
-  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-leave-agency";
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -2989,7 +2989,7 @@ export function TalentLeaveAgencyDrawer() {
 // ─── Privacy ────────────────────────────────────────────────────
 
 export function TalentPrivacyDrawer() {
-  const { state, closeDrawer, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-privacy";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
 
@@ -3063,7 +3063,7 @@ export function TalentPrivacyDrawer() {
 // never frames it as "pay to message". See project_client_trust_badges.md.
 
 export function TalentContactPreferencesDrawer() {
-  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-contact-preferences";
   const defaultPolicy = bridgeTalentSelfProfile?.contactPolicy ?? MY_TALENT_PROFILE.contactPolicy;
   const [policy, setPolicy] = useState<TalentContactPolicy>(defaultPolicy as TalentContactPolicy);
@@ -3264,7 +3264,7 @@ function PresetButton({
 // ─── Payouts ────────────────────────────────────────────────────
 
 export function TalentPayoutsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-payouts";
   // Multi-step Stripe-Connect-style onboarding scaffold. Each step
   // captures one logical block; the actual KYC + bank handoff happens
@@ -3521,7 +3521,7 @@ export function TalentPayoutsDrawer() {
  * not modeled here.
  */
 export function TalentVerificationDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-verification";
   type Step = "intro" | "id-type" | "upload" | "selfie" | "submitted";
   const [step, setStep] = useState<Step>("intro");
@@ -3793,7 +3793,7 @@ const REFERRAL_LIST = [
 ];
 
 export function TalentReferralsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-referrals";
   const link = "tulala.digital/r/marta-reyes";
   const earnedTotal = REFERRAL_LIST.reduce((sum, r) => sum + r.earned, 0);
@@ -3932,7 +3932,7 @@ const HUB_COMPARE_DATA = [
 ];
 
 export function TalentHubCompareDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-hub-compare";
   return (
     <DrawerShell
@@ -4027,7 +4027,7 @@ export function TalentHubCompareDrawer() {
 // surprising talents at year-end.
 
 export function TalentTaxDocsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-tax-docs";
   const yearTotal = EARNINGS_ROWS.reduce((sum, e) => {
     const num = parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
@@ -4128,7 +4128,7 @@ export function TalentTaxDocsDrawer() {
 // agency relationship.
 
 export function TalentConflictResolveDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-conflict-resolve";
   const [choice, setChoice] = useState<"a" | "b" | "alt" | null>(null);
 
@@ -4289,7 +4289,7 @@ const NETWORK_TALENTS = [
 ];
 
 export function TalentNetworkDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-network";
   const [follows, setFollows] = useState<Record<string, boolean>>(
     () => Object.fromEntries(NETWORK_TALENTS.map((t) => [t.id, t.follows])),
@@ -4380,7 +4380,7 @@ function NetworkRow({
 // stored alongside audio; talent can delete either independently.
 
 export function TalentVoiceReplyDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-voice-reply";
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -4496,7 +4496,7 @@ const MY_NETWORK_AGENCIES = [
 ];
 
 export function TalentMultiAgencyPickerDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-multi-agency-picker";
   return (
     <DrawerShell
@@ -4603,7 +4603,7 @@ const REPLY_TEMPLATES = [
 ];
 
 export function ReplyTemplatesDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "reply-templates";
   return (
     <DrawerShell
@@ -4653,7 +4653,7 @@ export function ReplyTemplatesDrawer() {
 }
 
 export function TalentChatArchiveDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-chat-archive";
   return (
     <DrawerShell
@@ -4713,7 +4713,7 @@ export function TalentChatArchiveDrawer() {
 // ─── Earnings detail ────────────────────────────────────────────
 
 export function TalentEarningsDetailDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-earnings-detail";
   const id = (state.drawer.payload?.id as string) ?? "e1";
   const e = EARNINGS_ROWS.find((x) => x.id === id) ?? EARNINGS_ROWS[0];
@@ -4802,7 +4802,7 @@ function netOf(gross: string): string {
 // ─── Photo edit — real MediaGalleryDrawer ─────────────────────────
 
 export function TalentPhotoEditDrawer() {
-  const { state, closeDrawer, tenantSlug, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, tenantSlug, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-photo-edit";
   const focusSlot = (state.drawer.payload?.focusSlot as "avatar" | "hero" | "gallery") ?? "gallery";
 
@@ -4919,7 +4919,7 @@ export function TalentPhotoEditDrawer() {
 
 export function TalentPolaroidsDrawer() {
   // TODO Phase 3+: polaroid upload flow requires Phase 1 media infra. Save is disabled.
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-polaroids";
 
   return (
@@ -5002,7 +5002,7 @@ export function TalentPolaroidsDrawer() {
 // ─── Credits ─────────────────────────────────────────────────────
 
 export function TalentCreditsDrawer() {
-  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-credits";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const credits = MY_TALENT_PROFILE.credits;
@@ -5099,7 +5099,7 @@ export function TalentCreditsDrawer() {
 
 export function TalentSkillsDrawer() {
   // TODO Phase 3+: wire save to self-mode skill actions (taxonomy system, complex). Save is disabled for now.
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-skills";
   const skills = MY_TALENT_PROFILE.skills;
 
@@ -5170,7 +5170,7 @@ export function TalentSkillsDrawer() {
 // ─── Limits ─────────────────────────────────────────────────────
 
 export function TalentLimitsDrawer() {
-  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-limits";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const limits = MY_TALENT_PROFILE.limits;
@@ -5275,7 +5275,7 @@ export function TalentLimitsDrawer() {
 // ─── Rate card ──────────────────────────────────────────────────
 
 export function TalentRateCardDrawer() {
-  const { state, closeDrawer, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-rate-card";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const rc = MY_TALENT_PROFILE.rateCard;
@@ -5405,7 +5405,7 @@ export function TalentRateCardDrawer() {
 // ─── Travel & work auth ─────────────────────────────────────────
 
 export function TalentTravelDrawer() {
-  const { state, closeDrawer, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-travel";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const t = MY_TALENT_PROFILE.travel;
@@ -5504,7 +5504,7 @@ export function TalentTravelDrawer() {
 // ─── External links ─────────────────────────────────────────────
 
 export function TalentLinksDrawer() {
-  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-links";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const links = MY_TALENT_PROFILE.links;
@@ -5599,7 +5599,7 @@ export function TalentLinksDrawer() {
 // ─── Reviews ────────────────────────────────────────────────────
 
 export function TalentReviewsDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-reviews";
   const reviews = MY_TALENT_PROFILE.reviews;
   const stats = MY_TALENT_PROFILE.bookingStats;
@@ -5690,7 +5690,7 @@ function SummaryStat({ label, value, accent }: { label: string; value: string; a
 // ─── Showreel ───────────────────────────────────────────────────
 
 export function TalentShowreelDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-showreel";
   const p = MY_TALENT_PROFILE;
 
@@ -5740,7 +5740,7 @@ export function TalentShowreelDrawer() {
 export function TalentMeasurementsDrawer() {
   // TODO Phase 3+: measurements use the field-catalog/field-values system (saveTalentScalarFieldValues).
   // Save is disabled until the drawer is converted to use field IDs + FormData pattern.
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-measurements";
   const m = MY_TALENT_PROFILE.measurements;
 
@@ -5847,7 +5847,7 @@ export function TalentMeasurementsDrawer() {
 
 export function TalentDocumentsDrawer() {
   // TODO Phase 3+: document upload requires secure file-upload infra. Save is disabled.
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-documents";
   const docs = MY_TALENT_PROFILE.documents;
 
@@ -5928,7 +5928,7 @@ export function TalentDocumentsDrawer() {
 // ─── Emergency contact ──────────────────────────────────────────
 
 export function TalentEmergencyContactDrawer() {
-  const { state, closeDrawer, bridgeTalentSelfProfile } = useProto();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const open = state.drawer.drawerId === "talent-emergency-contact";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const c = MY_TALENT_PROFILE.emergencyContact;
@@ -6007,7 +6007,7 @@ export function TalentEmergencyContactDrawer() {
 // the real surface. Better: link them out to the live URLs.
 
 export function TalentPublicPreviewDrawer() {
-  const { state, closeDrawer, toast, openDrawer } = useProto();
+  const { state, closeDrawer, toast, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-public-preview";
   const p = MY_TALENT_PROFILE;
   const slug = p.subscription.personalPageUrl.replace(/^.*\/t\//, "").trim() || "marta-reyes";
@@ -6396,7 +6396,7 @@ const TIER_FEATURE_MATRIX: Array<{ label: string; basic: string | true; pro: str
 ];
 
 export function TalentTierCompareDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-tier-compare";
   const current = MY_TALENT_PROFILE.subscription.tier;
 
@@ -6642,7 +6642,7 @@ function FeatureCell({ value }: { value: string | true }) {
 // ─── Personal page (page-builder lite, Portfolio) ──────────────────
 
 export function TalentPersonalPageDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-personal-page";
   const sub = MY_TALENT_PROFILE.subscription;
   const sections = [
@@ -6707,7 +6707,7 @@ export function TalentPersonalPageDrawer() {
 // ─── Page template picker ───────────────────────────────────────────
 
 export function TalentPageTemplateDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-page-template";
   const tier = MY_TALENT_PROFILE.subscription.tier;
   const active = MY_TALENT_PROFILE.subscription.template;
@@ -6794,7 +6794,7 @@ export function TalentPageTemplateDrawer() {
 
 export function TalentMediaEmbedsDrawer() {
   // Phase 1.5 STRIP: Pro+ only — save CTA removed; drawer kept for Phase 2 re-wiring
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-media-embeds";
   const embeds = MY_TALENT_PROFILE.subscription.embeds;
 
@@ -6905,7 +6905,7 @@ export function TalentMediaEmbedsDrawer() {
 
 export function TalentPressDrawer() {
   // Phase 1.5 STRIP: Pro+ only — save CTA removed; drawer kept for Phase 2 re-wiring
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-press";
   const press = MY_TALENT_PROFILE.subscription.press;
 
@@ -6963,7 +6963,7 @@ export function TalentPressDrawer() {
 // ─── Media kit / EPK ────────────────────────────────────────────────
 
 export function TalentMediaKitDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-media-kit";
   const kit = MY_TALENT_PROFILE.subscription.mediaKit;
 
@@ -7040,7 +7040,7 @@ export function TalentMediaKitDrawer() {
 
 export function TalentCustomDomainDrawer() {
   // Phase 1.5 STRIP: Portfolio only — save CTA removed; drawer kept for Phase 2 re-wiring
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-custom-domain";
   const sub = MY_TALENT_PROFILE.subscription;
 
@@ -7153,7 +7153,7 @@ const CAREER_STATS = {
 };
 
 export function TalentCareerAnalyticsDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-career-analytics";
   const s = CAREER_STATS;
   const inquiryDelta = s.inquiriesQ - s.inquiriesQPrev;
@@ -7332,7 +7332,7 @@ const REVIEW_DIMENSIONS = [
 ];
 
 export function TalentReceiveReviewDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-receive-review";
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comment, setComment] = useState("");
@@ -7442,7 +7442,7 @@ const AGENCY_STATS = [
 ];
 
 export function TalentAgencyAnalyticsDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-agency-analytics";
   const totalRevenue = AGENCY_STATS.reduce((s, a) => s + a.revenue, 0);
   const totalBookings = AGENCY_STATS.reduce((s, a) => s + a.bookings, 0);

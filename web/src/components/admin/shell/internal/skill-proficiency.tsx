@@ -16,8 +16,8 @@ import {
   type ProficiencyLevel,
 } from "@/lib/server-actions/admin-talent-skills.types";
 
-import { useDashboardText } from "./_dashboard-i18n";
-import { F_BODY, T } from "./_skill-tokens";
+import { useDashboardText } from "./dashboard-i18n";
+import { F_BODY, T } from "./skill-tokens";
 
 // ─── ProficiencyDotPicker — interactive 5-dot picker ───────────────────────
 

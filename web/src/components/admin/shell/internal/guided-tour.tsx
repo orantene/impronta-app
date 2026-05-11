@@ -18,7 +18,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { COLORS, FONTS } from "./_state";
+import { COLORS, FONTS } from "./state";
 
 export type TourStep = {
   /** CSS selector that must already be in the DOM. */

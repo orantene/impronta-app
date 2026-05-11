@@ -19,8 +19,8 @@ import {
   removeAspiration,
 } from "@/lib/server-actions/admin-talent-skills";
 
-import { useDashboardText } from "./_dashboard-i18n";
-import { F_BODY, PARENT_EMOJI, T } from "./_skill-tokens";
+import { useDashboardText } from "./dashboard-i18n";
+import { F_BODY, PARENT_EMOJI, T } from "./skill-tokens";
 
 // ─── CareerInterestsSection — Q2: aspirations / "open to grow into" ──────
 

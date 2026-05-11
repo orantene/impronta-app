@@ -26,7 +26,7 @@ import {
   getEnabledParentCategoriesForPicker,
   getTalentTypesUnderParent,
 } from "@/lib/server-actions/admin-talent-skills";
-import { useProto } from "@/app/prototypes/admin-shell/_state";
+import { useAdminShell } from "./state";
 
 function fillAdminTpl(template: string, vars: Record<string, string>) {
   let s = template;
@@ -60,7 +60,7 @@ export function SkillDiscoveryPanel({
 }: {
   onTalentClick?: (talentProfileId: string) => void;
 }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   const [open, setOpen] = useState(false);
   const [parents, setParents] = useState<
     Array<{ id: string; slug: string; name_en: string }>

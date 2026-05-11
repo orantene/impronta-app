@@ -21,12 +21,12 @@ import {
   Users,
 } from "lucide-react";
 import {
-  ADMIN_PROTOTYPE_BASE,
-  ADMIN_PROTOTYPE_NAV,
-  flattenPrototypeNavWithOrder,
-  prototypeNavItemMap,
-} from "@/lib/prototype/admin-prototype-nav";
-import { isPrototypeNavActive } from "@/lib/prototype/admin-prototype-nav-match";
+  ADMIN_NAV_BASE,
+  ADMIN_NAV,
+  flattenAdminNavWithOrder,
+  adminNavItemMap,
+} from "@/lib/admin/admin-nav";
+import { isAdminNavActive } from "@/lib/admin/admin-nav-match";
 import {
   loadPinnedIds,
   loadTopShortcutIds,
@@ -34,7 +34,7 @@ import {
   saveTopShortcutIds,
   togglePinnedId,
   toggleTopShortcutId,
-} from "@/lib/prototype/admin-prototype-prefs";
+} from "./internal/prefs";
 import { AdminContextualInspector } from "@/components/admin/inspector/admin-contextual-inspector";
 import { AdminShellTopBar } from "@/components/admin/admin-shell-top-bar";
 import { UpgradeModalProvider } from "@/components/admin/site-control-center/upgrade-context";
@@ -50,14 +50,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-const ADMIN_PROTOTYPE_THEME_KEY = "admin-prototype-theme";
-const ADMIN_PROTOTYPE_NAV_EXPANDED_KEY = "admin-prototype-nav-expanded-ids";
+const ADMIN_THEME_KEY = "admin-prototype-theme";
+const ADMIN_NAV_EXPANDED_KEY = "admin-prototype-nav-expanded-ids";
 const ADMIN_INSPECTOR_PANEL_OPEN_KEY = "admin-inspector-panel-open";
 
-const PROTOTYPE_NAV_ITEM_MAP = prototypeNavItemMap(ADMIN_PROTOTYPE_NAV);
-const PROTOTYPE_NAV_FLAT_ORDER = flattenPrototypeNavWithOrder(ADMIN_PROTOTYPE_NAV);
-const KNOWN_PROTOTYPE_NAV_IDS = new Set(PROTOTYPE_NAV_FLAT_ORDER.map(({ item }) => item.id));
-const ALL_PROTOTYPE_GROUP_IDS = ADMIN_PROTOTYPE_NAV.map((g) => g.id);
+const ADMIN_NAV_ITEM_MAP = adminNavItemMap(ADMIN_NAV);
+const ADMIN_NAV_FLAT_ORDER = flattenAdminNavWithOrder(ADMIN_NAV);
+const KNOWN_ADMIN_NAV_IDS = new Set(ADMIN_NAV_FLAT_ORDER.map(({ item }) => item.id));
+const ALL_ADMIN_GROUP_IDS = ADMIN_NAV.map((g) => g.id);
 
 /**
  * Rewrite a nav item href for a different base path or path override.
@@ -65,7 +65,7 @@ const ALL_PROTOTYPE_GROUP_IDS = ADMIN_PROTOTYPE_NAV.map((g) => g.id);
  * and to remap promoted paths (e.g. `/admin/talent` → `/admin/roster`).
  *
  * @param href    Original nav item href (e.g. "/admin/talent")
- * @param navBase Replacement for ADMIN_PROTOTYPE_BASE (e.g. "/impronta/admin")
+ * @param navBase Replacement for ADMIN_NAV_BASE (e.g. "/impronta/admin")
  * @param overrides Map of original path → new path (before navBase substitution)
  */
 function rewriteNavHref(
@@ -77,17 +77,17 @@ function rewriteNavHref(
   const pathKey = href.split("?")[0] ?? href;
   const overridden = overrides?.[pathKey] ?? href;
   if (!navBase) return overridden;
-  return overridden.replace(ADMIN_PROTOTYPE_BASE, navBase);
+  return overridden.replace(ADMIN_NAV_BASE, navBase);
 }
 
-function findActivePrototypeGroupId(
+function findActiveAdminGroupId(
   pathname: string,
   searchParams: ReadonlyURLSearchParams | URLSearchParams | null,
-  nav: typeof ADMIN_PROTOTYPE_NAV = ADMIN_PROTOTYPE_NAV,
+  nav: typeof ADMIN_NAV = ADMIN_NAV,
 ): string | null {
   for (const group of nav) {
     if (
-      group.items.some((item) => isPrototypeNavActive(pathname, item.href, searchParams))
+      group.items.some((item) => isAdminNavActive(pathname, item.href, searchParams))
     ) {
       return group.id;
     }
@@ -97,12 +97,12 @@ function findActivePrototypeGroupId(
 
 function loadStoredExpandedGroupIds(): Set<string> | null {
   try {
-    const raw = localStorage.getItem(ADMIN_PROTOTYPE_NAV_EXPANDED_KEY);
+    const raw = localStorage.getItem(ADMIN_NAV_EXPANDED_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return null;
     const ids = parsed.filter((x): x is string => typeof x === "string");
-    return new Set(ids.filter((id) => ALL_PROTOTYPE_GROUP_IDS.includes(id)));
+    return new Set(ids.filter((id) => ALL_ADMIN_GROUP_IDS.includes(id)));
   } catch {
     return null;
   }
@@ -111,8 +111,8 @@ function loadStoredExpandedGroupIds(): Set<string> | null {
 function persistExpandedGroupIds(ids: Set<string>) {
   try {
     localStorage.setItem(
-      ADMIN_PROTOTYPE_NAV_EXPANDED_KEY,
-      JSON.stringify([...ids].filter((id) => ALL_PROTOTYPE_GROUP_IDS.includes(id))),
+      ADMIN_NAV_EXPANDED_KEY,
+      JSON.stringify([...ids].filter((id) => ALL_ADMIN_GROUP_IDS.includes(id))),
     );
   } catch {
     /* ignore */
@@ -131,9 +131,9 @@ function PrototypeTopShortcutsBar({ shortcutIds }: { shortcutIds: string[] }) {
       aria-label="Shortcuts"
     >
       {shortcutIds.map((id) => {
-        const item = PROTOTYPE_NAV_ITEM_MAP.get(id);
+        const item = ADMIN_NAV_ITEM_MAP.get(id);
         if (!item) return null;
-        const active = isPrototypeNavActive(pathname, item.href, searchParams);
+        const active = isAdminNavActive(pathname, item.href, searchParams);
         const ShortcutIcon = item.icon;
         return (
           <Link
@@ -157,7 +157,7 @@ function PrototypeTopShortcutsBar({ shortcutIds }: { shortcutIds: string[] }) {
   );
 }
 
-function PrototypeNavSections({
+function AdminNavSections({
   collapsed,
   onNavigate,
   pinnedIds,
@@ -197,10 +197,10 @@ function PrototypeNavSections({
   const shortcutSet = useMemo(() => new Set(shortcutIds), [shortcutIds]);
   const useAccordion = !collapsed && !expandAllGroups;
 
-  // Rewrite ADMIN_PROTOTYPE_NAV hrefs for navBase / navPathOverrides.
+  // Rewrite ADMIN_NAV hrefs for navBase / navPathOverrides.
   const effectiveNav = useMemo(() => {
-    if (!navBase && !navPathOverrides) return ADMIN_PROTOTYPE_NAV;
-    return ADMIN_PROTOTYPE_NAV.map((group) => ({
+    if (!navBase && !navPathOverrides) return ADMIN_NAV;
+    return ADMIN_NAV.map((group) => ({
       ...group,
       items: group.items.map((item) => ({
         ...item,
@@ -210,7 +210,7 @@ function PrototypeNavSections({
   }, [navBase, navPathOverrides]);
 
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(() => {
-    const active = findActivePrototypeGroupId(pathname, searchParams, effectiveNav);
+    const active = findActiveAdminGroupId(pathname, searchParams, effectiveNav);
     return new Set([active ?? "dashboard"]);
   });
 
@@ -229,7 +229,7 @@ function PrototypeNavSections({
 
   useEffect(() => {
     if (!useAccordion) return;
-    const active = findActivePrototypeGroupId(pathname, searchParams, effectiveNav);
+    const active = findActiveAdminGroupId(pathname, searchParams, effectiveNav);
     if (!active) return;
     setExpandedGroupIds((prev) => {
       if (prev.has(active)) return prev;
@@ -251,12 +251,12 @@ function PrototypeNavSections({
   }, []);
 
   const pinnedSortedItems = useMemo(
-    () => PROTOTYPE_NAV_FLAT_ORDER.filter(({ item }) => pinnedSet.has(item.id)).map(({ item }) => item),
+    () => ADMIN_NAV_FLAT_ORDER.filter(({ item }) => pinnedSet.has(item.id)).map(({ item }) => item),
     [pinnedSet],
   );
 
-  const renderNavLink = (item: (typeof ADMIN_PROTOTYPE_NAV)[number]["items"][number], opts?: { compact?: boolean }) => {
-    const active = isPrototypeNavActive(pathname, item.href, searchParams);
+  const renderNavLink = (item: (typeof ADMIN_NAV)[number]["items"][number], opts?: { compact?: boolean }) => {
+    const active = isAdminNavActive(pathname, item.href, searchParams);
     const Icon = item.icon;
     const isPinned = pinnedSet.has(item.id);
     const isShortcut = shortcutSet.has(item.id);
@@ -436,7 +436,7 @@ function PrototypeNavSections({
       </div>
     ) : null;
 
-  const renderGroupBody = (visibleItems: (typeof ADMIN_PROTOTYPE_NAV)[number]["items"]) => (
+  const renderGroupBody = (visibleItems: (typeof ADMIN_NAV)[number]["items"]) => (
     <div className="space-y-0.5 pb-1 pl-1">
       {visibleItems.map((item) => renderNavLink(item, { compact: collapsed }))}
     </div>
@@ -479,7 +479,7 @@ function PrototypeNavSections({
         }
 
         const groupActive = visibleItems.some((item) =>
-          isPrototypeNavActive(pathname, item.href, searchParams),
+          isAdminNavActive(pathname, item.href, searchParams),
         );
 
         return (
@@ -537,7 +537,7 @@ export type AdminDashboardShellProps = {
   dashboardTheme: "dark" | "light";
   /**
    * Per-nav-item badge counts, keyed by the stable id from
-   * `prototypeNavItemStableId(href)` (e.g. `inquiries`). Values > 0 render a
+   * `adminNavItemStableId(href)` (e.g. `inquiries`). Values > 0 render a
    * gold chip on the link. Any missing keys render no badge. Added in M6.2 so
    * the sidebar surfaces the Tier-1 count without inventing a new inbox.
    */
@@ -599,7 +599,7 @@ export function AdminDashboardShell({
 
   useLayoutEffect(() => {
     try {
-      const raw = localStorage.getItem(ADMIN_PROTOTYPE_THEME_KEY);
+      const raw = localStorage.getItem(ADMIN_THEME_KEY);
       if (raw === "light" || raw === "dark") {
         setChromeTheme(raw);
       }
@@ -618,8 +618,8 @@ export function AdminDashboardShell({
   }, []);
 
   useEffect(() => {
-    const pins = loadPinnedIds().filter((id) => KNOWN_PROTOTYPE_NAV_IDS.has(id));
-    const shorts = loadTopShortcutIds().filter((id) => KNOWN_PROTOTYPE_NAV_IDS.has(id));
+    const pins = loadPinnedIds().filter((id) => KNOWN_ADMIN_NAV_IDS.has(id));
+    const shorts = loadTopShortcutIds().filter((id) => KNOWN_ADMIN_NAV_IDS.has(id));
     setPinnedIds(pins);
     setShortcutIds(shorts);
   }, []);
@@ -643,7 +643,7 @@ export function AdminDashboardShell({
   const setTheme = (next: AdminPrototypeChromeTheme) => {
     setChromeTheme(next);
     try {
-      localStorage.setItem(ADMIN_PROTOTYPE_THEME_KEY, next);
+      localStorage.setItem(ADMIN_THEME_KEY, next);
     } catch {
       /* ignore */
     }
@@ -654,7 +654,7 @@ export function AdminDashboardShell({
     pathname.startsWith("/admin/bookings") ||
     pathname.startsWith("/admin/accounts");
   const talentActive = pathname.startsWith("/admin/talent");
-  const homeActive = isPrototypeNavActive(pathname, "/admin");
+  const homeActive = isAdminNavActive(pathname, "/admin");
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -715,7 +715,7 @@ export function AdminDashboardShell({
             </div>
           ) : null}
           <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2">
-            <PrototypeNavSections
+            <AdminNavSections
               collapsed={collapsed}
               pinnedIds={pinnedIds}
               shortcutIds={shortcutIds}
@@ -810,7 +810,7 @@ export function AdminDashboardShell({
               </div>
             ) : null}
             <div className="max-h-[calc(100dvh-11rem)] overflow-y-auto">
-              <PrototypeNavSections
+              <AdminNavSections
                 collapsed={false}
                 expandAllGroups
                 onNavigate={() => setMobileOpen(false)}

@@ -23,7 +23,7 @@
  * clears the flag and re-fires the tour.
  */
 
-import { GuidedTour, resetGuidedTour, type TourStep } from "./_guided-tour";
+import { GuidedTour, resetGuidedTour, type TourStep } from "./guided-tour";
 
 const ADMIN_STEPS: TourStep[] = [
   {

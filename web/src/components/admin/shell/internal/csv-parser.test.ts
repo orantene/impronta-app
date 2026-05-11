@@ -16,7 +16,7 @@ import {
   parseClientCsv,
   isValidTalentRow,
   isValidClientRow,
-} from "./_csv-parser";
+} from "./csv-parser";
 
 describe("findColumn", () => {
   it("matches exact header (case-insensitive)", () => {

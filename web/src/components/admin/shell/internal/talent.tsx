@@ -20,17 +20,17 @@ import { useEffect, useRef, useState, useMemo, type CSSProperties, type ReactNod
 import { actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 // Type-only import — `_data-bridge.ts` is server-only; `import type` is erased
 // at compile time and never reaches the client bundle (same pattern as _state.tsx).
-import type { TalentInquiryRow } from "./_data-bridge";
+import type { TalentInquiryRow } from "./data-bridge";
 import dynamic from "next/dynamic";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
-import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT, TALENT_RATE_FOR_CONV } from "./_messages";
+import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT, TALENT_RATE_FOR_CONV } from "./messages";
 import {
   TalentAnalyticsCard,
   TalentFunnelCard,
   ICalSubscribeCard,
   TalentOnboardingArc,
   TalentFirstRunBanner,
-} from "./_wave2";
+} from "./wave2";
 import {
   AVAILABILITY_BLOCKS,
   AVAILABLE_CHANNELS,
@@ -76,7 +76,7 @@ import {
   pluralize,
   summarizeLanguages,
   tierAllows,
-  useProto,
+  useAdminShell,
   type ChannelEntry,
   type ChannelKind,
   type ClientTrustLevel,
@@ -94,8 +94,8 @@ import {
   type TalentReview,
   type TalentSkill,
   type TalentSubscriptionTier,
-} from "./_state";
-import { PasskeysCard, GalleryFxCard } from "./_modern-features";
+} from "./state";
+import { PasskeysCard, GalleryFxCard } from "./modern-features";
 import {
   ActivityFeedItem,
   Affordance,
@@ -124,7 +124,7 @@ import {
   DrawerShell,
   useRovingTabindex,
   scrollBehavior,
-} from "./_primitives";
+} from "./primitives";
 
 // ════════════════════════════════════════════════════════════════════
 // Mine-from-RICH_INQUIRIES helpers
@@ -237,7 +237,7 @@ function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversa
  * TalentJobShell without accessing the proto context via a separate hook.
  */
 export function useTalentConversations(): Conversation[] {
-  const { effectiveTalentInquiries, bridgeTalentSelfProfile } = useProto();
+  const { effectiveTalentInquiries, bridgeTalentSelfProfile } = useAdminShell();
   return useMemo(() => {
     // Bridge-mode: a real talent profile is in scope. Return adapted
     // bridge data — even if it's empty (a freshly-provisioned talent
@@ -255,7 +255,7 @@ export function useTalentConversations(): Conversation[] {
 }
 
 function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
-  const { openDrawer, setTalentPage, toast } = useProto();
+  const { openDrawer, setTalentPage, toast } = useAdminShell();
   const stage = INQUIRY_STAGE_META[inquiry.stage];
   const myStatus = myStatusOn(inquiry);
   const unread = unreadOnInquiry(inquiry);
@@ -500,7 +500,7 @@ export function TalentSurface() {
 // ─── Topbar (lighter than workspace admin) ─────────────────────────
 
 function TalentTopbar() {
-  const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile } = useProto();
+  const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile } = useAdminShell();
   // Prefer bridge data so a freshly-provisioned talent sees their own
   // public URL in the topbar, not Marta's. The bridge supplies a
   // `profileCode` which we resolve against the canonical /t/<code> path;
@@ -632,7 +632,7 @@ function TalentTopbar() {
 // ─── Router ───────────────────────────────────────────────────────
 
 function TalentRouter() {
-  const { state } = useProto();
+  const { state } = useAdminShell();
   let page: ReactNode = null;
   switch (state.talentPage) {
     case "today":
@@ -778,7 +778,7 @@ const TALENT_INQUIRY_TO_CONV: Record<string, string> = {
 };
 
 function TalentTodayPage() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile } = useProto();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile } = useAdminShell();
   // Use real bridge data when available so a freshly-provisioned talent
   // sees their own name/photo/city in the Today header instead of Marta's.
   const profile = bridgeTalentSelfProfile
@@ -1633,7 +1633,7 @@ function FirstSessionChecklist({
  * "Inquiries you're in" rows.
  */
 function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   // Brief is shown inside TalentClosedBookingDrawer (_talent_drawers.tsx).
   // Row shows client + amount only — enough to scan the list.
   return (
@@ -2551,7 +2551,7 @@ function NeedsReplySection({
   onOpenInMessages,
   onSeeAll,
 }: {
-  conversations: import("./_talent").Conversation[];
+  conversations: import("./talent").Conversation[];
   /** Pin a conversation + route to messages shell. Single canonical action. */
   onOpenInMessages: (convId: string) => void;
   onSeeAll: () => void;
@@ -2605,7 +2605,7 @@ function ConversationReplyRow({
   conv,
   onOpen,
 }: {
-  conv: import("./_talent").Conversation;
+  conv: import("./talent").Conversation;
   onOpen: () => void;
 }) {
   const [hover, setHover] = useState(false);
@@ -2741,7 +2741,7 @@ function RequestRow({
    */
   compact?: boolean;
 }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const [hover, setHover] = useState(false);
   const kindMeta: Record<TalentRequest["kind"], { label: string; tone: "coral" | "indigo" | "amber" | "ink" }> = {
     offer: { label: "Offer", tone: "coral" },
@@ -2890,7 +2890,7 @@ function ConversationCalendarRow({
   conv,
   onOpen,
 }: {
-  conv: import("./_talent").Conversation;
+  conv: import("./talent").Conversation;
   onOpen: () => void;
 }) {
   // Parse the conversation's date label into a date-block. Handles:
@@ -2984,7 +2984,7 @@ function ConversationCalendarRow({
 }
 
 function BookingRow({ booking }: { booking: TalentBooking }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   // Parse "Tue, May 6" or "May 14" → month "MAY", day "6" / "14".
   const dateMatch = booking.startDate.match(/([A-Za-z]+)\s+(\d{1,2})/);
   const month = dateMatch?.[1]?.toUpperCase() ?? "—";
@@ -3320,7 +3320,7 @@ function TierBreakdown({
 }
 
 function MyProfilePage() {
-  const { openDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  const { openDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
   // Use the real profile id from the bridge when available; fall back to mock.
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   // Subscribe to override store + read the MERGED profile. Edits in
@@ -3833,7 +3833,7 @@ function AllSectionsGrid({ openSection }: { openSection: (s: string) => void }) 
 // ─── Hero (cover photo + headshot + identity strip) ─────────────────
 
 function ProfileHero() {
-  const { openDrawer, bridgeTalentSelfProfile } = useProto();
+  const { openDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   useProfileOverrideSubscription();
   const baseHero = applyProfileOverride(
@@ -4074,7 +4074,7 @@ function ProfileHero() {
  * was eating ~600px on mobile (stacked tall cards). One white card,
  * 4 inline cells, hairline dividers. Mobile collapses 4→2x2.
  */
-function EngagementStrip({ profile }: { profile?: import("./_state").MyTalentProfile } = {}) {
+function EngagementStrip({ profile }: { profile?: import("./state").MyTalentProfile } = {}) {
   // Take the profile as a prop so freshly-provisioned talents see their
   // actual stats (zeros) instead of Marta's hardcoded #12 rank / 142 views.
   // Falls back to MY_TALENT_PROFILE only when nothing was passed (legacy
@@ -4147,7 +4147,7 @@ function EngagementStrip({ profile }: { profile?: import("./_state").MyTalentPro
 // rather than disabled controls, so the ladder is always visible.
 
 function PersonalPageBand() {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast } = useAdminShell();
   const p = MY_TALENT_PROFILE;
   const sub = p.subscription;
   // Phase 1.5: hard-code Basic for launch — no subscription field wired yet.
@@ -4904,7 +4904,7 @@ export type Conversation = {
   id: string;
   client: string;
   clientInitials: string;
-  clientTrust: import("./_state").ClientTrustLevel;
+  clientTrust: import("./state").ClientTrustLevel;
   brief: string;
   stage: MsgStage;
   agency: string;
@@ -6007,7 +6007,7 @@ const STAGE_META: Record<MsgStage, { label: string; tone: string; bg: string }> 
  * Hidden on the Messages page (where it would be redundant).
  */
 function TalentMessagesFab() {
-  const { state, setTalentPage } = useProto();
+  const { state, setTalentPage } = useAdminShell();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const conversations = useTalentConversations();
   // Audit P1-10 — on phone, FAB navigates to the Messages route
@@ -6251,7 +6251,7 @@ function useIsPhone(breakpoint = 720) {
 // avoid the import cycle with `_messages.tsx` (which itself imports
 // `Conversation`, `ParticipantsStack`, `MOCK_CONVERSATIONS` from this
 // file). See `_messages.tsx` charter for full design decisions.
-const TalentMessagesShellLazy = dynamic(() => import("./_messages").then(m => m.MessagesShell), { ssr: false });
+const TalentMessagesShellLazy = dynamic(() => import("./messages").then(m => m.MessagesShell), { ssr: false });
 
 export function TalentMessagesPage() {
   useKeyboardInset();
@@ -6523,7 +6523,7 @@ function ConversationListRow({
     : conv.lastMessage.ageHrs < 24
       ? `${conv.lastMessage.ageHrs}h`
       : `${Math.floor(conv.lastMessage.ageHrs / 24)}d`;
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const longPressRef = useRef<number | null>(null);
@@ -7112,7 +7112,7 @@ const iconButtonSm: CSSProperties = {
  * current state per session.
  */
 function ThreadOptionsMenu() {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [open, setOpen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [starred, setStarred] = useState(false);
@@ -7196,7 +7196,7 @@ function ThreadInfoSidebar({
   isLocked: boolean;
   onClose: () => void;
 }) {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast } = useAdminShell();
   const [infoTab, setInfoTab] = useState<"details" | "activity">("details");
   // Audit P1-8 — actual swipe-down-to-dismiss for the mobile bottom
   // sheet. The drag-pill rendered by CSS was previously cosmetic; now
@@ -7612,7 +7612,7 @@ function ThreadActivityTimeline({ conv }: { conv: Conversation }) {
  * chat thread so the request is visible in the timeline.
  */
 function RateChangeRequest({ currentValue }: { currentValue: string }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [open, setOpen] = useState(false);
   const [proposed, setProposed] = useState("");
   const [reason, setReason] = useState("");
@@ -8235,7 +8235,7 @@ function SendButtonWithSchedule({ disabled, onSend, onSchedule }: {
  * this component and seeded from MOCK_REACTIONS for demonstration.
  */
 function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: boolean; children: ReactNode }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reactions, setReactions] = useState<string[]>(() => MOCK_REACTIONS[msg.id] ?? []);
@@ -8823,7 +8823,7 @@ function ReadReceiptRow({ msg, fromYou }: { msg: Msg; fromYou: boolean }) {
 }
 
 function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; stage: MsgStage }) {
-  const { toast, openDrawer } = useProto();
+  const { toast, openDrawer } = useAdminShell();
   // Hoist all action-card state here to satisfy Rules of Hooks.
   const [rateVal, setRateVal] = useState((msg as { resolved?: string }).resolved ?? "");
   const [rateSubmitted, setRateSubmitted] = useState(false);
@@ -9097,7 +9097,7 @@ function TypingIndicator({ name }: { name: string }) {
 }
 
 function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocked: boolean; onAfterSend?: () => void }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [text, setText] = useState("");
   const [attachOpen, setAttachOpen] = useState(false);
   // @mention (#33) — show a small autocomplete popup when the user
@@ -9534,7 +9534,7 @@ type InboxItem = {
 };
 
 function InboxPage() {
-  const { openDrawer, setTalentPage, toast } = useProto();
+  const { openDrawer, setTalentPage, toast } = useAdminShell();
   const goToMessages = (riOrConvId: string) => {
     pinNextConversationT(TALENT_INQUIRY_TO_CONV[riOrConvId] ?? riOrConvId);
     setTalentPage("messages");
@@ -9835,7 +9835,7 @@ function InboxPage() {
  * names anonymized in the prompt by default. See backend handoff §8.1.
  */
 function AIReplyAssistant({ item }: { item: InboxItem | null }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [expanded, setExpanded] = useState(false);
   const [pickedIdx, setPickedIdx] = useState<number | null>(null);
   if (!item) return null;
@@ -10471,7 +10471,7 @@ function inboxClientInitials(name: string): string {
  * one-month view is enough to show the layout and visual language.
  */
 function CalendarMonthGrid() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
 
   // May 2026 starts on a Friday (verified). Map cells: empty for the
   // first 4 days (Mon–Thu), then 1..31 for the days of the month.
@@ -10772,8 +10772,8 @@ function CalendarWeekView({
   events,
   onOpen,
 }: {
-  events: { id: string; kind: string; client: string; brief: string; dateLabel: string; status: string; startDay: number | null; drawer: { id: import("./_state").DrawerId; payload: Record<string, unknown> } }[];
-  onOpen: (d: { id: import("./_state").DrawerId; payload: Record<string, unknown> }) => void;
+  events: { id: string; kind: string; client: string; brief: string; dateLabel: string; status: string; startDay: number | null; drawer: { id: import("./state").DrawerId; payload: Record<string, unknown> } }[];
+  onOpen: (d: { id: import("./state").DrawerId; payload: Record<string, unknown> }) => void;
 }) {
   // Anchor on May 12–18 (week containing the prototype's mock conflict).
   const weekStart = 12;
@@ -10881,8 +10881,8 @@ function CalendarDayView({
   events,
   onOpen,
 }: {
-  events: { id: string; kind: string; client: string; brief: string; dateLabel: string; status: string; amount?: string; startDay: number | null; drawer: { id: import("./_state").DrawerId; payload: Record<string, unknown> } }[];
-  onOpen: (d: { id: import("./_state").DrawerId; payload: Record<string, unknown> }) => void;
+  events: { id: string; kind: string; client: string; brief: string; dateLabel: string; status: string; amount?: string; startDay: number | null; drawer: { id: import("./state").DrawerId; payload: Record<string, unknown> } }[];
+  onOpen: (d: { id: import("./state").DrawerId; payload: Record<string, unknown> }) => void;
 }) {
   // Anchor on May 14 — the prototype's hot day with the conflict.
   const targetDay = 14;
@@ -11014,7 +11014,7 @@ type CalendarEvent = {
   /** Status microcopy — what's the current state of this event. */
   status: string;
   /** Click target: drawer ID + payload. */
-  drawer: { id: import("./_state").DrawerId; payload: Record<string, unknown> };
+  drawer: { id: import("./state").DrawerId; payload: Record<string, unknown> };
 };
 
 // Parse a date value that may be an ISO string ("2026-05-14") or a
@@ -11034,7 +11034,7 @@ function parseDateToMayDay(s: string | null | undefined, endOfRange = false): nu
 }
 
 function CalendarPage() {
-  const { openDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  const { openDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
   // Bridge-aware conversations — same source as TalentTodayPage and
   // TalentJobShell. When the bridge has real data, use it for the calendar.
   const conversations = useTalentConversations();
@@ -11630,7 +11630,7 @@ function ConflictBanner({
   conflicts: { a: CalendarEvent; b: CalendarEvent }[];
   onResolve: (action: "decline" | "talk" | "reschedule", target: CalendarEvent) => void;
 }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   // Severity escalates with conflict count: 1–2 is warning, 3+ is critical.
   const severe = conflicts.length >= 3;
   return (
@@ -11913,7 +11913,7 @@ function CalendarEventRow({
  * pace is < 70% of where it should be by date, coral if < 40%.
  */
 function EarningsGoalRing({ total }: { total: number }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [goal, setGoal] = useState(30000);
   const [editOpen, setEditOpen] = useState(false);
   const [editValue, setEditValue] = useState(String(goal));
@@ -12235,7 +12235,7 @@ function ForecastTile({ total, bookingsCount }: { total: number; bookingsCount: 
 }
 
 function ActivityPage() {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast } = useAdminShell();
   const [filter, setFilter] = useState<"all" | "agency" | "personal" | "hub" | "studio" | "manual">("all");
   // Celebration moment is local-only in the prototype; production wires
   // this to talent_celebration_events with a dismissed_at flag so the
@@ -12557,7 +12557,7 @@ function ActivityPage() {
 // Reach is operational. Distribution is a lever the talent owns.
 
 function ReachPage() {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast } = useAdminShell();
 
   // Audit #40 — dismissible Pro-tier card. Once dismissed for the
   // session, the page falls back to a compact strip at the same spot.
@@ -13965,7 +13965,7 @@ function TalentTrustCard({ onOpenDetail }: { onOpenDetail: () => void }) {
   // Demo: the prototype's "current talent" maps to roster id `t1` (Marta).
   // In production this comes from the auth session.
   const TALENT_ID = "t1";
-  const { getTrustSummary } = useProto();
+  const { getTrustSummary } = useAdminShell();
   const trust = getTrustSummary("talent_profile", TALENT_ID);
   const igActive = trust.badges.some(b => b.type === "instagram_verified" && b.status === "active");
   const tulalaActive = trust.badges.some(b => b.type === "tulala_verified" && b.status === "active");
@@ -14079,7 +14079,7 @@ function TalentTrustCard({ onOpenDetail }: { onOpenDetail: () => void }) {
 }
 
 function SettingsPage() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useProto();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   const settingsAgencies = bridgeTalentAgencies !== null
     ? bridgeTalentAgencies.map((a) => ({
@@ -14610,7 +14610,7 @@ function convFirstDay(label?: string): { month: string; day: number } | null {
 }
 
 function WeekRhythmStrip() {
-  const { setTalentPage } = useProto();
+  const { setTalentPage } = useAdminShell();
   const conversations = useTalentConversations();
   // "Today" in the prototype's mock world is May 6 (anchored to align
   // with TALENT_BOOKINGS[0] / dashboard demo). Production reads the
@@ -14786,7 +14786,7 @@ function WeekRhythmStrip() {
 // ════════════════════════════════════════════════════════════════════
 
 function AgenciesPage() {
-  const { openDrawer, setTalentPage, toast, bridgeTalentAgencies } = useProto();
+  const { openDrawer, setTalentPage, toast, bridgeTalentAgencies } = useAdminShell();
 
   // Bridge-aware: when the layout supplied real agency relationships, use
   // them (even if empty — a freshly-provisioned talent has zero agencies
@@ -14965,7 +14965,7 @@ function AgenciesPage() {
 // ════════════════════════════════════════════════════════════════════
 
 function PublicPageEditor() {
-  const { openDrawer, toast, bridgeTalentSelfProfile } = useProto();
+  const { openDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
   // Prefer the real bridge profile so a freshly-provisioned talent sees
   // their own canonical /t/<profile_code> URL, not Marta's. Standalone
   // prototype mode (no bridge) keeps the demo MY_TALENT_PROFILE.

@@ -42,7 +42,7 @@ import {
   useAdminWorkspace,
 } from "@/components/admin/workspace-context";
 import { TIER_DOT, TIER_LABEL } from "@/lib/admin/plan-tiers";
-import { ADMIN_NAV_LABEL_BY_SEGMENT } from "@/lib/prototype/admin-prototype-nav";
+import { ADMIN_NAV_LABEL_BY_SEGMENT } from "@/lib/admin/admin-nav";
 import { cn } from "@/lib/utils";
 
 /**

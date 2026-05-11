@@ -1,7 +1,7 @@
 /** Prototype-only local preferences (localStorage). Not used by live admin or CMS. */
 
-export const ADMIN_PROTOTYPE_PINNED_KEY = "admin_prototype_pinned_items";
-export const ADMIN_PROTOTYPE_TOP_SHORTCUTS_KEY = "admin_prototype_top_shortcuts";
+export const ADMIN_PINNED_KEY = "admin_prototype_pinned_items";
+export const ADMIN_TOP_SHORTCUTS_KEY = "admin_prototype_top_shortcuts";
 
 function parseIdList(raw: string | null): string[] {
   if (raw == null || raw === "") return [];
@@ -17,7 +17,7 @@ function parseIdList(raw: string | null): string[] {
 export function loadPinnedIds(): string[] {
   if (typeof window === "undefined") return [];
   try {
-    return parseIdList(localStorage.getItem(ADMIN_PROTOTYPE_PINNED_KEY));
+    return parseIdList(localStorage.getItem(ADMIN_PINNED_KEY));
   } catch {
     return [];
   }
@@ -26,7 +26,7 @@ export function loadPinnedIds(): string[] {
 export function savePinnedIds(ids: string[]): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(ADMIN_PROTOTYPE_PINNED_KEY, JSON.stringify(ids));
+    localStorage.setItem(ADMIN_PINNED_KEY, JSON.stringify(ids));
   } catch {
     /* ignore */
   }
@@ -35,7 +35,7 @@ export function savePinnedIds(ids: string[]): void {
 export function loadTopShortcutIds(): string[] {
   if (typeof window === "undefined") return [];
   try {
-    return parseIdList(localStorage.getItem(ADMIN_PROTOTYPE_TOP_SHORTCUTS_KEY));
+    return parseIdList(localStorage.getItem(ADMIN_TOP_SHORTCUTS_KEY));
   } catch {
     return [];
   }
@@ -44,7 +44,7 @@ export function loadTopShortcutIds(): string[] {
 export function saveTopShortcutIds(ids: string[]): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(ADMIN_PROTOTYPE_TOP_SHORTCUTS_KEY, JSON.stringify(ids));
+    localStorage.setItem(ADMIN_TOP_SHORTCUTS_KEY, JSON.stringify(ids));
   } catch {
     /* ignore */
   }

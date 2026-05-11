@@ -17,9 +17,9 @@ import type {
 import {
   ProficiencyDotPicker,
   ProficiencyLabel,
-} from "./_skill-proficiency";
-import { useDashboardText } from "./_dashboard-i18n";
-import { F_BODY, T } from "./_skill-tokens";
+} from "./skill-proficiency";
+import { useDashboardText } from "./dashboard-i18n";
+import { F_BODY, T } from "./skill-tokens";
 
 // ─── SkillCategoryCard — one per role/parent_category pair ────────────────
 

@@ -53,7 +53,7 @@ export type {
 // runtime-importing it from server code would defeat the whole point of
 // the bridge. `import type` is erased at compile time and emits no JS,
 // so we get the shape without pulling the client tree into server land.
-import type { TalentProfile } from "./_state";
+import type { TalentProfile } from "./state";
 import type { WorkspaceMediaPhoto, WorkspaceMediaFolder } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
 import type {
   WorkspaceInquiryForMessages,
@@ -150,7 +150,7 @@ export type BridgeData = {
   talentSelfProfile?: TalentSelfProfile | null;
   /**
    * The talent's active inquiries — adapted into `Conversation[]` by the
-   * ProtoProvider adapter for use in TodayPage / InboxShell / CalendarPage.
+   * AdminShellProvider adapter for use in TodayPage / InboxShell / CalendarPage.
    * `null` means talent surface is in mock mode (use MOCK_CONVERSATIONS).
    */
   talentInquiries?: TalentInquiryRow[] | null;
@@ -177,7 +177,7 @@ export type BridgeData = {
   // ── Phase 5 — user surface preference ──────────────────────────────────────
   /**
    * Persisted preferred surface from user_prefs. Null = no preference stored yet.
-   * Used by ProtoProvider to set the initial surface (preferred > URL param > default).
+   * Used by AdminShellProvider to set the initial surface (preferred > URL param > default).
    */
   preferredSurface?: "talent" | "workspace" | null;
 

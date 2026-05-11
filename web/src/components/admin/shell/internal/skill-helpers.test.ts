@@ -7,7 +7,7 @@ import {
   countSecondaryParents,
   groupSkillsByRoleParent,
   pickFeaturedSkillTermId,
-} from "./_skill-helpers";
+} from "./skill-helpers";
 
 function s(partial: Partial<ResolvedSkill>): ResolvedSkill {
   return {

@@ -12,7 +12,7 @@ import {
   normalizeSlugPath,
 } from "@/lib/cms/paths";
 import type { Locale } from "@/i18n/config";
-import { SkillDiscoveryPanel } from "./_skill-discovery-panel";
+import { SkillDiscoveryPanel } from "./skill-discovery-panel";
 import {
   CLIENT_PAGES,
   CLIENT_PAGE_META,
@@ -52,7 +52,7 @@ import {
   meetsPlan,
   meetsRole,
   pluralize,
-  useProto,
+  useAdminShell,
   Z,
   RADIUS,
   ACTIVATION_TASKS,
@@ -85,7 +85,7 @@ import {
   FAB_PALETTE_OPEN_EVENT,
   FAB_PALETTE_CHANGED_EVENT,
   type FabPaletteChangedDetail,
-} from "./_state";
+} from "./state";
 import {
   Affordance,
   Avatar,
@@ -142,37 +142,37 @@ import {
   Eyebrow,
   H3,
   ShortcutsModal,
-} from "./_primitives";
+} from "./primitives";
 import { signOut } from "@/app/auth/actions";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import { LOCALE_COOKIE, localeCookieOptions } from "@/i18n/locale-middleware";
-import { useDashboardText } from "./_dashboard-i18n";
-import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv, WorkspaceActivationBanner, DemoDataBanner } from "./_wave2";
-import { WorkspaceMediaPage } from "./_media-page";
-import { pinNextConversation as pinNextConversationP } from "./_messages";
-import { NotificationsBell } from "./_notifications-hub";
+import { useDashboardText } from "./dashboard-i18n";
+import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv, WorkspaceActivationBanner, DemoDataBanner } from "./wave2";
+import { WorkspaceMediaPage } from "./media-page";
+import { pinNextConversation as pinNextConversationP } from "./messages";
+import { NotificationsBell } from "./notifications-hub";
 // WS-13.1 — lazy-load non-workspace surfaces so the workspace JS bundle
 // doesn't ship talent / client / platform code unless the user actually
 // switches surface. Each surface is ~3–6 MB of inline styles + logic.
 import dynamic from "next/dynamic";
-const TalentSurface = dynamic(() => import("./_talent").then((m) => ({ default: m.TalentSurface })), { ssr: false });
-const ClientSurface = dynamic(() => import("./_client").then((m) => ({ default: m.ClientSurface })), { ssr: false });
-const PlatformSurface = dynamic(() => import("./_platform").then((m) => ({ default: m.PlatformSurface })), { ssr: false });
+const TalentSurface = dynamic(() => import("./talent").then((m) => ({ default: m.TalentSurface })), { ssr: false });
+const ClientSurface = dynamic(() => import("./client").then((m) => ({ default: m.ClientSurface })), { ssr: false });
+const PlatformSurface = dynamic(() => import("./platform").then((m) => ({ default: m.PlatformSurface })), { ssr: false });
 import {
   ShortcutHelpOverlay,
   useKeyboardLayer,
   BulkActionBar,
   WorkspaceBody,
   InquiryStatusChip,
-} from "./_workspace";
-import { ParticipantsStack, type Participant } from "./_talent";
+} from "./workspace";
+import { ParticipantsStack, type Participant } from "./talent";
 // MessagesShell is lazy-loaded with ssr:false because it imports
 // ConversationThread from _talent.tsx, which transitively pulls in
 // react-virtuoso — not SSR-safe. Lazy import keeps the prototype
 // SSR-renderable while the messages shell is client-only.
-const MessagesShell = dynamic(() => import("./_messages").then(m => m.MessagesShell), { ssr: false });
+const MessagesShell = dynamic(() => import("./messages").then(m => m.MessagesShell), { ssr: false });
 import { bulkSetWorkflowStatus } from "@/app/(workspace)/[tenantSlug]/admin/roster/bulk-actions";
-import { PitchComposeDrawer } from "./_pitch-compose";
+import { PitchComposeDrawer } from "./pitch-compose";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
 
 // ════════════════════════════════════════════════════════════════════
@@ -192,7 +192,7 @@ export function ControlBar() {
     setClientPage,
     setClientProfile,
     setPlatformPage,
-  } = useProto();
+  } = useAdminShell();
 
   // Dev controls are only useful while building/demoing the prototype.
   // Hide them in non-dev environments unless the URL opts in via ?dev=1.
@@ -521,7 +521,7 @@ const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "team" | "user" |
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
-  const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests, overviewMetrics } = useProto();
+  const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests, overviewMetrics } = useAdminShell();
   const copy = useDashboardText();
   const pendingVerifications = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
@@ -824,7 +824,7 @@ type QuickCreateItem = {
   canDo: boolean;
 };
 function useQuickCreateItems(): QuickCreateItem[] {
-  const { state } = useProto();
+  const { state } = useAdminShell();
   return [
     {
       id: "new-inquiry", label: "New inquiry", emoji: "📨",
@@ -875,8 +875,8 @@ function useQuickCreateItems(): QuickCreateItem[] {
  * Hook for the mobile FAB. Returns the canonical create-actions filtered
  * to what this user can do. Use as: `actions={useQuickCreateActionsFiltered()}`.
  */
-function useQuickCreateActionsFiltered(): import("./_primitives").FabAction[] {
-  const { openDrawer } = useProto();
+function useQuickCreateActionsFiltered(): import("./primitives").FabAction[] {
+  const { openDrawer } = useAdminShell();
   const copy = useDashboardText();
   return useQuickCreateItems()
     .filter(it => it.canDo)
@@ -890,7 +890,7 @@ function useQuickCreateActionsFiltered(): import("./_primitives").FabAction[] {
 }
 
 function QuickCreateMenu() {
-  const { openDrawer, state } = useProto();
+  const { openDrawer, state } = useAdminShell();
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -1155,7 +1155,7 @@ export function TulalaIdentityBar() {
     bridgeWorkspaceUnread,
     bridgeFirstRunToggleTipSeen,
     effectiveTenant,
-  } = useProto();
+  } = useAdminShell();
   const copy = useDashboardText();
   const { surface, alsoTalent, role, plan, entityType } = state;
 
@@ -1537,7 +1537,7 @@ function AccountMenuTrigger({
   userInitials: string;
   children: ReactNode;
 }) {
-  const { toast, state, openDrawer, bridgeTalentSelfProfile, tenantSlug, bridgeSessionIdentity } = useProto();
+  const { toast, state, openDrawer, bridgeTalentSelfProfile, tenantSlug, bridgeSessionIdentity } = useAdminShell();
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
@@ -2012,7 +2012,7 @@ function ModeTogglePillButton({
           e.currentTarget.style.color = COLORS.ink;
           // WS-13.5 — warm the dynamic module cache so the flip animation
           // starts instantly rather than waiting for the network.
-          if (label === "Talent") void import("./_talent");
+          if (label === "Talent") void import("./talent");
         }
       }}
       onMouseLeave={(e) => {
@@ -2134,7 +2134,7 @@ export function HybridShell({ children }: { children: ReactNode }) {
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceShell() {
-  const { state, setPage, openDrawer } = useProto();
+  const { state, setPage, openDrawer } = useAdminShell();
   const [helpOpen,  setHelpOpen]  = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -2198,7 +2198,7 @@ export function WorkspaceShell() {
  * fixed-width sidebar on the left and the main column flexing.
  */
 function WorkspaceSidebarShell() {
-  const { state, setPage, openDrawer, setWorkspaceLayout, effectiveTenant } = useProto();
+  const { state, setPage, openDrawer, setWorkspaceLayout, effectiveTenant } = useAdminShell();
   const { role } = state;
   const canCreate = meetsRole(role, "editor");
   // WS-12.6 — roving tabindex on sidebar nav: arrow keys move between pages
@@ -2776,7 +2776,7 @@ function OverviewPage() {
     bridgeSessionIdentity,
     bridgeTenantIdentity,
     effectiveTenant,
-  } = useProto();
+  } = useAdminShell();
   const isFree = state.plan === "free";
   const canEdit = meetsRole(state.role, "editor");
   const tenantDomain = bridgeTenantIdentity?.slug
@@ -3206,7 +3206,7 @@ function OverviewPage() {
 }
 
 function OverviewFree() {
-  const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers, effectiveMessagesInquiries, bridgeTenantIdentity, effectiveTenant } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers, effectiveMessagesInquiries, bridgeTenantIdentity, effectiveTenant } = useAdminShell();
   const tenantDomain = bridgeTenantIdentity?.slug
     ? `${bridgeTenantIdentity.slug}.tulala.app`
     : effectiveTenant.domain;
@@ -3545,7 +3545,7 @@ function WorkspaceMessagesPage() {
 }
 
 function UnifiedInboxPage() {
-  const { openDrawer, setPage, toast } = useProto();
+  const { openDrawer, setPage, toast } = useAdminShell();
   // Route inquiry clicks through the new MessagesShell instead of the
   // legacy drawer.
   const goToInquiryMessages = (inquiryId: string) => {
@@ -4197,7 +4197,7 @@ function parseInquiryDays(dateStr: string, displayMonth: number): number[] {
 }
 
 function CalendarPage() {
-  const { openDrawer, setPage, effectiveCalendarEvents, toast, effectiveTenant } = useProto();
+  const { openDrawer, setPage, effectiveCalendarEvents, toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const today = new Date();
@@ -4535,7 +4535,7 @@ function CalendarNavBtn({ label, onClick, disabled }: { label: string; onClick?:
 // ════════════════════════════════════════════════════════════════════
 
 function WorkPage() {
-  const { state, openDrawer, setPage, openUpgrade, toast, effectiveMessagesInquiries, effectiveBookings } = useProto();
+  const { state, openDrawer, setPage, openUpgrade, toast, effectiveMessagesInquiries, effectiveBookings } = useAdminShell();
   const canEdit = meetsRole(state.role, "coordinator");
   const isFree = state.plan === "free";
 
@@ -4979,7 +4979,7 @@ function StageBadge({ stage }: { stage: string }) {
  * now lead with that.
  */
 function FreeValuePanel() {
-  const { setPage, openDrawer } = useProto();
+  const { setPage, openDrawer } = useAdminShell();
   return (
     <div
       style={{
@@ -5160,7 +5160,7 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant, t } = useProto();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant, t } = useAdminShell();
   const router = useRouter();
   // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
   // the server pre-fetches Impronta's roster and `effectiveRoster` is
@@ -5515,7 +5515,7 @@ function TalentPage() {
 
 // ── Pending approvals strip ─────────────────────────────────────────
 function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: () => void }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   const pendingTitle =
     count === 1
       ? fillAdminTpl(t("admin.roster.list.pendingWaitingSingular"), { count: String(count) })
@@ -5581,7 +5581,7 @@ function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: (
 
 // ── Self-on-roster row — refined hairline strip ─────────────────────
 function SelfOnRosterRow({ onEdit }: { onEdit: () => void }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   return (
     <div
       style={{
@@ -5630,7 +5630,7 @@ function RosterStatusStrip({
   active: "all" | "published" | "draft" | "invited" | "awaiting-approval";
   onFilter: (f: "published" | "draft" | "invited" | "awaiting-approval") => void;
 }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   const items: { id: "published" | "awaiting-approval" | "invited" | "draft"; label: string; count: number; tone: string }[] = [
     { id: "published",         label: t("admin.roster.status.published"), count: counts.published, tone: COLORS.green },
     { id: "awaiting-approval", label: t("admin.roster.status.pending"),    count: counts.awaiting,  tone: COLORS.amber },
@@ -5733,7 +5733,7 @@ function RosterFilterBar({
   resultCount: number;
   totalCount: number;
 }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   const resultLabel =
     resultCount === totalCount
       ? fillAdminTpl(t("admin.roster.filters.resultCountFull"), { totalCount: String(totalCount) })
@@ -5930,7 +5930,7 @@ function SortButton({
   onSort: (s: "name" | "completeness" | "newest" | "lastEdited") => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { t } = useProto();
+  const { t } = useAdminShell();
   const sortLabel = {
     name: t("admin.roster.filters.sortName"),
     completeness: t("admin.roster.filters.sortCompleteness"),
@@ -6009,7 +6009,7 @@ function SortButton({
 }
 
 function ViewToggle({ view, onView }: { view: "grid" | "list"; onView: (v: "grid" | "list") => void }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   return (
     <div
       style={{
@@ -6078,7 +6078,7 @@ function RosterMoreMenu({
   onImport: () => void;
   onTypes: () => void;
 }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   return (
     <div style={{ position: "relative" }}>
       <button
@@ -6211,7 +6211,7 @@ function RosterCard({
   onOpen: (p: TalentProfile) => void;
 }) {
   const [hover, setHover] = useState(false);
-  const { bridgeTalentSelfProfile, t } = useProto();
+  const { bridgeTalentSelfProfile, t } = useAdminShell();
   const isSelf = !!bridgeTalentSelfProfile?.id && profile.id === bridgeTalentSelfProfile.id;
 
   // Resolve primary type → label + parent emoji + first specialty.
@@ -6548,7 +6548,7 @@ function RosterCard({
 
 /** Resolves trust state for a talent and renders compact admin-surface badges. */
 function RosterTrustCell({ talentId }: { talentId: string }) {
-  const { getTrustSummary, t } = useProto();
+  const { getTrustSummary, t } = useAdminShell();
   const trust = getTrustSummary("talent_profile", talentId);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -6581,7 +6581,7 @@ function RosterTrustCell({ talentId }: { talentId: string }) {
 
 /** Modern verified-icon overlay on the talent's photo corner. */
 function RosterPhotoBadgeOverlay({ talentId }: { talentId: string }) {
-  const { getTrustSummary } = useProto();
+  const { getTrustSummary } = useAdminShell();
   const trust = getTrustSummary("talent_profile", talentId);
   return <ProfilePhotoBadgeOverlay trust={trust} size="md" max={2} position="bottom-right" />;
 }
@@ -6598,7 +6598,7 @@ function RosterList({
   onSelect?: (id: string) => void;
   onOpen: (p: TalentProfile) => void;
 }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   return (
     <div
       data-tulala-roster-list
@@ -6671,7 +6671,7 @@ function RosterRow({
   onOpen: (p: TalentProfile) => void;
 }) {
   const [hover, setHover] = useState(false);
-  const { t } = useProto();
+  const { t } = useAdminShell();
 
   const typeMeta = (() => {
     if (!profile.primaryType) return null;
@@ -6873,7 +6873,7 @@ function RosterEmptyState({
   onClear: () => void;
   onAdd?: () => void;
 }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   return (
     <div
       style={{
@@ -6999,7 +6999,7 @@ function RosterBulkActionBar({
   isLoading?: boolean;
   onSendPitch?: () => void;
 }) {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   const selectedWord = t("admin.roster.bulk.selectedSuffix");
   return (
     <div
@@ -7104,7 +7104,7 @@ const bulkBtnStyle: React.CSSProperties = {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientsPage() {
-  const { state, openDrawer, openUpgrade, toast, effectiveClients, importedClients } = useProto();
+  const { state, openDrawer, openUpgrade, toast, effectiveClients, importedClients } = useAdminShell();
   // Phase 3.12 — use bridge clients when available, fall back to mock.
   // importedClients (CSV imports from proto state) are always merged in.
   const clients = [...effectiveClients, ...importedClients];
@@ -7476,7 +7476,7 @@ import {
   type PitchDetail,
   type RegeneratedPitchLink,
 } from "@/app/(workspace)/[tenantSlug]/admin/pitches/actions";
-import type { WorkspacePitchRow } from "./_data-bridge";
+import type { WorkspacePitchRow } from "./data-bridge";
 import type { PitchStatus } from "@/lib/pitch/pitch-types";
 
 const PITCH_STATUS_TONE: Record<PitchStatus, { tone: "ink" | "amber" | "green" | "dim"; label: string }> = {
@@ -7514,7 +7514,7 @@ function fmtPitchRelative(iso: string | null): string {
 }
 
 function PitchesPage() {
-  const { state, effectivePitches, effectiveRoster, tenantSlug, toast, effectiveTenant } = useProto();
+  const { state, effectivePitches, effectiveRoster, tenantSlug, toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const canEdit = meetsRole(state.role, "coordinator");
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
@@ -8477,7 +8477,7 @@ const TI = {
 };
 
 function OperationsPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
 
   return (
     <>
@@ -8526,7 +8526,7 @@ function OperationsPage() {
 // ════════════════════════════════════════════════════════════════════
 
 function ProductionPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
 
   return (
     <>
@@ -8724,7 +8724,7 @@ function WebsitePage() {
     locale,
     tenantSlug,
     websiteUsesLiveCms,
-  } = useProto();
+  } = useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
   const w = effectiveWebsiteState;
 
@@ -9526,7 +9526,7 @@ function SiteTrackingCell({ label, value }: { label: string; value: string }) {
 // ════════════════════════════════════════════════════════════════════
 
 function SitePage() {
-  const { state, setPage, openDrawer, openUpgrade, bridgeTenantIdentity, effectiveTenant } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, bridgeTenantIdentity, effectiveTenant } = useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
 
   return (
@@ -9835,7 +9835,7 @@ function SitePage() {
 
 // Site setup walkthrough banner — full-width prominent card
 function SiteSetupBanner() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   return (
     <div
       style={{
@@ -10042,7 +10042,7 @@ function TierCard({
 }
 
 function PlanLadderStrip() {
-  const { state, setPlan, openUpgrade } = useProto();
+  const { state, setPlan, openUpgrade } = useAdminShell();
   const items: { plan: Plan; promise: string }[] = [
     { plan: "free", promise: "Public storefront on Tulala discovery" },
     { plan: "studio", promise: "Custom domain + private inquiries" },
@@ -10154,7 +10154,7 @@ function PlanLadderStrip() {
 // The data layer lives in _state.tsx. This page is presentation only.
 
 function BillingPage() {
-  const { state, openDrawer, openUpgrade } = useProto();
+  const { state, openDrawer, openUpgrade } = useAdminShell();
   const isOwner = state.role === "owner";
   const isAdmin = meetsRole(state.role, "admin");
   const isFree = state.plan === "free";
@@ -10277,7 +10277,7 @@ function BillingPage() {
  * row and a click-to-open-drawer affordance.
  */
 function BillingActivityTable() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   return (
     <div
       style={{
@@ -10410,7 +10410,7 @@ function LockedPill({ plan }: { plan: Plan }) {
 }
 
 function WorkspacePageView() {
-  const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useAdminShell();
   const pendingTrustCount = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
   ).length;
@@ -11189,7 +11189,7 @@ function WorkspacePageView() {
 // ════════════════════════════════════════════════════════════════════
 
 export function SurfaceRouter() {
-  const { state } = useProto();
+  const { state } = useAdminShell();
   // Wrap each surface in a <main> landmark so screen readers can jump
   // directly past the dark prototype ControlBar (which is treated as a
   // toolbar/header in the page composition). Each surface has only one
@@ -11237,7 +11237,7 @@ export function SurfaceRouter() {
 // Auto-dismisses after 6s; the user can also tap to skip.
 // ════════════════════════════════════════════════════════════════════
 function UpgradeCelebration() {
-  const { state } = useProto();
+  const { state } = useAdminShell();
   const planRanks: Record<Plan, number> = {
     free: 0, studio: 1, agency: 2, network: 3,
   };
@@ -11442,7 +11442,7 @@ export function MobileBottomNav() {
     setPlatformPage,
     pendingTalent,
     totalUnread: bridgeTotalUnread,
-  } = useProto();
+  } = useAdminShell();
   const copy = useDashboardText();
   const [moreOpen, setMoreOpen] = useState(false);
   // WS-12.6 — left/right arrows move between bottom nav tabs

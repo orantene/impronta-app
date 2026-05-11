@@ -22,7 +22,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { COLORS, FONTS, RADIUS } from "./_state";
+import { COLORS, FONTS, RADIUS } from "./state";
 
 const PASSKEY_STORAGE_KEY = "tulala_prototype_passkey_credentialId";
 

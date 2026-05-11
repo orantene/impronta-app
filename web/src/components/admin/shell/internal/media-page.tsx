@@ -5,9 +5,9 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import {
-  COLORS, FONTS, meetsPlan, useProto,
-} from "./_state";
-import { PrimaryButton, SecondaryButton } from "./_primitives";
+  COLORS, FONTS, meetsPlan, useAdminShell,
+} from "./state";
+import { PrimaryButton, SecondaryButton } from "./primitives";
 import {
   actionDeleteMediaAssets,
   actionUploadToStagingStorage,
@@ -1216,7 +1216,7 @@ function PhotoCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function WorkspaceMediaPage() {
-  const { state, openDrawer, openUpgrade, bridgeMediaPhotos, bridgeMediaFolders, tenantSlug, toast } = useProto();
+  const { state, openDrawer, openUpgrade, bridgeMediaPhotos, bridgeMediaFolders, tenantSlug, toast } = useAdminShell();
   const router = useRouter();
   const isAgency = meetsPlan(state.plan, "agency");
   const isStudio = meetsPlan(state.plan, "studio");

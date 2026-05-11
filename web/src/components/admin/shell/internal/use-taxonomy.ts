@@ -22,7 +22,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { TAXONOMY, type TaxonomyParent, type TaxonomyParentId } from "./_state";
+import { TAXONOMY, type TaxonomyParent, type TaxonomyParentId } from "./state";
 
 /**
  * Live shape — every term keeps its real Supabase id + full row, so

@@ -13,7 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { createTranslator } from "@/i18n/messages";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
-import type { ToastTone } from "./_primitives";
+import type { ToastTone } from "./primitives";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded
 // by `import "server-only"`. The `import type` form is erased at compile
 // time and emits no runtime JS, so the client bundle stays clean.
@@ -31,7 +31,7 @@ import type {
   TalentAgencyRow,
   WorkspaceMediaPhoto as BridgeMediaPhoto,
   WorkspaceMediaFolder as BridgeMediaFolder,
-} from "./_data-bridge";
+} from "./data-bridge";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
@@ -4658,7 +4658,7 @@ export const CLIENT_PROFILES: Record<ClientProfileId, ClientProfile> = {
 
 // Default brand identity — points at the business client. The active
 // client profile is read off the proto state's `clientProfile` field;
-// callers should prefer `useProto().activeClientProfile` over this.
+// callers should prefer `useAdminShell().activeClientProfile` over this.
 export const MY_CLIENT_BRAND: ClientBrand = CLIENT_PROFILES.martina;
 
 /**
@@ -7225,7 +7225,7 @@ const TALENT_ROUTE_SEGMENTS = TALENT_PAGES.map(talentPageToSegment).filter(
   (s, i, a) => a.indexOf(s) === i,
 );
 
-export function ProtoProvider({
+export function AdminShellProvider({
   children,
   initialBridgeData = null,
   initialPage,
@@ -8446,9 +8446,9 @@ export function ProtoProvider({
   return <ProtoContext.Provider value={value}>{children}</ProtoContext.Provider>;
 }
 
-export function useProto(): Ctx {
+export function useAdminShell(): Ctx {
   const v = useContext(ProtoContext);
-  if (!v) throw new Error("useProto outside ProtoProvider");
+  if (!v) throw new Error("useAdminShell outside AdminShellProvider");
   return v;
 }
 
@@ -9420,7 +9420,7 @@ export function mergeWebsiteStateFromBridge(live: WebsiteData): WebsiteState {
 // Re-exports from _field-catalog.ts
 //
 // `_talent.tsx` imports computeProfileCompleteness, fieldsForType, and
-// FIELD_CATALOG from "./_state" (same import block as all other state
+// FIELD_CATALOG from "./state" (same import block as all other state
 // symbols). Rather than modifying the frozen caller file, we re-export
 // these from the catalog module. The circular import (_state ↔
 // _field-catalog) is safe: _field-catalog already uses lazy
@@ -9430,4 +9430,4 @@ export {
   computeProfileCompleteness,
   fieldsForType,
   FIELD_CATALOG,
-} from "./_field-catalog";
+} from "./field-catalog";

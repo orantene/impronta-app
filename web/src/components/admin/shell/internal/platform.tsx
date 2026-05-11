@@ -37,7 +37,7 @@ import {
   PLATFORM_USERS,
   SUPPORT_TICKETS,
   SYSTEM_JOBS,
-  useProto,
+  useAdminShell,
   type EntityType,
   type FeatureFlag,
   type HubSubmission,
@@ -49,7 +49,7 @@ import {
   type PlatformUser,
   type SupportTicket,
   type SystemJob,
-} from "./_state";
+} from "./state";
 import {
   Avatar,
   Bullet,
@@ -64,7 +64,7 @@ import {
   StatDot,
   StatusCard,
   DrawerShell,
-} from "./_primitives";
+} from "./primitives";
 
 // ════════════════════════════════════════════════════════════════════
 // Surface entry — DARK by default. The dark theme reflects this is HQ
@@ -110,7 +110,7 @@ export function PlatformSurface() {
 // ─── Topbar (dark) ────────────────────────────────────────────────
 
 function PlatformTopbar() {
-  const { state, setPlatformPage, setHqRole, verificationRequests } = useProto();
+  const { state, setPlatformPage, setHqRole, verificationRequests } = useAdminShell();
   const meta = HQ_ROLE_META[state.hqRole];
   // Trust-verification queue is a PLATFORM-level function (Tulala staff
   // act as a neutral arbiter — see project_client_trust_badges.md).
@@ -290,7 +290,7 @@ function PlatformTopbar() {
 // ─── Impersonation strip ──────────────────────────────────────────
 
 function ImpersonationStrip() {
-  const { state, stopImpersonation } = useProto();
+  const { state, stopImpersonation } = useAdminShell();
   if (!state.impersonating) return null;
   return (
     <div
@@ -335,7 +335,7 @@ function ImpersonationStrip() {
 // ─── Router ───────────────────────────────────────────────────────
 
 function PlatformRouter() {
-  const { state } = useProto();
+  const { state } = useAdminShell();
   switch (state.platformPage) {
     case "today":
       return <PlatformTodayPage />;
@@ -577,7 +577,7 @@ function HqGrid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto
 // ════════════════════════════════════════════════════════════════════
 
 function PlatformTodayPage() {
-  const { setPlatformPage, openDrawer } = useProto();
+  const { setPlatformPage, openDrawer } = useAdminShell();
   const openIncidents = PLATFORM_INCIDENTS.filter((i) => i.state !== "resolved");
   const newTickets = SUPPORT_TICKETS.filter((t) => t.state === "new");
   const pendingHub = HUB_SUBMISSIONS.filter((h) => h.status === "pending");
@@ -728,7 +728,7 @@ function PlatformTenantsPage() {
 }
 
 function TenantRow({ tenant }: { tenant: PlatformTenant }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const healthMeta: Record<PlatformTenant["health"], { tone: "green" | "amber" | "red"; label: string }> = {
     healthy: { tone: "green", label: "Healthy" },
     "at-risk": { tone: "amber", label: "At risk" },
@@ -810,7 +810,7 @@ function TenantRow({ tenant }: { tenant: PlatformTenant }) {
 }
 
 function TenantMiniRow({ tenant }: { tenant: PlatformTenant }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   return (
     <button
       onClick={() => openDrawer("platform-tenant-detail", { id: tenant.id })}
@@ -879,7 +879,7 @@ function PlatformUsersPage() {
 }
 
 function UserRow({ user }: { user: PlatformUser }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   return (
     <tr
       style={{ borderBottom: `1px solid ${HQ.borderSoft}`, cursor: "pointer" }}
@@ -905,7 +905,7 @@ function UserRow({ user }: { user: PlatformUser }) {
 // ════════════════════════════════════════════════════════════════════
 
 function PlatformNetworkPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   return (
     <>
       <PageHeader
@@ -928,7 +928,7 @@ function PlatformNetworkPage() {
 }
 
 function HubSubmissionRow({ sub }: { sub: HubSubmission }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const tone = sub.status === "pending" ? "amber" : sub.status === "featured" ? "green" : "dim";
   const label = sub.status === "pending" ? "Pending" : sub.status === "featured" ? "Featured" : "Declined";
   return (
@@ -974,7 +974,7 @@ function HubSubmissionRow({ sub }: { sub: HubSubmission }) {
 }
 
 function ModerationRow({ item }: { item: ModerationItem }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const sevColor = item.severity === "high" ? HQ.red : item.severity === "med" ? HQ.amber : HQ.inkDim;
   return (
     <button
@@ -1011,7 +1011,7 @@ function ModerationRow({ item }: { item: ModerationItem }) {
 // ════════════════════════════════════════════════════════════════════
 
 function PlatformBillingPage() {
-  const { state } = useProto();
+  const { state } = useAdminShell();
   const canRefund = HQ_ROLE_META[state.hqRole].canRefund;
   const failedInvoices = PLATFORM_INVOICES.filter((i) => i.status === "failed");
   return (
@@ -1069,7 +1069,7 @@ function PlatformBillingPage() {
 }
 
 function InvoiceRow({ invoice }: { invoice: PlatformInvoice }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const statusColor =
     invoice.status === "paid" ? HQ.green : invoice.status === "failed" ? HQ.red : invoice.status === "refunded" ? HQ.amber : HQ.inkMuted;
   return (
@@ -1119,7 +1119,7 @@ function PlatformOperationsPage() {
 }
 
 function FlagRow({ flag }: { flag: FeatureFlag }) {
-  const { openDrawer, state } = useProto();
+  const { openDrawer, state } = useAdminShell();
   const canFlag = HQ_ROLE_META[state.hqRole].canFlag;
   const stateColor = flag.state === "on" ? HQ.green : flag.state === "off" ? HQ.inkDim : HQ.amber;
   return (
@@ -1168,7 +1168,7 @@ function FlagRow({ flag }: { flag: FeatureFlag }) {
 }
 
 function JobRow({ job }: { job: SystemJob }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const stateColor =
     job.state === "succeeded" ? HQ.green : job.state === "failed" ? HQ.red : job.state === "running" ? HQ.amber : HQ.inkDim;
   return (
@@ -1215,7 +1215,7 @@ function JobRow({ job }: { job: SystemJob }) {
 }
 
 function IncidentRow({ incident }: { incident: PlatformIncident }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const sevColor = incident.severity === "p1" ? HQ.red : incident.severity === "p2" ? HQ.amber : HQ.inkMuted;
   return (
     <button
@@ -1262,7 +1262,7 @@ function IncidentRow({ incident }: { incident: PlatformIncident }) {
 }
 
 function SupportTicketRow({ ticket }: { ticket: SupportTicket }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   return (
     <button
       onClick={() => openDrawer("platform-support-ticket", { id: ticket.id })}
@@ -1297,7 +1297,7 @@ function SupportTicketRow({ ticket }: { ticket: SupportTicket }) {
 // ════════════════════════════════════════════════════════════════════
 
 function PlatformSettingsPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   return (
     <>
       <PageHeader
@@ -1394,7 +1394,7 @@ function PlatformSettingsPage() {
 // ════════════════════════════════════════════════════════════════════
 
 export function PlatformTodayPulseDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "platform-today-pulse";
   return (
     <DrawerShell
@@ -1447,7 +1447,7 @@ export function PlatformTodayPulseDrawer() {
 }
 
 export function PlatformTenantDetailDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "platform-tenant-detail";
   const id = state.drawer.payload?.id as string | undefined;
   const t = PLATFORM_TENANTS.find((t) => t.id === id) ?? PLATFORM_TENANTS[0];
@@ -1588,7 +1588,7 @@ function DrawerKv({ label, value }: { label: string; value: string }) {
 }
 
 export function PlatformTenantImpersonateDrawer() {
-  const { state, closeDrawer, startImpersonation, toast } = useProto();
+  const { state, closeDrawer, startImpersonation, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-tenant-impersonate";
   const id = state.drawer.payload?.id as string | undefined;
   const t = PLATFORM_TENANTS.find((t) => t.id === id) ?? PLATFORM_TENANTS[0];
@@ -1656,7 +1656,7 @@ export function PlatformTenantImpersonateDrawer() {
 }
 
 export function PlatformTenantSuspendDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-tenant-suspend";
   const id = state.drawer.payload?.id as string | undefined;
   const t = PLATFORM_TENANTS.find((t) => t.id === id) ?? PLATFORM_TENANTS[0];
@@ -1692,7 +1692,7 @@ export function PlatformTenantSuspendDrawer() {
 }
 
 export function PlatformTenantPlanOverrideDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-tenant-plan-override";
   return (
     <DrawerShell
@@ -1735,7 +1735,7 @@ export function PlatformTenantPlanOverrideDrawer() {
 }
 
 export function PlatformUserDetailDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "platform-user-detail";
   const id = state.drawer.payload?.id as string | undefined;
   const u = PLATFORM_USERS.find((u) => u.id === id) ?? PLATFORM_USERS[0];
@@ -1763,7 +1763,7 @@ export function PlatformUserDetailDrawer() {
 }
 
 export function PlatformUserMergeDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-user-merge";
   return (
     <DrawerShell
@@ -1786,7 +1786,7 @@ export function PlatformUserMergeDrawer() {
 }
 
 export function PlatformUserResetDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-user-reset";
   return (
     <DrawerShell
@@ -1809,7 +1809,7 @@ export function PlatformUserResetDrawer() {
 }
 
 export function PlatformHubSubmissionDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-hub-submission";
   const id = state.drawer.payload?.id as string | undefined;
   const s = HUB_SUBMISSIONS.find((s) => s.id === id) ?? HUB_SUBMISSIONS[0];
@@ -1849,7 +1849,7 @@ export function PlatformHubSubmissionDrawer() {
 }
 
 export function PlatformHubRulesDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-hub-rules";
   return (
     <DrawerShell
@@ -1872,7 +1872,7 @@ export function PlatformHubRulesDrawer() {
 }
 
 export function PlatformBillingInvoiceDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "platform-billing-invoice";
   const id = state.drawer.payload?.id as string | undefined;
   const i = PLATFORM_INVOICES.find((i) => i.id === id) ?? PLATFORM_INVOICES[0];
@@ -1901,7 +1901,7 @@ export function PlatformBillingInvoiceDrawer() {
 }
 
 export function PlatformRefundDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-refund";
   const canRefund = HQ_ROLE_META[state.hqRole].canRefund;
   return (
@@ -1931,7 +1931,7 @@ export function PlatformRefundDrawer() {
 }
 
 export function PlatformDunningDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-dunning";
   return (
     <DrawerShell
@@ -1951,7 +1951,7 @@ export function PlatformDunningDrawer() {
 }
 
 export function PlatformFeatureFlagDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-feature-flag";
   const id = state.drawer.payload?.id as string | undefined;
   const f = FEATURE_FLAGS.find((f) => f.id === id) ?? FEATURE_FLAGS[0];
@@ -2002,7 +2002,7 @@ export function PlatformFeatureFlagDrawer() {
 }
 
 export function PlatformModerationItemDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-moderation-item";
   const id = state.drawer.payload?.id as string | undefined;
   const m = MODERATION_QUEUE.find((m) => m.id === id) ?? MODERATION_QUEUE[0];
@@ -2030,7 +2030,7 @@ export function PlatformModerationItemDrawer() {
 }
 
 export function PlatformSystemJobDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-system-job";
   const id = state.drawer.payload?.id as string | undefined;
   const j = SYSTEM_JOBS.find((j) => j.id === id) ?? SYSTEM_JOBS[0];
@@ -2055,7 +2055,7 @@ export function PlatformSystemJobDrawer() {
 }
 
 export function PlatformIncidentDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-incident";
   const id = state.drawer.payload?.id as string | undefined;
   const i = PLATFORM_INCIDENTS.find((i) => i.id === id) ?? PLATFORM_INCIDENTS[0];
@@ -2080,7 +2080,7 @@ export function PlatformIncidentDrawer() {
 }
 
 export function PlatformSupportTicketDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-support-ticket";
   const id = state.drawer.payload?.id as string | undefined;
   const t = SUPPORT_TICKETS.find((t) => t.id === id) ?? SUPPORT_TICKETS[0];
@@ -2107,7 +2107,7 @@ export function PlatformSupportTicketDrawer() {
 }
 
 export function PlatformAuditExportDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-audit-export";
   return (
     <DrawerShell
@@ -2127,7 +2127,7 @@ export function PlatformAuditExportDrawer() {
 }
 
 export function PlatformHqTeamDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-hq-team";
   return (
     <DrawerShell
@@ -2181,7 +2181,7 @@ export function PlatformHqTeamDrawer() {
 }
 
 export function PlatformRegionConfigDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-region-config";
   return (
     <DrawerShell

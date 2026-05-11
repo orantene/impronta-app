@@ -21,16 +21,16 @@ import dynamic from "next/dynamic";
 // Lazy import — _messages.tsx pulls react-virtuoso transitively which
 // is not SSR-safe. ssr:false matches how _talent.tsx loads it too.
 const ClientMessagesShellLazy = dynamic(
-  () => import("./_messages").then((m) => m.MessagesShell),
+  () => import("./messages").then((m) => m.MessagesShell),
   { ssr: false },
 );
 const InquiryComposerLazy = dynamic(
-  () => import("./_messages").then((m) => m.InquiryComposer),
+  () => import("./messages").then((m) => m.InquiryComposer),
   { ssr: false },
 );
 // Eager import — pinNextConversation is a tiny synchronous helper, no
 // React tree, so dynamic-ing it would just complicate the call site.
-import { pinNextConversation } from "./_messages";
+import { pinNextConversation } from "./messages";
 import {
   AGENCY_RELIABILITY,
   CLIENT_BOOKINGS,
@@ -53,7 +53,7 @@ import {
   MY_SHORTLISTS,
   RICH_INQUIRIES,
   meetsClientPlan,
-  useProto,
+  useAdminShell,
   type AgencyReliability,
   type ClientBooking,
   type ClientBookingPostStatus,
@@ -62,7 +62,7 @@ import {
   type DiscoverTalent,
   type RichInquiry,
   type Shortlist,
-} from "./_state";
+} from "./state";
 import {
   Affordance,
   Avatar,
@@ -81,7 +81,7 @@ import {
   StatusCard,
   TrustBadgeGroup,
   ProfilePhotoBadgeOverlay,
-} from "./_primitives";
+} from "./primitives";
 
 // ════════════════════════════════════════════════════════════════════
 // Surface entry
@@ -293,7 +293,7 @@ function ClientFirstRunWizard({ onClose }: { onClose: () => void }) {
 }
 
 function ClientConciergeButton() {
-  const { state, toast, setClientPage } = useProto();
+  const { state, toast, setClientPage } = useAdminShell();
   const [open, setOpen] = useState(false);
   // #29 — Quick-dial menu for premium tier. Tapping the concierge button
   // opens a menu with: WhatsApp coordinator, in-app message, voice call.
@@ -367,7 +367,7 @@ function ConciergeMenuItem({ icon, label, desc, onClick }: { icon: string; label
 }
 
 function ClientBottomNav() {
-  const { state, setClientPage } = useProto();
+  const { state, setClientPage } = useAdminShell();
   const tabs: { id: typeof state.clientPage; label: string; icon: React.ReactNode }[] = [
     { id: "today",      label: "Today",     icon: <BNavIcon name="bolt" /> },
     { id: "messages",   label: "Messages",  icon: <BNavIcon name="mail" /> },
@@ -433,7 +433,7 @@ function BNavIcon({ name }: { name: "bolt" | "mail" | "search" | "bookmark" | "s
 //   • plan chip → moved into the brand-switcher drawer detail
 //   • unread → bottom-nav Messages tab badge (parity with talent)
 function ClientTopbar() {
-  const { state, setClientPage } = useProto();
+  const { state, setClientPage } = useAdminShell();
 
   return (
     <header
@@ -515,7 +515,7 @@ function ClientTopbar() {
 // ─── Router ───────────────────────────────────────────────────────
 
 function ClientRouter() {
-  const { state } = useProto();
+  const { state } = useAdminShell();
   switch (state.clientPage) {
     case "today":
       return <ClientTodayPage />;
@@ -653,7 +653,7 @@ function Grid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto" 
 // client approve/counter without entering the thread for obvious cases.
 // The header is one personal-status line + a single dismissible nag strip.
 function ClientTodayPage() {
-  const { openDrawer, setClientPage, toast } = useProto();
+  const { openDrawer, setClientPage, toast } = useAdminShell();
   const pendingDecisions = RICH_INQUIRIES.filter(
     (i) => i.stage === "offer_pending" && i.offer?.clientApproval === "pending",
   );
@@ -874,7 +874,7 @@ function ClientTodaySection({
  *   - Approve/Counter buttons sit beneath, clearly distinct
  */
 function ClientNeedsYouRow({ inquiry }: { inquiry: RichInquiry }) {
-  const { setClientPage, toast } = useProto();
+  const { setClientPage, toast } = useAdminShell();
   const open = () => {
     const convId = INQUIRY_TO_CONV[inquiry.id];
     if (convId) pinNextConversation(convId);
@@ -932,7 +932,7 @@ function ClientNeedsYouRow({ inquiry }: { inquiry: RichInquiry }) {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientInquiriesPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const groups: { id: string; label: string; description: string; filter: (i: RichInquiry) => boolean }[] = [
     {
       id: "decide",
@@ -1048,7 +1048,7 @@ function ClientInquiriesPage() {
 }
 
 function ClientInquiryRow({ inquiry, bordered: _bordered }: { inquiry: RichInquiry; bordered?: boolean }) {
-  const { setClientPage } = useProto();
+  const { setClientPage } = useAdminShell();
   const meta = INQUIRY_STAGE_META[inquiry.stage];
   // Compact subtitle that doesn't wrap to 3 lines on mobile
   const subtitleParts = [
@@ -1124,7 +1124,7 @@ function ClientInquiryRow({ inquiry, bordered: _bordered }: { inquiry: RichInqui
 }
 
 function LegacyClientInquiryRow({ inquiry }: { inquiry: typeof CLIENT_INQUIRIES[number] }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   return (
     <button
       onClick={() => openDrawer("client-inquiry-detail", { id: inquiry.id })}
@@ -1168,7 +1168,7 @@ function LegacyClientInquiryRow({ inquiry }: { inquiry: typeof CLIENT_INQUIRIES[
 type TalentCategory = "all" | "models" | "hosts" | "chefs" | "artists" | "djs" | "photographers" | "performers";
 
 function ClientDiscoverPage() {
-  const { state, openUpgrade, toast, getTrustSummary } = useProto();
+  const { state, openUpgrade, toast, getTrustSummary } = useAdminShell();
   // Discover is a PREMIUM feature — Basic clients see a paywall.
   // Premium tier (= "pro" or higher) gets first access to the full
   // Tulala roster, the AI search engine, and channel selection.
@@ -1564,7 +1564,7 @@ function mapDiscoverToRosterId(discoverId: string): string | null {
 }
 
 function ClientDiscoverTrustRow({ talentId }: { talentId: string }) {
-  const { getTrustSummary } = useProto();
+  const { getTrustSummary } = useAdminShell();
   const rosterId = mapDiscoverToRosterId(talentId) ?? talentId;
   const trust = getTrustSummary("talent_profile", rosterId);
   return (
@@ -1575,7 +1575,7 @@ function ClientDiscoverTrustRow({ talentId }: { talentId: string }) {
 }
 
 function ClientDiscoverPhotoBadge({ talentId, size = "md" }: { talentId: string; size?: "xs" | "sm" | "md" | "lg" }) {
-  const { getTrustSummary } = useProto();
+  const { getTrustSummary } = useAdminShell();
   const rosterId = mapDiscoverToRosterId(talentId) ?? talentId;
   const trust = getTrustSummary("talent_profile", rosterId);
   return <ProfilePhotoBadgeOverlay trust={trust} size={size} max={2} position="bottom-right" />;
@@ -1588,7 +1588,7 @@ function ClientTalentDetailSheet({
   onClose: () => void;
   onInquire: () => void;
 }) {
-  const { toast, getTalentContactGate, canClientContactTalent } = useProto();
+  const { toast, getTalentContactGate, canClientContactTalent } = useAdminShell();
   const rosterId = mapDiscoverToRosterId(talent.id) ?? talent.id;
   // Demo: assume the current client is c1 (Vogue Italia, business_verified).
   // In production this resolves via auth context.
@@ -1833,7 +1833,7 @@ function ProfileKv({ label, value }: { label: string; value: string }) {
 }
 
 function ClientChannelPicker({ talent, onClose }: { talent: DiscoverTalent; onClose: () => void }) {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast } = useAdminShell();
   const send = (channel: typeof talent.channels[number]) => {
     onClose();
     toast(`Sending inquiry via ${channel.name}…`);
@@ -1924,7 +1924,7 @@ function ClientChannelPicker({ talent, onClose }: { talent: DiscoverTalent; onCl
 }
 
 function DiscoverCard({ talent, onPick }: { talent: DiscoverTalent; onPick?: () => void }) {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast } = useAdminShell();
   const repCount = talent.channels.length;
   const hasFreelance = talent.channels.some(c => c.kind === "freelance");
   const exclusiveAgency = talent.channels.length === 1 && talent.channels[0]?.kind === "agency";
@@ -2015,7 +2015,7 @@ function DiscoverCard({ talent, onPick }: { talent: DiscoverTalent; onPick?: () 
 // ════════════════════════════════════════════════════════════════════
 
 function ClientShortlistsPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   return (
     <>
       <PageHeader
@@ -2037,7 +2037,7 @@ function ClientShortlistsPage() {
 }
 
 function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const stageMeta: Record<Shortlist["status"], { label: string; tone: "ink" | "amber" | "green" | "dim" }> = {
     draft: { label: "Draft", tone: "dim" },
     shared: { label: "Shared", tone: "ink" },
@@ -2136,7 +2136,7 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientBookingsPage() {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast } = useAdminShell();
   return (
     <>
       <PageHeader
@@ -2219,7 +2219,7 @@ const INQUIRY_TO_CONV: Record<string, string> = {
 const BOOKING_TO_CONV = INQUIRY_TO_CONV;
 
 function ClientBookingRow({ booking }: { booking: ClientBooking }) {
-  const { setClientPage, openDrawer, toast } = useProto();
+  const { setClientPage, openDrawer, toast } = useAdminShell();
   const open = () => {
     // Route through the unified message shell instead of the legacy drawer.
     // Booked = "coming up" (still editable / cancellable); wrapped/invoiced
@@ -2301,7 +2301,7 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientSettingsPage() {
-  const { openDrawer, state, toast } = useProto();
+  const { openDrawer, state, toast } = useAdminShell();
   const planMeta = CLIENT_PLAN_META[state.clientPlan];
   const profile = state.clientProfile === "gringo"
     ? { name: "The Gringo", industry: "Personal client", isBusiness: false, photoUrl: "https://i.pravatar.cc/300?img=33" }
@@ -2518,7 +2518,7 @@ function ClientSettingsRow({ label, desc, comingSoon, onClick }: {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientNotificationsPage() {
-  const { setClientPage, toast } = useProto();
+  const { setClientPage, toast } = useAdminShell();
   const [tab, setTab] = useState<"needs" | "updates" | "payments" | "all">("needs");
   // Mocked notifications — production reads from a feed
   type Notif = { id: string; cluster: "needs" | "updates" | "payments"; ts: string; actor: string; title: string; body: string; read: boolean; convId?: string };
@@ -2621,10 +2621,10 @@ function ClientNotificationsPage() {
 // Drawer bodies (client-side)
 // ════════════════════════════════════════════════════════════════════
 
-import { DrawerShell } from "./_primitives";
+import { DrawerShell } from "./primitives";
 
 function useSaveAndClose(message = "Saved") {
-  const { closeDrawer, toast } = useProto();
+  const { closeDrawer, toast } = useAdminShell();
   return () => {
     toast(message);
     closeDrawer();
@@ -2633,7 +2633,7 @@ function useSaveAndClose(message = "Saved") {
 
 function StandardFooter({ onSave, saveLabel = "Save" }: { onSave?: () => void; saveLabel?: string }) {
   const save = useSaveAndClose();
-  const { closeDrawer } = useProto();
+  const { closeDrawer } = useAdminShell();
   return (
     <>
       <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
@@ -2643,7 +2643,7 @@ function StandardFooter({ onSave, saveLabel = "Save" }: { onSave?: () => void; s
 }
 
 export function ClientTodayPulseDrawer() {
-  const { state, closeDrawer, openDrawer, setClientPage } = useProto();
+  const { state, closeDrawer, openDrawer, setClientPage } = useAdminShell();
   const open = state.drawer.drawerId === "client-today-pulse";
   const pendingDecisions = RICH_INQUIRIES.filter(
     (i) => i.stage === "offer_pending" && i.offer?.clientApproval === "pending",
@@ -2707,7 +2707,7 @@ export function ClientTodayPulseDrawer() {
 }
 
 export function ClientTalentCardDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-talent-card";
   const id = state.drawer.payload?.id as string | undefined;
   const t = DISCOVER_TALENT.find((d) => d.id === id);
@@ -2775,7 +2775,7 @@ function KvRow({ label, value }: { label: string; value: ReactNode }) {
 }
 
 export function ClientShortlistDetailDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-shortlist-detail";
   const id = state.drawer.payload?.id as string | undefined;
   const sl = MY_SHORTLISTS.find((s) => s.id === id) ?? MY_SHORTLISTS[0];
@@ -2891,7 +2891,7 @@ export function ClientShortlistDetailDrawer() {
 }
 
 export function ClientNewShortlistDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-new-shortlist";
   const save = useSaveAndClose("Shortlist created");
   return (
@@ -2912,7 +2912,7 @@ export function ClientNewShortlistDrawer() {
 }
 
 export function ClientShareShortlistDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-share-shortlist";
   return (
     <DrawerShell
@@ -2943,7 +2943,7 @@ export function ClientShareShortlistDrawer() {
 }
 
 export function ClientSendInquiryDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-send-inquiry";
   return (
     <DrawerShell
@@ -3013,7 +3013,7 @@ function FieldGroup({
 export function ClientInquiryDetailDrawer() {
   // Legacy fallback drawer for CLIENT_INQUIRIES (old draft inquiries that
   // pre-date RichInquiry adoption). Real inquiries open the InquiryWorkspaceDrawer.
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-inquiry-detail";
   const id = state.drawer.payload?.id as string | undefined;
   const c = CLIENT_INQUIRIES.find((c) => c.id === id);
@@ -3046,7 +3046,7 @@ export function ClientInquiryDetailDrawer() {
 // #18 — Review drawer. Three-axis rating after a wrapped booking.
 // Private to the platform — drives talent/coordinator trust scores.
 export function ClientReviewDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-review";
   const talentName = (state.drawer.payload?.talent as string) ?? "the talent";
   const [scores, setScores] = useState({ responsive: 0, professional: 0, fit: 0 });
@@ -3118,7 +3118,7 @@ export function ClientReviewDrawer() {
 
 // WS-8.10  Counter-offer diff view — side-by-side current vs proposed
 export function ClientCounterOfferDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-counter-offer";
   const [counterRate, setCounterRate] = useState("2200");
   const [note, setNote] = useState("Budget is firm — can the agency hold rate within €2,200?");
@@ -3208,7 +3208,7 @@ export function ClientCounterOfferDrawer() {
 }
 
 export function ClientBookingDetailDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-booking-detail";
   const id = state.drawer.payload?.id as string | undefined;
   const b = CLIENT_BOOKINGS.find((b) => b.id === id) ?? CLIENT_BOOKINGS[0];
@@ -3285,7 +3285,7 @@ export function ClientBookingDetailDrawer() {
 }
 
 export function ClientContractsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-contracts";
   return (
     <DrawerShell
@@ -3344,7 +3344,7 @@ export function ClientContractsDrawer() {
 }
 
 export function ClientTeamDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-team";
   return (
     <DrawerShell
@@ -3399,7 +3399,7 @@ export function ClientTeamDrawer() {
 }
 
 export function ClientBillingDrawer() {
-  const { state, closeDrawer, openUpgrade } = useProto();
+  const { state, closeDrawer, openUpgrade } = useAdminShell();
   const open = state.drawer.drawerId === "client-billing";
   const planMeta = CLIENT_PLAN_META[state.clientPlan];
   return (
@@ -3456,7 +3456,7 @@ export function ClientBillingDrawer() {
 }
 
 export function ClientBrandSwitcherDrawer() {
-  const { state, closeDrawer, toast, setClientProfile } = useProto();
+  const { state, closeDrawer, toast, setClientProfile } = useAdminShell();
   const open = state.drawer.drawerId === "client-brand-switcher";
   // Profile = a booking identity. Each user can own multiple Profiles
   // (business + personal, or one producer with several client Profiles).
@@ -3522,7 +3522,7 @@ export function ClientBrandSwitcherDrawer() {
 
 // WS-8.8  Saved-search alerts — "Email me when matches" toggle per saved search
 export function ClientSavedSearchDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-saved-search";
 
   const INIT_SEARCHES = [
@@ -3652,7 +3652,7 @@ export function ClientSavedSearchDrawer() {
 }
 
 export function ClientQuickQuestionDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-quick-question";
   const [selectedAgency, setSelectedAgency] = useState("Acme Models");
   return (
@@ -3741,7 +3741,7 @@ export function ClientQuickQuestionDrawer() {
 }
 
 export function ClientSettingsDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-settings";
   const save = useSaveAndClose();
   return (
@@ -3804,7 +3804,7 @@ const MY_TALENT_DATA = [
 ];
 
 export function ClientMyTalentDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-my-talent";
   const [search, setSearch] = useState("");
 
@@ -3902,7 +3902,7 @@ const SPEND_BY_AGENCY = [
 ];
 
 export function ClientSpendReportDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "client-spend-report";
   const [view, setView] = useState<"talent" | "agency">("talent");
 
@@ -3980,7 +3980,7 @@ export function ClientSpendReportDrawer() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function ClientBudgetDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "client-budget";
   const [budget, setBudget] = useState("50000");
   const [alertAt, setAlertAt] = useState("80");

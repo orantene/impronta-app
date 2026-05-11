@@ -31,7 +31,7 @@ function vsb(): "smooth" | "auto" {
     ? "auto"
     : "smooth";
 }
-import { MentionTypeahead } from "./_wave2";
+import { MentionTypeahead } from "./wave2";
 import {
   AGENCY_RELIABILITY,
   COLORS,
@@ -47,13 +47,13 @@ import {
   describeSource,
   getPaymentSummary,
   getRichInquiry,
-  useProto,
+  useAdminShell,
   type Offer,
   type RichInquiry,
   type ThreadMessage,
   type ThreadType,
   type WorkspacePage,
-} from "./_state";
+} from "./state";
 import {
   ActivityFeedItem,
   Avatar,
@@ -72,14 +72,14 @@ import {
   DrawerShell,
   useViewport,
   type Attachment,
-} from "./_primitives";
+} from "./primitives";
 
 // ─── Public entry point ───────────────────────────────────────────
 
 export type InquiryWorkspacePov = "admin" | "client" | "talent";
 
 export function InquiryWorkspaceDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "inquiry-workspace";
   const inquiryId = (state.drawer.payload?.inquiryId as string) ?? "RI-201";
   const povRaw = state.drawer.payload?.pov as InquiryWorkspacePov | undefined;
@@ -149,7 +149,7 @@ function MinorProtectionBanner({ talents, compact = false }: {
   talents: typeof ROSTER_AGENCY;
   compact?: boolean;
 }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   if (talents.length === 0) return null;
   const today = new Date().getFullYear();
 
@@ -531,7 +531,7 @@ function PhoneMessagingStream({
   pov: InquiryWorkspacePov;
   active: ThreadType;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [draft, setDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mentionCursor, setMentionCursor] = useState(0);
@@ -1005,7 +1005,7 @@ function buildMessageRenderables(messages: ThreadMessage[]): MessageRenderable[]
 // to miss while reading the thread.
 
 function ActionBanner({ message, onDismiss }: { message: ThreadMessage; onDismiss: () => void }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   return (
     <div
       data-tulala-action-banner
@@ -1284,7 +1284,7 @@ function MessagingPanel({
     setMentionCursor(next.length);
   }, [active, draftKey]);
 
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
 
   // WS-1.D.1 — Typing indicators (mocked). After a message is sent the
   // "other side" appears to start typing for ~2.5 s.
@@ -2236,7 +2236,7 @@ function WorkspaceFilesPanel({
 }: {
   pov: InquiryWorkspacePov;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [filter, setFilter] = useState<FilesFilter>("all");
   // WS-10.5 — track which version groups are expanded
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -2818,7 +2818,7 @@ function KvCompact({ label, value, mono }: { label: string; value: string; mono?
 }
 
 function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   return (
     <RailCard
       title="Coordinator"
@@ -2971,7 +2971,7 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
 }
 
 function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   return (
     <RailCard title="Roster">
       {inquiry.requirementGroups.map((g, i) => (
@@ -3090,7 +3090,7 @@ function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: I
 }
 
 function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   if (!inquiry.offer) {
     return (
       <RailCard
@@ -3138,7 +3138,7 @@ function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorksp
 }
 
 function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) {
-  const { toast, openDrawer, state } = useProto();
+  const { toast, openDrawer, state } = useAdminShell();
   const currentInquiryId = state.drawer.payload?.inquiryId;
   return (
     <>
@@ -3484,7 +3484,7 @@ function DualTimeBadge({
 }
 
 function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   if (inquiry.bookingId) {
     return (
       <RailCard title="Booking">
@@ -3547,7 +3547,7 @@ function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
  *    button → opens `payment-detail` drawer.
  */
 function PaymentPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const summary = getPaymentSummary(inquiry.id);
   if (!summary) return null;
 

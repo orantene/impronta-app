@@ -66,7 +66,7 @@ import {
   RADIUS,
   TRANSITION,
   Z,
-  useProto,
+  useAdminShell,
   PAYMENT_STATUS_META,
   PAYOUT_STATUS_META,
   PLAN_META,
@@ -82,20 +82,20 @@ import {
   type RepresentationStatus,
   type Role,
   type TalentProfile,
-} from "./_state";
+} from "./state";
 import {
   FIELD_CATALOG,
   applyWorkspaceFieldOverride,
   useWorkspaceFieldOverrideSubscription,
   PROTO_TENANT_ID,
-} from "./_field-catalog";
+} from "./field-catalog";
 import {
   HelpPanel,
   hasHelp,
   hasOpenedHelp,
   markHelpOpened,
-} from "./_help";
-import { useDashboardText } from "./_dashboard-i18n";
+} from "./help";
+import { useDashboardText } from "./dashboard-i18n";
 
 // ─── Scroll-lock counter ─────────────────────────────────────────────
 // Tracks how many overlays (drawers + modals) are open so we only
@@ -1595,7 +1595,7 @@ export function TrustBoostBanner({
 }
 
 export function ReadOnlyChip() {
-  const { t } = useProto();
+  const { t } = useAdminShell();
   return (
     <span
       style={{
@@ -2260,8 +2260,8 @@ export function PlanLockPill({
 // Trust & Verification primitives
 // ════════════════════════════════════════════════════════════════════
 
-import type { VerificationType, ProfileClaimStatus, TrustSummary } from "./_state";
-import { VERIFICATION_TYPE_META, PROFILE_CLAIM_META } from "./_state";
+import type { VerificationType, ProfileClaimStatus, TrustSummary } from "./state";
+import { VERIFICATION_TYPE_META, PROFILE_CLAIM_META } from "./state";
 
 /** Single verification badge — one row in a TrustBadgeGroup. */
 export function TrustBadge({
@@ -3749,7 +3749,7 @@ export function MoreWithSection({
   const count = items.length;
   if (count === 0) return null;
   const planLabel = PLAN_META[plan].label;
-  const proto = useProto();
+  const proto = useAdminShell();
   return (
     <div style={{ marginTop: 18, marginBottom: 4, display: "flex", justifyContent: "flex-start" }}>
       <button
@@ -3982,7 +3982,7 @@ export function DrawerShell({
   // Drawer back-stack: when a previous drawer is below in the chain we
   // render a small "← Back" anchor so users can pop instead of close-and-
   // reopen. Pulled directly from context — no per-drawer wiring needed.
-  const proto = useProto();
+  const proto = useAdminShell();
   const previousDrawer = proto.drawerStack[proto.drawerStack.length - 1];
   // WS-2.1 — drawer size toolbar (compact / half / full) is meaningless
   // on phones because the panel auto-clamps to 96vw regardless. Hide
@@ -4341,7 +4341,7 @@ export function DrawerShell({
           </div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             {/* Auto-rendered "Copy link" button — drawer state is already
-                in the URL via ProtoProvider, so this turns every drawer
+                in the URL via AdminShellProvider, so this turns every drawer
                 into a shareable link with one click. */}
             <Popover content="Copy link to this drawer">
               <button

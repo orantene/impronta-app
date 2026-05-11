@@ -103,11 +103,11 @@ import {
   MY_TALENT_PROFILE,
   RICH_INQUIRIES, type RichInquiry, type ClientTrustLevel,
   type InquiryUnitType, type InquiryRecord, toInquiry,
-  useProto,
+  useAdminShell,
   ROSTER_AGENCY, ROSTER_FREE,
   meetsRole,
   TENANT,
-} from "./_state";
+} from "./state";
 
 /**
  * Derive the current talent's stable id from their profile. The offer
@@ -120,13 +120,13 @@ const currentTalentId = () =>
 import {
   Avatar, ClientTrustBadge, ClientTrustChip, Icon,
   TrustBadgeGroup,
-} from "./_primitives";
+} from "./primitives";
 import {
   type Conversation, type Participant,
   MOCK_CONVERSATIONS, MOCK_THREAD,
   CLIENT_MOCK_CONVERSATIONS_BY_PROFILE,
   useTalentConversations,
-} from "./_talent";
+} from "./talent";
 // WorkspaceBody import removed — admin now uses AdminInquiryDetail
 // (defined below) which mirrors the talent/client shell pattern.
 
@@ -405,7 +405,7 @@ function InboxRowHoverActions({
   rowId: string;
   label: string;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   // Subscribe so the Pin / Unread buttons re-render their on/off
   // state immediately when toggled.
   useFlagsSubscription();
@@ -519,7 +519,7 @@ function CoordAvatarPopover({
   withPresence?: boolean;
   withWorkload?: boolean;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [open, setOpen] = useState(false);
   const presence = usePresence(name);
   const workload = getCoordWorkload(name);
@@ -755,7 +755,7 @@ function ParticipantTrustStrip({
   talentName?: string;
   clientName?: string;
 }) {
-  const { getTrustSummary } = useProto();
+  const { getTrustSummary } = useAdminShell();
   // Resolve names → roster ids for talent (best-effort, lookup by name)
   const allRoster = [...ROSTER_AGENCY, ...ROSTER_FREE];
   const talentId = talentName ? allRoster.find(r => r.name === talentName)?.id : undefined;
@@ -1394,7 +1394,7 @@ export function MessagesShell({ pov }: { pov: MessagesPov }) {
 type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past" | "archived";
 
 function AdminOperationsShell() {
-  const { effectiveMessagesInquiries } = useProto();
+  const { effectiveMessagesInquiries } = useAdminShell();
   const inquiries = effectiveMessagesInquiries.length > 0 ? effectiveMessagesInquiries : RICH_INQUIRIES;
   // Re-render on seen-state changes so the inbox re-sorts the moment
   // a row gets clicked (NEW pill drops, unseen tier loses that row).
@@ -1891,7 +1891,7 @@ function AdminInboxList({
   // gesture for multi-row operations (nudge / archive / reassign).
   // Operations are admin+ only — Coord/Editor see the bulk button
   // hidden so they don't get a no-op toggle.
-  const { toast: toastBulk } = useProto();
+  const { toast: toastBulk } = useAdminShell();
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const toggleSelect = (id: string) => {
@@ -2167,7 +2167,7 @@ const NEXT_STAGES: Record<string, { label: string; value: string }[]> = {
 };
 
 function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: InquiryStage }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -2259,7 +2259,7 @@ function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: I
 // Tab bar: Client thread · Talent group · Files · Details (admin sees ALL — no locks)
 // Tab content adapts per active tab.
 function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
-  const { toast, state } = useProto();
+  const { toast, state } = useAdminShell();
   const [activeTab, setActiveTab] = useState<ThreadTabId>("client");
   // Plan tier drives admin-only affordances inside the booking tab
   // (e.g. Free hides Reassign coordinator). The state plan uses
@@ -2550,7 +2550,7 @@ function AdminMessageStream({
   /** DB thread type for this stream: "private" = client, "group" = talent. */
   threadType: ThreadType;
 }) {
-  const { toast, state } = useProto();
+  const { toast, state } = useAdminShell();
   const [, startTransition] = useTransition();
   // Subscribe so locally-sent messages re-render the stream.
   useMessageStashSubscription();
@@ -3876,7 +3876,7 @@ type ShellHeaderInput = {
   agency: string;
   location?: string;
   date?: string;
-  clientTrust?: import("./_state").ClientTrustLevel;
+  clientTrust?: import("./state").ClientTrustLevel;
   source?: Conversation["source"];
   iAmCoordinator?: boolean;
 };
@@ -4158,7 +4158,7 @@ function funnelIndexFor(stage: string): number {
 // ── Talent JOB DETAIL — the heart of the talent shell ──
 // Layout (top-down): unified header → tabs → conversation
 function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const router = useRouter();
   const [, startTalentInviteTransition] = useTransition();
   const yourRate = TALENT_RATE_FOR_CONV[conv.id] ?? "—";
@@ -4475,7 +4475,7 @@ function ClientProjectShell() {
   // Each client profile sees only THEIR commissioned projects — not
   // the talent's full inbox or the agency's roster. Falls back to an
   // empty list if a profile hasn't seeded any.
-  const { state } = useProto();
+  const { state } = useAdminShell();
   const profileId = state.clientProfile;
   const conversations = CLIENT_MOCK_CONVERSATIONS_BY_PROFILE[profileId] ?? [];
   // Re-render on seen-state changes so the inbox re-sorts the moment
@@ -4938,7 +4938,7 @@ function ClientProjectInbox({
 
 // ── Client PROJECT DETAIL — calm, status-focused ──
 function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -5043,7 +5043,7 @@ function ClientTabsBlock({
   lineup: Participant[];
   timeline: { ts: string; label: string }[];
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [activeTab, setActiveTab] = useState<ThreadTabId>("client");
   const fileCount = (MOCK_FILES_FOR_CONV[conv.id] ?? []).filter(f => f.thread === "client").length;
 
@@ -5464,7 +5464,7 @@ function convToInquiry(conv: Conversation): InquiryRecord {
   );
   if (matchingRich) return toInquiry(matchingRich);
 
-  const status: import("./_state").InquiryStatus =
+  const status: import("./state").InquiryStatus =
       conv.stage === "booked" ? "booked"
     : conv.stage === "past" ? "wrapped"
     : conv.stage === "cancelled" ? "cancelled"
@@ -5539,7 +5539,7 @@ function TalentBookingTab({
    *  talent see "View lineup" (read-only). */
   onOpenLineup?: () => void;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const pinned = conv.pinned ?? {};
   const days = countdownLabel(inquiry.schedule.start);
   const coord = inquiry.coordinators[0];
@@ -6078,7 +6078,7 @@ function ClientProjectViewTab({
   conv: Conversation;
   inquiry: InquiryRecord;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const pinned = conv.pinned ?? {};
   const days = countdownLabel(inquiry.schedule.start);
   const coord = inquiry.coordinators[0];
@@ -6605,7 +6605,7 @@ function ChangeCoordinatorSheet({
   coordName: string;
   agency: string;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   if (!open) return null;
   const options: { id: string; label: string; sub: string; tone: "neutral" | "warning"; onPick: () => void }[] = [
     {
@@ -6909,7 +6909,7 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
    *  there. Studio / Agency / Hub-Network all surface it. */
   planTier?: "free" | "studio" | "agency" | "hub-network";
 }) {
-  const { toast, state } = useProto();
+  const { toast, state } = useAdminShell();
   const [lineupOpen, setLineupOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const conv = buildConvFromInquiry(inquiry);
@@ -7044,7 +7044,7 @@ function AdminBookingTab({
    *  Defaults to "agency" so any unset caller gets the full surface. */
   planTier?: "free" | "studio" | "agency" | "hub-network";
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   useOfferStashSubscription();
   useNotesSubscription();
   const conv = useMemo(() => buildConvFromInquiry(inquiry), [inquiry]);
@@ -7519,7 +7519,7 @@ function AdminBookingTab({
 // (driver name, hotel reservation, things-to-bring). This tab pulls
 // from conv.pinned (the per-talent slot) plus inquiry.schedule. ──
 function TalentLogisticsTab({ conv, inquiry }: { conv: Conversation; inquiry: InquiryRecord }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const pinned = conv.pinned ?? {};
   const days = countdownLabel(inquiry.schedule.start);
   return (
@@ -7635,7 +7635,7 @@ function countdownLabel(start: string): { headline: string; subhead: string; urg
 // client pay, when do I get paid, what method. We DON'T show the full
 // invoice / commercial offer here — just the talent's own line. ──
 function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourRate: string }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const isPast = conv.stage === "past";
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
@@ -7788,7 +7788,7 @@ function PayoutReceiverPicker({
   currentDisplayName: string | null;
   onChanged: () => void;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [candidates, setCandidates] = useState<PayoutReceiverOption[] | null>(null);
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState<string>(currentPayoutAccountId ?? "");
@@ -7883,7 +7883,7 @@ function formatCents(cents: number | null, currency: string): string {
 }
 
 export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const isClient = pov === "client";
   const isAdmin = pov === "admin";
   const fallbackTotal = inquiry.budget?.amount ?? 0;
@@ -8298,7 +8298,7 @@ export function DetailsPanel({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
 // ── CLIENT view — short, warm, reassurance-shaped ──
 function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
   const coord = inquiry.coordinators[0];
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       {/* Your project */}
@@ -8414,7 +8414,7 @@ function ClientTalentCard({
   // back to a toast for places that haven't wired the drawer yet.
   onSwap?: () => void;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const stateMeta = (() => {
     const s = (talent.state || "").toLowerCase();
     if (s === "accepted" || s === "confirmed" || s === "booked") {
@@ -8475,7 +8475,7 @@ function ClientTalentCard({
 // ── TALENT view — personal job card; coordinators see the lineup too ──
 function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoordinator: boolean }) {
   const coord = inquiry.coordinators[0];
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       {/* The job */}
@@ -8752,7 +8752,7 @@ function LocationMapTile({
 
 // ── ADMIN view — operations console: full participants, source, controls ──
 function AdminDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       <DetailSection title="Brief">
@@ -9054,7 +9054,7 @@ function draftToInquiry(draft: ComposerDraft, mode: ComposerMode): InquiryRecord
       mode === "client" ? "client_form"
     : mode === "hub"    ? "hub"
     : "workspace_manual";
-  const status: import("./_state").InquiryStatus =
+  const status: import("./state").InquiryStatus =
       mode === "admin" ? "coordinating" : "submitted";
   const id = `IQ-${Math.floor(Math.random() * 9000 + 1000)}`;
   const amount = parseInt(draft.budgetAmount.replace(/\D/g, ""), 10);
@@ -9116,7 +9116,7 @@ export function InquiryComposer({
   /** When true, skip the outer header/footer (host drawer provides chrome). */
   embedded?: boolean;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [draft, setDraft] = useState<ComposerDraft>(() => ({
     title: "",
     clientName: mode === "client" ? defaultClientName ?? "" : "",
@@ -10551,7 +10551,7 @@ function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta?: stri
  * still renders the demo lineup chips).
  */
 function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
-  const { toast, effectiveRoster } = useProto();
+  const { toast, effectiveRoster } = useAdminShell();
   const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
@@ -10758,7 +10758,7 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
  * matches the engine contract.
  */
 function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; offerId: string; isAdmin: boolean }) {
-  const { toast, effectiveRoster } = useProto();
+  const { toast, effectiveRoster } = useAdminShell();
   const [snapshot, setSnapshot] = useState<OfferDraftSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
@@ -10967,7 +10967,7 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
  * the real createOffer engine action and refreshes router state.
  */
 function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
@@ -10996,7 +10996,7 @@ function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
  * Shows nothing when there's no real offer (e.g. demo / pure-mock convs).
  */
 function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }) {
-  const { toast, effectiveMessagesInquiries } = useProto();
+  const { toast, effectiveMessagesInquiries } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const real = effectiveMessagesInquiries.find((r) => r.id === inquiryId);
@@ -11066,7 +11066,7 @@ function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }
 }
 
 function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const router = useRouter();
   const [, startClientOfferTransition] = useTransition();
   const baseOffer = getOffer(conv.id);
@@ -11772,7 +11772,7 @@ function LineupRowCard({
    *  override flipping status → declined + notes the reason. */
   onWithdraw?: () => void;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const subCost = rowSubtotal(row, "cost");
   const subRevenue = rowSubtotal(row, "client");
   const subMargin = subRevenue - subCost;
@@ -11962,7 +11962,7 @@ function SubmitRateSheet({
    *  the offer tab (instead of staying "pending" forever). */
   onSubmit?: (data: { unitType: UnitType; units: number; amount: number; notes: string }) => void;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const myTalentId = currentTalentId();
   const myRow = offer.rows.find(r => r.talentId === myTalentId);
   const budget = offer.clientBudget;
@@ -12442,7 +12442,7 @@ function ClientActionSheet({
   kind: ClientActionKind;
   offer?: Offer;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   if (!open) return null;
 
   // Per-action copy + outcome bundle. Production wires real flows
@@ -12695,7 +12695,7 @@ function resolveFileKey(id: string): string {
  * Renders nothing when there are no real attachments (mock list still shows).
  */
 function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [files, setFiles] = useState<InquiryAttachment[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
@@ -12816,7 +12816,7 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
  * synthetic mock inquiry ids.
  */
 function LiveBookingActions({ inquiryId }: { inquiryId: string }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
@@ -12853,7 +12853,7 @@ function LiveBookingActions({ inquiryId }: { inquiryId: string }) {
 }
 
 function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversation; povCanSeeTalentFiles: boolean; pov?: "talent" }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [talentUploadPending, startTalentUploadTransition] = useTransition();
   const talentFileInputRef = useRef<HTMLInputElement | null>(null);
   const isUuidConv = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
@@ -13318,7 +13318,7 @@ function LineupDrawer({
    *  Network roster). */
   planTier?: "free" | "studio" | "agency" | "network" | "hub-network";
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [pickerOpen, setPickerOpen] = useState(false);
   if (!open) return null;
   return (
@@ -13460,7 +13460,7 @@ function LineupMemberRow({
   povCanSeeOffers: boolean;
   conv: Conversation;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const isMe = talent.talentId === currentTalentId() || talent.name === MY_TALENT_PROFILE.name;
   const stateMeta = (() => {
     const s = (talent.state || "").toLowerCase();
@@ -13539,7 +13539,7 @@ function CoordinatorRow({ coordinator, conv }: {
   coordinator: { id: string; name: string; initials: string; role?: string };
   conv: Conversation;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
@@ -13750,7 +13750,7 @@ function AddTalentPicker({ onCancel, onAdd, pov = "talent_coord", planTier }: {
 }
 
 function ConversationActionPin({ conv }: { conv: Conversation }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const router = useRouter();
   const [, startTransition] = useTransition();
   // Look at the most recent action message in the thread to figure out
@@ -13992,7 +13992,7 @@ function ConversationTab({
   povCanSeeOffers?: boolean;
   povCanSeeCoordNote?: boolean;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [lineupOpen, setLineupOpen] = useState(false);
   const inquiryForLineup = useMemo(() => convToInquiry(conv), [conv]);
   // Subscribe to message-stash updates so newly-sent messages appear
@@ -14412,7 +14412,7 @@ function DraftComposer({
   canSendAsWorkspace?: boolean;
   onSendAsWorkspace?: (text: string) => void;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [val, setVal] = useState(() => __draftStore.get(threadKey) ?? "");
   const [hasSent, setHasSent] = useState(false);
   // Send-as state — defaults to "you" so accidental posts don't

@@ -1,4 +1,4 @@
-import type { WorkspacePage } from "@/app/prototypes/admin-shell/_state";
+import type { WorkspacePage } from "@/components/admin/shell/internal/state";
 
 const WORKSPACE_PAGE_ALIASES: Partial<Record<string, WorkspacePage>> = {
   inbox: "messages",

@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
 import { INQUIRY_SOURCE_CHANNEL_VALUES } from "@/lib/admin/validation";
-import { useLiveTaxonomy } from "@/app/prototypes/admin-shell/_taxonomy-loader";
+import { useLiveTaxonomy } from "@/components/admin/shell/internal/use-taxonomy";
 
 type Contact = { id: string; client_account_id: string; label: string };
 type TalentOption = { id: string; profile_code: string; display_name: string | null };

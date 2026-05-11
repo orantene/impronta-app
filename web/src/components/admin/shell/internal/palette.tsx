@@ -11,7 +11,7 @@
  *
  * It is intentionally small and fast: substring match, no debounce, no
  * fuzzy-search dependency. The palette closes after every action and
- * delegates state changes to ProtoProvider via useProto.
+ * delegates state changes to AdminShellProvider via useAdminShell.
  *
  * Mounting: rendered once at the page root next to DrawerRoot. Visibility
  * is local state inside the palette — opens on ⌘K / Ctrl+K, closes on
@@ -37,7 +37,7 @@ import {
   TALENT_PAGE_META,
   WORKSPACE_PAGES,
   Z,
-  useProto,
+  useAdminShell,
   type ClientPage,
   type DrawerId,
   type PlatformPage,
@@ -46,7 +46,7 @@ import {
   type Surface,
   type TalentPage,
   type WorkspacePage,
-} from "./_state";
+} from "./state";
 
 type CommandItem = {
   id: string;
@@ -66,7 +66,7 @@ const isMac =
   typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
 
 export function CommandPalette() {
-  const proto = useProto();
+  const proto = useAdminShell();
   const { state } = proto;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");

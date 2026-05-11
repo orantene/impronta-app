@@ -20,7 +20,7 @@
  *                       Pre-fetches roster when `live`. Renders this file.
  *   _shell-client.tsx — entry point (this file). Mounts the provider tree.
  *   _data-bridge.ts   — server-only Supabase reads. Pre-fetched by page.tsx.
- *   _state.tsx        — types, mock data, ProtoProvider, useProto, tokens
+ *   _state.tsx        — types, mock data, AdminShellProvider, useAdminShell, tokens
  *   _primitives.tsx   — Icon library, atoms, cards, drawer/modal shells, ToastHost
  *   _pages.tsx        — ControlBar, WorkspaceTopbar, all surface/page renderers
  *   _drawers.tsx      — DrawerRoot dispatcher, every drawer body, UpgradeModal
@@ -42,35 +42,35 @@ import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from
 import { usePathname } from "next/navigation";
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
 import {
-  ProtoProvider, useProto, COLORS, FONTS, RADIUS, TRANSITION, Z, meetsRole,
+  AdminShellProvider, useAdminShell, COLORS, FONTS, RADIUS, TRANSITION, Z, meetsRole,
   WORKSPACE_PAGES, PAGE_META,
   TALENT_PAGE_META, CLIENT_PAGE_META, PLATFORM_PAGE_META,
   FAB_PALETTE_OPEN_EVENT, FAB_PALETTE_CHANGED_EVENT,
   type FabPaletteChangedDetail,
-} from "./_state";
+} from "./internal/state";
 // FeedbackButton intentionally NOT imported — it was the legacy bottom-right
 // FAB and now lives dormant in _primitives. The new unified BottomActionFab
 // owns that screen position; feedback is reachable via the FAB's Ask AI tab.
-import { Icon, ToastHost, BackToTop, OfflineBanner, ShortcutsModal } from "./_primitives";
-import { AdminTour } from "./_admin-tour";
-import { ControlBar, MobileBottomNav, SurfaceRouter } from "./_pages";
-import { DrawerRoot, UpgradeModal } from "./_drawers";
-import { CommandPalette } from "./_palette";
-import { MOCK_CONVERSATIONS } from "./_talent";
-import { DRAWER_HELP } from "./_help";
-import { useDashboardText } from "./_dashboard-i18n";
+import { Icon, ToastHost, BackToTop, OfflineBanner, ShortcutsModal } from "./internal/primitives";
+import { AdminTour } from "./internal/admin-tour";
+import { ControlBar, MobileBottomNav, SurfaceRouter } from "./internal/pages";
+import { DrawerRoot, UpgradeModal } from "./internal/drawers";
+import { CommandPalette } from "./internal/palette";
+import { MOCK_CONVERSATIONS } from "./internal/talent";
+import { DRAWER_HELP } from "./internal/help";
+import { useDashboardText } from "./internal/dashboard-i18n";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded by
 // `import "server-only"`, so a runtime import would throw at hydration. The
 // `import type` form is erased at compile time and emits no JS, which is
 // exactly what we want: the client shell knows the *shape* of the bridge
 // payload without ever pulling the bridge module itself into the client
 // bundle.
-import type { BridgeData } from "./_data-bridge";
+import type { BridgeData } from "./internal/data-bridge";
 
 // ─── Toast bridge (reads from context, passes to dumb host) ──────────
 
 function ToastBridge() {
-  const { state, dismissToast } = useProto();
+  const { state, dismissToast } = useAdminShell();
   return <ToastHost toasts={state.toasts} onDismiss={dismissToast} />;
 }
 
@@ -186,8 +186,8 @@ class ErrorBoundary extends Component<
  *
  * Receives an optional `initialBridgeData` from the server-component
  * wrapper at `./page.tsx`. When present, the bridge data flows into
- * `ProtoProvider` and overrides the workspace-roster mock for surfaces
- * that read `useProto().effectiveRoster`. When null (the default), the
+ * `AdminShellProvider` and overrides the workspace-roster mock for surfaces
+ * that read `useAdminShell().effectiveRoster`. When null (the default), the
  * prototype is mock-only — identical behaviour to pre-Phase-1.
  *
  * Exported as a named export (not default) so the server component can
@@ -230,29 +230,29 @@ function ConditionalPrototypeRoot() {
 /**
  * RealtimeBridge — subscribes to Supabase realtime for the active
  * tenant and triggers `router.refresh()` on each pipeline-table change.
- * Renders nothing visually; lives inside ProtoProvider so it can read
- * `bridgeTenantIdentity` via useProto.
+ * Renders nothing visually; lives inside AdminShellProvider so it can read
+ * `bridgeTenantIdentity` via useAdminShell.
  */
 function RealtimeBridge() {
-  const { bridgeTenantIdentity } = useProto();
+  const { bridgeTenantIdentity } = useAdminShell();
   useInquiryRealtime(bridgeTenantIdentity?.tenantId ?? null);
   return null;
 }
 
-export function AdminShellPrototypePageClient({
+export function AdminShellClient({
   initialBridgeData = null,
   initialPage,
   tenantSlug,
   children,
 }: {
   initialBridgeData?: BridgeData | null;
-  /** Cutover mode — which page to start on. Passed through to ProtoProvider. */
-  initialPage?: import("./_state").WorkspacePage;
+  /** Cutover mode — which page to start on. Passed through to AdminShellProvider. */
+  initialPage?: import("./internal/state").WorkspacePage;
   /** Cutover mode — slug for Next.js router.push() URL sync. */
   tenantSlug?: string;
   /**
-   * Cutover mode — slot for PageRouteSyncer. Rendered inside ProtoProvider
-   * so it can call useProto().setPage() to sync the shell's internal page
+   * Cutover mode — slot for PageRouteSyncer. Rendered inside AdminShellProvider
+   * so it can call useAdminShell().setPage() to sync the shell's internal page
    * with the current Next.js route. Returns null visually.
    */
   children?: import("react").ReactNode;
@@ -260,7 +260,7 @@ export function AdminShellPrototypePageClient({
   return (
     <ErrorBoundary>
       <Suspense fallback={null}>
-        <ProtoProvider
+        <AdminShellProvider
           initialBridgeData={initialBridgeData}
           initialPage={initialPage}
           tenantSlug={tenantSlug}
@@ -268,7 +268,7 @@ export function AdminShellPrototypePageClient({
           {children}
           <RealtimeBridge />
           <ConditionalPrototypeRoot />
-        </ProtoProvider>
+        </AdminShellProvider>
       </Suspense>
     </ErrorBoundary>
   );
@@ -277,14 +277,14 @@ export function AdminShellPrototypePageClient({
 /**
  * Phase 3.12.2 — Talent self-surface shell client.
  *
- * Mirrors AdminShellPrototypePageClient but initialises the ProtoProvider
+ * Mirrors AdminShellClient but initialises the AdminShellProvider
  * with `surface="talent"` and the talent-specific page routing. Mounted by
  * `/(workspace)/[tenantSlug]/talent/layout.tsx` after auth + data pre-fetch.
  *
  * The shell renders the full prototype UI (TalentSurface) without the
  * dark prototype ControlBar (which remains dev-only via ?dev=1).
  */
-export function TalentShellPrototypePageClient({
+export function TalentShellClient({
   initialBridgeData = null,
   initialTalentPage,
   tenantSlug,
@@ -292,12 +292,12 @@ export function TalentShellPrototypePageClient({
 }: {
   initialBridgeData?: BridgeData | null;
   /** Which talent page to start on (derived from URL segment on hard refresh). */
-  initialTalentPage?: import("./_state").TalentPage;
+  initialTalentPage?: import("./internal/state").TalentPage;
   /** Slug for Next.js router.push() URL sync via setTalentPage. */
   tenantSlug?: string;
   /**
    * Slot for TalentPageRouteSyncer — a tiny component rendered inside the
-   * ProtoProvider that calls setTalentPage on mount to sync the shell's
+   * AdminShellProvider that calls setTalentPage on mount to sync the shell's
    * internal page with the current Next.js route. Returns null visually.
    */
   children?: import("react").ReactNode;
@@ -305,7 +305,7 @@ export function TalentShellPrototypePageClient({
   return (
     <ErrorBoundary>
       <Suspense fallback={null}>
-        <ProtoProvider
+        <AdminShellProvider
           initialBridgeData={initialBridgeData}
           initialSurface="talent"
           initialTalentPage={initialTalentPage}
@@ -314,7 +314,7 @@ export function TalentShellPrototypePageClient({
           {children}
           <RealtimeBridge />
           <PrototypeRoot />
-        </ProtoProvider>
+        </AdminShellProvider>
       </Suspense>
     </ErrorBoundary>
   );
@@ -435,7 +435,7 @@ const FAB_DRAFTS_MOCK = 2;
 const FAB_POPOVER_ID = "tulala-fab-popover";
 
 function BottomActionFab() {
-  const { state, openDrawer, setPage, setTalentPage, setClientPage, setPlatformPage, toast } = useProto();
+  const { state, openDrawer, setPage, setTalentPage, setClientPage, setPlatformPage, toast } = useAdminShell();
   const copy = useDashboardText();
   // Native popover-driven open/close — listens to the browser's
   // toggle event so React state still mirrors visibility for animation
@@ -999,7 +999,7 @@ function BottomActionFab() {
 // `query` is the search input from the parent FAB; when present, drafts +
 // recent rows are filtered by label/note substring.
 function FabRecentPanel({ query = "" }: { query?: string }) {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast } = useAdminShell();
   const drafts = [
     { id: "draft-1", label: "Maria Sandoval — promo model", note: "Draft · started 2h ago", action: () => toast("Resume Maria's profile") },
     { id: "draft-2", label: "Carlos Pérez — DJ",            note: "Draft · started 3d ago", action: () => toast("Resume Carlos's profile") },
@@ -1112,7 +1112,7 @@ function FabTabButton({ label, icon, active, onClick, accent, badge }: {
 
 // ── AI chat panel (extracted from AIHelpBot, now mounted inside Fab) ─
 function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
-  const { state } = useProto();
+  const { state } = useAdminShell();
   const drawerId = state.drawer.drawerId;
   const helpEntry = drawerId ? (DRAWER_HELP as Record<string, typeof DRAWER_HELP[keyof typeof DRAWER_HELP]>)[drawerId] ?? null : null;
   const faqs = helpEntry?.faqs ?? [];
@@ -1735,7 +1735,7 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             }
           }
 
-          /* Information-density mode. Set from useProto via a doc-level
+          /* Information-density mode. Set from useAdminShell via a doc-level
              data attribute. Compact tightens table-style row paddings
              and gaps without overwriting type sizes — comfortable stays
              the default. Targets list rows that opt in by setting the
@@ -2478,10 +2478,10 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
   );
 }
 
-/** Gate the tour to workspace surface only. Lives outside ProtoProvider's
- *  children scope so it can read state via useProto. */
+/** Gate the tour to workspace surface only. Lives outside AdminShellProvider's
+ *  children scope so it can read state via useAdminShell. */
 function AdminTourGate() {
-  const { state } = useProto();
+  const { state } = useAdminShell();
   if (state.surface !== "workspace") return null;
   return <AdminTour />;
 }

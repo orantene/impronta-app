@@ -19,8 +19,8 @@ import {
 } from "@/lib/server-actions/admin-talent-skills";
 import { MAX_TOTAL_SKILLS } from "@/lib/server-actions/admin-talent-skills.types";
 
-import { useDashboardText } from "./_dashboard-i18n";
-import { F_BODY, PARENT_EMOJI, T } from "./_skill-tokens";
+import { useDashboardText } from "./dashboard-i18n";
+import { F_BODY, PARENT_EMOJI, T } from "./skill-tokens";
 
 type SkillPickerParent = {
   id: string;

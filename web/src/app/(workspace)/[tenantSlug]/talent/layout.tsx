@@ -8,7 +8,7 @@
 // loadTalentSelfProfile() which also verifies agency_talent_roster membership.
 //
 // Bridge data pre-fetched in parallel:
-//   - talentSelfProfile  → TalentShellPrototypePageClient identity bar
+//   - talentSelfProfile  → TalentShellClient identity bar
 //   - talentInquiries    → ProtoProvider → effectiveTalentInquiries
 //
 // initialTalentPage is derived from the request pathname so hard refreshes
@@ -23,11 +23,11 @@ import {
   loadTalentSelfProfile,
   loadTalentInquiries,
   loadTalentAgencies,
-} from "@/app/prototypes/admin-shell/_data-bridge";
+} from "@/components/admin/shell/internal/data-bridge";
 import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
-import { TalentShellPrototypePageClient } from "@/app/prototypes/admin-shell/_shell-client";
-import type { TalentPage } from "@/app/prototypes/admin-shell/_state";
+import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
+import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
 
 export const dynamic = "force-dynamic";
@@ -127,7 +127,7 @@ export default async function TalentLayout({
   };
 
   return (
-    <TalentShellPrototypePageClient
+    <TalentShellClient
       tenantSlug={tenantSlug}
       initialTalentPage={initialTalentPage}
       initialBridgeData={{
@@ -160,6 +160,6 @@ export default async function TalentLayout({
     >
       {/* TalentPageRouteSyncer lives here — inside ProtoProvider context, returns null */}
       {children}
-    </TalentShellPrototypePageClient>
+    </TalentShellClient>
   );
 }

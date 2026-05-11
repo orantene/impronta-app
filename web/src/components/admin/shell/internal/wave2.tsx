@@ -33,9 +33,9 @@ import {
   RADIUS,
   RICH_INQUIRIES,
   TENANT,
-  useProto,
+  useAdminShell,
   type RichInquiry,
-} from "./_state";
+} from "./state";
 import {
   Avatar,
   ClientTrustBadge,
@@ -48,9 +48,9 @@ import {
   TextInput,
   TextArea,
   FieldRow,
-} from "./_primitives";
-import { pinNextConversation } from "./_messages";
-import { MOCK_CONVERSATIONS } from "./_talent";
+} from "./primitives";
+import { pinNextConversation } from "./messages";
+import { MOCK_CONVERSATIONS } from "./talent";
 
 // ════════════════════════════════════════════════════════════════════
 // #9 — InboxSnippetsDrawer
@@ -78,7 +78,7 @@ const STARTER_SNIPPETS: { id: string; title: string; body: string }[] = [
 ];
 
 export function InboxSnippetsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "inbox-snippets";
   const [snippets, setSnippets] = useState(STARTER_SNIPPETS);
   const [draftTitle, setDraftTitle] = useState("");
@@ -300,7 +300,7 @@ function NotifUrgencyHeader({ label }: { label: string }) {
 }
 
 export function NotificationsPrefsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "notifications-prefs";
 
   const [prefs, setPrefs] = useState<Record<NotifEvent, Record<NotifChannel, boolean>>>(makeDefaultPrefs);
@@ -651,7 +651,7 @@ const timeInputStyle: React.CSSProperties = {
 // ════════════════════════════════════════════════════════════════════
 
 export function DataExportDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "data-export";
   const [include, setInclude] = useState({
     roster: true,
@@ -817,7 +817,7 @@ const MOCK_AUDIT: AuditEvent[] = [
 ];
 
 export function AuditLogDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "audit-log";
   return (
     <DrawerShell
@@ -910,7 +910,7 @@ const TENANT_ROLE_PALETTE: Record<TenantRole, { fg: string }> = {
 };
 
 export function TenantSwitcherDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity } = useProto();
+  const { state, closeDrawer, openDrawer, toast, bridgeTenantIdentity } = useAdminShell();
   const open = state.drawer.drawerId === "tenant-switcher";
   const [realWorkspaces, setRealWorkspaces] = useState<UserWorkspace[]>([]);
   const [wsLoading, setWsLoading] = useState(false);
@@ -1295,7 +1295,7 @@ export function TenantSwitcherDrawer() {
 // extra server action needed.
 
 export function TalentAgencySwitcherDrawer() {
-  const { state, closeDrawer, openDrawer, tenantSlug, bridgeTalentAgencies } = useProto();
+  const { state, closeDrawer, openDrawer, tenantSlug, bridgeTalentAgencies } = useAdminShell();
   const open = state.drawer.drawerId === "talent-agency-switcher";
 
   const agencies = bridgeTalentAgencies ?? [];
@@ -1492,7 +1492,7 @@ export function TalentAgencySwitcherDrawer() {
 // operations.
 
 export function WorkspaceProfileDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "workspace-profile";
   // Mock — production reads from workspace.settings + state.role.
   // For demo we map state.role to a permission level. state.role lacks
@@ -2154,7 +2154,7 @@ const NOTIF_ROWS: { id: string; label: string; description: string }[] = [
 ];
 
 export function TalentNotificationsDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-notifications";
   // A9: deep-link from Settings → opens with settings pane expanded
   const [settingsOpen, setSettingsOpen] = useState(
@@ -2520,7 +2520,7 @@ export function TalentNotificationsDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 export function TalentShareCardDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-share-card";
   const talentName = (state.drawer.payload?.name as string) ?? "your talent";
   const slug = (state.drawer.payload?.slug as string) ?? "talent-slug";
@@ -2740,7 +2740,7 @@ export function TalentFunnelCard({
   conversations,
   onOpenInMessages,
 }: {
-  conversations?: import("./_talent").Conversation[];
+  conversations?: import("./talent").Conversation[];
   onOpenInMessages?: (convId: string) => void;
 } = {}) {
   // Prefer conversation-driven rendering when the caller provides them.
@@ -2813,7 +2813,7 @@ function ConversationFunnelRow({
   idx,
   onOpen,
 }: {
-  conv: import("./_talent").Conversation;
+  conv: import("./talent").Conversation;
   idx: number;
   onOpen: () => void;
 }) {
@@ -3003,7 +3003,7 @@ function clientInitials(name: string): string {
 function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
   // Anonymized peer count + stage. Mock — in production read from the
   // inquiry's lineup.
-  const { openDrawer, setTalentPage, state } = useProto();
+  const { openDrawer, setTalentPage, state } = useAdminShell();
   const onTalentSurface = state.surface === "talent";
   const peers = idx === 0 ? 3 : idx === 1 ? 2 : 4;
   const acceptedPeers = idx === 0 ? 1 : idx === 1 ? 0 : 2;
@@ -3374,7 +3374,7 @@ function Dot({ delay }: { delay: number }) {
  * card that can be dropped anywhere in the talent surface.
  */
 export function ICalSubscribeCard({ talentName, slug }: { talentName: string; slug: string }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const url = `tulala.digital/cal/${slug}.ics`;
   return (
     <section
@@ -3449,7 +3449,7 @@ export function OnboardingArc({
   subtitle: string;
   steps: { id: string; label: string; description: string; onOpen?: () => void; auto?: boolean }[];
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [dismissed, setDismissed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -3672,7 +3672,7 @@ export function OnboardingArc({
 
 /** Convenience: client first-run arc — "browse → shortlist → inquiry". */
 export function ClientOnboardingArc() {
-  const { openDrawer, setClientPage } = useProto();
+  const { openDrawer, setClientPage } = useAdminShell();
   return (
     <OnboardingArc
       storageKey="tulala_onboard_client"
@@ -3704,7 +3704,7 @@ export function ClientOnboardingArc() {
 
 /** Convenience: talent first-run arc — "profile → photos → availability → share". */
 export function TalentOnboardingArc() {
-  const { openDrawer, setTalentPage, toast } = useProto();
+  const { openDrawer, setTalentPage, toast } = useAdminShell();
   return (
     <OnboardingArc
       storageKey="tulala_onboard_talent"
@@ -3762,7 +3762,7 @@ export function SavedViewsBar<T>({
   current: T;
   onApply: (view: T) => void;
 }) {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const storageKey = `tulala_views_${viewKey}`;
   const [views, setViews] = useState<{ id: string; name: string; payload: T }[]>(() => {
     if (typeof window === "undefined") return [];
@@ -4049,11 +4049,11 @@ const arrowBtnStyle = (disabled: boolean): React.CSSProperties => ({
 // ════════════════════════════════════════════════════════════════════
 /**
  * Copies the current URL to the clipboard. The drawer state already
- * lives in the URL (see ProtoProvider's drawer query-param sync), so
+ * lives in the URL (see AdminShellProvider's drawer query-param sync), so
  * this gives users a one-click "share this exact view" affordance.
  */
 export function DrawerCopyLink() {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   return (
     <button
       type="button"
@@ -4309,7 +4309,7 @@ const CHANGELOG: { date: string; title: string; body: string }[] = [
 ];
 
 export function WhatsNewDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "whats-new";
   return (
     <DrawerShell
@@ -4371,7 +4371,7 @@ export function WhatsNewDrawer() {
 // #25 — HelpDrawer
 // ════════════════════════════════════════════════════════════════════
 export function HelpDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "help";
   return (
     <DrawerShell
@@ -4492,7 +4492,7 @@ type ActivationStep = {
 };
 
 export function WorkspaceActivationBanner() {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, toast } = useAdminShell();
   const [dismissed, setDismissed] = useState(false);
   const [, setReminded] = useState(false);
 
@@ -4634,7 +4634,7 @@ const TALENT_FIRST_RUN_STEPS = [
 ];
 
 export function TalentFirstRunBanner() {
-  const { openDrawer } = useProto();
+  const { openDrawer } = useAdminShell();
   const [currentStep, setCurrentStep] = useState(1);
   const [dismissed, setDismissed] = useState(false);
 
@@ -4750,7 +4750,7 @@ const CLIENT_FIRST_RUN_STEPS = [
 ];
 
 export function ClientFirstRunBanner() {
-  const { openDrawer, toast, setClientPage } = useProto();
+  const { openDrawer, toast, setClientPage } = useAdminShell();
   const [currentStep, setCurrentStep] = useState(1);
   const [dismissed, setDismissed] = useState(false);
 
@@ -4849,7 +4849,7 @@ export function ClientFirstRunBanner() {
 const DEMO_DATA_KEY = "tulala-demo-mode";
 
 export function DemoDataBanner() {
-  const { toast } = useProto();
+  const { toast } = useAdminShell();
   const [enabled, setEnabled] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(DEMO_DATA_KEY) === "true";

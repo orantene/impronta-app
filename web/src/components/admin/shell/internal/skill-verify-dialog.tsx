@@ -16,8 +16,8 @@ import {
   type ResolvedSkill,
 } from "@/lib/server-actions/admin-talent-skills.types";
 
-import { useDashboardText } from "./_dashboard-i18n";
-import { F_BODY, T } from "./_skill-tokens";
+import { useDashboardText } from "./dashboard-i18n";
+import { F_BODY, T } from "./skill-tokens";
 
 export function VerifyConfirmDialog({
   skill,

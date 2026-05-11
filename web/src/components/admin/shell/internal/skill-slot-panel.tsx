@@ -52,23 +52,23 @@ import {
   type ResolvedSkill,
 } from "@/lib/server-actions/admin-talent-skills.types";
 
-import { useDashboardText } from "./_dashboard-i18n";
-import { AddSkillSearch } from "./_skill-add-search";
-import { CareerInterestsSection } from "./_skill-aspirations";
+import { useDashboardText } from "./dashboard-i18n";
+import { AddSkillSearch } from "./skill-add-search";
+import { CareerInterestsSection } from "./skill-aspirations";
 import {
   countSecondaryParents,
   groupSkillsByRoleParent,
   pickFeaturedSkillTermId,
-} from "./_skill-helpers";
-import { SkillCategoryCard } from "./_skill-row";
-import { F_BODY, T } from "./_skill-tokens";
-import { VerifyConfirmDialog } from "./_skill-verify-dialog";
+} from "./skill-helpers";
+import { SkillCategoryCard } from "./skill-row";
+import { F_BODY, T } from "./skill-tokens";
+import { VerifyConfirmDialog } from "./skill-verify-dialog";
 
 // Re-exports — back-compat for anything importing primitives from this file.
 export {
   ProficiencyDotPicker,
   ProficiencyLabel,
-} from "./_skill-proficiency";
+} from "./skill-proficiency";
 
 /**
  * Fire-and-forget prefetch — call when a talent drawer opens so skills data

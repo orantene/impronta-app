@@ -29,7 +29,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import type {
   ProfileLanguage,
   ServiceArea,
-} from "./_state";
+} from "./state";
 
 export type ProfileDraft = {
   // Identity

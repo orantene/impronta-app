@@ -13,10 +13,10 @@ import {
 } from "lucide-react";
 
 /** Real admin IA — sidebar links under `/admin`. */
-export const ADMIN_PROTOTYPE_BASE = "/admin";
+export const ADMIN_NAV_BASE = "/admin";
 
-export type PrototypeNavItem = {
-  /** Stable id for prefs (localStorage); derived from href under {@link ADMIN_PROTOTYPE_BASE}, or explicit override. */
+export type AdminNavItem = {
+  /** Stable id for prefs (localStorage); derived from href under {@link ADMIN_NAV_BASE}, or explicit override. */
   id: string;
   label: string;
   href: string;
@@ -30,9 +30,9 @@ export type PrototypeNavItem = {
 };
 
 /** Stable key for a nav item: path under the admin base, plus query when present; or `index` for overview. */
-export function prototypeNavItemStableId(href: string): string {
+export function adminNavItemStableId(href: string): string {
   const [pathPart, queryPart] = href.split("?");
-  const base = ADMIN_PROTOTYPE_BASE.replace(/\/+$/, "");
+  const base = ADMIN_NAV_BASE.replace(/\/+$/, "");
   const path = (pathPart ?? "").split("#")[0] ?? "";
   const trimmed = path.replace(/\/+$/, "") || "/";
   let segmentId: string;
@@ -60,9 +60,9 @@ function navItem(
   icon: LucideIcon,
   idOverride?: string,
   description?: string,
-): PrototypeNavItem {
+): AdminNavItem {
   return {
-    id: idOverride ?? prototypeNavItemStableId(href),
+    id: idOverride ?? adminNavItemStableId(href),
     label,
     href,
     icon,
@@ -73,15 +73,15 @@ function navItem(
 export type PrototypeNavGroup = {
   id: string;
   label: string;
-  items: PrototypeNavItem[];
+  items: AdminNavItem[];
 };
 
 /** Global sidebar order for sorting pinned items. */
-export function flattenPrototypeNavWithOrder(
+export function flattenAdminNavWithOrder(
   nav: PrototypeNavGroup[],
-): Array<{ item: PrototypeNavItem; order: number }> {
+): Array<{ item: AdminNavItem; order: number }> {
   let order = 0;
-  const out: Array<{ item: PrototypeNavItem; order: number }> = [];
+  const out: Array<{ item: AdminNavItem; order: number }> = [];
   for (const group of nav) {
     for (const item of group.items) {
       out.push({ item, order: order++ });
@@ -90,8 +90,8 @@ export function flattenPrototypeNavWithOrder(
   return out;
 }
 
-export function prototypeNavItemMap(nav: PrototypeNavGroup[]): Map<string, PrototypeNavItem> {
-  const m = new Map<string, PrototypeNavItem>();
+export function adminNavItemMap(nav: PrototypeNavGroup[]): Map<string, AdminNavItem> {
+  const m = new Map<string, AdminNavItem>();
   for (const group of nav) {
     for (const item of group.items) {
       m.set(item.id, item);
@@ -124,42 +124,42 @@ export function prototypeNavItemMap(nav: PrototypeNavGroup[]): Map<string, Proto
  * Routes themselves are untouched — only the sidebar surface area is
  * consolidated. Cmd+K palette can still jump anywhere.
  */
-export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
+export const ADMIN_NAV: PrototypeNavGroup[] = [
   {
     id: "workspace",
     label: "Workspace",
     items: [
       navItem(
         "Home",
-        `${ADMIN_PROTOTYPE_BASE}`,
+        `${ADMIN_NAV_BASE}`,
         LayoutDashboard,
         undefined,
         "Daily overview \u2014 alerts, queue, recent activity",
       ),
       navItem(
         "Requests",
-        `${ADMIN_PROTOTYPE_BASE}/inquiries`,
+        `${ADMIN_NAV_BASE}/inquiries`,
         Inbox,
         undefined,
         "Incoming requests, triage and convert to bookings",
       ),
       navItem(
         "Bookings",
-        `${ADMIN_PROTOTYPE_BASE}/bookings`,
+        `${ADMIN_NAV_BASE}/bookings`,
         CalendarCheck,
         undefined,
         "Confirmed jobs \u2014 schedule, contracts, talent on call",
       ),
       navItem(
         "Talents",
-        `${ADMIN_PROTOTYPE_BASE}/talent`,
+        `${ADMIN_NAV_BASE}/talent`,
         Users,
         undefined,
         "Roster \u2014 model profiles, applications, availability",
       ),
       navItem(
         "Clients",
-        `${ADMIN_PROTOTYPE_BASE}/clients`,
+        `${ADMIN_NAV_BASE}/clients`,
         UserRound,
         undefined,
         "Client accounts \u2014 contacts, locations, history",
@@ -172,28 +172,28 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
     items: [
       navItem(
         "Setup",
-        `${ADMIN_PROTOTYPE_BASE}/site/setup`,
+        `${ADMIN_NAV_BASE}/site/setup`,
         Wand2,
         "site-setup",
         "Six-step walkthrough \u2014 homepage, pages, posts, nav, theme, SEO",
       ),
       navItem(
         "Public site",
-        `${ADMIN_PROTOTYPE_BASE}/site`,
+        `${ADMIN_NAV_BASE}/site`,
         LayoutDashboard,
         "site-control-center",
         "Public storefront \u2014 pages, design, navigation, SEO",
       ),
       navItem(
         "Talent profiles",
-        `${ADMIN_PROTOTYPE_BASE}/profile`,
+        `${ADMIN_NAV_BASE}/profile`,
         UserCog,
         undefined,
         "Roster fields, filters, taxonomy \u2014 what shows on profiles",
       ),
       navItem(
         "AI workspace",
-        `${ADMIN_PROTOTYPE_BASE}/ai-workspace`,
+        `${ADMIN_NAV_BASE}/ai-workspace`,
         Sparkles,
         undefined,
         "Generators, copy assists, model briefs",
@@ -206,28 +206,28 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
     items: [
       navItem(
         "Account & billing",
-        `${ADMIN_PROTOTYPE_BASE}/account`,
+        `${ADMIN_NAV_BASE}/account`,
         UserRound,
         "system-account",
         "Plan, invoices, agency owner profile",
       ),
       navItem(
         "Settings",
-        `${ADMIN_PROTOTYPE_BASE}/settings`,
+        `${ADMIN_NAV_BASE}/settings`,
         Settings,
         "system-settings",
         "Tenant configuration, locale, integrations",
       ),
       navItem(
         "Team",
-        `${ADMIN_PROTOTYPE_BASE}/users`,
+        `${ADMIN_NAV_BASE}/users`,
         Users,
         undefined,
         "Staff and admin seats \u2014 invite, permissions",
       ),
       navItem(
         "Help",
-        `${ADMIN_PROTOTYPE_BASE}/docs`,
+        `${ADMIN_NAV_BASE}/docs`,
         HelpCircle,
         "system-help",
         "Operator docs and how-it-works guides",
@@ -237,7 +237,7 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
 ];
 
 /** IDs of the primary (operator-daily) nav groups — used for sidebar visual priority. */
-export const ADMIN_PROTOTYPE_PRIMARY_GROUP_IDS = new Set([
+export const ADMIN_PRIMARY_GROUP_IDS = new Set([
   "workspace",
   "site-and-ai",
 ]);
@@ -245,7 +245,7 @@ export const ADMIN_PROTOTYPE_PRIMARY_GROUP_IDS = new Set([
 /**
  * Map of URL leaf segment → the nav label for that destination. Used by the
  * top-bar breadcrumb so the on-screen label matches the sidebar entry. Built
- * from {@link ADMIN_PROTOTYPE_NAV} so renaming a sidebar item updates the
+ * from {@link ADMIN_NAV} so renaming a sidebar item updates the
  * breadcrumb in lockstep — no parallel constants to drift.
  *
  * Caveat: the breadcrumb walks ALL path segments (e.g. `/admin/site/pages`),
@@ -254,7 +254,7 @@ export const ADMIN_PROTOTYPE_PRIMARY_GROUP_IDS = new Set([
  */
 export const ADMIN_NAV_LABEL_BY_SEGMENT: Record<string, string> = (() => {
   const out: Record<string, string> = { admin: "Admin" };
-  for (const group of ADMIN_PROTOTYPE_NAV) {
+  for (const group of ADMIN_NAV) {
     for (const item of group.items) {
       const segments = item.href.split("/").filter(Boolean);
       const leaf = segments[segments.length - 1];

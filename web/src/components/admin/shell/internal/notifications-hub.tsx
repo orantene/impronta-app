@@ -17,10 +17,10 @@
  */
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { COLORS, FONTS, useProto, RICH_INQUIRIES } from "./_state";
-import { MOCK_CONVERSATIONS } from "./_talent";
-import { ageLabel } from "./_messages";
-import { useDashboardText } from "./_dashboard-i18n";
+import { COLORS, FONTS, useAdminShell, RICH_INQUIRIES } from "./state";
+import { MOCK_CONVERSATIONS } from "./talent";
+import { ageLabel } from "./messages";
+import { useDashboardText } from "./dashboard-i18n";
 
 export type HubItem = {
   id: string;
@@ -62,7 +62,7 @@ export function NotificationsBell({
 }: {
   size?: "sm" | "md";
 }) {
-  const { state, openDrawer, pendingTalent } = useProto();
+  const { state, openDrawer, pendingTalent } = useAdminShell();
   const copy = useDashboardText();
   const popoverId = useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);

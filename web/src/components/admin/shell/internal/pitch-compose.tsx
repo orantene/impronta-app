@@ -37,8 +37,8 @@ import { CSS } from "@dnd-kit/utilities";
 // Use the prototype's DrawerShell (light surface, matches the rest of the
 // workspace chrome) instead of the production drawer which defaults to a
 // dark theme when no [data-dashboard-theme] attribute is set.
-import { DrawerShell, GhostButton, PrimaryButton, Eyebrow } from "./_primitives";
-import { COLORS, FONTS, type TalentProfile, type Client } from "./_state";
+import { DrawerShell, GhostButton, PrimaryButton, Eyebrow } from "./primitives";
+import { COLORS, FONTS, type TalentProfile, type Client } from "./state";
 
 // Server actions use node:crypto transitively and cannot be statically imported
 // in a "use client" prototype component. The real wiring lives in Phase E
