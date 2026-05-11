@@ -419,7 +419,7 @@ function KvRow({ label, value }: { label: string; value: ReactNode }) {
 // ─── Booking detail (call sheet) ──────────────────────────────────
 
 export function TalentBookingDetailDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-booking-detail";
   const id = (state.drawer.payload?.id as string) ?? "bk1";
   const b = TALENT_BOOKINGS.find((x) => x.id === id) ?? TALENT_BOOKINGS[0];
@@ -431,12 +431,7 @@ export function TalentBookingDetailDrawer() {
       title={`${b.client} · ${b.brief}`}
       description={`Booking via ${b.agency}`}
       width={560}
-      footer={
-        <>
-          <SecondaryButton onClick={() => toast("Saved to calendar")}>Add to calendar</SecondaryButton>
-          <PrimaryButton onClick={closeDrawer}>Got it</PrimaryButton>
-        </>
-      }
+      footer={<PrimaryButton onClick={closeDrawer}>Got it</PrimaryButton>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <KvRow label="Date" value={b.endDate ? `${b.startDate} → ${b.endDate}` : b.startDate} />
@@ -795,7 +790,7 @@ export function TalentClosedBookingDrawer() {
           <SectionLabel>Contract</SectionLabel>
           <button
             type="button"
-            onClick={() => toast(`Opening signed contract for ${e.client}…`)}
+            onClick={() => undefined}
             style={{
               display: "flex",
               alignItems: "center",
@@ -1206,7 +1201,7 @@ type AddEventMode = "pick" | "work" | "block";
 // talent commits. Avoids the "I joined this and now I'm spammed" problem.
 
 export function TalentHubDetailDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-hub-detail";
   const channelId = (state.drawer.payload?.channelId as string) ?? "";
   const channel =
@@ -1231,19 +1226,7 @@ export function TalentHubDetailDrawer() {
       title={channel.name}
       description={`${channel.kind === "studio" ? "Studio · free book" : channel.verified ? "Verified external hub" : "External hub · not yet Tulala-verified"} · joining is reversible`}
       width={520}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton
-            onClick={() => {
-              toast(`Joined ${channel.name} · they'll forward inquiries to you`);
-              closeDrawer();
-            }}
-          >
-            Join {channel.name}
-          </PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: FONTS.body }}>
         {channel.description && (
@@ -1367,28 +1350,48 @@ export function TalentAddEventDrawer() {
         />
       )}
       {mode === "work" && (
-        <LogWorkForm
-          onCancel={() => setMode("pick")}
-          onSave={(data) => {
-            const summary =
-              data.client && data.amount
-                ? `Logged ${data.client} · ${data.amount}`
-                : "Booking logged";
-            toast(`${summary} · added to your calendar + earnings`);
-            closeDrawer();
-          }}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div
+            style={{
+              padding: "20px 16px",
+              background: COLORS.surfaceAlt,
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12,
+              fontFamily: FONTS.body,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink, marginBottom: 6 }}>
+              Booking log — coming soon
+            </div>
+            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+              Off-platform booking tracking will be available in an upcoming update.
+            </div>
+          </div>
+          <SecondaryButton onClick={() => setMode("pick")}>Back</SecondaryButton>
+        </div>
       )}
       {mode === "block" && (
-        <BlockTimeForm
-          onCancel={() => setMode("pick")}
-          onSave={(data) => {
-            toast(
-              `${data.reason || "Time"} blocked · ${data.from || "—"}${data.to ? ` → ${data.to}` : ""}`,
-            );
-            closeDrawer();
-          }}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div
+            style={{
+              padding: "20px 16px",
+              background: COLORS.surfaceAlt,
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12,
+              fontFamily: FONTS.body,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink, marginBottom: 6 }}>
+              Block time — coming soon
+            </div>
+            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+              Calendar blocking will be available in an upcoming update.
+            </div>
+          </div>
+          <SecondaryButton onClick={() => setMode("pick")}>Back</SecondaryButton>
+        </div>
       )}
     </DrawerShell>
   );
@@ -2178,33 +2181,13 @@ export function TalentAvailabilityDrawer() {
  * for travel) than blocking specific date ranges.
  */
 export function TalentBlockDatesDrawer() {
-  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-block-dates";
   const p = MY_TALENT_PROFILE;
 
-  // Local form state. In production this would persist via a mutation;
-  // for the prototype it just toasts on save and closes.
   const [location, setLocation] = useState(p.currentLocation);
   const [availableForWork, setAvailableForWork] = useState(p.availableForWork);
   const [availableToTravel, setAvailableToTravel] = useState(p.availableToTravel);
-
-  const handleSave = () => {
-    // In production: persist the three fields + any blocked-date range,
-    // then notify representing agencies. Toast labels what changed so
-    // the user can verify the right thing was saved.
-    const parts: string[] = [];
-    if (location !== p.currentLocation) parts.push(`location → ${location.split("·")[0]?.trim()}`);
-    if (availableForWork !== p.availableForWork)
-      parts.push(availableForWork ? "available" : "paused");
-    if (availableToTravel !== p.availableToTravel)
-      parts.push(availableToTravel ? "open to travel" : "local-only");
-    toast(
-      parts.length > 0
-        ? `Updated · ${parts.join(", ")} · agencies notified`
-        : "No changes",
-    );
-    closeDrawer();
-  };
 
   return (
     <DrawerShell
@@ -2213,12 +2196,7 @@ export function TalentBlockDatesDrawer() {
       title="Availability"
       description="Where you are, what you're up for, and dates you can't work. Visible to your agencies."
       width={540}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={handleSave}>Update</PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
         {/* ─── 1. Where are you? — C7 location autocomplete suggestions ── */}
@@ -2431,7 +2409,7 @@ export function TalentBlockDatesDrawer() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => toast(`Block "${b.reason}" removed`)}
+                    onClick={() => undefined}
                     aria-label={`Remove block ${b.startDate}-${b.endDate}`}
                     style={{
                       background: "transparent",
@@ -3264,245 +3242,55 @@ function PresetButton({
 // ─── Payouts ────────────────────────────────────────────────────
 
 export function TalentPayoutsDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-payouts";
-  // Multi-step Stripe-Connect-style onboarding scaffold. Each step
-  // captures one logical block; the actual KYC + bank handoff happens
-  // via Stripe's hosted flow in production. The drawer mocks the
-  // progression so the prototype demonstrates the experience.
-  type Step = "country" | "personal" | "bank" | "tax" | "verify" | "done";
-  const [step, setStep] = useState<Step>("country");
-  const [country, setCountry] = useState("Spain");
-  const stepIndex: Record<Step, number> = {
-    country: 0,
-    personal: 1,
-    bank: 2,
-    tax: 3,
-    verify: 4,
-    done: 5,
-  };
-  const stepCount = 5;
-  const stepLabels = ["Country", "Personal", "Bank", "Tax", "Verify"];
-
-  const advance = (next: Step) => {
-    setStep(next);
-    if (next === "done") toast("Payout setup complete — you'll be paid out via Stripe");
-  };
-
-  const reset = () => {
-    setStep("country");
-  };
 
   return (
     <DrawerShell
       open={open}
-      onClose={() => {
-        closeDrawer();
-        // Defer reset so the closing animation doesn't show the country step.
-        setTimeout(reset, 200);
-      }}
+      onClose={closeDrawer}
       title="Set up payouts"
       description="Stripe Connect handles KYC + banking. Tulala never sees your bank details."
       width={560}
-      footer={
-        step === "done" ? (
-          <PrimaryButton onClick={() => { closeDrawer(); setTimeout(reset, 200); }}>Done</PrimaryButton>
-        ) : (
-          <>
-            <SecondaryButton onClick={() => { closeDrawer(); setTimeout(reset, 200); }}>
-              Save & exit
-            </SecondaryButton>
-            <PrimaryButton
-              onClick={() => {
-                if (step === "country") advance("personal");
-                else if (step === "personal") advance("bank");
-                else if (step === "bank") advance("tax");
-                else if (step === "tax") advance("verify");
-                else if (step === "verify") advance("done");
-              }}
-            >
-              {step === "verify" ? "Submit" : "Continue"}
-            </PrimaryButton>
-          </>
-        )
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      {/* Step indicator */}
-      <div
-        aria-hidden
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          marginBottom: 18,
-        }}
-      >
-        {stepLabels.map((label, idx) => {
-          const isActive = idx === stepIndex[step];
-          const isDone = idx < stepIndex[step];
-          return (
-            <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-              <span
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  background: isDone ? COLORS.green : isActive ? COLORS.fill : "rgba(11,11,13,0.06)",
-                  color: isDone || isActive ? "#fff" : COLORS.inkDim,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  fontFamily: FONTS.body,
-                  flexShrink: 0,
-                }}
-              >
-                {isDone ? <Icon name="check" size={11} color="#fff" /> : idx + 1}
-              </span>
-              <span
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 11,
-                  color: isActive ? COLORS.ink : COLORS.inkMuted,
-                  fontWeight: isActive ? 600 : 500,
-                }}
-              >
-                {label}
-              </span>
-              {idx < stepLabels.length - 1 && (
-                <span
-                  style={{
-                    flex: 1,
-                    height: 1,
-                    background: idx < stepIndex[step] ? COLORS.green : "rgba(11,11,13,0.10)",
-                    marginRight: 0,
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Trust banner — always visible during the flow */}
-      <div
-        style={{
-          padding: "12px 14px",
-          background: COLORS.accentSoft,
-          border: `1px solid rgba(15,79,62,0.18)`,
-          borderRadius: 10,
-          marginBottom: 14,
-          fontFamily: FONTS.body,
-          fontSize: 12,
-          color: COLORS.ink,
-          lineHeight: 1.5,
-        }}
-      >
-        <strong style={{ color: COLORS.accentDeep }}>Encrypted via Stripe.</strong>{" "}
-        Bank details and ID never touch Tulala servers. You'll see a Stripe-hosted page in production.
-      </div>
-
-      {step === "country" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <FieldRow label="Country of residence" hint="Determines your payout currency and tax form">
-            <select
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 8,
-                background: "#fff",
-                color: COLORS.ink,
-              }}
-            >
-              <option>Spain</option>
-              <option>Italy</option>
-              <option>France</option>
-              <option>Germany</option>
-              <option>United Kingdom</option>
-              <option>United States</option>
-            </select>
-          </FieldRow>
-          <KvRow label="Payout currency" value={country === "United States" ? "USD" : country === "United Kingdom" ? "GBP" : "EUR"} />
-          <KvRow label="Tax form" value={country === "United States" ? "W-9" : "W-8BEN"} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div
+          style={{
+            padding: "12px 14px",
+            background: COLORS.accentSoft,
+            border: `1px solid rgba(15,79,62,0.18)`,
+            borderRadius: 10,
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            color: COLORS.ink,
+            lineHeight: 1.5,
+          }}
+        >
+          <strong style={{ color: COLORS.accentDeep }}>Encrypted via Stripe.</strong>{" "}
+          Bank details and ID never touch Tulala servers.
         </div>
-      )}
-
-      {step === "personal" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <FieldRow label="Legal name">
-            <TextInput defaultValue="Marta Reyes" />
-          </FieldRow>
-          <FieldRow label="Date of birth">
-            <TextInput placeholder="DD / MM / YYYY" />
-          </FieldRow>
-          <FieldRow label="Address">
-            <TextInput placeholder="Street, city, postcode" />
-          </FieldRow>
-        </div>
-      )}
-
-      {step === "bank" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div
-            style={{
-              padding: "16px",
-              background: "#fff",
-              border: `1px dashed ${COLORS.border}`,
-              borderRadius: 12,
-              textAlign: "center",
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              color: COLORS.inkMuted,
-            }}
-          >
-            <Icon name="external" size={20} color={COLORS.accentDeep} />
-            <div style={{ marginTop: 10, fontWeight: 600, color: COLORS.ink, fontSize: 14 }}>
-              Continue on Stripe to add your bank
-            </div>
-            <div style={{ marginTop: 6, lineHeight: 1.5, maxWidth: 360, margin: "6px auto 0" }}>
-              In production this opens a Stripe-hosted page where your IBAN / sort code is
-              entered behind their PCI-DSS infrastructure.
-            </div>
+        <div
+          style={{
+            padding: "24px 16px",
+            background: COLORS.surfaceAlt,
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            fontFamily: FONTS.body,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink, marginBottom: 6 }}>
+            Payout setup — coming soon
+          </div>
+          <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55, maxWidth: 340, margin: "0 auto" }}>
+            Stripe Connect KYC onboarding is being integrated. You&apos;ll be able to link your bank account and set up automatic payouts when it&apos;s ready.
           </div>
         </div>
-      )}
-
-      {step === "tax" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <FieldRow label={country === "United States" ? "W-9 form" : "W-8BEN form"} hint="Confirms your tax residency">
-            <TextInput defaultValue={`${country} resident`} />
-          </FieldRow>
-          <FieldRow label="Tax ID" hint="Your local TIN, NIE, or SSN">
-            <TextInput placeholder="••••••" />
-          </FieldRow>
-          <KvRow label="VAT number" value="(optional)" />
-        </div>
-      )}
-
-      {step === "verify" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <KvRow label="Country" value={country} />
-          <KvRow label="Bank" value="Connected via Stripe" />
-          <KvRow label="Tax form" value={country === "United States" ? "W-9 · ready" : "W-8BEN · ready"} />
-          <KvRow label="Schedule" value="Per-booking · paid 14 days after wrap" />
-          <KvRow label="First payout ETA" value="Once your next booking wraps" />
-        </div>
-      )}
-
-      {step === "done" && (
-        <CelebrationBanner
-          tone="forest"
-          eyebrow="Setup complete"
-          title="Payouts are live"
-          body="Stripe will pay you 14 days after each wrap. You can update bank or tax details anytime from Settings."
-        />
-      )}
+        <KvRow label="Payout schedule" value="Per-booking · 14 days after wrap" />
+        <KvRow label="Currency" value="EUR (configurable at setup)" />
+        <KvRow label="Tax form" value="W-8BEN / W-9 depending on residency" />
+      </div>
     </DrawerShell>
   );
 }
@@ -3521,45 +3309,38 @@ export function TalentPayoutsDrawer() {
  * not modeled here.
  */
 export function TalentVerificationDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-verification";
-  type Step = "intro" | "id-type" | "upload" | "selfie" | "submitted";
-  const [step, setStep] = useState<Step>("intro");
-  const [idType, setIdType] = useState<"passport" | "drivers-license" | "national-id">("passport");
-
-  const reset = () => setStep("intro");
 
   return (
     <DrawerShell
       open={open}
-      onClose={() => {
-        closeDrawer();
-        setTimeout(reset, 200);
-      }}
+      onClose={closeDrawer}
       title="Verify your identity"
       description="Upload a government ID + a quick selfie. Once approved you get the Verified badge — clients see it on every inquiry."
       width={560}
       footer={
-        step === "submitted" ? (
-          <PrimaryButton onClick={() => { closeDrawer(); setTimeout(reset, 200); }}>Done</PrimaryButton>
-        ) : (
-          <>
-            <SecondaryButton onClick={() => { closeDrawer(); setTimeout(reset, 200); }}>Cancel</SecondaryButton>
-            <PrimaryButton
-              onClick={() => {
-                if (step === "intro") setStep("id-type");
-                else if (step === "id-type") setStep("upload");
-                else if (step === "upload") setStep("selfie");
-                else if (step === "selfie") {
-                  setStep("submitted");
-                  toast("Verification submitted — you'll hear back within 24h");
-                }
-              }}
-            >
-              {step === "selfie" ? "Submit for review" : "Continue"}
-            </PrimaryButton>
-          </>
-        )
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <button
+            type="button"
+            disabled
+            style={{
+              padding: "9px 16px",
+              background: "rgba(11,11,13,0.12)",
+              border: "none",
+              borderRadius: 8,
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              fontWeight: 500,
+              color: COLORS.inkMuted,
+              cursor: "not-allowed",
+            }}
+            title="ID verification coming soon"
+          >
+            Start verification
+          </button>
+        </>
       }
     >
       <div
@@ -3576,210 +3357,85 @@ export function TalentVerificationDrawer() {
         }}
       >
         <strong style={{ color: COLORS.accentDeep }}>End-to-end encrypted.</strong>{" "}
-        Documents are reviewed by Tulala's trust team and deleted after approval. Never shared with clients.
+        Documents are reviewed by Tulala&apos;s trust team and deleted after approval. Never shared with clients.
       </div>
 
-      {step === "intro" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <h3
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 18,
-              fontWeight: 500,
-              color: COLORS.ink,
-              margin: 0,
-              letterSpacing: -0.15,
-            }}
-          >
-            Why verify?
-          </h3>
-          <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { label: "Verified badge on every inquiry", body: "Clients filter on it. Verified profiles get ~3× more replies in our data." },
-              { label: "Higher trust tier", body: "Eligible for Silver and Gold tiers as your booking history grows." },
-              { label: "Required for payouts > €1k", body: "Compliance — Stripe needs the same KYC anyway." },
-            ].map((item, idx) => (
-              <li
-                key={idx}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 10,
-                  padding: "10px 12px",
-                  background: "#fff",
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  borderRadius: 9,
-                  fontFamily: FONTS.body,
-                }}
-              >
-                <span
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    background: COLORS.accentSoft,
-                    color: COLORS.accentDeep,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  {idx + 1}
-                </span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, lineHeight: 1.35 }}>
-                    {item.label}
-                  </div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.45 }}>
-                    {item.body}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {step === "id-type" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <CapsLabel>Choose ID type</CapsLabel>
-          {([
-            { id: "passport" as const, label: "Passport", body: "Best — single-page, accepted globally." },
-            { id: "drivers-license" as const, label: "Driver's license", body: "Front + back. Some countries only." },
-            { id: "national-id" as const, label: "National ID card", body: "EU residents — front + back." },
-          ]).map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => setIdType(opt.id)}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <h3
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 18,
+            fontWeight: 500,
+            color: COLORS.ink,
+            margin: 0,
+            letterSpacing: -0.15,
+          }}
+        >
+          Why verify?
+        </h3>
+        <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+          {[
+            { label: "Verified badge on every inquiry", body: "Clients filter on it. Verified profiles get ~3× more replies in our data." },
+            { label: "Higher trust tier", body: "Eligible for Silver and Gold tiers as your booking history grows." },
+            { label: "Required for payouts > €1k", body: "Compliance — Stripe needs the same KYC anyway." },
+          ].map((item, idx) => (
+            <li
+              key={idx}
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: "flex-start",
                 gap: 10,
-                padding: "12px 14px",
+                padding: "10px 12px",
                 background: "#fff",
-                border: `1px solid ${idType === opt.id ? COLORS.accent : COLORS.borderSoft}`,
-                borderRadius: 10,
-                cursor: "pointer",
-                textAlign: "left",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 9,
                 fontFamily: FONTS.body,
               }}
             >
               <span
-                aria-hidden
                 style={{
-                  width: 18,
-                  height: 18,
+                  width: 22,
+                  height: 22,
                   borderRadius: "50%",
-                  border: `2px solid ${idType === opt.id ? COLORS.accent : COLORS.border}`,
-                  background: idType === opt.id ? COLORS.accent : "transparent",
-                  flexShrink: 0,
+                  background: COLORS.accentSoft,
+                  color: COLORS.accentDeep,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  flexShrink: 0,
                 }}
               >
-                {idType === opt.id && (
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />
-                )}
+                {idx + 1}
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{opt.label}</div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{opt.body}</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, lineHeight: 1.35 }}>
+                  {item.label}
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.45 }}>
+                  {item.body}
+                </div>
               </div>
-            </button>
+            </li>
           ))}
+        </ul>
+        <div
+          style={{
+            padding: "16px",
+            background: COLORS.surfaceAlt,
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            color: COLORS.inkMuted,
+            lineHeight: 1.55,
+            textAlign: "center",
+          }}
+        >
+          ID verification is coming soon. We&apos;ll notify you when it&apos;s available.
         </div>
-      )}
-
-      {step === "upload" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <CapsLabel>Upload your {idType === "passport" ? "passport photo page" : idType === "drivers-license" ? "license front + back" : "ID front + back"}</CapsLabel>
-          <button
-            type="button"
-            style={{
-              padding: "32px 16px",
-              background: "#fff",
-              border: `2px dashed ${COLORS.border}`,
-              borderRadius: 12,
-              textAlign: "center",
-              fontFamily: FONTS.body,
-              cursor: "pointer",
-            }}
-          >
-            <Icon name="external" size={22} color={COLORS.inkMuted} />
-            <div style={{ marginTop: 10, fontSize: 14, fontWeight: 500, color: COLORS.ink }}>
-              Drop file or click to upload
-            </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
-              JPG or PNG · max 8MB · clear corners visible
-            </div>
-          </button>
-          {idType !== "passport" && (
-            <button
-              type="button"
-              style={{
-                padding: "32px 16px",
-                background: "#fff",
-                border: `2px dashed ${COLORS.border}`,
-                borderRadius: 12,
-                textAlign: "center",
-                fontFamily: FONTS.body,
-                cursor: "pointer",
-              }}
-            >
-              <Icon name="external" size={22} color={COLORS.inkMuted} />
-              <div style={{ marginTop: 10, fontSize: 14, fontWeight: 500, color: COLORS.ink }}>
-                Upload back side
-              </div>
-            </button>
-          )}
-        </div>
-      )}
-
-      {step === "selfie" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <CapsLabel>Quick selfie</CapsLabel>
-          <button
-            type="button"
-            style={{
-              aspectRatio: "1 / 1",
-              maxWidth: 280,
-              margin: "0 auto",
-              background: COLORS.surfaceAlt,
-              border: `2px dashed ${COLORS.border}`,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexDirection: "column",
-              gap: 8,
-              fontFamily: FONTS.body,
-              cursor: "pointer",
-              color: COLORS.inkMuted,
-            }}
-          >
-            <Icon name="user" size={32} color={COLORS.inkMuted} />
-            <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>Take selfie</div>
-            <div style={{ fontSize: 11.5 }}>So we know it's really you</div>
-          </button>
-          <p style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, margin: 0, lineHeight: 1.5, textAlign: "center" }}>
-            One photo. We compare it to your ID. Deleted after approval.
-          </p>
-        </div>
-      )}
-
-      {step === "submitted" && (
-        <CelebrationBanner
-          tone="accent"
-          eyebrow="Submitted"
-          title="Under review — you'll hear back in 24 hours"
-          body="We email you once approved. Your inquiries get a small 'verification pending' chip until then."
-        />
-      )}
+      </div>
     </DrawerShell>
   );
 }
@@ -3793,7 +3449,7 @@ const REFERRAL_LIST = [
 ];
 
 export function TalentReferralsDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-referrals";
   const link = "tulala.digital/r/marta-reyes";
   const earnedTotal = REFERRAL_LIST.reduce((sum, r) => sum + r.earned, 0);
@@ -3823,7 +3479,7 @@ export function TalentReferralsDrawer() {
       <FieldRow label="Your invite link" hint="Click to copy. Anyone who signs up via this link is yours.">
         <button
           type="button"
-          onClick={() => toast("Invite link copied")}
+          onClick={() => void navigator.clipboard.writeText(`https://${link}`)}
           style={{
             width: "100%",
             padding: "10px 12px",
@@ -3887,7 +3543,7 @@ export function TalentReferralsDrawer() {
               </span>
             )}
             {r.status === "invited" && (
-              <SecondaryButton size="sm" onClick={() => toast("Reminder sent")}>Remind</SecondaryButton>
+              <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkDim }}>Invited</span>
             )}
           </div>
         ))}
@@ -3932,7 +3588,7 @@ const HUB_COMPARE_DATA = [
 ];
 
 export function TalentHubCompareDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-hub-compare";
   return (
     <DrawerShell
@@ -4005,7 +3661,7 @@ export function TalentHubCompareDrawer() {
             <div style={{ marginTop: 12 }}>
               <PrimaryButton
                 size="sm"
-                onClick={() => toast(`Listed on ${hub.name}`)}
+                onClick={() => undefined}
               >
                 {hub.recommended ? "Get listed" : "List on this hub"}
               </PrimaryButton>
@@ -4027,7 +3683,7 @@ export function TalentHubCompareDrawer() {
 // surprising talents at year-end.
 
 export function TalentTaxDocsDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-tax-docs";
   const yearTotal = EARNINGS_ROWS.reduce((sum, e) => {
     const num = parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
@@ -4071,7 +3727,7 @@ export function TalentTaxDocsDrawer() {
           <button
             key={idx}
             type="button"
-            onClick={() => toast(`${doc.label} · ${doc.action.toLowerCase()}d`)}
+            onClick={() => undefined}
             style={{
               display: "flex",
               alignItems: "center",
@@ -4128,7 +3784,7 @@ export function TalentTaxDocsDrawer() {
 // agency relationship.
 
 export function TalentConflictResolveDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-conflict-resolve";
   const [choice, setChoice] = useState<"a" | "b" | "alt" | null>(null);
 
@@ -4145,23 +3801,7 @@ export function TalentConflictResolveDrawer() {
       title="Conflict on May 14"
       description="Two clients want you the same day. Tulala ranks them by rate, trust, and agency relationship. You decide."
       width={620}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Decide later</SecondaryButton>
-          <PrimaryButton
-            onClick={() => {
-              if (!choice) return toast("Pick a resolution first");
-              const action = choice === "a" ? "Mango confirmed · Atelier declined" :
-                             choice === "b" ? "Atelier confirmed · Mango declined" :
-                             "Alternative window proposed to both";
-              toast(action);
-              closeDrawer();
-            }}
-          >
-            Apply resolution
-          </PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       {(["a", "b"] as const).map((key) => {
         const c = conflict[key];
@@ -4289,7 +3929,7 @@ const NETWORK_TALENTS = [
 ];
 
 export function TalentNetworkDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-network";
   const [follows, setFollows] = useState<Record<string, boolean>>(
     () => Object.fromEntries(NETWORK_TALENTS.map((t) => [t.id, t.follows])),
@@ -4311,7 +3951,7 @@ export function TalentNetworkDrawer() {
             t={t}
             following={true}
             onToggle={() => setFollows((p) => ({ ...p, [t.id]: !p[t.id] }))}
-            onRefer={() => toast(`Referral note sent to ${t.name}`)}
+            onRefer={() => undefined}
           />
         ))}
       </div>
@@ -4323,7 +3963,7 @@ export function TalentNetworkDrawer() {
             t={t}
             following={false}
             onToggle={() => setFollows((p) => ({ ...p, [t.id]: true }))}
-            onRefer={() => toast(`Follow ${t.name} first to refer`)}
+            onRefer={() => undefined}
           />
         ))}
       </div>
@@ -4380,7 +4020,7 @@ function NetworkRow({
 // stored alongside audio; talent can delete either independently.
 
 export function TalentVoiceReplyDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-voice-reply";
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -4400,9 +4040,24 @@ export function TalentVoiceReplyDrawer() {
         done ? (
           <>
             <SecondaryButton onClick={() => { setDone(false); setSeconds(0); }}>Re-record</SecondaryButton>
-            <PrimaryButton onClick={() => { toast("Voice reply sent"); closeDrawer(); }}>
+            <button
+              type="button"
+              disabled
+              style={{
+                padding: "9px 16px",
+                background: "rgba(11,11,13,0.12)",
+                border: "none",
+                borderRadius: 8,
+                fontFamily: FONTS.body,
+                fontSize: 13,
+                fontWeight: 500,
+                color: COLORS.inkMuted,
+                cursor: "not-allowed",
+              }}
+              title="Voice replies coming soon"
+            >
               Send reply
-            </PrimaryButton>
+            </button>
           </>
         ) : (
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
@@ -4496,7 +4151,7 @@ const MY_NETWORK_AGENCIES = [
 ];
 
 export function TalentMultiAgencyPickerDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-multi-agency-picker";
   return (
     <DrawerShell
@@ -4505,21 +4160,14 @@ export function TalentMultiAgencyPickerDrawer() {
       title="Switch workspace"
       description="On the Network plan you can own multiple agencies. Each keeps its own roster + commission. Pick one to see its inbox."
       width={520}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton onClick={() => toast("Open Network plan upgrade")}>
-            + New agency
-          </PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {MY_NETWORK_AGENCIES.map((a) => (
           <button
             key={a.id}
             type="button"
-            onClick={() => { toast(`Switched to ${a.name}`); closeDrawer(); }}
+            onClick={closeDrawer}
             style={{
               display: "flex",
               alignItems: "center",
@@ -4603,7 +4251,7 @@ const REPLY_TEMPLATES = [
 ];
 
 export function ReplyTemplatesDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "reply-templates";
   return (
     <DrawerShell
@@ -4623,7 +4271,7 @@ export function ReplyTemplatesDrawer() {
           <button
             key={t.id}
             type="button"
-            onClick={() => { toast(`Template inserted · "${t.title}"`); closeDrawer(); }}
+            onClick={closeDrawer}
             style={{
               display: "flex",
               flexDirection: "column",
@@ -4653,7 +4301,7 @@ export function ReplyTemplatesDrawer() {
 }
 
 export function TalentChatArchiveDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-chat-archive";
   return (
     <DrawerShell
@@ -4665,9 +4313,24 @@ export function TalentChatArchiveDrawer() {
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Chat archive · ready in your inbox"); closeDrawer(); }}>
+          <button
+            type="button"
+            disabled
+            style={{
+              padding: "9px 16px",
+              background: "rgba(11,11,13,0.12)",
+              border: "none",
+              borderRadius: 8,
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              fontWeight: 500,
+              color: COLORS.inkMuted,
+              cursor: "not-allowed",
+            }}
+            title="PDF export coming soon"
+          >
             Generate PDF
-          </PrimaryButton>
+          </button>
         </>
       }
     >
@@ -6595,7 +6258,7 @@ export function TalentTierCompareDrawer() {
           </div>
         </div>
         <button
-          onClick={() => toast("You're on the waitlist — we'll email you when Pro launches")}
+          onClick={() => undefined}
           style={{
             flexShrink: 0,
             padding: "9px 18px",
@@ -6707,7 +6370,7 @@ export function TalentPersonalPageDrawer() {
 // ─── Page template picker ───────────────────────────────────────────
 
 export function TalentPageTemplateDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-page-template";
   const tier = MY_TALENT_PROFILE.subscription.tier;
   const active = MY_TALENT_PROFILE.subscription.template;
@@ -6719,7 +6382,7 @@ export function TalentPageTemplateDrawer() {
       title="Choose a template"
       description="Templates set the layout, hero size, and section order of your personal page. Switch any time — content stays."
       width={680}
-      footer={<StandardFooter onSave={() => { toast("Template saved · page rebuilt"); closeDrawer(); }} saveLabel="Use template" />}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
         {TALENT_PAGE_TEMPLATES.map((t) => {
@@ -6733,10 +6396,8 @@ export function TalentPageTemplateDrawer() {
               key={t.id}
               onClick={() => {
                 if (isLocked) {
-                  toast(`Unlock ${TALENT_TIER_META[t.availableAt].label} to use ${t.label}`);
-                  return;
+                  openDrawer("talent-tier-compare");
                 }
-                toast(`${t.label} selected`);
               }}
               style={{
                 position: "relative",
@@ -6859,7 +6520,7 @@ export function TalentMediaEmbedsDrawer() {
               </div>
             </div>
             <button
-              onClick={() => toast("Embed removed")}
+              onClick={() => undefined}
               style={{
                 background: "transparent",
                 border: "none",
@@ -7111,7 +6772,7 @@ export function TalentCustomDomainDrawer() {
           </strong>
         </span>
         <button
-          onClick={() => toast("Re-checking DNS")}
+          onClick={() => undefined}
           style={{
             marginLeft: "auto",
             background: "transparent",
@@ -7386,7 +7047,7 @@ export function TalentReceiveReviewDrawer() {
           <SecondaryButton onClick={closeDrawer}>Skip</SecondaryButton>
           <PrimaryButton
             disabled={!allRated}
-            onClick={() => { setSubmitted(true); toast("Review published"); }}
+            onClick={() => { setSubmitted(true); }}
           >
             Publish review
           </PrimaryButton>

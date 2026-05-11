@@ -7612,7 +7612,6 @@ function ThreadActivityTimeline({ conv }: { conv: Conversation }) {
  * chat thread so the request is visible in the timeline.
  */
 function RateChangeRequest({ currentValue }: { currentValue: string }) {
-  const { toast } = useAdminShell();
   const [open, setOpen] = useState(false);
   const [proposed, setProposed] = useState("");
   const [reason, setReason] = useState("");
@@ -7712,28 +7711,18 @@ function RateChangeRequest({ currentValue }: { currentValue: string }) {
         </button>
         <button
           type="button"
-          disabled={!proposed.trim()}
-          onClick={() => {
-            if (!proposed.trim()) return;
-            toast(`Rate change request sent to coordinator · ${currentValue || "—"} → ${proposed}`);
-            setOpen(false);
-            setProposed("");
-            setReason("");
-          }}
-          aria-disabled={!proposed.trim()}
-          title={!proposed.trim() ? "Enter a proposed amount first" : ""}
+          disabled
+          title="Rate change requests coming soon"
           style={{
             padding: "5px 10px",
-            background: COLORS.fill,
+            background: "rgba(11,11,13,0.12)",
             border: "none",
             borderRadius: 6,
-            cursor: !proposed.trim() ? "not-allowed" : "pointer",
+            cursor: "not-allowed",
             fontFamily: FONTS.body,
             fontSize: 11.5,
             fontWeight: 600,
-            color: "#fff",
-            opacity: !proposed.trim() ? 0.4 : 1,
-            transition: "opacity .15s, background .15s",
+            color: COLORS.inkMuted,
           }}
         >
           Send request
