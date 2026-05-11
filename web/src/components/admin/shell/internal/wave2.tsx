@@ -305,6 +305,29 @@ export function NotificationsPrefsDrawer() {
   const open = state.drawer.drawerId === "notifications-prefs";
 
   const [prefs, setPrefs] = useState<Record<NotifEvent, Record<NotifChannel, boolean>>>(makeDefaultPrefs);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Load saved prefs when drawer opens
+  useEffect(() => {
+    if (!open) return;
+    void getNotificationPrefs().then((saved) => {
+      if (!saved || Object.keys(saved).length === 0) return;
+      setPrefs((current) => {
+        const merged = { ...current };
+        for (const [ev, channels] of Object.entries(saved)) {
+          if (ev in merged) {
+            merged[ev as NotifEvent] = {
+              ...merged[ev as NotifEvent],
+              email: channels.email,
+              push: channels.push,
+            };
+          }
+        }
+        return merged;
+      });
+    });
+  }, [open]);
 
   // WS-11.4 — DND / quiet hours
   const [dndNow, setDndNow]           = useState(false);
@@ -339,14 +362,31 @@ export function NotificationsPrefsDrawer() {
       description="Control what reaches you, on which channel, and when. Email is immediate; digest batches into a daily 9am summary."
       footer={
         <>
+          {saveError && (
+            <div style={{ fontSize: 12, color: "#c0392b", flex: 1, paddingRight: 8 }}>{saveError}</div>
+          )}
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
           <PrimaryButton
-            onClick={() => {
-              toast("Notification preferences saved");
-              closeDrawer();
+            disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              setSaveError(null);
+              const serverPrefs: Record<string, { email: boolean; push: boolean }> = {};
+              for (const [ev, channels] of Object.entries(prefs)) {
+                serverPrefs[ev] = { email: channels.email ?? false, push: channels.push ?? false };
+              }
+              try {
+                await setNotificationPrefs(serverPrefs);
+                toast("Notification preferences saved");
+                closeDrawer();
+              } catch {
+                setSaveError("Failed to save — please try again.");
+              } finally {
+                setSaving(false);
+              }
             }}
           >
-            Save preferences
+            {saving ? "Saving…" : "Save preferences"}
           </PrimaryButton>
         </>
       }
@@ -1236,7 +1276,6 @@ export function TenantSwitcherDrawer() {
                         : `Create new ${p.label} workspace`}
                       onClick={() => {
                         if (disabled) return;
-                        toast(`Create new ${p.label} workspace — billing flow opens`);
                         closeDrawer();
                       }}
                       style={{
@@ -2400,7 +2439,7 @@ export function TalentNotificationsDrawer() {
                     onOpen={() =>
                       view === "archive"
                         ? restore(n.id)
-                        : toast(`Opening ${n.title}`)
+                        : closeDrawer()
                     }
                     onDismiss={
                       view === "archive"
@@ -4541,16 +4580,16 @@ type ActivationStep = {
 };
 
 export function WorkspaceActivationBanner() {
-  const { openDrawer, toast } = useAdminShell();
+  const { openDrawer, setPage, toast } = useAdminShell();
   const [dismissed, setDismissed] = useState(false);
   const [, setReminded] = useState(false);
 
   const steps: ActivationStep[] = [
     { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: true,  cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },
-    { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: true,  cta: "Add talent",      onCta: () => toast("Opening add-talent flow") },
+    { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: true,  cta: "Add talent",      onCta: () => setPage("roster") },
     { id: "inquiry",    label: "Send your first inquiry",          desc: "Try the booking flow end-to-end.",             done: false, cta: "New inquiry",     onCta: () => openDrawer("new-inquiry") },
     { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: false, cta: "Set up payouts",  onCta: () => openDrawer("talent-payouts") },
-    { id: "domain",     label: "Set your workspace domain",        desc: "Go live on your branded URL.",                 done: false, cta: "Configure",       onCta: () => toast("Opening domain settings") },
+    { id: "domain",     label: "Set your workspace domain",        desc: "Go live on your branded URL.",                 done: false, cta: "Configure",       onCta: () => setPage("settings") },
   ];
 
   const doneCount = steps.filter((s) => s.done).length;
@@ -4807,9 +4846,9 @@ export function ClientFirstRunBanner() {
   const isLast = currentStep === CLIENT_FIRST_RUN_STEPS.length;
 
   function handleCta() {
-    if (step.onCta === "verify")   { toast("Opening verification flow"); }
     if (step.onCta === "discover") { setClientPage("discover"); }
     if (step.onCta === "inquiry")  { openDrawer("client-send-inquiry"); }
+    // "verify" step: verification flow not yet wired — just advance the banner
     setCurrentStep((n) => Math.min(n + 1, CLIENT_FIRST_RUN_STEPS.length));
   }
 
