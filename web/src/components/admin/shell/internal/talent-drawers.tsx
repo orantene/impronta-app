@@ -34,7 +34,6 @@ import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMe
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import {
-  updateSelfSocialLinks,
   updateSelfPrivacy,
   updateSelfEmergencyContact,
   updateSelfCredits,
@@ -5109,15 +5108,9 @@ export function TalentTravelDrawer() {
         <FieldRow label="Based in">
           <TextInput value={basedIn} onChange={(e) => setBasedIn(e.target.value)} />
         </FieldRow>
-        <FieldRow label="Willing to travel" hint="City · country · region · global.">
-          <TextInput defaultValue={t.willingTravel} />
-        </FieldRow>
-        <FieldRow label="Home radius" optional hint="How fast can you arrive? Same-day, 24h, weekend?">
-          <TextInput defaultValue={t.homeRadius ?? ""} />
-        </FieldRow>
-        <FieldRow label="Preferred travel class" optional>
-          <TextInput defaultValue={t.preferredClass ?? "economy"} />
-        </FieldRow>
+        <KvRow label="Willing to travel" value={String(t.willingTravel)} />
+        <KvRow label="Home radius" value={t.homeRadius ?? "—"} />
+        <KvRow label="Preferred travel class" value={t.preferredClass ?? "economy"} />
         <Divider label="Work authorization" />
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {t.workAuth.map((w, i) => (
@@ -5170,26 +5163,9 @@ export function TalentTravelDrawer() {
 // ─── External links ─────────────────────────────────────────────
 
 export function TalentLinksDrawer() {
-  const { state, closeDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "talent-links";
-  const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
   const links = MY_TALENT_PROFILE.links;
-
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  const handleSave = async () => {
-    if (!talentProfileId) { setSaveError("No talent profile loaded — reload and try again."); return; }
-    setSaving(true);
-    setSaveError(null);
-    const result = await updateSelfSocialLinks({
-      talent_profile_id: talentProfileId,
-      social_links: links.map((l) => ({ kind: l.kind, label: l.label, url: l.url, ...(l.followers ? { followers: l.followers } : {}) })),
-    });
-    setSaving(false);
-    if (!result.ok) { setSaveError(result.error); return; }
-    closeDrawer();
-  };
 
   return (
     <DrawerShell
@@ -5198,14 +5174,8 @@ export function TalentLinksDrawer() {
       title="External links"
       description="Social, IMDb, personal site. Follower counts auto-refresh weekly when you connect the account."
       width={560}
-      footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save"}</PrimaryButton>
-        </>
-      }
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {links.map((l, i) => (
           <div
