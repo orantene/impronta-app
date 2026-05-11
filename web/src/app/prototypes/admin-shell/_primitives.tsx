@@ -95,6 +95,7 @@ import {
   hasOpenedHelp,
   markHelpOpened,
 } from "./_help";
+import { useDashboardText } from "./_dashboard-i18n";
 
 // ─── Scroll-lock counter ─────────────────────────────────────────────
 // Tracks how many overlays (drawers + modals) are open so we only
@@ -1051,6 +1052,7 @@ export function PlanChip({
   variant?: "soft" | "outline" | "solid";
 }) {
   const meta = PLAN_META[plan];
+  const copy = useDashboardText();
   const styles: Record<typeof variant, CSSProperties> = {
     soft: {
       background: plan === "free" ? "rgba(11,11,13,0.05)" : "rgba(11,11,13,0.06)",
@@ -1084,7 +1086,7 @@ export function PlanChip({
         whiteSpace: "nowrap",
       }}
     >
-      {meta.label}
+      {copy.t(meta.label)}
     </span>
   );
 }
@@ -4731,7 +4733,9 @@ export function ChannelVisibilityStrip({
   onChange?: (next: FieldVisibility) => void;
   label?: string;
 }) {
+  const copy = useDashboardText();
   const channels: FieldChannel[] = ["public", "agency", "private"];
+  const labelText = copy.t(label);
   const has = (c: FieldChannel) => value.includes(c);
   const toggle = (c: FieldChannel) => {
     if (!onChange) return;
@@ -4747,13 +4751,13 @@ export function ChannelVisibilityStrip({
   // Summary state — drives the button's icon + tooltip.
   const summary: { icon: string; label: string; tone: "public" | "agency" | "private" | "mixed" } = (() => {
     const isPrivate = value.length === 1 && value[0] === "private";
-    if (isPrivate) return { icon: "🔒", label: "Private", tone: "private" };
+    if (isPrivate) return { icon: "🔒", label: copy.t("Private"), tone: "private" };
     const pub = has("public");
     const ag = has("agency");
-    if (pub && ag) return { icon: "🌐", label: "Public + agency", tone: "mixed" };
-    if (pub) return { icon: "🌐", label: "Public", tone: "public" };
-    if (ag) return { icon: "🏢", label: "Agency only", tone: "agency" };
-    return { icon: "👁", label: "Not visible", tone: "private" };
+    if (pub && ag) return { icon: "🌐", label: copy.t("Public + agency"), tone: "mixed" };
+    if (pub) return { icon: "🌐", label: copy.t("Public"), tone: "public" };
+    if (ag) return { icon: "🏢", label: copy.t("Agency only"), tone: "agency" };
+    return { icon: "👁", label: copy.t("Not visible"), tone: "private" };
   })();
 
   const [open, setOpen] = useState(false);
@@ -4784,8 +4788,8 @@ export function ChannelVisibilityStrip({
       <button
         type="button"
         onClick={() => onChange && setOpen(o => !o)}
-        title={`${label}: ${summary.label}${onChange ? " · click to change" : ""}`}
-        aria-label={`${label}: ${summary.label}`}
+        title={`${labelText}: ${summary.label}${onChange ? ` · ${copy.t("click to change")}` : ""}`}
+        aria-label={`${labelText}: ${summary.label}`}
         aria-expanded={open}
         style={{
           display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -4803,7 +4807,7 @@ export function ChannelVisibilityStrip({
       {open && onChange && (
         <div
           role="dialog"
-          aria-label={label}
+          aria-label={labelText}
           style={{
             position: "absolute",
             top: "calc(100% + 6px)",
@@ -4821,7 +4825,7 @@ export function ChannelVisibilityStrip({
           <div style={{
             fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
             color: COLORS.inkDim, padding: "2px 6px 6px",
-          }}>{label}</div>
+          }}>{labelText}</div>
           {channels.map(c => {
             const meta = CHANNEL_META[c];
             const active = has(c);
@@ -4830,7 +4834,7 @@ export function ChannelVisibilityStrip({
                 key={c}
                 type="button"
                 onClick={() => toggle(c)}
-                title={meta.tooltip}
+                title={copy.t(meta.tooltip)}
                 aria-pressed={active}
                 style={{
                   width: "100%",
@@ -4858,10 +4862,10 @@ export function ChannelVisibilityStrip({
                 </span>
                 <span aria-hidden style={{ fontSize: 13 }}>{meta.emoji}</span>
                 <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
-                  {meta.label}
+                  {copy.t(meta.label)}
                 </span>
                 <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>
-                  {meta.tooltip}
+                  {copy.t(meta.tooltip)}
                 </span>
               </button>
             );

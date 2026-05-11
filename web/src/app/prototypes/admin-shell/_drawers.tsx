@@ -1,34 +1,39 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useId, useTransition, type ReactNode } from "react";
+import React, { useState, useEffect, useRef, useMemo, useId, useTransition, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { addTalentToRoster, bulkAddTalentToRoster } from "./_actions";
 import { parseTalentCsv } from "./_csv-parser";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 import {
-  updateTalentAbout,
-  updateTalentLocation,
-  updateTalentRates,
-  updateTalentAvailability,
-  updateTalentCredits,
-  updateTalentLimits,
-  updateTalentSocialProof,
-  updateTalentMediaAlbums,
-  updateTalentDocuments,
-  updateRosterMeta,
+  commitTalentProfileShellAdmin,
   getTalentProfileActivity,
+  getTalentProfileDynFieldValuesForShell,
   getTalentProfileEditorData,
   sendTalentClaimInvite,
   assignTalentTaxonomyBySlug,
   removeTalentTaxonomyBySlug,
   type ProfileActivityEntry,
 } from "@/lib/server-actions/admin-talent-profile-sections";
-import { saveTalentLanguages } from "@/lib/server-actions/admin-talent-languages";
 import {
   updateSelfAbout, updateSelfLocation, updateSelfRates, updateSelfAvailability,
   updateSelfCredits, updateSelfLimits, updateSelfSocialProof, saveSelfLanguages, updateSelfIdentity,
+  updateSelfProfileDrawerExtras,
+  getTalentProfileDynFieldValuesForSelf,
+  syncSelfTalentTypeTaxonomyFromShell,
+  updateSelfProfileWorkflowFromShell,
+  updateSelfProfileShellDynFields,
 } from "@/lib/server-actions/talent-self-profile-sections";
+import { dbToUiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
+import {
+  extractShellVideoUrls,
+  findShellBusinessLine,
+  findShellWhatsappHref,
+  limitsDataToEntries,
+  limitsEntriesToData,
+  type ShellLimitsEntry,
+} from "@/lib/talent/profile-shell-drawer-persist";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, loadAgencyBrandingSettings, loadWorkspaceAccountSettings, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
 import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive, actionListDriveFolder, actionImportSingleDriveFile } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
@@ -58,6 +63,7 @@ import {
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
 import { prefetchSkillsData, SkillSlotPanel } from "./_skill-slot-panel";
+import { useDashboardText } from "./_dashboard-i18n";
 import { MetricsRibbon } from "./_metrics-ribbon";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
 import {
@@ -185,6 +191,7 @@ import {
   LOCALE_LABEL,
   computeTrustTier,
   WEBSITE_STATE,
+  splitShellContactPhone,
 } from "./_state";
 import type { TalentSelfProfile as BridgeTalentSelfProfile } from "./_data-bridge";
 import {
@@ -1970,6 +1977,7 @@ function LiveCategoryFieldsPanel({
   open: boolean;
   onToggle: () => void;
 }) {
+  const copy = useDashboardText();
   const [fields, setFields] = useState<ResolvedField[] | null>(null);
   const [groups, setGroups] = useState<ResolvedGroupForUI[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -2034,12 +2042,14 @@ function LiveCategoryFieldsPanel({
         <span style={{ fontSize: 18 }}>🧬</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
-            Category fields (live)
+            {copy.t("Category fields (live)")}
           </div>
           <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
             {fields
-              ? `${fields.length} field${fields.length === 1 ? "" : "s"} resolved from primary + secondary types`
-              : "DB-resolved field catalog for this talent's types"}
+              ? (copy.isSpanish
+                ? `${fields.length} campo${fields.length === 1 ? "" : "s"} resuelto${fields.length === 1 ? "" : "s"} desde tipos principales y secundarios`
+                : `${fields.length} field${fields.length === 1 ? "" : "s"} resolved from primary + secondary types`)
+              : copy.t("DB-resolved field catalog for this talent's types")}
           </div>
         </div>
         <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{open ? "▾" : "▸"}</span>
@@ -2047,7 +2057,7 @@ function LiveCategoryFieldsPanel({
       {open && (
         <div style={{ padding: "12px 14px" }}>
           {loading && (
-            <div style={{ color: COLORS.inkMuted, fontSize: 12 }}>Loading…</div>
+            <div style={{ color: COLORS.inkMuted, fontSize: 12 }}>{copy.t("Loading…")}</div>
           )}
           {error && (
             <div style={{
@@ -4258,7 +4268,12 @@ function ageString(d: Date): string {
   const sec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
   if (sec < 5) return "just now";
   if (sec < 60) return `${sec}s ago`;
-  return "";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  return `${day}d ago`;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -4636,10 +4651,12 @@ function makeInitialProfileState(
     // available; fall back to the legacy default for fixture / standalone
     // demo mode.
     profileStatus:
-      bridgeProfile?.workflowStatus === "published"
+      bridgeProfile?.workflowStatus === "published" || bridgeProfile?.workflowStatus === "approved"
         ? "published"
-        : bridgeProfile?.workflowStatus === "pending"
+        : bridgeProfile?.workflowStatus === "pending" || bridgeProfile?.workflowStatus === "submitted" || bridgeProfile?.workflowStatus === "under_review"
         ? "pending"
+        : bridgeProfile?.workflowStatus === "hidden" || bridgeProfile?.workflowStatus === "archived"
+        ? "hidden"
         : bridgeProfile?.workflowStatus === "invited" || bridgeProfile?.workflowStatus === "draft"
         ? "draft"
         : (isSelf ? "published" : "draft"),
@@ -4664,6 +4681,7 @@ function makeInitialProfileState(
 
 function TalentProfileShellDrawer() {
   const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant } = useProto();
+  const copy = useDashboardText();
   const shellRouter = useRouter();
   const drawerId = protoState.drawer.drawerId;
   const drawerOpen = drawerId === "talent-profile-shell" || drawerId === "talent-profile-edit";
@@ -4690,6 +4708,31 @@ function TalentProfileShellDrawer() {
   const historyRef = useRef<ProfileState[]>([initialState.current]);
   const historyIdxRef = useRef(0);
   const skipHistoryRef = useRef(false);
+  const allowMarkDirtyRef = useRef(false);
+  const savedStatusResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  type SaveStatus = "idle" | "saving" | "saved" | "error";
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [serverProfileUpdatedAtMs, setServerProfileUpdatedAtMs] = useState<number | null>(null);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  /** Bumps when undo stack changes so header controls re-render (refs alone don't). */
+  const [historyUiEpoch, setHistoryUiEpoch] = useState(0);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    allowMarkDirtyRef.current = mode === "create" || !payload.talentId;
+    setDirty(false);
+    setSavedAt(null);
+    setSaveStatus("idle");
+    setSaveError(null);
+    setServerProfileUpdatedAtMs(null);
+    if (savedStatusResetTimerRef.current) {
+      clearTimeout(savedStatusResetTimerRef.current);
+      savedStatusResetTimerRef.current = null;
+    }
+  }, [drawerOpen, payload.talentId, mode]);
 
   // Push a snapshot whenever state changes (debounced).
   useEffect(() => {
@@ -4705,6 +4748,7 @@ function TalentProfileShellDrawer() {
       if (h.length > 30) h.shift();
       historyRef.current = h;
       historyIdxRef.current = h.length - 1;
+      setHistoryUiEpoch((x) => x + 1);
     }, 350);
     return () => clearTimeout(t);
   }, [state, drawerOpen]);
@@ -4714,15 +4758,19 @@ function TalentProfileShellDrawer() {
     historyIdxRef.current -= 1;
     skipHistoryRef.current = true;
     dispatch({ type: "RESET", state: historyRef.current[historyIdxRef.current] });
-    toast("Undone");
-  }, [toast]);
+    if (allowMarkDirtyRef.current) setDirty(true);
+    setHistoryUiEpoch((x) => x + 1);
+    toast(copy.t("Undone"));
+  }, [copy, toast]);
   const redo = React.useCallback(() => {
     if (historyIdxRef.current >= historyRef.current.length - 1) return;
     historyIdxRef.current += 1;
     skipHistoryRef.current = true;
     dispatch({ type: "RESET", state: historyRef.current[historyIdxRef.current] });
-    toast("Redone");
-  }, [toast]);
+    if (allowMarkDirtyRef.current) setDirty(true);
+    setHistoryUiEpoch((x) => x + 1);
+    toast(copy.t("Redone"));
+  }, [copy, toast]);
 
   // Keyboard ⌘Z / ⌘⇧Z
   useEffect(() => {
@@ -4738,8 +4786,9 @@ function TalentProfileShellDrawer() {
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen, undo, redo]);
 
-  // Convenience patcher
-  const patch = React.useCallback((p: Partial<ProfileState>) => {
+  // Convenience patcher — `silent` skips dirty tracking (hydration + gallery sync).
+  const patch = React.useCallback((p: Partial<ProfileState>, opts?: { silent?: boolean }) => {
+    if (allowMarkDirtyRef.current && !opts?.silent) setDirty(true);
     dispatch({ type: "PATCH", patch: p });
   }, []);
 
@@ -4791,12 +4840,9 @@ function TalentProfileShellDrawer() {
   const [galleryDrawerFocus, setGalleryDrawerFocus] = useState<"avatar" | "hero" | "gallery">("gallery");
   const [galleryAssets, setGalleryAssets] = useState<import("@/components/talent/media-gallery-drawer").MediaAsset[]>([]);
 
-  // Media hydration — when the drawer opens for a real talent, load every
-  // media_assets row owned by them and seed the editor state. Runs once per
-  // drawer-open per talentId. Photos are routed to their original album via
-  // metadata.albumId; uploads from older sessions without that field land in
-  // the first album so nothing disappears from the UI.
-  const hydratedGalleryForRef = useRef<string | null>(null);
+  // Editor row + media bundle load in parallel; one reducer patch keeps album
+  // metadata and gallery items consistent (no race between two hydrations).
+  const profileShellHydratedForRef = useRef<string | null>(null);
   const [hydratingMedia, setHydratingMedia] = useState(false);
   // Stash the latest state in a ref so effects/callbacks below can read the
   // current value without forcing a `state` dep (which would re-fire on every
@@ -4808,61 +4854,238 @@ function TalentProfileShellDrawer() {
     if (!drawerOpen || mode === "create") return;
     const tid = payload.talentId;
     if (!tid) return;
-    if (hydratedGalleryForRef.current === tid) return;
-    hydratedGalleryForRef.current = tid;
+    if (profileShellHydratedForRef.current === tid) return;
+    profileShellHydratedForRef.current = tid;
+    allowMarkDirtyRef.current = false;
     setHydratingMedia(true);
-    void actionLoadTalentMediaBundle(tid).then((res) => {
-      setHydratingMedia(false);
-      if (!res.ok) return;
-      const { gallery, hero, polaroids, card } = res.data;
 
-      // Populate Phase 1 avatar/hero local state.
-      if (card?.url) setAvatarPhotoUrl(card.url);
-      if (hero?.url) setHeroPhotoUrl(hero.url);
+    void Promise.all([
+      getTalentProfileEditorData({ talent_profile_id: tid }),
+      actionLoadTalentMediaBundle(tid),
+      isSelf
+        ? getTalentProfileDynFieldValuesForSelf({ talent_profile_id: tid })
+        : getTalentProfileDynFieldValuesForShell({ talent_profile_id: tid }),
+    ])
+      .then(([edRes, mediaRes, dynRes]) => {
+        setHydratingMedia(false);
+        const s = stateRef.current;
 
-      // Populate gallery assets for MediaGalleryDrawer. Attach the row's
-      // metadata at runtime (the MediaAsset interface doesn't declare it,
-      // but the album-sync useEffect below reads it via cast). New uploads
-      // through MediaGalleryDrawer arrive without metadata and fall back to
-      // the first album, which is what we want.
-      type AssetWithMeta = import("@/components/talent/media-gallery-drawer").MediaAsset & {
-        metadata?: Record<string, unknown>;
-      };
-      const allAssets: AssetWithMeta[] = [];
-      if (card) allAssets.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
-      if (hero) allAssets.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
-      for (const g of gallery) allAssets.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder, metadata: g.metadata ?? {} });
-      setGalleryAssets(allAssets);
+        let albumsPro = s.albumsPro;
+        let polaroids = s.polaroids;
 
-      // Discover any albumIds in stored metadata not present in the current
-      // albumsPro and create empty placeholder albums for them so photos
-      // uploaded against now-deleted albums still surface. The actual photo
-      // contents are populated by the reactive useEffect below.
-      const fallbackAlbumId = state.albumsPro[0]?.id ?? "main";
-      const knownIds = new Set(state.albumsPro.map(a => a.id));
-      const extraAlbumIds = new Set<string>();
-      for (const g of gallery) {
-        const aid = (g.metadata?.albumId as string | undefined) ?? fallbackAlbumId;
-        if (!knownIds.has(aid)) extraAlbumIds.add(aid);
-      }
-      const extraAlbums = [...extraAlbumIds].map(id => ({
-        id,
-        name: id.replace(/-[a-z0-9]{4,}$/, "").replace(/-/g, " ") || "Untitled",
-        items: [] as PhotoMeta[],
-      }));
+        if (mediaRes.ok) {
+          const { gallery, hero, polaroids: polaroidsMap, card } = mediaRes.data;
 
-      const polaroidsHydrated = state.polaroids.map(p => {
-        const hit = polaroids[p.id];
-        return hit ? { ...p, url: hit.url, mediaAssetId: hit.id } : p;
-      });
+          if (card?.url) setAvatarPhotoUrl(card.url);
+          if (hero?.url) setHeroPhotoUrl(hero.url);
 
-      patch({
-        albumsPro: extraAlbums.length > 0 ? [...state.albumsPro, ...extraAlbums] : state.albumsPro,
-        polaroids: polaroidsHydrated,
-      });
-    }).catch(() => setHydratingMedia(false));
+          type AssetWithMeta = import("@/components/talent/media-gallery-drawer").MediaAsset & {
+            metadata?: Record<string, unknown>;
+          };
+          const allAssets: AssetWithMeta[] = [];
+          if (card) allAssets.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
+          if (hero) allAssets.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
+          for (const g of gallery) {
+            allAssets.push({
+              id: g.id,
+              url: g.url,
+              variantKind: "gallery",
+              sortOrder: g.sortOrder,
+              metadata: g.metadata ?? {},
+            });
+          }
+          setGalleryAssets(allAssets);
+
+          const fallbackAlbumId = s.albumsPro[0]?.id ?? "main";
+          const knownIds = new Set(s.albumsPro.map(a => a.id));
+          const extraAlbumIds = new Set<string>();
+          for (const g of gallery) {
+            const aid = (g.metadata?.albumId as string | undefined) ?? fallbackAlbumId;
+            if (!knownIds.has(aid)) extraAlbumIds.add(aid);
+          }
+          const extraAlbums = [...extraAlbumIds].map(id => ({
+            id,
+            name: id.replace(/-[a-z0-9]{4,}$/, "").replace(/-/g, " ") || "Untitled",
+            items: [] as PhotoMeta[],
+          }));
+
+          albumsPro = extraAlbums.length > 0 ? [...s.albumsPro, ...extraAlbums] : s.albumsPro;
+          polaroids = s.polaroids.map(p => {
+            const hit = polaroidsMap[p.id];
+            return hit ? { ...p, url: hit.url, mediaAssetId: hit.id } : p;
+          });
+        }
+
+        if (!edRes.ok) {
+          if (mediaRes.ok) {
+            patch({ albumsPro, polaroids }, { silent: true });
+          }
+          allowMarkDirtyRef.current = true;
+          return;
+        }
+
+        const d = edRes.data;
+        const patchPayload: Partial<ProfileState> = {};
+        {
+          // DB enums use underscores; SelectPicker / ProfileIdentity use slash ids (she/her).
+          const DB_PRONOUNS_TO_STATE: Record<string, ProfileIdentity["pronouns"]> = {
+            she_her: "she/her",
+            he_him: "he/him",
+            they_them: "they/them",
+            ze_zir: "ze/zir",
+            custom: "custom",
+          };
+          const displayName = ((d.display_name as string | null) ?? "").trim();
+          patchPayload.stageName = displayName || s.stageName;
+          patchPayload.identity = {
+            ...s.identity,
+            stageName: displayName || s.identity.stageName,
+            firstName: (d.first_name as string | null) ?? s.identity.firstName ?? "",
+            lastName: (d.last_name as string | null) ?? s.identity.lastName ?? "",
+            legalName: (d.legal_name as string | null) ?? s.identity.legalName ?? "",
+            pronouns: d.pronouns ? DB_PRONOUNS_TO_STATE[d.pronouns as string] ?? null : null,
+            pronounsCustom: (d.pronouns_custom as string | null) ?? "",
+            gender: (d.gender as string | null) as ProfileIdentity["gender"] ?? null,
+            dob: (d.date_of_birth as string | null) ?? null,
+            ageDisplay: (d.age_display_mode as ProfileIdentity["ageDisplay"]) ?? "range",
+            nationality: (d.nationality as string | null) ?? s.identity.nationality,
+            homeCountry: (d.home_country_text as string | null) ?? s.identity.homeCountry ?? "",
+            responseTime: (d.response_time as ProfileIdentity["responseTime"]) ?? s.identity.responseTime,
+            visibility: (d.field_visibility as ProfileIdentity["visibility"]) ?? s.identity.visibility,
+            contactEmail: ((d.invitation_email as string | null) ?? "").trim(),
+            ...splitShellContactPhone((d.phone as string | null) ?? null),
+          };
+        }
+        const shellVideos = extractShellVideoUrls(d.embedded_media);
+        if (shellVideos.length > 0) patchPayload.videoLinks = shellVideos;
+        const shellWa = findShellWhatsappHref(d.social_links);
+        if (shellWa && patchPayload.identity) {
+          const withPlus = shellWa.startsWith("+") ? shellWa : `+${shellWa}`;
+          const wp = splitShellContactPhone(withPlus);
+          patchPayload.identity = {
+            ...patchPayload.identity,
+            whatsapp: wp.contactPhone,
+            whatsappPrefix: wp.contactPhonePrefix,
+          };
+        }
+        const shellBiz = findShellBusinessLine(d.social_links);
+        if (shellBiz && patchPayload.identity) {
+          patchPayload.identity = { ...patchPayload.identity, businessLine: shellBiz };
+        }
+        if (d.bios && d.bios.length > 0) patchPayload.bios = d.bios as LocaleBio[];
+        if (d.bio_tone) patchPayload.bioTone = d.bio_tone as BioTone;
+        if (d.tagline) patchPayload.tagline = d.tagline;
+        if (d.personality_traits && typeof d.personality_traits === "object") {
+          patchPayload.personality = d.personality_traits as Personality;
+        }
+        if (d.home_city_text || d.upcoming_visits) {
+          patchPayload.serviceArea = {
+            ...s.serviceArea,
+            homeBase: d.home_city_text ?? s.serviceArea.homeBase,
+            homePlaceId: (d.home_place_id as string | undefined) ?? s.serviceArea.homePlaceId,
+            travelKm: d.travel_radius_km ?? s.serviceArea.travelKm,
+            travelFee: d.travel_fee_required,
+            remoteOnly: d.remote_only,
+            passport: (d.passport_status as ServiceArea["passport"]) ?? s.serviceArea.passport,
+            driversLicense: (d.drivers_license as ServiceArea["driversLicense"]) ?? s.serviceArea.driversLicense,
+            workEligibility: Array.isArray(d.work_eligibility) ? (d.work_eligibility as string[]) : s.serviceArea.workEligibility,
+            upcomingVisits: Array.isArray(d.upcoming_visits) ? (d.upcoming_visits as ServiceArea["upcomingVisits"]) : s.serviceArea.upcomingVisits,
+          };
+        }
+        if (Array.isArray(d.rates_data) && d.rates_data.length > 0) patchPayload.rates = d.rates_data as ProfileState["rates"];
+        if (Array.isArray(d.rate_tiers_data) && d.rate_tiers_data.length > 0) {
+          patchPayload.rateTiers = d.rate_tiers_data as ProfileState["rateTiers"];
+        }
+        if (Array.isArray(d.package_rates_data) && d.package_rates_data.length > 0) {
+          patchPayload.packageRates = d.package_rates_data as ProfileState["packageRates"];
+        }
+        if (d.rate_card_visibility) patchPayload.rateCardVisibility = d.rate_card_visibility as ProfileState["rateCardVisibility"];
+        patchPayload.askForQuote = d.ask_for_quote;
+        patchPayload.travelIncluded = d.travel_included;
+        patchPayload.lodgingIncluded = d.lodging_included;
+        if (Array.isArray(d.credits_data) && d.credits_data.length > 0) patchPayload.credits = d.credits_data as ProfileState["credits"];
+        if (d.limits_data && typeof d.limits_data === "object" && !Array.isArray(d.limits_data)) {
+          patchPayload.limits = limitsDataToEntries(d.limits_data) as ProfileState["limits"];
+        }
+        if (Array.isArray(d.social_proof_data) && d.social_proof_data.length > 0) {
+          patchPayload.pastClients = d.social_proof_data as ProfileState["pastClients"];
+        }
+        if (d.availability_data && typeof d.availability_data === "object") {
+          const av = d.availability_data as {
+            cells?: unknown[];
+            recurring?: unknown;
+            vacation?: unknown;
+            seasonalWindows?: ProfileState["seasonalWindows"];
+          };
+          if (Array.isArray(av.cells)) patchPayload.availability = av.cells as ProfileState["availability"];
+          if (av.recurring) patchPayload.recurring = av.recurring as ProfileState["recurring"];
+          if (av.vacation) patchPayload.vacation = av.vacation as ProfileState["vacation"];
+          if (Array.isArray(av.seasonalWindows)) patchPayload.seasonalWindows = av.seasonalWindows;
+        }
+        if (d.internal_notes) patchPayload.internalNotes = d.internal_notes;
+        if (d.emergency_contact && typeof d.emergency_contact === "object") {
+          patchPayload.emergencyContact = d.emergency_contact as ProfileState["emergencyContact"];
+        }
+        if (d.field_locks_data && typeof d.field_locks_data === "object") {
+          const fl = d.field_locks_data as { locks?: unknown[]; reasons?: Record<string, string> };
+          if (Array.isArray(fl.locks)) patchPayload.fieldLocks = fl.locks as ProfileState["fieldLocks"];
+          if (fl.reasons) patchPayload.fieldLockReasons = fl.reasons;
+        }
+        patchPayload.featureInDirectory = d.feature_in_directory;
+
+        if (Array.isArray(d.media_albums_data) && d.media_albums_data.length > 0) {
+          const saved = (d.media_albums_data as { id: string; name: string; sortOrder?: number }[])
+            .slice()
+            .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+          const itemsByAlbum = new Map(albumsPro.map(a => [a.id, a.items]));
+          patchPayload.albumsPro = saved.map(sv => ({
+            id: sv.id,
+            name: sv.name,
+            items: itemsByAlbum.get(sv.id) ?? [],
+          }));
+        } else if (mediaRes.ok) {
+          patchPayload.albumsPro = albumsPro;
+        }
+
+        if (mediaRes.ok) {
+          patchPayload.polaroids = polaroids;
+        }
+
+        if (Array.isArray(d.documents_data) && d.documents_data.length > 0) {
+          patchPayload.files = d.documents_data.map(doc => ({
+            id: doc.id,
+            name: doc.name,
+            kind: doc.kind,
+            sizeBytes: doc.sizeBytes,
+            uploadedAt: doc.uploadedAt,
+            storagePath: doc.storagePath,
+            bucketId: doc.bucketId,
+            mimeType: doc.mimeType,
+          }));
+        }
+
+        if (d.updated_at) {
+          const ms = Date.parse(d.updated_at);
+          if (!Number.isNaN(ms)) setServerProfileUpdatedAtMs(ms);
+        }
+
+        patchPayload.profileStatus = dbToUiProfileShellStatus(
+          d.workflow_status as string | null,
+          d.visibility as string | null,
+        );
+        patchPayload.primaryType = d.shell_primary_talent_slug;
+        patchPayload.secondaryTypes = d.shell_secondary_talent_slugs ?? [];
+
+        if (dynRes.ok && Object.keys(dynRes.values).length > 0) {
+          patchPayload.dynFields = { ...s.dynFields, ...dynRes.values };
+        }
+
+        patch(patchPayload, { silent: true });
+        allowMarkDirtyRef.current = true;
+      })
+      .catch(() => setHydratingMedia(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawerOpen, mode, payload.talentId]);
+  }, [drawerOpen, mode, payload.talentId, isSelf]);
 
   // Keep albumsPro photo lists in sync with galleryAssets. Without this,
   // photos uploaded/deleted via MediaGalleryDrawer after the drawer opens
@@ -4888,7 +5111,7 @@ function TalentProfileShellDrawer() {
           ? { ...a, items: byAlbum.get(fallbackAlbumId) ?? [] }
           : a
     );
-    patch({ albumsPro: updatedAlbums });
+    patch({ albumsPro: updatedAlbums }, { silent: true });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galleryAssets]);
 
@@ -4905,31 +5128,34 @@ function TalentProfileShellDrawer() {
   // commit text edits to DB. Photo upload + delete + reorder still happen on
   // pick/click (intent-based). The Save button waits for any in-flight photo
   // operations to complete before declaring the whole save done.
-  type SaveStatus = "idle" | "saving" | "saved" | "error";
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const [saveError, setSaveError] = useState<string | null>(null);
   // stateRef is declared above (near the media hydration block) — saveAll
   // reads from it so we can keep `state` out of this callback's dep array.
 
-  const saveAll = React.useCallback(async () => {
+  const saveAll = React.useCallback(async (): Promise<boolean> => {
     const tid = payload.talentId;
     if (!tid || mode === "create") {
-      setSaveError("No talent context yet — finish creating first.");
+      setSaveError(copy.t("No talent context yet — finish creating first."));
       setSaveStatus("error");
-      return;
+      return false;
     }
     setSaveStatus("saving");
     setSaveError(null);
 
+    try {
     const PRONOUNS_TO_DB: Record<string, "she_her" | "he_him" | "they_them" | "ze_zir" | "custom"> = {
       "she/her": "she_her",
       "he/him": "he_him",
       "they/them": "they_them",
       "ze/zir": "ze_zir",
       custom: "custom",
+      she_her: "she_her",
+      he_him: "he_him",
+      they_them: "they_them",
+      ze_zir: "ze_zir",
     };
 
     const s = stateRef.current;
+    const shellSyncTaxonomy = !(bridgeTenantIdentity?.tenantId && tid);
     const id = s.identity;
     const visibilityDraft = id.visibility;
     const visibilityPatch = visibilityDraft && (visibilityDraft.legalName || visibilityDraft.pronouns || visibilityDraft.gender || visibilityDraft.dob)
@@ -4954,11 +5180,15 @@ function TalentProfileShellDrawer() {
       age_display_mode:
         id.ageDisplay === "exact" || id.ageDisplay === "range" || id.ageDisplay === "hidden" ? id.ageDisplay : undefined,
       nationality: id.nationality ?? "",
+      home_country: id.homeCountry ?? "",
       response_time:
         id.responseTime === "1h" || id.responseTime === "4h" || id.responseTime === "24h" || id.responseTime === "48h"
           ? id.responseTime
           : null,
       field_visibility: visibilityPatch,
+      contact_email: id.contactEmail ?? "",
+      contact_phone: id.contactPhone ?? "",
+      contact_phone_prefix: id.contactPhonePrefix ?? "+1",
     };
 
     const aboutPayload = {
@@ -4988,6 +5218,7 @@ function TalentProfileShellDrawer() {
     const ratesPayload = {
       talent_profile_id: tid,
       rates_data: s.rates.map(r => ({ typeId: r.typeId, amount: r.amount, currency: r.currency, unit: r.unit })),
+      rate_tiers_data: s.rateTiers,
       package_rates_data: s.packageRates.map(p => ({ id: p.id, name: p.name, description: p.description, amount: p.amount, currency: p.currency })),
       rate_card_visibility: s.rateCardVisibility as "public" | "agency-only" | "on-request",
       ask_for_quote: s.askForQuote,
@@ -4997,7 +5228,12 @@ function TalentProfileShellDrawer() {
 
     const availPayload = {
       talent_profile_id: tid,
-      availability_data: { cells: s.availability, recurring: s.recurring, vacation: s.vacation },
+      availability_data: {
+        cells: s.availability,
+        recurring: s.recurring,
+        vacation: s.vacation,
+        seasonalWindows: s.seasonalWindows,
+      },
     };
 
     const langsPayload = {
@@ -5017,13 +5253,12 @@ function TalentProfileShellDrawer() {
       credits_data: s.credits.map(c => ({ id: c.id, brand: c.brand, type: c.type, credit: c.credit, role: c.role, year: c.year, pinned: c.pinned })),
     };
 
+    const limitsRows: ShellLimitsEntry[] = Array.isArray(s.limits) && (s.limits.length === 0 || "enforcement" in s.limits[0])
+      ? (s.limits as ShellLimitsEntry[])
+      : limitsDataToEntries(s.limits as unknown);
     const limitsPayload = {
       talent_profile_id: tid,
-      limits_data: {
-        hardLimits: (s.limits as { hardLimits?: string[] }).hardLimits ?? [],
-        softLimits: (s.limits as { softLimits?: string[] }).softLimits ?? [],
-        customNote: (s.limits as { customNote?: string }).customNote,
-      },
+      limits_data: limitsEntriesToData(limitsRows),
     };
 
     const socialPayload = {
@@ -5066,173 +5301,181 @@ function TalentProfileShellDrawer() {
         })),
     };
 
-    // Fire all section saves in parallel.
-    const ops: Array<Promise<{ ok: true } | { ok: false; error: string }>> = [
-      isSelf ? updateSelfIdentity(identityPayload) : updateTalentIdentity(identityPayload),
-      isSelf ? updateSelfAbout(aboutPayload) : updateTalentAbout(aboutPayload),
-      isSelf ? updateSelfLocation(locationPayload) : updateTalentLocation(locationPayload),
-      isSelf ? updateSelfRates(ratesPayload) : updateTalentRates(ratesPayload),
-      isSelf ? updateSelfAvailability(availPayload) : updateTalentAvailability(availPayload),
-      isSelf ? saveSelfLanguages(langsPayload) : saveTalentLanguages(langsPayload),
-      isSelf ? updateSelfCredits(creditsPayload) : updateTalentCredits(creditsPayload),
-      isSelf ? updateSelfLimits(limitsPayload) : updateTalentLimits(limitsPayload),
-      isSelf ? updateSelfSocialProof(socialPayload) : updateTalentSocialProof(socialPayload),
-      // Album + document list saves are admin-only for now (no self-edit
-      // equivalents yet — talents see read-only views of these).
-      ...(adminVisible ? [updateTalentMediaAlbums(albumsPayload), updateTalentDocuments(documentsPayload)] : []),
-    ];
-    if (adminVisible) ops.push(updateRosterMeta(rosterMetaPayload));
+    // Agency roster edit: one batched server action (fast + single auth).
+    if (adminVisible && !isSelf) {
+      const batchRes = await commitTalentProfileShellAdmin({
+        talent_profile_id: tid,
+        identity: identityPayload,
+        about: {
+          bios: aboutPayload.bios,
+          bio_tone: aboutPayload.bio_tone,
+          personality_traits: aboutPayload.personality_traits,
+          tagline: aboutPayload.tagline,
+        },
+        location: {
+          home_base: locationPayload.home_base,
+          home_place_id: locationPayload.home_place_id,
+          travel_radius_km: locationPayload.travel_radius_km,
+          travel_fee_required: locationPayload.travel_fee_required,
+          remote_only: locationPayload.remote_only,
+          passport_status: locationPayload.passport_status,
+          drivers_license: locationPayload.drivers_license,
+          work_eligibility: locationPayload.work_eligibility,
+          upcoming_visits: locationPayload.upcoming_visits,
+        },
+        rates: {
+          rates_data: ratesPayload.rates_data,
+          package_rates_data: ratesPayload.package_rates_data,
+          rate_tiers_data: ratesPayload.rate_tiers_data,
+          rate_card_visibility: ratesPayload.rate_card_visibility,
+          ask_for_quote: ratesPayload.ask_for_quote,
+          travel_included: ratesPayload.travel_included,
+          lodging_included: ratesPayload.lodging_included,
+        },
+        shell_sync_taxonomy: shellSyncTaxonomy,
+        shell_primary_talent_slug: s.primaryType,
+        shell_secondary_talent_slugs: s.secondaryTypes,
+        shell_profile_status: s.profileStatus,
+        availability: { availability_data: availPayload.availability_data },
+        languages: { languages: langsPayload.languages },
+        credits: { credits_data: creditsPayload.credits_data },
+        limits: { limits_data: limitsPayload.limits_data },
+        social: { social_proof_data: socialPayload.social_proof_data },
+        albums: { albums: albumsPayload.albums },
+        documents: { documents: documentsPayload.documents },
+        rosterMeta: {
+          internal_notes: rosterMetaPayload.internal_notes,
+          emergency_contact: rosterMetaPayload.emergency_contact,
+          field_locks_data: rosterMetaPayload.field_locks_data,
+          feature_in_directory: rosterMetaPayload.feature_in_directory,
+        },
+        dyn_fields: s.dynFields,
+        profileDrawerExtras: {
+          videoLinks: s.videoLinks,
+          whatsapp: s.identity.whatsapp ?? "",
+          whatsappPrefix: s.identity.whatsappPrefix ?? "+1",
+          businessLine: s.identity.businessLine ?? "",
+        },
+      });
+      if (!batchRes.ok) {
+        setSaveStatus("error");
+        setSaveError(batchRes.error);
+        console.error("[saveAll] batch:", batchRes.error);
+        return false;
+      }
+      setDirty(false);
+      setServerProfileUpdatedAtMs(Date.now());
+      setSaveStatus("saved");
+      setSaveError(null);
+      setSavedAt(new Date());
+      if (savedStatusResetTimerRef.current) clearTimeout(savedStatusResetTimerRef.current);
+      savedStatusResetTimerRef.current = setTimeout(() => {
+        setSaveStatus("idle");
+        savedStatusResetTimerRef.current = null;
+      }, 2800);
+      startTransition(() => {
+        shellRouter.refresh();
+      });
+      return true;
+    }
 
-    const labels = adminVisible
-      ? ["Identity", "About", "Location", "Rates", "Availability", "Languages", "Credits", "Limits", "Social proof", "Albums", "Documents", "Admin"]
-      : ["Identity", "About", "Location", "Rates", "Availability", "Languages", "Credits", "Limits", "Social proof"];
+    const profileDrawerExtrasPayload = {
+      talent_profile_id: tid,
+      videoLinks: s.videoLinks,
+      whatsapp: s.identity.whatsapp ?? "",
+      whatsappPrefix: s.identity.whatsappPrefix ?? "+1",
+      businessLine: s.identity.businessLine ?? "",
+    };
+
+    // Talent self-edit: still uses per-section actions (separate auth model).
+    const ops: Array<Promise<{ ok: true } | { ok: false; error: string }>> = [
+      updateSelfIdentity(identityPayload),
+      updateSelfProfileDrawerExtras(profileDrawerExtrasPayload),
+      updateSelfAbout(aboutPayload),
+      updateSelfLocation(locationPayload),
+      updateSelfRates(ratesPayload),
+      updateSelfAvailability(availPayload),
+      saveSelfLanguages(langsPayload),
+      updateSelfCredits(creditsPayload),
+      updateSelfLimits(limitsPayload),
+      updateSelfSocialProof(socialPayload),
+      updateSelfProfileShellDynFields({ talent_profile_id: tid, dyn_fields: s.dynFields }),
+      updateSelfProfileWorkflowFromShell({ talent_profile_id: tid, profile_status: s.profileStatus }),
+    ];
+
+    const labels = [
+      "Identity",
+      "Media & contact links",
+      "About",
+      "Location",
+      "Rates",
+      "Availability",
+      "Languages",
+      "Credits",
+      "Limits",
+      "Social proof",
+      "Profile fields",
+      "Profile status",
+    ];
     const results = await Promise.all(ops);
 
     const failures = results
       .map((r, i) => (!r.ok ? `${labels[i]}: ${r.error}` : null))
       .filter((x): x is string => x !== null);
 
-    if (failures.length === 0) {
-      setSaveStatus("saved");
-      setSaveError(null);
-      // Refresh server-rendered data so the roster card behind the drawer
-      // (and any other surface reading the talent's name / city / type)
-      // reflects the saved values without requiring a full page reload.
-      shellRouter.refresh();
-    } else {
+    if (failures.length > 0) {
       setSaveStatus("error");
       setSaveError(failures.join(" · "));
-      // eslint-disable-next-line no-console
       console.error("[saveAll] failures:", failures);
+      return false;
     }
-  }, [payload.talentId, mode, isSelf, adminVisible, shellRouter]);
 
-  // ── Profile editor hydration ──────────────────────────────────────────────
-  // Loads the saved bio / tone / location / rates / credits / limits / social
-  // proof / roster meta from the DB and seeds the reducer the first time the
-  // drawer opens for a given talentId. Without this, the drawer always shows
-  // the prototype's mock initial state and the user's saved edits look "lost"
-  // even though they persisted correctly.
-  const hydratedProfileForRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!drawerOpen || mode === "create") return;
-    const tid = payload.talentId;
-    if (!tid) return;
-    if (hydratedProfileForRef.current === tid) return;
-    hydratedProfileForRef.current = tid;
-    void getTalentProfileEditorData({ talent_profile_id: tid }).then((res) => {
-      if (!res.ok) return;
-      const d = res.data;
-      const patchPayload: Partial<ProfileState> = {};
-      // Identity — hydrate legal name, first/last name, pronouns, dob, etc.
-      {
-        const DB_PRONOUNS_TO_STATE: Record<string, string> = {
-          she_her: "she_her", he_him: "he_him", they_them: "they_them", ze_zir: "ze_zir", custom: "custom",
-        };
-        patchPayload.identity = {
-          ...state.identity,
-          firstName: (d.first_name as string | null) ?? state.identity.firstName ?? "",
-          lastName: (d.last_name as string | null) ?? state.identity.lastName ?? "",
-          legalName: (d.legal_name as string | null) ?? state.identity.legalName ?? "",
-          pronouns: d.pronouns ? (DB_PRONOUNS_TO_STATE[d.pronouns as string] as ProfileIdentity["pronouns"]) ?? null : null,
-          pronounsCustom: (d.pronouns_custom as string | null) ?? "",
-          gender: (d.gender as string | null) as ProfileIdentity["gender"] ?? null,
-          dob: (d.date_of_birth as string | null) ?? null,
-          ageDisplay: (d.age_display_mode as ProfileIdentity["ageDisplay"]) ?? "range",
-          nationality: (d.nationality as string | null) ?? state.identity.nationality,
-          responseTime: (d.response_time as ProfileIdentity["responseTime"]) ?? state.identity.responseTime,
-          visibility: (d.field_visibility as ProfileIdentity["visibility"]) ?? state.identity.visibility,
-        };
+    if (shellSyncTaxonomy) {
+      const taxRes = await syncSelfTalentTypeTaxonomyFromShell({
+        talent_profile_id: tid,
+        primary_slug: s.primaryType,
+        secondary_slugs: s.secondaryTypes,
+      });
+      if (!taxRes.ok) {
+        setSaveStatus("error");
+        setSaveError(taxRes.error);
+        console.error("[saveAll] taxonomy:", taxRes.error);
+        return false;
       }
-      if (d.bios && d.bios.length > 0) patchPayload.bios = d.bios as LocaleBio[];
-      if (d.bio_tone) patchPayload.bioTone = d.bio_tone as BioTone;
-      if (d.tagline) patchPayload.tagline = d.tagline;
-      if (d.personality_traits && typeof d.personality_traits === "object") {
-        patchPayload.personality = d.personality_traits as Personality;
-      }
-      if (d.home_city_text || d.upcoming_visits) {
-        patchPayload.serviceArea = {
-          ...state.serviceArea,
-          homeBase: d.home_city_text ?? state.serviceArea.homeBase,
-          homePlaceId: (d.home_place_id as string | undefined) ?? state.serviceArea.homePlaceId,
-          travelKm: d.travel_radius_km ?? state.serviceArea.travelKm,
-          travelFee: d.travel_fee_required,
-          remoteOnly: d.remote_only,
-          passport: (d.passport_status as ServiceArea["passport"]) ?? state.serviceArea.passport,
-          driversLicense: (d.drivers_license as ServiceArea["driversLicense"]) ?? state.serviceArea.driversLicense,
-          workEligibility: Array.isArray(d.work_eligibility) ? (d.work_eligibility as string[]) : state.serviceArea.workEligibility,
-          upcomingVisits: Array.isArray(d.upcoming_visits) ? (d.upcoming_visits as ServiceArea["upcomingVisits"]) : state.serviceArea.upcomingVisits,
-        };
-      }
-      if (Array.isArray(d.rates_data) && d.rates_data.length > 0) patchPayload.rates = d.rates_data as ProfileState["rates"];
-      if (Array.isArray(d.package_rates_data) && d.package_rates_data.length > 0) patchPayload.packageRates = d.package_rates_data as ProfileState["packageRates"];
-      if (d.rate_card_visibility) patchPayload.rateCardVisibility = d.rate_card_visibility as ProfileState["rateCardVisibility"];
-      patchPayload.askForQuote = d.ask_for_quote;
-      patchPayload.travelIncluded = d.travel_included;
-      patchPayload.lodgingIncluded = d.lodging_included;
-      if (Array.isArray(d.credits_data) && d.credits_data.length > 0) patchPayload.credits = d.credits_data as ProfileState["credits"];
-      if (d.limits_data && typeof d.limits_data === "object" && !Array.isArray(d.limits_data)) {
-        patchPayload.limits = d.limits_data as ProfileState["limits"];
-      }
-      if (Array.isArray(d.social_proof_data) && d.social_proof_data.length > 0) patchPayload.pastClients = d.social_proof_data as ProfileState["pastClients"];
-      if (d.availability_data && typeof d.availability_data === "object") {
-        const av = d.availability_data as { cells?: unknown[]; recurring?: unknown; vacation?: unknown };
-        if (Array.isArray(av.cells)) patchPayload.availability = av.cells as ProfileState["availability"];
-        if (av.recurring) patchPayload.recurring = av.recurring as ProfileState["recurring"];
-        if (av.vacation) patchPayload.vacation = av.vacation as ProfileState["vacation"];
-      }
-      if (d.internal_notes) patchPayload.internalNotes = d.internal_notes;
-      if (d.emergency_contact && typeof d.emergency_contact === "object") {
-        patchPayload.emergencyContact = d.emergency_contact as ProfileState["emergencyContact"];
-      }
-      if (d.field_locks_data && typeof d.field_locks_data === "object") {
-        const fl = d.field_locks_data as { locks?: unknown[]; reasons?: Record<string, string> };
-        if (Array.isArray(fl.locks)) patchPayload.fieldLocks = fl.locks as ProfileState["fieldLocks"];
-        if (fl.reasons) patchPayload.fieldLockReasons = fl.reasons;
-      }
-      patchPayload.featureInDirectory = d.feature_in_directory;
+    }
 
-      // Albums — restore saved {id, name, sortOrder} so renames + ordering
-      // survive reloads. Photo items are restored by the media bundle
-      // hydration (above); we only carry the album metadata here.
-      if (Array.isArray(d.media_albums_data) && d.media_albums_data.length > 0) {
-        const saved = (d.media_albums_data as { id: string; name: string; sortOrder?: number }[])
-          .slice()
-          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-        // Merge with whatever the media-hydration block populated (which
-        // carries the items[]). Saved albums win on name/order; items come
-        // from the live state at the time of this run.
-        const itemsByAlbum = new Map(state.albumsPro.map(a => [a.id, a.items]));
-        patchPayload.albumsPro = saved.map(s => ({
-          id: s.id,
-          name: s.name,
-          items: itemsByAlbum.get(s.id) ?? [],
-        }));
-      }
-
-      // Documents — restore the file list so download buttons reappear.
-      if (Array.isArray(d.documents_data) && d.documents_data.length > 0) {
-        patchPayload.files = d.documents_data.map(doc => ({
-          id: doc.id,
-          name: doc.name,
-          kind: doc.kind,
-          sizeBytes: doc.sizeBytes,
-          uploadedAt: doc.uploadedAt,
-          storagePath: doc.storagePath,
-          bucketId: doc.bucketId,
-          mimeType: doc.mimeType,
-        }));
-      }
-
-      patch(patchPayload);
+    setDirty(false);
+    setServerProfileUpdatedAtMs(Date.now());
+    setSaveStatus("saved");
+    setSaveError(null);
+    setSavedAt(new Date());
+    if (savedStatusResetTimerRef.current) clearTimeout(savedStatusResetTimerRef.current);
+    savedStatusResetTimerRef.current = setTimeout(() => {
+      setSaveStatus("idle");
+      savedStatusResetTimerRef.current = null;
+    }, 2800);
+    startTransition(() => {
+      shellRouter.refresh();
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawerOpen, mode, payload.talentId]);
+    return true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Save failed";
+      setSaveStatus("error");
+      setSaveError(msg);
+      console.error("[saveAll] error:", e);
+      return false;
+    }
+  }, [payload.talentId, mode, isSelf, adminVisible, shellRouter, copy, bridgeTenantIdentity?.tenantId]);
 
   const toggleSet = (field: "secondaryTypes" | "specialties" | "contexts" | "aspirations") =>
-    (value: string) => dispatch({ type: "TOGGLE_SET", field, value });
-  const setSkill = (skillId: string, proficiency: SkillProficiency | null) =>
+    (value: string) => {
+      if (allowMarkDirtyRef.current) setDirty(true);
+      dispatch({ type: "TOGGLE_SET", field, value });
+    };
+  const setSkill = (skillId: string, proficiency: SkillProficiency | null) => {
+    if (allowMarkDirtyRef.current) setDirty(true);
     dispatch({ type: "SET_SKILL", skillId, proficiency });
+  };
 
   // ── UI state ───────────────────────────────────────────────────────
   // #3 — Deep-link hydration. URL ?section=availability lands directly
@@ -5265,7 +5508,6 @@ function TalentProfileShellDrawer() {
     return () => clearTimeout(t);
   }, [drawerOpen, activeSection]);
   const [refinementTab, setRefinementTab] = useState<"skills" | "contexts">("skills");
-  const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [viewAsClient, setViewAsClient] = useState(false);
 
   // (Required-coach autofocus uses [data-pshell-field] querySelector)
@@ -5652,12 +5894,17 @@ function TalentProfileShellDrawer() {
   // keep editing; this one commits and dismisses in one click.
   const saveAndExit = async () => {
     if (payload.talentId && mode !== "create") {
-      await saveAll();
-      // saveAll updates saveStatus internally — close regardless so the
-      // user isn't trapped in the drawer. If saveStatus === "error" they
-      // can reopen and see the error pill on the Save button.
+      if (!dirty && saveStatus !== "error") {
+        closeDrawer();
+        return;
+      }
+      const ok = await saveAll();
+      if (!ok) {
+        toast(copy.isSpanish ? "No se guardó. Revisa el botón Guardar." : "Not saved. Check the Save button for errors.");
+        return;
+      }
     }
-    toast("Saved — closing drawer");
+    toast(copy.t("Saved — closing drawer"));
     closeDrawer();
   };
 
@@ -5679,6 +5926,24 @@ function TalentProfileShellDrawer() {
   };
 
   if (!drawerOpen) return null;
+
+  void historyUiEpoch;
+  const canUndoStack = historyIdxRef.current > 0;
+  const canRedoStack = historyIdxRef.current < historyRef.current.length - 1;
+  const showHeaderSave =
+    !!payload.talentId && (dirty || saveStatus === "saving" || saveStatus === "error");
+  const saveSubtitle = copy.profileDrawerSaveSubtitle({
+    saveStatus,
+    savedAt,
+    serverUpdatedAtMs: serverProfileUpdatedAtMs,
+    ageText: savedAt ? ageString(savedAt) : "",
+  });
+  const saveSubtitleTitle = copy.profileDrawerSaveSubtitleTitle({
+    saveStatus,
+    savedAt,
+    serverUpdatedAtMs: serverProfileUpdatedAtMs,
+    saveError,
+  });
 
   return (
     <div onClick={closeDrawer} style={{
@@ -5821,17 +6086,27 @@ function TalentProfileShellDrawer() {
           padding: "12px 18px", borderBottom: `1px solid ${COLORS.borderSoft}`,
           display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
         }}>
-          <button type="button" onClick={closeDrawer} aria-label="Close" style={{
+          <button type="button" onClick={closeDrawer} aria-label={copy.t("Close")} style={{
             width: 28, height: 28, borderRadius: 8, border: "none", cursor: "pointer",
             background: "transparent", color: COLORS.ink, fontSize: 14, lineHeight: 1,
           }}>✕</button>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {mode === "create" ? "New profile" : isSelf ? "Edit your profile" : (state.stageName || "Profile")}
+              {mode === "create" ? copy.t("New profile") : isSelf ? copy.t("Edit your profile") : (state.stageName || copy.t("Profile"))}
             </div>
-            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1, display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: savedAt ? COLORS.green : "rgba(11,11,13,0.20)" }} />
-              {savedAt ? (ageString(savedAt) ? `Saved ${ageString(savedAt)}` : "Saved") : "Not saved yet"}
+            <div
+              style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1, display: "inline-flex", alignItems: "center", gap: 4 }}
+              title={saveSubtitleTitle || undefined}
+            >
+              <span style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: saveStatus === "error" ? "#C82828"
+                  : saveStatus === "saving" ? COLORS.amberDeep
+                  : savedAt ? COLORS.green
+                  : serverProfileUpdatedAtMs ? COLORS.accentDeep
+                  : "rgba(11,11,13,0.20)",
+              }} />
+              {saveSubtitle}
             </div>
           </div>
 
@@ -5846,26 +6121,85 @@ function TalentProfileShellDrawer() {
               to the footer. */}
           <StatusPillDropdown status={state.profileStatus} onChange={(s) => patch({ profileStatus: s })} role={isSelf ? "talent" : "admin"} />
 
-          {/* Save button — always visible in the drawer header, even at narrow
-              widths where the secondary toolbar collapses. Single explicit
-              commit for every text edit. Photos persist immediately on pick;
-              this button orchestrates the rest in one Promise.all. */}
-          {payload.talentId && (
+          {/* History control strip — always visible (incl. mobile); pairs with explicit Save. */}
+          <div
+            role="group"
+            aria-label={copy.isSpanish ? "Historial de edición" : "Edit history"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              flexShrink: 0,
+              borderRadius: 10,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: "rgba(11,11,13,0.03)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
+              overflow: "hidden",
+            }}
+          >
             <button
               type="button"
-              onClick={() => { void saveAll().then(() => setSavedAt(new Date())); }}
+              onClick={undo}
+              aria-label={copy.t("Undo (⌘Z)")}
+              title={`${copy.t("Undo")} · ⌘Z`}
+              disabled={!canUndoStack}
+              style={{
+                width: 34,
+                height: 30,
+                border: "none",
+                background: "transparent",
+                color: !canUndoStack ? COLORS.inkDim : COLORS.ink,
+                cursor: !canUndoStack ? "not-allowed" : "pointer",
+                fontSize: 15,
+                lineHeight: 1,
+                padding: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              ↶
+            </button>
+            <div style={{ width: 1, height: 18, background: COLORS.borderSoft, flexShrink: 0 }} />
+            <button
+              type="button"
+              onClick={redo}
+              aria-label={copy.t("Redo (⌘⇧Z)")}
+              title={`${copy.t("Redo")} · ⌘⇧Z`}
+              disabled={!canRedoStack}
+              style={{
+                width: 34,
+                height: 30,
+                border: "none",
+                background: "transparent",
+                color: !canRedoStack ? COLORS.inkDim : COLORS.ink,
+                cursor: !canRedoStack ? "not-allowed" : "pointer",
+                fontSize: 15,
+                lineHeight: 1,
+                padding: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              ↷
+            </button>
+          </div>
+
+          {/* Save appears once the user edits (or while saving / after error). */}
+          {showHeaderSave && (
+            <button
+              type="button"
+              onClick={() => { void saveAll(); }}
               disabled={saveStatus === "saving"}
               title={saveStatus === "error" && saveError ? saveError : undefined}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "7px 14px", borderRadius: 999, border: "none",
                 background:
-                  saveStatus === "saved" ? "rgba(15,79,62,0.10)"
-                  : saveStatus === "error" ? "rgba(200,40,40,0.10)"
+                  saveStatus === "error" ? "rgba(200,40,40,0.10)"
                   : COLORS.fill,
                 color:
-                  saveStatus === "saved" ? COLORS.accentDeep
-                  : saveStatus === "error" ? "#C82828"
+                  saveStatus === "error" ? "#C82828"
                   : "#fff",
                 fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700,
                 letterSpacing: 0.2,
@@ -5882,43 +6216,32 @@ function TalentProfileShellDrawer() {
                   animation: "tulala-spin 0.8s linear infinite",
                 }} />
               )}
-              {saveStatus === "saving" ? "Saving…"
-                : saveStatus === "saved" ? "✓ Saved"
-                : saveStatus === "error" ? `⚠ ${(saveError ?? "Couldn't save").slice(0, 40)}`
-                : "Save"}
+              {saveStatus === "saving" ? copy.t("Saving…")
+                : saveStatus === "error" ? `⚠ ${(saveError ?? (copy.isSpanish ? "No se pudo guardar" : "Couldn't save")).slice(0, 40)}`
+                : copy.t("Save")}
               <style>{`@keyframes tulala-spin { to { transform: rotate(360deg); } }`}</style>
             </button>
           )}
 
           {/* Desktop-only toolbar — every secondary action lives here. */}
           <div data-pshell-header-extras style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <button type="button" onClick={undo} aria-label="Undo (⌘Z)" disabled={historyIdxRef.current <= 0} style={{
-              width: 28, height: 28, borderRadius: 8, border: "none",
-              background: "transparent", color: historyIdxRef.current <= 0 ? COLORS.inkDim : COLORS.ink,
-              cursor: historyIdxRef.current <= 0 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, padding: 0,
-            }}>↶</button>
-            <button type="button" onClick={redo} aria-label="Redo (⌘⇧Z)" style={{
-              width: 28, height: 28, borderRadius: 8, border: "none",
-              background: "transparent", color: COLORS.ink,
-              cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0,
-            }}>↷</button>
-            <button type="button" onClick={() => setViewAsClient(true)} title="View as client" aria-label="View as client" style={{
+            <button type="button" onClick={() => setViewAsClient(true)} title={copy.t("View as client")} aria-label={copy.t("View as client")} style={{
               padding: "5px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
               background: "#fff", color: COLORS.ink,
               fontSize: 11, fontWeight: 500, cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: 5,
-            }}>👁 View as client</button>
+            }}>👁 {copy.t("View as client")}</button>
             {/* #15 — Admin "Review changes" → opens the diff modal so
                 admin sees what changed since the last published version
                 before approving / rejecting. Always available; the modal
                 shows "no changes" if there's nothing pending. */}
             {adminVisible && (
-              <button type="button" onClick={() => setDiffOpen(true)} title="Review changes" style={{
+              <button type="button" onClick={() => setDiffOpen(true)} title={copy.t("Review changes")} style={{
                 padding: "5px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
                 background: "#fff", color: COLORS.ink,
                 fontSize: 11, fontWeight: 500, cursor: "pointer",
                 display: "inline-flex", alignItems: "center", gap: 5,
-              }}>⇆ Review changes</button>
+              }}>⇆ {copy.t("Review changes")}</button>
             )}
 
             {/* Phase 3 (deep QA fix) — escape hatch to the canonical full
@@ -5931,7 +6254,7 @@ function TalentProfileShellDrawer() {
             {adminVisible && payload.talentId && (
               <a
                 href={`/${tenantSlug}/admin/roster/${payload.talentId}`}
-                title="Open the full talent editor (canonical CRUD page)"
+                title={copy.isSpanish ? "Abrir el editor completo del talento" : "Open the full talent editor (canonical CRUD page)"}
                 style={{
                   padding: "5px 12px", borderRadius: 999,
                   border: `1px solid ${COLORS.borderSoft}`,
@@ -5941,7 +6264,7 @@ function TalentProfileShellDrawer() {
                   fontFamily: FONTS.body,
                 }}
               >
-                ↗ Full editor
+                ↗ {copy.t("Full editor")}
               </a>
             )}
 
@@ -5987,7 +6310,7 @@ function TalentProfileShellDrawer() {
                   fontFamily: FONTS.body,
                 }}
               >
-                ✕ Remove
+                ✕ {copy.t("Remove")}
               </button>
             )}
 
@@ -5995,7 +6318,7 @@ function TalentProfileShellDrawer() {
               padding: "8px 14px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
               background: "#fff", color: COLORS.ink,
               fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
-            }}>Save & exit</button>
+            }}>{copy.t("Save & exit")}</button>
             <SmartFooterCTA
               status={state.profileStatus}
               mode={mode}
@@ -6011,10 +6334,6 @@ function TalentProfileShellDrawer() {
             adminVisible={adminVisible}
             isSelf={isSelf}
             primaryTypeSet={!!state.primaryType}
-            canUndo={historyIdxRef.current > 0}
-            canRedo={historyIdxRef.current < historyRef.current.length - 1}
-            onUndo={undo}
-            onRedo={redo}
             onViewAsClient={() => setViewAsClient(true)}
             onSaveAndExit={saveAndExit}
             onOpenFullEditor={
@@ -6077,6 +6396,7 @@ function TalentProfileShellDrawer() {
           {(PROFILE_SECTIONS as readonly Exclude<ProfileSectionId, "">[]).map(s => {
             if (s === "admin" && !adminVisible) return null;
             if (s === "details" && dynamicGroups.length === 0) return null;
+            if (s === "refinement" && bridgeTenantIdentity?.tenantId && payload.talentId) return null;
             const meta = SECTION_META[s];
             const active = activeSection === s;
             const done = sectionComplete[s];
@@ -6095,7 +6415,7 @@ function TalentProfileShellDrawer() {
                   background: done ? COLORS.green : "rgba(11,11,13,0.18)",
                 }} />
                 <span>{meta.emoji}</span>
-                {meta.label}
+                {copy.t(meta.label)}
               </button>
             );
           })}
@@ -6125,6 +6445,7 @@ function TalentProfileShellDrawer() {
               if (s === "details" && dynamicGroups.length === 0) return false;
               if (s === "physical" && !dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical"))) return false;
               if (s === "wardrobe" && !dynamicGroups.some(g => g.fields.some(f => f.subsection === "wardrobe"))) return false;
+              if (s === "refinement" && bridgeTenantIdentity?.tenantId && payload.talentId) return false;
               return true;
             };
             // Top-of-rail summary: how many sections are complete out of
@@ -6147,7 +6468,7 @@ function TalentProfileShellDrawer() {
                     letterSpacing: 0.6, textTransform: "uppercase",
                     color: COLORS.inkMuted, marginBottom: 6,
                   }}>
-                    <span>Profile</span>
+                    <span>{copy.t("Profile")}</span>
                     <span style={{ color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>{totalDone}/{totalVisible}</span>
                   </div>
                   <div style={{
@@ -6173,7 +6494,7 @@ function TalentProfileShellDrawer() {
                         letterSpacing: 0.7, textTransform: "uppercase",
                         color: "rgba(11,11,13,0.42)",
                         fontFamily: FONTS.body,
-                      }}>{group.label}</div>
+                      }}>{copy.t(group.label)}</div>
                       {items.map(s => {
                         const meta = SECTION_META[s];
                         const active = activeSection === s;
@@ -6204,7 +6525,7 @@ function TalentProfileShellDrawer() {
                               background: done ? COLORS.green : "rgba(11,11,13,0.12)",
                             }} />
                             <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>{meta.emoji}</span>
-                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta.label}</span>
+                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.t(meta.label)}</span>
                           </button>
                         );
                       })}
@@ -6251,8 +6572,8 @@ function TalentProfileShellDrawer() {
 
             {/* IDENTITY */}
             <ProfileAccordionSection
-              id="identity" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Identity"
-              sub="Name, pronouns, DOB. Each field has its own privacy."
+              id="identity" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Identity")}
+              sub={copy.t("Name, pronouns, DOB. Each field has its own privacy.")}
               complete={sectionComplete.identity} started={sectionStarted.identity}
               open={activeSection === "identity"}
               onToggle={() => setActiveSection(activeSection === "identity" ? "" : "identity")}
@@ -6264,8 +6585,8 @@ function TalentProfileShellDrawer() {
                 isFieldLocked={(path) => isSelf && state.fieldLocks.includes(path)}
                 lockReasons={state.fieldLockReasons}
               />
-              <FieldRow label="Tagline" optional hint="One line clients see at a glance." catalogId="identity.tagline">
-                <TextInput placeholder="e.g. Editorial fashion model · Madrid" value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
+              <FieldRow label={copy.t("Tagline")} optional hint={copy.t("One line clients see at a glance.")} catalogId="identity.tagline">
+                <TextInput placeholder={copy.t("e.g. Editorial fashion model · Madrid")} value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
               </FieldRow>
               {adminVisible && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
@@ -6283,8 +6604,8 @@ function TalentProfileShellDrawer() {
 
             {/* SERVICES */}
             <ProfileAccordionSection
-              id="services" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Services"
-              sub="What this person is booked as. The most important section."
+              id="services" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Services")}
+              sub={copy.t("What this person is booked as. The most important section.")}
               complete={sectionComplete.services} started={sectionStarted.services}
               open={activeSection === "services"}
               onToggle={() => setActiveSection(activeSection === "services" ? "" : "services")}
@@ -6948,7 +7269,8 @@ function TalentProfileShellDrawer() {
               <LanguagesEditor value={state.languages} onChange={patchLanguages} />
             </ProfileAccordionSection>
 
-            {/* REFINEMENT */}
+            {/* REFINEMENT — prototype SkillsProEditor is not batch-saved; hide when DB-backed SkillSlotPanel is active. */}
+            {!(bridgeTenantIdentity?.tenantId && payload.talentId) && (
             <ProfileAccordionSection
               id="refinement" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Refinement"
               sub="Skills they have. Contexts where they shine."
@@ -6963,17 +7285,17 @@ function TalentProfileShellDrawer() {
                 {([
                   { id: "skills" as const,   label: state.skillEntries.length ? `Skills · ${state.skillEntries.length}`   : "Skills" },
                   { id: "contexts" as const, label: state.contexts.length     ? `Best for · ${state.contexts.length}`     : "Best for" },
-                ]).map(t => {
-                  const active = refinementTab === t.id;
+                ]).map(tb => {
+                  const active = refinementTab === tb.id;
                   return (
-                    <button key={t.id} type="button" onClick={() => setRefinementTab(t.id)} style={{
+                    <button key={tb.id} type="button" onClick={() => setRefinementTab(tb.id)} style={{
                       padding: "6px 14px", borderRadius: 999, border: "none",
                       background: active ? "#fff" : "transparent",
                       color: active ? COLORS.ink : COLORS.inkMuted,
                       fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
                       cursor: "pointer",
                       boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
-                    }}>{t.label}</button>
+                    }}>{tb.label}</button>
                   );
                 })}
               </div>
@@ -6996,6 +7318,7 @@ function TalentProfileShellDrawer() {
                 </div>
               )}
             </ProfileAccordionSection>
+            )}
 
             {/* PROFICIENCY HINTS BANNER — Phase 6.3. Services section only. */}
             {(adminVisible || isSelf) && payload.talentId &&
@@ -7096,6 +7419,21 @@ function TalentProfileShellDrawer() {
               open={activeSection === "verifications"}
               onToggle={() => setActiveSection(activeSection === "verifications" ? "" : "verifications")}
             >
+              {adminVisible && (
+                <div style={{
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  color: COLORS.inkMuted,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: "rgba(15,79,62,0.06)",
+                  border: `1px solid rgba(15,79,62,0.12)`,
+                  marginBottom: 12,
+                  fontFamily: FONTS.body,
+                }}>
+                  {copy.t("Trust preview note")}
+                </div>
+              )}
               <VerificationsEditor
                 verifications={state.verifications}
                 tier={trust}
@@ -9899,13 +10237,14 @@ function RequiredCoach({ missing, onJump }: {
   missing: { id: string; label: string; met: boolean }[];
   onJump: (id: string) => void;
 }) {
+  const copy = useDashboardText();
   return (
     <div style={{
       borderRadius: 12, border: `1px solid rgba(91,107,160,0.18)`,
       background: COLORS.indigoSoft, padding: 14, fontFamily: FONTS.body,
     }}>
       <div style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.indigoDeep, marginBottom: 6 }}>
-        Add {missing.length} {missing.length === 1 ? "thing" : "things"} to publish
+        {copy.addToPublish(missing.length)}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         {missing.map(m => (
@@ -9920,7 +10259,7 @@ function RequiredCoach({ missing, onJump }: {
               border: `1.5px solid ${COLORS.indigoDeep}`,
               flexShrink: 0,
             }} />
-            <span style={{ fontSize: 12, color: COLORS.ink, flex: 1 }}>Add {m.label}</span>
+            <span style={{ fontSize: 12, color: COLORS.ink, flex: 1 }}>{copy.isSpanish ? `Agregar ${copy.t(m.label)}` : `Add ${m.label}`}</span>
             <span style={{ color: COLORS.indigoDeep, fontSize: 14 }}>›</span>
           </button>
         ))}
@@ -9937,6 +10276,7 @@ function HeaderPublishCoach({ missing, onJump }: {
   missing: { id: string; label: string; met: boolean }[];
   onJump: (id: string) => void;
 }) {
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const ref = React.useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -9973,7 +10313,7 @@ function HeaderPublishCoach({ missing, onJump }: {
         <span aria-hidden style={{
           width: 6, height: 6, borderRadius: "50%", background: COLORS.indigoDeep,
         }} />
-        Add {missing.length} to publish
+        {copy.addToPublish(missing.length)}
         <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>{open ? "▴" : "▾"}</span>
       </button>
       {open && (
@@ -10002,7 +10342,7 @@ function HeaderPublishCoach({ missing, onJump }: {
                 width: 14, height: 14, borderRadius: "50%",
                 border: `1.5px solid ${COLORS.indigoDeep}`, flexShrink: 0,
               }} />
-              <span style={{ fontSize: 12.5, color: COLORS.ink, flex: 1 }}>Add {m.label}</span>
+              <span style={{ fontSize: 12.5, color: COLORS.ink, flex: 1 }}>{copy.isSpanish ? `Agregar ${copy.t(m.label)}` : `Add ${m.label}`}</span>
               <span aria-hidden style={{ color: COLORS.indigoDeep, fontSize: 13 }}>›</span>
             </button>
           ))}
@@ -10017,17 +10357,13 @@ function HeaderPublishCoach({ missing, onJump }: {
 // autosave, and Smart CTA already live in the bottom save bar; this
 // menu carries the actions that don't deserve a permanent slot on mobile.
 function ProfileShellMobileMenu({
-  adminVisible, isSelf, primaryTypeSet, canUndo, canRedo,
-  onUndo, onRedo, onViewAsClient, onSaveAndExit,
+  adminVisible, isSelf, primaryTypeSet,
+  onViewAsClient, onSaveAndExit,
   onOpenFullEditor, onRemoveFromRoster,
 }: {
   adminVisible: boolean;
   isSelf: boolean;
   primaryTypeSet: boolean;
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
   onViewAsClient: () => void;
   onSaveAndExit: () => void;
   /** Phase 3 — admin-only escape hatch to the canonical /{slug}/admin/
@@ -10039,6 +10375,7 @@ function ProfileShellMobileMenu({
    *  by the parent component. */
   onRemoveFromRoster?: () => void;
 }) {
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   // Native popover migration: browser handles outside-click + escape via
   // popover="auto". Position is computed against the trigger when the
@@ -10083,7 +10420,7 @@ function ProfileShellMobileMenu({
         ref={triggerRef}
         type="button"
         {...({ popoverTarget: fullId, popoverTargetAction: "toggle" } as Record<string, string>)}
-        aria-label="More actions"
+        aria-label={copy.t("More actions")}
         aria-expanded={open}
         aria-controls={fullId}
         style={{
@@ -10116,17 +10453,6 @@ function ProfileShellMobileMenu({
           fontFamily: FONTS.body,
         }}>
             <>
-                <PMobileMenuItem
-                  icon="↶" label="Undo"
-                  onClick={() => { if (canUndo) { onUndo(); close(); } }}
-                  disabled={!canUndo} shortcut="⌘Z"
-                />
-                <PMobileMenuItem
-                  icon="↷" label="Redo"
-                  onClick={() => { if (canRedo) { onRedo(); close(); } }}
-                  disabled={!canRedo} shortcut="⌘⇧Z"
-                />
-                <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 6px" }} />
                 <PMobileMenuItem
                   icon="👁" label="View as client"
                   onClick={() => { onViewAsClient(); close(); }}
@@ -10170,7 +10496,7 @@ function ProfileShellMobileMenu({
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       <span aria-hidden style={{ width: 16, fontSize: 14 }}>✕</span>
-                      <span>Remove from roster</span>
+                      <span>{copy.t("Remove from roster")}</span>
                     </button>
                   </>
                 )}
@@ -10184,6 +10510,7 @@ function PMobileMenuItem({ icon, label, onClick, disabled, shortcut, hasSubmenu 
   icon: string; label: string; onClick: () => void;
   disabled?: boolean; shortcut?: string; hasSubmenu?: boolean;
 }) {
+  const copy = useDashboardText();
   return (
     <button type="button" onClick={onClick} disabled={disabled} style={{
       width: "100%", display: "flex", alignItems: "center", gap: 10,
@@ -10198,7 +10525,7 @@ function PMobileMenuItem({ icon, label, onClick, disabled, shortcut, hasSubmenu 
       <span style={{
         width: 22, fontSize: 14, color: COLORS.inkMuted, textAlign: "center", flexShrink: 0,
       }}>{icon}</span>
-      <span style={{ flex: 1, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>{label}</span>
+      <span style={{ flex: 1, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>{copy.t(label)}</span>
       {shortcut && (
         <span style={{
           fontSize: 10, fontFamily: FONTS.mono, color: COLORS.inkDim,
@@ -10844,6 +11171,7 @@ function StatusPillDropdown({ status, onChange, role }: {
   onChange: (s: "draft" | "pending" | "published" | "hidden") => void;
   role: "admin" | "talent";
 }) {
+  const copy = useDashboardText();
   type Status = "draft" | "pending" | "published" | "hidden";
   const meta: Record<Status, { label: string; bg: string; fg: string }> = {
     draft:     { label: "Draft",     bg: "rgba(11,11,13,0.06)",    fg: COLORS.inkMuted },
@@ -10870,7 +11198,7 @@ function StatusPillDropdown({ status, onChange, role }: {
           display: "inline-flex", alignItems: "center", gap: 5,
           fontFamily: FONTS.body,
         }}>
-        {cur.label}
+        {copy.t(cur.label)}
         <span style={{ fontSize: 10 }}>▾</span>
       </button>
       <div
@@ -10902,7 +11230,7 @@ function StatusPillDropdown({ status, onChange, role }: {
               width: 6, height: 6, borderRadius: "50%",
               background: meta[s].fg,
             }} />
-            {meta[s].label}
+            {copy.t(meta[s].label)}
           </button>
         ))}
       </div>
@@ -10916,6 +11244,7 @@ function SmartFooterCTA({ status, mode, canPublish, onAction }: {
   canPublish: boolean;
   onAction: () => void;
 }) {
+  const copy = useDashboardText();
   const isSelf = mode === "edit-self";
   const cta = isSelf
     ? (status === "published" ? "Save changes" : "Submit for review")
@@ -10929,7 +11258,7 @@ function SmartFooterCTA({ status, mode, canPublish, onAction }: {
       fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
       cursor: enabled ? "pointer" : "default",
       whiteSpace: "nowrap",
-    }}>{cta}</button>
+    }}>{copy.t(cta)}</button>
   );
 }
 
@@ -11360,6 +11689,23 @@ function TalentApprovalsDrawer() {
 //  TemplatesPicker, InviteTrackingPanel)
 // ════════════════════════════════════════════════════════════════════
 
+function IdentitySubLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      gridColumn: "1 / -1",
+      paddingTop: 4,
+      fontSize: 10.5,
+      fontWeight: 700,
+      letterSpacing: 0.7,
+      textTransform: "uppercase",
+      color: "rgba(11,11,13,0.42)",
+      fontFamily: FONTS.body,
+    }}>
+      {children}
+    </div>
+  );
+}
+
 function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons }: {
   identity: ProfileIdentity;
   onChange: (next: ProfileIdentity) => void;
@@ -11369,6 +11715,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
    *  talent see why a field is greyed out, not just that it is. */
   lockReasons?: Record<string, string>;
 }) {
+  const copy = useDashboardText();
   const age = deriveAge(identity.dob);
   const ageRange = ageRangeFor(age);
   const inputStyle: React.CSSProperties = {
@@ -11376,18 +11723,6 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
     borderRadius: 10, border: `1px solid ${COLORS.border}`,
     fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
   };
-  // Subsection title — small uppercase header that visually divides
-  // the editor into intent-blocks instead of one long field list.
-  const SubLabel = ({ children }: { children: React.ReactNode }) => (
-    <div style={{
-      gridColumn: "1 / -1",
-      paddingTop: 4,
-      fontSize: 10.5, fontWeight: 700,
-      letterSpacing: 0.7, textTransform: "uppercase",
-      color: "rgba(11,11,13,0.42)",
-      fontFamily: FONTS.body,
-    }}>{children}</div>
-  );
   // Single-pick dropdown — used for Pronouns / Gender / Reply time / Age
   // display. Native <select> styled to match the rest of the form so the
   // editor reads as one calm surface instead of a wall of choice chips.
@@ -11411,9 +11746,9 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           background: "#fff",
         }}
       >
-        <option value="">{placeholder ?? "Select…"}</option>
+        <option value="">{placeholder ?? copy.t("Select…")}</option>
         {options.map(opt => (
-          <option key={opt.id} value={opt.id}>{opt.label}</option>
+          <option key={opt.id} value={opt.id}>{copy.t(opt.label)}</option>
         ))}
       </select>
       <span aria-hidden style={{
@@ -11440,7 +11775,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
 
       {/* ── Profile name ────────────────────────────────────────────── */}
       <div data-pshell-identity-full>
-        <FieldRow label="Stage / professional name" hint="What clients see on the public profile.">
+        <FieldRow label={copy.t("Stage / professional name")} hint={copy.t("What clients see on the public profile.")}>
           <input data-pshell-field="stageName"
             placeholder="First Last"
             value={identity.stageName}
@@ -11458,7 +11793,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
 
       {/* ── First / Last name (required) ─────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <FieldRow label="First name">
+        <FieldRow label={copy.t("First name")}>
           <input
             placeholder="Sofia"
             value={identity.firstName ?? ""}
@@ -11466,7 +11801,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
             style={inputStyle}
           />
         </FieldRow>
-        <FieldRow label="Last name">
+        <FieldRow label={copy.t("Last name")}>
           <input
             placeholder="García"
             value={identity.lastName ?? ""}
@@ -11484,7 +11819,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
             {/* Custom label row — inline KYC pill instead of "Optional" badge */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, color: COLORS.ink }}>
-                Legal name
+                {copy.t("Legal name")}
               </span>
               <span style={{
                 fontSize: 10, fontWeight: 600, letterSpacing: 0.4,
@@ -11492,7 +11827,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
                 border: `1px solid rgba(11,11,13,0.1)`,
                 borderRadius: 5, padding: "1px 6px",
               }}>
-                ADMIN ONLY
+                {copy.t("ADMIN ONLY")}
               </span>
               <div style={{ marginLeft: "auto" }}>
                 <ChannelVisibilityStrip
@@ -11524,16 +11859,16 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
               cursor: "pointer", textAlign: "left", width: "100%",
             }}
           >
-            + Add legal name <span style={{ fontSize: 11, opacity: 0.7 }}>(admin-only)</span>
+            {copy.t("+ Add legal name")} <span style={{ fontSize: 11, opacity: 0.7 }}>{copy.t("(admin-only)")}</span>
           </button>
         );
       })()}
 
       {/* ── Demographics ────────────────────────────────────────────── */}
-      <SubLabel>Demographics</SubLabel>
+      <IdentitySubLabel>{copy.t("Demographics")}</IdentitySubLabel>
 
       <FieldRow
-        label="Pronouns"
+        label={copy.t("Pronouns")}
         optional
         visibility={identity.visibility?.pronouns ?? ["public", "agency"]}
         onVisibilityChange={(next) => onChange({
@@ -11544,7 +11879,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         <SelectPicker
           options={PRONOUNS_OPTIONS}
           value={identity.pronouns}
-          placeholder="Select pronouns"
+          placeholder={copy.t("Select pronouns")}
           onPick={(id) => onChange({ ...identity, pronouns: id as typeof identity.pronouns })}
         />
         {identity.pronouns === "custom" && (
@@ -11562,7 +11897,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       </FieldRow>
 
       <FieldRow
-        label="Gender"
+        label={copy.t("Gender")}
         optional
         visibility={identity.visibility?.gender ?? ["agency"]}
         onVisibilityChange={(next) => onChange({
@@ -11573,16 +11908,16 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         <SelectPicker
           options={GENDER_OPTIONS}
           value={identity.gender}
-          placeholder="Select gender"
+          placeholder={copy.t("Select gender")}
           onPick={(id) => onChange({ ...identity, gender: id as typeof identity.gender })}
         />
       </FieldRow>
 
       <FieldRow
-        label="Date of birth"
+        label={copy.t("Date of birth")}
         catalogId="identity.dob"
         optional
-        hint="Used to compute age."
+        hint={copy.t("Used to compute age.")}
         visibility={identity.visibility?.dob ?? ["private"]}
         onVisibilityChange={(next) => onChange({
           ...identity,
@@ -11598,12 +11933,12 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       </FieldRow>
 
       {age != null && (
-        <FieldRow label="Show age as" optional>
+        <FieldRow label={copy.t("Show age as")} optional>
           <SelectPicker
             options={[
-              { id: "exact",  label: `Exact (${age})` },
-              { id: "range",  label: ageRange ? `Range (${ageRange})` : "Range" },
-              { id: "hidden", label: "Hidden" },
+              { id: "exact",  label: `${copy.t("Exact")} (${age})` },
+              { id: "range",  label: ageRange ? `${copy.t("Range")} (${ageRange})` : copy.t("Range") },
+              { id: "hidden", label: copy.t("Hidden") },
             ]}
             value={identity.ageDisplay ?? "range"}
             onPick={(id) => onChange({ ...identity, ageDisplay: (id ?? "range") as typeof identity.ageDisplay })}
@@ -11612,32 +11947,32 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       )}
 
       {/* ── Origin & residence ──────────────────────────────────────── */}
-      <SubLabel>Origin &amp; residence</SubLabel>
+      <IdentitySubLabel>{copy.t("Origin & residence")}</IdentitySubLabel>
 
       <FieldRow
-        label="Nationality"
+        label={copy.t("Nationality")}
         catalogId="identity.nationality"
         optional
-        hint="Citizenship country."
+        hint={copy.t("Citizenship country.")}
         visibility={["agency"]}
       >
         <CountryAutocompleteInput
           value={identity.nationality ?? ""}
-          placeholder="Search country…"
+          placeholder={copy.t("Search country…")}
           onChange={(nameEn) => onChange({ ...identity, nationality: nameEn })}
         />
       </FieldRow>
 
       <FieldRow
-        label="Country of residence"
+        label={copy.t("Country of residence")}
         catalogId="identity.homeCountry"
         optional
-        hint="Tax + payout routing."
+        hint={copy.t("Tax + payout routing.")}
         visibility={["agency"]}
       >
         <CountryAutocompleteInput
           value={identity.homeCountry ?? ""}
-          placeholder="Search country…"
+          placeholder={copy.t("Search country…")}
           onChange={(nameEn) => onChange({ ...identity, homeCountry: nameEn })}
         />
       </FieldRow>
@@ -11655,14 +11990,14 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         width: "fit-content",
       }}>
         <span aria-hidden>ℹ️</span>
-        <span>Passport, work eligibility &amp; license live in <strong>Location &amp; travel</strong>.</span>
+        <span>{copy.t("Passport, work eligibility & license live in Location & travel.")}</span>
       </div>
 
       {/* ── Contact ─────────────────────────────────────────────────── */}
-      <SubLabel>Contact</SubLabel>
+      <IdentitySubLabel>{copy.t("Contact")}</IdentitySubLabel>
 
       {/* Email */}
-      <FieldRow label="Email" optional hint="Direct contact. Never shown publicly." visibility={["agency"]}>
+      <FieldRow label={copy.t("Email")} optional hint={copy.t("Direct contact. Never shown publicly.")} visibility={["agency"]}>
         <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
           <span style={{
             position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none",
@@ -11681,7 +12016,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       </FieldRow>
 
       {/* Phone */}
-      <FieldRow label="Phone" optional visibility={["agency"]}>
+      <FieldRow label={copy.t("Phone")} optional visibility={["agency"]}>
         <div style={{
           display: "flex", borderRadius: 10,
           border: `1px solid ${COLORS.border}`,
@@ -11718,7 +12053,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       </FieldRow>
 
       {/* WhatsApp */}
-      <FieldRow label="WhatsApp" optional hint="For direct client coordination." visibility={["agency"]}>
+      <FieldRow label="WhatsApp" optional hint={copy.t("For direct client coordination.")} visibility={["agency"]}>
         <div style={{
           display: "flex", borderRadius: 10,
           border: "1px solid rgba(37,211,102,0.35)",
@@ -11749,7 +12084,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           </div>
           <input
             type="tel"
-            placeholder="Same as phone or different"
+            placeholder={copy.t("Same as phone or different")}
             value={identity.whatsapp ?? ""}
             onChange={(e) => onChange({ ...identity, whatsapp: e.target.value })}
             style={{
@@ -11763,7 +12098,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       </FieldRow>
 
       {/* Business line / second contact */}
-      <FieldRow label="Business line" optional hint="Secondary email, agency handle, or manager contact." visibility={["agency"]}>
+      <FieldRow label={copy.t("Business line")} optional hint={copy.t("Secondary email, agency handle, or manager contact.")} visibility={["agency"]}>
         <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
           <span style={{
             position: "absolute", left: 12, fontSize: 14, lineHeight: 1, pointerEvents: "none",
@@ -11771,7 +12106,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
           }}>🏢</span>
           <input
             type="text"
-            placeholder="manager@agency.com or @handle"
+            placeholder={copy.t("manager@agency.com or @handle")}
             value={identity.businessLine ?? ""}
             onChange={(e) => onChange({ ...identity, businessLine: e.target.value })}
             style={{ ...inputStyle, paddingLeft: 36, width: "100%", boxSizing: "border-box" }}
@@ -11780,14 +12115,14 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       </FieldRow>
 
       {/* ── Service commitment ──────────────────────────────────────── */}
-      <SubLabel>Service commitment</SubLabel>
+      <IdentitySubLabel>{copy.t("Service commitment")}</IdentitySubLabel>
 
       <div data-pshell-identity-full>
         <FieldRow
-          label="Reply time"
+          label={copy.t("Reply time")}
           catalogId="identity.responseTime"
           optional
-          hint="Surfaces on Discover as a chip."
+          hint={copy.t("Surfaces on Discover as a chip.")}
           visibility={["public", "agency"]}
         >
           <select
@@ -11811,11 +12146,11 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
               color: COLORS.ink,
             }}
           >
-            <option value="">— select —</option>
-            <option value="1h">Within 1h</option>
-            <option value="4h">Within 4h</option>
-            <option value="24h">Within 24h</option>
-            <option value="48h">48h+</option>
+            <option value="">{copy.t("— select —")}</option>
+            <option value="1h">{copy.t("Within 1h")}</option>
+            <option value="4h">{copy.t("Within 4h")}</option>
+            <option value="24h">{copy.t("Within 24h")}</option>
+            <option value="48h">{copy.t("48h+")}</option>
           </select>
         </FieldRow>
       </div>
@@ -11824,12 +12159,13 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
 }
 
 function LockedHint({ reason }: { reason?: string }) {
+  const copy = useDashboardText();
   return (
     <div style={{
       marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4,
       fontSize: 10.5, color: COLORS.amberDeep, fontFamily: FONTS.body,
     }}>
-      🔒 Locked by your agency
+      🔒 {copy.t("Locked by your agency")}
       {reason ? <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}> · {reason}</span> : null}
     </div>
   );
@@ -11852,6 +12188,7 @@ function FieldLocksOverviewPanel({
   onUnlock: (path: FieldLockPath) => void;
   onSetReason: (path: FieldLockPath, reason: string) => void;
 }) {
+  const copy = useDashboardText();
   if (locks.length === 0) {
     return (
       <div style={{
@@ -11863,7 +12200,7 @@ function FieldLocksOverviewPanel({
         fontSize: 12,
         color: COLORS.inkMuted,
       }}>
-        No locked fields. Open a section and tap "🔓 Talent can edit" next to a field to lock it.
+        {copy.t("No locked fields. Open a section and tap \"🔓 Talent can edit\" next to a field to lock it.")}
       </div>
     );
   }
@@ -13125,11 +13462,12 @@ function FieldLockToggle({ path, locks, onChange }: {
   locks: FieldLockPath[];
   onChange: (next: FieldLockPath[]) => void;
 }) {
+  const copy = useDashboardText();
   const isLocked = locks.includes(path);
   return (
     <button
       type="button"
-      title={isLocked ? "Talent can't edit this. Tap to unlock." : "Talent can edit this. Tap to lock."}
+      title={copy.t(isLocked ? "Talent can't edit this. Tap to unlock." : "Talent can edit this. Tap to lock.")}
       onClick={() => onChange(isLocked ? locks.filter(x => x !== path) : [...locks, path])}
       style={{
         padding: "4px 9px", borderRadius: 999,
@@ -13140,7 +13478,7 @@ function FieldLockToggle({ path, locks, onChange }: {
         fontFamily: FONTS.body,
         display: "inline-flex", alignItems: "center", gap: 4,
       }}
-    >{isLocked ? "🔒 Talent can't edit" : "🔓 Talent can edit"}</button>
+    >{isLocked ? `🔒 ${copy.t("Talent can't edit")}` : `🔓 ${copy.t("Talent can edit")}`}</button>
   );
 }
 

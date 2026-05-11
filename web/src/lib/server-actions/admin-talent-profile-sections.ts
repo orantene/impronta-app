@@ -15,9 +15,19 @@ import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
+  buildTalentIdentityProfilePatch,
+  buildTalentLanguageRpcRows,
+} from "@/lib/talent/talent-profile-shell-persistence";
+import {
   assignTaxonomyTermToProfile,
   removeTaxonomyTermFromProfile,
 } from "@/lib/talent-taxonomy-service";
+import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
+import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
+import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
+import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
+import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
+import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -369,6 +379,305 @@ export async function updateRosterMeta(input: {
   return { ok: true };
 }
 
+// ─── Batched save (profile shell drawer) ─────────────────────────────────────
+//
+// One server round-trip for agency editors: single auth + roster check, one
+// talent_profiles UPDATE with all section columns, roster meta row, then
+// replace_talent_languages RPC. Replaces a dozen parallel server actions that
+// each re-validated and re-fetched scope.
+
+export type CommitTalentProfileShellAdminInput = {
+  talent_profile_id: string;
+  identity: unknown;
+  about: {
+    bios: TalentBio[];
+    bio_tone?: string | null;
+    personality_traits?: unknown;
+    tagline?: string | null;
+  };
+  location: {
+    home_base?: string | null;
+    home_place_id?: string | null;
+    travel_radius_km?: number | null;
+    travel_fee_required?: boolean;
+    remote_only?: boolean;
+    passport_status?: "valid" | "expired" | "none" | null;
+    drivers_license?: "none" | "standard" | "international" | "commercial" | null;
+    work_eligibility?: string[];
+    upcoming_visits?: Array<{ id: string; city: string; placeId?: string; date?: string; dateEnd?: string }>;
+  };
+  rates: {
+    rates_data?: RateCard[];
+    package_rates_data?: PackageRate[];
+    /** Channel-tier overrides — persisted as `talent_profiles.rate_tiers_data`. */
+    rate_tiers_data?: unknown;
+    rate_card_visibility?: "public" | "agency-only" | "on-request";
+    ask_for_quote?: boolean;
+    travel_included?: boolean;
+    lodging_included?: boolean;
+  };
+  availability: {
+    availability_data: {
+      cells: { date: string; status: string }[];
+      recurring?: unknown;
+      vacation?: unknown;
+    };
+  };
+  languages: {
+    languages: Array<{
+      language: string;
+      level?: string;
+      canHost?: boolean;
+      canSell?: boolean;
+      canTranslate?: boolean;
+      canTeach?: boolean;
+    }>;
+  };
+  credits: { credits_data: CreditEntry[] };
+  limits: { limits_data: { hardLimits?: string[]; softLimits?: string[]; customNote?: string } };
+  social: { social_proof_data: PastClient[] };
+  albums: { albums: MediaAlbumEntry[] };
+  documents: { documents: TalentDocumentEntry[] };
+  rosterMeta: {
+    internal_notes?: string | null;
+    emergency_contact?: { name: string; relation: string; phone: string };
+    field_locks_data?: { locks: string[]; reasons: Record<string, string> };
+    feature_in_directory?: boolean;
+  };
+  /** Catalog-backed dynamic fields (`field_definitions.key`). `custom_*` keys are ignored server-side. */
+  dyn_fields?: Record<string, string | string[]>;
+  /** Video URLs + WhatsApp + business line — merged into JSONB without clobbering other links. */
+  profileDrawerExtras?: {
+    videoLinks: string[];
+    whatsapp?: string;
+    whatsappPrefix?: string;
+    businessLine?: string;
+  };
+  /** When true, shell owns talent_type assignments (SkillSlotPanel inactive). */
+  shell_sync_taxonomy?: boolean;
+  shell_primary_talent_slug?: string | null;
+  shell_secondary_talent_slugs?: string[];
+  shell_profile_status?: UiProfileShellStatus;
+};
+
+export async function commitTalentProfileShellAdmin(
+  input: CommitTalentProfileShellAdminInput,
+): Promise<Result> {
+  const devProfileSaveTiming = process.env.NODE_ENV === "development";
+  const tStart = performance.now();
+  const laps: Record<string, number> = {};
+  let tPrev = tStart;
+  const lap = (label: string) => {
+    const now = performance.now();
+    laps[label] = Math.round(now - tPrev);
+    tPrev = now;
+  };
+
+  const auth = await requireStaffTenantAction();
+  lap("requireStaffTenantAction");
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId, tenantSlug } = auth;
+  const tid = input.talent_profile_id;
+
+  const check = await assertOnRoster(supabase as never, tenantId, tid);
+  lap("assertOnRoster");
+  if (!check.ok) return check;
+
+  const idBuilt = buildTalentIdentityProfilePatch(input.identity);
+  lap("buildTalentIdentityProfilePatch");
+  if (!idBuilt.ok) return { ok: false, error: idBuilt.error };
+
+  const loc = input.location;
+  const rates = input.rates;
+  const about = input.about;
+
+  const profilePatch: Record<string, unknown> = {
+    ...idBuilt.patch,
+    bios: about.bios,
+    bio_tone: about.bio_tone ?? null,
+    personality_traits: about.personality_traits,
+    tagline: about.tagline?.trim() || null,
+    home_city_text: loc.home_base?.trim() || null,
+    home_place_id: loc.home_place_id?.trim() || null,
+    travel_radius_km: loc.travel_radius_km ?? null,
+    travel_fee_required: loc.travel_fee_required ?? false,
+    remote_only: loc.remote_only ?? false,
+    passport_status: loc.passport_status ?? null,
+    drivers_license: loc.drivers_license ?? null,
+    work_eligibility: loc.work_eligibility ?? [],
+    upcoming_visits: loc.upcoming_visits ?? [],
+    rates_data: rates.rates_data ?? [],
+    package_rates_data: rates.package_rates_data ?? [],
+    rate_tiers_data: rates.rate_tiers_data ?? [],
+    rate_card_visibility: rates.rate_card_visibility ?? null,
+    ask_for_quote: rates.ask_for_quote ?? false,
+    travel_included: rates.travel_included ?? false,
+    lodging_included: rates.lodging_included ?? false,
+    availability_data: input.availability.availability_data,
+    credits_data: input.credits.credits_data,
+    limits_data: input.limits.limits_data,
+    social_proof_data: input.social.social_proof_data,
+    media_albums_data: input.albums.albums.map((a, i) => ({
+      id: a.id,
+      name: a.name,
+      sortOrder: a.sortOrder ?? i,
+    })),
+    documents_data: input.documents.documents,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.shell_profile_status !== undefined) {
+    Object.assign(profilePatch, uiProfileShellStatusToDbPatch(input.shell_profile_status));
+  }
+
+  if (input.profileDrawerExtras) {
+    const { data: linkRow, error: linkSelErr } = await supabase
+      .from("talent_profiles")
+      .select("social_links, embedded_media")
+      .eq("id", tid)
+      .maybeSingle();
+    if (linkSelErr) {
+      logServerError("profile-sections.commit-shell.link-select", linkSelErr);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
+    const merged = mergeShellSocialAndEmbedded({
+      currentSocialLinks: linkRow?.social_links,
+      currentEmbeddedMedia: linkRow?.embedded_media,
+      videoLinks: input.profileDrawerExtras.videoLinks,
+      whatsappPrefix: input.profileDrawerExtras.whatsappPrefix ?? "+1",
+      whatsappNational: input.profileDrawerExtras.whatsapp ?? "",
+      businessLine: input.profileDrawerExtras.businessLine ?? "",
+    });
+    profilePatch.social_links = merged.social_links;
+    profilePatch.embedded_media = merged.embedded_media;
+  }
+
+  const { error: profileErr } = await supabase
+    .from("talent_profiles")
+    .update(profilePatch)
+    .eq("id", tid);
+  lap("talent_profiles.update");
+  if (profileErr) {
+    logServerError("profile-sections.commit-shell.profile", profileErr);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const rm = input.rosterMeta;
+  const rosterPatch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (rm.internal_notes !== undefined) rosterPatch.internal_notes = rm.internal_notes?.trim() || null;
+  if (rm.emergency_contact !== undefined) rosterPatch.emergency_contact = rm.emergency_contact;
+  if (rm.field_locks_data !== undefined) rosterPatch.field_locks_data = rm.field_locks_data;
+  if (rm.feature_in_directory !== undefined) rosterPatch.feature_in_directory = rm.feature_in_directory;
+
+  const { error: rosterErr } = await supabase
+    .from("agency_talent_roster")
+    .update(rosterPatch)
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", tid)
+    .neq("status", "removed");
+  lap("agency_talent_roster.update");
+  if (rosterErr) {
+    logServerError("profile-sections.commit-shell.roster", rosterErr);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const langRows = buildTalentLanguageRpcRows(input.languages.languages);
+  const { error: rpcErr } = await supabase.rpc("replace_talent_languages", {
+    p_talent_profile_id: tid,
+    p_tenant_id: tenantId,
+    p_rows: langRows,
+  });
+  lap("replace_talent_languages.rpc");
+  if (rpcErr) {
+    logServerError("profile-sections.commit-shell.languages", rpcErr);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  if (input.shell_sync_taxonomy) {
+    const tax = await syncTalentTypeTaxonomyFromShellSlugs(supabase, {
+      tenantId,
+      talentProfileId: tid,
+      primarySlug: input.shell_primary_talent_slug ?? null,
+      secondarySlugs: input.shell_secondary_talent_slugs ?? [],
+    });
+    lap("shellTaxonomySync");
+    if (!tax.ok) return { ok: false, error: tax.error };
+  }
+
+  const dynRes = await syncProfileShellDynFieldValues(supabase, tid, input.dyn_fields, "staff");
+  lap("shellDynFieldValues");
+  if (!dynRes.ok) return dynRes;
+
+  revalidatePath(`/${tenantSlug}/admin/roster`, "page");
+  // Admin subtree only — avoids invalidating talent/client surfaces on every save.
+  // Public directory is not tied here (see directory actions when listing changes matter).
+  revalidatePath(`/${tenantSlug}/admin`, "layout");
+  lap("revalidatePath.roster+adminLayout");
+  if (devProfileSaveTiming) {
+    const totalMs = Math.round(performance.now() - tStart);
+    console.info("[commitTalentProfileShellAdmin] timing ms", { ...laps, totalMs });
+  }
+  return { ok: true };
+}
+
+/** Hydrate profile-shell `dynFields` from `field_values` (staff roster scope). */
+export async function getTalentProfileDynFieldValuesForShell(input: {
+  talent_profile_id: string;
+}): Promise<{ ok: true; values: Record<string, string> } | ErrResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
+  if (!check.ok) return check;
+
+  const { data: rows, error } = await supabase
+    .from("field_values")
+    .select("field_definition_id, value_text, value_number, value_boolean, value_date")
+    .eq("talent_profile_id", input.talent_profile_id);
+  if (error) {
+    logServerError("profile-sections.dyn-fv-hydrate.fv", error);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+
+  const ids = [
+    ...new Set(
+      (rows ?? []).map((r: { field_definition_id: string }) => r.field_definition_id),
+    ),
+  ];
+  if (ids.length === 0) return { ok: true, values: {} };
+
+  const { data: defs, error: dErr } = await supabase
+    .from("field_definitions")
+    .select("id, key")
+    .in("id", ids);
+  if (dErr) {
+    logServerError("profile-sections.dyn-fv-hydrate.defs", dErr);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+
+  const idToKey = new Map((defs ?? []).map((d: { id: string; key: string }) => [d.id, d.key]));
+  const values: Record<string, string> = {};
+  for (const r of rows ?? []) {
+    const key = idToKey.get((r as { field_definition_id: string }).field_definition_id);
+    if (!key || isReservedTalentProfileFieldKey(key)) continue;
+    const row = r as {
+      value_text: string | null;
+      value_number: number | null;
+      value_boolean: boolean | null;
+      value_date: string | null;
+    };
+    let s: string | null = null;
+    if (row.value_text != null && row.value_text !== "") s = String(row.value_text);
+    else if (row.value_number != null && Number.isFinite(Number(row.value_number))) {
+      s = String(row.value_number);
+    } else if (row.value_boolean != null) s = row.value_boolean ? "true" : "false";
+    else if (row.value_date != null && row.value_date !== "") s = String(row.value_date);
+    if (s !== null) values[key] = s;
+  }
+  return { ok: true, values };
+}
+
 // ─── Activity log (read) ──────────────────────────────────────────────────────
 
 export type ProfileActivityEntry = {
@@ -543,7 +852,34 @@ export async function removeTalentTaxonomyBySlug(input: {
 
 // ─── Drawer hydration — read all editor-shaped fields from the DB ─────────────
 
+const TALENT_TYPE_KIND = "talent_type";
+
+function talentTypeSlugsFromTaxonomyEmbed(rows: unknown): {
+  primary: string | null;
+  secondaries: string[];
+} {
+  if (!Array.isArray(rows)) return { primary: null, secondaries: [] };
+  let primary: string | null = null;
+  const secondaries: string[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const rel = (row as { relationship_type?: string }).relationship_type;
+    const tt = (row as { taxonomy_terms?: unknown }).taxonomy_terms;
+    const term = Array.isArray(tt) ? tt[0] : tt;
+    if (!term || typeof term !== "object") continue;
+    const kind = String((term as { kind?: string }).kind ?? "");
+    if (kind !== TALENT_TYPE_KIND) continue;
+    const slug = String((term as { slug?: string }).slug ?? "").trim();
+    if (!slug) continue;
+    if (rel === "primary_role") primary = slug;
+    else if (rel === "secondary_role") secondaries.push(slug);
+  }
+  return { primary, secondaries: [...new Set(secondaries)] };
+}
+
 export type ProfileEditorData = {
+  /** Row timestamp — shown in drawer when no save in this session yet. */
+  updated_at: string | null;
   // Identity
   display_name: string | null;
   first_name: string | null;
@@ -555,8 +891,13 @@ export type ProfileEditorData = {
   date_of_birth: string | null;
   age_display_mode: string | null;
   nationality: string | null;
+  /** Country of residence — `talent_profiles.home_country_text`. */
+  home_country_text: string | null;
   response_time: string | null;
   field_visibility: unknown;
+  /** Roster / agency direct contact (same column as invite target). */
+  invitation_email: string | null;
+  phone: string | null;
   // About
   bios: Array<{ locale: string; text: string }>;
   bio_tone: string | null;
@@ -575,6 +916,7 @@ export type ProfileEditorData = {
   // Rates
   rates_data: unknown;
   package_rates_data: unknown;
+  rate_tiers_data: unknown;
   rate_card_visibility: string | null;
   ask_for_quote: boolean;
   travel_included: boolean;
@@ -591,6 +933,13 @@ export type ProfileEditorData = {
   emergency_contact: unknown;
   field_locks_data: unknown;
   feature_in_directory: boolean;
+  social_links: unknown;
+  embedded_media: unknown;
+  workflow_status: string | null;
+  visibility: string | null;
+  /** Talent type slugs from `talent_profile_taxonomy` (shell hydrate). */
+  shell_primary_talent_slug: string | null;
+  shell_secondary_talent_slugs: string[];
 };
 
 export async function getTalentProfileEditorData(input: {
@@ -598,7 +947,7 @@ export async function getTalentProfileEditorData(input: {
 }): Promise<{ ok: true; data: ProfileEditorData } | ErrResult> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId, tenantSlug } = auth;
+  const { supabase, tenantId } = auth;
 
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
@@ -608,14 +957,22 @@ export async function getTalentProfileEditorData(input: {
     supabase
       .from("talent_profiles")
       .select(`
+        updated_at,
         display_name, first_name, last_name, legal_name, field_visibility, pronouns, pronouns_custom,
-        gender, date_of_birth, age_display_mode, nationality, response_time,
+        gender, date_of_birth, age_display_mode, nationality, home_country_text, response_time,
+        invitation_email, phone,
         bios, bio_tone, personality_traits, tagline,
         home_city_text, home_place_id, travel_radius_km, travel_fee_required, remote_only,
         passport_status, drivers_license, work_eligibility, upcoming_visits,
-        rates_data, package_rates_data, rate_card_visibility, ask_for_quote,
+        rates_data, package_rates_data, rate_tiers_data, rate_card_visibility, ask_for_quote,
         travel_included, lodging_included,
-        availability_data, credits_data, limits_data, social_proof_data, media_albums_data, documents_data
+        availability_data, credits_data, limits_data, social_proof_data, media_albums_data, documents_data,
+        social_links, embedded_media,
+        workflow_status, visibility,
+        talent_profile_taxonomy (
+          relationship_type,
+          taxonomy_terms ( slug, kind )
+        )
       `)
       .eq("id", input.talent_profile_id)
       .maybeSingle(),
@@ -636,6 +993,9 @@ export async function getTalentProfileEditorData(input: {
   type Row = Record<string, unknown>;
   const p = profileRes.data as Row;
   const r = (rosterRes.data ?? {}) as Row;
+  const { primary: shellPrimarySlug, secondaries: shellSecondarySlugs } = talentTypeSlugsFromTaxonomyEmbed(
+    p.talent_profile_taxonomy,
+  );
 
   // Normalize bios to always have at least an English entry so the editor
   // doesn't show an empty locale chip strip.
@@ -647,6 +1007,7 @@ export async function getTalentProfileEditorData(input: {
   return {
     ok: true,
     data: {
+      updated_at: (p.updated_at as string | null) ?? null,
       display_name: (p.display_name as string | null) ?? null,
       first_name: (p.first_name as string | null) ?? null,
       last_name: (p.last_name as string | null) ?? null,
@@ -657,8 +1018,11 @@ export async function getTalentProfileEditorData(input: {
       date_of_birth: (p.date_of_birth as string | null) ?? null,
       age_display_mode: (p.age_display_mode as string | null) ?? null,
       nationality: (p.nationality as string | null) ?? null,
+      home_country_text: (p.home_country_text as string | null) ?? null,
       response_time: (p.response_time as string | null) ?? null,
       field_visibility: p.field_visibility ?? null,
+      invitation_email: (p.invitation_email as string | null) ?? null,
+      phone: (p.phone as string | null) ?? null,
       bios,
       bio_tone: (p.bio_tone as string | null) ?? null,
       personality_traits: p.personality_traits ?? { loves: [], avoids: [] },
@@ -674,6 +1038,7 @@ export async function getTalentProfileEditorData(input: {
       upcoming_visits: Array.isArray(p.upcoming_visits) ? p.upcoming_visits : [],
       rates_data: p.rates_data ?? [],
       package_rates_data: p.package_rates_data ?? [],
+      rate_tiers_data: p.rate_tiers_data ?? [],
       rate_card_visibility: (p.rate_card_visibility as string | null) ?? null,
       ask_for_quote: Boolean(p.ask_for_quote),
       travel_included: Boolean(p.travel_included),
@@ -688,6 +1053,12 @@ export async function getTalentProfileEditorData(input: {
       emergency_contact: r.emergency_contact ?? {},
       field_locks_data: r.field_locks_data ?? {},
       feature_in_directory: Boolean(r.feature_in_directory),
+      social_links: p.social_links ?? [],
+      embedded_media: p.embedded_media ?? [],
+      workflow_status: (p.workflow_status as string | null) ?? null,
+      visibility: (p.visibility as string | null) ?? null,
+      shell_primary_talent_slug: shellPrimarySlug,
+      shell_secondary_talent_slugs: shellSecondarySlugs,
     },
   };
 }

@@ -19,7 +19,23 @@ import {
 } from "@/lib/server-actions/admin-talent-skills";
 import { MAX_TOTAL_SKILLS } from "@/lib/server-actions/admin-talent-skills.types";
 
+import { useDashboardText } from "./_dashboard-i18n";
 import { F_BODY, PARENT_EMOJI, T } from "./_skill-tokens";
+
+type SkillPickerParent = {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_es?: string | null;
+  emoji: string;
+};
+
+type SkillPickerType = {
+  id: string;
+  name_en: string;
+  name_es: string | null;
+  category_group_name: string | null;
+};
 
 export function AddSkillSearch({
   role,
@@ -38,16 +54,13 @@ export function AddSkillSearch({
   onAdded: () => void;
   talentProfileId: string;
 }) {
-  const [parents, setParents] = useState<
-    Array<{ id: string; slug: string; name_en: string; emoji: string }>
-  >([]);
+  const copy = useDashboardText();
+  const [parents, setParents] = useState<SkillPickerParent[]>([]);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(
     fixedParentId ?? null,
   );
   const [selectedParentName, setSelectedParentName] = useState<string | null>(null);
-  const [types, setTypes] = useState<
-    Array<{ id: string; name_en: string; category_group_name: string | null }>
-  >([]);
+  const [types, setTypes] = useState<SkillPickerType[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingTypes, setLoadingTypes] = useState(false);
   // Multi-select: IDs the user has toggled on in this session.
@@ -91,6 +104,17 @@ export function AddSkillSearch({
       })
       .finally(() => setLoadingTypes(false));
   }, [selectedParentId, searchQuery]);
+
+  const parentLabel = (parent: SkillPickerParent) =>
+    copy.term(parent.name_en, parent.name_es);
+  const selectedParentLabel =
+    selectedParentName ??
+    (selectedParentId
+      ? (() => {
+          const parent = parents.find((p) => p.id === selectedParentId);
+          return parent ? parentLabel(parent) : null;
+        })()
+      : null);
 
   const handleSelectParent = (id: string, name: string) => {
     setSelected(new Set()); // reset selection when switching category
@@ -204,18 +228,18 @@ export function AddSkillSearch({
                   color: T.inkMuted,
                 }}
               >
-                ← Back
+                {copy.t("← Back")}
               </button>
             )}
             <div style={{ fontSize: 18, fontWeight: 700, color: T.ink, marginBottom: 2 }}>
               {showGrid
-                ? `Add a ${role === "primary" ? "primary" : "secondary"} skill`
-                : selectedParentName ?? "Pick a skill"}
+                ? copy.addSkillTitle(role)
+                : selectedParentLabel ?? copy.t("Pick a skill")}
             </div>
             <div style={{ fontSize: 12, color: T.inkMuted }}>
               {showGrid
-                ? "Pick a category, then choose the specific role."
-                : "Select one or more skills to add."}
+                ? copy.t("Pick a category, then choose the specific role.")
+                : copy.t("Select one or more skills to add.")}
             </div>
           </div>
 
@@ -233,7 +257,7 @@ export function AddSkillSearch({
               whiteSpace: "nowrap",
             }}
           >
-            {remainingSlots} of {MAX_TOTAL_SKILLS} left
+            {copy.skillsLeft(remainingSlots, MAX_TOTAL_SKILLS)}
           </div>
         </div>
 
@@ -251,7 +275,7 @@ export function AddSkillSearch({
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => handleSelectParent(p.id, p.name_en)}
+                  onClick={() => handleSelectParent(p.id, parentLabel(p))}
                   style={{
                     padding: "10px 12px",
                     borderRadius: 8,
@@ -269,7 +293,7 @@ export function AddSkillSearch({
                   }}
                 >
                   <span style={{ fontSize: 16 }}>{p.emoji}</span>
-                  {p.name_en}
+                  {parentLabel(p)}
                 </button>
               ))}
             </div>
@@ -283,7 +307,7 @@ export function AddSkillSearch({
             <div style={{ padding: "10px 16px", borderBottom: `1px solid ${T.borderSoft}` }}>
               <input
                 autoFocus
-                placeholder="Search…"
+                placeholder={copy.t("Search…")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -317,10 +341,10 @@ export function AddSkillSearch({
 
             <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
               {loadingTypes && (
-                <div style={{ padding: 12, color: T.inkMuted, fontSize: 12 }}>Loading…</div>
+                <div style={{ padding: 12, color: T.inkMuted, fontSize: 12 }}>{copy.t("Loading…")}</div>
               )}
               {!loadingTypes && types.length === 0 && (
-                <div style={{ padding: 12, color: T.inkMuted, fontSize: 12 }}>No matching roles.</div>
+                <div style={{ padding: 12, color: T.inkMuted, fontSize: 12 }}>{copy.t("No matching roles.")}</div>
               )}
               {types.map((t) => {
                 const alreadyAdded = existingSkillIds.has(t.id);
@@ -370,18 +394,18 @@ export function AddSkillSearch({
 
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: alreadyAdded ? T.inkMuted : T.ink }}>
-                        {t.name_en}
+                        {copy.term(t.name_en, t.name_es)}
                       </div>
                       {t.category_group_name && (
                         <div style={{ fontSize: 10.5, color: T.inkMuted, marginTop: 1 }}>
-                          {t.category_group_name}
+                          {copy.term(t.category_group_name)}
                         </div>
                       )}
                     </div>
 
                     {alreadyAdded && (
                       <span style={{ fontSize: 10.5, color: T.inkMuted, fontWeight: 600, flexShrink: 0 }}>
-                        On profile
+                        {copy.t("On profile")}
                       </span>
                     )}
                   </button>
@@ -417,7 +441,7 @@ export function AddSkillSearch({
               fontFamily: F_BODY,
             }}
           >
-            ✦ Don't see your skill? Suggest one →
+            {copy.t("✦ Don't see your skill? Suggest one →")}
           </button>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -440,7 +464,7 @@ export function AddSkillSearch({
                   whiteSpace: "nowrap",
                 }}
               >
-                {submitting ? "Adding…" : `Add ${selected.size} skill${selected.size > 1 ? "s" : ""}`}
+                {submitting ? copy.t("Adding…") : copy.addSkillsButton(selected.size)}
               </button>
             )}
             <button
@@ -458,7 +482,7 @@ export function AddSkillSearch({
                 fontFamily: F_BODY,
               }}
             >
-              Close
+              {copy.t("Close")}
             </button>
           </div>
         </div>
@@ -468,9 +492,7 @@ export function AddSkillSearch({
         <RequestNewSkillForm
           parentId={selectedParentId}
           parentLabel={
-            selectedParentName ??
-            parents.find((p) => p.id === selectedParentId)?.name_en ??
-            null
+            selectedParentLabel
           }
           talentProfileId={talentProfileId}
           query={searchQuery}
@@ -501,7 +523,7 @@ export function AddSkillSearch({
             boxShadow: "0 4px 14px rgba(15,79,62,0.25)",
           }}
         >
-          ✓ Skill suggestion sent. We'll review it and let you know.
+          {copy.t("✓ Skill suggestion sent. We'll review it and let you know.")}
         </div>
       )}
     </div>
@@ -525,6 +547,7 @@ function RequestNewSkillForm({
   onClose: () => void;
   onSubmitted: () => void;
 }) {
+  const copy = useDashboardText();
   const [proposedName, setProposedName] = useState(query.trim());
   const [contextNote, setContextNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -534,7 +557,7 @@ function RequestNewSkillForm({
     setError(null);
     const name = proposedName.trim();
     if (name.length < 2) {
-      setError("Skill name must be at least 2 characters.");
+      setError(copy.t("Skill name must be at least 2 characters."));
       return;
     }
     setSubmitting(true);
@@ -575,21 +598,20 @@ function RequestNewSkillForm({
         }}
       >
         <div style={{ fontSize: 18, fontWeight: 700, color: T.ink, marginBottom: 4 }}>
-          Suggest a new skill
+          {copy.t("Suggest a new skill")}
         </div>
         <div style={{ fontSize: 13, color: T.inkMuted, lineHeight: 1.5, marginBottom: 16 }}>
-          Don't see what you're looking for? Tell us what's missing. Our team reviews
-          suggestions and adds genuine gaps to the catalog within a few business days.
-          {parentLabel && <> We'll file this under <strong>{parentLabel}</strong>.</>}
+          {copy.t("Don't see what you're looking for? Tell us what's missing. Our team reviews suggestions and adds genuine gaps to the catalog within a few business days.")}
+          {parentLabel && <> {copy.t("We'll file this under")} <strong>{parentLabel}</strong>.</>}
         </div>
 
         <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 4 }}>
-          Skill name
+          {copy.t("Skill name")}
         </label>
         <input
           value={proposedName}
           onChange={(e) => setProposedName(e.target.value)}
-          placeholder="e.g. Doula, Sound Healer, Underwater Photographer"
+          placeholder={copy.t("e.g. Doula, Sound Healer, Underwater Photographer")}
           autoFocus
           maxLength={120}
           style={{
@@ -605,13 +627,13 @@ function RequestNewSkillForm({
         />
 
         <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 4 }}>
-          Why do you need this?{" "}
-          <span style={{ fontWeight: 400, color: T.inkMuted }}>(optional)</span>
+          {copy.t("Why do you need this?")}{" "}
+          <span style={{ fontWeight: 400, color: T.inkMuted }}>{copy.t("(optional)")}</span>
         </label>
         <textarea
           value={contextNote}
           onChange={(e) => setContextNote(e.target.value)}
-          placeholder="e.g. 'We book 3–5 doulas per month and they don't fit any existing category.'"
+          placeholder={copy.t("e.g. 'We book 3–5 doulas per month and they don't fit any existing category.'")}
           rows={3}
           maxLength={500}
           style={{
@@ -660,7 +682,7 @@ function RequestNewSkillForm({
               fontFamily: F_BODY,
             }}
           >
-            Cancel
+            {copy.t("Cancel")}
           </button>
           <button
             type="button"
@@ -678,7 +700,7 @@ function RequestNewSkillForm({
               fontFamily: F_BODY,
             }}
           >
-            {submitting ? "Sending…" : "Send suggestion"}
+            {submitting ? copy.t("Sending…") : copy.t("Send suggestion")}
           </button>
         </div>
       </div>

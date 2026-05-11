@@ -22,64 +22,21 @@
 // updates the row in talent_profiles. Returns the updated identity for
 // optimistic UI hydration on the client side.
 
-import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import {
+  buildTalentIdentityProfilePatch,
+  type UpdateTalentIdentityInput,
+} from "@/lib/talent/talent-profile-shell-persistence";
 
-// ─── Validation schema ────────────────────────────────────────────────────────
-//
-// Mirrors `ProfileIdentity` in _state.tsx:4961. We accept partial input —
-// callers can save just one field at a time (the editor is autosave-style).
-// Empty string → null is normalized in the action so the DB has clean
-// "unset" semantics.
-
-const fieldVisibilityValueSchema = z
-  .array(z.enum(["public", "agency", "private"]))
-  .min(1, "At least one channel required");
-
-const fieldVisibilityObjectSchema = z
-  .object({
-    legalName: fieldVisibilityValueSchema.optional(),
-    pronouns: fieldVisibilityValueSchema.optional(),
-    gender: fieldVisibilityValueSchema.optional(),
-    dob: fieldVisibilityValueSchema.optional(),
-  })
-  .strict();
-
-const updateTalentIdentitySchema = z.object({
-  talent_profile_id: z.string().uuid("Invalid talent profile id."),
-  // All optional — the editor saves field-by-field.
-  stage_name: z.string().optional(),
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  legal_name: z.string().optional(),
-  pronouns: z
-    .enum(["she_her", "he_him", "they_them", "ze_zir", "custom"])
-    .nullable()
-    .optional(),
-  pronouns_custom: z.string().optional(),
-  gender: z.string().optional(),
-  date_of_birth: z.string().optional(), // YYYY-MM-DD or empty
-  age_display_mode: z.enum(["exact", "range", "hidden"]).optional(),
-  nationality: z.string().optional(),
-  response_time: z.enum(["1h", "4h", "24h", "48h"]).nullable().optional(),
-  field_visibility: fieldVisibilityObjectSchema.optional(),
-});
-
-export type UpdateTalentIdentityInput = z.infer<typeof updateTalentIdentitySchema>;
+// Types for this action live in `talent-profile-shell-persistence.ts`.
+// Do not re-export types from this `use server` file — Next's action
+// bundler can incorrectly retain a runtime reference to the name.
 
 export type UpdateTalentIdentityResult =
   | { ok: true; talent_profile_id: string }
   | { ok: false; error: string };
-
-/** Empty-to-null helper. Empty strings on optional text fields should clear
- *  the value, not store '' (postgres distinguishes '' from NULL). */
-function nullifyEmpty(v: string | undefined): string | null | undefined {
-  if (v === undefined) return undefined; // means "don't update this field"
-  const t = v.trim();
-  return t === "" ? null : t;
-}
 
 export async function updateTalentIdentity(
   input: UpdateTalentIdentityInput,
@@ -88,23 +45,15 @@ export async function updateTalentIdentity(
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  const parsed = updateTalentIdentitySchema.safeParse(input);
-  if (!parsed.success) {
-    const first = parsed.error.issues[0];
-    return { ok: false, error: first?.message ?? "Invalid identity payload." };
-  }
-  const v = parsed.data;
+  const built = buildTalentIdentityProfilePatch(input);
+  if (!built.ok) return { ok: false, error: built.error };
+  const vId = built.talent_profile_id;
 
-  // Authorization: ensure the talent_profile is on this tenant's roster.
-  // Without this check, a staff member could PATCH any talent_profiles row
-  // in the system (RLS would still block writes outside their tenant_id
-  // for tenant-scoped tables, but talent_profiles is global — the agency
-  // owns the row via agency_talent_roster). Belt-and-suspenders.
   const { data: roster, error: rosterErr } = await supabase
     .from("agency_talent_roster")
     .select("id, status")
     .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", v.talent_profile_id)
+    .eq("talent_profile_id", vId)
     .neq("status", "removed")
     .maybeSingle();
   if (rosterErr) {
@@ -118,52 +67,20 @@ export async function updateTalentIdentity(
     };
   }
 
-  // Build patch payload. Undefined keys are skipped, so a save can target
-  // just one field without touching the others.
-  const patch: Record<string, unknown> = {};
-  if (v.stage_name !== undefined) patch.display_name = v.stage_name.trim();
-  const firstName = nullifyEmpty(v.first_name);
-  if (firstName !== undefined) patch.first_name = firstName;
-  const lastName = nullifyEmpty(v.last_name);
-  if (lastName !== undefined) patch.last_name = lastName;
-  const legalName = nullifyEmpty(v.legal_name);
-  if (legalName !== undefined) patch.legal_name = legalName;
-  if (v.pronouns !== undefined) patch.pronouns = v.pronouns;
-  const pronounsCustom = nullifyEmpty(v.pronouns_custom);
-  if (pronounsCustom !== undefined) patch.pronouns_custom = pronounsCustom;
-  const gender = nullifyEmpty(v.gender);
-  if (gender !== undefined) patch.gender = gender;
-  // date_of_birth: empty string → null; YYYY-MM-DD passes through.
-  if (v.date_of_birth !== undefined) {
-    const t = v.date_of_birth.trim();
-    patch.date_of_birth = t === "" ? null : t;
-  }
-  if (v.age_display_mode !== undefined)
-    patch.age_display_mode = v.age_display_mode;
-  const nationality = nullifyEmpty(v.nationality);
-  if (nationality !== undefined) patch.nationality = nationality;
-  if (v.response_time !== undefined) patch.response_time = v.response_time;
-  if (v.field_visibility !== undefined)
-    patch.field_visibility = v.field_visibility;
-
-  if (Object.keys(patch).length === 0) {
-    return { ok: true, talent_profile_id: v.talent_profile_id };
+  if (Object.keys(built.patch).length === 0) {
+    return { ok: true, talent_profile_id: vId };
   }
 
-  patch.updated_at = new Date().toISOString();
+  const patch = { ...built.patch, updated_at: new Date().toISOString() };
 
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update(patch)
-    .eq("id", v.talent_profile_id);
+  const { error } = await supabase.from("talent_profiles").update(patch).eq("id", vId);
 
   if (error) {
     logServerError("admin-talent-identity.update", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  // Refresh server-rendered roster list + drawer surface.
   revalidatePath(`/${auth.tenantSlug}`, "layout");
 
-  return { ok: true, talent_profile_id: v.talent_profile_id };
+  return { ok: true, talent_profile_id: vId };
 }

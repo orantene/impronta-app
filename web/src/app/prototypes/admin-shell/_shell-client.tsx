@@ -58,6 +58,7 @@ import { DrawerRoot, UpgradeModal } from "./_drawers";
 import { CommandPalette } from "./_palette";
 import { MOCK_CONVERSATIONS } from "./_talent";
 import { DRAWER_HELP } from "./_help";
+import { useDashboardText } from "./_dashboard-i18n";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded by
 // `import "server-only"`, so a runtime import would throw at hydration. The
 // `import type` form is erased at compile time and emits no JS, which is
@@ -435,6 +436,7 @@ const FAB_POPOVER_ID = "tulala-fab-popover";
 
 function BottomActionFab() {
   const { state, openDrawer, setPage, setTalentPage, setClientPage, setPlatformPage, toast } = useProto();
+  const copy = useDashboardText();
   // Native popover-driven open/close — listens to the browser's
   // toggle event so React state still mirrors visibility for animation
   // + auto-reset of search input. The browser handles outside-click,
@@ -956,10 +958,12 @@ function BottomActionFab() {
         <button
           type="button"
           {...({ popoverTarget: FAB_POPOVER_ID, popoverTargetAction: "toggle" } as Record<string, string>)}
-          aria-label={open ? "Close quick actions" : `Open quick actions${totalDots > 0 ? ` · ${totalDots} pending` : ""}`}
+          aria-label={open
+            ? copy.t("Close quick actions")
+            : `${copy.t("Open quick actions")}${totalDots > 0 ? ` · ${totalDots} ${copy.t("pending")}` : ""}`}
           aria-expanded={open}
           aria-controls={FAB_POPOVER_ID}
-          title="Quick actions (⌘K)"
+          title={`${copy.t("Quick actions")} (⌘K)`}
           style={{
             width: 52, height: 52, borderRadius: 16,
             background: open ? COLORS.fill : COLORS.fill,

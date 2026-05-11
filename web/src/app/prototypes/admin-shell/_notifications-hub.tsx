@@ -20,6 +20,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { COLORS, FONTS, useProto, RICH_INQUIRIES } from "./_state";
 import { MOCK_CONVERSATIONS } from "./_talent";
 import { ageLabel } from "./_messages";
+import { useDashboardText } from "./_dashboard-i18n";
 
 export type HubItem = {
   id: string;
@@ -62,6 +63,7 @@ export function NotificationsBell({
   size?: "sm" | "md";
 }) {
   const { state, openDrawer, pendingTalent } = useProto();
+  const copy = useDashboardText();
   const popoverId = useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -116,10 +118,12 @@ export function NotificationsBell({
         id: `pending-${p.id}`,
         bucket: "action",
         icon: "👤",
-        title: `${p.name} · pending approval`,
-        body: `${p.childTypes.join(" · ")} from ${p.city}. Submitted ${p.submittedAgo}.`,
+        title: `${p.name} · ${copy.t("pending approval")}`,
+        body: copy.isSpanish
+          ? `${p.childTypes.join(" · ")} de ${p.city}. Enviado ${p.submittedAgo}.`
+          : `${p.childTypes.join(" · ")} from ${p.city}. Submitted ${p.submittedAgo}.`,
         whenLabel: p.submittedAgo,
-        cta: { label: "Review", run: () => openDrawer("talent-approvals") },
+        cta: { label: copy.t("Review"), run: () => openDrawer("talent-approvals") },
       });
     });
     // Action: brand-new (unseen) inquiries from MOCK_CONVERSATIONS +
@@ -130,7 +134,7 @@ export function NotificationsBell({
         id: `new-conv-${c.id}`,
         bucket: "action",
         icon: "📥",
-        title: `New inquiry · ${c.client}`,
+        title: `${copy.t("New inquiry")} · ${c.client}`,
         body: c.lastMessage.preview.slice(0, 90),
         whenLabel: ageLabel(c.lastMessage.ageHrs),
       });
@@ -140,7 +144,7 @@ export function NotificationsBell({
         id: `new-inq-${i.id}`,
         bucket: "action",
         icon: "📥",
-        title: `New inquiry · ${i.clientName}`,
+        title: `${copy.t("New inquiry")} · ${i.clientName}`,
         body: i.brief,
         whenLabel: ageLabel(i.lastActivityHrs),
       });
@@ -148,22 +152,24 @@ export function NotificationsBell({
     // Update mocks
     out.push({
       id: "rev-203", bucket: "update", icon: "✓",
-      title: "Booking confirmed · Bvlgari",
-      body: "Kai Lin · 2 days · €3,200 · payment cleared.",
-      whenLabel: "1h ago",
+      title: `${copy.t("Booking confirmed")} · Bvlgari`,
+      body: copy.isSpanish
+        ? `Kai Lin · 2 días · €3,200 · ${copy.t("payment cleared.")}`
+        : `Kai Lin · 2 days · €3,200 · ${copy.t("payment cleared.")}`,
+      whenLabel: copy.isSpanish ? "hace 1 h" : "1h ago",
     });
     // System mocks
     if (state.plan === "free") {
       out.push({
         id: "plan-cap", bucket: "system", icon: "↑",
-        title: "4 of 5 talent slots used",
-        body: "You'll hit the Free cap with 1 more talent. Studio is €29/mo.",
-        whenLabel: "ongoing",
-        cta: { label: "Compare plans", run: () => openDrawer("plan-billing") },
+        title: copy.t("4 of 5 talent slots used"),
+        body: copy.t("You'll hit the Free cap with 1 more talent. Studio is €29/mo."),
+        whenLabel: copy.t("ongoing"),
+        cta: { label: copy.t("Compare plans"), run: () => openDrawer("plan-billing") },
       });
     }
     return out.filter(i => !dismissedState.has(i.id));
-  }, [pendingTalent, state.plan, openDrawer, dismissedState]);
+  }, [copy, pendingTalent, state.plan, openDrawer, dismissedState]);
 
   const unreadActionCount = items.filter(i => i.bucket === "action" && !readSetState.has(i.id)).length;
   const totalUnread = items.filter(i => !readSetState.has(i.id)).length;
@@ -203,7 +209,7 @@ export function NotificationsBell({
       <button type="button"
         ref={buttonRef}
         {...({ popoverTarget: popoverId } as Record<string, string>)}
-        aria-label={`Notifications · ${totalUnread} unread`}
+        aria-label={`${copy.t("Notifications")} · ${totalUnread} ${copy.t("unread")}`}
         style={{
           width: dim, height: dim, borderRadius: 8,
           border: `1px solid ${COLORS.borderSoft}`,
@@ -266,12 +272,12 @@ export function NotificationsBell({
           borderBottom: `1px solid ${COLORS.borderSoft}`,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>Notifications</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{copy.t("Notifications")}</span>
           {totalUnread > 0 && (
             <button type="button" onClick={() => { markAllRead(); force(n => n + 1); }} style={{
               background: "transparent", border: "none", padding: 0, cursor: "pointer",
               fontSize: 11, fontWeight: 600, color: COLORS.indigoDeep,
-            }}>Mark all read</button>
+            }}>{copy.t("Mark all read")}</button>
           )}
         </div>
 
@@ -280,26 +286,26 @@ export function NotificationsBell({
           {items.length === 0 && (
             <div style={{ padding: "30px 16px", textAlign: "center", fontSize: 12.5, color: COLORS.inkMuted }}>
               <div style={{ fontSize: 28, marginBottom: 6 }}>✓</div>
-              All caught up.
+              {copy.t("All caught up.")}
             </div>
           )}
 
           {grouped.action.length > 0 && (
-            <SectionGroup label="Action needed" items={grouped.action} readSet={readSetState}
+            <SectionGroup label={copy.t("Action needed")} items={grouped.action} readSet={readSetState}
               onClick={(it) => { closePopover(); markRead(it.id); it.cta?.run(); }}
               onDismiss={(id) => { dismiss(id); }}
               accent={COLORS.amberDeep}
             />
           )}
           {grouped.update.length > 0 && (
-            <SectionGroup label="Updates" items={grouped.update} readSet={readSetState}
+            <SectionGroup label={copy.t("Updates")} items={grouped.update} readSet={readSetState}
               onClick={(it) => { closePopover(); markRead(it.id); it.cta?.run(); }}
               onDismiss={(id) => { dismiss(id); }}
               accent={COLORS.indigoDeep}
             />
           )}
           {grouped.system.length > 0 && (
-            <SectionGroup label="System" items={grouped.system} readSet={readSetState}
+            <SectionGroup label={copy.t("System")} items={grouped.system} readSet={readSetState}
               onClick={(it) => { closePopover(); markRead(it.id); it.cta?.run(); }}
               onDismiss={(id) => { dismiss(id); }}
               accent={COLORS.inkMuted}
@@ -315,7 +321,7 @@ export function NotificationsBell({
           <button type="button" onClick={() => { popoverRef.current?.hidePopover?.(); openDrawer("notifications-prefs"); }} style={{
             background: "transparent", border: "none", padding: 0, cursor: "pointer",
             fontSize: 11, fontWeight: 500, color: COLORS.inkMuted,
-          }}>Notification preferences →</button>
+          }}>{copy.t("Notification preferences")} →</button>
         </div>
       </div>
     </div>
@@ -330,6 +336,7 @@ function SectionGroup({ label, items, readSet, onClick, onDismiss, accent }: {
   onDismiss: (id: string) => void;
   accent: string;
 }) {
+  const copy = useDashboardText();
   return (
     <div style={{ marginTop: 4, marginBottom: 6 }}>
       <div style={{
@@ -378,7 +385,7 @@ function SectionGroup({ label, items, readSet, onClick, onDismiss, accent }: {
                 {it.body}
               </div>
             </div>
-            <button type="button" onClick={(e) => { e.stopPropagation(); onDismiss(it.id); }} aria-label="Dismiss" style={{
+            <button type="button" onClick={(e) => { e.stopPropagation(); onDismiss(it.id); }} aria-label={copy.t("Dismiss")} style={{
               width: 20, height: 20, borderRadius: 6, border: "none",
               background: "transparent", color: COLORS.inkMuted,
               fontSize: 12, lineHeight: 1, cursor: "pointer",

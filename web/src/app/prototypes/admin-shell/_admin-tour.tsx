@@ -33,13 +33,13 @@ const ADMIN_STEPS: TourStep[] = [
     position: "left",
   },
   {
-    selector: "[aria-label='Search anything (⌘K)']",
+    selector: "[data-tulala-topbar-search-right]",
     title: "Search across the whole app",
     body: "Talents, inquiries, settings, recent things — ⌘K opens it from anywhere.",
     position: "bottom",
   },
   {
-    selector: "[aria-label='Workspace settings']",
+    selector: "[data-tulala-topbar-settings]",
     title: "Workspace settings live here",
     body: "Permissions, branding, taxonomy, talent types. The cog is your control panel.",
     position: "bottom",

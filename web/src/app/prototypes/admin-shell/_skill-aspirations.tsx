@@ -19,6 +19,7 @@ import {
   removeAspiration,
 } from "@/lib/server-actions/admin-talent-skills";
 
+import { useDashboardText } from "./_dashboard-i18n";
 import { F_BODY, PARENT_EMOJI, T } from "./_skill-tokens";
 
 // ─── CareerInterestsSection — Q2: aspirations / "open to grow into" ──────
@@ -33,6 +34,7 @@ export function CareerInterestsSection({
   /** Pre-loaded by parent. When provided, skips the initial fetch. */
   initialAspirations?: Array<{ term_id: string; slug: string; name_en: string }>;
 }) {
+  const copy = useDashboardText();
   const [aspirations, setAspirations] = useState<
     Array<{ term_id: string; slug: string; name_en: string }>
   >(initialAspirations ?? []);
@@ -93,13 +95,12 @@ export function CareerInterestsSection({
           marginBottom: 4,
         }}
       >
-        Career interests · open to grow into
+        {copy.t("Career interests · open to grow into")}
       </div>
       <div
         style={{ fontSize: 11.5, color: T.inkMuted, marginBottom: 10 }}
       >
-        Talent types this person is open to learning / accepting if invited.
-        Doesn't count toward the 9-skill cap.
+        {copy.t("Talent types this person is open to learning / accepting if invited. Doesn't count toward the 9-skill cap.")}
       </div>
 
       {aspirations.length > 0 && (
@@ -126,11 +127,11 @@ export function CareerInterestsSection({
                 color: T.ink,
               }}
             >
-              {a.name_en}
+              {copy.term(a.name_en)}
               <button
                 type="button"
                 onClick={() => handleRemove(a.term_id)}
-                title="Remove interest"
+                title={copy.t("Remove interest")}
                 style={{
                   border: "none",
                   background: "transparent",
@@ -163,7 +164,7 @@ export function CareerInterestsSection({
           fontFamily: F_BODY,
         }}
       >
-        + Add interest
+        {copy.t("+ Add interest")}
       </button>
 
       {error && (
@@ -213,13 +214,14 @@ function AddAspirationPicker({
   onAdded: () => void;
   onError: (msg: string) => void;
 }) {
+  const copy = useDashboardText();
   const [parents, setParents] = useState<
     Array<{ id: string; slug: string; name_en: string; emoji: string }>
   >([]);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(
     null,
   );
-  const [types, setTypes] = useState<Array<{ id: string; name_en: string }>>(
+  const [types, setTypes] = useState<Array<{ id: string; name_en: string; name_es?: string | null }>>(
     [],
   );
   const [searchQuery, setSearchQuery] = useState("");
@@ -261,7 +263,7 @@ function AddAspirationPicker({
                   !existingSkillIds.has(t.id) &&
                   !existingAspirationIds.has(t.id),
               )
-              .map((t) => ({ id: t.id, name_en: t.name_en })),
+              .map((t) => ({ id: t.id, name_en: t.name_en, name_es: t.name_es })),
           );
         }
       })
@@ -314,13 +316,12 @@ function AddAspirationPicker({
             marginBottom: 4,
           }}
         >
-          Add a career interest
+          {copy.t("Add a career interest")}
         </div>
         <div
           style={{ fontSize: 12, color: T.inkMuted, marginBottom: 12 }}
         >
-          A talent type they're open to growing into. Doesn't replace
-          current skills.
+          {copy.t("A talent type they're open to growing into. Doesn't replace current skills.")}
         </div>
 
         {!selectedParentId ? (
@@ -355,7 +356,7 @@ function AddAspirationPicker({
                 }}
               >
                 <span style={{ fontSize: 14 }}>{p.emoji}</span>
-                {p.name_en}
+                {copy.term(p.name_en)}
               </button>
             ))}
           </div>
@@ -376,11 +377,11 @@ function AddAspirationPicker({
                 textAlign: "left",
               }}
             >
-              ← Back to categories
+              {copy.t("← Back to categories")}
             </button>
             <input
               autoFocus
-              placeholder="Search…"
+              placeholder={copy.t("Search…")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -405,14 +406,14 @@ function AddAspirationPicker({
                 <div
                   style={{ padding: 8, color: T.inkMuted, fontSize: 11.5 }}
                 >
-                  Loading…
+                  {copy.t("Loading…")}
                 </div>
               )}
               {!loadingTypes && types.length === 0 && (
                 <div
                   style={{ padding: 8, color: T.inkMuted, fontSize: 11.5 }}
                 >
-                  No matching types.
+                  {copy.t("No matching types.")}
                 </div>
               )}
               {types.map((t) => (
@@ -434,7 +435,7 @@ function AddAspirationPicker({
                     fontSize: 12,
                   }}
                 >
-                  {t.name_en}
+                  {copy.term(t.name_en, t.name_es)}
                 </button>
               ))}
             </div>
@@ -457,7 +458,7 @@ function AddAspirationPicker({
               fontFamily: F_BODY,
             }}
           >
-            Done
+            {copy.t("Done")}
           </button>
         </div>
       </div>

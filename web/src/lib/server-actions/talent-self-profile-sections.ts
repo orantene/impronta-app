@@ -12,6 +12,12 @@
 import { revalidatePath } from "next/cache";
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
+import { syncProfileShellDynFieldValues } from "@/lib/talent/profile-shell-dyn-field-values";
+import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
+import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
+import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
+import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import type { TalentBio, RateCard, PackageRate, CreditEntry, PastClient } from "./admin-talent-profile-sections";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -46,12 +52,14 @@ export async function updateSelfAbout(input: {
 export async function updateSelfLocation(input: {
   talent_profile_id: string;
   home_base?: string | null;
+  home_place_id?: string | null;
   travel_radius_km?: number | null;
   travel_fee_required?: boolean;
   remote_only?: boolean;
   passport_status?: "valid" | "expired" | "none" | null;
   drivers_license?: "none" | "standard" | "international" | "commercial" | null;
   work_eligibility?: string[];
+  upcoming_visits?: Array<{ id: string; city: string; placeId?: string; date?: string; dateEnd?: string }>;
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -59,12 +67,14 @@ export async function updateSelfLocation(input: {
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.home_base !== undefined) patch.home_city_text = input.home_base?.trim() || null;
+  if (input.home_place_id !== undefined) patch.home_place_id = input.home_place_id?.trim() || null;
   if (input.travel_radius_km !== undefined) patch.travel_radius_km = input.travel_radius_km;
   if (input.travel_fee_required !== undefined) patch.travel_fee_required = input.travel_fee_required;
   if (input.remote_only !== undefined) patch.remote_only = input.remote_only;
   if (input.passport_status !== undefined) patch.passport_status = input.passport_status || null;
   if (input.drivers_license !== undefined) patch.drivers_license = input.drivers_license || null;
   if (input.work_eligibility !== undefined) patch.work_eligibility = input.work_eligibility;
+  if (input.upcoming_visits !== undefined) patch.upcoming_visits = input.upcoming_visits;
 
   const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.location", error); return { ok: false, error: CLIENT_ERROR.update }; }
@@ -81,6 +91,7 @@ export async function updateSelfRates(input: {
   talent_profile_id: string;
   rates_data?: RateCard[];
   package_rates_data?: PackageRate[];
+  rate_tiers_data?: unknown;
   rate_card_visibility?: "public" | "agency-only" | "on-request";
   ask_for_quote?: boolean;
   travel_included?: boolean;
@@ -93,6 +104,7 @@ export async function updateSelfRates(input: {
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.rates_data !== undefined) patch.rates_data = input.rates_data;
   if (input.package_rates_data !== undefined) patch.package_rates_data = input.package_rates_data;
+  if (input.rate_tiers_data !== undefined) patch.rate_tiers_data = input.rate_tiers_data;
   if (input.rate_card_visibility !== undefined) patch.rate_card_visibility = input.rate_card_visibility;
   if (input.ask_for_quote !== undefined) patch.ask_for_quote = input.ask_for_quote;
   if (input.travel_included !== undefined) patch.travel_included = input.travel_included;
@@ -260,7 +272,12 @@ export async function updateSelfIdentity(input: {
   date_of_birth?: string;
   age_display_mode?: "exact" | "range" | "hidden";
   nationality?: string;
+  /** Maps to `talent_profiles.home_country_text`. */
+  home_country?: string;
   response_time?: "1h" | "4h" | "24h" | "48h" | null;
+  contact_email?: string;
+  contact_phone?: string;
+  contact_phone_prefix?: string;
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -278,13 +295,136 @@ export async function updateSelfIdentity(input: {
   if (input.date_of_birth !== undefined) patch.date_of_birth = input.date_of_birth?.trim() || null;
   if (input.age_display_mode !== undefined) patch.age_display_mode = input.age_display_mode;
   if (input.nationality !== undefined) patch.nationality = nullIfEmpty(input.nationality);
+  if (input.home_country !== undefined) patch.home_country_text = nullIfEmpty(input.home_country);
   if (input.response_time !== undefined) patch.response_time = input.response_time || null;
+  if (input.contact_email !== undefined) patch.invitation_email = nullIfEmpty(input.contact_email);
+  if (input.contact_phone !== undefined || input.contact_phone_prefix !== undefined) {
+    const combined = [input.contact_phone_prefix, input.contact_phone]
+      .map((x) => (x ?? "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    patch.phone = combined === "" ? null : combined;
+  }
 
   const { error } = await supabase.from("talent_profiles").update(patch).eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.identity", error); return { ok: false, error: CLIENT_ERROR.update }; }
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
+}
+
+export async function updateSelfProfileWorkflowFromShell(input: {
+  talent_profile_id: string;
+  profile_status: UiProfileShellStatus;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profileCode } = auth;
+
+  const w = uiProfileShellStatusToDbPatch(input.profile_status);
+  const { error } = await supabase
+    .from("talent_profiles")
+    .update({ ...w, updated_at: new Date().toISOString() })
+    .eq("id", input.talent_profile_id);
+  if (error) {
+    logServerError("self-sections.workflow-shell", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  return { ok: true };
+}
+
+export async function updateSelfProfileShellDynFields(input: {
+  talent_profile_id: string;
+  dyn_fields?: Record<string, string | string[]>;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profileCode } = auth;
+
+  const dynRes = await syncProfileShellDynFieldValues(supabase, input.talent_profile_id, input.dyn_fields, "talent");
+  if (!dynRes.ok) return { ok: false, error: dynRes.error };
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  return { ok: true };
+}
+
+export async function syncSelfTalentTypeTaxonomyFromShell(input: {
+  talent_profile_id: string;
+  primary_slug: string | null;
+  secondary_slugs: string[];
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId, profileCode } = auth;
+
+  const tax = await syncTalentTypeTaxonomyFromShellSlugs(supabase, {
+    tenantId,
+    talentProfileId: input.talent_profile_id,
+    primarySlug: input.primary_slug,
+    secondarySlugs: input.secondary_slugs,
+  });
+  if (!tax.ok) return { ok: false, error: tax.error };
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  return { ok: true };
+}
+
+/** Hydrate profile-shell `dynFields` for the signed-in talent (same shape as staff roster hydrate). */
+export async function getTalentProfileDynFieldValuesForSelf(input: {
+  talent_profile_id: string;
+}): Promise<{ ok: true; values: Record<string, string> } | { ok: false; error: string }> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth;
+
+  const { data: rows, error } = await supabase
+    .from("field_values")
+    .select("field_definition_id, value_text, value_number, value_boolean, value_date")
+    .eq("talent_profile_id", input.talent_profile_id);
+  if (error) {
+    logServerError("self-sections.dyn-fv-hydrate.fv", error);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+
+  const ids = [
+    ...new Set(
+      (rows ?? []).map((r: { field_definition_id: string }) => r.field_definition_id),
+    ),
+  ];
+  if (ids.length === 0) return { ok: true, values: {} };
+
+  const { data: defs, error: dErr } = await supabase
+    .from("field_definitions")
+    .select("id, key")
+    .in("id", ids);
+  if (dErr) {
+    logServerError("self-sections.dyn-fv-hydrate.defs", dErr);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+
+  const idToKey = new Map((defs ?? []).map((d: { id: string; key: string }) => [d.id, d.key]));
+  const values: Record<string, string> = {};
+  for (const r of rows ?? []) {
+    const key = idToKey.get((r as { field_definition_id: string }).field_definition_id);
+    if (!key || isReservedTalentProfileFieldKey(key)) continue;
+    const row = r as {
+      value_text: string | null;
+      value_number: number | null;
+      value_boolean: boolean | null;
+      value_date: string | null;
+    };
+    let s: string | null = null;
+    if (row.value_text != null && row.value_text !== "") s = String(row.value_text);
+    else if (row.value_number != null && Number.isFinite(Number(row.value_number))) {
+      s = String(row.value_number);
+    } else if (row.value_boolean != null) s = row.value_boolean ? "true" : "false";
+    else if (row.value_date != null && row.value_date !== "") s = String(row.value_date);
+    if (s !== null) values[key] = s;
+  }
+  return { ok: true, values };
 }
 
 // ─── Social links ─────────────────────────────────────────────────────────────
@@ -304,6 +444,54 @@ export async function updateSelfSocialLinks(input: {
     .update({ social_links: input.social_links, updated_at: new Date().toISOString() })
     .eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.social-links", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  revalidatePath(`/t/${profileCode}`, "page");
+  return { ok: true };
+}
+
+/** Profile shell: video chips + WhatsApp + business line (merged JSONB, same rules as admin batch). */
+export async function updateSelfProfileDrawerExtras(input: {
+  talent_profile_id: string;
+  videoLinks: string[];
+  whatsapp?: string;
+  whatsappPrefix?: string;
+  businessLine?: string;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profileCode } = auth;
+
+  const { data: linkRow, error: linkSelErr } = await supabase
+    .from("talent_profiles")
+    .select("social_links, embedded_media")
+    .eq("id", input.talent_profile_id)
+    .maybeSingle();
+  if (linkSelErr) {
+    logServerError("self-sections.drawer-extras.select", linkSelErr);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  const merged = mergeShellSocialAndEmbedded({
+    currentSocialLinks: linkRow?.social_links,
+    currentEmbeddedMedia: linkRow?.embedded_media,
+    videoLinks: input.videoLinks,
+    whatsappPrefix: input.whatsappPrefix ?? "+1",
+    whatsappNational: input.whatsapp ?? "",
+    businessLine: input.businessLine ?? "",
+  });
+
+  const { error } = await supabase
+    .from("talent_profiles")
+    .update({
+      social_links: merged.social_links,
+      embedded_media: merged.embedded_media,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.talent_profile_id);
+  if (error) {
+    logServerError("self-sections.drawer-extras.update", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };

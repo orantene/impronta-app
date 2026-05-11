@@ -11,6 +11,10 @@
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import {
+  buildTalentLanguageRpcRows,
+  type DrawerLanguageRowInput,
+} from "@/lib/talent/talent-profile-shell-persistence";
 
 export type TalentLanguageInput = {
   language_code: string;   // ISO 639-1 e.g. "en", "es"
@@ -24,48 +28,13 @@ export type TalentLanguageInput = {
   display_order?: number;
 };
 
+export type { DrawerLanguageRowInput };
+
 type Result = { ok: true } | { ok: false; error: string };
-
-/** Map the drawer's ProfileLanguage level string to the DB enum. */
-function mapLevel(level: string | undefined): TalentLanguageInput["speaking_level"] {
-  const map: Record<string, TalentLanguageInput["speaking_level"]> = {
-    basic: "basic",
-    conversational: "conversational",
-    professional: "professional",
-    fluent: "fluent",
-    native: "native",
-    // legacy aliases the drawer may produce
-    intermediate: "conversational",
-    advanced: "professional",
-  };
-  return map[level ?? ""] ?? "conversational";
-}
-
-/** ISO 639-1 code from display name. Best-effort; unknown names get a slug. */
-const LANG_CODE: Record<string, string> = {
-  english: "en", spanish: "es", french: "fr", italian: "it", german: "de",
-  portuguese: "pt", dutch: "nl", russian: "ru", japanese: "ja", chinese: "zh",
-  arabic: "ar", hindi: "hi", korean: "ko", turkish: "tr", polish: "pl",
-  swedish: "sv", norwegian: "no", danish: "da", finnish: "fi", greek: "el",
-  catalan: "ca", basque: "eu", galician: "gl", romanian: "ro", ukrainian: "uk",
-  czech: "cs", hungarian: "hu", thai: "th", vietnamese: "vi", indonesian: "id",
-  malay: "ms", hebrew: "he", persian: "fa",
-};
-
-function toCode(name: string): string {
-  return LANG_CODE[name.toLowerCase().trim()] ?? name.toLowerCase().replace(/[^a-z]/g, "").slice(0, 8);
-}
 
 export async function saveTalentLanguages(input: {
   talent_profile_id: string;
-  languages: Array<{
-    language: string;
-    level?: string;
-    canHost?: boolean;
-    canSell?: boolean;
-    canTranslate?: boolean;
-    canTeach?: boolean;
-  }>;
+  languages: DrawerLanguageRowInput[];
 }): Promise<Result> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -82,17 +51,7 @@ export async function saveTalentLanguages(input: {
   if (rErr) { logServerError("talent-languages.roster", rErr); return { ok: false, error: CLIENT_ERROR.update }; }
   if (!roster) return { ok: false, error: "That talent isn't on your roster." };
 
-  const rows = input.languages.map((l, i) => ({
-    language_code: toCode(l.language),
-    language_name: l.language,
-    speaking_level: mapLevel(l.level),
-    is_native: mapLevel(l.level) === "native",
-    can_host: l.canHost ?? false,
-    can_sell: l.canSell ?? false,
-    can_translate: l.canTranslate ?? false,
-    can_teach: l.canTeach ?? false,
-    display_order: i,
-  }));
+  const rows = buildTalentLanguageRpcRows(input.languages);
 
   // Use the atomic RPC so delete + insert run in one transaction.
   // A mid-request crash can no longer leave the talent with zero languages.

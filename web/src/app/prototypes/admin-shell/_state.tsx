@@ -5038,6 +5038,26 @@ export type ProfileIdentity = {
   >>;
 };
 
+/** Prefixes shown in IdentityEditor — longest match wins when parsing DB `phone`. */
+export const SHELL_CONTACT_PHONE_PREFIXES = [
+  "+86", "+44", "+34", "+52", "+55", "+33", "+49", "+39", "+91", "+7", "+1",
+] as const;
+
+export function splitShellContactPhone(stored: string | null | undefined): {
+  contactPhonePrefix: string;
+  contactPhone: string;
+} {
+  const s = (stored ?? "").trim();
+  if (!s) return { contactPhonePrefix: "+1", contactPhone: "" };
+  const ordered = [...SHELL_CONTACT_PHONE_PREFIXES].sort((a, b) => b.length - a.length);
+  for (const p of ordered) {
+    if (s.startsWith(p)) {
+      return { contactPhonePrefix: p, contactPhone: s.slice(p.length).trim() };
+    }
+  }
+  return { contactPhonePrefix: "+1", contactPhone: s };
+}
+
 export function deriveAge(dob: string | null): number | null {
   if (!dob) return null;
   const d = new Date(dob);

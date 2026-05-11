@@ -24,10 +24,11 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { signOut } from "@/app/auth/actions";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { TenantScope } from "@/lib/saas/scope";
-import type { Session } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
 import type { WorkspaceOverviewMetrics } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
+import { cookies } from "next/headers";
 
 type Props = {
   scope: TenantScope;
@@ -49,6 +50,20 @@ const ROLE_LABELS: Record<string, string> = {
   staff: "Staff",
 };
 
+const PLAN_LABELS_ES: Record<string, string> = {
+  free: "Gratis",
+  studio: "Studio",
+  agency: "Agencia",
+  network: "Red",
+};
+
+const ROLE_LABELS_ES: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  coordinator: "Coordinador",
+  staff: "Staff",
+};
+
 async function loadAgencyPlan(
   tenantId: string,
 ): Promise<{ display_name: string | null; plan_tier: string | null; kind: string | null } | null> {
@@ -67,10 +82,17 @@ async function loadAgencyPlan(
 }
 
 export async function RealIdentityBanner({ scope, user, metrics }: Props) {
+  const locale = (await cookies()).get(LOCALE_COOKIE)?.value ?? "en";
+  const isEs = locale.toLowerCase().startsWith("es");
   const agency = await loadAgencyPlan(scope.tenantId);
   const tenantName = agency?.display_name ?? scope.membership.display_name;
-  const planLabel = PLAN_LABELS[agency?.plan_tier ?? "free"] ?? "Free";
-  const roleLabel = ROLE_LABELS[scope.membership.role] ?? scope.membership.role;
+  const planKey = agency?.plan_tier ?? "free";
+  const planLabel = isEs
+    ? (PLAN_LABELS_ES[planKey] ?? PLAN_LABELS[planKey] ?? "Gratis")
+    : (PLAN_LABELS[planKey] ?? "Free");
+  const roleLabel = isEs
+    ? (ROLE_LABELS_ES[scope.membership.role] ?? ROLE_LABELS[scope.membership.role] ?? scope.membership.role)
+    : (ROLE_LABELS[scope.membership.role] ?? scope.membership.role);
   const userEmail = user.email ?? "(no email)";
 
   const rosterTotal = metrics?.rosterTotal ?? 0;
@@ -81,7 +103,7 @@ export async function RealIdentityBanner({ scope, user, metrics }: Props) {
     <div
       data-impronta-real-identity-banner
       role="status"
-      aria-label="Real workspace identity (live data)"
+      aria-label={isEs ? "Identidad real del espacio (datos en vivo)" : "Real workspace identity (live data)"}
       style={{
         position: "sticky",
         top: 0,
@@ -101,7 +123,7 @@ export async function RealIdentityBanner({ scope, user, metrics }: Props) {
       }}
     >
       <span
-        title="Live tenant scoped from URL slug"
+        title={isEs ? "Tenant en vivo tomado del slug de la URL" : "Live tenant scoped from URL slug"}
         style={{
           textTransform: "uppercase",
           letterSpacing: 0.6,
@@ -110,7 +132,7 @@ export async function RealIdentityBanner({ scope, user, metrics }: Props) {
           color: "#94A3B8",
         }}
       >
-        Live
+        {isEs ? "En vivo" : "Live"}
       </span>
       <span>
         <strong>{tenantName}</strong>
@@ -132,22 +154,26 @@ export async function RealIdentityBanner({ scope, user, metrics }: Props) {
         </span>
       </span>
       <span style={{ color: "#94A3B8" }}>·</span>
-      <span title="Signed-in user from the Supabase session">
+      <span title={isEs ? "Usuario con sesión iniciada en Supabase" : "Signed-in user from the Supabase session"}>
         {userEmail} <span style={{ color: "#94A3B8" }}>({roleLabel})</span>
       </span>
       <span style={{ color: "#94A3B8" }}>·</span>
-      <span title="Live aggregates from agency_talent_roster + inquiries">
-        {rosterTotal} talent
+      <span title={isEs ? "Agregados en vivo de agency_talent_roster + inquiries" : "Live aggregates from agency_talent_roster + inquiries"}>
+        {rosterTotal} talento
         {pendingApprovals > 0 && (
           <span style={{ color: "#FBBF24", marginLeft: 6 }}>
-            ({pendingApprovals} pending)
+            ({pendingApprovals} {isEs ? "pendiente" : "pending"})
           </span>
         )}
-        <span style={{ marginLeft: 10 }}>{openInquiries} open inquiries</span>
+        <span style={{ marginLeft: 10 }}>
+          {isEs
+            ? `${openInquiries} consulta${openInquiries === 1 ? "" : "s"} abierta${openInquiries === 1 ? "" : "s"}`
+            : `${openInquiries} open inquiries`}
+        </span>
       </span>
       <span style={{ flex: 1 }} />
       <span
-        title="Slug from URL"
+        title={isEs ? "Slug de la URL" : "Slug from URL"}
         style={{ color: "#64748B", fontSize: 10, letterSpacing: 0.4 }}
       >
         /{scope.membership.slug}
@@ -155,7 +181,7 @@ export async function RealIdentityBanner({ scope, user, metrics }: Props) {
       <form action={signOut} style={{ display: "inline-flex", margin: 0 }}>
         <button
           type="submit"
-          title="Sign out (kills session, returns to /)"
+          title={isEs ? "Cerrar sesión (termina la sesión y vuelve a /)" : "Sign out (kills session, returns to /)"}
           style={{
             background: "#1E293B",
             color: "#F8FAFC",
@@ -169,7 +195,7 @@ export async function RealIdentityBanner({ scope, user, metrics }: Props) {
             fontFamily: "inherit",
           }}
         >
-          Sign out
+          {isEs ? "Cerrar sesión" : "Sign out"}
         </button>
       </form>
     </div>

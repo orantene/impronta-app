@@ -16,6 +16,7 @@ import {
   type ProficiencyLevel,
 } from "@/lib/server-actions/admin-talent-skills.types";
 
+import { useDashboardText } from "./_dashboard-i18n";
 import { F_BODY, T } from "./_skill-tokens";
 
 // ─── ProficiencyDotPicker — interactive 5-dot picker ───────────────────────
@@ -31,6 +32,7 @@ export function ProficiencyDotPicker({
   size?: "sm" | "md";
   readOnly?: boolean;
 }) {
+  const copy = useDashboardText();
   const [hovered, setHovered] = useState<number | null>(null);
   const dotSize = size === "sm" ? 8 : 10;
   const gap = size === "sm" ? 3 : 4;
@@ -88,8 +90,11 @@ export function ProficiencyDotPicker({
             }}
             title={
               readOnly
-                ? PROFICIENCY_META[PROFICIENCY_LEVELS[i - 1]].label
-                : `Set ${PROFICIENCY_META[PROFICIENCY_LEVELS[i - 1]].label} · ${PROFICIENCY_META[PROFICIENCY_LEVELS[i - 1]].description}`
+                ? copy.t(PROFICIENCY_META[PROFICIENCY_LEVELS[i - 1]].label)
+                : copy.setProficiencyTitle(
+                    PROFICIENCY_META[PROFICIENCY_LEVELS[i - 1]].label,
+                    PROFICIENCY_META[PROFICIENCY_LEVELS[i - 1]].description,
+                  )
             }
           >
             <span
@@ -113,7 +118,7 @@ export function ProficiencyDotPicker({
             fontFamily: F_BODY,
           }}
         >
-          {PROFICIENCY_META[PROFICIENCY_LEVELS[hovered - 1]].label}
+          {copy.t(PROFICIENCY_META[PROFICIENCY_LEVELS[hovered - 1]].label)}
         </span>
       )}
       {/* Q4: Unrated nudge — when proficiency_level is NULL and no hover,
@@ -128,7 +133,7 @@ export function ProficiencyDotPicker({
             fontStyle: "italic",
           }}
         >
-          ← tap a dot to set level
+          {copy.t("← tap a dot to set level")}
         </span>
       )}
     </div>
@@ -144,6 +149,7 @@ export function ProficiencyLabel({
   level: ProficiencyLevel | null;
   isVerified: boolean;
 }) {
+  const copy = useDashboardText();
   if (!level) {
     return (
       <span
@@ -156,7 +162,7 @@ export function ProficiencyLabel({
           fontFamily: F_BODY,
         }}
       >
-        Unrated
+        {copy.t("Unrated")}
       </span>
     );
   }
@@ -192,9 +198,9 @@ export function ProficiencyLabel({
         fontFamily: F_BODY,
       }}
     >
-      {meta.label}
+      {copy.t(meta.label)}
       {showHighWithoutVerification && (
-        <span style={{ fontSize: 9, opacity: 0.7 }}>(unverified)</span>
+        <span style={{ fontSize: 9, opacity: 0.7 }}>{copy.t("(unverified)")}</span>
       )}
       {isVerified && <span style={{ fontWeight: 700 }}>✓</span>}
     </span>

@@ -18,6 +18,7 @@ import {
   ProficiencyDotPicker,
   ProficiencyLabel,
 } from "./_skill-proficiency";
+import { useDashboardText } from "./_dashboard-i18n";
 import { F_BODY, T } from "./_skill-tokens";
 
 // ─── SkillCategoryCard — one per role/parent_category pair ────────────────
@@ -56,6 +57,7 @@ export function SkillCategoryCard({
   canAddSkill: boolean;
   isAdmin: boolean;
 }) {
+  const copy = useDashboardText();
   return (
     <div
       style={{
@@ -99,11 +101,11 @@ export function SkillCategoryCard({
               marginTop: 1,
             }}
           >
-            {parentName ?? "Not set"}
+            {parentName ?? copy.t("Not set")}
           </div>
         </div>
         <span style={{ fontSize: 11, color: T.inkMuted }}>
-          {skills.length} {skills.length === 1 ? "skill" : "skills"}
+          {copy.skillCount(skills.length)}
         </span>
       </div>
 
@@ -146,8 +148,9 @@ export function SkillCategoryCard({
             fontWeight: 600,
           }}
         >
-          + Add {skills.length === 0 ? "skill" : "another skill"} in this
-          category
+          {skills.length === 0
+            ? `+ ${copy.t("Add skill in this category")}`
+            : `+ ${copy.t("Add another skill in this category")}`}
         </button>
       )}
     </div>
@@ -177,6 +180,7 @@ export function SkillRow({
   onSetFeatured: () => void;
   isAdmin: boolean;
 }) {
+  const copy = useDashboardText();
   return (
     <div
       style={{
@@ -194,7 +198,7 @@ export function SkillRow({
           onClick={isFeatured ? undefined : onSetFeatured}
           disabled={isFeatured}
           title={
-            isFeatured ? "Featured on roster card" : "Set as featured skill"
+            isFeatured ? copy.t("Featured on roster card") : copy.t("Set as featured skill")
           }
           style={{
             width: 24,
@@ -224,7 +228,7 @@ export function SkillRow({
             color: T.ink,
           }}
         >
-          {skill.skill_name_en}
+          {copy.term(skill.skill_name_en, skill.skill_name_es)}
           {isFeatured && (
             <span
               style={{
@@ -238,7 +242,7 @@ export function SkillRow({
                 letterSpacing: 0.4,
               }}
             >
-              FEATURED
+              {copy.t("FEATURED")}
             </span>
           )}
           {isSaving && (
@@ -250,7 +254,7 @@ export function SkillRow({
                 fontWeight: 400,
               }}
             >
-              saving…
+              {copy.t("saving…")}
             </span>
           )}
         </span>
@@ -261,7 +265,7 @@ export function SkillRow({
         <button
           type="button"
           onClick={onRemove}
-          title="Remove skill"
+          title={copy.t("Remove skill")}
           style={{
             width: 24,
             height: 24,
@@ -302,7 +306,7 @@ export function SkillRow({
             color: T.inkMuted,
           }}
         >
-          <span>Years:</span>
+          <span>{copy.t("Years:")}</span>
           <input
             type="number"
             min={0}
@@ -341,7 +345,7 @@ export function SkillRow({
               fontFamily: F_BODY,
             }}
           >
-            {skill.is_verified ? "✓ Verified" : "Verify proficiency"}
+            {skill.is_verified ? copy.t("✓ Verified") : copy.t("Verify proficiency")}
           </button>
         )}
       </div>

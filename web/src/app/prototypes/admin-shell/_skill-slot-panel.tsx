@@ -52,6 +52,7 @@ import {
   type ResolvedSkill,
 } from "@/lib/server-actions/admin-talent-skills.types";
 
+import { useDashboardText } from "./_dashboard-i18n";
 import { AddSkillSearch } from "./_skill-add-search";
 import { CareerInterestsSection } from "./_skill-aspirations";
 import {
@@ -108,6 +109,7 @@ export function SkillSlotPanel({
    *  Set true for platform-staff role only. Defaults to false (agency only). */
   canChooseVerificationScope?: boolean;
 }) {
+  const copy = useDashboardText();
   const [skills, setSkills] = useState<ResolvedSkill[] | null>(null);
   const [aspirations, setAspirations] = useState<
     Array<{ term_id: string; slug: string; name_en: string }>
@@ -275,7 +277,10 @@ export function SkillSlotPanel({
   };
 
   const handleRemove = async (skill: ResolvedSkill) => {
-    if (!confirm(`Remove "${skill.skill_name_en}" from this profile?`)) return;
+    if (!confirm(copy.isSpanish
+      ? `¿Quitar "${copy.term(skill.skill_name_en, skill.skill_name_es)}" de este perfil?`
+      : `Remove "${skill.skill_name_en}" from this profile?`
+    )) return;
     setSaving(skill.skill_term_id, true);
     const res = await removeSkill({
       talent_profile_id: talentProfileId,
@@ -369,11 +374,10 @@ export function SkillSlotPanel({
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <div style={{ fontWeight: 600, color: T.indigoDeep }}>
-              {totalSkills} of {MAX_TOTAL_SKILLS} skills used
+              {copy.skillsUsed(totalSkills, MAX_TOTAL_SKILLS)}
             </div>
             <div style={{ fontSize: 10.5, color: T.inkMuted }}>
-              One primary category · up to two secondary categories · max 9
-              skills total
+              {copy.t("One primary category · up to two secondary categories · max 9 skills total")}
             </div>
           </div>
           <div
@@ -417,15 +421,15 @@ export function SkillSlotPanel({
 
       {loading && !skills && (
         <div style={{ color: T.inkMuted, fontSize: 12, padding: 8 }}>
-          Loading skills…
+          {copy.t("Loading skills…")}
         </div>
       )}
 
       {/* PRIMARY card */}
       <SkillCategoryCard
-        roleLabel="Primary category"
+        roleLabel={copy.t("Primary category")}
         roleEmoji="★"
-        parentName={primaryGroup?.parent_name ?? null}
+        parentName={primaryGroup?.parent_name ? copy.term(primaryGroup.parent_name) : null}
         skills={primaryGroup?.skills ?? []}
         onAddClick={() =>
           setAddingForRole({
@@ -448,9 +452,9 @@ export function SkillSlotPanel({
       {secondaryGroups.map((g, i) => (
         <SkillCategoryCard
           key={g.key}
-          roleLabel={`Secondary category ${i + 1}`}
+          roleLabel={copy.secondaryCategory(i + 1)}
           roleEmoji="◆"
-          parentName={g.parent_name}
+          parentName={copy.term(g.parent_name)}
           skills={g.skills}
           onAddClick={() =>
             setAddingForRole({ role: "secondary", parent_id: g.parent_id })
@@ -486,9 +490,9 @@ export function SkillSlotPanel({
             fontWeight: 600,
           }}
         >
-          + Add{" "}
-          {secondaryGroups.length === 0 ? "first" : "second"} secondary
-          category
+          {secondaryGroups.length === 0
+            ? `+ ${copy.t("Add first secondary category")}`
+            : `+ ${copy.t("Add second secondary category")}`}
         </button>
       )}
 

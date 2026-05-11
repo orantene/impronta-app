@@ -16,6 +16,7 @@ import {
   type ResolvedSkill,
 } from "@/lib/server-actions/admin-talent-skills.types";
 
+import { useDashboardText } from "./_dashboard-i18n";
 import { F_BODY, T } from "./_skill-tokens";
 
 export function VerifyConfirmDialog({
@@ -31,6 +32,7 @@ export function VerifyConfirmDialog({
   onCancel: () => void;
   onConfirm: (note: string | null, scope: "platform" | "agency") => void;
 }) {
+  const copy = useDashboardText();
   const [note, setNote] = useState("");
   const [scope, setScope] = useState<"platform" | "agency">("agency");
   const [submitting, setSubmitting] = useState(false);
@@ -70,7 +72,7 @@ export function VerifyConfirmDialog({
             marginBottom: 4,
           }}
         >
-          Verify {skill.skill_name_en}?
+          {copy.verifyTitle(copy.term(skill.skill_name_en, skill.skill_name_es))}
         </div>
         <div
           style={{
@@ -80,9 +82,7 @@ export function VerifyConfirmDialog({
             marginBottom: 12,
           }}
         >
-          You're staking your agency's reputation on this assessment. Verified
-          skills are surfaced to clients as trusted; only verify what you've
-          witnessed firsthand or have evidence for.
+          {copy.t("You're staking your agency's reputation on this assessment. Verified skills are surfaced to clients as trusted; only verify what you've witnessed firsthand or have evidence for.")}
         </div>
 
         {proficiency && (
@@ -99,13 +99,13 @@ export function VerifyConfirmDialog({
             <div
               style={{ fontSize: 10.5, color: T.inkMuted, marginBottom: 2 }}
             >
-              Verifying at level
+              {copy.t("Verifying at level")}
             </div>
             <div style={{ fontWeight: 700, color: T.ink }}>
-              {proficiency.label} ({proficiency.dots} of 5 dots)
+              {copy.proficiencyDots(proficiency.label, proficiency.dots)}
             </div>
             <div style={{ fontSize: 11, color: T.inkMuted, marginTop: 2 }}>
-              {proficiency.description}
+              {copy.t(proficiency.description)}
             </div>
           </div>
         )}
@@ -121,7 +121,7 @@ export function VerifyConfirmDialog({
                 marginBottom: 4,
               }}
             >
-              Verification scope
+              {copy.t("Verification scope")}
             </label>
             <div style={{ display: "flex", gap: 6 }}>
               <button
@@ -146,10 +146,10 @@ export function VerifyConfirmDialog({
                     marginBottom: 2,
                   }}
                 >
-                  This agency
+                  {copy.t("This agency")}
                 </div>
                 <div style={{ fontSize: 11, color: T.inkMuted }}>
-                  Visible to this tenant only.
+                  {copy.t("Visible to this tenant only.")}
                 </div>
               </button>
               <button
@@ -174,10 +174,10 @@ export function VerifyConfirmDialog({
                     marginBottom: 2,
                   }}
                 >
-                  Platform-wide
+                  {copy.t("Platform-wide")}
                 </div>
                 <div style={{ fontSize: 11, color: T.inkMuted }}>
-                  Tulala-verified, visible to all tenants.
+                  {copy.t("Tulala-verified, visible to all tenants.")}
                 </div>
               </button>
             </div>
@@ -193,12 +193,12 @@ export function VerifyConfirmDialog({
             marginBottom: 4,
           }}
         >
-          Verification note (optional, internal)
+          {copy.t("Verification note (optional, internal)")}
         </label>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. 'Saw them perform at the Maya Beach Club opening, May 2026.'"
+          placeholder={copy.t("e.g. 'Saw them perform at the Maya Beach Club opening, May 2026.'")}
           rows={3}
           style={{
             width: "100%",
@@ -232,7 +232,7 @@ export function VerifyConfirmDialog({
               fontFamily: F_BODY,
             }}
           >
-            Cancel
+            {copy.t("Cancel")}
           </button>
           <button
             type="button"
@@ -254,8 +254,8 @@ export function VerifyConfirmDialog({
             }}
           >
             {submitting
-              ? "Verifying…"
-              : `✓ Verify${canChooseScope ? ` (${scope})` : ""}`}
+              ? copy.t("Verifying…")
+              : copy.verifyButton(scope, !!canChooseScope)}
           </button>
         </div>
       </div>

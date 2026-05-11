@@ -146,6 +146,7 @@ import {
 import { signOut } from "@/app/auth/actions";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import { LOCALE_COOKIE, localeCookieOptions } from "@/i18n/locale-middleware";
+import { useDashboardText } from "./_dashboard-i18n";
 import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv, WorkspaceActivationBanner, DemoDataBanner } from "./_wave2";
 import { WorkspaceMediaPage } from "./_media-page";
 import { pinNextConversation as pinNextConversationP } from "./_messages";
@@ -521,6 +522,7 @@ const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "team" | "user" |
 
 export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests, overviewMetrics } = useProto();
+  const copy = useDashboardText();
   const pendingVerifications = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
   ).length;
@@ -557,8 +559,8 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
           [data-tulala-app-topbar] { padding: 0 14px !important; }
           [data-tulala-app-topbar-row] { gap: 8px !important; height: 46px !important; }
           [data-tulala-topbar-search] { display: none !important; }
-          [data-tulala-app-topbar-right] [aria-label="Workspace settings"],
-          [data-tulala-app-topbar-right] [aria-label="Switch to sidebar layout"] {
+          [data-tulala-app-topbar-right] [data-tulala-topbar-settings],
+          [data-tulala-app-topbar-right] [data-tulala-topbar-sidebar] {
             display: none !important;
           }
         }
@@ -575,9 +577,15 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
         {/* Page nav — the only thing the workspace topbar owns now.
             Tenant identity, mode toggle, bell/help/settings, role chip,
             avatar all moved to the persistent identity bar above. */}
-        <nav ref={topbarNavRef} data-tulala-app-topbar-nav aria-label="Workspace sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
+        <nav ref={topbarNavRef} data-tulala-app-topbar-nav aria-label={copy.t("Workspace sections")} style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {WORKSPACE_PAGES.map((p) => {
             const active = state.page === p;
+            const pageLabel = p === "roster"
+              ? copy.t(ENTITY_TYPE_META[state.entityType].rosterLabel)
+              : copy.t(PAGE_META[p].label);
+            const pageDescription = PAGE_META[p].description
+              ? copy.t(PAGE_META[p].description)
+              : undefined;
             // 2026 redesign — surface pending-approval count on the Roster tab
             // so the signal is visible from anywhere in the workspace, not
             // just from the Roster page itself. Roster tab now splits the
@@ -590,8 +598,8 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
               <button
                 key={p}
                 onClick={() => setPage(p)}
-                title={PAGE_META[p].description}
-                aria-label={PAGE_META[p].description ? `${PAGE_META[p].label} — ${PAGE_META[p].description}` : PAGE_META[p].label}
+                title={pageDescription}
+                aria-label={pageDescription ? `${pageLabel} — ${pageDescription}` : pageLabel}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -617,16 +625,20 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
                 }}
               >
                 {/* WS-3.2 — "roster" inherits the entity-type label (Talent/Models/Artists) */}
-                {p === "roster" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
+                {pageLabel}
                 {showRosterBadges ? (
                   // Single combined badge — total pending actions. Tooltip
                   // breaks down approvals vs. verifications on hover.
                   <span
-                    aria-label={`${effectivePendingTalentCount + pendingVerifications} items need attention`}
+                    aria-label={`${effectivePendingTalentCount + pendingVerifications} ${copy.t("items need attention")}`}
                     title={(() => {
                       const parts: string[] = [];
-                      if (effectivePendingTalentCount > 0) parts.push(`${effectivePendingTalentCount} self-registration${effectivePendingTalentCount === 1 ? "" : "s"} awaiting review`);
-                      if (pendingVerifications > 0) parts.push(`${pendingVerifications} verification${pendingVerifications === 1 ? "" : "s"} pending`);
+                      if (effectivePendingTalentCount > 0) parts.push(copy.isSpanish
+                        ? `${effectivePendingTalentCount} registro${effectivePendingTalentCount === 1 ? "" : "s"} pendiente${effectivePendingTalentCount === 1 ? "" : "s"} de revisión`
+                        : `${effectivePendingTalentCount} self-registration${effectivePendingTalentCount === 1 ? "" : "s"} awaiting review`);
+                      if (pendingVerifications > 0) parts.push(copy.isSpanish
+                        ? `${pendingVerifications} verificación${pendingVerifications === 1 ? "" : "es"} pendiente${pendingVerifications === 1 ? "" : "s"}`
+                        : `${pendingVerifications} verification${pendingVerifications === 1 ? "" : "s"} pending`);
                       return parts.join(" · ");
                     })()}
                     style={{
@@ -640,7 +652,7 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
                   </span>
                 ) : pageBadge > 0 && (
                   <span
-                    aria-label={`${pageBadge} pending`}
+                    aria-label={`${pageBadge} ${copy.t("pending")}`}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -688,7 +700,7 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
               (⌘K) so power-users can find anything instantly. */}
           {onOpenSearch && (
             <button type="button" onClick={onOpenSearch}
-              aria-label="Search anything (⌘K)"
+              aria-label={copy.t("Search anything (⌘K)")}
               data-tulala-topbar-search-right
               style={{
                 display: "inline-flex", alignItems: "center", gap: 8,
@@ -703,7 +715,7 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }}
             >
               <Icon name="search" size={12} stroke={1.7} />
-              <span>Search</span>
+              <span>{copy.t("Search")}</span>
               <span style={{
                 marginLeft: 4, padding: "1px 5px", borderRadius: 4,
                 background: "rgba(11,11,13,0.06)",
@@ -711,11 +723,12 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
               }}>⌘K</span>
             </button>
           )}
-          <Popover content="Workspace settings">
+          <Popover content={copy.t("Workspace settings")}>
             <button
               type="button"
               onClick={() => setPage("workspace")}
-              aria-label="Workspace settings"
+              aria-label={copy.t("Workspace settings")}
+              data-tulala-topbar-settings
               style={{
                 ...iconButtonStyle,
                 background: isSettingsActive ? COLORS.fill : "#fff",
@@ -732,11 +745,12 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
               <Icon name="settings" size={13} stroke={1.7} />
             </button>
           </Popover>
-          <Popover content="Switch to sidebar layout">
+          <Popover content={copy.t("Switch to sidebar layout")}>
             <button
               type="button"
               onClick={() => setWorkspaceLayout("sidebar")}
-              aria-label="Switch to sidebar layout"
+              aria-label={copy.t("Switch to sidebar layout")}
+              data-tulala-topbar-sidebar
               style={iconButtonStyle}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = COLORS.border;
@@ -863,12 +877,13 @@ function useQuickCreateItems(): QuickCreateItem[] {
  */
 function useQuickCreateActionsFiltered(): import("./_primitives").FabAction[] {
   const { openDrawer } = useProto();
+  const copy = useDashboardText();
   return useQuickCreateItems()
     .filter(it => it.canDo)
     .map(it => ({
       id: it.id,
-      label: it.label,
-      sub: it.sub,
+      label: copy.t(it.label),
+      sub: copy.t(it.sub),
       emoji: it.emoji,
       onClick: () => openDrawer(it.drawer as Parameters<typeof openDrawer>[0], it.drawerPayload),
     }));
@@ -876,6 +891,7 @@ function useQuickCreateActionsFiltered(): import("./_primitives").FabAction[] {
 
 function QuickCreateMenu() {
   const { openDrawer, state } = useProto();
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -975,13 +991,13 @@ function QuickCreateMenu() {
         }}
       >
         <Icon name="plus" size={13} stroke={2.2} />
-        New
+        {copy.t("New")}
         <Icon name="chevron-down" size={11} stroke={2} />
       </button>
       {open && (
         <div
           role="menu"
-          aria-label="Quick create"
+          aria-label={copy.t("Quick create")}
           style={{
             position: "absolute",
             top: "calc(100% + 6px)",
@@ -1006,7 +1022,7 @@ function QuickCreateMenu() {
               color: "rgba(255,255,255,0.45)",
             }}
           >
-            Quick create
+            {copy.t("Quick create")}
           </div>
           {items.map((it) => (
             <button
@@ -1056,10 +1072,10 @@ function QuickCreateMenu() {
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontSize: 13, fontWeight: 500 }}>
-                  {it.label}
+                  {copy.t(it.label)}
                 </span>
                 <span style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.55)" }}>
-                  {it.sub}
+                  {copy.t(it.sub)}
                 </span>
               </span>
               <span
@@ -1097,7 +1113,7 @@ function QuickCreateMenu() {
             }}
           >
             <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)" }}>
-              Press G then a key from anywhere to quick-create
+              {copy.t("Press G then a key from anywhere to quick-create")}
             </span>
           </div>
         </div>
@@ -1140,6 +1156,7 @@ export function TulalaIdentityBar() {
     bridgeFirstRunToggleTipSeen,
     effectiveTenant,
   } = useProto();
+  const copy = useDashboardText();
   const { surface, alsoTalent, role, plan, entityType } = state;
 
   // Identity bar renders for the three end-user surfaces (workspace +
@@ -1220,7 +1237,9 @@ export function TulalaIdentityBar() {
       if (overviewMetrics) {
         const open = overviewMetrics.openInquiries ?? 0;
         const roster = overviewMetrics.rosterTotal ?? 0;
-        return `${roster} talent · ${open} open ${open === 1 ? "inquiry" : "inquiries"}`;
+        return copy.isSpanish
+          ? `${roster} talento · ${open} consulta${open === 1 ? "" : "s"} abierta${open === 1 ? "" : "s"}`
+          : `${roster} talent · ${open} open ${open === 1 ? "inquiry" : "inquiries"}`;
       }
       return `${fmtMoney(4200)} pending · 3 confirmed`;
     }
@@ -1348,7 +1367,7 @@ export function TulalaIdentityBar() {
         <button
           type="button"
           onClick={onActingClick}
-          aria-label={`Acting as ${actingLabel} — switch`}
+          aria-label={copy.isSpanish ? `Actuando como ${actingLabel} — cambiar` : `Acting as ${actingLabel} — switch`}
           title={actingSubLabel}
           className="tulala-acting-chip"
           style={{
@@ -1462,7 +1481,7 @@ export function TulalaIdentityBar() {
             popover hub. Client keeps its dedicated /notifications page. */}
         {inClient ? (
           <IdentityBarIconButton
-            aria-label={`Notifications · ${notificationsUnread} unread`}
+            aria-label={copy.isSpanish ? `Notificaciones · ${notificationsUnread} sin leer` : `Notifications · ${notificationsUnread} unread`}
             onClick={() => setClientPage("notifications")}
             badge={notificationsUnread}
           >
@@ -1476,7 +1495,7 @@ export function TulalaIdentityBar() {
         )}
 
         <IdentityBarIconButton
-          aria-label="Help"
+          aria-label={copy.t("Help")}
           onClick={() => openDrawer("help")}
         >
           <span style={{ fontFamily: FONTS.body, fontWeight: 700, fontSize: 13 }}>?</span>
@@ -1489,8 +1508,8 @@ export function TulalaIdentityBar() {
         {/* Sign out — matches production. Compact icon button at the
             far right; click confirms via toast in the prototype. */}
         <IdentityBarIconButton
-          aria-label="Sign out"
-          onClick={() => toast("Signed out")}
+          aria-label={copy.t("Sign out")}
+          onClick={() => toast(copy.t("Signed out"))}
         >
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -1519,6 +1538,7 @@ function AccountMenuTrigger({
   children: ReactNode;
 }) {
   const { toast, state, openDrawer, bridgeTalentSelfProfile, tenantSlug, bridgeSessionIdentity } = useProto();
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -1547,7 +1567,7 @@ function AccountMenuTrigger({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={`Open account menu — signed in as ${userName}`}
+        aria-label={`${copy.t("Open account menu")} — ${copy.t("Signed in as")} ${userName}`}
         aria-haspopup="menu"
         aria-expanded={open}
         style={{
@@ -1608,7 +1628,7 @@ function AccountMenuTrigger({
             }}
           >
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 2 }}>
-              Signed in as
+              {copy.t("Signed in as")}
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{userName}</div>
             <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{bridgeSessionIdentity?.email ?? ""}</div>
@@ -1629,11 +1649,11 @@ function AccountMenuTrigger({
                   gap: 6,
                 }}
               >
-                <span style={{ textTransform: "capitalize" }}>{PLAN_META[state.plan].label}</span>
+                <span style={{ textTransform: "capitalize" }}>{copy.t(PLAN_META[state.plan].label)}</span>
                 <span style={{ color: COLORS.inkMuted }}>·</span>
-                <span style={{ textTransform: "capitalize" }}>{state.entityType}</span>
+                <span style={{ textTransform: "capitalize" }}>{copy.t(state.entityType)}</span>
                 <span style={{ color: COLORS.inkMuted }}>·</span>
-                <span style={{ textTransform: "capitalize" }}>{state.role}</span>
+                <span style={{ textTransform: "capitalize" }}>{copy.t(state.role)}</span>
               </div>
             )}
           </div>
@@ -1660,8 +1680,8 @@ function AccountMenuTrigger({
             fontFamily: FONTS.body,
           }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>Language</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>Dashboard display language</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{copy.t("Language")}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{copy.t("Dashboard display language")}</div>
             </div>
             <DashboardLocaleToggle variant="prototype" />
           </div>
@@ -1723,6 +1743,7 @@ function AccountMenuItem({
   tone?: "coral";
   onClick?: () => void;
 }) {
+  const copy = useDashboardText();
   return (
     <button
       type="button"
@@ -1749,11 +1770,11 @@ function AccountMenuItem({
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       <span style={{ fontSize: 13, fontWeight: 500, color: tone === "coral" ? COLORS.coralDeep : COLORS.ink }}>
-        {label}
+        {copy.t(label)}
       </span>
       {sub && (
         <span style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
-          {sub}
+          {copy.t(sub)}
         </span>
       )}
     </button>
@@ -1841,12 +1862,13 @@ function ModeTogglePill({
    *  the mode toggle. Auto-dismisses after 8 s or on click. */
   showFirstRunTip?: boolean;
 }) {
+  const copy = useDashboardText();
   const inTalent = surface === "talent";
   return (
     <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
       <div
         role="group"
-        aria-label="Switch between Talent and Workspace"
+        aria-label={copy.t("Switch between Talent and Workspace")}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -1859,13 +1881,13 @@ function ModeTogglePill({
       >
         <ModeTogglePillButton
           active={inTalent}
-          label="Talent"
+          label={copy.t("Talent")}
           unread={inTalent ? 0 : talentUnread}
           onClick={inTalent ? undefined : flipMode}
         />
         <ModeTogglePillButton
           active={!inTalent}
-          label="Workspace"
+          label={copy.t("Workspace")}
           unread={!inTalent ? 0 : workspaceUnread}
           onClick={!inTalent ? undefined : flipMode}
         />
@@ -1880,6 +1902,7 @@ function ModeTogglePill({
  * Auto-dismisses after 8 s or on click. Calls markToggleTipSeen() fire-and-forget.
  */
 function ModeToggleFirstRunTip() {
+  const copy = useDashboardText();
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -1925,9 +1948,9 @@ function ModeToggleFirstRunTip() {
         lineHeight: 1.4,
       }}
     >
-      Switch between your talent profile and your workspace
+      {copy.t("Switch between your talent profile and your workspace")}
       <span aria-hidden style={{ display: "block", textAlign: "center", opacity: 0.6, fontSize: 11, marginTop: 2 }}>
-        Click to dismiss
+        {copy.t("Click to dismiss")}
       </span>
       {/* Caret */}
       <span aria-hidden style={{
@@ -11420,6 +11443,7 @@ export function MobileBottomNav() {
     pendingTalent,
     totalUnread: bridgeTotalUnread,
   } = useProto();
+  const copy = useDashboardText();
   const [moreOpen, setMoreOpen] = useState(false);
   // WS-12.6 — left/right arrows move between bottom nav tabs
   const bottomNavRef = useRef<HTMLElement | null>(null);
@@ -11437,7 +11461,7 @@ export function MobileBottomNav() {
       };
       return WORKSPACE_PAGES.map((p) => ({
         id: p,
-        label: p === "talent" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label,
+        label: p === "talent" ? copy.t(ENTITY_TYPE_META[state.entityType].rosterLabel) : copy.t(PAGE_META[p].label),
         active: state.page === p,
         run: () => setPage(p as WorkspacePage),
         icon: WORKSPACE_TAB_ICON[p as WorkspacePage] ?? "info",
@@ -11451,7 +11475,7 @@ export function MobileBottomNav() {
       };
       return TALENT_PAGES.map((p) => ({
         id: p,
-        label: TALENT_PAGE_META[p].label,
+        label: copy.t(TALENT_PAGE_META[p].label),
         active: state.talentPage === p,
         run: () => setTalentPage(p as TalentPage),
         icon: TALENT_TAB_ICON[p as TalentPage] ?? "info",
@@ -11465,7 +11489,7 @@ export function MobileBottomNav() {
       };
       return CLIENT_PAGES.map((p) => ({
         id: p,
-        label: CLIENT_PAGE_META[p].label,
+        label: copy.t(CLIENT_PAGE_META[p].label),
         active: state.clientPage === p,
         run: () => setClientPage(p as ClientPage),
         icon: CLIENT_TAB_ICON[p as ClientPage] ?? "info",
@@ -11474,7 +11498,7 @@ export function MobileBottomNav() {
     }
     return PLATFORM_PAGES.map((p) => ({
       id: p,
-      label: PLATFORM_PAGE_META[p].label,
+      label: copy.t(PLATFORM_PAGE_META[p].label),
       active: state.platformPage === p,
       run: () => setPlatformPage(p as PlatformPage),
       icon: "info" as const,
@@ -11491,7 +11515,7 @@ export function MobileBottomNav() {
       <nav
         ref={bottomNavRef}
         data-tulala-mobile-bottom-nav
-        aria-label={`${state.surface} sections`}
+        aria-label={`${copy.t(state.surface)} ${copy.t("sections")}`}
         style={{
           position: "fixed",
           left: 0,
@@ -11512,7 +11536,7 @@ export function MobileBottomNav() {
           {hasOverflow && (
             <BottomTab
               id="more"
-              label="More"
+              label={copy.t("More")}
               icon="info"
               active={moreActive}
               run={() => setMoreOpen(true)}
@@ -11536,7 +11560,7 @@ export function MobileBottomNav() {
           <div
             onClick={(e) => e.stopPropagation()}
             role="dialog"
-            aria-label="More sections"
+            aria-label={copy.t("More sections")}
             style={{
               width: "100%",
               background: "#fff",
@@ -11618,7 +11642,7 @@ export function MobileBottomNav() {
                   <path d="M3 4.5h10v6.5l-3 .5-2 2-2-2H3v-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </span>
-              Send feedback
+              {copy.t("Send feedback")}
             </button>
           </div>
         </div>
