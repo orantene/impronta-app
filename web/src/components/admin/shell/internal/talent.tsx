@@ -433,7 +433,6 @@ function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            toast("Reminder set for 4h.");
           }}
           title="Set a reminder"
           style={{
@@ -6720,13 +6719,13 @@ function ConversationListRow({
                         color: COLORS.inkMuted,
             padding: "6px 10px 4px",
           }}>Snooze</div>
-          <BubbleMenuItem icon="🕓" label="2 hours" onClick={() => { setMenuOpen(false); toast(`${conv.client} snoozed · returns in 2h`, { undo: () => toast("Snooze cancelled") }); }} />
-          <BubbleMenuItem icon="🌅" label="Tomorrow 9 AM" onClick={() => { setMenuOpen(false); toast(`${conv.client} snoozed · returns Tomorrow 9 AM`, { undo: () => toast("Snooze cancelled") }); }} />
-          <BubbleMenuItem icon="📆" label="Monday 9 AM" onClick={() => { setMenuOpen(false); toast(`${conv.client} snoozed · returns Monday 9 AM`, { undo: () => toast("Snooze cancelled") }); }} />
+          <BubbleMenuItem icon="🕓" label="2 hours" onClick={() => setMenuOpen(false)} />
+          <BubbleMenuItem icon="🌅" label="Tomorrow 9 AM" onClick={() => setMenuOpen(false)} />
+          <BubbleMenuItem icon="📆" label="Monday 9 AM" onClick={() => setMenuOpen(false)} />
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
-          <BubbleMenuItem icon="📌" label="Pin to top" onClick={() => { setMenuOpen(false); toast("Pinned to top"); }} />
-          <BubbleMenuItem icon="✓" label="Mark as read" onClick={() => { setMenuOpen(false); toast("Marked as read"); }} />
-          <BubbleMenuItem icon="📁" label="Archive" onClick={() => { setMenuOpen(false); toast("Archived", { undo: () => toast("Restored") }); }} />
+          <BubbleMenuItem icon="📌" label="Pin to top" onClick={() => setMenuOpen(false)} />
+          <BubbleMenuItem icon="✓" label="Mark as read" onClick={() => setMenuOpen(false)} />
+          <BubbleMenuItem icon="📁" label="Archive" onClick={() => setMenuOpen(false)} />
         </div>
       )}
     </button>
@@ -7158,13 +7157,13 @@ function ThreadOptionsMenu() {
             animation: "tulala-bubble-action-in .14s ease",
           }}
         >
-          <BubbleMenuItem icon={starred ? "⭐" : "☆"} label={starred ? "Starred" : "Star thread"} onClick={() => { setStarred((v) => !v); toast(starred ? "Removed from starred" : "Pinned to starred"); setOpen(false); }} />
-          <BubbleMenuItem icon={muted ? "🔕" : "🔔"} label={muted ? "Muted · unmute" : "Mute notifications"} onClick={() => { setMuted((v) => !v); toast(muted ? "Notifications on" : "Notifications muted"); setOpen(false); }} />
-          <BubbleMenuItem icon="📌" label="Pin to top of inbox" onClick={() => { toast("Pinned to top"); setOpen(false); }} />
-          <BubbleMenuItem icon="📤" label="Export thread (PDF)" onClick={() => { toast("Generating PDF…"); setOpen(false); }} />
-          <BubbleMenuItem icon="📁" label="Archive thread" onClick={() => { toast("Archived", { undo: () => toast("Restored") }); setOpen(false); }} />
+          <BubbleMenuItem icon={starred ? "⭐" : "☆"} label={starred ? "Starred" : "Star thread"} onClick={() => { setStarred((v) => !v); setOpen(false); }} />
+          <BubbleMenuItem icon={muted ? "🔕" : "🔔"} label={muted ? "Muted · unmute" : "Mute notifications"} onClick={() => { setMuted((v) => !v); setOpen(false); }} />
+          <BubbleMenuItem icon="📌" label="Pin to top of inbox" onClick={() => setOpen(false)} />
+          <BubbleMenuItem icon="📤" label="Export thread (PDF)" onClick={() => setOpen(false)} />
+          <BubbleMenuItem icon="📁" label="Archive thread" onClick={() => setOpen(false)} />
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
-          <BubbleMenuItem icon="⛔" label="Block client" onClick={() => { toast("Client blocked", { tone: "error", action: { label: "Undo", onClick: () => toast("Unblocked") } }); setOpen(false); }} />
+          <BubbleMenuItem icon="⛔" label="Block client" onClick={() => setOpen(false)} />
         </div>
       )}
     </div>
@@ -7196,7 +7195,7 @@ function ThreadInfoSidebar({
   isLocked: boolean;
   onClose: () => void;
 }) {
-  const { openDrawer, toast } = useAdminShell();
+  const { openDrawer } = useAdminShell();
   const [infoTab, setInfoTab] = useState<"details" | "activity">("details");
   // Audit P1-8 — actual swipe-down-to-dismiss for the mobile bottom
   // sheet. The drag-pill rendered by CSS was previously cosmetic; now
@@ -7387,7 +7386,7 @@ function ThreadInfoSidebar({
             <button
               key={i}
               type="button"
-              onClick={() => toast(`Open ${f.name}`)}
+              onClick={() => undefined}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -7421,7 +7420,7 @@ function ThreadInfoSidebar({
         <div style={{ padding: "12px 16px", borderTop: `1px solid ${COLORS.borderSoft}` }}>
           <button
             type="button"
-            onClick={() => toast("Drop request sent to coordinator")}
+            onClick={() => undefined}
             style={{
               width: "100%",
               padding: "9px 12px",
@@ -7448,7 +7447,7 @@ function ThreadInfoSidebar({
         <div style={{ padding: "12px 16px", borderTop: `1px solid ${COLORS.borderSoft}` }}>
           <button
             type="button"
-            onClick={() => toast("Opened conflict resolver")}
+            onClick={() => openDrawer("talent-conflict-resolve")}
             style={{
               width: "100%",
               padding: "9px 12px",
@@ -9366,7 +9365,6 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
               if (text.trim()) {
                 setText("");
                 e.currentTarget.style.height = "auto";
-                toast("Sent");
               }
             }
           }}
@@ -9410,7 +9408,6 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
         </button>
         <SendButtonWithSchedule disabled={!text.trim()} onSend={() => {
           if (!text.trim()) return;
-          toast("Message sent");
           setText("");
           onAfterSend?.();
         }} onSchedule={(when) => {
@@ -9956,9 +9953,6 @@ function AIReplyAssistant({ item }: { item: InboxItem | null }) {
               <button
                 type="button"
                 onClick={() => {
-                  toast(`Sent reply to ${item.client}`, {
-                    undo: () => toast("Reply unsent"),
-                  });
                   setPickedIdx(null);
                   setExpanded(false);
                 }}
