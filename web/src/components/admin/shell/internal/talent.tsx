@@ -8392,16 +8392,16 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
             ))}
           </div>
           {/* Action menu */}
-          <BubbleMenuItem icon="↩" label="Reply" onClick={() => action("Reply quoted")} />
+          <BubbleMenuItem icon="↩" label="Reply" onClick={close} />
           <BubbleMenuItem icon="📋" label="Copy" onClick={() => {
             try {
               if ("body" in msg && typeof msg.body === "string") navigator.clipboard?.writeText(msg.body);
             } catch { /* noop */ }
-            action("Copied");
+            close();
           }} />
-          <BubbleMenuItem icon="📌" label="Pin" onClick={() => action("Pinned to thread top")} />
-          <BubbleMenuItem icon="🌐" label="Translate to English" onClick={() => action("Translating…")} />
-          <BubbleMenuItem icon="↗" label="Forward" onClick={() => action("Forward picker…")} />
+          <BubbleMenuItem icon="📌" label="Pin" onClick={close} />
+          <BubbleMenuItem icon="🌐" label="Translate to English" onClick={close} />
+          <BubbleMenuItem icon="↗" label="Forward" onClick={close} />
         </div>
       )}
     </div>
@@ -9412,7 +9412,6 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
           onAfterSend?.();
         }} onSchedule={(when) => {
           if (!text.trim()) return;
-          toast(`Scheduled for ${when}`, { action: { label: "Cancel", onClick: () => toast("Schedule cancelled") } });
           setText("");
           onAfterSend?.();
         }} />
@@ -9730,8 +9729,7 @@ function InboxPage() {
         <BulkActionBar
           count={selected.size}
           onClear={() => setSelected(new Set())}
-          onAction={(action) => {
-            toast(`${action} · ${selected.size} item${selected.size === 1 ? "" : "s"}`);
+          onAction={() => {
             setSelected(new Set());
           }}
         />
@@ -9800,7 +9798,7 @@ function InboxPage() {
                     return next;
                   });
                 }}
-                onSnooze={() => toast(`Snoozed · ${it.client} returns to top in 1 day`)}
+                onSnooze={() => undefined}
                 onTemplate={() => openDrawer("reply-templates", { itemId: key })}
               />
             );
@@ -11297,15 +11295,7 @@ function CalendarPage() {
       {conflicts.length > 0 && (
         <ConflictBanner
           conflicts={conflicts}
-          onResolve={(action, target) => {
-            const verb =
-              action === "decline"
-                ? `Declined ${target.client}`
-                : action === "talk"
-                  ? `Coordinator notified about ${target.client}`
-                  : `Reschedule request sent for ${target.client}`;
-            toast(verb);
-          }}
+          onResolve={() => undefined}
         />
       )}
 
@@ -12087,7 +12077,6 @@ function EarningsGoalRing({ total }: { total: number }) {
                 const next = parseInt(editValue.replace(/[^0-9]/g, ""), 10);
                 if (next > 0) {
                   setGoal(next);
-                  toast(`Goal set to €${next.toLocaleString()}`);
                 }
                 setEditOpen(false);
               }}
@@ -12365,7 +12354,7 @@ function ActivityPage() {
               primaryLabel={latestId ? "Open most recent booking" : undefined}
               onPrimary={latestId ? () => openDrawer("talent-closed-booking", { earningId: latestId }) : undefined}
               secondaryLabel="Share with my agency"
-              onSecondary={() => toast("Shared with primary agency")}
+              onSecondary={() => undefined}
               onDismiss={() => setCelebrationDismissed(true)}
             />
           </div>
