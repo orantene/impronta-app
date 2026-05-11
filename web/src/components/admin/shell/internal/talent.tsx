@@ -11017,19 +11017,24 @@ type CalendarEvent = {
   drawer: { id: import("./state").DrawerId; payload: Record<string, unknown> };
 };
 
-// Parse a date value that may be an ISO string ("2026-05-14") or a
-// human-readable string ("Wed, May 14") into a May day number (1-31).
-// Returns null for unparseable values or events outside May 2026.
+// Parse an ISO date string into a day-of-month number for a given year+month.
+// Falls back to the human-readable parser (May 14) for prototype mock strings.
 function parseDateToMayDay(s: string | null | undefined, endOfRange = false): number | null {
+  return parseDateForCalMonth(s, 2026, 5, endOfRange);
+}
+function parseDateForCalMonth(
+  s: string | null | undefined,
+  year: number,
+  month: number,
+  endOfRange = false,
+): number | null {
   if (!s) return null;
-  // ISO format: "2026-05-14" or "2026-05-14T..."
   const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) {
     const [, yr, mo, dy] = isoMatch;
-    if (yr === "2026" && mo === "05") return parseInt(dy!, 10);
-    return null; // outside May 2026 — no grid position
+    if (parseInt(yr!) === year && parseInt(mo!) === month) return parseInt(dy!, 10);
+    return null;
   }
-  // Fallback: human-readable "May 14" or "May 14–15"
   return parseMayDay(s, endOfRange);
 }
 
@@ -11040,9 +11045,28 @@ function CalendarPage() {
   const conversations = useTalentConversations();
   const isBridgeMode = !!bridgeTalentSelfProfile;
   const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "cancelled" | "all">("booked");
-  // F7: Month / Week / Day view toggle. Month is the default — week and
-  // day re-render the same event list with progressive zoom-in.
-  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
+  // F7: Month / Week / Day view toggle.
+  // Bridge mode defaults to "week" — the month grid is static mock-only;
+  // week view renders real events from the bridge.
+  const [viewMode, setViewMode] = useState<"month" | "week" | "day">(isBridgeMode ? "week" : "month");
+
+  // Real month navigation — starts on today's actual month in bridge mode,
+  // May 2026 in prototype mode so existing mock fixtures align correctly.
+  const _today = new Date();
+  const [calYear, setCalYear] = useState(isBridgeMode ? _today.getFullYear() : 2026);
+  const [calMonth, setCalMonth] = useState(isBridgeMode ? _today.getMonth() + 1 : 5);
+
+  const monthLabel = new Date(calYear, calMonth - 1, 1).toLocaleString("en-GB", {
+    month: "long", year: "numeric",
+  });
+  const stepMonth = (dir: 1 | -1) => {
+    setCalMonth((m) => {
+      const next = m + dir;
+      if (next > 12) { setCalYear((y) => y + 1); return 1; }
+      if (next < 1)  { setCalYear((y) => y - 1); return 12; }
+      return next;
+    });
+  };
 
   // Build a unified event list from the existing data fixtures.
   // Days are parsed loosely — May references stay numeric.
@@ -11202,8 +11226,9 @@ function CalendarPage() {
           : c.stage === "inquiry" ? "inquiry"
           : c.stage === "cancelled" ? "cancelled"
           : "past";
-        const startDay = parseDateToMayDay(c.date);
-        const endDay   = parseDateToMayDay(c.date, true);
+        // Use year/month-aware parser so month navigation positions events correctly.
+        const startDay = parseDateForCalMonth(c.date, calYear, calMonth);
+        const endDay   = parseDateForCalMonth(c.date, calYear, calMonth, true);
         const dateLabel = c.date
           ? (c.date.match(/^\d{4}-\d{2}-\d{2}/)
               ? new Date(c.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })
@@ -11311,52 +11336,75 @@ function CalendarPage() {
 
       <div style={{ height: 16 }} />
 
-      {/* View mode toggle — Month / Week / Day. Same data, progressive
-          zoom. Week + Day are list-style; only Month uses the grid. */}
-      <div
-        role="tablist"
-        aria-label="Calendar view"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 2,
-          background: "rgba(11,11,13,0.05)",
-          borderRadius: 999,
-          padding: 3,
-          marginBottom: 12,
-          fontFamily: FONTS.body,
-        }}
-      >
-        {(["month", "week", "day"] as const).map((m) => {
-          const active = viewMode === m;
-          return (
+      {/* Month navigation + view toggle row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        {/* Month nav — shown in bridge mode so real-date events can be browsed */}
+        {isBridgeMode && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginRight: 8 }}>
             <button
-              key={m}
-              role="tab"
-              aria-selected={active}
-              onClick={() => setViewMode(m)}
-              style={{
-                background: active ? COLORS.fill : "transparent",
-                color: active ? "#fff" : COLORS.inkMuted,
-                border: "none",
-                borderRadius: 999,
-                padding: "5px 12px",
-                cursor: active ? "default" : "pointer",
-                fontFamily: FONTS.body,
-                fontSize: 11.5,
-                fontWeight: active ? 600 : 500,
-                letterSpacing: 0.1,
-                textTransform: "capitalize",
-              }}
-            >
-              {m}
-            </button>
-          );
-        })}
+              type="button"
+              onClick={() => stepMonth(-1)}
+              aria-label="Previous month"
+              style={{ background: "transparent", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontFamily: FONTS.body, color: COLORS.ink }}
+            >‹</button>
+            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body, minWidth: 120, textAlign: "center" }}>
+              {monthLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => stepMonth(1)}
+              aria-label="Next month"
+              style={{ background: "transparent", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontFamily: FONTS.body, color: COLORS.ink }}
+            >›</button>
+          </div>
+        )}
+
+        {/* View mode toggle — Month / Week / Day. Month hidden in bridge mode (grid is static). */}
+        <div
+          role="tablist"
+          aria-label="Calendar view"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 2,
+            background: "rgba(11,11,13,0.05)",
+            borderRadius: 999,
+            padding: 3,
+            fontFamily: FONTS.body,
+          }}
+        >
+          {(isBridgeMode ? ["week", "day"] as const : ["month", "week", "day"] as const).map((m) => {
+            const active = viewMode === m;
+            return (
+              <button
+                key={m}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setViewMode(m)}
+                style={{
+                  background: active ? COLORS.fill : "transparent",
+                  color: active ? "#fff" : COLORS.inkMuted,
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "5px 12px",
+                  cursor: active ? "default" : "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: active ? 600 : 500,
+                  letterSpacing: 0.1,
+                  textTransform: "capitalize",
+                }}
+              >
+                {m}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Month grid (visual context) — only shown in Month view. */}
-      {viewMode === "month" && <CalendarMonthGrid />}
+      {/* Month grid — only in prototype mode; bridge mode uses week/day list views
+          since CalendarMonthGrid is built from static May 2026 fixture data. */}
+      {viewMode === "month" && !isBridgeMode && <CalendarMonthGrid />}
 
       {/* Week view — 7-row stack with day labels. Same row format as
           the list below but explicitly grouped by day. */}
@@ -14965,7 +15013,7 @@ function AgenciesPage() {
 // ════════════════════════════════════════════════════════════════════
 
 function PublicPageEditor() {
-  const { openDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
+  const { openDrawer, bridgeTalentSelfProfile } = useAdminShell();
   // Prefer the real bridge profile so a freshly-provisioned talent sees
   // their own canonical /t/<profile_code> URL, not Marta's. Standalone
   // prototype mode (no bridge) keeps the demo MY_TALENT_PROFILE.
@@ -15009,18 +15057,20 @@ function PublicPageEditor() {
           >
             {preview ? "✓ Preview on" : "Preview"}
           </button>
-          <button
-            type="button"
-            onClick={() => toast("Changes saved", { tone: "success" })}
+          <a
+            href={`/t/${publicSlug}`}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               background: COLORS.fill, color: "#fff",
               border: "none", borderRadius: RADIUS.md,
               padding: "7px 14px", fontSize: 12, fontWeight: 600,
               cursor: "pointer", fontFamily: FONTS.body,
+              textDecoration: "none", display: "inline-block",
             }}
           >
-            Save
-          </button>
+            View page ↗
+          </a>
         </div>
       </div>
 
@@ -15074,7 +15124,7 @@ function PublicPageEditor() {
                 type="button"
                 onClick={() => {
                   if (locked) { openDrawer("talent-tier-compare"); return; }
-                  toast(`Template changed to "${tpl.label}"`, { tone: "success" });
+                  // Template save not yet wired — visual selection only
                 }}
                 style={{
                   background:    "#fff",
@@ -15107,42 +15157,17 @@ function PublicPageEditor() {
         </div>
       </section>
 
-      {/* Visibility + contact settings */}
+      {/* Visibility + contact settings — coming in Phase 2 */}
       <section style={{
-        background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: RADIUS.lg, padding: "16px 18px", marginBottom: 20,
+        background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: RADIUS.lg, padding: "14px 18px", marginBottom: 20,
       }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, marginBottom: 12 }}>
-          Visibility &amp; contact
+        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.inkMuted, fontFamily: FONTS.body, marginBottom: 4 }}>
+          Visibility &amp; privacy settings
         </div>
-        {[
-          { label: "Show on agency roster",      key: "roster",   val: true },
-          { label: "Allow direct contact (free clients)", key: "free_contact", val: false },
-          { label: "Show earnings history",       key: "earnings", val: false },
-          { label: "Show agency name",            key: "agency",   val: true },
-        ].map((row) => (
-          <div key={row.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-            <span style={{ fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body }}>{row.label}</span>
-            <button
-              type="button"
-              onClick={() => toast(`${row.label}: ${!row.val ? "on" : "off"}`, { tone: "default" })}
-              style={{
-                width: 36, height: 20, borderRadius: 10,
-                background: row.val ? COLORS.fill : COLORS.card,
-                border: `1px solid ${row.val ? COLORS.accent : COLORS.border}`,
-                cursor: "pointer", position: "relative", flexShrink: 0,
-              }}
-            >
-              <span style={{
-                position: "absolute", top: 2,
-                left: row.val ? 17 : 2,
-                width: 14, height: 14,
-                borderRadius: "50%", background: "#fff",
-                transition: "left .15s",
-              }} />
-            </button>
-          </div>
-        ))}
+        <p style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, margin: 0, lineHeight: 1.5 }}>
+          Roster visibility, direct contact, and earnings privacy controls are coming soon.
+        </p>
       </section>
 
       {/* Custom domain — Portfolio only */}
