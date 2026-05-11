@@ -27,6 +27,7 @@
 import React, { useMemo, useState, useEffect, useCallback, type ReactNode } from "react";
 import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
 import { actionLoadUserWorkspaces, type UserWorkspace } from "@/lib/server-actions/admin-user-workspaces";
+import { updateWorkspaceAccount } from "@/lib/server-actions/admin-workspace-settings";
 import {
   COLORS,
   FONTS,
@@ -1492,7 +1493,7 @@ export function TalentAgencySwitcherDrawer() {
 // operations.
 
 export function WorkspaceProfileDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, toast, setPage } = useAdminShell();
   const open = state.drawer.drawerId === "workspace-profile";
   // Mock — production reads from workspace.settings + state.role.
   // For demo we map state.role to a permission level. state.role lacks
@@ -1504,12 +1505,13 @@ export function WorkspaceProfileDrawer() {
     : "Editor";
   const canEditIdentity = (myRole as TenantRole) === "Owner" || (myRole as TenantRole) === "Admin";
   const canEditPlan = myRole === "Owner";
-  // Working values — unstyled inputs writing to local state for demo
   const [name, setName] = useState(TENANT.name);
-  const [slug, setSlug] = useState(TENANT.slug);
+  const [slug] = useState(TENANT.slug);
   const [signature, setSignature] = useState(`Sent on behalf of ${TENANT.name}`);
   const [systemUserEnabled, setSystemUserEnabled] = useState(true);
   const [defaultCoord, setDefaultCoord] = useState("Marta Reyes");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const tier: TenantTier = state.plan === "network" ? "network" : (state.plan as TenantTier);
   const tierPalette = TENANT_TIER_PALETTE[tier];
   const seatsCap = tier === "free" ? 5 : tier === "studio" ? 15 : tier === "agency" ? 50 : "∞";
@@ -1610,9 +1612,10 @@ export function WorkspaceProfileDrawer() {
               <input
                 type="text"
                 value={slug}
-                onChange={(e) => canEditIdentity && setSlug(e.currentTarget.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                disabled={!canEditIdentity}
-                style={{ ...(canEditIdentity ? inputStyle : inputDisabledStyle), flex: 1 }}
+                readOnly
+                disabled
+                title="Slug changes require a support request"
+                style={{ ...inputDisabledStyle, flex: 1 }}
               />
             </div>
             <div style={{ fontSize: 10.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>
@@ -1629,14 +1632,14 @@ export function WorkspaceProfileDrawer() {
             }}>
               <Avatar initials={name.slice(0, 2).toUpperCase()} size={36} tone="ink" />
               <button type="button"
-                disabled={!canEditIdentity}
-                onClick={() => toast("Logo upload — opens file picker")}
+                disabled
+                title="Logo upload coming soon"
                 style={{
                   padding: "5px 11px", borderRadius: 999,
                   border: `1px solid ${COLORS.border}`,
-                  background: "#fff", color: COLORS.ink,
-                  fontSize: 11.5, fontWeight: 600, cursor: canEditIdentity ? "pointer" : "not-allowed",
-                  opacity: canEditIdentity ? 1 : 0.55,
+                  background: "#fff", color: COLORS.inkMuted,
+                  fontSize: 11.5, fontWeight: 600, cursor: "not-allowed",
+                  opacity: 0.5,
                   fontFamily: FONTS.body,
                 }}>
                 Upload logo
@@ -1667,7 +1670,7 @@ export function WorkspaceProfileDrawer() {
             </div>
             <button type="button"
               disabled={!canEditPlan}
-              onClick={() => { toast("Open plans + billing"); }}
+              onClick={() => { closeDrawer(); setPage("settings"); }}
               style={{
                 padding: "6px 12px", borderRadius: 999,
                 border: "none",
@@ -1758,7 +1761,7 @@ export function WorkspaceProfileDrawer() {
               </div>
             </div>
             <button type="button"
-              onClick={() => { toast("Open members management"); }}
+              onClick={() => { closeDrawer(); setPage("settings"); }}
               style={{
                 padding: "6px 12px", borderRadius: 999,
                 border: `1px solid ${COLORS.border}`,
@@ -1780,15 +1783,15 @@ export function WorkspaceProfileDrawer() {
               <em> book.atelier-roma.com</em>). DNS config required.
             </div>
             <button type="button"
-              disabled={!canEditPlan}
-              onClick={() => toast("Custom domain wizard")}
+              disabled
+              title="Custom domain setup coming soon"
               style={{
                 alignSelf: "flex-start",
                 padding: "6px 12px", borderRadius: 999,
                 border: `1px solid ${COLORS.border}`,
-                background: "transparent", color: COLORS.ink,
-                fontSize: 11.5, fontWeight: 600, cursor: canEditPlan ? "pointer" : "not-allowed",
-                opacity: canEditPlan ? 1 : 0.55,
+                background: "transparent", color: COLORS.inkMuted,
+                fontSize: 11.5, fontWeight: 600, cursor: "not-allowed",
+                opacity: 0.5,
                 fontFamily: FONTS.body,
               }}>
               Add custom domain
@@ -1798,33 +1801,59 @@ export function WorkspaceProfileDrawer() {
 
         {/* Save / Cancel */}
         {canEditIdentity && (
-          <div style={{
-            display: "flex", justifyContent: "flex-end", gap: 8,
-            paddingTop: 4,
-          }}>
-            <button type="button"
-              onClick={closeDrawer}
-              style={{
-                padding: "8px 14px", borderRadius: 999,
-                border: `1px solid ${COLORS.border}`,
-                background: "transparent", color: COLORS.ink,
-                fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+          <>
+            {saveError && (
+              <div style={{
+                padding: "10px 14px",
+                background: "rgba(220,38,38,0.07)",
+                border: "1px solid rgba(220,38,38,0.2)",
+                borderRadius: 8,
                 fontFamily: FONTS.body,
+                fontSize: 12.5,
+                color: "#b91c1c",
               }}>
-              Cancel
-            </button>
-            <button type="button"
-              onClick={() => { toast(`${name} profile saved`); closeDrawer(); }}
-              style={{
-                padding: "8px 16px", borderRadius: 999,
-                border: "none",
-                background: COLORS.fill, color: "#fff",
-                fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-                fontFamily: FONTS.body,
-              }}>
-              Save changes
-            </button>
-          </div>
+                {saveError}
+              </div>
+            )}
+            <div style={{
+              display: "flex", justifyContent: "flex-end", gap: 8,
+              paddingTop: 4,
+            }}>
+              <button type="button"
+                onClick={closeDrawer}
+                disabled={saving}
+                style={{
+                  padding: "8px 14px", borderRadius: 999,
+                  border: `1px solid ${COLORS.border}`,
+                  background: "transparent", color: COLORS.ink,
+                  fontSize: 12.5, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer",
+                  fontFamily: FONTS.body,
+                  opacity: saving ? 0.55 : 1,
+                }}>
+                Cancel
+              </button>
+              <button type="button"
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true);
+                  setSaveError(null);
+                  const result = await updateWorkspaceAccount({ display_name: name });
+                  setSaving(false);
+                  if (!result.ok) { setSaveError(result.error); return; }
+                  closeDrawer();
+                }}
+                style={{
+                  padding: "8px 16px", borderRadius: 999,
+                  border: "none",
+                  background: saving ? COLORS.inkDim : COLORS.fill,
+                  color: "#fff",
+                  fontSize: 12.5, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer",
+                  fontFamily: FONTS.body,
+                }}>
+                {saving ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </DrawerShell>
