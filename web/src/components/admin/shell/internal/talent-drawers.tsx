@@ -171,15 +171,6 @@ function RequestKindBadge({ kind, status }: { kind: TalentRequest["kind"]; statu
 // DRAWERS
 // ════════════════════════════════════════════════════════════════════
 
-// Helper — close + toast
-function useSaveAndClose(message = "Saved") {
-  const { closeDrawer, toast } = useAdminShell();
-  return () => {
-    toast(message);
-    closeDrawer();
-  };
-}
-
 // Persistent error banner — stays until the user acts. Never toast-only.
 function SaveErrorBanner({ error, onDismiss }: { error: string; onDismiss: () => void }) {
   return (

@@ -11032,9 +11032,10 @@ function CalendarPage() {
   const [calYear, setCalYear] = useState(isBridgeMode ? _today.getFullYear() : 2026);
   const [calMonth, setCalMonth] = useState(isBridgeMode ? _today.getMonth() + 1 : 5);
 
-  const monthLabel = new Date(calYear, calMonth - 1, 1).toLocaleString("en-GB", {
-    month: "long", year: "numeric",
-  });
+  // Deterministic format — avoids server/client ICU space-character mismatch
+  // that caused React hydration error #418 (narrow no-break vs regular space).
+  const MONTH_NAMES_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthLabel = `${MONTH_NAMES_LONG[calMonth - 1] ?? ""} ${calYear}`;
   const stepMonth = (dir: 1 | -1) => {
     setCalMonth((m) => {
       const next = m + dir;
@@ -11205,9 +11206,11 @@ function CalendarPage() {
         // Use year/month-aware parser so month navigation positions events correctly.
         const startDay = parseDateForCalMonth(c.date, calYear, calMonth);
         const endDay   = parseDateForCalMonth(c.date, calYear, calMonth, true);
+        // Deterministic short date — avoids ICU space mismatch (hydration error #418).
+        const MONTH_NAMES_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         const dateLabel = c.date
           ? (c.date.match(/^\d{4}-\d{2}-\d{2}/)
-              ? new Date(c.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+              ? (() => { const d = new Date(c.date + "T00:00:00"); return `${d.getDate()} ${MONTH_NAMES_SHORT[d.getMonth()] ?? ""}`; })()
               : c.date)
           : "Date TBC";
         return {
