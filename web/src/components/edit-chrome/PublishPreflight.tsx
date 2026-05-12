@@ -92,21 +92,34 @@ export function PublishPreflight({
 
   if (loading) {
     return (
-      <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground"
+      >
         Running preflight…
       </div>
     );
   }
   if (error) {
     return (
-      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+      <div
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+        className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"
+      >
         Preflight: {error}
       </div>
     );
   }
   if (!issues || issues.length === 0) {
     return (
-      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300">
+      <div
+        role="status"
+        aria-live="polite"
+        className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300"
+      >
         ✓ Preflight clean — publish checks passed.
       </div>
     );
@@ -181,6 +194,13 @@ export function PublishPreflight({
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-3 text-xs">
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {errors > 0
+          ? `Preflight results: ${errors} blocking issue${errors === 1 ? "" : "s"}, ${warns} advisory warning${warns === 1 ? "" : "s"}.`
+          : warns > 0
+            ? `Preflight results: no blockers, ${warns} advisory warning${warns === 1 ? "" : "s"}.`
+            : "Preflight results: no issues found."}
+      </p>
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Preflight

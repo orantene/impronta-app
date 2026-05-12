@@ -514,6 +514,11 @@ export function PublishDrawer() {
           />
         ) : (
           <>
+            {state.kind === "publishing" ? (
+              <p className="sr-only" role="status" aria-live="polite">
+                Publishing to the live site. Please wait.
+              </p>
+            ) : null}
             <div
               style={{
                 marginBottom: 12,
@@ -996,6 +1001,9 @@ export function PublishDrawer() {
             {/* ── Inline status / error banners ───────────────── */}
             {summary.missing.length > 0 ? (
               <div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
                 style={{
                   marginTop: 10,
                   borderRadius: 8,
@@ -1020,6 +1028,9 @@ export function PublishDrawer() {
 
             {dirty || saving ? (
               <div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
                 style={{
                   marginTop: 10,
                   borderRadius: 8,
@@ -1040,6 +1051,7 @@ export function PublishDrawer() {
               <div
                 role="alert"
                 aria-live="assertive"
+                aria-atomic="true"
                 style={{
                   marginTop: 10,
                   borderRadius: 8,
@@ -1082,6 +1094,7 @@ export function PublishDrawer() {
               <div
                 role="status"
                 aria-live="polite"
+                aria-atomic="true"
                 style={{
                   marginTop: 10,
                   borderRadius: 8,
@@ -1177,6 +1190,12 @@ export function PublishDrawer() {
                 type="button"
                 onClick={() => void handlePublish()}
                 disabled={publishDisabled}
+                aria-busy={state.kind === "publishing"}
+                aria-label={
+                  state.kind === "publishing"
+                    ? "Publishing to the live site, please wait"
+                    : undefined
+                }
                 style={{
                   height: 30,
                   padding: "0 14px",

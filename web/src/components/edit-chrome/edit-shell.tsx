@@ -1015,6 +1015,7 @@ function MutationErrorToast() {
       data-edit-overlay="mutation-toast"
       role="alert"
       aria-live="assertive"
+      aria-atomic="true"
       className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex max-w-[min(92vw,680px)] -translate-x-1/2 items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 shadow-lg"
     >
       <span className="min-w-0 flex-1">
