@@ -790,16 +790,16 @@ todos:
     status: completed
   - id: verify-p8-1
     content: Verify/reconcile roadmap — PP8-1 status vs implementation (close or update doc).
-    status: pending
+    status: completed
   - id: verify-p8-2
     content: Verify/reconcile roadmap — PP8-2 status vs implementation (close or update doc).
-    status: pending
+    status: completed
   - id: verify-p9-1
     content: Verify/reconcile roadmap — PP9-1 status vs implementation (close or update doc).
-    status: pending
+    status: completed
   - id: verify-p9-2
     content: Verify/reconcile roadmap — PP9-2 status vs implementation (close or update doc).
-    status: pending
+    status: completed
   - id: p6-spot-homepage
     content: "P6 — publish/cache spot check: homepage"
     status: pending
