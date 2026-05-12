@@ -73,6 +73,7 @@ function printHelp(): void {
   console.log(`reset-impronta-homepage — discard draft or wipe homepage composition (Supabase service role).
 
 Usage (from web/):
+  npm run reset:impronta-homepage:help
   npm run reset:impronta-homepage [-- <flags>]
   npm run reset:impronta-homepage:draft [-- <flags>]
 

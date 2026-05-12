@@ -56,7 +56,7 @@ Preferred repo command:
 
 ```bash
 cd web
-npm run reset:impronta-homepage -- --help   # flag reference
+npm run reset:impronta-homepage:help        # CLI flags (no .env required)
 npm run reset:impronta-homepage:draft        # dry-run
 npm run reset:impronta-homepage:draft -- --apply
 ```

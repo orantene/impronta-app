@@ -71,6 +71,7 @@
     "seed:phase5-qa": "node --env-file=.env.local scripts/seed-phase5-qa.mjs",
     "backfill:page-snapshots": "node --env-file=.env.local scripts/backfill-page-snapshots.mjs",
     "reset:impronta-homepage": "tsx --env-file=.env.local scripts/reset-impronta-homepage.ts --slug impronta",
+    "reset:impronta-homepage:help": "tsx scripts/reset-impronta-homepage.ts --help",
     "reset:impronta-homepage:draft": "npm run reset:impronta-homepage -- --draft-only",
     "verify:published-page-snapshots": "tsx --env-file=.env.local scripts/verify-published-page-snapshots.ts",
     "verify:published-page-snapshots:strict": "tsx --env-file=.env.local scripts/verify-published-page-snapshots.ts --all-active --require-builder-tree",
