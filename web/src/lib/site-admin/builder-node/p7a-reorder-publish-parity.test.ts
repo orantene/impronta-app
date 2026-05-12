@@ -173,3 +173,87 @@ test("P7A-4: blank_section composition — insert, reorder, publish-resolved", (
   if (!reordered || reordered.kind !== "section" || !reordered.children) return;
   assert.deepEqual(reordered.children.map((c) => c.id), ["blank-b", "blank-a"]);
 });
+
+test("P7A-4: cross-section move — paragraph from one blank_section to another stays publish-resolved", () => {
+  const sectionIdA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const sectionIdB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const slots = [
+    {
+      slotKey: "body",
+      sortOrder: 0,
+      sectionId: sectionIdA,
+      sectionTypeKey: "blank_section",
+      name: "First",
+    },
+    {
+      slotKey: "body",
+      sortOrder: 1,
+      sectionId: sectionIdB,
+      sectionTypeKey: "blank_section",
+      name: "Second",
+    },
+  ] as const;
+
+  let tree = buildLegacySectionBuilderTree([...slots]);
+  assert.equal(tree.length, 2);
+  const secA = tree[0];
+  const secB = tree[1];
+  assert.equal(secA?.kind, "section");
+  assert.equal(secB?.kind, "section");
+  if (!secA || secA.kind !== "section" || !secB || secB.kind !== "section") return;
+
+  const parentIdA = secA.id;
+  const parentIdB = secB.id;
+
+  const para: BuilderNode = {
+    id: "cross-para-1",
+    kind: "paragraph",
+    props: { text: "Jumped" },
+  };
+  const ins = insertBuilderNode({
+    tree,
+    parentId: parentIdA,
+    index: 0,
+    node: para,
+  });
+  assert.equal(ins.ok, true);
+  if (!ins.ok) return;
+  tree = ins.tree;
+
+  const beforeMove = resolveSnapshotBuilderTreeForPublish({
+    slots: [...slots],
+    builderTree: tree,
+  });
+  assert.equal(beforeMove.ok, true);
+
+  const moved = moveBuilderNode({
+    tree,
+    nodeId: para.id,
+    parentId: parentIdB,
+    index: 0,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+
+  const afterMove = resolveSnapshotBuilderTreeForPublish({
+    slots: [...slots],
+    builderTree: moved.tree,
+  });
+  assert.equal(afterMove.ok, true);
+
+  const nextA = moved.tree.find((n) => n.id === parentIdA);
+  const nextB = moved.tree.find((n) => n.id === parentIdB);
+  assert.equal(nextA?.kind, "section");
+  assert.equal(nextB?.kind, "section");
+  if (!nextA || nextA.kind !== "section" || !nextB || nextB.kind !== "section") return;
+  assert.deepEqual(
+    (nextA.children ?? []).map((c) => c.id),
+    [],
+    "source section empty after move",
+  );
+  assert.deepEqual(
+    (nextB.children ?? []).map((c) => c.id),
+    [para.id],
+    "destination section owns moved paragraph",
+  );
+});
