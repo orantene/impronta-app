@@ -11,77 +11,102 @@ import { loadClientTrustState } from "@/lib/client-trust/evaluator";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadClientSelfProfile } from "../../../_data-bridge";
 
-function returnToNewInquiry(
-  tenantSlug: string,
-  params: URLSearchParams,
-): never {
-  redirect(`/${tenantSlug}/client/inquiries/new?${params.toString()}`);
+export type ClientWorkspaceInquiryFormValues = {
+  contactName: string;
+  company: string;
+  talentProfileId: string;
+  eventDate: string;
+  quantity: string;
+  eventLocation: string;
+  message: string;
+};
+
+export type ClientWorkspaceInquiryActionState = {
+  error?: string;
+  values: ClientWorkspaceInquiryFormValues;
+};
+
+function valuesFromFormData(formData: FormData): ClientWorkspaceInquiryFormValues {
+  return {
+    contactName: String(formData.get("contactName") ?? "").trim(),
+    company: String(formData.get("company") ?? "").trim(),
+    talentProfileId: String(formData.get("talentProfileId") ?? "").trim(),
+    eventDate: String(formData.get("eventDate") ?? "").trim(),
+    quantity: String(formData.get("quantity") ?? "").trim(),
+    eventLocation: String(formData.get("eventLocation") ?? "").trim(),
+    message: String(formData.get("message") ?? "").trim(),
+  };
 }
 
-export async function createClientWorkspaceInquiryAction(formData: FormData): Promise<never> {
+function errorState(
+  error: string,
+  values: ClientWorkspaceInquiryFormValues,
+): ClientWorkspaceInquiryActionState {
+  return { error, values };
+}
+
+function clientInquiryPath(tenantSlug: string, talentProfileId: string): string {
+  const params = new URLSearchParams();
+  if (talentProfileId) params.set("talent", talentProfileId);
+  const query = params.toString();
+  return `/${tenantSlug}/client/inquiries/new${query ? `?${query}` : ""}`;
+}
+
+export async function createClientWorkspaceInquiryAction(
+  _prevState: ClientWorkspaceInquiryActionState,
+  formData: FormData,
+): Promise<ClientWorkspaceInquiryActionState> {
   const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
-  const talentProfileId = String(formData.get("talentProfileId") ?? "").trim();
-  const contactName = String(formData.get("contactName") ?? "").trim();
-  const company = String(formData.get("company") ?? "").trim();
-  const eventDate = String(formData.get("eventDate") ?? "").trim();
-  const eventLocation = String(formData.get("eventLocation") ?? "").trim();
-  const quantityRaw = String(formData.get("quantity") ?? "").trim();
-  const message = String(formData.get("message") ?? "").trim();
+  const values = valuesFromFormData(formData);
+  const {
+    talentProfileId,
+    contactName,
+    company,
+    eventDate,
+    eventLocation,
+    quantity: quantityRaw,
+    message,
+  } = values;
 
   if (!tenantSlug) redirect("/login");
   if (!contactName || !message) {
-    returnToNewInquiry(
-      tenantSlug,
-      new URLSearchParams({
-        err: "Contact name and message are required.",
-        ...(talentProfileId ? { talent: talentProfileId } : {}),
-      }),
-    );
+    return errorState("Contact name and message are required.", values);
   }
 
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) {
-    returnToNewInquiry(tenantSlug, new URLSearchParams({ err: "Workspace not found." }));
+    return errorState("Workspace not found.", values);
   }
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
-    returnToNewInquiry(tenantSlug, new URLSearchParams({ err: "Database unavailable." }));
+    return errorState("Database unavailable.", values);
   }
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    redirect(`/login?next=/${tenantSlug}/client/inquiries/new`);
+    redirect(`/login?next=${encodeURIComponent(clientInquiryPath(tenantSlug, talentProfileId))}`);
   }
 
   const client = await loadClientSelfProfile(user.id, scope.tenantId);
   if (!client) {
-    returnToNewInquiry(
-      tenantSlug,
-      new URLSearchParams({ err: "Client profile not found in this workspace." }),
-    );
+    return errorState("Client profile not found in this workspace.", values);
   }
   if (!user.email) {
-    returnToNewInquiry(
-      tenantSlug,
-      new URLSearchParams({ err: "Your account needs an email before sending an inquiry." }),
-    );
+    return errorState("Your account needs an email before sending an inquiry.", values);
   }
 
   const admin = createServiceRoleClient();
   if (!admin) {
-    returnToNewInquiry(tenantSlug, new URLSearchParams({ err: "Database unavailable." }));
+    return errorState("Database unavailable.", values);
   }
 
   const talentIds = talentProfileId ? [talentProfileId] : [];
   const rosterCheck = await assertAllTalentOnTenantRoster(admin, scope.tenantId, talentIds);
   if (!rosterCheck.ok) {
-    returnToNewInquiry(
-      tenantSlug,
-      new URLSearchParams({ err: "Selected talent is not available in this workspace." }),
-    );
+    return errorState("Selected talent is not available in this workspace.", values);
   }
 
   const quantityValue = Number.parseInt(quantityRaw, 10);
@@ -117,13 +142,7 @@ export async function createClientWorkspaceInquiryAction(formData: FormData): Pr
 
   if (!result.success || !result.data?.inquiryId) {
     logServerError("client.inquiries.create", new Error(JSON.stringify(result)));
-    returnToNewInquiry(
-      tenantSlug,
-      new URLSearchParams({
-        err: "Could not create inquiry.",
-        ...(talentProfileId ? { talent: talentProfileId } : {}),
-      }),
-    );
+    return errorState("Could not create inquiry.", values);
   }
   const inquiryId = result.data.inquiryId;
 
