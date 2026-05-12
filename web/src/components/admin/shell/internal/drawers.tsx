@@ -1697,7 +1697,13 @@ function PlanBillingDrawer() {
             </div>
             <GhostButton
               size="sm"
-              onClick={() => toast("Card update opens in your billing portal.")}
+              onClick={() => {
+                openSupportEmail(
+                  "Tulala billing payment method update",
+                  "Please help me update the payment method for this workspace.",
+                );
+                toast("Opening billing support email");
+              }}
             >
               Update
             </GhostButton>
@@ -1731,13 +1737,19 @@ function PlanBillingDrawer() {
                 <span style={{ color: COLORS.ink }}>{inv.date}</span>
                 <span style={{ color: COLORS.inkMuted }}>{inv.amount}</span>
                 <StateChipMini label={inv.status} tone="green" />
-                <a
-                  href="#"
-                  onClick={(e) => e.preventDefault()}
-                  style={{ color: COLORS.inkMuted, fontSize: 12, textDecoration: "none", justifySelf: "end" }}
+                <button
+                  type="button"
+                  onClick={() => {
+                    openSupportEmail(
+                      `Tulala invoice request ${inv.id}`,
+                      `Please send the PDF for invoice ${inv.id} dated ${inv.date} (${inv.amount}).`,
+                    );
+                    toast("Opening invoice support email");
+                  }}
+                  style={{ color: COLORS.inkMuted, fontSize: 12, textDecoration: "none", justifySelf: "end", background: "transparent", border: "none", padding: 0, cursor: "pointer", fontFamily: FONTS.body }}
                 >
                   PDF
-                </a>
+                </button>
               </div>
             ))}
           </div>
@@ -22361,28 +22373,46 @@ function DangerZoneDrawer() {
       description="Irreversible actions. Be sure before you click."
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <Section title="Pause workspace" description="Take your storefront offline temporarily. Data is preserved.">
+      <Section title="Pause workspace" description="Support can take your storefront offline temporarily. Data is preserved.">
         <ConfirmTypedAction
-          actionLabel="Pause workspace"
+          actionLabel="Email pause request"
           confirmPhrase="pause"
           tone="amber"
-          onConfirm={() => toast("Workspace paused")}
+          onConfirm={() => {
+            openSupportEmail(
+              "Tulala workspace pause request",
+              `Please pause the ${effectiveTenant.name} workspace storefront. I understand data is preserved.`,
+            );
+            toast("Opening workspace support email");
+          }}
         />
       </Section>
-      <Section title="Transfer ownership" description="Hand the workspace to another owner. You become an admin.">
+      <Section title="Transfer ownership" description="Support reviews ownership transfer requests before any account access changes.">
         <ConfirmTypedAction
-          actionLabel="Transfer ownership"
+          actionLabel="Email transfer request"
           confirmPhrase="transfer"
           tone="amber"
-          onConfirm={() => toast("Transfer initiated")}
+          onConfirm={() => {
+            openSupportEmail(
+              "Tulala ownership transfer request",
+              `Please review an ownership transfer request for ${effectiveTenant.name}.`,
+            );
+            toast("Opening ownership support email");
+          }}
         />
       </Section>
-      <Section title="Delete workspace" description="Permanent. Your roster, clients, and history are removed. We email you a final export.">
+      <Section title="Delete workspace" description="Permanent deletion requires support review and a final export.">
         <ConfirmTypedAction
-          actionLabel="Delete workspace"
+          actionLabel="Email deletion request"
           confirmPhrase={effectiveTenant.name}
           tone="red"
-          onConfirm={() => toast("No data was deleted — destructive actions are disabled here")}
+          onConfirm={() => {
+            openSupportEmail(
+              "Tulala workspace deletion request",
+              `Please review a deletion request for ${effectiveTenant.name}. I understand this is permanent and should include a final export before deletion.`,
+            );
+            toast("Opening deletion support email");
+          }}
         />
       </Section>
     </DrawerShell>
@@ -23192,13 +23222,19 @@ function PlanCompareDrawer() {
  * only per PLAN_FEE_META.
  */
 function PaymentsSetupDrawer() {
-  const { state, closeDrawer, openUpgrade } = useAdminShell();
+  const { state, closeDrawer, openUpgrade, toast } = useAdminShell();
   const payout = getWorkspacePayout(state.plan);
   const fee = PLAN_FEE_META[state.plan];
-  const onSave = useSaveAndClose("Default receiver saved");
   const isFree = state.plan === "free";
   const receiver = payout.defaultReceiver;
   const receiverMeta = PAYOUT_STATUS_META[receiver.status];
+  const requestPaymentsHelp = () => {
+    openSupportEmail(
+      "Tulala payments setup request",
+      `Please help update payments setup for this workspace.\n\nDefault receiver: ${receiver.displayName}\nPlan: ${state.plan}`,
+    );
+    toast("Opening payments support email");
+  };
 
   return (
     <DrawerShell
@@ -23224,7 +23260,10 @@ function PaymentsSetupDrawer() {
             </PrimaryButton>
           </>
         ) : (
-          <StandardFooter onSave={onSave} saveLabel="Save" />
+          <>
+            <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+            <PrimaryButton onClick={requestPaymentsHelp}>Contact support</PrimaryButton>
+          </>
         )
       }
     >
@@ -23309,8 +23348,42 @@ function PaymentsSetupDrawer() {
 }
 
 function StubToggle({ defaultOn }: { defaultOn?: boolean }) {
-  const [on, setOn] = useState(!!defaultOn);
-  return <Toggle on={on} onChange={setOn} />;
+  const on = !!defaultOn;
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label="Managed by payments support"
+      disabled
+      title="Managed by payments support"
+      style={{
+        position: "relative",
+        width: 36,
+        height: 20,
+        borderRadius: 999,
+        background: on ? COLORS.fill : "rgba(11,11,13,0.16)",
+        border: "none",
+        cursor: "not-allowed",
+        padding: 0,
+        flexShrink: 0,
+        opacity: 0.5,
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: 2,
+          left: on ? 18 : 2,
+          width: 16,
+          height: 16,
+          borderRadius: "50%",
+          background: "#fff",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+        }}
+      />
+    </button>
+  );
 }
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
@@ -23352,6 +23425,21 @@ function PayoutReceiverPickerDrawer() {
   const [selectedKind, setSelectedKind] = useState<string | null>(
     summary?.receiver ? `${summary.receiver.kind}:${summary.receiver.displayName}` : null,
   );
+  const bookingLabel = summary
+    ? (summary.bookingId !== "—" ? summary.bookingId : inquiryId ?? "unknown")
+    : inquiryId ?? "unknown";
+  const requestReceiverChange = () => {
+    openSupportEmail(
+      "Tulala payout receiver change request",
+      [
+        `Booking: ${bookingLabel}`,
+        `Current receiver: ${summary?.receiver?.displayName ?? "unknown"}`,
+        `Requested receiver: ${selectedKind ?? "no change selected"}`,
+        `Net payout: ${summary?.netPayout ?? "unknown"}`,
+      ].join("\n"),
+    );
+    toast("Opening payout support email");
+  };
 
   return (
     <DrawerShell
@@ -23368,12 +23456,9 @@ function PayoutReceiverPickerDrawer() {
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
           <PrimaryButton
-            onClick={() => {
-              toast(selectedKind ? "Receiver updated" : "No change");
-              closeDrawer();
-            }}
+            onClick={requestReceiverChange}
           >
-            Save receiver
+            Email request
           </PrimaryButton>
         </>
       }
@@ -23731,6 +23816,13 @@ function EscrowDetailDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open  = state.drawer.drawerId === "escrow-detail";
   const stage = (state.drawer.payload?.stage as string) ?? "held";
+  const requestEscrowSupport = (request: string) => {
+    openSupportEmail(
+      `Tulala escrow ${request} request`,
+      `Please review this escrow and advise next steps.\n\nRequested action: ${request}\nCurrent stage: ${stage}`,
+    );
+    toast("Opening escrow support email");
+  };
 
   const steps = [
     { id: "authorized", label: "Authorized", icon: "🔑", desc: "Payment method verified. Hold placed — no charge yet.",         done: ["held","released"].includes(stage), active: stage === "authorized" },
@@ -23761,8 +23853,8 @@ function EscrowDetailDrawer() {
           <div style={{ marginTop: 4, padding: "12px 14px", background: "rgba(46,125,91,0.06)", border: "1px solid rgba(46,125,91,0.18)", borderRadius: 10 }}>
             <div style={{ fontSize: 12, color: COLORS.successDeep, fontWeight: 500, marginBottom: 8 }}>🔒 Funds are secured. Auto-released 24h after confirmed shoot date.</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" onClick={() => toast("Release triggered — payout processing")} style={{ padding: "7px 14px", background: COLORS.green, color: "#fff", border: "none", borderRadius: 7, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Release now</button>
-              <button type="button" onClick={() => toast("Dispute opened")} style={{ padding: "7px 14px", background: "transparent", color: COLORS.red, border: "1px solid rgba(176,48,58,0.25)", borderRadius: 7, fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>Open dispute</button>
+              <button type="button" onClick={() => requestEscrowSupport("release")} style={{ padding: "7px 14px", background: COLORS.green, color: "#fff", border: "none", borderRadius: 7, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Request release</button>
+              <button type="button" onClick={() => requestEscrowSupport("dispute")} style={{ padding: "7px 14px", background: "transparent", color: COLORS.red, border: "1px solid rgba(176,48,58,0.25)", borderRadius: 7, fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>Email dispute</button>
             </div>
           </div>
         )}
@@ -23782,8 +23874,15 @@ function RefundFlowDrawer() {
   const open = state.drawer.drawerId === "refund-flow";
   const [reason, setReason] = useState("");
   const [amount, setAmount] = useState<"full"|"partial">("full");
+  const emailRefundRequest = () => {
+    openSupportEmail(
+      "Tulala refund request",
+      `Please review this refund request.\n\nAmount: ${amount}\nReason: ${reason}`,
+    );
+    toast("Opening refund support email");
+  };
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Request Refund" description="Reviewed within 24 hours" defaultSize="compact">
+    <DrawerShell open={open} onClose={closeDrawer} title="Request Refund" description="Email support to start a refund review." defaultSize="compact">
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", gap: 8 }}>
           {(["full","partial"] as const).map((t) => (
@@ -23798,7 +23897,7 @@ function RefundFlowDrawer() {
           <option value="quality">Deliverables below standard</option>
           <option value="duplicate">Billing error / duplicate</option>
         </select>
-        <button type="button" disabled={!reason} onClick={() => { toast("Refund request submitted"); closeDrawer(); }} style={{ padding: "10px", background: reason ? COLORS.red : COLORS.borderSoft, border: "none", borderRadius: 8, color: reason ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: reason ? "pointer" : "default" }}>Submit request</button>
+        <button type="button" disabled={!reason} onClick={emailRefundRequest} style={{ padding: "10px", background: reason ? COLORS.red : COLORS.borderSoft, border: "none", borderRadius: 8, color: reason ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: reason ? "pointer" : "default" }}>Email refund request</button>
       </div>
     </DrawerShell>
   );
@@ -23815,8 +23914,16 @@ function DisputeFlowDrawer() {
     { id: "overcharge", label: "Charged incorrectly" },
     { id: "cancellation", label: "Cancellation policy dispute" },
   ];
+  const typeLabel = types.find((item) => item.id === type)?.label ?? type;
+  const emailDisputeRequest = () => {
+    openSupportEmail(
+      "Tulala payment dispute request",
+      `Please review this payment dispute.\n\nDispute type: ${typeLabel || "not selected"}`,
+    );
+    toast("Opening dispute support email");
+  };
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Open Dispute" description="Funds are frozen during review" defaultSize="half">
+    <DrawerShell open={open} onClose={closeDrawer} title="Open Dispute" description="Email support to start a dispute review. Funds are not frozen automatically from this drawer." defaultSize="half">
       <div style={{ fontFamily: FONTS.body }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${COLORS.borderSoft}` }}>
           {([1,2,3] as const).map((s) => (
@@ -23828,8 +23935,8 @@ function DisputeFlowDrawer() {
           ))}
         </div>
         {step === 1 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{types.map((d) => (<button key={d.id} type="button" onClick={() => setType(d.id)} style={{ padding: "12px 14px", border: `1px solid ${type===d.id ? COLORS.accent : COLORS.borderSoft}`, background: type===d.id ? "rgba(11,11,13,0.04)" : "#fff", borderRadius: 9, textAlign: "left" as const, cursor: "pointer", fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{d.label}</button>))}<button type="button" disabled={!type} onClick={() => setStep(2)} style={{ marginTop: 8, padding: "10px", background: type ? COLORS.fill : COLORS.borderSoft, border: "none", borderRadius: 8, color: type ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: type ? "pointer" : "default" }}>Continue →</button></div>}
-        {step === 2 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => { toast("File picker"); setStep(3); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 28 }}>📎</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Upload evidence</div><div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>Photos, emails, contracts, call recordings</div></div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => setStep(3)} style={{ flex: 1, padding: "10px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue →</button></div></div>}
-        {step === 3 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div style={{ padding: "14px", background: "rgba(176,48,58,0.05)", border: "1px solid rgba(176,48,58,0.18)", borderRadius: 10, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.6 }}><strong style={{ color: "#7A2026" }}>Opening a dispute freezes the escrow.</strong> Funds won't be released until resolved (2–5 business days).</div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(2)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => { toast("Dispute opened — escrow frozen"); closeDrawer(); }} style={{ flex: 1, padding: "10px", background: COLORS.red, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Confirm dispute</button></div></div>}
+        {step === 2 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, opacity: 0.65 }}><div style={{ fontSize: 28 }}>📎</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Evidence upload coming soon</div><div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>Attach evidence to the support email after it opens.</div></div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => setStep(3)} style={{ flex: 1, padding: "10px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue →</button></div></div>}
+        {step === 3 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div style={{ padding: "14px", background: "rgba(176,48,58,0.05)", border: "1px solid rgba(176,48,58,0.18)", borderRadius: 10, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.6 }}><strong style={{ color: "#7A2026" }}>Support must review this manually.</strong> Emailing this request does not freeze escrow automatically; support will confirm payment status and next steps.</div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(2)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={emailDisputeRequest} style={{ flex: 1, padding: "10px", background: COLORS.red, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Email dispute request</button></div></div>}
       </div>
     </DrawerShell>
   );
@@ -28243,6 +28350,13 @@ function OwnershipTransferDrawer() {
   const [newOwnerEmail, setNewOwnerEmail] = React.useState("");
   const [confirmed, setConfirmed] = React.useState(false);
   const [step, setStep] = React.useState<1 | 2>(1);
+  const emailTransferRequest = () => {
+    openSupportEmail(
+      "Tulala ownership transfer request",
+      `Please review this workspace ownership transfer request.\n\nNew owner email: ${newOwnerEmail}`,
+    );
+    toast("Opening ownership support email");
+  };
 
   const footer = (
     <div style={{ display: "flex", gap: 8 }}>
@@ -28252,22 +28366,22 @@ function OwnershipTransferDrawer() {
       <SecondaryButton
         onClick={() => {
           if (step === 1 && newOwnerEmail) setStep(2);
-          else if (step === 2 && confirmed) { toast("Transfer initiated — confirmation emails sent"); closeDrawer(); }
+          else if (step === 2 && confirmed) emailTransferRequest();
         }}
       >
-        {step === 1 ? "Review transfer" : "Confirm transfer"}
+        {step === 1 ? "Review transfer" : "Email transfer request"}
       </SecondaryButton>
     </div>
   );
 
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Ownership transfer" description="Transfer workspace ownership to a different account." footer={footer} defaultSize="half">
+    <DrawerShell open={open} onClose={closeDrawer} title="Ownership transfer" description="Email support to start a reviewed ownership transfer." footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
 
         <div style={{ background: `${COLORS.coral}12`, border: `1px solid ${COLORS.coral}40`, borderRadius: RADIUS.md, padding: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.coral }}>⚠ Irreversible action</div>
           <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
-            Transferring ownership removes your admin access and grants full control to the new owner. This cannot be undone without their cooperation.
+            Ownership transfers require support review. This drawer does not change account access automatically.
           </div>
         </div>
 
