@@ -65,7 +65,7 @@
       "count": 2
     },
     "react/no-unescaped-entities": {
-      "count": 73
+      "count": 71
     }
   },
   "src/components/admin/shell/internal/media-page.tsx": {

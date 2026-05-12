@@ -270,6 +270,7 @@ import {
   WhatsNewDrawer,
   HelpDrawer,
   TalentNotificationsDrawer,
+  downloadCsv,
 } from "./wave2";
 import {
   TalentTodayPulseDrawer,
@@ -950,6 +951,11 @@ function useSaveAndClose(message = "Saved") {
     toast(message);
     closeDrawer();
   };
+}
+
+function openSupportEmail(subject: string, body: string) {
+  const params = new URLSearchParams({ subject, body });
+  window.location.href = `mailto:support@tulala.digital?${params.toString()}`;
 }
 
 function StandardFooter({
@@ -25365,7 +25371,7 @@ function OnCallRotationDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function GdprExportDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
   const open = state.drawer.drawerId === "gdpr-export";
 
   type DataType = { id: string; label: string; description: string; size: string; selected: boolean };
@@ -25378,130 +25384,118 @@ function GdprExportDrawer() {
     { id: "consents", label: "Consent history",        description: "Marketing opt-ins, cookie preferences.",     size: "<1 MB",  selected: false },
   ]);
   const [format, setFormat] = useState<"zip" | "json" | "csv">("zip");
-  const [submitted, setSubmitted] = useState(false);
   const selectedCount = types.filter((t) => t.selected).length;
+  const selectedLabels = types.filter((t) => t.selected).map((t) => t.label);
 
   const toggleType = (id: string) =>
     setTypes((prev) => prev.map((t) => t.id === id ? { ...t, selected: !t.selected } : t));
+
+  const requestExport = () => {
+    openSupportEmail(
+      "Tulala data export request",
+      `Please start a ${format.toUpperCase()} data export for: ${selectedLabels.join(", ")}.\n\nWorkspace: ${effectiveTenant.name}`,
+    );
+    toast("Opening email request");
+  };
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Export your data"
-      description="GDPR / CCPA data portability. A download link will be emailed to you within 24 hours."
+      description="GDPR / CCPA data portability. Automated exports are not connected yet, so support handles these requests."
       footer={
-        submitted ? (
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-        ) : (
-          <div style={{ display: "flex", gap: 8 }}>
-            <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-            <button
-              type="button"
-              disabled={selectedCount === 0}
-              onClick={() => { setSubmitted(true); toast("Export request submitted — download link in 24h"); }}
-              style={{
-                padding: "9px 18px",
-                background: selectedCount === 0 ? COLORS.inkDim : COLORS.fill,
-                border: "none", borderRadius: RADIUS.md, color: "#fff",
-                fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
-                cursor: selectedCount === 0 ? "not-allowed" : "pointer",
-              }}
-            >
-              Request export ({selectedCount} types)
-            </button>
-          </div>
-        )
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <button
+            type="button"
+            disabled={selectedCount === 0}
+            onClick={requestExport}
+            title="Opens an email to support with your selected export scope."
+            style={{
+              padding: "9px 18px",
+              background: selectedCount === 0 ? COLORS.inkDim : COLORS.fill,
+              border: "none", borderRadius: RADIUS.md, color: "#fff",
+              fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+              cursor: selectedCount === 0 ? "not-allowed" : "pointer",
+              opacity: selectedCount === 0 ? 0.45 : 1,
+            }}
+          >
+            Email support ({selectedCount} types)
+          </button>
+        </div>
       }
       defaultSize="half"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
-        {submitted ? (
-          <div style={{
-            padding: "16px 18px", background: COLORS.successSoft,
-            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
-            display: "flex", flexDirection: "column", gap: 6,
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep }}>✓ Export queued</div>
-            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
-              You'll receive a download link at your registered email within 24 hours. Links expire after 72 hours.
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
-              Per GDPR Article 20, exports are provided in machine-readable format and free of charge.
-            </div>
+        {/* Format picker */}
+        <div>
+          <CapsLabel>Export format</CapsLabel>
+          <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
+            {(["zip", "json", "csv"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFormat(f)}
+                style={{
+                  padding: "6px 14px",
+                  background: format === f ? COLORS.fill : COLORS.surfaceAlt,
+                  border: `1px solid ${format === f ? COLORS.accent : COLORS.border}`,
+                  borderRadius: RADIUS.sm, fontFamily: FONTS.body,
+                  fontSize: 12.5, fontWeight: format === f ? 600 : 400,
+                  color: format === f ? "#fff" : COLORS.inkMuted,
+                  cursor: "pointer", transition: TRANSITION.sm,
+                }}
+              >
+                {f.toUpperCase()}
+              </button>
+            ))}
           </div>
-        ) : (
-          <>
-            {/* Format picker */}
-            <div>
-              <CapsLabel>Export format</CapsLabel>
-              <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
-                {(["zip", "json", "csv"] as const).map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setFormat(f)}
-                    style={{
-                      padding: "6px 14px",
-                      background: format === f ? COLORS.fill : COLORS.surfaceAlt,
-                      border: `1px solid ${format === f ? COLORS.accent : COLORS.border}`,
-                      borderRadius: RADIUS.sm, fontFamily: FONTS.body,
-                      fontSize: 12.5, fontWeight: format === f ? 600 : 400,
-                      color: format === f ? "#fff" : COLORS.inkMuted,
-                      cursor: "pointer", transition: TRANSITION.sm,
-                    }}
-                  >
-                    {f.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
+        </div>
 
-            {/* Data type checklist */}
-            <div>
-              <CapsLabel>Data types · select to include</CapsLabel>
-              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
-                {types.map((dt) => (
-                  <button
-                    key={dt.id}
-                    type="button"
-                    onClick={() => toggleType(dt.id)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 12,
-                      padding: "12px 14px", width: "100%", textAlign: "left",
-                      background: dt.selected ? COLORS.accentSoft : COLORS.surfaceAlt,
-                      border: `1px solid ${dt.selected ? COLORS.accent + "44" : COLORS.borderSoft}`,
-                      borderRadius: RADIUS.md, cursor: "pointer",
-                      fontFamily: FONTS.body, transition: TRANSITION.sm,
-                    }}
-                  >
-                    <div style={{
-                      width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-                      background: dt.selected ? COLORS.accent : "#fff",
-                      border: `1.5px solid ${dt.selected ? COLORS.accent : COLORS.border}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
-                      {dt.selected && <Icon name="check" size={11} color="#fff" stroke={2.5} />}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{dt.label}</div>
-                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{dt.description}</div>
-                    </div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, flexShrink: 0 }}>{dt.size}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+        {/* Data type checklist */}
+        <div>
+          <CapsLabel>Data types · select to include</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+            {types.map((dt) => (
+              <button
+                key={dt.id}
+                type="button"
+                onClick={() => toggleType(dt.id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "12px 14px", width: "100%", textAlign: "left",
+                  background: dt.selected ? COLORS.accentSoft : COLORS.surfaceAlt,
+                  border: `1px solid ${dt.selected ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                  borderRadius: RADIUS.md, cursor: "pointer",
+                  fontFamily: FONTS.body, transition: TRANSITION.sm,
+                }}
+              >
+                <div style={{
+                  width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                  background: dt.selected ? COLORS.accent : "#fff",
+                  border: `1.5px solid ${dt.selected ? COLORS.accent : COLORS.border}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {dt.selected && <Icon name="check" size={11} color="#fff" stroke={2.5} />}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{dt.label}</div>
+                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{dt.description}</div>
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, flexShrink: 0 }}>{dt.size}</div>
+              </button>
+            ))}
+          </div>
+        </div>
 
-            <div style={{
-              padding: "10px 14px", background: COLORS.indigoSoft,
-              borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
-              fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
-            }}>
-              Satisfies GDPR Art. 20, CCPA §1798.100, LGPD Art. 18. Processed within 24h. Maximum 1 request per 30 days.
-            </div>
-          </>
-        )}
+        <div style={{
+          padding: "10px 14px", background: COLORS.indigoSoft,
+          borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
+          fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+        }}>
+          Support will confirm scope, identity, and delivery timing by email before preparing the export.
+        </div>
       </div>
     </DrawerShell>
   );
@@ -25529,6 +25523,16 @@ function ConsentLogDrawer() {
   const labelFor = (s: ConsentEntry["status"]) =>
     s === "opted-in" ? "Opted in" : s === "opted-out" ? "Opted out" : "Pending";
 
+  const exportCsv = () => {
+    downloadCsv("consent-log.csv", CONSENTS.map((entry) => ({
+      channel: entry.channel,
+      status: labelFor(entry.status),
+      timestamp: entry.timestamp,
+      method: entry.method,
+    })));
+    toast("Downloaded consent log CSV");
+  };
+
   return (
     <DrawerShell
       open={open}
@@ -25538,7 +25542,7 @@ function ConsentLogDrawer() {
       footer={
         <div style={{ display: "flex", gap: 8 }}>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <GhostButton onClick={() => toast("Consent log exported as CSV")}>Export CSV</GhostButton>
+          <GhostButton onClick={exportCsv}>Export CSV</GhostButton>
         </div>
       }
       defaultSize="half"
@@ -25756,7 +25760,6 @@ function ReportContentDrawer() {
   const open = state.drawer.drawerId === "report-content";
   const [category, setCategory] = useState("Fake or misleading profile");
   const [detail, setDetail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
 
   const targetName = (state.drawer.payload?.targetName as string) ?? "this profile";
   const targetType = (state.drawer.payload?.targetType as string) ?? "profile";
@@ -25771,83 +25774,77 @@ function ReportContentDrawer() {
     "Other",
   ];
 
+  const emailReport = () => {
+    openSupportEmail(
+      `Report ${targetType}: ${targetName}`,
+      [
+        `Target: ${targetName}`,
+        `Type: ${targetType}`,
+        `Category: ${category}`,
+        "",
+        "Additional detail:",
+        detail.trim() || "(none provided)",
+      ].join("\n"),
+    );
+    toast("Opening report email");
+  };
+
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title={`Report ${targetType}`}
-      description={`Report ${targetName} to the Tulala trust & safety team. Reports are confidential.`}
+      description={`Email a confidential report about ${targetName} to Tulala support.`}
       footer={
-        submitted ? (
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-        ) : (
-          <div style={{ display: "flex", gap: 8 }}>
-            <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-            <button
-              type="button"
-              onClick={() => { setSubmitted(true); toast("Report submitted — trust & safety team notified"); }}
-              style={{
-                padding: "9px 18px", background: COLORS.red, border: "none",
-                borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
-                fontSize: 13, fontWeight: 600, cursor: "pointer",
-              }}
-            >
-              Submit report
-            </button>
-          </div>
-        )
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <button
+            type="button"
+            onClick={emailReport}
+            title="Opens an email to support. No automatic report is filed from this drawer yet."
+            style={{
+              padding: "9px 18px", background: COLORS.red, border: "none",
+              borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            Email report
+          </button>
+        </div>
       }
       defaultSize="compact"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
-        {submitted ? (
-          <div style={{
-            padding: "16px 18px", background: COLORS.successSoft,
-            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
-            display: "flex", flexDirection: "column", gap: 6,
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep }}>✓ Report received</div>
-            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
-              Our trust & safety team will review within 24–48 hours. You'll receive a notification with the outcome.
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
-              For urgent matters, contact support@tulala.digital.
-            </div>
-          </div>
-        ) : (
-          <>
-            <FieldRow label="Category">
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                style={{
-                  fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
-                  background: "#fff", border: `1px solid ${COLORS.border}`,
-                  borderRadius: RADIUS.sm, padding: "7px 10px", width: "100%",
-                }}
-              >
-                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-              </select>
-            </FieldRow>
+        <FieldRow label="Category">
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{
+              fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+              background: "#fff", border: `1px solid ${COLORS.border}`,
+              borderRadius: RADIUS.sm, padding: "7px 10px", width: "100%",
+            }}
+          >
+            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </FieldRow>
 
-            <FieldRow label="Additional detail (optional)">
-              <TextArea
-                value={detail}
-                onChange={(e) => setDetail(e.target.value)}
-                placeholder="Describe what you observed. Be specific — screenshots help."
-                rows={4}
-              />
-            </FieldRow>
+        <FieldRow label="Additional detail (optional)">
+          <TextArea
+            value={detail}
+            onChange={(e) => setDetail(e.target.value)}
+            placeholder="Describe what you observed. Be specific — screenshots help."
+            rows={4}
+          />
+        </FieldRow>
 
-            <div style={{
-              padding: "10px 14px", background: COLORS.amberSoft,
-              borderRadius: RADIUS.md, border: `1px solid rgba(82,96,109,0.2)`,
-              fontSize: 11.5, color: COLORS.amberDeep, lineHeight: 1.5,
-            }}>
-              Reports are confidential. False or malicious reports may result in your own account being reviewed. For commercial disputes, use the dispute flow instead.
-            </div>
-          </>
-        )}
+        <div style={{
+          padding: "10px 14px", background: COLORS.amberSoft,
+          borderRadius: RADIUS.md, border: `1px solid rgba(82,96,109,0.2)`,
+          fontSize: 11.5, color: COLORS.amberDeep, lineHeight: 1.5,
+        }}>
+          Reports are confidential. This opens an email to support; no automatic trust-and-safety case is created from the product yet.
+        </div>
       </div>
     </DrawerShell>
   );
@@ -28003,7 +28000,14 @@ function ProductionTimelineDrawer() {
   const footer = (
     <div style={{ display: "flex", gap: 8 }}>
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
-      <SecondaryButton onClick={() => { toast("Timeline exported"); closeDrawer(); }}>Export call sheet</SecondaryButton>
+      <SecondaryButton
+        onClick={() => {
+          downloadCsv("production-call-sheet.csv", events);
+          toast("Downloaded call sheet CSV");
+        }}
+      >
+        Export call sheet
+      </SecondaryButton>
     </div>
   );
 
@@ -28054,7 +28058,14 @@ function UsageTrackerDrawer() {
   const footer = (
     <div style={{ display: "flex", gap: 8 }}>
       <GhostButton onClick={closeDrawer}>Close</GhostButton>
-      <SecondaryButton onClick={() => { toast("Report exported"); closeDrawer(); }}>Export report</SecondaryButton>
+      <SecondaryButton
+        onClick={() => {
+          downloadCsv("usage-rights-report.csv", filtered);
+          toast("Downloaded usage report CSV");
+        }}
+      >
+        Export report
+      </SecondaryButton>
     </div>
   );
 
