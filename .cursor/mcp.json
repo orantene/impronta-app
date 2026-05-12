@@ -2,7 +2,7 @@
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest", "--browser", "chrome"]
+      "args": ["-y", "@playwright/mcp@latest", "--browser", "chromium"]
     },
     "supabase": {
       "url": "https://mcp.supabase.com/mcp?read_only=true&project_ref=pluhdapdnuiulvxmyspd"
@@ -11,15 +11,8 @@
       "url": "https://mcp.vercel.com"
     },
     "github": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e",
-        "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server"
-      ],
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
       "envFile": "${workspaceFolder}/.cursor/github-mcp.env"
     }
   }
