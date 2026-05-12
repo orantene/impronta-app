@@ -69,8 +69,36 @@ function introTaglineFromHero(hero: Record<string, unknown> | null): string | nu
   return typeof value === "string" ? value : null;
 }
 
+function printHelp(): void {
+  console.log(`reset-impronta-homepage — discard draft or wipe homepage composition (Supabase service role).
+
+Usage (from web/):
+  npm run reset:impronta-homepage [-- <flags>]
+  npm run reset:impronta-homepage:draft [-- <flags>]
+
+Flags:
+  --slug <slug>               Agency slug (default: impronta)
+  --apply                     Run mutations (default: print dry-run JSON only)
+  --draft-only                Delete draft cms_page_sections only; published snapshot unchanged
+  --purge-cleared-sections    After full empty reset, delete orphan cms_sections (ignored with --draft-only)
+
+Examples:
+  npm run reset:impronta-homepage
+  npm run reset:impronta-homepage:draft -- --apply
+  npm run reset:impronta-homepage -- --apply --purge-cleared-sections
+
+Docs: web/docs/impronta-local-qa-homepage-baseline.md
+`);
+}
+
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  if (argv.includes("--help") || argv.includes("-h")) {
+    printHelp();
+    return;
+  }
+
+  const args = parseArgs(argv);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
