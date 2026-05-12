@@ -8229,8 +8229,8 @@ function SendButtonWithSchedule({ disabled, onSend }: {
  *   - Long-press (touch): same menu opens at the bubble
  *   - Right-click (desktop): same menu (contextmenu)
  *
- * The menu offers a quick-reaction row (👍 ❤️ 😂 ⭐ ❓ 🙏) plus the
- * standard chat actions: Reply, Copy, Pin, Translate, Forward, Schedule.
+ * The menu offers a quick-reaction row plus copy. Other message actions
+ * stay hidden until backed by real mutations.
  *
  * Reactions render as small chips below the bubble. State is local to
  * this component and seeded from MOCK_REACTIONS for demonstration.
@@ -10211,14 +10211,12 @@ function InboxRow({
   first,
   checked,
   onToggleCheck,
-  onSnooze,
   onTemplate,
 }: {
   item: InboxItem;
   first: boolean;
   checked?: boolean;
   onToggleCheck?: () => void;
-  onSnooze?: () => void;
   onTemplate?: () => void;
 }) {
   const [hover, setHover] = useState(false);
@@ -10377,10 +10375,10 @@ function InboxRow({
       </span>
       <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
       </button>
-      {/* Audit #25 + #53 — hover-only quick actions: snooze + insert
-          saved replies. Click on this doesn't propagate to the row's open
-          handler. Always reserve space (visibility:hidden when not
-          hovering) so the row width doesn't jump. */}
+      {/* Audit #25 + #53 — hover-only saved replies. Click on this
+          doesn't propagate to the row's open handler. Always reserve
+          space (visibility:hidden when not hovering) so the row width
+          doesn't jump. */}
       <div
         style={{
           display: "inline-flex",
@@ -10390,19 +10388,6 @@ function InboxRow({
           visibility: hover ? "visible" : "hidden",
         }}
       >
-        {onSnooze && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onSnooze(); }}
-            aria-label={`Snooze ${item.client}`}
-            title="Snooze · returns to top in 1 day"
-            style={inboxHoverIconStyle}
-          >
-            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </button>
-        )}
         {onTemplate && item.category === "action" && (
           <button
             onClick={(e) => { e.stopPropagation(); onTemplate(); }}
