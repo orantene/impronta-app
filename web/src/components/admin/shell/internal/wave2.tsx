@@ -1508,7 +1508,7 @@ export function TalentAgencySwitcherDrawer() {
 // operations.
 
 export function WorkspaceProfileDrawer() {
-  const { state, closeDrawer, setPage } = useAdminShell();
+  const { state, closeDrawer, setPage, effectiveTenant } = useAdminShell();
   const open = state.drawer.drawerId === "workspace-profile";
   // Mock — production reads from workspace.settings + state.role.
   // For demo we map state.role to a permission level. state.role lacks
@@ -1520,9 +1520,12 @@ export function WorkspaceProfileDrawer() {
     : "Editor";
   const canEditIdentity = (myRole as TenantRole) === "Owner" || (myRole as TenantRole) === "Admin";
   const canEditPlan = myRole === "Owner";
-  const [name, setName] = useState(TENANT.name);
-  const [slug] = useState(TENANT.slug);
-  const [signature, setSignature] = useState(`Sent on behalf of ${TENANT.name}`);
+  // Seed from the REAL tenant identity (bridge), not the prototype mock.
+  // Falls back to TENANT only in standalone prototype mode (when no
+  // bridge is supplied — see state.tsx effectiveTenant memoization).
+  const [name, setName] = useState(effectiveTenant.name);
+  const [slug] = useState(effectiveTenant.slug);
+  const [signature, setSignature] = useState(`Sent on behalf of ${effectiveTenant.name}`);
   const [systemUserEnabled, setSystemUserEnabled] = useState(true);
   const [defaultCoord, setDefaultCoord] = useState("Marta Reyes");
   const [saving, setSaving] = useState(false);
@@ -1577,7 +1580,7 @@ export function WorkspaceProfileDrawer() {
           border: `1px solid ${tierPalette.bg}`,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Avatar initials={TENANT.name.slice(0, 2).toUpperCase()} size={44} tone="ink" />
+            <Avatar initials={effectiveTenant.initials} size={44} tone="ink" />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>

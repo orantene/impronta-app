@@ -127,6 +127,7 @@ import {
   CLIENT_MOCK_CONVERSATIONS_BY_PROFILE,
   useTalentConversations,
 } from "./talent";
+import { getInquiryFlagsTenantSlug } from "./inquiry-flags-tenant-slug";
 // WorkspaceBody import removed — admin now uses AdminInquiryDetail
 // (defined below) which mirrors the talent/client shell pattern.
 
@@ -755,7 +756,7 @@ function ParticipantTrustStrip({
   talentName?: string;
   clientName?: string;
 }) {
-  const { getTrustSummary } = useAdminShell();
+  const { getTrustSummary, effectiveTenant } = useAdminShell();
   // Resolve names → roster ids for talent (best-effort, lookup by name)
   const allRoster = [...ROSTER_AGENCY, ...ROSTER_FREE];
   const talentId = talentName ? allRoster.find(r => r.name === talentName)?.id : undefined;
@@ -1180,7 +1181,8 @@ export function togglePin(id: string) {
   // Persist to DB for real inquiry UUIDs. Synthetic mock ids stay
   // local-only so the demo continues to work.
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-    void setInquiryPinned(TENANT.slug, id, next);
+    const slug = getInquiryFlagsTenantSlug();
+    if (slug) void setInquiryPinned(slug, id, next);
   }
 }
 export function toggleManualUnread(id: string) {
@@ -1198,7 +1200,8 @@ export function toggleManualUnread(id: string) {
   __persistFlags();
   __flagsSubscribers.forEach(fn => fn());
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-    void setInquiryManuallyUnread(TENANT.slug, id, next);
+    const slug = getInquiryFlagsTenantSlug();
+    if (slug) void setInquiryManuallyUnread(slug, id, next);
   }
 }
 export function archiveInquiry(id: string) {
@@ -1210,7 +1213,8 @@ export function archiveInquiry(id: string) {
   __persistFlags();
   __flagsSubscribers.forEach(fn => fn());
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-    void setInquiryArchived(TENANT.slug, id, next);
+    const slug = getInquiryFlagsTenantSlug();
+    if (slug) void setInquiryArchived(slug, id, next);
   }
 }
 function useFlagsSubscription(): void {
@@ -1891,7 +1895,7 @@ function AdminInboxList({
   // gesture for multi-row operations (nudge / archive / reassign).
   // Operations are admin+ only — Coord/Editor see the bulk button
   // hidden so they don't get a no-op toggle.
-  const { toast: toastBulk } = useAdminShell();
+  const { toast: toastBulk, effectiveTenant } = useAdminShell();
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const toggleSelect = (id: string) => {
@@ -2072,7 +2076,7 @@ function AdminInboxList({
                 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
               );
               if (realIds.length > 0) {
-                void bulkNudgeInquiries(TENANT.slug, realIds).then((r) => {
+                void bulkNudgeInquiries(effectiveTenant.slug, realIds).then((r) => {
                   if (!r.ok) toastBulk(`Bulk nudge failed: ${r.error}`);
                   else if (r.data?.failed) toastBulk(`Nudged ${r.data.ok} (${r.data.failed} failed)`);
                 });
@@ -2103,7 +2107,7 @@ function AdminInboxList({
                 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
               );
               if (realIds.length > 0) {
-                void bulkSetInquiryArchived(TENANT.slug, realIds, !restoring).then((r) => {
+                void bulkSetInquiryArchived(effectiveTenant.slug, realIds, !restoring).then((r) => {
                   if (!r.ok) toastBulk(`Bulk ${restoring ? "restore" : "archive"} failed: ${r.error}`);
                 });
               }
@@ -2127,7 +2131,7 @@ function AdminInboxList({
                 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
               );
               if (realIds.length > 0) {
-                void bulkReassignInquiriesToMe(TENANT.slug, realIds).then((r) => {
+                void bulkReassignInquiriesToMe(effectiveTenant.slug, realIds).then((r) => {
                   if (!r.ok) toastBulk(`Bulk reassign failed: ${r.error}`);
                   else if (r.data?.failed) toastBulk(`Reassigned ${r.data.ok} (${r.data.failed} failed)`);
                 });
@@ -2167,7 +2171,7 @@ const NEXT_STAGES: Record<string, { label: string; value: string }[]> = {
 };
 
 function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: InquiryStage }) {
-  const { toast } = useAdminShell();
+  const { toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -2181,7 +2185,7 @@ function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: I
       // (creates the agency_bookings row + booking_talent in a single transaction)
       // rather than just patching status. Other transitions are status-only.
       if (nextStatus === "booked") {
-        const result = await convertInquiryToBookingAction(TENANT.slug, inquiryId);
+        const result = await convertInquiryToBookingAction(effectiveTenant.slug, inquiryId);
         if (!result.ok) {
           toast(`Convert failed: ${result.error}`);
         } else {
@@ -2259,7 +2263,7 @@ function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: I
 // Tab bar: Client thread · Talent group · Files · Details (admin sees ALL — no locks)
 // Tab content adapts per active tab.
 function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
-  const { toast, state } = useAdminShell();
+  const { toast, state, effectiveTenant } = useAdminShell();
   const [activeTab, setActiveTab] = useState<ThreadTabId>("client");
   // Plan tier drives admin-only affordances inside the booking tab
   // (e.g. Free hides Reassign coordinator). The state plan uses
@@ -2286,9 +2290,9 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
   useEffect(() => {
     if (!inquiryIsUuid) return;
     if (activeTab === "client") {
-      void markThreadRead(TENANT.slug, inquiry.id, "private");
+      void markThreadRead(effectiveTenant.slug, inquiry.id, "private");
     } else if (activeTab === "talent") {
-      void markThreadRead(TENANT.slug, inquiry.id, "group");
+      void markThreadRead(effectiveTenant.slug, inquiry.id, "group");
     }
   }, [activeTab, inquiry.id, inquiryIsUuid]);
 
@@ -2455,7 +2459,7 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                     ? "Closed · the client passed on this offer."
                     : "Closed · auto-expired (no client response in the window)."}
                   inquiryId={inquiry.id}
-                  tenantSlug={TENANT.slug}
+                  tenantSlug={effectiveTenant.slug}
                   threadType="private"
                 />
               )}
@@ -2470,7 +2474,7 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                     ? "Closed · the client passed on this project."
                     : "Closed · auto-expired."}
                   inquiryId={inquiry.id}
-                  tenantSlug={TENANT.slug}
+                  tenantSlug={effectiveTenant.slug}
                   threadType="group"
                 />
               )}
@@ -2550,7 +2554,7 @@ function AdminMessageStream({
   /** DB thread type for this stream: "private" = client, "group" = talent. */
   threadType: ThreadType;
 }) {
-  const { toast, state } = useAdminShell();
+  const { toast, state, effectiveTenant } = useAdminShell();
   const [, startTransition] = useTransition();
   // Subscribe so locally-sent messages re-render the stream.
   useMessageStashSubscription();
@@ -2559,7 +2563,7 @@ function AdminMessageStream({
   // to the composer when the user is coord+ on a paid tier. The
   // workspace name comes from the Tulala TENANT identity. Free
   // workspaces don't surface the toggle (no abstraction to choose).
-  const wsName = TENANT.name;
+  const wsName = effectiveTenant.name;
   const canSendAsWs = meetsRole(state.role, "coordinator") && state.plan !== "free";
   const allMessages: Array<{
     id: string;
@@ -7657,7 +7661,7 @@ function PayoutReceiverPicker({
   currentDisplayName: string | null;
   onChanged: () => void;
 }) {
-  const { toast } = useAdminShell();
+  const { toast, effectiveTenant } = useAdminShell();
   const [candidates, setCandidates] = useState<PayoutReceiverOption[] | null>(null);
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState<string>(currentPayoutAccountId ?? "");
@@ -7667,14 +7671,14 @@ function PayoutReceiverPicker({
   }, [currentPayoutAccountId]);
 
   useEffect(() => {
-    loadInquiryPayoutReceiverCandidates(TENANT.slug, inquiryId)
+    loadInquiryPayoutReceiverCandidates(effectiveTenant.slug, inquiryId)
       .then((r) => { if (r.ok) setCandidates(r.data ?? []); });
   }, [inquiryId]);
 
   const apply = () => {
     if (!selected) { toast("Choose a payout receiver."); return; }
     startTransition(async () => {
-      const r = await setInquiryPayoutReceiver(TENANT.slug, inquiryId, selected);
+      const r = await setInquiryPayoutReceiver(effectiveTenant.slug, inquiryId, selected);
       if (!r.ok) toast(`Set receiver failed: ${r.error}`);
       else { toast("Payout receiver set"); onChanged(); }
     });
@@ -7752,7 +7756,7 @@ function formatCents(cents: number | null, currency: string): string {
 }
 
 export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
-  const { toast } = useAdminShell();
+  const { toast, effectiveTenant } = useAdminShell();
   const isClient = pov === "client";
   const isAdmin = pov === "admin";
   const fallbackTotal = inquiry.budget?.amount ?? 0;
@@ -7764,7 +7768,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
 
   const reload = React.useCallback(() => {
     setLoading(true);
-    loadInquiryPaymentState(TENANT.slug, inquiry.id)
+    loadInquiryPaymentState(effectiveTenant.slug, inquiry.id)
       .then((r) => { if (r.ok) setState(r.data ?? null); })
       .finally(() => setLoading(false));
   }, [inquiry.id]);
@@ -7811,42 +7815,42 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
         {isAdmin && txn && (
           <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
             {(txStatus === "draft") && (
-              <button type="button" disabled={pending} onClick={() => run("Request payment", () => requestInquiryPayment(TENANT.slug, inquiry.id))} style={primaryBtn(COLORS.accent)}>
+              <button type="button" disabled={pending} onClick={() => run("Request payment", () => requestInquiryPayment(effectiveTenant.slug, inquiry.id))} style={primaryBtn(COLORS.accent)}>
                 Request payment
               </button>
             )}
             {(txStatus === "payment_requested") && (
-              <button type="button" disabled={pending} onClick={() => run("Mark pending", () => markInquiryPaymentPending(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+              <button type="button" disabled={pending} onClick={() => run("Mark pending", () => markInquiryPaymentPending(effectiveTenant.slug, inquiry.id))} style={ghostBtn()}>
                 Mark pending
               </button>
             )}
             {(txStatus === "payment_requested" || txStatus === "pending" || txStatus === "disputed") && (
-              <button type="button" disabled={pending} onClick={() => run("Mark received", () => markInquiryPaymentReceived(TENANT.slug, inquiry.id))} style={primaryBtn(COLORS.success)}>
+              <button type="button" disabled={pending} onClick={() => run("Mark received", () => markInquiryPaymentReceived(effectiveTenant.slug, inquiry.id))} style={primaryBtn(COLORS.success)}>
                 Mark received
               </button>
             )}
             {(txStatus === "paid") && (
               <>
-                <button type="button" disabled={pending} onClick={() => run("Initiate payout", () => initiateInquiryPayout(TENANT.slug, inquiry.id))} style={primaryBtn(COLORS.accent)}>
+                <button type="button" disabled={pending} onClick={() => run("Initiate payout", () => initiateInquiryPayout(effectiveTenant.slug, inquiry.id))} style={primaryBtn(COLORS.accent)}>
                   Initiate payout
                 </button>
-                <button type="button" disabled={pending} onClick={() => run("Mark disputed", () => markInquiryPaymentDisputed(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+                <button type="button" disabled={pending} onClick={() => run("Mark disputed", () => markInquiryPaymentDisputed(effectiveTenant.slug, inquiry.id))} style={ghostBtn()}>
                   Mark disputed
                 </button>
               </>
             )}
             {(txStatus === "payout_pending") && (
-              <button type="button" disabled={pending} onClick={() => run("Mark payout sent", () => markInquiryPayoutSent(TENANT.slug, inquiry.id, null))} style={primaryBtn(COLORS.success)}>
+              <button type="button" disabled={pending} onClick={() => run("Mark payout sent", () => markInquiryPayoutSent(effectiveTenant.slug, inquiry.id, null))} style={primaryBtn(COLORS.success)}>
                 Mark payout sent
               </button>
             )}
             {(txStatus === "payment_requested" || txStatus === "pending" || txStatus === "payout_pending") && (
-              <button type="button" disabled={pending} onClick={() => run("Mark failed", () => markInquiryPaymentFailed(TENANT.slug, inquiry.id, "manual_marked_failed"))} style={ghostBtn()}>
+              <button type="button" disabled={pending} onClick={() => run("Mark failed", () => markInquiryPaymentFailed(effectiveTenant.slug, inquiry.id, "manual_marked_failed"))} style={ghostBtn()}>
                 Mark failed
               </button>
             )}
             {(txStatus === "draft" || txStatus === "payment_requested" || txStatus === "failed") && (
-              <button type="button" disabled={pending} onClick={() => run("Cancel transaction", () => cancelInquiryTransaction(TENANT.slug, inquiry.id))} style={ghostBtn()}>
+              <button type="button" disabled={pending} onClick={() => run("Cancel transaction", () => cancelInquiryTransaction(effectiveTenant.slug, inquiry.id))} style={ghostBtn()}>
                 Cancel
               </button>
             )}
@@ -7857,7 +7861,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
             <button
               type="button"
               disabled={pending}
-              onClick={() => run("Create transaction draft", () => createInquiryTransactionDraft(TENANT.slug, inquiry.id))}
+              onClick={() => run("Create transaction draft", () => createInquiryTransactionDraft(effectiveTenant.slug, inquiry.id))}
               style={primaryBtn(COLORS.accent)}
             >
               {pending ? "Creating…" : "Create transaction draft"}
@@ -10449,7 +10453,7 @@ function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta?: stri
  * still renders the demo lineup chips).
  */
 function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
-  const { toast, effectiveRoster } = useAdminShell();
+  const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
   const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
@@ -10463,7 +10467,7 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
   const reload = React.useCallback(() => {
     if (!isUuid) { setLoading(false); return; }
     setLoading(true);
-    loadInquiryLineup(TENANT.slug, inquiryId)
+    loadInquiryLineup(effectiveTenant.slug, inquiryId)
       .then((r) => { if (r.ok) setLineup(r.data ?? []); })
       .finally(() => setLoading(false));
   }, [inquiryId, isUuid]);
@@ -10489,7 +10493,7 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
   const remove = (participantId: string, name: string | null) => {
     if (!confirm(`Remove ${name ?? "this talent"} from the lineup?`)) return;
     startTransition(async () => {
-      const r = await removeInquiryLineupParticipant(TENANT.slug, inquiryId, participantId);
+      const r = await removeInquiryLineupParticipant(effectiveTenant.slug, inquiryId, participantId);
       if (!r.ok) toast(`Remove failed: ${r.error}`);
       else { toast("Removed from lineup"); reload(); }
     });
@@ -10497,7 +10501,7 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
 
   const add = (talentProfileId: string, name: string) => {
     startTransition(async () => {
-      const r = await addInquiryLineupTalent(TENANT.slug, inquiryId, talentProfileId);
+      const r = await addInquiryLineupTalent(effectiveTenant.slug, inquiryId, talentProfileId);
       if (!r.ok) toast(`Add failed: ${r.error}`);
       else {
         toast(`${name} added to lineup`);
@@ -10554,7 +10558,7 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
                 // Optimistic update + persist.
                 setLineup(next);
                 startTransition(async () => {
-                  const r = await reorderInquiryLineup(TENANT.slug, inquiryId, next.map((x) => x.id));
+                  const r = await reorderInquiryLineup(effectiveTenant.slug, inquiryId, next.map((x) => x.id));
                   if (!r.ok) { toast(`Reorder failed: ${r.error}`); reload(); }
                 });
               }}
@@ -10656,7 +10660,7 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
  * matches the engine contract.
  */
 function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; offerId: string; isAdmin: boolean }) {
-  const { toast, effectiveRoster } = useAdminShell();
+  const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
   const [snapshot, setSnapshot] = useState<OfferDraftSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
@@ -10664,7 +10668,7 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
 
   const reload = React.useCallback(() => {
     setLoading(true);
-    loadOfferDraft(TENANT.slug, offerId)
+    loadOfferDraft(effectiveTenant.slug, offerId)
       .then((r) => { if (r.ok && r.data) setSnapshot(r.data); })
       .finally(() => setLoading(false));
   }, [offerId]);
@@ -10730,7 +10734,7 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
         notes: li.notes,
         sort_order: idx,
       }));
-      const r = await saveOfferDraft(TENANT.slug, offerId, {
+      const r = await saveOfferDraft(effectiveTenant.slug, offerId, {
         inquiryExpectedVersion: snapshot.inquiryVersion,
         offerExpectedVersion: snapshot.offerVersion,
         totalClientPrice: snapshot.totalClientPrice,
@@ -10865,7 +10869,7 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
  * the real createOffer engine action and refreshes router state.
  */
 function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
-  const { toast } = useAdminShell();
+  const { toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
@@ -10874,7 +10878,7 @@ function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
         type="button"
         disabled={pending}
         onClick={() => startTransition(async () => {
-          const r = await createOfferAction(TENANT.slug, inquiryId);
+          const r = await createOfferAction(effectiveTenant.slug, inquiryId);
           if (!r.ok) toast(`Couldn't start offer: ${r.error}`);
           else { toast("Offer draft created"); router.refresh(); }
         })}
@@ -10894,7 +10898,7 @@ function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
  * Shows nothing when there's no real offer (e.g. demo / pure-mock convs).
  */
 function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }) {
-  const { toast, effectiveMessagesInquiries } = useAdminShell();
+  const { toast, effectiveMessagesInquiries, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const real = effectiveMessagesInquiries.find((r) => r.id === inquiryId);
@@ -10931,25 +10935,25 @@ function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }
       <span style={{ flex: 1 }} />
       {isAdmin && status === "draft" && (
         <button type="button" disabled={pending}
-          onClick={() => run("Send offer", () => sendOfferAction(TENANT.slug, inquiryId, offerId))}
+          onClick={() => run("Send offer", () => sendOfferAction(effectiveTenant.slug, inquiryId, offerId))}
           style={primaryBtn(COLORS.accent)}
         >Send to client</button>
       )}
       {isAdmin && status === "sent" && (
         <>
           <button type="button" disabled={pending}
-            onClick={() => run("Approve offer", () => approveOfferAction(TENANT.slug, inquiryId, offerId))}
+            onClick={() => run("Approve offer", () => approveOfferAction(effectiveTenant.slug, inquiryId, offerId))}
             style={primaryBtn(COLORS.success)}
           >Approve (as client)</button>
           <button type="button" disabled={pending}
-            onClick={() => run("Reject offer", () => rejectOfferAction(TENANT.slug, inquiryId, offerId, null))}
+            onClick={() => run("Reject offer", () => rejectOfferAction(effectiveTenant.slug, inquiryId, offerId, null))}
             style={ghostBtn()}
           >Reject</button>
         </>
       )}
       {isAdmin && status === "rejected" && (
         <button type="button" disabled={pending}
-          onClick={() => run("Counter offer", () => counterOfferAction(TENANT.slug, inquiryId, offerId))}
+          onClick={() => run("Counter offer", () => counterOfferAction(effectiveTenant.slug, inquiryId, offerId))}
           style={primaryBtn(COLORS.accent)}
         >Counter offer</button>
       )}
@@ -12295,7 +12299,7 @@ function resolveFileKey(id: string): string {
  * Renders nothing when there are no real attachments (mock list still shows).
  */
 function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
-  const { toast } = useAdminShell();
+  const { toast, effectiveTenant } = useAdminShell();
   const [files, setFiles] = useState<InquiryAttachment[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
@@ -12305,7 +12309,7 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   const reload = React.useCallback(() => {
     if (!isUuid) { setLoading(false); return; }
     setLoading(true);
-    loadInquiryAttachments(TENANT.slug, inquiryId)
+    loadInquiryAttachments(effectiveTenant.slug, inquiryId)
       .then((r) => { if (r.ok) setFiles(r.data ?? []); })
       .finally(() => setLoading(false));
   }, [inquiryId, isUuid]);
@@ -12319,7 +12323,7 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   const remove = (id: string, name: string) => {
     if (!confirm(`Delete ${name}? This can't be undone from the admin shell.`)) return;
     startTransition(async () => {
-      const r = await deleteInquiryAttachment(TENANT.slug, id);
+      const r = await deleteInquiryAttachment(effectiveTenant.slug, id);
       if (!r.ok) toast(`Delete failed: ${r.error}`);
       else { toast("File deleted"); reload(); }
     });
@@ -12416,7 +12420,7 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
  * synthetic mock inquiry ids.
  */
 function LiveBookingActions({ inquiryId }: { inquiryId: string }) {
-  const { toast } = useAdminShell();
+  const { toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
@@ -12425,7 +12429,7 @@ function LiveBookingActions({ inquiryId }: { inquiryId: string }) {
   const dup = () => {
     if (!confirm("Duplicate this booking?")) return;
     startTransition(async () => {
-      const r = await duplicateInquiryBooking(TENANT.slug, inquiryId);
+      const r = await duplicateInquiryBooking(effectiveTenant.slug, inquiryId);
       if (!r.ok) toast(`Duplicate failed: ${r.error}`);
       else { toast("Booking duplicated"); router.refresh(); }
     });
