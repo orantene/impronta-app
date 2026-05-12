@@ -15451,13 +15451,23 @@ function NewTalentDrawer() {
           }}>Preview</button>
         </div>
         <div style={{ marginTop: 10 }}>
-          <button type="button" onClick={() => toast("Registration link copied")} style={{
-            width: "100%", padding: "10px 14px", borderRadius: 10,
-            background: "transparent", color: COLORS.ink,
-            border: `1px dashed ${COLORS.border}`,
-            fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
-            textAlign: "left",
-          }}>
+          <button
+            type="button"
+            onClick={() => {
+              const url = `https://tulala.digital/${effectiveTenant.slug}/join`;
+              void navigator.clipboard
+                .writeText(url)
+                .then(() => toast("Registration link copied"))
+                .catch(() => toast("Couldn't copy — copy manually"));
+            }}
+            style={{
+              width: "100%", padding: "10px 14px", borderRadius: 10,
+              background: "transparent", color: COLORS.ink,
+              border: `1px dashed ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
             tulala.digital/{effectiveTenant.slug}/join · copy link
           </button>
         </div>
@@ -26564,7 +26574,12 @@ function ReferralDashboardDrawer() {
       footer={
         <div style={{ display: "flex", gap: 8 }}>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <GhostButton onClick={() => toast("Copied referral link")}>Copy link</GhostButton>
+          <GhostButton onClick={() => {
+            void navigator.clipboard
+              .writeText(REFERRAL_URL)
+              .then(() => toast("Referral link copied"))
+              .catch(() => toast("Couldn't copy — copy manually"));
+          }}>Copy link</GhostButton>
         </div>
       }
       defaultSize="half"
@@ -26608,7 +26623,12 @@ function ReferralDashboardDrawer() {
             </div>
             <button
               type="button"
-              onClick={() => toast("Copied")}
+              onClick={() => {
+                void navigator.clipboard
+                  .writeText(REFERRAL_URL)
+                  .then(() => toast("Copied"))
+                  .catch(() => toast("Couldn't copy — copy manually"));
+              }}
               style={{
                 padding: "7px 12px", background: COLORS.accent, border: "none",
                 borderRadius: RADIUS.sm, color: "#fff", fontFamily: FONTS.body,
@@ -26728,7 +26748,12 @@ function CalendarSyncDrawer() {
             </div>
             <button
               type="button"
-              onClick={() => toast("Copied iCal URL")}
+              onClick={() => {
+                void navigator.clipboard
+                  .writeText(ICAL_URL)
+                  .then(() => toast("iCal URL copied"))
+                  .catch(() => toast("Couldn't copy — copy manually"));
+              }}
               style={{
                 padding: "7px 12px", background: COLORS.fill, border: "none",
                 borderRadius: RADIUS.sm, color: "#fff", fontFamily: FONTS.body,
@@ -27498,7 +27523,15 @@ function BrandAssetsDrawer() {
               <div style={{ display: "flex", gap: 6 }}>
                 <button
                   type="button"
-                  onClick={() => toast(`Copied link to "${asset.name}"`)}
+                  onClick={() => {
+                    // Asset.url isn't always available in this UI prototype; copy
+                    // the canonical media URL pattern when present, otherwise the name.
+                    const url = (asset as { url?: string }).url ?? asset.name;
+                    void navigator.clipboard
+                      .writeText(url)
+                      .then(() => toast(`Copied link to "${asset.name}"`))
+                      .catch(() => toast("Couldn't copy — copy manually"));
+                  }}
                   style={{ background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "4px 10px", fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, cursor: "pointer" }}
                 >
                   Copy link
