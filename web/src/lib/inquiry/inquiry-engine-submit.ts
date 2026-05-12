@@ -4,7 +4,6 @@ import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { assignCoordinatorFromSettings } from "./coordinator-assignment";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
@@ -178,13 +177,6 @@ export async function submitInquiry(
       });
     }
 
-    await logInquiryActivity(supabase, {
-      inquiryId,
-      actorUserId: input.actorUserId,
-      eventType: "inquiry.submitted_v2",
-      payload: { coordinator_assigned: Boolean(assignment.coordinator_id) },
-    });
-
     await assertConsistencyAfterWrite(supabase, inquiryId);
 
     await emitStandardEngineEvent(supabase, {
@@ -246,12 +238,6 @@ export async function moveToCoordination(
 
     if (error || !updated) return { success: false, conflict: true, reason: "version_conflict" };
 
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "inquiry.moved_to_coordination",
-      payload: {},
-    });
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 
     await emitStandardEngineEvent(supabase, {
@@ -307,13 +293,6 @@ export async function setPriority(
       .maybeSingle();
 
     if (error || !updated) return { success: false, conflict: true, reason: "version_conflict" };
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "inquiry.priority_set",
-      payload: { priority: ctx.priority },
-    });
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.INQUIRY_PRIORITY_SET,

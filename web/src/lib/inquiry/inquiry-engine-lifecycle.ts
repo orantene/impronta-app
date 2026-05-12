@@ -3,7 +3,6 @@ import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { getCoordinatorTimeoutHours, getInquiryExpiryHours } from "./inquiry-settings";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
@@ -67,13 +66,6 @@ export async function freezeInquiry(
       .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
 
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "staff_freeze_inquiry",
-      payload: { reason: ctx.reason },
-    });
-
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.INQUIRY_FROZEN,
       inquiryId: ctx.inquiryId,
@@ -116,13 +108,6 @@ export async function unfreezeInquiry(
       .eq("id", ctx.inquiryId)
       .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "staff_unfreeze_inquiry",
-      payload: {},
-    });
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.INQUIRY_UNFROZEN,
@@ -169,13 +154,6 @@ export async function archiveInquiry(
       .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
 
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "inquiry_archived",
-      payload: {},
-    });
-
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.INQUIRY_ARCHIVED,
       inquiryId: ctx.inquiryId,
@@ -214,13 +192,6 @@ export async function processCoordinatorTimeouts(supabase: SupabaseClient): Prom
 
     if (!error) {
       processed += 1;
-      await logInquiryActivity(supabase, {
-        inquiryId: row.id as string,
-        actorUserId: row.coordinator_id as string,
-        eventType: "coordinator_assignment_timed_out",
-        payload: {},
-      });
-
       await emitStandardEngineEvent(supabase, {
         type: ENGINE_EVENT_TYPES.COORDINATOR_ASSIGNMENT_TIMED_OUT,
         inquiryId: row.id as string,
@@ -260,13 +231,6 @@ export async function processExpirations(supabase: SupabaseClient): Promise<{ pr
 
     if (!error) {
       processed += 1;
-      await logInquiryActivity(supabase, {
-        inquiryId: row.id as string,
-        actorUserId: null,
-        eventType: "system_expired",
-        payload: { automated: true },
-      });
-
       await emitStandardEngineEvent(supabase, {
         type: ENGINE_EVENT_TYPES.INQUIRY_EXPIRED,
         inquiryId: row.id as string,

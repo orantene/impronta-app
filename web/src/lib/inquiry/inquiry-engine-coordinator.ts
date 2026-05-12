@@ -3,7 +3,6 @@ import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { assignCoordinatorFromSettings } from "./coordinator-assignment";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { logInquiryAction } from "./inquiry-action-log";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
@@ -65,13 +64,6 @@ export async function assignCoordinator(
       user_id: ctx.coordinatorUserId,
       role: "coordinator",
       status: "invited",
-    });
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "coordinator_assigned",
-      payload: { coordinator_user_id: ctx.coordinatorUserId },
     });
 
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
@@ -157,13 +149,6 @@ export async function acceptCoordinatorAssignment(
       .eq("user_id", ctx.actorUserId)
       .eq("role", "coordinator");
 
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "coordinator_accepted",
-      payload: {},
-    });
-
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 
     await emitStandardEngineEvent(supabase, {
@@ -225,13 +210,6 @@ export async function declineCoordinatorAssignment(
       .eq("tenant_id", ctx.tenantId)
       .eq("user_id", ctx.actorUserId)
       .eq("role", "coordinator");
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "coordinator_declined",
-      payload: {},
-    });
 
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 

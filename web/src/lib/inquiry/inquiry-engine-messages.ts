@@ -2,7 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
@@ -65,13 +64,6 @@ export async function sendMessage(
       .single();
 
     if (error || !row) return { success: false, error: error?.message ?? "insert_failed" };
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "inquiry.message_sent",
-      payload: { thread_type: ctx.threadType },
-    });
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.MESSAGE_SENT,

@@ -24,21 +24,22 @@ export async function logBookingActivity(
 /**
  * Append a row to `inquiry_events` — the user-visible inquiry timeline.
  *
- * Historical note: this function used to insert into `inquiry_activity_log`,
- * a table that was dropped in migration 20260527000005_drop_activity_log.sql
- * and replaced by `inquiry_events` (success-only, user-visible) + a separate
- * `inquiry_action_log` (operational audit incl. failures). The dropped
- * write path silently failed for months. Restoring against `inquiry_events`
- * here keeps every legacy call site (~15 across inquiry-engine-*.ts) working
- * without a refactor.
+ * Division of responsibility:
+ *   Use this function for standalone server-action callers (admin-inquiries.ts,
+ *   admin-bookings.ts, etc.) that perform a single write and do NOT need
+ *   side-effects (system messages, push notifications, improntaLog observability).
+ *   These callers are NOT in the inquiry engine and have no `emitStandardEngineEvent`
+ *   counterpart — so there is no duplication.
  *
- * Defaults:
- *   • actor_role  = 'system' (DB default — most legacy callers pass an
- *                   inferred actor that maps via app context; for explicit
- *                   admin/coordinator/client/talent emissions, prefer
- *                   `emitStandardEngineEvent` in `inquiry-events.ts`).
- *   • visibility  = 'participants' (DB default — visible to client + talent
- *                   + staff).
+ *   For engine actions in inquiry-engine-*.ts, use `emitStandardEngineEvent`
+ *   from `@/lib/inquiry/inquiry-events` instead. It writes to `inquiry_events`
+ *   AND dispatches side-effects (system messages, notifications, structured
+ *   observability) via the in-process listener chain. The engine files no
+ *   longer call this function.
+ *
+ * Historical note: this function used to insert into `inquiry_activity_log`,
+ * a table dropped in migration 20260527000005_drop_activity_log.sql and
+ * replaced by `inquiry_events`. The dropped path silently failed for months.
  */
 export async function logInquiryActivity(
   supabase: SupabaseClient,

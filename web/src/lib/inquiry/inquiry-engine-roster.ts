@@ -2,7 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
@@ -50,13 +49,6 @@ async function invalidateOfferIfRosterChanged(
     })
     .eq("id", inquiryId)
     .eq("tenant_id", tenantId);
-
-  await logInquiryActivity(supabase, {
-    inquiryId,
-    actorUserId,
-    eventType: "offer_invalidated_roster_change",
-    payload: { offer_id: offer.id },
-  });
 
   await emitStandardEngineEvent(supabase, {
     type: ENGINE_EVENT_TYPES.OFFER_INVALIDATED_BY_ROSTER_CHANGE,
@@ -183,13 +175,6 @@ export async function addTalentToRoster(
       .eq("version", ctx.expectedVersion);
     if (verr) return { success: false, conflict: true, reason: "version_conflict" };
 
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "talent_invited",
-      payload: { talent_profile_id: ctx.talentProfileId },
-    });
-
     await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.tenantId, ctx.actorUserId);
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 
@@ -247,13 +232,6 @@ export async function removeTalentFromRoster(
       .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
     if (verr) return { success: false, conflict: true, reason: "version_conflict" };
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "talent_removed",
-      payload: { participant_id: ctx.participantId },
-    });
 
     await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.tenantId, ctx.actorUserId);
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
@@ -376,13 +354,6 @@ export async function acceptTalentInvitation(
       .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
 
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "talent_accepted",
-      payload: {},
-    });
-
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.ROSTER_TALENT_ACCEPTED,
       inquiryId: ctx.inquiryId,
@@ -430,13 +401,6 @@ export async function declineTalentInvitation(
       .eq("tenant_id", ctx.tenantId)
       .eq("talent_profile_id", tp.id)
       .eq("role", "talent");
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "talent_declined_invitation",
-      payload: {},
-    });
 
     await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.tenantId, ctx.actorUserId);
 

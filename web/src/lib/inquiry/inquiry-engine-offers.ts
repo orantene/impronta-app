@@ -3,7 +3,6 @@ import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
@@ -169,13 +168,6 @@ export async function createOffer(
       .maybeSingle();
 
     if (uerr || !updated) return { success: false, conflict: true, reason: "version_conflict" };
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "offer_created",
-      payload: { offer_id: offer.id },
-    });
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.OFFER_CREATED,
@@ -377,13 +369,6 @@ export async function updateOfferDraft(
 
     if (ierr || !inqUp) return { success: false, conflict: true, reason: "version_conflict" };
 
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "offer_draft_updated",
-      payload: { offer_id: ctx.offerId },
-    });
-
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.OFFER_DRAFT_UPDATED,
       inquiryId: ctx.inquiryId,
@@ -435,13 +420,6 @@ export async function clientRejectOffer(
       .eq("id", ctx.inquiryId)
       .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "client_rejected_offer",
-      payload: { offer_id: ctx.offerId },
-    });
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.OFFER_CLIENT_REJECTED,
@@ -551,13 +529,6 @@ export async function submitTalentRate(
     if (upErr) {
       return { success: false, error: upErr.message || "rate_update_failed" };
     }
-
-    await logInquiryActivity(supabase, {
-      inquiryId: ctx.inquiryId,
-      actorUserId: ctx.actorUserId,
-      eventType: "talent_rate_submitted",
-      payload: { offer_id: ctx.offerId, line_item_id: ctx.lineItemId, talent_cost: ctx.talentCost },
-    });
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.OFFER_DRAFT_UPDATED,

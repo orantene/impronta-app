@@ -130,6 +130,18 @@ const listeners: Listener[] = [
 /**
  * In-process dispatcher for post-commit effects (Section 2.18).
  * Extend `listeners` with system messages / notifications when wiring.
+ *
+ * Division of responsibility:
+ *   `emitStandardEngineEvent` (and the `emitEngineEvents` primitive below) is
+ *   the canonical path for ALL inquiry-engine-*.ts writes to `inquiry_events`.
+ *   It writes the event row AND dispatches side-effects (system messages,
+ *   push notifications, improntaLog) through the listener chain.
+ *
+ *   `logInquiryActivity` in `commercial-audit.ts` is a separate, simpler
+ *   helper for standalone server-action callers that need a bare event row
+ *   with no side-effects. It does NOT delegate here — it writes directly —
+ *   but it is never called alongside this function for the same action.
+ *   There is no overlapping write path.
  */
 export async function emitEngineEvents(
   supabase: SupabaseClient,
