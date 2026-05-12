@@ -127,7 +127,7 @@ import {
   CLIENT_MOCK_CONVERSATIONS_BY_PROFILE,
   useTalentConversations,
 } from "./talent";
-import { getInquiryFlagsTenantSlug } from "./inquiry-flags-tenant-slug";
+import { getInquiryFlagsTenantSlug, getInquiryFlagsUserId } from "./inquiry-flags-tenant-slug";
 // WorkspaceBody import removed — admin now uses AdminInquiryDetail
 // (defined below) which mirrors the talent/client shell pattern.
 
@@ -1149,12 +1149,29 @@ function useMessageStashSubscription() {
 // state back to unseen so the user can come back to it later. Both
 // signals live in one store keyed by conv id, persisted to
 // localStorage so they survive refresh.
+//
+// Storage keys are user-scoped so that:
+//   (a) Two tabs signed in as different users don't stomp each other.
+//   (b) Flags from a previous user don't bleed to the next login.
+//
+// Legacy keys (v1, no user suffix) are read once on first load as a
+// migration fallback — users don't lose their pins on the first deploy
+// post-upgrade. After ~30 days, strip the fallback read from the IIFE.
 type ConvFlags = { pinned?: boolean; manualUnread?: boolean; archived?: boolean };
-const __FLAGS_STORAGE_KEY = "tulala.proto.convFlags.v1";
+const __FLAGS_LEGACY_KEY = "tulala.proto.convFlags.v1";
+function __flagsStorageKey(): string {
+  const uid = getInquiryFlagsUserId();
+  return uid ? `tulala_inquiry_flags_v1_${uid}` : __FLAGS_LEGACY_KEY;
+}
 const __convFlags: Record<string, ConvFlags> = (() => {
   if (typeof window === "undefined") return {};
   try {
-    const raw = window.localStorage.getItem(__FLAGS_STORAGE_KEY);
+    // Try the user-scoped key first (set after login). Falls back to the
+    // legacy global key on first load post-deploy so existing pins survive.
+    const uid = getInquiryFlagsUserId();
+    const scopedKey = uid ? `tulala_inquiry_flags_v1_${uid}` : null;
+    const rawScoped = scopedKey ? window.localStorage.getItem(scopedKey) : null;
+    const raw = rawScoped ?? window.localStorage.getItem(__FLAGS_LEGACY_KEY);
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return {};
@@ -1163,7 +1180,7 @@ const __convFlags: Record<string, ConvFlags> = (() => {
 })();
 function __persistFlags() {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(__FLAGS_STORAGE_KEY, JSON.stringify(__convFlags)); } catch { /* ignore */ }
+  try { window.localStorage.setItem(__flagsStorageKey(), JSON.stringify(__convFlags)); } catch { /* ignore */ }
 }
 const __flagsSubscribers = new Set<() => void>();
 export function isPinned(id: string): boolean {
@@ -1286,11 +1303,23 @@ function useHandoffSubscription(): void {
 // doesn't re-pill every fresh session (a row that's been opened stays
 // opened). Falls back to in-memory only when localStorage isn't
 // available (SSR, private browsing, sandboxed previews).
-const __SEEN_STORAGE_KEY = "tulala.proto.seenConvs.v1";
+//
+// Storage keys are user-scoped — same rationale as __convFlags above.
+// Legacy key (v1, no user suffix) is read once as a migration fallback.
+// Strip the fallback read after ~30 days.
+const __SEEN_LEGACY_KEY = "tulala.proto.seenConvs.v1";
+function __seenStorageKey(): string {
+  const uid = getInquiryFlagsUserId();
+  return uid ? `tulala_inquiry_seen_v1_${uid}` : __SEEN_LEGACY_KEY;
+}
 const __locallySeenConvs: Set<string> = (() => {
   if (typeof window === "undefined") return new Set<string>();
   try {
-    const raw = window.localStorage.getItem(__SEEN_STORAGE_KEY);
+    // Try the user-scoped key first; fall back to legacy on first post-deploy load.
+    const uid = getInquiryFlagsUserId();
+    const scopedKey = uid ? `tulala_inquiry_seen_v1_${uid}` : null;
+    const rawScoped = scopedKey ? window.localStorage.getItem(scopedKey) : null;
+    const raw = rawScoped ?? window.localStorage.getItem(__SEEN_LEGACY_KEY);
     if (!raw) return new Set<string>();
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? new Set(parsed.filter((x): x is string => typeof x === "string")) : new Set<string>();
@@ -1301,7 +1330,7 @@ const __locallySeenConvs: Set<string> = (() => {
 function __persistSeen() {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(__SEEN_STORAGE_KEY, JSON.stringify(Array.from(__locallySeenConvs)));
+    window.localStorage.setItem(__seenStorageKey(), JSON.stringify(Array.from(__locallySeenConvs)));
   } catch { /* quota / private mode — keep in-memory copy */ }
 }
 const __seenSubscribers = new Set<() => void>();
