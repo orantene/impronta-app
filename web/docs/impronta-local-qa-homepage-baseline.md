@@ -77,6 +77,14 @@ COMMIT;
 
 Then reload `http://localhost:3000/impronta?edit=1` with a hard refresh.
 
+**Phase 0 publish e2e:** After a draft-only reset, you can run the full Playwright path (reorder → reload → **publish** → reload) with:
+
+```bash
+cd web && npm run qa:impronta-phase0-edit-loop:full
+```
+
+That chains **`reset:impronta-homepage:draft -- --apply`** (requires `web/.env.local` like other reset scripts) with **`test:e2e:impronta-phase0-edit-loop:full`**. If preflight still reports blockers, triage headings/alt/CTA issues in the publish drawer — the reset does not fix **published** composition problems.
+
 **Caveat:** If duplicates were **published** (`is_draft = false`), they remain until you remove sections through the builder or run a **destructive** live-composition edit—do not batch-delete live rows without understanding tenant impact.
 
 The older `npm run reset:impronta-homepage -- --apply --purge-cleared-sections` path is intentionally more destructive: it clears the homepage composition to an empty published snapshot. Use that only for the blank-canvas e2e scenario, not for normal human QA cleanup.

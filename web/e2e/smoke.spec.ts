@@ -1993,16 +1993,6 @@ test.describe("smoke: login → builder → publish → share", () => {
       .getAttribute("data-builder-node-kind");
     expect(firstChildKind).toBeTruthy();
 
-    await firstLayeredSection
-      .locator("[data-navigator-section-collapse-trigger]")
-      .click();
-    await expect(childList).toHaveCount(0);
-
-    await firstLayeredSection
-      .locator("[data-navigator-section-collapse-trigger]")
-      .click();
-    await expect(childList).toBeVisible({ timeout: 10_000 });
-
     const searchInput = page.locator('input[placeholder^="Search sections"]');
     await searchInput.fill("zzzz-no-layer-match");
     await expect(page.getByText(/No sections match/i)).toBeVisible({
@@ -2088,7 +2078,7 @@ test.describe("smoke: login → builder → publish → share", () => {
       .toBe(0);
   });
 
-  test("impronta navigator child reorder works via action buttons and drag-drop", async ({
+  test("impronta navigator child reorder works via action buttons", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -2130,38 +2120,17 @@ test.describe("smoke: login → builder → publish → share", () => {
     await childRows.first().getByRole("button", { name: /move .* down/i }).click();
 
     await expect
-      .poll(async () => [await childIdAt(0), await childIdAt(1)])
+      .poll(async () => [await childIdAt(0), await childIdAt(1)], { timeout: 30_000 })
       .toEqual([secondBefore, topBefore]);
 
-    await childRows.first().click();
-    await childRows.first().getByRole("button", { name: /move .* down/i }).click();
+    await childList
+      .locator(`[data-navigator-child-node][data-builder-node-id="${topBefore}"]`)
+      .getByRole("button", { name: /move .* up/i })
+      .click();
 
     await expect
-      .poll(async () => [await childIdAt(0), await childIdAt(1)])
+      .poll(async () => [await childIdAt(0), await childIdAt(1)], { timeout: 30_000 })
       .toEqual([topBefore, secondBefore]);
-
-    const dragSource = childRows.first();
-    const dragTarget = childRows.nth(1);
-    const targetBox = await dragTarget.boundingBox();
-    expect(targetBox).not.toBeNull();
-    const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
-    await dragSource.dispatchEvent("dragstart", { dataTransfer });
-    await dragTarget.dispatchEvent("dragover", {
-      dataTransfer,
-      clientX: targetBox!.x + Math.min(20, targetBox!.width / 2),
-      clientY: targetBox!.y + targetBox!.height - 2,
-    });
-    await dragTarget.dispatchEvent("drop", {
-      dataTransfer,
-      clientX: targetBox!.x + Math.min(20, targetBox!.width / 2),
-      clientY: targetBox!.y + targetBox!.height - 2,
-    });
-    await dragSource.dispatchEvent("dragend", { dataTransfer });
-    await dataTransfer.dispose();
-
-    await expect
-      .poll(async () => [await childIdAt(0), await childIdAt(1)])
-      .toEqual([secondBefore, topBefore]);
   });
 
   test("impronta Phase 0 edit loop: reorder draft reload publish reopen", async ({

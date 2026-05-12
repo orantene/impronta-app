@@ -53,7 +53,7 @@ cd web && npm run test:e2e:browser-health
 cd web && npm run test:e2e:registered-host   # loads https://tulala.digital — verifies no middleware host block (override with PLAYWRIGHT_REGISTERED_HOST_URL)
 cd web && npm run test:e2e:impronta-local   # requires dev stack + seed
 cd web && npm run test:e2e:impronta-phase0-edit-loop   # reorder + reload (publish skipped unless PLAYWRIGHT_IMPRONTA_PHASE0_PUBLISH=1)
-cd web && npm run test:e2e:impronta-phase0-edit-loop:full   # same spec + publish — run after draft-only reset when preflight is clean
+cd web && npm run qa:impronta-phase0-edit-loop:full   # destructive: draft reset + publish e2e + builder-node tests (see impronta-local-qa-homepage-baseline.md)
 ```
 
 Record last run date and result here:
@@ -66,6 +66,7 @@ Record last run date and result here:
 | 2026-05-09 | `npm run typecheck` + `npm run test:tenant-isolation` + `npm run test:builder-capabilities` + `npm run test:publish-preflight` + `test:e2e:browser-health` + `test:e2e:registered-host` (single batch) | Pass (local) |
 | 2026-05-12 | `cd web && npm run test:e2e:impronta-directory-search-hero` (requires local Next on `:3000` + dev sign-in env) | Pass (Chromium) — Directory Search Hero insert; desktop canvas + mobile preview iframe |
 | 2026-05-12 | `cd web && npm run test:e2e:impronta-phase0-edit-loop` | Pass (Chromium) — reorder + reload persistence; **publish/reopen leg skipped by default** (preflight blockers on typical polluted drafts). Full loop: `npm run reset:impronta-homepage:draft -- --apply` then `npm run test:e2e:impronta-phase0-edit-loop:full`. |
+| 2026-05-12 | `cd web && npm run qa:impronta-phase0-edit-loop:full` | Chains draft-only reset + full Phase 0 e2e + `test:builder-node-bindings` — run only when you accept DB writes (see [impronta-local-qa-homepage-baseline.md](./impronta-local-qa-homepage-baseline.md)). |
 
 ## Sign-off
 

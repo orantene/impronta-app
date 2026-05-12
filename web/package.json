@@ -87,6 +87,7 @@
     "qa:impronta-section-starters": "npm run test:e2e:impronta-section-starters && npm run test:builder-capabilities",
     "qa:impronta-starter-insertion": "npm run test:e2e:impronta-starter-insertion && npm run test:builder-capabilities",
     "qa:impronta-directory-search-hero": "npm run test:e2e:impronta-directory-search-hero && npm run test:builder-node-bindings",
+    "qa:impronta-phase0-edit-loop:full": "npm run reset:impronta-homepage:draft -- --apply && npm run test:e2e:impronta-phase0-edit-loop:full && npm run test:builder-node-bindings",
     "qa:impronta-kit-insertion": "npm run test:e2e:impronta-kit-insertion && npm run test:builder-capabilities",
     "qa:impronta-template-gallery": "npm run test:e2e:impronta-template-gallery && npm run test:builder-capabilities",
     "qa:impronta-navigator-layers": "npm run test:e2e:impronta-navigator-layers && npm run test:builder-node-bindings",
