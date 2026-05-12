@@ -33,6 +33,8 @@ function vsb(): "smooth" | "auto" {
 }
 import { MentionTypeahead } from "./wave2";
 import { sendInquiryMessageAsAdmin } from "@/lib/server-actions/admin-inquiries";
+import { sendInquiryMessageAsClient } from "@/lib/server-actions/client-pipeline";
+import { sendInquiryMessageAsTalent } from "@/lib/server-actions/talent-pipeline";
 import {
   AGENCY_RELIABILITY,
   COLORS,
@@ -542,7 +544,12 @@ function PhoneMessagingStream({
     if (!trimmed || sending) return;
     setSending(true);
     setSendError(null);
-    const result = await sendInquiryMessageAsAdmin(inquiry.id, active, trimmed);
+    // Dispatch by viewer role. Client always writes to the private thread;
+    // talent always writes to the group thread; admin can target either.
+    const result =
+      pov === "client" ? await sendInquiryMessageAsClient(inquiry.id, trimmed)
+      : pov === "talent" ? await sendInquiryMessageAsTalent(inquiry.id, trimmed)
+      : await sendInquiryMessageAsAdmin(inquiry.id, active, trimmed);
     setSending(false);
     if (result.ok) {
       setDraft("");
@@ -674,7 +681,7 @@ function PhoneMessagingStream({
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
-                if (pov === "admin") void handleSend();
+                void handleSend();
               }
             }}
           />
@@ -1295,7 +1302,12 @@ function MessagingPanel({
     if (!trimmed || sending) return;
     setSending(true);
     setSendError(null);
-    const result = await sendInquiryMessageAsAdmin(inquiry.id, active, trimmed);
+    // Dispatch by viewer role. Client always writes to the private thread;
+    // talent always writes to the group thread; admin can target either.
+    const result =
+      pov === "client" ? await sendInquiryMessageAsClient(inquiry.id, trimmed)
+      : pov === "talent" ? await sendInquiryMessageAsTalent(inquiry.id, trimmed)
+      : await sendInquiryMessageAsAdmin(inquiry.id, active, trimmed);
     setSending(false);
     if (result.ok) {
       setDraft("");
@@ -2021,56 +2033,38 @@ function MessagingPanel({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
-                  if (pov === "admin") void handleSend();
+                  void handleSend();
                 }
                 if (e.key === "/" && !draft) { e.preventDefault(); setSearchActive(true); }
               }}
             />
           </div>
-          {/* Send */}
-          {pov === "admin" ? (
-            <button
-              type="button"
-              disabled={!draft.trim() || sending}
-              aria-label="Send message"
-              onClick={() => void handleSend()}
-              style={{
-                width: 32, height: 32, borderRadius: "50%", border: "none",
-                cursor: draft.trim() && !sending ? "pointer" : "not-allowed",
-                background: draft.trim() && !sending ? COLORS.fill : "rgba(11,11,13,0.10)",
-                color: draft.trim() && !sending ? "#fff" : COLORS.inkDim,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                transition: `background ${TRANSITION.sm}, color ${TRANSITION.sm}`,
-                opacity: sending ? 0.6 : 1,
-              }}
-            >
-              {sending ? (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ animation: "spin 0.8s linear infinite" }}>
-                  <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="4" strokeLinecap="round"/>
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M12.5 7H1.5M12.5 7L8 2.5M12.5 7L8 11.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled
-              aria-label="Send message"
-              style={{
-                width: 32, height: 32, borderRadius: "50%", border: "none", cursor: "not-allowed",
-                background: "rgba(11,11,13,0.10)",
-                color: COLORS.inkDim,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}
-            >
+          {/* Send — enabled for admin, client (private thread), and talent (group thread). */}
+          <button
+            type="button"
+            disabled={!draft.trim() || sending}
+            aria-label="Send message"
+            onClick={() => void handleSend()}
+            style={{
+              width: 32, height: 32, borderRadius: "50%", border: "none",
+              cursor: draft.trim() && !sending ? "pointer" : "not-allowed",
+              background: draft.trim() && !sending ? COLORS.fill : "rgba(11,11,13,0.10)",
+              color: draft.trim() && !sending ? "#fff" : COLORS.inkDim,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              transition: `background ${TRANSITION.sm}, color ${TRANSITION.sm}`,
+              opacity: sending ? 0.6 : 1,
+            }}
+          >
+            {sending ? (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ animation: "spin 0.8s linear infinite" }}>
+                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14" strokeDashoffset="4" strokeLinecap="round"/>
+              </svg>
+            ) : (
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M12.5 7H1.5M12.5 7L8 2.5M12.5 7L8 11.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-            </button>
-          )}
+            )}
+          </button>
         </div>
         {/* Error / context hint */}
         {sendError ? (
@@ -2081,7 +2075,7 @@ function MessagingPanel({
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontFamily: FONTS.body, fontSize: 10, color: COLORS.inkDim }}>
             <span style={{ width: 5, height: 5, borderRadius: "50%", background: THREAD_ACCENT[active], display: "inline-block", flexShrink: 0 }} />
             <span>{active === "private" ? "Client thread" : "Talent group"} · {active === "private" ? "visible to client + coordinator" : "visible to coordinator + booked talent"}</span>
-            {pov === "admin" && draft.length > 0 && <><span>·</span><span>⌘↵ to send</span></>}
+            {draft.length > 0 && <><span>·</span><span>⌘↵ to send</span></>}
           </div>
         )}
       </div>}
