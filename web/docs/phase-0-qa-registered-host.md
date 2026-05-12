@@ -55,6 +55,7 @@ cd web && npm run test:e2e:impronta-local   # requires dev stack + seed
 cd web && npm run test:e2e:impronta-phase0-edit-loop   # reorder + reload (publish skipped unless PLAYWRIGHT_IMPRONTA_PHASE0_PUBLISH=1)
 cd web && npm run test:e2e:impronta-navigator-child-reorder
 cd web && npm run test:e2e:impronta-navigator-layers-collapse-search   # same Playwright filter as test:e2e:impronta-navigator-layer-filtering
+cd web && npm run qa:impronta-navigator-sanity   # both navigator tests above + test:builder-node-bindings
 cd web && npm run qa:impronta-phase0-edit-loop:full   # destructive: draft reset + publish e2e + builder-node tests (see impronta-local-qa-homepage-baseline.md)
 ```
 
@@ -71,6 +72,7 @@ Record last run date and result here:
 | 2026-05-12 | `cd web && npm run qa:impronta-phase0-edit-loop:full` | Chains draft-only reset + full Phase 0 e2e + `test:builder-node-bindings` — run only when you accept DB writes (see [impronta-local-qa-homepage-baseline.md](./impronta-local-qa-homepage-baseline.md)). |
 | 2026-05-13 | `cd web && npm run test:e2e:impronta-navigator-child-reorder` | Pass (Chromium) — same-parent move down + move up |
 | 2026-05-13 | `cd web && npm run test:e2e:impronta-navigator-layers-collapse-search` (alias `test:e2e:impronta-navigator-layer-filtering`) | Pass (Chromium) — expand all / collapse all + layer search |
+| 2026-05-14 | `cd web && npm run qa:impronta-navigator-sanity` | Pass (local) — child reorder + layers/search e2e + `test:builder-node-bindings` |
 
 ## Sign-off
 

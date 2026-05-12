@@ -2,6 +2,8 @@
 
 **Audience:** Engineers running human QA on `http://localhost:3000/impronta?edit=1` (see [builder-human-qa-run-2026-05-09.md](./builder-human-qa-run-2026-05-09.md)).
 
+**Automated slices (local):** After the dev stack is up, `cd web && npm run qa:impronta-navigator-sanity` runs the two stabilized navigator Playwright tests plus `test:builder-node-bindings`. Broader command list and result log live in [phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md) (still not a substitute for the registered-host matrix there).
+
 **Problem:** Repeated insert/reorder tests accumulate **duplicate sections** and noisy draft rows. The canvas looks “test-contaminated” even when the product path is healthy.
 
 **Principle:** Edit mode is **draft-first**. If **any** `cms_page_sections` rows exist with `is_draft = true` for the homepage, those rows define the builder + preview. If **no** draft rows exist, the loader falls back to **live** (`is_draft = false`) composition ([`loadHomepageCompositionAction`](../src/lib/site-admin/edit-mode/composition-actions.ts), [`loadDraftHomepage`](../src/lib/site-admin/server/homepage-reads.ts)).
