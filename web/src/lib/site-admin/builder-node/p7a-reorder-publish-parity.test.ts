@@ -99,3 +99,77 @@ test("P7A-4: builder tree stays publish-resolved after nested reorder under sect
     "free-p2",
   ]);
 });
+
+test("P7A-4: blank_section composition — insert, reorder, publish-resolved", () => {
+  const sectionId = "22222222-2222-4222-8222-222222222222";
+  const slots = [
+    {
+      slotKey: "body",
+      sortOrder: 0,
+      sectionId,
+      sectionTypeKey: "blank_section",
+      name: "Blank",
+    },
+  ] as const;
+
+  let tree = buildLegacySectionBuilderTree([...slots]);
+  const sectionNode = tree[0];
+  assert.equal(sectionNode?.kind, "section");
+  if (!sectionNode || sectionNode.kind !== "section") return;
+  assert.equal(sectionNode.props.sectionTypeKey, "blank_section");
+  const parentId = sectionNode.id;
+  assert.deepEqual(sectionNode.children ?? [], []);
+
+  const nodes: BuilderNode[] = [
+    { id: "blank-a", kind: "heading", props: { text: "A", level: 2 } },
+    { id: "blank-b", kind: "paragraph", props: { text: "B" } },
+  ];
+  for (let i = 0; i < nodes.length; i++) {
+    const ins = insertBuilderNode({
+      tree,
+      parentId,
+      index: i,
+      node: nodes[i]!,
+    });
+    assert.equal(ins.ok, true);
+    if (!ins.ok) return;
+    tree = ins.tree;
+  }
+
+  const beforePub = resolveSnapshotBuilderTreeForPublish({
+    slots: [...slots],
+    builderTree: tree,
+  });
+  assert.equal(beforePub.ok, true);
+
+  const section = tree.find((n) => n.id === parentId);
+  assert.equal(section?.kind, "section");
+  if (!section || section.kind !== "section" || !section.children) return;
+  const childIds = section.children.map((c) => c.id);
+  const resolved = siblingDropGapToMoveIndex({
+    dropGapIndex: 0,
+    sourceSiblingIndex: 1,
+    sameParent: true,
+  });
+  assert.deepEqual(resolved, { kind: "move", targetSiblingIndex: 0 });
+
+  const moved = moveBuilderNode({
+    tree,
+    nodeId: childIds[1]!,
+    parentId,
+    index: resolved.targetSiblingIndex,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+
+  const afterPub = resolveSnapshotBuilderTreeForPublish({
+    slots: [...slots],
+    builderTree: moved.tree,
+  });
+  assert.equal(afterPub.ok, true);
+
+  const reordered = moved.tree.find((n) => n.id === parentId);
+  assert.equal(reordered?.kind, "section");
+  if (!reordered || reordered.kind !== "section" || !reordered.children) return;
+  assert.deepEqual(reordered.children.map((c) => c.id), ["blank-b", "blank-a"]);
+});
