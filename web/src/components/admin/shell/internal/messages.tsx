@@ -2311,11 +2311,11 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
     if (inquiry.nextActionBy !== "coordinator") return {};
     if (stageBucket === "inquiry") return {
       hint: "Reply to client to keep this moving.",
-      primary: { label: "Reply to client", tone: "primary", onClick: () => { setActiveTab("client"); toast("Open client thread"); } },
+      primary: { label: "Reply to client", tone: "primary", onClick: () => { setActiveTab("client"); } },
     };
     if (stageBucket === "hold") return {
       hint: "Hold open — send the revised offer.",
-      primary: { label: "Send offer", tone: "primary", onClick: () => { setActiveTab("offer"); toast("Open offer"); } },
+      primary: { label: "Open offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
     };
     if (stageBucket === "booked") return {
       hint: "Booked. Call sheet editing is coming soon.",
@@ -4316,9 +4316,14 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
       <ShellNextActionBar {...(() => {
         // Wrap resolveShellAction to route the talent invite-stage Accept/
         // Decline path through real engine actions for real-UUID inquiries.
-        // Mock conv ids fall through to the default toast behavior so the
-        // demo flow keeps working unchanged.
-        const baseAction = resolveShellAction(conv, isCoordinator ? "talent_coord" : "talent", toast);
+        // Mock conv ids stay disabled: there is no durable invitation row to
+        // accept or decline.
+        const baseAction = resolveShellAction(
+          conv,
+          isCoordinator ? "talent_coord" : "talent",
+          toast,
+          { onOpenOffer: () => setActiveTab("offer") },
+        );
         const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
         const inviteStage = !isCoordinator
           && (conv.stage === "inquiry" || conv.stage === "hold")
@@ -4328,6 +4333,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           ...baseAction,
           primary: baseAction.primary ? {
             ...baseAction.primary,
+            disabled: false,
             onClick: () => {
               startTalentInviteTransition(async () => {
                 const r = await acceptInquiryInvitation(conv.id);
@@ -4338,6 +4344,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           } : baseAction.primary,
           secondary: baseAction.secondary ? {
             ...baseAction.secondary,
+            disabled: false,
             onClick: () => {
               startTalentInviteTransition(async () => {
                 const r = await declineInquiryInvitation(conv.id);
@@ -5132,7 +5139,10 @@ function ClientTabsBlock({
           />
         </div>
       )}
-      <ShellNextActionBar {...resolveShellAction(conv, "client", toast)} />
+      <ShellNextActionBar {...resolveShellAction(conv, "client", toast, {
+        onOpenOffer: () => setActiveTab("offer"),
+        onOpenClientThread: () => setActiveTab("client"),
+      })} />
     </div>
   );
 }
@@ -7932,7 +7942,13 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
  *   talent    → submit rate / accept / counter
  *   coord/admin → send to client / assign / build call sheet
  */
-export type ShellAction = { label: string; tone: "primary" | "success" | "ghost"; onClick: () => void };
+export type ShellAction = {
+  label: string;
+  tone: "primary" | "success" | "ghost";
+  onClick?: () => void;
+  disabled?: boolean;
+  title?: string;
+};
 
 export function ShellNextActionBar({
   primary, secondary, hint,
@@ -7944,6 +7960,8 @@ export function ShellNextActionBar({
   // No-op when nothing is asked of the user — the bar should never feel
   // generic. Returning null keeps the shell quiet.
   if (!primary && !secondary && !hint) return null;
+  const secondaryDisabled = !!secondary && (secondary.disabled || !secondary.onClick);
+  const primaryDisabled = !!primary && (primary.disabled || !primary.onClick);
   return (
     <div style={{
       position: "sticky", bottom: 0, zIndex: 6,
@@ -7960,10 +7978,26 @@ export function ShellNextActionBar({
       )}
       {!hint && <span style={{ flex: 1 }} />}
       {secondary && (
-        <button type="button" onClick={secondary.onClick} style={ghostBtn()}>{secondary.label}</button>
+        <button
+          type="button"
+          disabled={secondaryDisabled}
+          onClick={secondary.onClick}
+          title={secondary.title}
+          style={secondaryDisabled ? disabledBtn(ghostBtn()) : ghostBtn()}
+        >
+          {secondary.label}
+        </button>
       )}
       {primary && (
-        <button type="button" onClick={primary.onClick} style={primaryBtn(primary.tone === "success" ? COLORS.success : COLORS.accent)}>
+        <button
+          type="button"
+          disabled={primaryDisabled}
+          onClick={primary.onClick}
+          title={primary.title}
+          style={primaryDisabled
+            ? disabledBtn(primaryBtn(primary.tone === "success" ? COLORS.success : COLORS.accent))
+            : primaryBtn(primary.tone === "success" ? COLORS.success : COLORS.accent)}
+        >
           {primary.label}
         </button>
       )}
@@ -7972,9 +8006,14 @@ export function ShellNextActionBar({
 }
 
 /** Resolve the single best next action for a given pov + Conversation. */
+type ShellActionResolverOptions = {
+  onOpenOffer?: () => void;
+  onOpenClientThread?: () => void;
+};
 export function resolveShellAction(
   conv: Conversation, pov: "client" | "talent" | "talent_coord" | "admin",
-  toast: (s: string) => void,
+  _toast: (s: string) => void,
+  options: ShellActionResolverOptions = {},
 ): { primary?: ShellAction; secondary?: ShellAction; hint?: string } {
   const offer = MOCK_OFFER_FOR_CONV[conv.id];
   // Booked → role-shaped logistics nudge, not commerce. Stays its own
@@ -8004,60 +8043,17 @@ export function resolveShellAction(
       : pov === "admin" ? { kind: "admin" }
       : { kind: "talent", talentId: currentTalentId(), isCoordinator: pov === "talent_coord" };
     const action = nextActionFor(offer, povObj);
-    // Map well-known CTAs to the right local mutation so the demo
-    // shows the negotiation actually advancing — not just a toast.
-    // Talent / client / admin all hit this path; each role's CTA gets
-    // its own override write.
-    const handleCta = () => {
-      const ctaLabel = action.cta ?? "";
-      // Admin: Send to client → bump offer.stage to "sent" + emit event.
-      if (pov === "admin" && ctaLabel === "Send to client") {
-        applyOfferOverride(conv.id, {
-          stage: "sent",
-          appendedTimeline: [{
-            id: `local-send-${conv.id}-${Date.now()}`,
-            ts: "Just now",
-            actor: "Coordinator",
-            body: "Offer sent to client",
-            tone: "info",
-          }],
-        });
-        toast("Offer sent · client notified");
-        return;
-      }
-      // Admin: Nudge talent / client → toast (mock notif).
-      if (pov === "admin" && (ctaLabel === "Nudge talent" || ctaLabel === "Nudge client")) {
-        toast(`${ctaLabel} · reminder sent`);
-        return;
-      }
-      // Coord: Send to client (talent_coord pov also hits this).
-      if (pov === "talent_coord" && ctaLabel === "Send to client") {
-        applyOfferOverride(conv.id, {
-          stage: "sent",
-          appendedTimeline: [{
-            id: `local-send-${conv.id}-${Date.now()}`,
-            ts: "Just now",
-            actor: "Coordinator",
-            body: "Offer sent to client",
-            tone: "info",
-          }],
-        });
-        toast("Offer sent · client notified");
-        return;
-      }
-      toast(`${ctaLabel}…`);
-    };
+    const needsOfferTab = !!(action.cta || action.secondary);
+    const offerHint = needsOfferTab
+      ? `${action.label} Open the Offer tab to continue.`
+      : action.label;
     return {
-      hint: action.label,
-      primary: action.cta ? {
-        label: action.cta,
+      hint: offerHint,
+      primary: needsOfferTab && options.onOpenOffer ? {
+        label: "Open offer",
         tone: action.ctaTone === "success" ? "success" : "primary",
-        onClick: handleCta,
-      } : undefined,
-      secondary: action.secondary ? {
-        label: action.secondary,
-        tone: "ghost",
-        onClick: () => toast(`${action.secondary} sent`),
+        onClick: options.onOpenOffer,
+        title: action.cta ?? action.secondary,
       } : undefined,
     };
   }
@@ -8066,13 +8062,18 @@ export function resolveShellAction(
   //    pricing yet. Different from the offer-driven path; this is the
   //    "say yes / no to being on the shortlist" bar. ──
   if (conv.stage === "inquiry" || conv.stage === "hold") {
-    if (pov === "client") return { hint: "Coordinator is on it.", secondary: { label: "Add a note", tone: "ghost", onClick: () => toast("Add a note") } };
+    if (pov === "client") return {
+      hint: "Coordinator is on it.",
+      secondary: options.onOpenClientThread
+        ? { label: "Open thread", tone: "ghost", onClick: options.onOpenClientThread }
+        : undefined,
+    };
     if (pov === "talent") {
       const verb = conv.stage === "inquiry" ? "Accept" : "Confirm";
       return {
         hint: `Coordinator invited you. ${verb}, hold, or decline?`,
-        primary: { label: verb, tone: "success", onClick: () => toast(`${verb}ed — coordinator notified`) },
-        secondary: { label: "Decline", tone: "ghost", onClick: () => toast("Declined — coordinator notified") },
+        primary: { label: verb, tone: "success", disabled: true, title: "Requires a live inquiry invitation." },
+        secondary: { label: "Decline", tone: "ghost", disabled: true, title: "Requires a live inquiry invitation." },
       };
     }
   }
@@ -11005,8 +11006,13 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               actually need to walk out with, plus a small margin for usage.
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" onClick={() => toast("No client budget yet — sending rate request to coordinator…")} style={primaryBtn(COLORS.accent)}>
-                Ask coordinator to set the brief
+              <button
+                type="button"
+                disabled
+                title="Rate requests need a live coordinator workflow."
+                style={disabledBtn(primaryBtn(COLORS.accent))}
+              >
+                Ask coordinator
               </button>
             </div>
           </div>
@@ -11033,6 +11039,16 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const stageLabel = isClient && stage.clientLabel ? stage.clientLabel : stage.label;
   const next = nextActionFor(offer, pov);
   const currency = offer.clientBudget?.currency ?? "EUR";
+  const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+  const canRunStickyPrimary = !!next.cta && (
+    (isTalent && (next.cta === "Submit my rate" || next.cta === "Review counter"))
+    || (isClient && isRealUuid && (next.cta === "Approve" || next.cta === "Reject" || next.cta === "Decline"))
+  );
+  const stickyPrimaryTitle = canRunStickyPrimary
+    ? undefined
+    : next.cta
+      ? `${next.cta} needs a live workflow before it can run here.`
+      : undefined;
 
 
   return (
@@ -11057,25 +11073,30 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           {next.label}
         </span>
         {next.secondary && (
-          <button type="button" onClick={() => toast(`${next.secondary} sent`)} style={ghostBtn()}>
+          <button
+            type="button"
+            disabled
+            title={`${next.secondary} needs a live workflow before it can run here.`}
+            style={disabledBtn(ghostBtn())}
+          >
             {next.secondary}
           </button>
         )}
         {next.cta && (
           <button
             type="button"
+            disabled={!canRunStickyPrimary}
+            title={stickyPrimaryTitle}
             onClick={() => {
               // Talent rate-related CTAs open the real sheet instead
-              // of toasting. Everything else still uses the toast stub.
+              // of toasting. Unsupported CTAs are disabled in the UI.
               if (isTalent && (next.cta === "Submit my rate" || next.cta === "Review counter")) {
                 setRateSheetMode(next.cta === "Review counter" ? "edit" : "submit");
                 setRateSheetOpen(true);
                 return;
               }
               // Client-side: route Approve / Reject / Decline through the
-              // engine for real-UUID inquiries. Mock conv ids keep the
-              // legacy toast so the demo flow stays put.
-              const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+              // engine for real-UUID inquiries. Mock conv ids are disabled.
               if (isClient && isRealUuid && next.cta === "Approve") {
                 startClientOfferTransition(async () => {
                   const r = await clientApproveCurrentOffer(conv.id);
@@ -11092,9 +11113,10 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
                 });
                 return;
               }
-              toast(`${next.cta}`);
             }}
-            style={primaryBtn(next.ctaTone === "success" ? COLORS.success : COLORS.accent)}
+            style={canRunStickyPrimary
+              ? primaryBtn(next.ctaTone === "success" ? COLORS.success : COLORS.accent)
+              : disabledBtn(primaryBtn(next.ctaTone === "success" ? COLORS.success : COLORS.accent))}
           >
             {next.cta}
           </button>
@@ -11630,6 +11652,9 @@ function ghostBtn(): React.CSSProperties {
     background: "transparent", border: `1px solid ${COLORS.border}`, color: COLORS.ink,
     fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0,
   };
+}
+function disabledBtn(base: React.CSSProperties): React.CSSProperties {
+  return { ...base, opacity: 0.45, cursor: "not-allowed" };
 }
 function dashedBtn(_label: string): React.CSSProperties {
   return {
