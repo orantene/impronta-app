@@ -3270,32 +3270,36 @@ function DualTimeBadge({
 }
 
 function BookingPanel({ inquiry }: { inquiry: RichInquiry }) {
+  const { state } = useAdminShell();
+  const tenantSlug = state.effectiveTenant?.slug ?? "";
+
   if (inquiry.bookingId) {
+    // Only link if bookingId looks like a real UUID (not a prototype "BK-xxx" slug).
+    const isRealId = /^[0-9a-f-]{36}$/.test(inquiry.bookingId);
+    const bookingHref = isRealId
+      ? `/${tenantSlug}/admin/bookings/${inquiry.bookingId}`
+      : null;
+
     return (
-      <RailCard title="Booking">
+      <RailCard
+        title="Booking"
+        action={
+          bookingHref ? (
+            <a
+              href={bookingHref}
+              style={{
+                fontFamily: FONTS.body, fontSize: 11, fontWeight: 600,
+                color: COLORS.accent, textDecoration: "none",
+              }}
+            >
+              View →
+            </a>
+          ) : undefined
+        }
+      >
         <KvCompact label="ID" value={inquiry.bookingId} mono />
         <KvCompact label="Date" value={inquiry.date ?? "TBC"} />
         <KvCompact label="Location" value={inquiry.location ?? "TBC"} />
-
-        {/* WS-12.3 — Call time with dual TZ display */}
-        <div style={{ padding: "5px 0" }}>
-          <span style={{
-            fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
-            letterSpacing: 1.2, textTransform: "uppercase", color: COLORS.inkMuted,
-            minWidth: 64, display: "inline-block",
-          }}>
-            Call time
-          </span>
-          <div style={{ marginTop: 4 }}>
-            <DualTimeBadge
-              localLabel={`09:00 ${WORKSPACE_TZ.split("/")[1]?.slice(0, 3).toUpperCase()}`}
-              remoteLabel={`10:00 ${BOOKING_TZ.split("/")[1]?.slice(0, 3).toUpperCase()}`}
-            />
-            <div style={{ fontFamily: FONTS.body, fontSize: 10, color: COLORS.inkDim, marginTop: 4 }}>
-              Your time ({WORKSPACE_TZ}) · Shoot location ({BOOKING_TZ})
-            </div>
-          </div>
-        </div>
       </RailCard>
     );
   }
