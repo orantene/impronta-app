@@ -21,3 +21,13 @@ To QA a preview, either:
 ## Full deploy topology
 
 Domain list, env vars, Supabase seeding contract, ghost-project alias workaround, Vercel IDs, account security notes, branch situation — all in the user-level auto-memory file `project_vercel_deployment.md` (at `~/.claude/projects/-Users-oranpersonal-Desktop-impronta-app/memory/`). Treat that file as the source of truth for anything deploy-adjacent.
+
+## Branch coordination (multi-agent)
+
+All active development lands on **`phase-1`**. When two or more agents run concurrently:
+
+1. **Always `git pull --rebase origin phase-1` before starting any edit** — prevents stale-base conflicts.
+2. **One migration per agent** — never let two agents pick the same timestamp. Use `date -u +%Y%m%d%H%M%S` to generate a unique one at start of work.
+3. **Park-restore pattern for timestamp collisions**: if `supabase db push` fails because two files share a timestamp, `mv` one to `.tmp-migrations-park/`, push, then restore. Document the park in your commit message.
+4. **TS + lint gate before every commit**: `cd web && npx tsc --noEmit && npm run lint` — a red TS build blocks the next agent's work.
+5. **Never force-push** `phase-1` — other agents may have commits in flight.
