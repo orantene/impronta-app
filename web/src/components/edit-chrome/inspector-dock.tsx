@@ -30,7 +30,6 @@ import {
   useState,
   useTransition,
 } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   loadSectionForEditAction,
@@ -251,6 +250,7 @@ export function InspectorDock() {
     slots,
     builderTree,
     canEditSiteShell,
+    queueRouterRefresh,
   } = useEditContext();
 
   const selectedStandaloneBuilderNode = useMemo(
@@ -417,7 +417,6 @@ export function InspectorDock() {
   // a server re-render through the existing `revalidateTag` boundaries
   // that `upsertSection` already busted on save — so the canvas
   // structurally updates within ~150ms of the save landing.
-  const router = useRouter();
   const [, startRefreshTransition] = useTransition();
 
   useEffect(() => {
@@ -490,7 +489,7 @@ export function InspectorDock() {
         // happens." `upsertSection` already busted the section + sections-all
         // cache tags, so this refresh hits fresh data immediately.
         startRefreshTransition(() => {
-          router.refresh();
+          void queueRouterRefresh();
         });
         return;
       }

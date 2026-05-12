@@ -53,7 +53,7 @@ import {
   WireEditorial,
   WireStudioMinimal,
 } from "./starter-wireframes";
-import { IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT } from "./edit-context";
+import { IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT, useMaybeEditContext } from "./edit-context";
 
 export interface RecipeTile {
   slug: string;
@@ -342,6 +342,7 @@ export function EmptyCanvasStarter({
   locale?: string;
 } = {}) {
   const router = useRouter();
+  const editCtx = useMaybeEditContext();
   const [state, dispatch, pending] = useActionState<StarterActionState, FormData>(
     applyStarterComposition,
     undefined,
@@ -375,7 +376,11 @@ export function EmptyCanvasStarter({
       window.dispatchEvent(new CustomEvent("impronta:starter-applied"));
       const fallbackTimer = window.setTimeout(() => {
         if (synced) return;
-        router.refresh();
+        if (editCtx) {
+          void editCtx.queueRouterRefresh();
+        } else {
+          router.refresh();
+        }
         window.location.reload();
       }, 2000);
       return () => {
@@ -383,7 +388,7 @@ export function EmptyCanvasStarter({
         window.clearTimeout(fallbackTimer);
       };
     }
-  }, [state, router]);
+  }, [state, router, editCtx]);
 
   useEffect(() => {
     let cancelled = false;
@@ -444,7 +449,11 @@ export function EmptyCanvasStarter({
         setQuickInsertError(result?.error ?? "Couldn't add the hero section.");
         return;
       }
-      router.refresh();
+      if (editCtx) {
+        void editCtx.queueRouterRefresh();
+      } else {
+        router.refresh();
+      }
       window.location.assign(window.location.href);
     });
   }

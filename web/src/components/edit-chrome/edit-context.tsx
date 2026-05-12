@@ -311,6 +311,11 @@ export interface EditContextValue {
   availableLocales: ReadonlyArray<string>;
 
   refreshComposition: () => Promise<void>;
+  /**
+   * P9-1 — RAF-coalesced `router.refresh()` for the storefront RSC tree.
+   * Prefer over `useRouter().refresh()` from any component under `EditProvider`.
+   */
+  queueRouterRefresh: () => Promise<void>;
   insertSection: (
     target: LibraryTarget,
     sectionTypeKey: string,
@@ -4098,6 +4103,7 @@ export function EditProvider({
       availableLocales,
 
       refreshComposition,
+      queueRouterRefresh,
       insertSection,
       removeSection,
       moveSection,
@@ -4238,6 +4244,7 @@ export function EditProvider({
       library,
       availableLocales,
       refreshComposition,
+      queueRouterRefresh,
       insertSection,
       removeSection,
       moveSection,

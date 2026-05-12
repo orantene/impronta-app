@@ -41,7 +41,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   Card,
@@ -362,8 +361,7 @@ function patchesEqual(
 // ── component ─────────────────────────────────────────────────────────────
 
 export function ThemeDrawer(): ReactElement | null {
-  const { themeOpen, closeTheme } = useEditContext();
-  const router = useRouter();
+  const { themeOpen, closeTheme, queueRouterRefresh } = useEditContext();
 
   const [snapshot, setSnapshot] = useState<DesignSnapshot | null>(null);
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
@@ -517,7 +515,7 @@ export function ThemeDrawer(): ReactElement | null {
           setSnapshot(fresh.snapshot);
           setDraft({ ...fresh.snapshot.themeDraft });
         }
-        router.refresh();
+        void queueRouterRefresh();
         setConfirmingPublish(false);
         return;
       }
@@ -537,7 +535,7 @@ export function ThemeDrawer(): ReactElement | null {
         setSnapshot(fresh.snapshot);
         setDraft({ ...fresh.snapshot.themeDraft });
       }
-      router.refresh();
+      void queueRouterRefresh();
       setConfirmingPublish(false);
     } catch (err) {
       setError(
@@ -546,7 +544,7 @@ export function ThemeDrawer(): ReactElement | null {
     } finally {
       setBusy("idle");
     }
-  }, [snapshot, draft, dirty, router]);
+  }, [snapshot, draft, dirty, queueRouterRefresh]);
 
   const chipStatus =
     busy === "saving" || busy === "publishing"

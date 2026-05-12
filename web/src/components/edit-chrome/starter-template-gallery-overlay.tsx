@@ -12,7 +12,6 @@
  */
 
 import { useActionState, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   applyStarterComposition,
@@ -33,12 +32,12 @@ import { WorkspaceTemplateGallery } from "./WorkspaceTemplateGallery";
 type CategoryKey = (typeof STARTER_TEMPLATE_CATEGORIES)[number]["key"];
 
 export function StarterTemplateGalleryOverlay() {
-  const router = useRouter();
   const {
     starterTemplateGalleryOpen,
     starterTemplateGalleryHighlightedSlug,
     closeStarterTemplateGallery,
     refreshComposition,
+    queueRouterRefresh,
     slots,
     slotDefs,
     library,
@@ -98,9 +97,9 @@ export function StarterTemplateGalleryOverlay() {
     closeStarterTemplateGallery();
     void (async () => {
       await refreshComposition();
-      router.refresh();
+      await queueRouterRefresh();
     })();
-  }, [closeStarterTemplateGallery, refreshComposition, router, state]);
+  }, [closeStarterTemplateGallery, queueRouterRefresh, refreshComposition, state]);
 
   const planPolicy = getBuilderPlanPolicy(planTier);
   const visibleTiles = STARTER_TEMPLATE_TILES.filter((tile) =>

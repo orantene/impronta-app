@@ -34,7 +34,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+
+import { useEditContext } from "../../edit-context";
 
 import { CHROME, DrawerBody, DrawerTabs, DrawerTab } from "../../kit";
 import {
@@ -110,7 +111,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<SaveStatus>({ kind: "idle" });
   const [, startTransition] = useTransition();
-  const router = useRouter();
+  const { queueRouterRefresh } = useEditContext();
 
   // ── Undo (single-step) ───────────────────────────────────────────────
   // We snapshot the config BEFORE each patch lands, store it in a ref,
@@ -326,7 +327,9 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
         }
       }
       if (triggerRefresh) {
-        startTransition(() => router.refresh());
+        startTransition(() => {
+          void queueRouterRefresh();
+        });
       }
       setStatus({ kind: "saved", at: Date.now() });
     })();
@@ -337,7 +340,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
       // Another patch arrived during the in-flight save — drain again.
       scheduleFlush();
     }
-  }, [router, scheduleFlush]);
+  }, [queueRouterRefresh, scheduleFlush]);
 
   flushRef.current = flush;
 
