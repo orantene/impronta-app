@@ -100,26 +100,6 @@ export async function createAgencyInquiry(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  // Optional talent attachments via inquiry_talent join table.
-  const talentIds = v.talent_profile_ids
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (talentIds.length > 0) {
-    const { error: tErr } = await supabase
-      .from("inquiry_talent")
-      .insert(
-        talentIds.map((tid) => ({
-          inquiry_id: data.id,
-          talent_profile_id: tid,
-        })),
-      );
-    if (tErr) {
-      logServerError("admin-inquiries.createAgencyInquiry.talent_link", tErr);
-      // Non-fatal — the inquiry exists. Caller can retry talent linking.
-    }
-  }
-
   // Best-effort audit log entry. Wrapped to never throw into render path.
   try {
     await logInquiryActivity(supabase, {
@@ -160,16 +140,6 @@ const updateInquiryRequestDetailsSchema = z.object({
   event_location: z.string(),
   source_channel: inquirySourceChannelSchema,
   staff_notes: z.string(),
-});
-
-const addInquiryTalentSchema = z.object({
-  inquiry_id: z.string().min(1, "Missing inquiry."),
-  talent_profile_id: z.string().min(1, "Pick a talent profile."),
-});
-
-const mutateInquiryTalentSchema = z.object({
-  inquiry_id: z.string().min(1, "Missing inquiry."),
-  inquiry_talent_id: z.string().min(1, "Missing shortlist row."),
 });
 
 const createBookingSchema = z.object({
@@ -526,179 +496,21 @@ export async function updateInquiryRequestDetails(
 
 export async function addInquiryTalent(
   _prev: AdminActionState,
-  formData: FormData,
+  _formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
-  if (!auth.ok) return { error: auth.error };
-  const { supabase, user, tenantId } = auth;
-
-  const parsed = parseWithSchema(addInquiryTalentSchema, {
-    inquiry_id: trimmedString(formData, "inquiry_id"),
-    talent_profile_id: trimmedString(formData, "talent_profile_id"),
-  });
-  if ("error" in parsed) return { error: parsed.error };
-  const { inquiry_id, talent_profile_id } = parsed.data;
-
-  const { data: inq } = await supabase
-    .from("inquiries")
-    .select("uses_new_engine, tenant_id")
-    .eq("id", inquiry_id)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!inq) {
-    return { error: "Inquiry not found for this tenant." };
-  }
-  if (inq.uses_new_engine) {
-    return { error: "This inquiry uses the v2 engine. Use the roster actions (participants) instead of inquiry_talent." };
-  }
-
-  const { data: existing } = await supabase
-    .from("inquiry_talent")
-    .select("id")
-    .eq("inquiry_id", inquiry_id)
-    .eq("talent_profile_id", talent_profile_id)
-    .maybeSingle();
-  if (existing?.id) {
-    return { error: "That talent is already on this inquiry." };
-  }
-
-  const { data: currentRows } = await supabase
-    .from("inquiry_talent")
-    .select("sort_order")
-    .eq("inquiry_id", inquiry_id)
-    .order("sort_order", { ascending: false })
-    .limit(1);
-
-  const nextSort = ((currentRows?.[0]?.sort_order as number | null) ?? -1) + 1;
-
-  const { error } = await supabase.from("inquiry_talent").insert({
-    tenant_id: tenantId,
-    inquiry_id,
-    talent_profile_id,
-    sort_order: nextSort,
-    added_by_staff_id: user.id,
-  });
-
-  if (error) {
-    logServerError("admin/addInquiryTalent", error);
-    return { error: CLIENT_ERROR.update };
-  }
-
-  revalidatePath("/admin/inquiries");
-  revalidatePath(`/admin/inquiries/${inquiry_id}`);
-  return undefined;
+  // inquiry_talent was dropped in migration 20260522000000_phase2_backfill_and_drop_inquiry_talent.sql.
+  // All inquiries now use inquiry_participants. This action is a no-op stub.
+  return { error: "Legacy roster action is disabled. Use the v2 roster participants UI." };
 }
 
-export async function removeInquiryTalent(formData: FormData): Promise<void> {
-  const auth = await requireStaffTenantAction();
-  if (!auth.ok) return;
-  const { supabase, tenantId } = auth;
-
-  const parsed = parseWithSchema(mutateInquiryTalentSchema, {
-    inquiry_id: trimmedString(formData, "inquiry_id"),
-    inquiry_talent_id: trimmedString(formData, "inquiry_talent_id"),
-  });
-  if ("error" in parsed) return;
-  const { inquiry_id, inquiry_talent_id } = parsed.data;
-
-  const { data: inq } = await supabase
-    .from("inquiries")
-    .select("uses_new_engine")
-    .eq("id", inquiry_id)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!inq) {
-    return;
-  }
-  if (inq.uses_new_engine) {
-    logServerError("admin/removeInquiryTalent/v2_guard", new Error("Attempted inquiry_talent delete on v2 inquiry"));
-    return;
-  }
-
-  const { error } = await supabase
-    .from("inquiry_talent")
-    .delete()
-    .eq("id", inquiry_talent_id)
-    .eq("inquiry_id", inquiry_id)
-    .eq("tenant_id", tenantId);
-  if (error) {
-    logServerError("admin/removeInquiryTalent", error);
-    return;
-  }
-
-  revalidatePath("/admin/inquiries");
-  revalidatePath(`/admin/inquiries/${inquiry_id}`);
+export async function removeInquiryTalent(_formData: FormData): Promise<void> {
+  // inquiry_talent was dropped in migration 20260522000000_phase2_backfill_and_drop_inquiry_talent.sql.
+  // This action is a no-op stub.
 }
 
-export async function moveInquiryTalent(formData: FormData): Promise<void> {
-  const auth = await requireStaffTenantAction();
-  if (!auth.ok) return;
-  const { supabase, tenantId } = auth;
-
-  const parsed = parseWithSchema(mutateInquiryTalentSchema, {
-    inquiry_id: trimmedString(formData, "inquiry_id"),
-    inquiry_talent_id: trimmedString(formData, "inquiry_talent_id"),
-  });
-  if ("error" in parsed) return;
-
-  const direction = trimmedString(formData, "direction");
-  if (direction !== "up" && direction !== "down") return;
-
-  const { inquiry_id, inquiry_talent_id } = parsed.data;
-
-  const { data: inq } = await supabase
-    .from("inquiries")
-    .select("uses_new_engine")
-    .eq("id", inquiry_id)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (!inq) {
-    return;
-  }
-  if (inq.uses_new_engine) {
-    logServerError("admin/moveInquiryTalent/v2_guard", new Error("Attempted inquiry_talent reorder on v2 inquiry"));
-    return;
-  }
-
-  const { data: rows, error } = await supabase
-    .from("inquiry_talent")
-    .select("id, sort_order")
-    .eq("inquiry_id", inquiry_id)
-    .eq("tenant_id", tenantId)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-
-  if (error || !rows) {
-    logServerError("admin/moveInquiryTalent/load", error);
-    return;
-  }
-
-  const index = rows.findIndex((row) => row.id === inquiry_talent_id);
-  if (index < 0) return;
-
-  const targetIndex = direction === "up" ? index - 1 : index + 1;
-  if (targetIndex < 0 || targetIndex >= rows.length) return;
-
-  const next = [...rows];
-  const [moved] = next.splice(index, 1);
-  next.splice(targetIndex, 0, moved);
-
-  for (let i = 0; i < next.length; i += 1) {
-    const row = next[i];
-    if ((row.sort_order as number | null) === i) continue;
-    const { error: updateErr } = await supabase
-      .from("inquiry_talent")
-      .update({ sort_order: i })
-      .eq("id", row.id)
-      .eq("tenant_id", tenantId);
-    if (updateErr) {
-      logServerError("admin/moveInquiryTalent/update", updateErr);
-      return;
-    }
-  }
-
-  revalidatePath("/admin/inquiries");
-  revalidatePath(`/admin/inquiries/${inquiry_id}`);
+export async function moveInquiryTalent(_formData: FormData): Promise<void> {
+  // inquiry_talent was dropped in migration 20260522000000_phase2_backfill_and_drop_inquiry_talent.sql.
+  // This action is a no-op stub.
 }
 
 const patchInquiryEntityLinksSchema = z.object({
@@ -1640,24 +1452,7 @@ export async function createManualInquiry(
     payload: { source_channel: d.source_channel },
   });
 
-  const talentIds = String(formData.get("talent_ids") ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (talentIds.length > 0) {
-    for (const [index, talent_profile_id] of talentIds.entries()) {
-      const { error: talentErr } = await supabase.from("inquiry_talent").insert({
-        tenant_id: tenantId,
-        inquiry_id: created.id,
-        talent_profile_id,
-        sort_order: index,
-        added_by_staff_id: user.id,
-      });
-      if (talentErr) {
-        logServerError("admin/createManualInquiry/talent", talentErr);
-      }
-    }
-  }
+  // inquiry_talent was dropped 2026-05-22; talent is linked via inquiry_participants on v2 inquiries.
 
   revalidatePath("/admin/inquiries");
 
@@ -1767,7 +1562,6 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
 
   const keep_client_account = booleanFromEquals(formData, "keep_client_account");
   const keep_contact = booleanFromEquals(formData, "keep_contact");
-  const keep_talent = booleanFromEquals(formData, "keep_talent");
   const clear_dates = booleanFromEquals(formData, "clear_dates");
   const clear_assigned = booleanFromEquals(formData, "clear_assigned_staff");
   const clear_staff_notes = booleanFromEquals(formData, "clear_staff_notes");
@@ -1870,21 +1664,8 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
     payload: { new_inquiry_id: created.id },
   });
 
-  if (keep_talent) {
-    const { data: talentRows } = await supabase
-      .from("inquiry_talent")
-      .select("talent_profile_id, sort_order")
-      .eq("inquiry_id", sourceId)
-      .eq("tenant_id", tenantId);
-    for (const tr of talentRows ?? []) {
-      await supabase.from("inquiry_talent").insert({
-        tenant_id: tenantId,
-        inquiry_id: created.id,
-        talent_profile_id: tr.talent_profile_id,
-        sort_order: tr.sort_order ?? 0,
-      });
-    }
-  }
+  // inquiry_talent was dropped 2026-05-22; talent duplication is not supported for legacy inquiries.
+  // v2 duplicates must copy inquiry_participants separately if needed.
 
   revalidatePath("/admin/inquiries");
   revalidatePath(`/admin/inquiries/${sourceId}`);

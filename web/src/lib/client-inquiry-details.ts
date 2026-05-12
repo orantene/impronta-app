@@ -229,32 +229,17 @@ export const loadClientInquiryDetail = cache(
         filtersByKind.location.push({ id: directory.location_slug, label: locationLabel });
       }
 
-      // Canonical roster contract: for v2 inquiries, replace inquiry_talent with participants-based roster.
+      // Canonical roster contract: always use inquiry_participants (inquiry_talent was dropped 2026-05-22).
       const typedInquiry = inquiry as unknown as ClientInquiryDetailRow;
-      if ((typedInquiry as { uses_new_engine?: boolean }).uses_new_engine) {
-        const roster = await loadInquiryRoster(supabase, inquiryId);
-        typedInquiry.inquiry_talent = roster.map((r) => ({
-          talent_profile_id: r.talentProfileId,
-          talent_profiles: {
-            id: r.talentProfileId,
-            profile_code: r.profileCode,
-            display_name: r.displayName,
-          },
-        }));
-      } else {
-        const { data: legacy } = await supabase
-          .from("inquiry_talent")
-          .select(
-            `
-            talent_profile_id,
-            talent_profiles ( id, profile_code, display_name )
-          `,
-          )
-          .eq("inquiry_id", inquiryId)
-          .order("sort_order", { ascending: true })
-          .order("created_at", { ascending: true });
-        typedInquiry.inquiry_talent = (legacy ?? []) as unknown as ClientInquiryDetailTalentRow[];
-      }
+      const roster = await loadInquiryRoster(supabase, inquiryId);
+      typedInquiry.inquiry_talent = roster.map((r) => ({
+        talent_profile_id: r.talentProfileId,
+        talent_profiles: {
+          id: r.talentProfileId,
+          profile_code: r.profileCode,
+          display_name: r.displayName,
+        },
+      }));
 
       // Client-safe offer visibility: use views to avoid internal economics columns.
       const offerId = (typedInquiry as { current_offer_id?: string | null }).current_offer_id ?? null;

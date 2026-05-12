@@ -140,34 +140,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
     const inquiryRows = (inquiries ?? []) as unknown as ClientInquiryRow[];
     const inquiryIds = inquiryRows.map((r) => r.id);
 
-    const legacyMap = new Map<string, InquiryTalentRow[]>();
-    if (inquiryIds.length) {
-      const { data: rows } = await supabase
-        .from("inquiry_talent")
-        .select(
-          `
-          inquiry_id,
-          talent_profile_id,
-          talent_profiles ( profile_code, display_name )
-        `,
-        )
-        .in("inquiry_id", inquiryIds)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true });
-      for (const row of (rows ?? []) as Array<Record<string, unknown>>) {
-        const inquiryId = String(row.inquiry_id ?? "");
-        if (!inquiryId) continue;
-        const list = legacyMap.get(inquiryId) ?? [];
-        const tpRaw = row.talent_profiles as unknown;
-        const tp = (Array.isArray(tpRaw) ? tpRaw[0] : tpRaw) as { profile_code: string; display_name: string | null } | null;
-        list.push({
-          talent_profile_id: String(row.talent_profile_id ?? ""),
-          talent_profiles: tp,
-        });
-        legacyMap.set(inquiryId, list);
-      }
-    }
-
+    // inquiry_talent was dropped 2026-05-22; inquiry_participants is now the sole source.
     const v2Map = new Map<string, InquiryTalentRow[]>();
     if (inquiryIds.length) {
       const { data: parts } = await supabase
@@ -199,8 +172,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
     }
 
     for (const row of inquiryRows) {
-      const roster = v2Map.get(row.id) ?? legacyMap.get(row.id);
-      row.inquiry_talent = roster ?? [];
+      row.inquiry_talent = v2Map.get(row.id) ?? [];
     }
 
     const peek = await loadInquiryRosterPeekMany(

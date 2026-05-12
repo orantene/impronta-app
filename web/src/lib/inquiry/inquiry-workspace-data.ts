@@ -33,7 +33,7 @@ export type InquiryRosterParticipant = {
 };
 
 /**
- * Canonical roster read for QA cutover: prefer inquiry_participants, then fall back to inquiry_talent.
+ * Canonical roster read: uses inquiry_participants exclusively (inquiry_talent was dropped 2026-05-22).
  */
 export async function loadInquiryRoster(
   supabase: SupabaseClient,
@@ -66,77 +66,31 @@ export async function loadInquiryRoster(
 
   if (error) {
     logServerError("inquiry-workspace-data/loadInquiryRoster/participants", error);
-  } else if (rows && rows.length > 0) {
-    const talentIds = rows.map((r) => r.talent_profile_id).filter(Boolean) as string[];
-    const thumbs = await loadTalentThumbUrls(supabase, talentIds);
-    const tags = await loadPrimaryTalentTags(supabase, talentIds);
-
-    return rows.map((r) => {
-      const tp = normalizeTalentProfileJoin(r.talent_profiles);
-      const tid = r.talent_profile_id as string;
-      return {
-        id: r.id as string,
-        inquiryId,
-        talentProfileId: tid,
-        userId: (r.user_id as string | null) ?? null,
-        profileCode: tp?.profile_code ?? "",
-        displayName: tp?.display_name ?? null,
-        role: "talent" as const,
-        status: r.status as InquiryRosterParticipant["status"],
-        sortOrder: (r.sort_order as number) ?? 0,
-        acceptedAt: (r.accepted_at as string | null) ?? null,
-        removedAt: (r.removed_at as string | null) ?? null,
-        addedByUserId: (r.added_by_user_id as string | null) ?? null,
-        imageUrl: thumbs.get(tid) ?? null,
-        tagLabel: tags.get(tid) ?? null,
-      };
-    });
-  }
-
-  const { data: legacy, error: legErr } = await supabase
-    .from("inquiry_talent")
-    .select(
-      `
-      id,
-      inquiry_id,
-      talent_profile_id,
-      sort_order,
-      added_by_staff_id,
-      talent_profiles (
-        profile_code,
-        display_name,
-        user_id
-      )
-    `,
-    )
-    .eq("inquiry_id", inquiryId)
-    .order("sort_order", { ascending: true });
-
-  if (legErr || !legacy) {
-    logServerError("inquiry-workspace-data/loadInquiryRoster/legacy", legErr);
     return [];
   }
 
-  const talentIds = legacy.map((r) => r.talent_profile_id).filter(Boolean) as string[];
+  if (!rows || rows.length === 0) return [];
+
+  const talentIds = rows.map((r) => r.talent_profile_id).filter(Boolean) as string[];
   const thumbs = await loadTalentThumbUrls(supabase, talentIds);
   const tags = await loadPrimaryTalentTags(supabase, talentIds);
 
-  return legacy.map((r) => {
+  return rows.map((r) => {
     const tp = normalizeTalentProfileJoin(r.talent_profiles);
     const tid = r.talent_profile_id as string;
     return {
       id: r.id as string,
       inquiryId,
       talentProfileId: tid,
-      userId: tp?.user_id ?? null,
+      userId: (r.user_id as string | null) ?? null,
       profileCode: tp?.profile_code ?? "",
       displayName: tp?.display_name ?? null,
       role: "talent" as const,
-      status: "active" as const,
+      status: r.status as InquiryRosterParticipant["status"],
       sortOrder: (r.sort_order as number) ?? 0,
-      acceptedAt: null,
-      removedAt: null,
-      addedByUserId: (r.added_by_staff_id as string | null) ?? null,
+      acceptedAt: (r.accepted_at as string | null) ?? null,
+      removedAt: (r.removed_at as string | null) ?? null,
+      addedByUserId: (r.added_by_user_id as string | null) ?? null,
       imageUrl: thumbs.get(tid) ?? null,
       tagLabel: tags.get(tid) ?? null,
     };
@@ -149,7 +103,7 @@ export type InquiryRosterPeek = {
 };
 
 /**
- * Canonical roster peek for list rows: prefers inquiry_participants, falls back to inquiry_talent.
+ * Canonical roster peek for list rows: uses inquiry_participants exclusively (inquiry_talent was dropped 2026-05-22).
  */
 export async function loadInquiryRosterPeekMany(
   supabase: SupabaseClient,
