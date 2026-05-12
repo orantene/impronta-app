@@ -2002,10 +2002,10 @@ function AdminInboxList({
               </svg>
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "Nothing in this view"}
+              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "No inquiries yet"}
             </div>
             <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.4, maxWidth: 240 }}>
-              {search.trim() ? "Try a different keyword, or clear the search." : <>Try the <strong>All</strong> filter or clear your search.</>}
+              {search.trim() ? "Try a different keyword, or clear the search." : "Inquiries from clients appear here. Share your roster page to get the first one in."}
             </div>
             {search.trim() && (
               <button type="button" onClick={() => onSearchChange("")} style={{

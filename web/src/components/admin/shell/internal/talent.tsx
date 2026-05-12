@@ -9793,16 +9793,18 @@ function InboxPage() {
                     : filter === "closed"
                       ? "Archive is clear"
                       : filter === "all"
-                        ? "Nothing in the inbox yet"
+                        ? "No jobs yet"
                         : `No ${filter} items`
               }
               body={
                 filter === "action"
                   ? "You're caught up — every offer, hold, and request has been handled. Open a different filter to peek at what's in flight."
                   : filter === "all"
-                    ? "Inquiries land here the moment a client or agency reaches out. Make sure your reach channels are on so the right ones find you."
+                    ? "You'll see here every job an agency invites you to. Make sure your profile is complete so agencies find you."
                     : "Switch filter above to see other items."
               }
+              primaryLabel={!search && filter === "all" ? "Complete your profile" : undefined}
+              onPrimary={!search && filter === "all" ? () => setTalentPage("profile") : undefined}
               compact
             />
           </div>
