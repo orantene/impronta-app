@@ -294,6 +294,11 @@ export interface EditContextValue {
   compositionLoading: boolean;
   compositionError: string | null;
   pageVersion: number | null;
+  /**
+   * Visitor site last publish time for this page (`cms_pages.published_at`), or
+   * `null` if never published. Refreshes with `refreshComposition` after Publish.
+   */
+  liveSitePublishedAt: string | null;
   /** CAS page row version — read from a ref for saves immediately after async gaps. */
   getCompositionCasVersion: () => number | null;
   pageMetadata: PageMetadata | null;
@@ -1529,6 +1534,9 @@ export function EditProvider({
   const [pageVersion, setPageVersion] = useState<number | null>(
     initialComposition?.pageVersion ?? null,
   );
+  const [liveSitePublishedAt, setLiveSitePublishedAt] = useState<string | null>(
+    initialComposition?.liveSitePublishedAt ?? null,
+  );
   const [pageMetadata, setPageMetadata] = useState<PageMetadata | null>(
     initialComposition?.metadata ?? null,
   );
@@ -1999,6 +2007,7 @@ export function EditProvider({
     );
     setPageId(data.pageId);
     setPageVersion(data.pageVersion);
+    setLiveSitePublishedAt(data.liveSitePublishedAt);
     setPageMetadata(data.metadata);
     setSlots(normalizedSlots);
     setBuilderTree(builderTreeRef.current);
@@ -4079,6 +4088,7 @@ export function EditProvider({
       compositionLoading,
       compositionError,
       pageVersion,
+      liveSitePublishedAt,
       getCompositionCasVersion,
       pageMetadata,
       slots,
@@ -4219,6 +4229,7 @@ export function EditProvider({
       compositionLoading,
       compositionError,
       pageVersion,
+      liveSitePublishedAt,
       getCompositionCasVersion,
       pageMetadata,
       slots,

@@ -512,7 +512,7 @@ Use task IDs in commits/PR titles when helpful (e.g. `feat(edit-chrome): P3-2 dr
 | Task ID | Task | Files likely involved | Risk | Acceptance | Test |
 |---------|------|------------------------|------|------------|------|
 | P2-1 | Publish drawer: blocking vs advisory copy hierarchy | [publish-drawer.tsx](../src/components/edit-chrome/publish-drawer.tsx), [PublishPreflight.tsx](../src/components/edit-chrome/PublishPreflight.tsx) | Low | Non-technical copy | Manual |
-| P2-2 | Draft vs published indicator pass | [topbar.tsx](../src/components/edit-chrome/topbar.tsx), [edit-context.tsx](../src/components/edit-chrome/edit-context.tsx) | Low | Clear state | Manual |
+| P2-2 | Draft vs published indicator pass | [topbar.tsx](../src/components/edit-chrome/topbar.tsx) (`LiveSitePublishedChip` + `SaveStatus`), [edit-context.tsx](../src/components/edit-chrome/edit-context.tsx), [edit-shell.tsx](../src/components/edit-chrome/edit-shell.tsx), [`composition-actions.ts`](../src/lib/site-admin/edit-mode/composition-actions.ts) (`liveSitePublishedAt` from `cms_pages.published_at`) | Low | Clear state | Manual |
 | P2-3 | Publish failure `aria-live` parity | [edit-shell.tsx](../src/components/edit-chrome/edit-shell.tsx) | Low | SR hears failures | VoiceOver spot |
 
 ### Phase 3 — Canvas
@@ -672,12 +672,47 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 **Parallel (non-code):** Phase **0** registered-host viewport matrix ([phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md)) remains **required** before declaring pilot-ready.
 
+### Continue-mode execution queue (Cursor + doc alignment)
+
+Use this subsection for **session-to-session** sequencing. Canonical definitions stay in the PR tables above and in [`.cursor/plans/builder-phase-truth-roadmap.plan.md`](../../.cursor/plans/builder-phase-truth-roadmap.plan.md) (do not treat this list as a second backlog file — update statuses in **one** place per workflow: either Cursor todos **or** the plan YAML when you are explicitly syncing the mirror).
+
+**Three task shapes (do not conflate them):**
+
+| Shape | Meaning | “Done” |
+|-------|---------|--------|
+| **`verify-p*-*`** | Doc/code reconciliation | Closed when the implementation table + changelog row match reality |
+| **`pr-p*-*`** | Product acceptance (often **manual** or VoiceOver) | Closed when humans sign off on the acceptance column, even if code already exists |
+| **`exec-*` / `p7a-*` / gates / `acc-*` / `7c-*` / `pv1-*`** | Execution, QA evidence, or future verticals | Per-item exit criteria in the plan row |
+
+**Human-only (cannot mark `pr-*` done from CI alone):** `pr-p0-1`, `exec-p0-registered-host`, `exec-p0-edit-loop` (evidence on registered host), `gate-*`, `acc-ph*`, `qa-bug-*`, most **`pr-p2-*`…`pr-p9-*`** until spot-checks recorded.
+
+**Code-first queue (next engineering slices — work top to bottom; adjust after QA):**
+
+| Seq | ID | Focus | Exit (implementation) | After that |
+|----:|----|--------|-------------------------|------------|
+| 1 | **`pr-p2-1`** | Publish blocker vs advisory | Landed in [`publish-drawer.tsx`](../src/components/edit-chrome/publish-drawer.tsx) / [`PublishPreflight.tsx`](../src/components/edit-chrome/PublishPreflight.tsx); close **`pr-p2-1`** when manual read of copy + one publish-blocked path looks right | VoiceOver spot optional |
+| 2 | **`pr-p2-2`** | Draft vs published clarity | [`topbar.tsx`](../src/components/edit-chrome/topbar.tsx) **`LiveSitePublishedChip`** (live `published_at` next to `SaveStatus`) + composition `liveSitePublishedAt`; close **`pr-p2-2`** after manual glance on homepage + one inner page | Re-open only if product wants richer diff copy |
+| 3 | **`pr-p2-3`** | Publish failure SR | Assertive paths in [`publish-drawer.tsx`](../src/components/edit-chrome/publish-drawer.tsx) + [`edit-shell.tsx`](../src/components/edit-chrome/edit-shell.tsx); audit for any failure toast missing `aria-live` | VoiceOver |
+| 4 | **`p7a-1-empty-states`** | Library load failure UX | Empty / error UI in element picker + library surfaces; no silent blank | Manual |
+| 5 | **`exec-p7a-2-selection` / `p7a-2-multi-select`** | Honest selection | Inspector selection matches persisted tree; stale id rejection landed 2026-05-10 (changelog) | Registered-host QA |
+| 6 | **`exec-p7a-3-reorder` / `p7a-3-undo`** | Reorder parity + undo | Lib tests shipped; remaining = product sign-off + undo coherence if product requires | QA |
+| 7 | **`exec-p7a-4-roundtrip` / `p7a-4-cache`** | Publish + reopen truth | Automated slices in `p7a-reorder-publish-parity.test.ts`; human **7A Reality Test** still authoritative | Evidence doc |
+| 8 | **`pr-p9-1`** | `router.refresh` audit | Inventory direct calls outside `queueRouterRefresh`; reduce thrash where safe | Profile / CI |
+| 9 | **`pr-p3-2`** | Drop polish | Visual pass on [`selection-layer.tsx`](../src/components/edit-chrome/selection-layer.tsx) | Manual |
+| 10 | **`pr-p6-2`** | `tagFor` / revalidate audit | Cross-check all shell + section publish paths vs [phase-b-site-shell.md](./phase-b-site-shell.md) | Smoke + tenant isolation when touched |
+
+**Park until 7A accepted:** `pr-p7b-*`, `p7b-var-*`, all **`7c-*`**, all **`pv1-*`**, `shell-no-fake-model`, `strat-*` (unless copy is blocking a ship).
+
+**Continue ritual:** pick the **lowest Seq** with an open Cursor todo → set **`in_progress`** → ship or document waiver → **`completed`** → add a **one-line changelog** row when behavior or acceptance meaning changed.
+
 ---
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2026-05-12 | **P2-2 live publish hint:** Builder top bar shows **`Live · …`** next to draft save status — [`composition-actions.ts`](../src/lib/site-admin/edit-mode/composition-actions.ts) threads `cms_pages.published_at` as `liveSitePublishedAt`; [`edit-context.tsx`](../src/components/edit-chrome/edit-context.tsx) / [`edit-shell.tsx`](../src/components/edit-chrome/edit-shell.tsx) / [`topbar.tsx`](../src/components/edit-chrome/topbar.tsx) surface it with tooltips + `aria-label`. Refreshes after `refreshComposition` (including post-publish). |
+| 2026-05-14 | **Continue-mode queue:** Added **§8 Continue-mode execution queue** — clarifies `verify-*` vs `pr-*` vs execution ids, lists the next **code-first** slices (P2 polish → 7A honesty → P9-1 audit → P3-2 / P6-2), and parks 7B / 7C / post-v1 until 7A acceptance. |
 | 2026-05-09 | **Orphan `critiquePage`:** Removed unused **`critiquePage`** (+ `CritiqueFinding` / `CritiqueResult` / prompt) from [`ai-generate-action.ts`](../src/lib/site-admin/edit-mode/ai-generate-action.ts); dropped `listSectionsForStaff` import (only used by that action). Post-v1 unified AI panel may reinstate a critique flow with a real UI. |
 | 2026-05-09 | **P1-3 PR template:** [`.github/pull_request_template.md`](../../.github/pull_request_template.md) — conditional **Edit chrome — drawer / overlay mutex** checklist links [DRAWER-MUTEX.md](../src/components/edit-chrome/DRAWER-MUTEX.md) so PRs touching `web/src/components/edit-chrome/` repeat the same gates as the doc’s PR checklist. [`.cursor/plans/builder-phase-truth-roadmap.plan.md`](../../.cursor/plans/builder-phase-truth-roadmap.plan.md) — **`pr-p1-3` → completed**. |
 | 2026-05-09 | **P1-2 orphan actions:** Removed unused **`suggestLayoutImprovement`** (+ types) from [`ai-generate-action.ts`](../src/lib/site-admin/edit-mode/ai-generate-action.ts); deleted [`ai-usage-summary-action.ts`](../src/lib/site-admin/edit-mode/ai-usage-summary-action.ts) (`loadAiUsageSummary` had no importers). [`publish-preflight-action.ts`](../src/lib/site-admin/edit-mode/publish-preflight-action.ts) header comment updated. [builder-convergence-plan.md](./builder-convergence-plan.md) §1 REMOVE + Phase 0 task + post-v1 bullets updated. [`.cursor/plans/builder-phase-truth-roadmap.plan.md`](../../.cursor/plans/builder-phase-truth-roadmap.plan.md) — **`pr-p1-2` → completed**. |

@@ -247,6 +247,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     availableLocales,
     pageSlug,
     pageVersion,
+    liveSitePublishedAt,
     slots,
     slotDefs,
     openLibrary,
@@ -765,6 +766,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           activeLocale={locale}
           defaultLocale={defaultLocale}
           availableLocales={availableLocales}
+          liveSitePublishedAt={liveSitePublishedAt}
         />
         <div
           id="edit-overlay-portal"

@@ -122,6 +122,12 @@ export interface CompositionData {
    *  back so they target the correct page regardless of page type. */
   pageId: string;
   pageVersion: number;
+  /**
+   * When the visitor-facing site last had this page published (`cms_pages.published_at`).
+   * `null` when the row has never been published. Draft autosave does not move this —
+   * it updates after a successful Publish (next composition refresh).
+   */
+  liveSitePublishedAt: string | null;
   metadata: {
     title: string;
     metaDescription: string | null;
@@ -302,7 +308,9 @@ export async function loadHomepageCompositionAction(input: {
 
     const { data: pageRow, error: pageErr } = await admin
       .from("cms_pages")
-      .select("id, title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, version")
+      .select(
+        "id, title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, version, published_at",
+      )
       .eq("tenant_id", scope.tenantId)
       .eq("locale", locale)
       .eq("slug", input.pageSlug)
@@ -317,6 +325,7 @@ export async function loadHomepageCompositionAction(input: {
         canonical_url: string | null;
         noindex: boolean;
         version: number;
+        published_at: string | null;
       }>();
     if (pageErr || !pageRow) {
       return {
@@ -428,12 +437,18 @@ export async function loadHomepageCompositionAction(input: {
         ? revisionRow.snapshot.builderTree
         : undefined;
 
+    const publishedAt =
+      typeof pageRow.published_at === "string" && pageRow.published_at.trim() !== ""
+        ? pageRow.published_at
+        : null;
+
     return {
       ok: true,
       data: {
         locale,
         pageId: pageRow.id,
         pageVersion: pageRow.version,
+        liveSitePublishedAt: publishedAt,
         metadata: {
           title: pageRow.title,
           metaDescription: pageRow.meta_description,
@@ -524,12 +539,18 @@ export async function loadHomepageCompositionAction(input: {
   // (60s TTL); the identity save invalidates this when an agency edits the
   // list, so the switcher reflects the active config without a hard reload.
 
+  const homepagePublishedAt =
+    typeof page.publishedAt === "string" && page.publishedAt.trim() !== ""
+      ? page.publishedAt
+      : null;
+
   return {
     ok: true,
     data: {
       locale,
       pageId: page.pageId,
       pageVersion: page.version,
+      liveSitePublishedAt: homepagePublishedAt,
       metadata: {
         title: page.title,
         metaDescription: page.metaDescription,

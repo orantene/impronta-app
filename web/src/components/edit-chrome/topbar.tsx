@@ -7,7 +7,7 @@
  * Last reconciled: 2026-04-25.
  *
  * Layout (left to right):
- *   Brand mark → divider → page picker → save status → divider →
+ *   Brand mark → divider → page picker → save status + live publish hint → divider →
  *   undo/redo → [spacer] → viewport switcher · preview toggle → [spacer] →
  *   comments · preview · page-settings · More (⋯) → divider →
  *   Save draft · Publish split-button → divider → Exit
@@ -704,6 +704,54 @@ function PagePicker({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Matches publish-drawer human-readable publish timestamps (local tz). */
+function formatLiveSitePublishedChip(value: string | null | undefined): string {
+  if (value == null || value.trim() === "") return "";
+  return new Date(value).toLocaleString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * P2-2 — glanceable hint for what visitors last saw for this page vs the draft
+ * you are editing (authoritative `cms_pages.published_at` from composition load).
+ */
+function LiveSitePublishedChip({
+  publishedAt,
+}: {
+  publishedAt?: string | null;
+}) {
+  const trimmed = publishedAt?.trim() ?? "";
+  const hasPublish = trimmed.length > 0;
+  const when = hasPublish ? formatLiveSitePublishedChip(trimmed) : "";
+  const ariaLabel = hasPublish
+    ? `Live site last showed this page as published on ${new Date(trimmed).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })}. Draft edits are not public until you publish again.`
+    : "This page has never been published. The live site does not show it until you publish.";
+  return (
+    <span
+      role="note"
+      className="inline-flex max-w-[min(200px,30vw)] shrink-0 items-center truncate rounded-full border px-[9px] py-[4px] text-[10.5px] font-semibold tracking-[-0.01em]"
+      style={{
+        background: CHROME.paper2,
+        color: CHROME.muted,
+        borderColor: CHROME.line,
+      }}
+      title={ariaLabel}
+      aria-label={ariaLabel}
+    >
+      <span className="truncate">
+        Live · {hasPublish ? when : "not published"}
+      </span>
+    </span>
   );
 }
 
@@ -1933,6 +1981,11 @@ export interface TopBarProps {
   defaultLocale?: string;
   /** Locales the active tenant publishes. Empty/single-entry → no switcher. */
   availableLocales?: ReadonlyArray<string>;
+  /**
+   * When the live storefront last had this page published (`cms_pages.published_at`).
+   * Null/undefined = never published for this row.
+   */
+  liveSitePublishedAt?: string | null;
 }
 
 /**
@@ -1976,6 +2029,7 @@ export function TopBar({
   activeLocale,
   defaultLocale = DEFAULT_PLATFORM_LOCALE,
   availableLocales = [],
+  liveSitePublishedAt = null,
 }: TopBarProps) {
   const router = useRouter();
   const editCtx = useMaybeEditContext();
@@ -2038,7 +2092,10 @@ export function TopBar({
           dirty={dirty}
         />
       ) : null}
-      <SaveStatus dirty={dirty} saving={saving} />
+      <span className="inline-flex min-w-0 shrink items-center gap-[6px]">
+        <SaveStatus dirty={dirty} saving={saving} />
+        <LiveSitePublishedChip publishedAt={liveSitePublishedAt} />
+      </span>
       <TbDivider />
 
       {/* ── Undo / Redo ── */}
