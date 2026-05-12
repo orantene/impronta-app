@@ -269,6 +269,10 @@ export function InspectorDock() {
     () => findBuilderNodePath(builderTree, selectedBuilderNodeId),
     [builderTree, selectedBuilderNodeId],
   );
+  /** P7A-2 — one paint before context clears a removed id; never feed ContentTab a ghost node. */
+  const selectionTreeMismatch = Boolean(
+    selectedBuilderNodeId && selectedBuilderNode == null,
+  );
   const currentLoadedSection =
     loadedSection?.id === selectedSectionId ? loadedSection : null;
   const currentDraftProps = currentLoadedSection ? draftProps : null;
@@ -908,9 +912,12 @@ export function InspectorDock() {
           style={{ color: CHROME.amber }}
           role="alert"
           aria-live="assertive"
+          aria-atomic="true"
         >
           {loadError}
         </div>
+      ) : selectionTreeMismatch ? (
+        <InspectorSkeleton />
       ) : !selectedStandaloneBuilderNode && (!currentLoadedSection || !registryEntry) ? (
         <InspectorSkeleton />
       ) : (
@@ -938,6 +945,9 @@ export function InspectorDock() {
           <DrawerBody padding="14px 14px 32px" className="overflow-x-hidden">
             {saveError ? (
               <div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
                 className="mb-3 rounded-lg px-3 py-2.5 text-[11.5px]"
                 style={{
                   background: CHROME.amberBg,
