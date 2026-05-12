@@ -6796,9 +6796,10 @@ function buildConvFromInquiry(inquiry: InquiryRecord): Conversation {
   } as unknown as Conversation;
 }
 
-// ── AdminParticipantsActions — wires the Add-talent and Reassign-
-// coordinator buttons that live on the admin Participants card. Owns
-// both sheets locally so the parent block stays presentational. ──
+// ── AdminParticipantsActions — quick access to the lineup from the
+// admin Participants card. The DB-backed editor is LiveLineupPanel;
+// this drawer is view-only until coordinator handoff/add flows are
+// persisted.
 function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
   inquiry: InquiryRecord;
   /** Workspace plan tier — gates the Reassign Coordinator button.
@@ -6806,9 +6807,8 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
    *  there. Studio / Agency / Hub-Network all surface it. */
   planTier?: "free" | "studio" | "agency" | "hub-network";
 }) {
-  const { toast, state } = useAdminShell();
+  const { state } = useAdminShell();
   const [lineupOpen, setLineupOpen] = useState(false);
-  const [reassignOpen, setReassignOpen] = useState(false);
   const conv = buildConvFromInquiry(inquiry);
   const currentCoord = inquiry.coordinators[0];
   const canEdit = inquiry.status !== "wrapped" && inquiry.status !== "cancelled";
@@ -6819,16 +6819,16 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
   //     between team members — privileged operation)
   //   • Free workspaces have no team to reassign to, so reassign hides
   //     regardless of role.
-  const canAddTalent = meetsRole(state.role, "coordinator");
+  const canViewLineup = meetsRole(state.role, "coordinator");
   const canReassign = meetsRole(state.role, "admin")
     && planTier !== "free"
     && !!currentCoord;
   if (!canEdit) return null;
-  if (!canAddTalent && !canReassign) return null;
+  if (!canViewLineup && !canReassign) return null;
   return (
     <>
       <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {canAddTalent && (
+        {canViewLineup && (
           <button type="button" onClick={() => setLineupOpen(true)} style={{
             padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
             borderRadius: 999, border: "none",
@@ -6837,18 +6837,18 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
             fontFamily: FONTS.body,
           }}>
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+              <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Add talent
+            View lineup
           </button>
         )}
         {canReassign && (
-          <button type="button" onClick={() => setReassignOpen(true)} style={{
+          <button type="button" disabled title="Coordinator handoff needs a live reassignment workflow." style={disabledBtn({
             padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
             borderRadius: 999, border: `1px solid ${COLORS.border}`,
             background: "transparent", color: COLORS.ink, cursor: "pointer",
             fontFamily: FONTS.body,
-          }}>Reassign coordinator</button>
+          })}>Reassign coordinator</button>
         )}
         {/* Free-tier upgrade nudge — Reassign hides on Free, but
             instead of leaving silence, surface a soft upsell so the
@@ -6857,14 +6857,15 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
             for visual consistency. */}
         {planTier === "free" && currentCoord && meetsRole(state.role, "admin") && (
           <button type="button"
-            onClick={() => toast("Studio plan unlocks team coordinators · See plans")}
-            style={{
+            disabled
+            title="Team coordinator reassignment needs a paid workspace and live handoff workflow."
+            style={disabledBtn({
               padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
               borderRadius: 999, border: `1px dashed rgba(214,158,46,0.5)`,
               background: "rgba(214,158,46,0.08)", color: "#7C5A14",
               cursor: "pointer", fontFamily: FONTS.body,
               display: "inline-flex", alignItems: "center", gap: 5,
-            }}>
+            })}>
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
             </svg>
@@ -6877,42 +6878,12 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
         onClose={() => setLineupOpen(false)}
         conv={conv}
         inquiry={inquiry}
-        canEdit={true}
+        canEdit={false}
         povCanSeeOffers={true}
         povCanSeeCoordNote={true}
         pickerPov="admin"
         planTier={planTier}
       />
-      {canReassign && currentCoord && (
-        <ReassignCoordinatorSheet
-          open={reassignOpen}
-          onClose={() => setReassignOpen(false)}
-          currentCoordName={currentCoord.name}
-          onReassign={(newCoord, handoff, notify) => {
-            toast(`Reassigned to ${newCoord}${notify ? ` · ${currentCoord.name} notified` : ""}`);
-            // Append a system event so the change is visible in the
-            // timeline of all 3 povs (admin / client / talent).
-            applyOfferOverride(inquiry.id, {
-              appendedTimeline: [{
-                id: `reassign-${Date.now()}`,
-                ts: "now",
-                actor: currentCoord.name,
-                body: `Reassigned this project to ${newCoord}. Handoff note: "${handoff.slice(0, 80)}${handoff.length > 80 ? "…" : ""}"`,
-                tone: "info",
-              }],
-            });
-            // Push to the handoff queue so the receiving coord sees an
-            // "Incoming handoff" badge on this row in their inbox + can
-            // filter to just incoming-handoff rows.
-            recordHandoff({
-              inquiryId: inquiry.id,
-              fromCoordName: currentCoord.name,
-              toCoordName: newCoord,
-              note: handoff,
-            });
-          }}
-        />
-      )}
     </>
   );
 }
@@ -12947,7 +12918,6 @@ function LineupDrawer({
    *  Network roster). */
   planTier?: "free" | "studio" | "agency" | "network" | "hub-network";
 }) {
-  const { toast } = useAdminShell();
   const [pickerOpen, setPickerOpen] = useState(false);
   if (!open) return null;
   return (
@@ -13020,7 +12990,7 @@ function LineupDrawer({
           {pickerOpen ? (
             <AddTalentPicker
               onCancel={() => setPickerOpen(false)}
-              onAdd={(name) => { toast(`${name} added to lineup`); setPickerOpen(false); }}
+              onAdd={() => setPickerOpen(false)}
               pov={pickerPov}
               planTier={planTier}
             />
@@ -13053,14 +13023,18 @@ function LineupDrawer({
             borderTop: `1px solid ${COLORS.borderSoft}`,
             display: "flex", gap: 8,
           }}>
-            <button type="button" onClick={() => setPickerOpen(true)} style={{
+            <button
+              type="button"
+              disabled
+              title="Lineup edits need the live DB-backed lineup workflow."
+              style={disabledBtn({
               flex: 1,
               display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
               padding: "9px 14px", borderRadius: 999,
               border: "none", background: COLORS.fill, color: "#fff",
               fontSize: 12.5, fontWeight: 700, cursor: "pointer",
               fontFamily: FONTS.body,
-            }}>
+            })}>
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                 <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
               </svg>
@@ -13089,7 +13063,6 @@ function LineupMemberRow({
   povCanSeeOffers: boolean;
   conv: Conversation;
 }) {
-  const { toast } = useAdminShell();
   const isMe = talent.talentId === currentTalentId() || talent.name === MY_TALENT_PROFILE.name;
   const stateMeta = (() => {
     const s = (talent.state || "").toLowerCase();
@@ -13138,21 +13111,21 @@ function LineupMemberRow({
           )}
         </div>
       </div>
-      <button type="button" onClick={() => toast(`Open ${talent.name}'s profile`)} style={{
+      <button type="button" disabled title="Open this profile from Roster until this drawer has a live profile route." style={disabledBtn({
         flexShrink: 0,
         padding: "5px 10px", borderRadius: 999,
         border: `1px solid ${COLORS.border}`, background: "transparent",
         color: COLORS.ink, fontSize: 11, fontWeight: 600, cursor: "pointer",
         fontFamily: FONTS.body,
-      }}>View</button>
+      })}>View</button>
       {canEdit && !isMe && (
-        <button type="button" onClick={() => toast(`Remove ${talent.name} from lineup`)} aria-label={`Remove ${talent.name}`} style={{
+        <button type="button" disabled title="Use the live lineup manager to remove talent." aria-label={`Remove ${talent.name}`} style={disabledBtn({
           flexShrink: 0,
           width: 28, height: 28, borderRadius: 8,
           border: "none", background: "transparent",
           color: COLORS.coral, cursor: "pointer",
           display: "inline-flex", alignItems: "center", justifyContent: "center",
-        }}>
+        })}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <path d="M3 4h8M5 4V2.5h4V4M4 4l.5 8h5L10 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -13168,7 +13141,6 @@ function CoordinatorRow({ coordinator, conv }: {
   coordinator: { id: string; name: string; initials: string; role?: string };
   conv: Conversation;
 }) {
-  const { toast } = useAdminShell();
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
@@ -13183,13 +13155,13 @@ function CoordinatorRow({ coordinator, conv }: {
           Coordinator · {conv.agency}
         </div>
       </div>
-      <button type="button" onClick={() => toast(`Messaging ${coordinator.name}…`)} style={{
+      <button type="button" disabled title="Use the Messages tab to contact this coordinator." style={disabledBtn({
         flexShrink: 0,
         padding: "5px 10px", borderRadius: 999,
         border: `1px solid ${COLORS.border}`, background: "#fff",
         color: COLORS.ink, fontSize: 11, fontWeight: 600, cursor: "pointer",
         fontFamily: FONTS.body,
-      }}>Message</button>
+      })}>Message</button>
     </div>
   );
 }
