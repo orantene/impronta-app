@@ -156,7 +156,11 @@ export function PublishPreflight({
             <span className="rounded border border-rose-300/80 bg-rose-100/60 px-1 py-0 text-[9px] font-semibold leading-[1.2] text-rose-700">
               Blocker
             </span>
-          ) : null}
+          ) : (
+            <span className="rounded border border-amber-300/80 bg-amber-100/50 px-1 py-0 text-[9px] font-semibold leading-[1.2] text-amber-800 dark:text-amber-200">
+              Advisory
+            </span>
+          )}
         </div>
         <p className="leading-snug">{issue.message}</p>
         {issue.sectionId && onFocusSection ? (
@@ -182,14 +186,15 @@ export function PublishPreflight({
           Preflight
         </span>
         <span className="text-[10px] text-muted-foreground">
-          {errors > 0 ? `${errors} error${errors === 1 ? "" : "s"} · ` : ""}
-          {warns} warning{warns === 1 ? "" : "s"}
+          {errors > 0 ? `${errors} blocker${errors === 1 ? "" : "s"} · ` : ""}
+          {warns} advisory{warns === 1 ? "" : "s"}
         </span>
       </div>
       <p className="m-0 text-[11px] leading-snug text-muted-foreground">
-        <strong className="font-semibold text-foreground">Blockers</strong> stop Publish until
-        fixed. <strong className="font-semibold text-foreground">Warnings</strong> are
-        suggestions — you can still publish.
+        <strong className="font-semibold text-foreground">Blockers</strong> disable{" "}
+        <span className="font-medium text-foreground">Publish now</span> until fixed.{" "}
+        <strong className="font-semibold text-foreground">Advisory</strong> items are
+        non-blocking — review them, then publish if you accept the risk.
       </p>
       {blockingIssues.length > 0 ? (
         <div className="rounded-md border border-rose-300/70 bg-rose-50/50 p-2">
@@ -228,7 +233,7 @@ export function PublishPreflight({
       {warningIssues.length > 0 ? (
         <div className="rounded-md border border-amber-300/70 bg-amber-50/40 p-2">
           <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-            Warnings ({warningIssues.length})
+            Advisory — non-blocking ({warningIssues.length})
           </div>
           <ul className="flex flex-col gap-1.5 text-zinc-800">
             {warningIssues.map((issue, index) =>

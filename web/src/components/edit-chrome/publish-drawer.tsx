@@ -445,37 +445,27 @@ export function PublishDrawer() {
     preflightBlockingErrors > 0 ||
     summary.missing.length > 0 ||
     getCompositionCasVersion() === null;
-  const publishBlockReasons = useMemo(() => {
+  /**
+   * Hard blockers only — things that are wrong with *content or checks*, not
+   * transient draft/preflight state (those have their own banners above).
+   * Preflight **warnings** never appear here; only severity `error` counts.
+   */
+  const publishHardBlockReasons = useMemo(() => {
     const reasons: string[] = [];
-    if (preflightLoading) reasons.push("Preflight checks are still running.");
     if (preflightBlockingErrors > 0) {
       reasons.push(
-        `${preflightBlockingErrors} preflight blocker${
+        `${preflightBlockingErrors} item${
           preflightBlockingErrors === 1 ? "" : "s"
-        } must be resolved.`,
+        } in Preflight above ${
+          preflightBlockingErrors === 1 ? "is" : "are"
+        } marked Blocker and must be fixed. Warnings are advisory — they do not stop publish.`,
       );
     }
-    if (summary.missing.length > 0) {
-      reasons.push(
-        `Add at least one section to: ${summary.missing
-          .map((slot) => slot.label)
-          .join(", ")}.`,
-      );
-    }
-    if (saving) reasons.push("Wait for autosave to finish.");
-    else if (dirty) reasons.push("Save draft changes before publishing.");
     if (getCompositionCasVersion() === null) {
       reasons.push("Page version is unavailable. Reload and try again.");
     }
     return reasons;
-  }, [
-    dirty,
-    getCompositionCasVersion,
-    preflightBlockingErrors,
-    preflightLoading,
-    saving,
-    summary.missing,
-  ]);
+  }, [getCompositionCasVersion, preflightBlockingErrors]);
 
   const isSuccess = state.kind === "success";
 
@@ -1088,7 +1078,7 @@ export function PublishDrawer() {
             ) : null}
 
             {state.kind !== "publishing" &&
-            publishBlockReasons.length > 0 ? (
+            publishHardBlockReasons.length > 0 ? (
               <div
                 role="status"
                 aria-live="polite"
@@ -1121,7 +1111,7 @@ export function PublishDrawer() {
                     gap: 2,
                   }}
                 >
-                  {publishBlockReasons.map((reason) => (
+                  {publishHardBlockReasons.map((reason) => (
                     <li key={reason}>{reason}</li>
                   ))}
                 </ul>

@@ -5,9 +5,9 @@
  * size audit, in one server action so the publish drawer can render a
  * single "ready to publish?" card.
  *
- * Doesn't block publish — just returns warnings the operator should
- * acknowledge. The publish-drawer caller decides whether to surface
- * a "publish anyway" override.
+ * Returns `severity: "error"` (blockers) and `"warn"` (advisory). The publish
+ * drawer disables **Publish now** while any error-severity issue remains;
+ * warnings do not block publish.
  *
  * Phase 0 sweep (2026-04-26) — convergence-plan §1: the previously-orphan
  * `runAriaLandmarkCheck` action is now folded in here so its findings reach
