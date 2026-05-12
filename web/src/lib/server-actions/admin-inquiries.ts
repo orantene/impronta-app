@@ -17,6 +17,7 @@ import { logBookingActivity, logInquiryActivity } from "@/lib/server/commercial-
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 
 // Type-only import + re-export. Combined into one statement so Turbopack
 // doesn't emit a runtime reference for `AdminActionState` (it was throwing
@@ -1670,4 +1671,51 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
   revalidatePath("/admin/inquiries");
   revalidatePath(`/admin/inquiries/${sourceId}`);
   redirect(`/admin/inquiries/${created.id}`);
+}
+
+// ─── Admin message send ───────────────────────────────────────────────────────
+
+export type AdminSendMessageResult =
+  | { ok: true; messageId: string }
+  | { ok: false; error: string };
+
+/**
+ * Send a message on a private or group thread as the current staff member.
+ * Called from `InquiryWorkspaceDrawer` in the admin shell composer.
+ */
+export async function sendInquiryMessageAsAdmin(
+  inquiryId: string,
+  threadType: "private" | "group",
+  body: string,
+): Promise<AdminSendMessageResult> {
+  try {
+    const trimmed = body.trim();
+    if (!trimmed) return { ok: false, error: "Message is empty." };
+    if (trimmed.length > 10_000) return { ok: false, error: "Message is too long." };
+    if (!["private", "group"].includes(threadType)) return { ok: false, error: "Invalid thread." };
+
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: "Not authenticated." };
+    const { supabase, tenantId, user } = auth;
+
+    const result = await engineSendMessage(supabase, {
+      inquiryId,
+      tenantId,
+      actorUserId: user.id,
+      threadType,
+      body: trimmed,
+    });
+
+    if (!result.success) {
+      if (result.rateLimited) return { ok: false, error: "Sending too fast — wait a moment." };
+      if (result.forbidden)   return { ok: false, error: "Not authorised to message this inquiry." };
+      return { ok: false, error: result.error ?? "Failed to send." };
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true, messageId: result.data?.messageId ?? "" };
+  } catch (err) {
+    logServerError("admin-inquiries.sendInquiryMessageAsAdmin", err);
+    return { ok: false, error: "Unexpected error." };
+  }
 }
