@@ -33,6 +33,7 @@ import type {
   WorkspaceMediaFolder as BridgeMediaFolder,
 } from "./data-bridge";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
+import { setInquiryFlagsTenantSlug } from "./inquiry-flags-tenant-slug";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
@@ -8198,6 +8199,14 @@ export function AdminShellProvider({
       entityType: (kind === "hub" ? "hub" : "agency") as EntityType,
     };
   }, [bridgeTenantIdentity]);
+
+  // Bridge the real tenant slug down to module-level helpers in
+  // messages.tsx (togglePin/toggleManualUnread/archiveInquiry) that
+  // can't access hooks. See inquiry-flags-tenant-slug.ts for rationale.
+  useEffect(() => {
+    setInquiryFlagsTenantSlug(effectiveTenant.slug);
+    return () => setInquiryFlagsTenantSlug(null);
+  }, [effectiveTenant.slug]);
 
   // Phase 3.12.2 — talent self-surface bridge
   const effectiveTalentInquiries = useMemo<TalentInquiryRow[]>(
