@@ -6257,11 +6257,13 @@ export function TalentMessagesPage() {
   return <TalentMessagesShellLazy pov="talent" />;
 }
 
-// Legacy implementation retained as `_TalentMessagesPageLegacy` below.
-function _TalentMessagesPageLegacy() {
+// Legacy implementation retained for reference (not routed — `TalentMessagesPage` uses `TalentMessagesShellLazy`).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- reference implementation; hooks require PascalCase
+function TalentMessagesPageLegacy() {
   const [activeId, setActiveId] = useState<string>(MOCK_CONVERSATIONS[0]!.id);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "inquiry" | "hold" | "booked" | "past">("all");
+  const [sentMessagesByThread, setSentMessagesByThread] = useState<Record<string, Msg[]>>({});
   /**
    * Mobile pane state — single-pane stack on small screens.
    *   "list"   = conversation list visible, thread hidden
@@ -6309,7 +6311,28 @@ function _TalentMessagesPageLegacy() {
   }, [filteredList, activeId]);
 
   const active = MOCK_CONVERSATIONS.find((c) => c.id === activeId) ?? MOCK_CONVERSATIONS[0]!;
-  const messages = MOCK_THREAD[active.id] ?? [];
+  const messages = [
+    ...(MOCK_THREAD[active.id] ?? []),
+    ...(sentMessagesByThread[active.id] ?? []),
+  ];
+  const sendLocalMessage = (body: string) => {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    setSentMessagesByThread((prev) => ({
+      ...prev,
+      [active.id]: [
+        ...(prev[active.id] ?? []),
+        {
+          id: `${active.id}-local-${Date.now()}`,
+          kind: "text",
+          sender: "you",
+          body: trimmed,
+          ts: "Just now",
+          readBy: [],
+        },
+      ],
+    }));
+  };
 
   return (
     <div
@@ -6346,6 +6369,7 @@ function _TalentMessagesPageLegacy() {
       <ConversationThread
         conv={active}
         messages={messages}
+        onSendMessage={sendLocalMessage}
         onBackToList={() => setMobilePane("list")}
       />
     </div>
@@ -6718,14 +6742,12 @@ function ConversationListRow({
             fontWeight: 700,
                         color: COLORS.inkMuted,
             padding: "6px 10px 4px",
-          }}>Snooze</div>
-          <BubbleMenuItem icon="🕓" label="2 hours" onClick={() => setMenuOpen(false)} />
-          <BubbleMenuItem icon="🌅" label="Tomorrow 9 AM" onClick={() => setMenuOpen(false)} />
-          <BubbleMenuItem icon="📆" label="Monday 9 AM" onClick={() => setMenuOpen(false)} />
+          }}>Quick actions coming soon</div>
+          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+            Snooze, pin, mark read, and archive need a real inbox mutation path before they appear here.
+          </div>
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
-          <BubbleMenuItem icon="📌" label="Pin to top" onClick={() => setMenuOpen(false)} />
-          <BubbleMenuItem icon="✓" label="Mark as read" onClick={() => setMenuOpen(false)} />
-          <BubbleMenuItem icon="📁" label="Archive" onClick={() => setMenuOpen(false)} />
+          <BubbleMenuItem icon="×" label="Close menu" onClick={() => setMenuOpen(false)} />
         </div>
       )}
     </button>
@@ -6842,10 +6864,12 @@ const MOCK_REACTIONS: Record<string, string[]> = {
 export function ConversationThread({
   conv,
   messages,
+  onSendMessage,
   onBackToList,
 }: {
   conv: Conversation;
   messages: Msg[];
+  onSendMessage?: (body: string) => void;
   onBackToList?: () => void;
 }) {
   const isLocked = conv.stage === "booked";
@@ -6958,6 +6982,7 @@ export function ConversationThread({
           <Composer
             conv={conv}
             isLocked={isLocked}
+            onSendMessage={onSendMessage}
             onAfterSend={() => {
               // WS-13.3 — scroll to bottom via Virtuoso handle instead of
               // direct DOM scrollTop manipulation.
@@ -7105,16 +7130,11 @@ const iconButtonSm: CSSProperties = {
 };
 
 /**
- * Thread options menu — the ⋯ button in the thread header. Houses
- * thread-level actions: pin to top, mute, star/favorite, archive, block
- * client. Local state seeds the toggles so the same menu shows the
- * current state per session.
+ * Thread options menu — the options button in the thread header.
+ * Thread mutations are hidden until they can persist.
  */
 function ThreadOptionsMenu() {
-  const { toast } = useAdminShell();
   const [open, setOpen] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [starred, setStarred] = useState(false);
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
@@ -7157,13 +7177,17 @@ function ThreadOptionsMenu() {
             animation: "tulala-bubble-action-in .14s ease",
           }}
         >
-          <BubbleMenuItem icon={starred ? "⭐" : "☆"} label={starred ? "Starred" : "Star thread"} onClick={() => { setStarred((v) => !v); setOpen(false); }} />
-          <BubbleMenuItem icon={muted ? "🔕" : "🔔"} label={muted ? "Muted · unmute" : "Mute notifications"} onClick={() => { setMuted((v) => !v); setOpen(false); }} />
-          <BubbleMenuItem icon="📌" label="Pin to top of inbox" onClick={() => setOpen(false)} />
-          <BubbleMenuItem icon="📤" label="Export thread (PDF)" onClick={() => setOpen(false)} />
-          <BubbleMenuItem icon="📁" label="Archive thread" onClick={() => setOpen(false)} />
+          <div style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: COLORS.inkMuted,
+            padding: "6px 10px 4px",
+          }}>Thread actions coming soon</div>
+          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+            Star, mute, pin, export, archive, and block need real thread mutations before they appear here.
+          </div>
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
-          <BubbleMenuItem icon="⛔" label="Block client" onClick={() => setOpen(false)} />
+          <BubbleMenuItem icon="x" label="Close menu" onClick={() => setOpen(false)} />
         </div>
       )}
     </div>
@@ -8105,15 +8129,12 @@ function MessageBubble({ msg, stage, isFirstOfGroup = true }: { msg: Msg; stage:
 }
 
 /**
- * SendButtonWithSchedule — primary send + long-press menu offering
- * "Schedule send" presets (Tomorrow 9am, Monday 9am, Custom). Right-click
- * also opens the menu. Useful for talent in different timezones who don't
- * want to ping coordinators at 11pm.
+ * SendButtonWithSchedule — primary send plus a disabled schedule preview.
+ * Scheduling is intentionally honest until a real delayed-send backend exists.
  */
-function SendButtonWithSchedule({ disabled, onSend, onSchedule }: {
+function SendButtonWithSchedule({ disabled, onSend }: {
   disabled: boolean;
   onSend: () => void;
-  onSchedule: (when: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const longPressRef = useRef<number | null>(null);
@@ -8145,7 +8166,7 @@ function SendButtonWithSchedule({ disabled, onSend, onSchedule }: {
           if (longPressRef.current) window.clearTimeout(longPressRef.current);
         }}
         aria-label="Send"
-        title="Tap to send · long-press / right-click for schedule"
+        title="Tap to send · scheduled send coming soon"
         disabled={disabled}
         style={{
           width: 34,
@@ -8190,20 +8211,12 @@ function SendButtonWithSchedule({ disabled, onSend, onSchedule }: {
             fontWeight: 700,
                         color: COLORS.inkMuted,
             padding: "6px 10px 4px",
-          }}>Schedule send</div>
-          {[
-            { label: "Tomorrow · 9:00", value: "tomorrow at 9:00 AM" },
-            { label: "Monday · 9:00", value: "Monday at 9:00 AM" },
-            { label: "In 1 hour", value: "in 1 hour" },
-            { label: "Custom…", value: "custom time" },
-          ].map((opt) => (
-            <BubbleMenuItem
-              key={opt.label}
-              icon="🕓"
-              label={opt.label}
-              onClick={() => { onSchedule(opt.value); close(); }}
-            />
-          ))}
+          }}>Scheduled send coming soon</div>
+          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+            Delayed send needs a queue before it can be enabled.
+          </div>
+          <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
+          <BubbleMenuItem icon="x" label="Close menu" onClick={close} />
         </div>
       )}
     </div>
@@ -8387,16 +8400,23 @@ function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: bool
             ))}
           </div>
           {/* Action menu */}
-          <BubbleMenuItem icon="↩" label="Reply" onClick={close} />
           <BubbleMenuItem icon="📋" label="Copy" onClick={() => {
             try {
               if ("body" in msg && typeof msg.body === "string") navigator.clipboard?.writeText(msg.body);
             } catch { /* noop */ }
             close();
           }} />
-          <BubbleMenuItem icon="📌" label="Pin" onClick={close} />
-          <BubbleMenuItem icon="🌐" label="Translate to English" onClick={close} />
-          <BubbleMenuItem icon="↗" label="Forward" onClick={close} />
+          <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
+          <div style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: COLORS.inkMuted,
+            padding: "6px 10px 4px",
+          }}>Message actions coming soon</div>
+          <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
+            Reply threading, pin, translate, and forward need real message actions before they appear here.
+          </div>
+          <BubbleMenuItem icon="x" label="Close menu" onClick={close} />
         </div>
       )}
     </div>
@@ -9079,8 +9099,17 @@ function TypingIndicator({ name }: { name: string }) {
   );
 }
 
-function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocked: boolean; onAfterSend?: () => void }) {
-  const { toast } = useAdminShell();
+function Composer({
+  conv,
+  isLocked,
+  onSendMessage,
+  onAfterSend,
+}: {
+  conv: Conversation;
+  isLocked: boolean;
+  onSendMessage?: (body: string) => void;
+  onAfterSend?: () => void;
+}) {
   const [text, setText] = useState("");
   const [attachOpen, setAttachOpen] = useState(false);
   // @mention (#33) — show a small autocomplete popup when the user
@@ -9113,6 +9142,13 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
         { rate: "€1,800/day", note: "Top this month" },
       ]
     : [];
+  const sendNow = () => {
+    const body = text.trim();
+    if (!body) return;
+    onSendMessage?.(body);
+    setText("");
+    onAfterSend?.();
+  };
 
   return (
     <div
@@ -9358,7 +9394,7 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               if (text.trim()) {
-                setText("");
+                sendNow();
                 e.currentTarget.style.height = "auto";
               }
             }
@@ -9382,18 +9418,20 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
         <button
           type="button"
           aria-label="Voice note"
-          title="Hold to record"
+          title="Voice notes coming soon"
+          disabled
           style={{
             width: 32,
             height: 32,
             borderRadius: 999,
             border: "none",
             background: "transparent",
-            cursor: "pointer",
+            cursor: "not-allowed",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             color: COLORS.inkMuted,
+            opacity: 0.45,
           }}
         >
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
@@ -9401,15 +9439,10 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
             <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
           </svg>
         </button>
-        <SendButtonWithSchedule disabled={!text.trim()} onSend={() => {
-          if (!text.trim()) return;
-          setText("");
-          onAfterSend?.();
-        }} onSchedule={(when) => {
-          if (!text.trim()) return;
-          setText("");
-          onAfterSend?.();
-        }} />
+        <SendButtonWithSchedule
+          disabled={!text.trim()}
+          onSend={sendNow}
+        />
       </div>
 
       {/* Attach menu — popover above composer on desktop, slides up
@@ -9724,9 +9757,6 @@ function InboxPage() {
         <BulkActionBar
           count={selected.size}
           onClear={() => setSelected(new Set())}
-          onAction={() => {
-            setSelected(new Set());
-          }}
         />
       )}
 
@@ -9793,7 +9823,6 @@ function InboxPage() {
                     return next;
                   });
                 }}
-                onSnooze={() => undefined}
                 onTemplate={() => openDrawer("reply-templates", { itemId: key })}
               />
             );
@@ -9892,7 +9921,7 @@ function AIReplyAssistant({ item }: { item: InboxItem | null }) {
             }}
           >
             {expanded
-              ? "Pick a variant — edit if needed, then send."
+              ? "Pick a variant, then open the thread to reply."
               : "3 reply variants ready. Click to preview."}
           </div>
         </div>
@@ -9948,6 +9977,7 @@ function AIReplyAssistant({ item }: { item: InboxItem | null }) {
                 onClick={() => {
                   setPickedIdx(null);
                   setExpanded(false);
+                  item.onOpen();
                 }}
                 style={{
                   background: COLORS.fill,
@@ -9961,7 +9991,7 @@ function AIReplyAssistant({ item }: { item: InboxItem | null }) {
                   cursor: "pointer",
                 }}
               >
-                Send →
+                Open thread →
               </button>
             </div>
           )}
@@ -10062,16 +10092,15 @@ const inboxToolbarSelectStyle: CSSProperties = {
 
 /**
  * Audit #23 — bulk action bar. Renders inline above the list when one
- * or more rows are selected. Decline / hold / archive in one click.
+ * or more rows are selected. Bulk mutation is not wired yet, so this
+ * only exposes selection count and clearing.
  */
 function BulkActionBar({
   count,
   onClear,
-  onAction,
 }: {
   count: number;
   onClear: () => void;
-  onAction: (label: string) => void;
 }) {
   return (
     <div
@@ -10091,27 +10120,9 @@ function BulkActionBar({
         {count} selected
       </span>
       <span style={{ flex: 1 }} />
-      {(["Hold open", "Decline", "Archive"] as const).map((label) => (
-        <button
-          key={label}
-          onClick={() => onAction(label)}
-          style={{
-            background: "rgba(255,255,255,0.10)",
-            border: "1px solid rgba(255,255,255,0.18)",
-            color: "#fff",
-            borderRadius: 7,
-            padding: "5px 12px",
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            fontWeight: 500,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
-        >
-          {label}
-        </button>
-      ))}
+      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.74)" }}>
+        Bulk actions coming soon
+      </span>
       <button
         onClick={onClear}
         aria-label="Clear selection"
@@ -10367,7 +10378,7 @@ function InboxRow({
       <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
       </button>
       {/* Audit #25 + #53 — hover-only quick actions: snooze + insert
-          template. Click on these doesn't propagate to the row's open
+          saved replies. Click on this doesn't propagate to the row's open
           handler. Always reserve space (visibility:hidden when not
           hovering) so the row width doesn't jump. */}
       <div
@@ -10395,8 +10406,8 @@ function InboxRow({
         {onTemplate && item.category === "action" && (
           <button
             onClick={(e) => { e.stopPropagation(); onTemplate(); }}
-            aria-label="Insert reply template"
-            title="Reply with template"
+            aria-label="Open saved replies"
+            title="Open saved replies"
             style={inboxHoverIconStyle}
           >
             <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
@@ -15300,4 +15311,3 @@ function PublicPageEditor() {
     </div>
   );
 }
-

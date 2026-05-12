@@ -151,9 +151,6 @@
     }
   },
   "src/components/admin/shell/internal/talent.tsx": {
-    "react-hooks/rules-of-hooks": {
-      "count": 5
-    },
     "react/no-unescaped-entities": {
       "count": 10
     }
