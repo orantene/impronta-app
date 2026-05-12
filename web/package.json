@@ -54,7 +54,7 @@
     "test:e2e:impronta-template-gallery": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta template gallery'",
     "test:e2e:impronta-panel-pages": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta pages menu opens from panel deep link'",
     "test:e2e:impronta-navigator-layers": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta navigator layers show child-node metadata'",
-    "test:e2e:impronta-navigator-layer-filtering": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta navigator layers collapse and search child nodes'",
+    "test:e2e:impronta-navigator-layer-filtering": "npm run test:e2e:impronta-navigator-layers-collapse-search",
     "test:e2e:impronta-navigator-keyboard": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta navigator keyboard controls and tab-gated action chrome'",
     "test:e2e:impronta-navigator-layer-actions": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta navigator layer actions copy paste and duplicate child nodes'",
     "test:e2e:impronta-layout-presets": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta layout inspector exposes section spacing presets'",
