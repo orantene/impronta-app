@@ -4952,13 +4952,11 @@ function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () 
   // G-pass — when conv.id is a real inquiry UUID, the client-side header
   // CTA routes through clientApproveCurrentOffer / clientRejectCurrentOffer
   // depending on which action the inquiry calls for. Synthetic mock conv
-  // ids (c1..c12, m1..m8, g1..g4) keep the toast-only stub.
+  // ids and unsupported actions stay disabled instead of pretending to run.
   const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
   const handleClientCtaClick = (label: string) => {
-    if (!isRealInquiry) { toast(label); return; }
-    // Heuristic: "Approve" or "Sign" → approve; otherwise just toast.
-    // A future iteration can route Sign → Stripe checkout etc.
-    if (/approve|sign/i.test(label)) {
+    if (!isRealInquiry) return;
+    if (/approve/i.test(label)) {
       startTransition(async () => {
         const r = await clientApproveCurrentOffer(conv.id);
         if (!r.ok) toast(`Approve failed: ${r.error}`);
@@ -4985,7 +4983,6 @@ function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () 
       });
       return;
     }
-    toast(label);
   };
 
   // Mock talent lineup for client view (would come from inquiry record)
@@ -5022,15 +5019,29 @@ function ClientProjectDetail({ conv, onBack }: { conv: Conversation; onBack: () 
         rightSlot={(() => {
           const action = CLIENT_NEXT_ACTION_FOR_CONV[conv.id];
           if (!action) return null;
+          const canRunAction = isRealInquiry && /approve|reject|decline|pass|pay|invoice|verify card/i.test(action.label);
           return (
-            <button type="button" onClick={() => handleClientCtaClick(action.label)} style={{
+            <button
+              type="button"
+              disabled={!canRunAction}
+              title={canRunAction ? undefined : "This client action needs a live workflow before it can run here."}
+              onClick={canRunAction ? () => handleClientCtaClick(action.label) : undefined}
+              style={canRunAction ? {
               padding: "5px 11px", borderRadius: 999,
               border: action.primary ? "none" : `1px solid ${COLORS.border}`,
               background: action.primary ? COLORS.success : "transparent",
               color: action.primary ? "#fff" : COLORS.ink,
               fontSize: 11.5, fontWeight: 700, cursor: "pointer",
               fontFamily: FONTS.body,
-            }}>
+            } : disabledBtn({
+              padding: "5px 11px", borderRadius: 999,
+              border: action.primary ? "none" : `1px solid ${COLORS.border}`,
+              background: action.primary ? COLORS.success : "transparent",
+              color: action.primary ? "#fff" : COLORS.ink,
+              fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+              fontFamily: FONTS.body,
+            })}
+            >
               {action.label}
             </button>
           );
@@ -5091,7 +5102,8 @@ function ClientTabsBlock({
             title="Talent group is internal"
             subtitle={`This is the coordinator's working thread with the talent (${lineup.map(t => t.name.split(" ")[0]).join(", ")}). You don't need to see it day-to-day, but ${conv.leader.name} can pull you in if it's useful.`}
             requestLabel="Ask coordinator to share"
-            onRequest={() => toast("Request sent to coordinator")}
+            disabled
+            disabledTitle="Share requests need a live coordinator workflow."
             ghostPreview={
               <>
                 <div style={{ marginBottom: 8 }}><strong>{conv.leader.name}:</strong> Lineup confirmed for May 6. Marta + Tomás locked, Zara on standby…</div>
@@ -9678,12 +9690,14 @@ function tabIcon(id: ThreadTabId, locked: boolean): React.ReactNode {
 
 // ── Locked overlay — stylish frosted "request access" panel ──
 function LockedTabOverlay({
-  title, subtitle, requestLabel, onRequest, ghostPreview,
+  title, subtitle, requestLabel, onRequest, disabled, disabledTitle, ghostPreview,
 }: {
   title: string;
   subtitle: string;
   requestLabel: string;
-  onRequest: () => void;
+  onRequest?: () => void;
+  disabled?: boolean;
+  disabledTitle?: string;
   /** Optional faint preview behind the overlay — gives a sense of what's there */
   ghostPreview?: React.ReactNode;
 }) {
@@ -9741,15 +9755,30 @@ function LockedTabOverlay({
             Request sent — coordinator will review
           </div>
         ) : (
-          <button type="button" onClick={() => { onRequest(); setPending(true); }} style={{
+          <button
+            type="button"
+            disabled={disabled}
+            title={disabled ? disabledTitle : undefined}
+            onClick={() => {
+              if (!onRequest) return;
+              onRequest();
+              setPending(true);
+            }}
+            style={disabled ? disabledBtn({
+            marginTop: 16, padding: "9px 16px", borderRadius: 8, border: "none",
+            background: COLORS.fill, color: "#fff",
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            transition: `transform ${TRANSITION.micro}, opacity ${TRANSITION.sm}`,
+          }) : {
             marginTop: 16, padding: "9px 16px", borderRadius: 8, border: "none",
             background: COLORS.fill, color: "#fff",
             fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
             display: "inline-flex", alignItems: "center", gap: 6,
             transition: `transform ${TRANSITION.micro}, opacity ${TRANSITION.sm}`,
           }}
-          onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.97)"; }}
-          onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+          onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = "scale(0.97)"; }}
+          onMouseUp={(e) => { if (!disabled) e.currentTarget.style.transform = "scale(1)"; }}
           >
             {requestLabel}
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
