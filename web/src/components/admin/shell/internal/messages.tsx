@@ -2318,8 +2318,8 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
       primary: { label: "Send offer", tone: "primary", onClick: () => { setActiveTab("offer"); toast("Open offer"); } },
     };
     if (stageBucket === "booked") return {
-      hint: "Booked. Build the call sheet.",
-      primary: { label: "Build call sheet", tone: "success", onClick: () => { setActiveTab("logistics"); toast("Call sheet editor"); } },
+      hint: "Booked. Call sheet editing is coming soon.",
+      primary: { label: "Open logistics", tone: "success", onClick: () => { setActiveTab("logistics"); } },
     };
     return {};
   })();
@@ -7100,7 +7100,7 @@ function AdminBookingTab({
       return { label: "Review counter", sub: "Client came back with a counter-offer.", tone: "primary" };
     }
     if (inquiry.status === "approved" || inquiry.status === "booked") {
-      return { label: "Build call sheet", sub: "Booked. Lock the production details.", tone: "success" };
+      return { label: "Open logistics", sub: "Booked. Call sheet editing is coming soon.", tone: "success" };
     }
     return null;
   })();
@@ -7177,15 +7177,15 @@ function AdminBookingTab({
               {adminAction.sub}
             </div>
           </div>
-          <button type="button" onClick={() => toast(adminAction.label)} style={{
+          <span style={{
             flexShrink: 0,
             padding: "8px 14px", borderRadius: 999,
             background: heroPalette.fg, color: "#fff",
-            border: "none", cursor: "pointer",
+            opacity: 0.72,
             fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
           }}>
-            Do it
-          </button>
+            Use tabs
+          </span>
         </div>
       ) : days ? (
         <div style={{
@@ -7690,16 +7690,17 @@ function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourRate: st
 
       {isPast && (
         <DetailSection title="Receipt">
-          <button type="button" onClick={() => toast("Receipt downloaded")} style={{
+          <button type="button" disabled title="Receipt downloads coming soon" style={{
             padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
-            border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink, cursor: "pointer",
+            border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink, cursor: "not-allowed", opacity: 0.45,
             display: "inline-flex", alignItems: "center", gap: 6,
           }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <path d="M7 1v9m0 0L4 7m3 3l3-3M2 12h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Download receipt (PDF)
+            Receipt download
           </button>
+          <span style={{ marginLeft: 8, fontSize: 11, color: COLORS.inkMuted }}>Coming soon</span>
         </DetailSection>
       )}
     </div>
@@ -8094,16 +8095,16 @@ export function resolveShellAction(
   // branch because once booked the focus shifts from offer to call sheet.
   if (conv.stage === "booked") {
     if (pov === "client")
-      return { hint: "Booking confirmed.", primary: { label: "View call sheet", tone: "primary", onClick: () => toast("Opening call sheet") } };
+      return { hint: "Booking confirmed. Call sheet tools are coming soon." };
     if (pov === "talent" || pov === "talent_coord")
-      return { hint: "You're booked.", primary: { label: "Open call sheet", tone: "primary", onClick: () => toast("Opening call sheet") } };
-    return { hint: "Booked. Build the call sheet.", primary: { label: "Build call sheet", tone: "primary", onClick: () => toast("Call sheet editor") } };
+      return { hint: "You're booked. Call sheet tools are coming soon." };
+    return { hint: "Booked. Call sheet tools are coming soon." };
   }
 
   // Past stage — wrapped + paid; conversation is read-only context.
   if (conv.stage === "past") {
-    if (pov === "client") return { hint: "Wrapped. Selects approved.", secondary: { label: "Open archive", tone: "ghost", onClick: () => toast("Opening archive") } };
-    if (pov === "talent" || pov === "talent_coord") return { hint: "Wrapped. Receipt available.", secondary: { label: "Download receipt", tone: "ghost", onClick: () => toast("Receipt downloaded") } };
+    if (pov === "client") return { hint: "Wrapped. Archive tools are coming soon." };
+    if (pov === "talent" || pov === "talent_coord") return { hint: "Wrapped. Receipt tools are coming soon." };
   }
 
   // ── Offer-driven actions: defer to nextActionFor as the single
@@ -14329,11 +14330,9 @@ function ConversationTab({
               }
             }}
             workspaceName={conv.agency}
-            canSendAsWorkspace={povCanSeeOffers}
-            onSendAsWorkspace={(text) => {
-              appendLocalMessage(stashKey, text, "workspace");
-              toast(`Sent as ${conv.agency}`);
-            }}
+            // Sender attribution is a server concern. Keep send-as hidden
+            // until persisted sender roles are supported.
+            canSendAsWorkspace={false}
           />
         )}
       </div>
@@ -14424,7 +14423,6 @@ function DraftComposer({
   canSendAsWorkspace?: boolean;
   onSendAsWorkspace?: (text: string) => void;
 }) {
-  const { toast } = useAdminShell();
   const [val, setVal] = useState(() => __draftStore.get(threadKey) ?? "");
   const [hasSent, setHasSent] = useState(false);
   // Send-as state — defaults to "you" so accidental posts don't
@@ -14547,9 +14545,9 @@ function DraftComposer({
         </div>
       )}
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <button type="button" aria-label="Attach file" onClick={() => toast("Attach a file…")} style={{
+        <button type="button" aria-label="Attach file" title="File attachments coming soon" disabled style={{
           width: 36, height: 36, borderRadius: "50%", border: "none",
-          background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
+          background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
           display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
         }}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -14592,9 +14590,9 @@ function DraftComposer({
           }}
         />
         {!val && (
-          <button type="button" aria-label="Voice note" onClick={() => toast("Voice note recording…")} style={{
+          <button type="button" aria-label="Voice note" title="Voice notes coming soon" disabled style={{
             width: 36, height: 36, borderRadius: "50%", border: "none",
-            background: "transparent", color: COLORS.inkMuted, cursor: "pointer",
+            background: "transparent", color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
             display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}>
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
