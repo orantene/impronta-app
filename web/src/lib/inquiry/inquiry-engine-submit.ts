@@ -138,6 +138,24 @@ export async function submitInquiry(
 
     const inquiryId = row.id as string;
 
+    // M5.6 requirement: every inquiry needs a default `inquiry_requirement_groups`
+    // row before any participants with role='talent' can be inserted (the
+    // trg_inquiry_participants_default_group trigger auto-fills
+    // requirement_group_id from it). Create it now, before any participant inserts.
+    const { data: defaultGroup } = await supabase
+      .from("inquiry_requirement_groups")
+      .insert({
+        inquiry_id: inquiryId,
+        tenant_id: input.tenant_id,
+        role_key: "talent",
+        quantity_required: Math.max(input.talent_profile_ids.length, 1),
+        sort_order: 0,
+      })
+      .select("id")
+      .single();
+
+    const defaultGroupId = defaultGroup?.id as string | undefined;
+
     if (input.client_user_id) {
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
@@ -174,6 +192,7 @@ export async function submitInquiry(
         status: "invited",
         sort_order: sort++,
         added_by_user_id: input.actorUserId,
+        requirement_group_id: defaultGroupId ?? null,
       });
     }
 
