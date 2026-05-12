@@ -10,6 +10,7 @@ import {
   sendClientInquiryMessage,
 } from "./actions";
 import { logServerError } from "@/lib/server/safe-error";
+import { formatClientDate } from "../../date-format";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string; id: string }>;
@@ -46,16 +47,7 @@ function statusLabel(status: string): string {
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return "—";
-  }
+  return formatClientDate(iso, "-");
 }
 
 type MsgRow = {

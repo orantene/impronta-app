@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadClientInquiries } from "../../_data-bridge";
+import { clientDateMs, formatClientDate } from "../date-format";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -50,17 +51,13 @@ function statusTone(status: string) {
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  } catch {
-    return "—";
-  }
+  return formatClientDate(iso, "-");
 }
 
 function relativeDate(iso: string): string {
   const now = Date.now();
-  const then = new Date(iso).getTime();
+  const then = clientDateMs(iso);
+  if (then === null) return "-";
   const diffMs = now - then;
   const diffH = diffMs / (1000 * 60 * 60);
   if (diffH < 1) return "just now";

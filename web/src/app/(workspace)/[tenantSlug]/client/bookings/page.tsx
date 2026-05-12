@@ -9,6 +9,11 @@ import {
   loadClientBookings,
   type ClientBookingRow,
 } from "../../_data-bridge";
+import {
+  formatClientWeekdayDate,
+  getClientDateParts,
+  isPastClientDate,
+} from "../date-format";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -29,22 +34,11 @@ const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "TBC";
-  try {
-    return new Date(iso).toLocaleDateString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return "TBC";
-  }
+  return formatClientWeekdayDate(iso, "TBC");
 }
 
 function isPast(iso: string | null): boolean {
-  if (!iso) return false;
-  return new Date(iso).getTime() < Date.now();
+  return isPastClientDate(iso);
 }
 
 function BookingRow({
@@ -57,6 +51,7 @@ function BookingRow({
   total: number;
 }) {
   const future = !isPast(booking.event_date);
+  const dateParts = getClientDateParts(booking.event_date);
   return (
     <div
       style={{
@@ -81,7 +76,7 @@ function BookingRow({
           padding: "6px 4px",
         }}
       >
-        {booking.event_date ? (
+        {dateParts ? (
           <>
             <div
               style={{
@@ -92,10 +87,10 @@ function BookingRow({
                 fontVariantNumeric: "tabular-nums",
               }}
             >
-              {new Date(booking.event_date).getDate()}
+              {dateParts.day}
             </div>
             <div style={{ fontSize: 9.5, fontWeight: 600, color: future ? C.greenDeep : C.inkDim, textTransform: "uppercase", letterSpacing: 0.5 }}>
-              {new Date(booking.event_date).toLocaleDateString("en-GB", { month: "short" })}
+              {dateParts.monthShort}
             </div>
           </>
         ) : (
