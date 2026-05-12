@@ -38,6 +38,9 @@ echo "Ready:"
 echo "  http://localhost:3000           # default host (admin/dev)"
 echo "  http://app.local:3102           # app.tulala.digital equivalent"
 echo
+echo "Path-tenant URLs like /impronta?edit=1 require Host localhost — use"
+echo "  http://localhost:3000/impronta?edit=1   (not app.local:3102) for Impronta builder QA."
+echo
 echo "Add /etc/hosts entries if you want to type 'app.local' in the browser:"
 echo "  127.0.0.1  app.local marketing.local impronta.local"
 echo
