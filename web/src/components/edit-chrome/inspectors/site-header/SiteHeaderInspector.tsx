@@ -131,7 +131,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
     setHasUndo(false);
   }, []);
 
-  // Auto-dismiss the "Saved" indicator after 1.5s. The "Saving…" state
+  // Auto-dismiss the "Draft saved" indicator after 1.5s. The "Saving…" state
   // stays visible the whole time the action is in flight; once it
   // settles we acknowledge briefly, then return the inspector to its
   // calm idle state. Premium UX rule: status messages don't camp on
@@ -723,7 +723,7 @@ function UndoButton({
 
 function SaveBanner({ status }: { status: SaveStatus }) {
   // Errors keep the bordered red treatment — they're the only state
-  // worth "stopping the operator." Saving / Saved are inline status
+  // worth "stopping the operator." Saving / draft-saved are inline status
   // dots, not banners.
   if (status.kind === "error") {
     return (
@@ -745,7 +745,7 @@ function SaveBanner({ status }: { status: SaveStatus }) {
             saving ? "animate-pulse bg-indigo-400" : "bg-emerald-500"
           }`}
         />
-        {saving ? "Saving…" : "Saved"}
+        {saving ? "Saving…" : "Draft saved"}
       </div>
     );
   }

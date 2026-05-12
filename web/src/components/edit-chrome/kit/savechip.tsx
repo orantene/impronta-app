@@ -5,7 +5,7 @@
  * top-bar status indicator.
  *
  * Five states map to the editor's autosave / publish lifecycle:
- *   - "saved"     green · last save committed
+ *   - "saved"     green · last draft save committed
  *   - "saving"    blue + pulsing dot · save in flight
  *   - "dirty"     amber · unsaved changes
  *   - "error"     rose · last save failed
@@ -80,7 +80,7 @@ export function SaveChip({ status, label, title, className }: SaveChipProps) {
 function defaultLabel(status: SaveChipStatus): string {
   switch (status) {
     case "saved":
-      return "Saved";
+      return "Draft saved";
     case "saving":
       return "Saving";
     case "dirty":

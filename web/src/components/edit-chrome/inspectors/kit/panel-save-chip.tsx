@@ -65,7 +65,7 @@ export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
         <span className="size-1.5 rounded-full bg-emerald-500" />
-        Saved
+        Draft saved
       </span>
     );
   }
