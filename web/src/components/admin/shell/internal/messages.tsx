@@ -5125,7 +5125,11 @@ function ClientTabsBlock({
           design language is consistent across roles. */}
       {activeTab === "booking" && (
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-          <ClientProjectViewTab conv={conv} inquiry={convToInquiry(conv)} />
+          <ClientProjectViewTab
+            conv={conv}
+            inquiry={convToInquiry(conv)}
+            onOpenClientThread={() => setActiveTab("client")}
+          />
         </div>
       )}
       <ShellNextActionBar {...resolveShellAction(conv, "client", toast)} />
@@ -6073,10 +6077,11 @@ function TalentBookingTab({
 // No "submit rate" flow (talent-only) and no commercial breakdown
 // (handled by the dedicated Offer tab when they're approving / paying).
 function ClientProjectViewTab({
-  conv, inquiry,
+  conv, inquiry, onOpenClientThread,
 }: {
   conv: Conversation;
   inquiry: InquiryRecord;
+  onOpenClientThread: () => void;
 }) {
   const { toast } = useAdminShell();
   const pinned = conv.pinned ?? {};
@@ -6100,10 +6105,6 @@ function ClientProjectViewTab({
   // with the client's pov so picker tabs read "Favorites / Recent /
   // All Tulala" and edits are framed as "request changes".
   const [lineupOpen, setLineupOpen] = useState(false);
-  // Change-coordinator sheet — opens from the "Manage" overflow on
-  // the Your-contact card. Lets the client request a re-assign, ask
-  // for a backup coordinator, or send a private note to the agency.
-  const [coordSheetOpen, setCoordSheetOpen] = useState(false);
   const actionKind: ClientActionKind | null = (() => {
     if (!action?.primary) return null;
     const l = action.label.toLowerCase();
@@ -6424,20 +6425,19 @@ function ClientProjectViewTab({
                       : `Coordinator · ${conv.agency}`}
                   </div>
                 </div>
-                {/* "Manage" overflow — opens the change-coordinator
-                    sheet (request reassign / add backup / private
-                    note). Uses the same kebab pattern the rest of the
-                    app uses for secondary row actions. */}
+                {/* Coordinator-change requests need a persisted agency-ops
+                    queue before we can safely expose them to clients. */}
                 {inquiry.status !== "wrapped" && inquiry.status !== "cancelled" && (
                   <button type="button"
-                    onClick={() => setCoordSheetOpen(true)}
-                    aria-label="Manage coordinator"
+                    disabled
+                    title="Coordinator change requests coming soon"
+                    aria-label="Coordinator management coming soon"
                     style={{
                       flexShrink: 0,
                       width: 28, height: 28, borderRadius: 8,
                       border: `1px solid ${COLORS.borderSoft}`,
                       background: "transparent", color: COLORS.inkMuted,
-                      cursor: "pointer",
+                      cursor: "not-allowed", opacity: 0.45,
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
                     }}>
                     <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -6448,7 +6448,7 @@ function ClientProjectViewTab({
                   </button>
                 )}
               </div>
-              <button type="button" onClick={() => toast(`Messaging ${coord.name}…`)} style={{
+              <button type="button" onClick={onOpenClientThread} style={{
                 marginTop: 10, width: "100%",
                 padding: "7px 10px", borderRadius: 8,
                 border: `1px solid ${COLORS.border}`, background: "transparent",
@@ -6578,127 +6578,13 @@ function ClientProjectViewTab({
         povCanSeeCoordNote={false}
         pickerPov="client"
       />
-      {/* Change-coordinator sheet — three soft options that don't put
-          the agency relationship at risk: request a re-assign (escalates
-          to agency owner), add a backup (parallel coordinator for
-          coverage), or send a private note. */}
-      <ChangeCoordinatorSheet
-        open={coordSheetOpen}
-        onClose={() => setCoordSheetOpen(false)}
-        coordName={coord?.name ?? ""}
-        agency={conv.agency}
-      />
-    </div>
-  );
-}
-
-// ── ChangeCoordinatorSheet — small modal that lives off the Your-contact
-// kebab on the client's project view. Three soft actions that respect
-// the agency relationship (no "fire your coordinator" surface — that
-// happens off-platform). All three resolve to a toast in the prototype;
-// production would write a request to the agency-ops queue. ──
-function ChangeCoordinatorSheet({
-  open, onClose, coordName, agency,
-}: {
-  open: boolean;
-  onClose: () => void;
-  coordName: string;
-  agency: string;
-}) {
-  const { toast } = useAdminShell();
-  if (!open) return null;
-  const options: { id: string; label: string; sub: string; tone: "neutral" | "warning"; onPick: () => void }[] = [
-    {
-      id: "reassign",
-      label: "Request a different coordinator",
-      sub: `Sends a private note to ${agency}'s ops team. ${coordName} won't be notified directly.`,
-      tone: "warning",
-      onPick: () => { toast("Reassign request sent to agency ops"); onClose(); },
-    },
-    {
-      id: "backup",
-      label: "Add a backup coordinator",
-      sub: "Asks for a second coordinator on the project for coverage during holidays / handoffs.",
-      tone: "neutral",
-      onPick: () => { toast("Backup-coordinator request sent"); onClose(); },
-    },
-    {
-      id: "note",
-      label: "Send a private note to the agency",
-      sub: "Goes to the agency owner — not your coordinator. Use for sensitive feedback.",
-      tone: "neutral",
-      onPick: () => { toast("Private note opened"); onClose(); },
-    },
-  ];
-  return (
-    <div role="dialog" aria-modal="true" aria-label="Change coordinator" style={{
-      position: "fixed", inset: 0, zIndex: 9999, fontFamily: FONTS.body,
-    }}>
-      <div onClick={onClose} style={{
-        position: "absolute", inset: 0, background: "rgba(11,11,13,0.45)",
-      }} />
-      <style dangerouslySetInnerHTML={{ __html:
-        "@media (max-width: 720px){"
-        + "[data-tulala-coord-sheet]{"
-        + "left:0!important;right:0!important;top:auto!important;bottom:0!important;"
-        + "transform:none!important;width:auto!important;max-width:none!important;"
-        + "border-radius:16px 16px 0 0!important;"
-        + "}}"
-      }} />
-      <aside data-tulala-coord-sheet style={{
-        position: "absolute",
-        top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-        width: 420, maxWidth: "calc(100vw - 32px)",
-        background: "#fff", borderRadius: 14,
-        boxShadow: "0 32px 80px -16px rgba(11,11,13,0.40), 0 8px 24px rgba(11,11,13,0.10)",
-        overflow: "hidden",
-      }}>
-        <div style={{
-          padding: "14px 16px", borderBottom: `1px solid ${COLORS.borderSoft}`,
-          display: "flex", alignItems: "flex-start", gap: 10,
-        }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{
-              margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 700,
-              color: COLORS.ink, letterSpacing: -0.2,
-            }}>Change coordinator</h2>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>
-              {coordName} is your point of contact at {agency}.
-            </div>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" style={{
-            flexShrink: 0,
-            width: 28, height: 28, borderRadius: 8,
-            border: "none", background: "transparent",
-            color: COLORS.inkMuted, cursor: "pointer", fontSize: 18, lineHeight: 1,
-          }}>×</button>
-        </div>
-        <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-          {options.map(o => (
-            <button key={o.id} type="button" onClick={o.onPick} style={{
-              display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3,
-              padding: "11px 14px", borderRadius: 10,
-              background: "#fff", color: COLORS.ink,
-              border: `1px solid ${o.tone === "warning" ? `${COLORS.coral}40` : COLORS.borderSoft}`,
-              cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
-            }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: o.tone === "warning" ? COLORS.coralDeep : COLORS.ink }}>
-                {o.label}
-              </span>
-              <span style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
-                {o.sub}
-              </span>
-            </button>
-          ))}
-        </div>
-      </aside>
     </div>
   );
 }
 
 // ── ReassignCoordinatorSheet — admin/coord-side flow for actually
 // moving a project to a different coordinator. Different shape from the
-// client-side ChangeCoordinatorSheet:
+// client-side coordinator-change control:
 //   • Lists workspace coordinators with current load + availability
 //   • Requires a handoff note (so the new coord knows context)
 //   • Optionally notifies the outgoing coord
