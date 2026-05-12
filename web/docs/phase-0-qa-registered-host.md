@@ -19,6 +19,8 @@ For each width, complete the checklist and note **Pass / Fail** and **Issue ID**
 | ~820px | | | | |
 | ~1440px | | | | |
 
+**Roadmap reconciliation:** Cursor plan item `verify-p0-1` tracks “doc vs roadmap truth,” not completion of this matrix. Closing `verify-p0-1` is allowed while the cells above are still empty — that only means the repo honestly records that **P0-1 is outstanding**. Filling Pass/Fail (or recording an explicit waiver + approver in [builder-execution-plan-2026.md](./builder-execution-plan-2026.md)) remains **`pr-p0-1`**.
+
 ### Steps (repeat per viewport)
 
 1. Open site workspace → live preview / builder for a CMS page (`/p/...`).
