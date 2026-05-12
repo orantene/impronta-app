@@ -119,9 +119,27 @@ export function resolveSnapshotBuilderTree(
   if (snapshot.builderTree != null) {
     const parsed = validateBuilderNodeTree(snapshot.builderTree);
     if (parsed.ok) {
+      // Client saves (e.g. create+insert) can send an up-to-date `slots` array
+      // while `builderTree` still omits the new section root — the tree stays
+      // structurally valid, so we merge against authoritative slots before
+      // hydration. Skip when every slot address is already indexed so we do
+      // not drop orphan snapshot sections when `slots` is empty (legacy tests).
+      let tree = parsed.tree;
+      const sectionIndex = indexBuilderSectionNodeIds(tree);
+      const hasSlotMissingFromTree = snapshot.slots.some((slot) => {
+        const key = builderSectionNodeAddressKey({
+          sectionId: slot.sectionId,
+          slotKey: slot.slotKey,
+          sortOrder: slot.sortOrder,
+        });
+        return Boolean(key && !sectionIndex.has(key));
+      });
+      if (hasSlotMissingFromTree) {
+        tree = reconcileBuilderTreeWithLegacySlots(tree, snapshot.slots);
+      }
       return {
         source: "snapshot_builder_tree",
-        tree: hydrateLegacySectionChildren(parsed.tree, snapshot.slots),
+        tree: hydrateLegacySectionChildren(tree, snapshot.slots),
         issues: [],
       };
     }

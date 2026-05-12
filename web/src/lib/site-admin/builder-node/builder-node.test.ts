@@ -1691,6 +1691,58 @@ test("resolveSnapshotBuilderTree prefers a valid snapshot tree", () => {
   }
 });
 
+test("resolveSnapshotBuilderTree merges authoritative slots when tree omits a newly inserted section root", () => {
+  const heroId = "11111111-1111-4111-8111-111111111111";
+  const ctaId = "22222222-2222-4222-8222-222222222222";
+  const heroOnlyTree = buildLegacySectionBuilderTree([
+    {
+      slotKey: "body",
+      sortOrder: 0,
+      sectionId: heroId,
+      sectionTypeKey: "hero",
+      name: "Hero",
+      props: { headline: "Only hero" },
+    },
+  ]);
+  const slots = [
+    {
+      slotKey: "body",
+      sortOrder: 0,
+      sectionId: heroId,
+      sectionTypeKey: "hero",
+      name: "Hero",
+      props: { headline: "Only hero" },
+    },
+    {
+      slotKey: "body",
+      sortOrder: 1,
+      sectionId: ctaId,
+      sectionTypeKey: "cta_banner",
+      name: "CTA",
+      props: {
+        eyebrow: "e",
+        headline: "h",
+        copy: "c",
+        primaryCta: { label: "Go", href: "/x" },
+      },
+    },
+  ];
+  const result = resolveSnapshotBuilderTree({
+    slots,
+    builderTree: heroOnlyTree,
+  });
+  assert.equal(result.source, "snapshot_builder_tree");
+  assert.equal(result.issues.length, 0);
+  assert.equal(result.tree.length, 2);
+  const ctaNode = result.tree.find(
+    (n) => n.kind === "section" && n.props.sectionId === ctaId,
+  );
+  assert.equal(ctaNode?.kind, "section");
+  if (ctaNode?.kind === "section") {
+    assert.equal(ctaNode.props.sortOrder, 1);
+  }
+});
+
 test("resolveSnapshotBuilderTree hydrates legacy hero child nodes when valid tree is section-only", () => {
   const sectionId = "11111111-1111-4111-8111-111111111111";
   const baseTree = [
@@ -2779,7 +2831,7 @@ test("resolveSnapshotBuilderTreeForPublish accepts valid snapshot tree", () => {
   }
 });
 
-test("resolveSnapshotBuilderTreeForPublish rejects when composition slot is missing in tree", () => {
+test("resolveSnapshotBuilderTreeForPublish reconciles when tree omits a composition slot (stale client tree)", () => {
   const sectionId = "11111111-1111-4111-8111-111111111111";
   const result = resolveSnapshotBuilderTreeForPublish({
     slots: [
@@ -2789,6 +2841,7 @@ test("resolveSnapshotBuilderTreeForPublish rejects when composition slot is miss
         sectionId,
         sectionTypeKey: "hero",
         name: "Hero",
+        props: {},
       },
     ],
     builderTree: [
@@ -2805,14 +2858,15 @@ test("resolveSnapshotBuilderTreeForPublish rejects when composition slot is miss
     ],
   });
 
-  assert.equal(result.ok, false);
-  if (!result.ok) {
-    assert.equal(
-      result.issues.some((issue) =>
-        issue.message.includes("missing section node for composition slot"),
-      ),
-      true,
-    );
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.tree.length, 1);
+    const node = result.tree[0];
+    assert.equal(node?.kind, "section");
+    if (node?.kind === "section") {
+      assert.equal(node.props.slotKey, "body");
+      assert.equal(node.props.sortOrder, 0);
+    }
   }
 });
 
