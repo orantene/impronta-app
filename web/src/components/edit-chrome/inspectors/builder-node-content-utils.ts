@@ -12,6 +12,37 @@ export function treeContainsBuilderNodeId(
   return findBuilderNodeById(tree, nodeId) != null;
 }
 
+/**
+ * P7A-2 — single source for "honest" builder child selection: never surface an
+ * override id that is missing from the reconciled tree or owned by another
+ * section (sync with `builderTree` / maps — no one-frame ghost id in context).
+ */
+export function resolveHonestSelectedBuilderNodeId(input: {
+  selectedSectionId: string | null;
+  selectedBuilderNodeIdOverride: string | null;
+  builderTree: BuilderNodeTree;
+  sectionIdByBuilderNodeId: ReadonlyMap<string, string>;
+  builderNodeIdBySectionId: ReadonlyMap<string, string>;
+}): string | null {
+  const {
+    selectedSectionId,
+    selectedBuilderNodeIdOverride,
+    builderTree,
+    sectionIdByBuilderNodeId,
+    builderNodeIdBySectionId,
+  } = input;
+  if (!selectedSectionId) return null;
+  const override = selectedBuilderNodeIdOverride;
+  if (
+    override &&
+    treeContainsBuilderNodeId(builderTree, override) &&
+    sectionIdByBuilderNodeId.get(override) === selectedSectionId
+  ) {
+    return override;
+  }
+  return builderNodeIdBySectionId.get(selectedSectionId) ?? null;
+}
+
 export function findBuilderNodeById(
   tree: BuilderNodeTree,
   nodeId: string | null,

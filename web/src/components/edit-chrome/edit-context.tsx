@@ -91,7 +91,10 @@ import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { normalizeCompositionSlots } from "./composition-slots";
-import { treeContainsBuilderNodeId } from "./inspectors/builder-node-content-utils";
+import {
+  resolveHonestSelectedBuilderNodeId,
+  treeContainsBuilderNodeId,
+} from "./inspectors/builder-node-content-utils";
 
 /** Dispatched from storefront surfaces outside `EditProvider` (empty canvas) to open the template gallery overlay. */
 export const IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT = "impronta:open-template-gallery";
@@ -1974,11 +1977,23 @@ export function EditProvider({
     sectionIdByBuilderNodeId,
     selectedSectionId,
   ]);
-  const selectedBuilderNodeId = selectedSectionId
-    ? selectedBuilderNodeIdOverride ??
-      builderNodeIdBySectionId.get(selectedSectionId) ??
-      null
-    : null;
+  const selectedBuilderNodeId = useMemo(
+    () =>
+      resolveHonestSelectedBuilderNodeId({
+        selectedSectionId,
+        selectedBuilderNodeIdOverride,
+        builderTree,
+        sectionIdByBuilderNodeId,
+        builderNodeIdBySectionId,
+      }),
+    [
+      selectedSectionId,
+      selectedBuilderNodeIdOverride,
+      builderTree,
+      sectionIdByBuilderNodeId,
+      builderNodeIdBySectionId,
+    ],
+  );
   const selectBuilderNode = useCallback(
     (nodeId: string) => {
       if (!treeContainsBuilderNodeId(builderTree, nodeId)) return;
