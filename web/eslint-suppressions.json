@@ -81,7 +81,7 @@
   },
   "src/components/admin/shell/internal/messages.tsx": {
     "react/no-unescaped-entities": {
-      "count": 25
+      "count": 24
     }
   },
   "src/components/admin/shell/internal/pages.tsx": {

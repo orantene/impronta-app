@@ -5136,6 +5136,7 @@ function ClientTabsBlock({
             conv={conv}
             inquiry={convToInquiry(conv)}
             onOpenClientThread={() => setActiveTab("client")}
+            onOpenOffer={() => setActiveTab("offer")}
           />
         </div>
       )}
@@ -6087,11 +6088,12 @@ function TalentBookingTab({
 // No "submit rate" flow (talent-only) and no commercial breakdown
 // (handled by the dedicated Offer tab when they're approving / paying).
 function ClientProjectViewTab({
-  conv, inquiry, onOpenClientThread,
+  conv, inquiry, onOpenClientThread, onOpenOffer,
 }: {
   conv: Conversation;
   inquiry: InquiryRecord;
   onOpenClientThread: () => void;
+  onOpenOffer: () => void;
 }) {
   const { toast } = useAdminShell();
   const pinned = conv.pinned ?? {};
@@ -6105,25 +6107,12 @@ function ClientProjectViewTab({
   // the client approves something or edits their notes.
   useOfferStashSubscription();
   useNotesSubscription();
-  const offer = getOffer(conv.id);
-  // Action sheet state — opens when the client clicks the Do it now
-  // hero CTA. Kind is inferred from the action label (Approve / Sign
-  // / Pay / Verify card) so each hero has the right confirmation flow.
-  const [actionSheetOpen, setActionSheetOpen] = useState(false);
+  const canOpenOfferAction = !!action?.primary && /approve|review|counter/i.test(action.label);
   // Lineup drawer — opens from the "Add talent" footer button or from
   // the per-row swap button. Same drawer the coordinator uses, but
   // with the client's pov so picker tabs read "Favorites / Recent /
   // All Tulala" and edits are framed as "request changes".
   const [lineupOpen, setLineupOpen] = useState(false);
-  const actionKind: ClientActionKind | null = (() => {
-    if (!action?.primary) return null;
-    const l = action.label.toLowerCase();
-    if (l.includes("approve")) return "approve";
-    if (l.includes("sign")) return "sign";
-    if (l.includes("pay")) return "pay";
-    if (l.includes("verify")) return "verify-card";
-    return "approve";
-  })();
 
   // Same compact card surface as the talent's TalentBookingTab so
   // the patterns look identical across roles.
@@ -6205,14 +6194,26 @@ function ClientProjectViewTab({
               {action.label}
             </div>
           </div>
-          <button type="button" onClick={() => setActionSheetOpen(true)} style={{
-            flexShrink: 0,
-            padding: "8px 14px", borderRadius: 999,
-            background: COLORS.coral, color: "#fff",
-            border: "none", cursor: "pointer",
-            fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
-          }}>
-            Do it now
+          <button
+            type="button"
+            disabled={!canOpenOfferAction}
+            title={canOpenOfferAction ? undefined : "This client action needs a live workflow before it can run here."}
+            onClick={canOpenOfferAction ? onOpenOffer : undefined}
+            style={canOpenOfferAction ? {
+              flexShrink: 0,
+              padding: "8px 14px", borderRadius: 999,
+              background: COLORS.coral, color: "#fff",
+              border: "none", cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
+            } : disabledBtn({
+              flexShrink: 0,
+              padding: "8px 14px", borderRadius: 999,
+              background: COLORS.coral, color: "#fff",
+              border: "none", cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
+            })}
+          >
+            {canOpenOfferAction ? "Open offer" : "Coming soon"}
           </button>
         </div>
       ) : days ? (
@@ -6563,18 +6564,6 @@ function ClientProjectViewTab({
           }}
         />
       </div>
-      {/* Action sheet — opens from the Do-it-now CTA. Confirms the
-          action, advances the offer stage in the module store, and
-          appends a timeline event so all 3 povs see the change. */}
-      {actionKind && (
-        <ClientActionSheet
-          open={actionSheetOpen}
-          onClose={() => setActionSheetOpen(false)}
-          conv={conv}
-          kind={actionKind}
-          offer={offer}
-        />
-      )}
       {/* Lineup drawer — same component the coordinator sees, but with
           the client's pov so picker tabs read "Favorites / Recent /
           All Tulala". Add / swap / remove all flow through here. */}
@@ -11137,7 +11126,6 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
         totalRevenue={totalRevenue}
         totalMargin={totalMargin}
         currency={currency}
-        onEditBudget={() => toast("Edit budget")}
       />
 
       {/* ── B. Participants ──────────────────────────────────── */}
@@ -11154,7 +11142,12 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
           />
         ))}
         {isAdmin && offer.coordinators.length < 2 && (
-          <button type="button" onClick={() => toast("Add coordinator")} style={dashedBtn("Add coordinator (max 2)")}>
+          <button
+            type="button"
+            disabled
+            title="Coordinator assignment needs the live offer workflow."
+            style={disabledBtn(dashedBtn("Add coordinator (max 2)"))}
+          >
             + Add coordinator
           </button>
         )}
@@ -11182,23 +11175,15 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               setRateSheetMode(mode);
               setRateSheetOpen(true);
             }}
-            onWithdraw={() => {
-              // Module-level override → visible everywhere immediately:
-              // status pill flips to "Declined", per-row actions
-              // collapse, sticky-bar copy advances, and the inbox /
-              // header rate fall back to "—" since the row's costRate
-              // is gone (well, kept for reference but status declined
-              // suppresses display).
-              setRowOverride(conv.id, r.id, {
-                status: "declined",
-                notes: "Withdrew offer · coordinator notified",
-              });
-              toast("Rate withdrawn · coordinator notified");
-            }}
           />
         ))}
         {isAdmin && (
-          <button type="button" onClick={() => toast("Invite talent")} style={dashedBtn("Invite talent")}>
+          <button
+            type="button"
+            disabled
+            title="Invite talent needs the live offer workflow."
+            style={disabledBtn(dashedBtn("Invite talent"))}
+          >
             + Invite talent
           </button>
         )}
@@ -11362,7 +11347,7 @@ function DealSummaryCard({
   totalRevenue: number;
   totalMargin: number;
   currency: string;
-  onEditBudget: () => void;
+  onEditBudget?: () => void;
 }) {
   const isClient = pov.kind === "client";
   const isAdmin = pov.kind === "admin";
@@ -11525,12 +11510,20 @@ function DealSummaryCard({
             {isClient && offer.clientBudget && (offer.stage === "no_offer" || offer.stage === "client_budget") && (
               <button
                 type="button"
+                disabled={!onEditBudget}
                 onClick={onEditBudget}
-                style={{
+                title={onEditBudget ? undefined : "Budget editing needs a live client-brief workflow."}
+                style={onEditBudget ? {
                   alignSelf: "flex-start",
                   marginTop: 4,
                   padding: 0, border: "none", background: "transparent",
                   color: COLORS.accent, cursor: "pointer",
+                  fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
+                } : {
+                  alignSelf: "flex-start",
+                  marginTop: 4,
+                  padding: 0, border: "none", background: "transparent",
+                  color: COLORS.inkMuted, cursor: "not-allowed", opacity: 0.45,
                   fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
                 }}
               >
@@ -11683,7 +11676,7 @@ function TotalCell({ label, value, accent, tone }: { label: string; value: strin
 }
 
 function LineupRowCard({
-  row, offer, pov, showCost, showRevenue, showMargin, onOpenRateSheet, onWithdraw,
+  row, offer, pov, showCost, showRevenue, showMargin, onOpenRateSheet,
 }: {
   row: LineupRow; offer: Offer; pov: OfferPov;
   showCost: boolean; showRevenue: boolean; showMargin: boolean;
@@ -11692,9 +11685,6 @@ function LineupRowCard({
    *  rate, "edit" for an already-submitted rate the talent wants to
    *  change before the offer reaches the client. */
   onOpenRateSheet?: (mode: "submit" | "edit") => void;
-  /** Talent withdraws their submitted rate. Caller writes a row
-   *  override flipping status → declined + notes the reason. */
-  onWithdraw?: () => void;
 }) {
   const { toast } = useAdminShell();
   const subCost = rowSubtotal(row, "cost");
@@ -11705,10 +11695,6 @@ function LineupRowCard({
     || (pov.kind === "talent" && pov.talentId === row.talentId)
     || (pov.kind === "talent" && pov.isCoordinator);
   const isMine = pov.kind === "talent" && pov.talentId === row.talentId;
-  // Withdraw confirmation — replaces native window.confirm with a
-  // styled bottom sheet that matches the rest of the design system.
-  const [withdrawConfirmOpen, setWithdrawConfirmOpen] = useState(false);
-
   const rowStatusTone =
       row.status === "submitted" ? { bg: COLORS.successSoft, fg: COLORS.successDeep, label: "Submitted" }
     : row.status === "approved"  ? { bg: COLORS.accentSoft,  fg: COLORS.accentDeep,  label: "Approved" }
@@ -11786,8 +11772,8 @@ function LineupRowCard({
       {/* Per-row actions for talent on their own row. Pending → opens
           submit-rate sheet (first time). Submitted → "Edit" reopens
           the same sheet pre-filled so the talent can adjust before the
-          coord sends to client. Withdraw is a destructive action and
-          stays as its own toast for now. */}
+          coord sends to client. Withdraw is visible but disabled until
+          there is a persisted workflow that can notify the coordinator. */}
       {isMine && (
         <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
           {row.status === "pending" && (
@@ -11810,11 +11796,9 @@ function LineupRowCard({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (!onWithdraw) { toast("Withdrawn"); return; }
-                  setWithdrawConfirmOpen(true);
-                }}
-                style={tinyBtn("transparent", COLORS.coral, `${COLORS.coral}40`)}
+                disabled
+                title="Withdraw needs a live coordinator workflow."
+                style={disabledBtn(tinyBtn("transparent", COLORS.coral, `${COLORS.coral}40`))}
               >
                 Withdraw
               </button>
@@ -11834,15 +11818,6 @@ function LineupRowCard({
           )}
         </div>
       )}
-      <ConfirmSheet
-        open={withdrawConfirmOpen}
-        onClose={() => setWithdrawConfirmOpen(false)}
-        onConfirm={() => onWithdraw?.()}
-        title="Withdraw your rate?"
-        body="The coordinator will be notified and your row will be removed from the offer. You can resubmit later if the coordinator re-invites you."
-        confirmLabel="Withdraw"
-        tone="danger"
-      />
     </div>
   );
 }
@@ -12253,89 +12228,6 @@ function SubmitRateSheet({
   );
 }
 
-// ── ConfirmSheet ──
-// Single-question confirmation dialog. Replaces native window.confirm
-// for actions like Withdraw rate. Same visual register as ApproveOfferSheet.
-function ConfirmSheet({
-  open, onClose, onConfirm, title, body, confirmLabel, tone = "danger",
-}: {
-  open: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  body: string;
-  confirmLabel: string;
-  tone?: "danger" | "primary";
-}) {
-  if (!open) return null;
-  const confirmBg = tone === "danger" ? COLORS.coral : COLORS.accent;
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 200,
-        background: "rgba(11,11,13,0.45)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
-        animation: "tulala-rate-fade .18s cubic-bezier(.4,0,.2,1)",
-      }}
-    >
-      <style dangerouslySetInnerHTML={{ __html:
-        "@media (min-width: 720px){.tulala-confirm-sheet{margin-bottom:auto!important;margin-top:auto!important;border-radius:14px!important;max-width:420px!important;}}"
-      }} />
-      <div
-        className="tulala-confirm-sheet"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "#fff",
-          width: "100%",
-          maxWidth: 480,
-          borderRadius: "16px 16px 0 0",
-          padding: "18px 20px 20px",
-          display: "flex", flexDirection: "column", gap: 12,
-          fontFamily: FONTS.body,
-          marginBottom: 0,
-          animation: "tulala-rate-up .24s cubic-bezier(.32,.72,0,1)",
-          boxShadow: "0 -10px 40px rgba(11,11,13,0.18)",
-        }}
-      >
-        <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, lineHeight: 1.3 }}>
-          {title}
-        </div>
-        <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-          {body}
-        </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-          <button
-            type="button" onClick={onClose}
-            style={{
-              padding: "10px 16px", borderRadius: 999,
-              background: "transparent", border: `1px solid ${COLORS.border}`,
-              color: COLORS.ink, cursor: "pointer",
-              fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
-            }}
-          >Cancel</button>
-          <button
-            type="button"
-            onClick={() => { onConfirm(); onClose(); }}
-            style={{
-              flex: 1,
-              padding: "10px 16px", borderRadius: 999,
-              background: confirmBg, color: "#fff",
-              border: "none", cursor: "pointer",
-              fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
-            }}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
@@ -12344,242 +12236,6 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
       marginBottom: 6,
     }}>
       {children}
-    </div>
-  );
-}
-
-// ── ClientActionSheet ──
-// Styled sheet for the client's primary actions: Approve offer, Sign
-// booking, Pay invoice, Verify card. Mirrors SubmitRateSheet visually
-// (bottom sheet on mobile, centered modal on desktop) but the body
-// shows what the client is about to confirm rather than a form.
-//
-// On confirm, calls applyOfferOverride to advance the offer stage
-// AND appends a timeline event so all 3 povs see the action propagate.
-type ClientActionKind = "approve" | "sign" | "pay" | "verify-card";
-function ClientActionSheet({
-  open, onClose, conv, kind, offer,
-}: {
-  open: boolean;
-  onClose: () => void;
-  conv: Conversation;
-  kind: ClientActionKind;
-  offer?: Offer;
-}) {
-  const { toast } = useAdminShell();
-  if (!open) return null;
-
-  // Per-action copy + outcome bundle. Production wires real flows
-  // (Stripe payment, DocuSign, Stripe Identity); the prototype surfaces
-  // the shape + flips stage so the demo feels real.
-  const meta = (() => {
-    if (kind === "approve") {
-      const total = offer ? offer.rows.reduce((s, r) => s + r.costRate * r.units, 0) + offer.agencyFee : 0;
-      const currency = offer?.clientBudget?.currency ?? "EUR";
-      return {
-        eyebrow: "Approve offer",
-        headline: offer ? `${fmtMoney(total, currency)} · ${offer.rows.length} talent` : "Approve",
-        body: "Approving locks the lineup, the rates, and the dates. The agency starts call-sheet prep immediately. You'll be invoiced 50% deposit on approval, balance 14 days after wrap.",
-        confirmLabel: "Approve & lock",
-        confirmTone: COLORS.success,
-        toastMsg: "Offer approved · contract drafting",
-        nextStage: "accepted" as Offer["stage"],
-        timelineActor: "Client",
-        timelineBody: offer ? `Client approved · ${fmtMoney(total, currency)} locked` : "Client approved",
-      };
-    }
-    if (kind === "sign") {
-      return {
-        eyebrow: "Sign booking",
-        headline: "Sign the booking confirmation",
-        body: "DocuSign envelope opens in a new tab. Once you sign, the agency proceeds with call-sheet + travel. Locked stages no longer accept counters.",
-        confirmLabel: "Open DocuSign",
-        confirmTone: COLORS.accent,
-        toastMsg: "Booking signed · agency notified",
-        nextStage: undefined,
-        timelineActor: "Client",
-        timelineBody: "Client signed booking confirmation",
-      };
-    }
-    if (kind === "pay") {
-      return {
-        eyebrow: "Pay invoice",
-        headline: "Settle the deposit",
-        body: "Stripe checkout opens with your card on file. 50% deposit · €1,200 holds the booking. The balance auto-charges 14 days after wrap.",
-        confirmLabel: "Pay €1,200 deposit",
-        confirmTone: COLORS.success,
-        toastMsg: "Payment confirmed · receipt emailed",
-        nextStage: undefined,
-        timelineActor: "Client",
-        timelineBody: "Client paid deposit · €1,200",
-      };
-    }
-    return {
-      eyebrow: "Verify card",
-      headline: "Add a card to unlock profiles",
-      body: "Basic-tier clients verify a card before the agency sends talent profiles. No charge — Stripe runs a $0 verification. Cards on file unlock booking + invoice flow.",
-      confirmLabel: "Verify card",
-      confirmTone: COLORS.accent,
-      toastMsg: "Card verified · profiles unlocking",
-      nextStage: undefined,
-      timelineActor: "Client",
-      timelineBody: "Client verified card on file",
-    };
-  })();
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={meta.eyebrow}
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 200,
-        background: "rgba(11,11,13,0.45)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
-        animation: "tulala-rate-fade .18s cubic-bezier(.4,0,.2,1)",
-      }}
-    >
-      <style dangerouslySetInnerHTML={{ __html:
-        "@media (min-width: 720px){.tulala-action-sheet{margin-bottom:auto!important;margin-top:auto!important;border-radius:14px!important;max-width:480px!important;}}"
-      }} />
-      <div
-        className="tulala-action-sheet"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "#fff",
-          width: "100%",
-          maxWidth: 540,
-          maxHeight: "92vh",
-          borderRadius: "16px 16px 0 0",
-          padding: "16px 18px 20px",
-          display: "flex", flexDirection: "column", gap: 14,
-          fontFamily: FONTS.body,
-          overflowY: "auto",
-          marginBottom: 0,
-          animation: "tulala-rate-up .24s cubic-bezier(.32,.72,0,1)",
-          boxShadow: "0 -10px 40px rgba(11,11,13,0.18)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>
-              {meta.eyebrow}
-            </div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.ink, marginTop: 2, lineHeight: 1.25 }}>
-              {meta.headline}
-            </div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-              {conv.client} · {conv.brief}
-            </div>
-          </div>
-          <button
-            type="button" onClick={onClose} aria-label="Close"
-            style={{
-              flexShrink: 0,
-              width: 32, height: 32, borderRadius: "50%",
-              border: "none", background: "rgba(11,11,13,0.05)",
-              color: COLORS.inkMuted, cursor: "pointer",
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-            </svg>
-          </button>
-        </div>
-
-        <div style={{
-          padding: "12px 14px", borderRadius: 12,
-          background: COLORS.surfaceAlt,
-          border: `1px solid ${COLORS.borderSoft}`,
-          fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55,
-        }}>
-          {meta.body}
-        </div>
-
-        {/* Per-row recap when approving an offer — gives the client a
-            last-look at exactly what they're locking. */}
-        {kind === "approve" && offer && (
-          <div style={{
-            padding: "10px 12px", borderRadius: 10,
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-          }}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 6 }}>
-              You're approving
-            </div>
-            {offer.rows.map(r => (
-              <div key={r.id} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8,
-                fontSize: 12.5, padding: "3px 0",
-              }}>
-                <span style={{ color: COLORS.ink, fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {r.talentName} <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>· {r.role}</span>
-                </span>
-                <span style={{ color: COLORS.ink, fontWeight: 600, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
-                  {fmtMoney(r.clientRate * r.units, offer.clientBudget?.currency ?? "EUR")}
-                </span>
-              </div>
-            ))}
-            <div style={{ height: 1, background: COLORS.borderSoft, margin: "6px 0" }} />
-            <div style={{
-              display: "flex", justifyContent: "space-between", alignItems: "baseline",
-              fontSize: 13, fontWeight: 700, color: COLORS.ink,
-            }}>
-              <span>Total</span>
-              <span style={{ fontVariantNumeric: "tabular-nums" }}>
-                {fmtMoney(
-                  offer.rows.reduce((s, r) => s + r.clientRate * r.units, 0) + offer.agencyFee,
-                  offer.clientBudget?.currency ?? "EUR",
-                )}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-          <button
-            type="button" onClick={onClose}
-            style={{
-              padding: "10px 16px", borderRadius: 999,
-              background: "transparent", border: `1px solid ${COLORS.border}`,
-              color: COLORS.ink, cursor: "pointer",
-              fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
-            }}
-          >Cancel</button>
-          <button
-            type="button"
-            onClick={() => {
-              // Push offer-level override + timeline event so every
-              // shell viewing this conv sees the action immediately.
-              if (offer && (meta.nextStage || meta.timelineBody)) {
-                applyOfferOverride(conv.id, {
-                  ...(meta.nextStage ? { stage: meta.nextStage } : {}),
-                  appendedTimeline: [{
-                    id: `local-${conv.id}-${Date.now()}`,
-                    ts: "Just now",
-                    actor: meta.timelineActor,
-                    body: meta.timelineBody,
-                    tone: kind === "approve" ? "success" : "info",
-                  }],
-                });
-              }
-              toast(meta.toastMsg);
-              onClose();
-            }}
-            style={{
-              flex: 1,
-              padding: "10px 16px", borderRadius: 999,
-              background: meta.confirmTone, color: "#fff",
-              border: "none", cursor: "pointer",
-              fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
-            }}
-          >
-            {meta.confirmLabel}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
