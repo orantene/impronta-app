@@ -126,6 +126,7 @@ export function ElementLibraryInsertPicker({
       <div
         role="alert"
         aria-live="polite"
+        aria-atomic="true"
         data-element-library-catalog-empty=""
         style={{
           fontSize: 11,
@@ -169,6 +170,9 @@ export function ElementLibraryInsertPicker({
       >
         {grouped.length === 0 ? (
           <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
             style={{
               fontSize: 11,
               fontWeight: 500,

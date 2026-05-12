@@ -228,6 +228,10 @@ export function CompositionLibraryOverlay() {
     insertSection,
     openStarterTemplateGallery,
     workspacePlan,
+    compositionLoaded,
+    compositionLoading,
+    compositionError,
+    refreshComposition,
   } = useEditContext();
   const [busyTypeKey, setBusyTypeKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1073,6 +1077,39 @@ export function CompositionLibraryOverlay() {
   // layout knobs differ per viewport mode.
   const innerContent = (
     <>
+      {compositionError ? (
+        <div
+          data-section-library-catalog-error=""
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          className="mx-[18px] mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-[12px] text-rose-950 shadow-sm"
+        >
+          <p className="m-0 font-semibold tracking-tight">
+            Couldn&apos;t load the section catalog
+          </p>
+          <p className="mt-1.5 m-0 text-[11px] font-normal leading-snug text-rose-900/90">
+            {compositionError}
+          </p>
+          <button
+            type="button"
+            data-section-library-catalog-retry=""
+            className="mt-2.5 inline-flex items-center justify-center rounded-md border border-rose-300/80 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-rose-900 shadow-sm transition hover:bg-rose-50"
+            onClick={() => void refreshComposition()}
+          >
+            Try again
+          </button>
+        </div>
+      ) : compositionLoading ? (
+        <div
+          data-section-library-catalog-loading=""
+          role="status"
+          aria-live="polite"
+          className="mx-[18px] mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] font-medium text-zinc-700"
+        >
+          {compositionLoaded ? "Updating catalog…" : "Loading catalog…"}
+        </div>
+      ) : null}
       {/* Search + tier toggle row: stable above the scrollable grid.
           On mobile this row is sticky so the operator never loses
           the search field while scrolling tiles. */}
@@ -1101,13 +1138,23 @@ export function CompositionLibraryOverlay() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            disabled={Boolean(compositionError)}
+            aria-invalid={compositionError ? true : undefined}
+            aria-describedby={
+              compositionError ? "composition-library-catalog-error-desc" : undefined
+            }
             placeholder={
               totalSearchable === 0
                 ? "No sections available"
                 : `Search ${totalSearchable} item${totalSearchable === 1 ? "" : "s"} — kits, hero, cta, testimonials…`
             }
-            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] py-2 pl-9 pr-3 text-[13px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
+            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] py-2 pl-9 pr-3 text-[13px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           />
+          {compositionError ? (
+            <span id="composition-library-catalog-error-desc" className="sr-only">
+              Catalog failed to load. Use Try again above, or fix your connection and reload the page.
+            </span>
+          ) : null}
         </div>
         {totalSearchable > 0 ? (
           <p className="mt-2 text-[11px] leading-snug text-zinc-500">
@@ -1404,6 +1451,7 @@ export function CompositionLibraryOverlay() {
         <div
           role="alert"
           aria-live="assertive"
+          aria-atomic="true"
           className="border-b border-red-100 bg-red-50 px-[18px] py-2 text-xs text-red-700"
         >
           {error}
@@ -1739,7 +1787,13 @@ function DrawerBodyInner({
           ? " Clear the search or try another category tab."
           : "";
     return (
-      <div className="space-y-2 py-12 text-center text-sm text-zinc-500">
+      <div
+        className="space-y-2 py-12 text-center text-sm text-zinc-500"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-section-library-empty=""
+      >
         <p className="m-0">
           {isSearching
             ? `No kits, templates, or section types match "${query.trim()}".`
@@ -1756,7 +1810,11 @@ function DrawerBodyInner({
   return (
     <div className="space-y-6">
       {showNoSectionTypeMatchBanner ? (
-        <div className="rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-[11px] text-zinc-700">
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-[11px] text-zinc-700"
+        >
           <p className="m-0 font-medium text-zinc-900">
             No section types match this search in the categories above.
           </p>
