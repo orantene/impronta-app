@@ -3,7 +3,7 @@
 /**
  * InquiryWorkspaceDrawer — the shared messaging-first inquiry surface.
  *
- * This drawer is the prototype's reflection of the real `admin-inquiry-workspace-v3`
+ * This drawer is the admin-shell reflection of the real `admin-inquiry-workspace-v3`
  * pattern (`web/src/app/(dashboard)/admin/inquiries/[id]/workspace-v3/*`):
  *
  *   ┌─────────────────────────────────────┐
@@ -62,7 +62,6 @@ import {
   ClientTrustChip,
   Divider,
   EmptyState,
-  GhostButton,
   Icon,
   PaymentStatusChip,
   PayoutStatusChip,
@@ -113,8 +112,6 @@ function povFromSurface(surface: string): InquiryWorkspacePov {
   if (surface === "talent") return "talent";
   return "admin";
 }
-
-const WORKSPACE_ACTIONS_COMING_SOON = "Coming soon";
 
 // ─── Body ────────────────────────────────────────────────────────
 //
@@ -503,10 +500,10 @@ function PhoneWorkspaceLayout({ inquiry, pov }: { inquiry: RichInquiry; pov: Inq
         >
           <SummaryPanel inquiry={inquiry} />
           {pov === "admin" && <CoordinatorPanel inquiry={inquiry} />}
-          <RequirementGroupsPanel inquiry={inquiry} pov={pov} />
+          <RequirementGroupsPanel inquiry={inquiry} />
           <OfferPanel inquiry={inquiry} pov={pov} />
           {(inquiry.bookingId || inquiry.stage === "approved") && (
-            <BookingPanel inquiry={inquiry} pov={pov} />
+            <BookingPanel inquiry={inquiry} />
           )}
           <PaymentPanel inquiry={inquiry} pov={pov} />
           <ActivityPanel inquiry={inquiry} />
@@ -1025,26 +1022,6 @@ function ActionBanner({ message, onDismiss }: { message: ThreadMessage; onDismis
       <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
         <button
           type="button"
-          disabled
-          title={WORKSPACE_ACTIONS_COMING_SOON}
-          style={{
-            padding: "5px 11px",
-            background: COLORS.red,
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            fontWeight: 600,
-            cursor: "not-allowed",
-            opacity: 0.45,
-            letterSpacing: 0.2,
-          }}
-        >
-          {message.requiresActionCta ?? "Resolve →"}
-        </button>
-        <button
-          type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
           style={{
@@ -1528,26 +1505,6 @@ function MessagingPanel({
             >
               <Icon name="search" size={13} color={searchActive ? COLORS.ink : COLORS.inkMuted} />
             </button>
-            <button
-              type="button"
-              data-tulala-msg-mark-read
-              disabled
-              title={unread[active] > 0 ? "Read-state sync coming soon" : undefined}
-              style={{
-                background: "transparent",
-                border: "none",
-                padding: "5px 9px",
-                fontFamily: FONTS.body,
-                fontSize: 11.5,
-                fontWeight: 500,
-                color: COLORS.inkDim,
-                cursor: "not-allowed",
-                borderRadius: 7,
-              }}
-            >
-              Mark read
-            </button>
-
             {/* WS-18.2 — AI summarize thread */}
             {pov === "admin" && (
               <button
@@ -2020,20 +1977,6 @@ function MessagingPanel({
               }}
             />
           </div>
-          {/* Voice memo */}
-          {!draft && (
-            <button
-              type="button"
-              aria-label="Voice memo"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: "6px", borderRadius: 8, color: COLORS.inkMuted, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-            >
-              <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-                <rect x="5.5" y="1.5" width="6" height="9" rx="3" stroke="currentColor" strokeWidth="1.4"/>
-                <path d="M2.5 8.5a6 6 0 0012 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                <path d="M8.5 14.5v1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-              </svg>
-            </button>
-          )}
           {/* Send */}
           <button
             type="button"
@@ -2318,32 +2261,6 @@ function WorkspaceFilesPanel({
             </button>
           ))}
         </div>
-
-        {/* Download all */}
-        <button
-          type="button"
-          disabled
-          title="Bulk download coming soon"
-          style={{
-            flexShrink: 0,
-            padding: "5px 10px",
-            borderRadius: 7,
-            border: `1px solid ${COLORS.border}`,
-            background: "transparent",
-            color: COLORS.inkMuted,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            fontWeight: 500,
-            cursor: "not-allowed",
-            opacity: 0.45,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-          }}
-        >
-          <span aria-hidden>↓</span>
-          Download all
-        </button>
       </div>
 
       {/* ── File list ── */}
@@ -2497,54 +2414,6 @@ function WorkspaceFilesPanel({
                       )}
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                    {(file.kind === "image" || file.kind === "pdf") && (
-                      <button
-                        type="button"
-                        aria-label={`Preview ${file.name}`}
-                        disabled
-                        title="File preview coming soon"
-                        style={{
-                          background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
-                          padding: "5px 7px", borderRadius: 6, color: COLORS.inkMuted,
-                          fontSize: 13,
-                        }}
-                      >
-                        👁
-                      </button>
-                    )}
-                    {/* WS-10.5 — "Replace file" for versioned files */}
-                    {file.versionGroup && pov === "admin" && (
-                      <button
-                        type="button"
-                        aria-label={`Replace ${file.name}`}
-                        disabled
-                        title="Version upload coming soon"
-                        style={{
-                          background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
-                          padding: "5px 7px", borderRadius: 6, color: COLORS.inkMuted,
-                          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 500,
-                        }}
-                      >
-                        Replace
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      aria-label={`Download ${file.name}`}
-                      disabled
-                      title="File download coming soon"
-                      style={{
-                        background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
-                        padding: "5px 7px", borderRadius: 6, color: COLORS.inkMuted,
-                        fontSize: 13,
-                      }}
-                    >
-                      ↓
-                    </button>
-                  </div>
                 </div>
 
                 {/* WS-10.5 — Version history sub-list */}
@@ -2577,33 +2446,6 @@ function WorkspaceFilesPanel({
                       <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkDim, marginTop: 1 }}>
                         {oldFile.size} · {oldFile.senderName} · {oldFile.date}
                       </div>
-                    </div>
-                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                      <button
-                        type="button"
-                        disabled
-                        title="Version restore coming soon"
-                        style={{
-                          background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
-                          padding: "4px 8px", borderRadius: 6, color: COLORS.inkMuted,
-                          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 500,
-                        }}
-                      >
-                        Restore
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Download ${oldFile.name}`}
-                        disabled
-                        title="File download coming soon"
-                        style={{
-                          background: "none", border: "none", cursor: "not-allowed", opacity: 0.45,
-                          padding: "4px 7px", borderRadius: 6, color: COLORS.inkMuted,
-                          fontSize: 13,
-                        }}
-                      >
-                        ↓
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -2678,10 +2520,10 @@ function Rail({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov
             {pov === "admin" && <ViewingNowBadge inquiry={inquiry} />}
             <SummaryPanel inquiry={inquiry} />
             {pov === "admin" && <CoordinatorPanel inquiry={inquiry} />}
-            <RequirementGroupsPanel inquiry={inquiry} pov={pov} />
+            <RequirementGroupsPanel inquiry={inquiry} />
             <OfferPanel inquiry={inquiry} pov={pov} />
             {(inquiry.bookingId || inquiry.stage === "approved") && (
-              <BookingPanel inquiry={inquiry} pov={pov} />
+              <BookingPanel inquiry={inquiry} />
             )}
             <PaymentPanel inquiry={inquiry} pov={pov} />
           </div>
@@ -2695,7 +2537,7 @@ function Rail({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov
 }
 
 // WS-1.D.3 — Viewing-now badge. In production this will be driven by a
-// Presence WebSocket channel keyed on inquiry id. For the prototype we
+// Presence WebSocket channel keyed on inquiry id. For now we
 // mock a single viewer derived from the coordinator assignment.
 function ViewingNowBadge({ inquiry }: { inquiry: RichInquiry }) {
   if (!inquiry.coordinator) return null;
@@ -2802,28 +2644,7 @@ function KvCompact({ label, value, mono }: { label: string; value: string; mono?
 
 function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
   return (
-    <RailCard
-      title="Coordinator"
-      action={
-        <button
-          disabled
-          title="Coordinator picker coming soon"
-          style={{
-            background: "transparent",
-            border: "none",
-            padding: 0,
-            color: COLORS.inkMuted,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            fontWeight: 500,
-            cursor: "not-allowed",
-            opacity: 0.45,
-          }}
-        >
-          Reassign
-        </button>
-      }
-    >
+    <RailCard title="Coordinator">
       {inquiry.coordinator ? (
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Avatar initials={inquiry.coordinator.initials} size={32} tone="ink" />
@@ -2857,26 +2678,7 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
         </div>
       ) : (
         <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted }}>
-          No coordinator assigned.{" "}
-          <button
-            type="button"
-            disabled
-            title="Coordinator picker coming soon"
-            style={{
-              color: COLORS.ink,
-              fontWeight: 500,
-              background: "transparent",
-              border: 0,
-              padding: 0,
-              cursor: "not-allowed",
-              opacity: 0.45,
-              fontFamily: "inherit",
-              fontSize: "inherit",
-              textDecoration: "underline",
-            }}
-          >
-            Assign one →
-          </button>
+          No coordinator assigned.
         </div>
       )}
 
@@ -2956,7 +2758,7 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
   );
 }
 
-function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
+function RequirementGroupsPanel({ inquiry }: { inquiry: RichInquiry }) {
   return (
     <RailCard title="Roster">
       {inquiry.requirementGroups.map((g, i) => (
@@ -3061,15 +2863,6 @@ function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: I
           </div>
         </div>
       ))}
-      {pov === "admin" && (
-        <div style={{ marginTop: 12 }}>
-          <GhostButton disabled title="Talent picker coming soon" size="sm">
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <Icon name="plus" size={11} stroke={2} /> Add talent
-            </span>
-          </GhostButton>
-        </div>
-      )}
     </RailCard>
   );
 }
@@ -3077,30 +2870,7 @@ function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: I
 function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
   if (!inquiry.offer) {
     return (
-      <RailCard
-        title="Offer"
-        action={
-          pov === "admin" ? (
-            <button
-              disabled
-              title="Offer composer coming soon"
-              style={{
-                background: "transparent",
-                border: "none",
-                color: COLORS.ink,
-                fontFamily: FONTS.body,
-                fontSize: 11.5,
-                fontWeight: 600,
-                cursor: "not-allowed",
-                opacity: 0.45,
-                padding: 0,
-              }}
-            >
-              Build offer →
-            </button>
-          ) : null
-        }
-      >
+      <RailCard title="Offer">
         <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted }}>
           {pov === "admin"
             ? "No offer drafted yet. Build one once the lineup is locked."
@@ -3184,7 +2954,6 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {offer.lineItems.map((li, i) => {
-          const showLineCtAs = pov === "client" && offer.clientApproval === "pending" && li.status === "pending";
           return (
             <div
               key={i}
@@ -3211,50 +2980,7 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
               )}
               <span style={{ flex: 1, color: COLORS.ink }}>{li.talentName}</span>
               <span style={{ color: COLORS.ink, fontWeight: 500 }}>{li.fee}</span>
-              {showLineCtAs ? (
-                <div style={{ display: "flex", gap: 5 }}>
-                  <button
-                    disabled
-                    title="Line-item decisions coming soon"
-                    style={{
-                      padding: "3px 8px",
-                      borderRadius: 6,
-                      background: "rgba(176,48,58,0.08)",
-                      border: "none",
-                      color: "#7A2026",
-                      fontFamily: FONTS.body,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      cursor: "not-allowed",
-                      opacity: 0.45,
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    Decline
-                  </button>
-                  <button
-                    disabled
-                    title="Line-item decisions coming soon"
-                    style={{
-                      padding: "3px 8px",
-                      borderRadius: 6,
-                      background: "rgba(46,125,91,0.12)",
-                      border: "none",
-                      color: COLORS.successDeep,
-                      fontFamily: FONTS.body,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      cursor: "not-allowed",
-                      opacity: 0.45,
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    Approve
-                  </button>
-                </div>
-              ) : (
-                <ApprovalChip status={li.status} compact />
-              )}
+              <ApprovalChip status={li.status} compact />
             </div>
           );
         })}
@@ -3339,22 +3065,17 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
 
       {/* Per-POV CTAs */}
       {pov === "client" && offer.clientApproval === "pending" && (
-        <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-          <SecondaryButton size="sm" disabled>Decline</SecondaryButton>
-          <PrimaryButton size="sm" disabled>
-            Approve offer
-          </PrimaryButton>
+        <div style={{ marginTop: 12, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+          Review the offer here; your coordinator will confirm the final decision in the thread.
         </div>
       )}
       {pov === "talent" && offer.lineItems.some((l) => l.status === "pending") && (
-        <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-          <SecondaryButton size="sm" disabled>Decline my line</SecondaryButton>
-          <PrimaryButton size="sm" disabled>Approve my line</PrimaryButton>
+        <div style={{ marginTop: 12, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+          Your line-item status is visible here; response actions will live in the thread.
         </div>
       )}
       {pov === "admin" && (
         <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-          <SecondaryButton size="sm" disabled>Revise</SecondaryButton>
           <SecondaryButton
             size="sm"
             onClick={() => openDrawer("inquiry-workspace", { inquiryId: currentInquiryId, pov: "client" })}
@@ -3427,7 +3148,7 @@ function ApprovalChip({
 //   - The workspace's default timezone (agency location)
 //   - The booking location's timezone (auto-resolved from location string + geocoding)
 //   - The talent's profile timezone
-// For the prototype we hard-code two example zones to show the UX.
+// For now we hard-code two example zones to show the UX.
 //
 const WORKSPACE_TZ = "Europe/Lisbon";     // agency local time
 const BOOKING_TZ   = "Europe/Paris";      // shoot location
@@ -3473,7 +3194,7 @@ function DualTimeBadge({
   );
 }
 
-function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
+function BookingPanel({ inquiry }: { inquiry: RichInquiry }) {
   if (inquiry.bookingId) {
     return (
       <RailCard title="Booking">
@@ -3500,10 +3221,6 @@ function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
             </div>
           </div>
         </div>
-
-        <div style={{ marginTop: 10 }}>
-          <SecondaryButton size="sm" disabled>Open booking</SecondaryButton>
-        </div>
       </RailCard>
     );
   }
@@ -3512,13 +3229,6 @@ function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
       <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
         All parties have approved. Convert to a booking to lock the dates, generate the contract, and notify the talent.
       </div>
-      {pov === "admin" && (
-        <div style={{ marginTop: 10 }}>
-          <PrimaryButton size="sm" disabled>
-            Convert to booking
-          </PrimaryButton>
-        </div>
-      )}
     </RailCard>
   );
 }
@@ -3813,7 +3523,6 @@ const SHORTCUT_GROUPS = [
     shortcuts: [
       { keys: ["/"],         label: "Search messages" },
       { keys: ["Tab"],       label: "Switch thread (Private ↔ Group)" },
-      { keys: ["⌘", "⏎"], label: "Send message" },
     ],
   },
 ];

@@ -41,10 +41,6 @@ import {
   COLORS,
   DISCOVER_TALENT,
   TAXONOMY,
-  PLAN_TAXONOMY_LIMITS,
-  WORKSPACE_TAXONOMY_DEFAULT,
-  type TaxonomyParentId,
-  type WorkspaceTaxonomySetting,
   RADIUS,
   TRANSITION,
   FONTS,
@@ -54,31 +50,22 @@ import {
   RICH_INQUIRIES,
   meetsClientPlan,
   useAdminShell,
-  type AgencyReliability,
   type ClientBooking,
   type ClientBookingPostStatus,
-  type ClientInquiry,
-  type ClientPage,
   type DiscoverTalent,
   type RichInquiry,
   type Shortlist,
 } from "./state";
 import {
-  Affordance,
   Avatar,
   Bullet,
   CapsLabel,
   Divider,
   EmptyState,
-  GhostButton,
   Icon,
-  IconChip,
   PrimaryButton,
-  PrimaryCard,
   SecondaryButton,
-  SecondaryCard,
   StatDot,
-  StatusCard,
   TrustBadgeGroup,
   ProfilePhotoBadgeOverlay,
 } from "./primitives";
@@ -103,12 +90,6 @@ export function ClientSurface() {
       </main>
       {/* #14 — Mobile bottom tab nav. */}
       <ClientBottomNav />
-      {/* Legacy ClientConciergeButton is superseded by the unified
-          BottomActionFab which now serves the client surface with
-          client-specific actions (Send inquiry / Build shortlist /
-          Browse Discover / Message concierge).
-          Kept dormant for one release in case we need to revert. */}
-      {/* <ClientConciergeButton /> */}
     </div>
   );
 }
@@ -292,92 +273,6 @@ function ClientFirstRunWizard({ onClose }: { onClose: () => void }) {
   );
 }
 
-function ClientConciergeButton() {
-  const { state, setClientPage } = useAdminShell();
-  const [open, setOpen] = useState(false);
-  // #29 — Quick-dial menu for premium tier. Tapping the concierge button
-  // opens a menu with: WhatsApp coordinator, in-app message, voice call.
-  const isPremium = state.clientPlan === "enterprise" || state.clientPlan === "pro";
-  return (
-    <>
-      <button type="button" aria-label="Concierge"
-        onClick={() => isPremium ? setOpen(o => !o) : setClientPage("messages")}
-        style={{
-          position: "fixed",
-          right: 16,
-          bottom: "calc(72px + env(safe-area-inset-bottom))",
-          width: 52, height: 52, borderRadius: "50%",
-          background: COLORS.fill,
-          color: "#fff",
-          border: "none", cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 8px 24px -6px rgba(11,11,13,0.35)",
-          zIndex: 90,
-        }}
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-      </button>
-      {open && (
-        <>
-          <div onClick={() => setOpen(false)} style={{
-            position: "fixed", inset: 0, zIndex: 89, background: "transparent",
-          }} />
-          <div style={{
-            position: "fixed",
-            right: 16,
-            bottom: "calc(140px + env(safe-area-inset-bottom))",
-            background: "#fff", borderRadius: 14, padding: 6,
-            border: `1px solid ${COLORS.borderSoft}`,
-            boxShadow: "0 16px 40px -8px rgba(11,11,13,0.25)",
-            zIndex: 91, minWidth: 220, fontFamily: FONTS.body,
-          }}>
-            <ConciergeMenuItem icon="💬" label="Message Sara" desc="Direct in-app DM"
-              onClick={() => { setOpen(false); setClientPage("messages"); }} />
-            <ConciergeMenuItem icon="📱" label="WhatsApp" desc="Premium support line"
-              disabled />
-            <ConciergeMenuItem icon="📞" label="Call Sara" desc="Quick voice call · &lt; 30s"
-              disabled />
-          </div>
-        </>
-      )}
-    </>
-  );
-}
-
-function ConciergeMenuItem({
-  icon,
-  label,
-  desc,
-  onClick,
-  disabled,
-}: {
-  icon: string;
-  label: string;
-  desc: string;
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} title={disabled ? "Coming soon" : undefined} style={{
-      width: "100%", padding: "10px 12px", background: "transparent",
-      border: "none", cursor: disabled ? "not-allowed" : "pointer", textAlign: "left",
-      display: "flex", alignItems: "center", gap: 12, borderRadius: 10,
-      fontFamily: FONTS.body, opacity: disabled ? 0.45 : 1,
-    }}
-      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = "rgba(11,11,13,0.04)"; }}
-      onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.background = "transparent"; }}
-    >
-      <span style={{ fontSize: 18 }}>{icon}</span>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{label}</div>
-        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }} dangerouslySetInnerHTML={{ __html: desc }} />
-      </div>
-    </button>
-  );
-}
-
 function ClientBottomNav() {
   const { state, setClientPage } = useAdminShell();
   const tabs: { id: typeof state.clientPage; label: string; icon: React.ReactNode }[] = [
@@ -552,11 +447,11 @@ function ClientRouter() {
  * Client Messages page — mirror of TalentMessagesPage. Same chat
  * surface; production wires the same conversation thread to both
  * surfaces with `pov: "talent" | "client"` so the bubbles align
- * correctly on each side. The prototype ships the talent component
+ * correctly on each side. The current shell ships the talent component
  * here as a placeholder demonstrating the parity (same UX both sides).
  */
 // Client messages = same component as talent. The previous explanatory
-// banner was prototype-era didactic noise — removed so the client surface
+// banner was didactic noise — removed so the client surface
 // renders the unified MessagesShell flush with the page header (parity
 // with talent + workspace).
 // Client uses pov="client" — gets its OWN distinct shell
@@ -661,11 +556,10 @@ function Grid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto" 
 // Thread-first Today page. Replaces the old dashboard-of-cards layout.
 // One continuous action feed organized into three buckets — Needs You /
 // Moving / Coming Up — every row routes into the inquiry workspace
-// (the message shell). Inline action chips on Needs-You rows let the
-// client approve/counter without entering the thread for obvious cases.
-// The header is one personal-status line + a single dismissible nag strip.
+// (the message shell). Business-critical decisions stay inside the
+// thread until accept/counter server actions exist.
 function ClientTodayPage() {
-  const { openDrawer, setClientPage } = useAdminShell();
+  const { setClientPage } = useAdminShell();
   const pendingDecisions = RICH_INQUIRIES.filter(
     (i) => i.stage === "offer_pending" && i.offer?.clientApproval === "pending",
   );
@@ -674,7 +568,6 @@ function ClientTodayPage() {
   );
   const upcoming = CLIENT_BOOKINGS.filter((b) => b.status === "confirmed");
   const coordinatorName = awaitingAgency[0]?.coordinator?.name ?? pendingDecisions[0]?.coordinator?.name;
-  const showNag = MY_CLIENT_BRAND.trustLevel !== "gold";
 
   // #11 — First-run wizard. Shows once per session if the client has
   // never sent an inquiry. Premium full-screen modal with 4 quick steps.
@@ -710,23 +603,6 @@ function ClientTodayPage() {
             : "All clear today."}
         </h1>
       </div>
-
-      {/* ── Single dismissible nag strip — replaces 3-banner stack. */}
-      {showNag && (
-        <button type="button" disabled title="Verification flow coming soon" style={{
-          width: "100%", textAlign: "left", cursor: "not-allowed",
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "8px 12px", marginBottom: 14,
-          borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
-          background: COLORS.indigoSoft, color: COLORS.indigoDeep,
-          fontFamily: FONTS.body, fontSize: 12, fontWeight: 500,
-          opacity: 0.65,
-        }}>
-          <span aria-hidden style={{ fontSize: 13 }}>✓</span>
-          Verify your account to unlock top-tier agencies
-          <span style={{ marginLeft: "auto", opacity: 0.7 }}>→</span>
-        </button>
-      )}
 
       {/* ── 1. NEEDS YOU NOW — inline action chips ── */}
       {pendingDecisions.length > 0 && (
@@ -776,13 +652,11 @@ function ClientTodayPage() {
           padding: "32px 16px", textAlign: "center", fontFamily: FONTS.body,
           color: COLORS.inkMuted, fontSize: 13,
         }}>
-          Nothing waiting on you. Send an inquiry to start a project.
+          Nothing waiting on you. Browse talent to start a project.
         </div>
       )}
 
-      {/* ── Sticky bottom action bar — premium pill buttons in brand
-            accent (no black). Both buttons same shape so they read as a
-            pair. Backdrop-blur stays so chat content reads beneath. */}
+      {/* ── Sticky bottom action bar. Keep it to routes that are real today. */}
       <div style={{
         position: "sticky", bottom: 0, marginTop: 20,
         marginLeft: -14, marginRight: -14, padding: "10px 14px 14px",
@@ -790,21 +664,21 @@ function ClientTodayPage() {
         borderTop: `1px solid ${COLORS.borderSoft}`,
         display: "flex", gap: 10, justifyContent: "stretch", flexWrap: "nowrap",
       }}>
-        <button type="button" onClick={() => openDrawer("client-quick-question")} style={{
+        <button type="button" onClick={() => setClientPage("messages")} style={{
           flex: 1, padding: "11px 14px", borderRadius: 999,
           background: "#fff", border: `1px solid ${COLORS.border}`,
           color: COLORS.ink, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
           cursor: "pointer",
         }}>
-          Ask a question
+          Messages
         </button>
-        <button type="button" onClick={() => openDrawer("client-send-inquiry")} style={{
+        <button type="button" onClick={() => setClientPage("discover")} style={{
           flex: 1, padding: "11px 14px", borderRadius: 999,
           background: COLORS.accent, border: "none",
           color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
           cursor: "pointer",
         }}>
-          + New inquiry
+          Browse talent
         </button>
       </div>
 
@@ -880,11 +754,10 @@ function ClientTodaySection({
 
 /**
  * Premium Needs-You row. Stacks the row content (tap-to-open) above
- * inline action buttons so action chips never compete for horizontal
- * space with the title on phone widths. The whole row is a card-row:
+ * a short hint so unavailable accept/counter actions don't compete for
+ * attention. The whole row is a card-row:
  *   - Tappable surface with hover + active states
  *   - Right-side chevron makes "this opens" obvious
- *   - Approve/Counter buttons sit beneath, clearly distinct
  */
 function ClientNeedsYouRow({ inquiry }: { inquiry: RichInquiry }) {
   const { setClientPage } = useAdminShell();
@@ -922,18 +795,11 @@ function ClientNeedsYouRow({ inquiry }: { inquiry: RichInquiry }) {
         <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18, lineHeight: 1, flexShrink: 0 }}>›</span>
       </button>
       <div style={{
-        display: "flex", gap: 8, padding: "0 16px 12px",
+        padding: "0 16px 12px",
+        fontSize: 11.5,
+        color: COLORS.inkMuted,
       }}>
-        <button type="button" disabled title="Counter offers coming soon" style={{
-          flex: 1, padding: "9px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
-          border: `1px solid ${COLORS.border}`, background: "#fff",
-          color: COLORS.ink, cursor: "not-allowed", opacity: 0.45,
-        }}>Counter</button>
-        <button type="button" disabled title="Offer approval coming soon" style={{
-          flex: 1, padding: "9px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
-          border: "none", background: COLORS.success, color: "#fff",
-          cursor: "not-allowed", opacity: 0.45,
-        }}>Approve</button>
+        Open the thread to review the offer details.
       </div>
     </div>
   );
@@ -945,7 +811,6 @@ function ClientNeedsYouRow({ inquiry }: { inquiry: RichInquiry }) {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientInquiriesPage() {
-  const { openDrawer } = useAdminShell();
   const groups: { id: string; label: string; description: string; filter: (i: RichInquiry) => boolean }[] = [
     {
       id: "decide",
@@ -983,12 +848,7 @@ function ClientInquiriesPage() {
     <>
       <PageHeader
         title="Inquiries"
-        subtitle="One thread per inquiry. Approve, counter, or chat your coordinator."
-        actions={
-          <PrimaryButton onClick={() => openDrawer("client-send-inquiry")}>
-            Send new inquiry
-          </PrimaryButton>
-        }
+        subtitle="One thread per inquiry. Review offer details or chat your coordinator."
       />
 
       {groups.map((g) => {
@@ -1060,7 +920,7 @@ function ClientInquiriesPage() {
   );
 }
 
-function ClientInquiryRow({ inquiry, bordered: _bordered }: { inquiry: RichInquiry; bordered?: boolean }) {
+function ClientInquiryRow({ inquiry }: { inquiry: RichInquiry; bordered?: boolean }) {
   const { setClientPage } = useAdminShell();
   const meta = INQUIRY_STAGE_META[inquiry.stage];
   // Compact subtitle that doesn't wrap to 3 lines on mobile
@@ -1195,11 +1055,11 @@ function ClientDiscoverPage() {
   const [channelTalent, setChannelTalent] = useState<DiscoverTalent | null>(null);
   // Card tap → opens the full profile detail sheet. From there the
   // client can browse photos / channels / availability before committing
-  // to "Send inquiry" — which hands off to the channel picker.
+  // to drafting an inquiry — which hands off to the channel picker.
   const [detailTalent, setDetailTalent] = useState<DiscoverTalent | null>(null);
 
   // Recent searches + recently viewed profiles — would persist in
-  // production. For prototype, hard-coded to seed the AI panel.
+  // production. For now, hard-coded to seed the AI panel.
   const recentSearches = [
     "Spanish-speaking hosts in Tulum",
     "Female chefs · Mexican cuisine",
@@ -1365,11 +1225,6 @@ function ClientDiscoverPage() {
             }}>{s.label}</button>
           );
         })}
-        <button type="button" disabled title="Saved searches coming soon" style={{
-          padding: "5px 11px", borderRadius: 999,
-          border: `1px dashed ${COLORS.border}`, background: "transparent",
-          color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "not-allowed", opacity: 0.45,
-        }}>+ Save current</button>
       </div>
 
       <Grid cols="3">
@@ -1393,7 +1248,7 @@ function ClientDiscoverPage() {
         />
       )}
 
-      {/* Channel selection modal — when client clicks "Send inquiry" */}
+      {/* Channel selection modal — when client starts a draft */}
       {channelTalent && (
         <ClientChannelPicker talent={channelTalent} onClose={() => setChannelTalent(null)} />
       )}
@@ -1563,11 +1418,11 @@ function ClientDiscoverPaywall({ onUpgrade }: { onUpgrade: () => void }) {
 // ════════════════════════════════════════════════════════════════════
 // Talent profile detail sheet — opens when a client taps a Discover card.
 // Shows the full talent (photos, basics, channels summary, availability)
-// before they commit to "Send inquiry" (which routes to ClientChannelPicker).
+// before they start a draft (which routes to ClientChannelPicker).
 // ════════════════════════════════════════════════════════════════════
 
 // Map a Discover talent id (dt1, dt2…) to its Roster talent id (t1, t2…).
-// In production this is one entity; in the prototype the two seed lists
+// In production this is one entity; in the current fixture the two seed lists
 // happen to share names, so we map by name.
 function mapDiscoverToRosterId(discoverId: string): string | null {
   const map: Record<string, string> = {
@@ -1614,7 +1469,7 @@ function ClientTalentDetailSheet({
     ? `Exclusive · ${talent.channels[0]!.name}`
     : `${repCount} channel${repCount === 1 ? "" : "s"}`;
   // Mock supplementary photos — real implementation pulls from the
-  // talent's portfolio. For prototype we vary the pravatar img param
+  // talent's portfolio. For now we vary the pravatar img param
   // to fake a small gallery.
   const baseImg = talent.thumb;
   const photos = [
@@ -1637,7 +1492,7 @@ function ClientTalentDetailSheet({
         boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.25)",
         display: "flex", flexDirection: "column", overflow: "hidden",
       }}>
-        {/* Hero photo with floating close + save */}
+        {/* Hero photo with floating close */}
         <div style={{
           position: "relative",
           aspectRatio: "4 / 3.5",
@@ -1656,21 +1511,6 @@ function ClientTalentDetailSheet({
             backdropFilter: "blur(8px)",
             boxShadow: "0 2px 8px rgba(11,11,13,0.12)",
           }}>✕</button>
-          {/* Save */}
-          <button type="button" disabled title="Saving talent is coming soon" aria-label="Save"
-            style={{
-              position: "absolute", top: 12, left: 12,
-              width: 34, height: 34, borderRadius: "50%",
-              background: "rgba(255,255,255,0.92)", border: "none", cursor: "not-allowed",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: COLORS.ink, backdropFilter: "blur(8px)",
-              boxShadow: "0 2px 8px rgba(11,11,13,0.12)",
-              opacity: 0.55,
-            }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path d="M4 2h8v12l-4-3-4 3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-            </svg>
-          </button>
           {/* Availability dot */}
           <div style={{
             position: "absolute", bottom: 12, left: 14,
@@ -1797,7 +1637,7 @@ function ClientTalentDetailSheet({
             })}
           </div>
           <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 6 }}>
-            Pick a channel after you tap Send inquiry.
+            Pick a channel after you start a draft.
           </div>
         </div>
 
@@ -1809,12 +1649,6 @@ function ClientTalentDetailSheet({
           display: "flex", gap: 8, alignItems: "center",
           flexShrink: 0,
         }}>
-          <button type="button" disabled title="Saving talent is coming soon" style={{
-            padding: "11px 16px", borderRadius: 999,
-            border: `1px solid ${COLORS.border}`, background: "#fff",
-            color: COLORS.ink,
-            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "not-allowed", opacity: 0.45,
-          }}>Save</button>
           <button type="button" onClick={canContact ? onInquire : undefined} disabled={!canContact}
             style={{
               flex: 1, padding: "12px 18px", borderRadius: 999,
@@ -1826,7 +1660,7 @@ function ClientTalentDetailSheet({
             }}
             title={canContact ? undefined : `Talent restricted contact to ${gate === "verified_only" ? "verified" : "trusted"} clients`}
           >
-            {canContact ? "Send inquiry" : "🔒 Verify to contact"}
+            {canContact ? "Draft inquiry" : "🔒 Verify to contact"}
           </button>
         </div>
       </div>
@@ -2009,14 +1843,6 @@ function DiscoverCard({ talent, onPick }: { talent: DiscoverTalent; onPick?: () 
             fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
             background: repTone.bg, color: repTone.fg, lineHeight: 1.4,
           }}>{repLabel}</span>
-          <button type="button" disabled title="Saving talent is coming soon" onClick={(e) => e.stopPropagation()} aria-label="Save" style={{
-            marginLeft: "auto", background: "transparent", border: "none", cursor: "not-allowed",
-            padding: 0, color: COLORS.inkMuted, opacity: 0.45,
-          }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M4 2h8v12l-4-3-4 3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-            </svg>
-          </button>
         </div>
       </div>
     </button>
@@ -2028,17 +1854,11 @@ function DiscoverCard({ talent, onPick }: { talent: DiscoverTalent; onPick?: () 
 // ════════════════════════════════════════════════════════════════════
 
 function ClientShortlistsPage() {
-  const { openDrawer } = useAdminShell();
   return (
     <>
       <PageHeader
         title="Shortlists"
         subtitle="Group talent by brief. Share with collaborators. Convert any shortlist into an inquiry."
-        actions={
-          <PrimaryButton onClick={() => openDrawer("client-new-shortlist")}>
-            New shortlist
-          </PrimaryButton>
-        }
       />
       <Grid cols="2">
         {MY_SHORTLISTS.map((s) => (
@@ -2155,22 +1975,6 @@ function ClientBookingsPage() {
       <PageHeader
         title="Bookings"
         subtitle="Locked-in dates, talent, and contracts."
-        actions={
-          /* #19 — iCal subscribe action. Opens a copyable feed URL.
-             Each booking flows into the user's phone calendar with talent,
-             location, and call time. */
-          <button type="button" disabled title="Calendar feed coming soon" style={{
-            padding: "7px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-            border: `1px solid ${COLORS.border}`, background: "transparent",
-            color: COLORS.ink, cursor: "not-allowed", display: "inline-flex", alignItems: "center", gap: 6, opacity: 0.45,
-          }}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <rect x="1.5" y="3" width="11" height="9" rx="1.2" stroke="currentColor" strokeWidth="1.4"/>
-              <path d="M1.5 6h11M4.5 1.5v3M9.5 1.5v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-            </svg>
-            Subscribe to calendar
-          </button>
-        }
       />
 
       {/* Premium spend strip — replaces the 2-up StatusCard tiles */}
@@ -2301,7 +2105,7 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
           padding: "6px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
           border: `1px solid ${COLORS.border}`, background: "transparent",
           color: COLORS.ink, cursor: "pointer", flexShrink: 0,
-        }}>↻ Repeat</button>
+        }}>Draft repeat</button>
       )}
       <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18, lineHeight: 1, flexShrink: 0 }}>›</span>
     </button>
@@ -2635,14 +2439,14 @@ function StandardFooter({
   const { closeDrawer } = useAdminShell();
   return (
     <>
-      <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-      <PrimaryButton onClick={onSave} disabled={!onSave}>{saveLabel}</PrimaryButton>
+      <SecondaryButton onClick={closeDrawer}>{onSave ? "Cancel" : "Close"}</SecondaryButton>
+      {onSave && <PrimaryButton onClick={onSave}>{saveLabel}</PrimaryButton>}
     </>
   );
 }
 
 export function ClientTodayPulseDrawer() {
-  const { state, closeDrawer, openDrawer, setClientPage } = useAdminShell();
+  const { state, closeDrawer, setClientPage } = useAdminShell();
   const open = state.drawer.drawerId === "client-today-pulse";
   const pendingDecisions = RICH_INQUIRIES.filter(
     (i) => i.stage === "offer_pending" && i.offer?.clientApproval === "pending",
@@ -2724,17 +2528,14 @@ export function ClientTalentCardDrawer() {
       title={t.name}
       description={`${t.agency} · ${t.city} · ${t.height}`}
       footer={
-        <>
-          <SecondaryButton disabled>Add to shortlist</SecondaryButton>
-          <PrimaryButton
-            onClick={() => {
-              closeDrawer();
-              openDrawer("client-send-inquiry", { presetTalent: t.id });
-            }}
-          >
-            Send inquiry
-          </PrimaryButton>
-        </>
+        <PrimaryButton
+          onClick={() => {
+            closeDrawer();
+            openDrawer("client-send-inquiry", { presetTalent: t.id });
+          }}
+        >
+          Draft inquiry
+        </PrimaryButton>
       }
     >
       <div
@@ -2793,7 +2594,7 @@ export function ClientShortlistDetailDrawer() {
               openDrawer("client-send-inquiry", { fromShortlist: sl.id });
             }}
           >
-            Send as inquiry
+            Draft inquiry
           </PrimaryButton>
         </>
       }
@@ -2897,7 +2698,7 @@ export function ClientNewShortlistDrawer() {
       open={open}
       onClose={closeDrawer}
       title="New shortlist"
-      description="Group talent by brief, then send a single inquiry to all of them."
+      description="Group talent by brief. Shortlist creation will be enabled once saved lists are wired."
       footer={<StandardFooter saveLabel="Create shortlist" />}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
@@ -2952,7 +2753,7 @@ export function ClientSendInquiryDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="New inquiry"
+      title="Draft inquiry"
       description="Draft the request here. Sending is coming soon."
     >
       <InquiryComposerLazy
@@ -3064,10 +2865,7 @@ export function ClientReviewDrawer() {
       title={`Review ${talentName}`}
       description="Rate three axes. Private to Tulala — drives talent trust scores."
       footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Skip</SecondaryButton>
-          <PrimaryButton disabled>Submit review</PrimaryButton>
-        </>
+        <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
@@ -3139,12 +2937,9 @@ export function ClientCounterOfferDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Counter offer"
-      description="Review the agency's terms and send your counter below."
+      description="Review the agency's terms and draft a counter before the send action is wired."
       footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton disabled>Send counter</PrimaryButton>
-        </>
+        <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
@@ -3238,35 +3033,6 @@ export function ClientBookingDetailDrawer() {
         <KvRow label="Total" value={b.amount} />
         <KvRow label="Production" value={postStatusLabel[b.postStatus]} />
       </div>
-
-      {/* C18 — Save to shortlist nudge */}
-      {b.status === "confirmed" && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 14,
-            background: COLORS.surfaceAlt,
-            border: `1px solid rgba(15,79,62,0.18)`,
-            borderRadius: 10,
-            fontFamily: FONTS.body,
-          }}
-        >
-          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
-            Save this lineup for next time?
-          </div>
-          <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.55 }}>
-            Add {b.talent} to a shortlist so you can re-book them quickly without starting from scratch.
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <SecondaryButton size="sm" disabled>
-              Add to shortlist
-            </SecondaryButton>
-            <GhostButton size="sm" disabled title="Coming soon">
-              Not now
-            </GhostButton>
-          </div>
-        </div>
-      )}
     </DrawerShell>
   );
 }
@@ -3306,25 +3072,16 @@ export function ClientContractsDrawer() {
               {b.talent} · {b.shortlistName}
             </span>
             <span style={{ color: COLORS.inkMuted, fontSize: 11.5 }}>{b.date}</span>
-            <button
-              type="button"
-              disabled
-              title="PDF download coming soon"
+            <span
               style={{
                 fontFamily: FONTS.body,
                 fontSize: 11.5,
-                color: COLORS.ink,
+                color: COLORS.inkMuted,
                 fontWeight: 500,
-                textDecoration: "underline",
-                background: "transparent",
-                border: 0,
-                padding: 0,
-                cursor: "not-allowed",
-                opacity: 0.45,
               }}
             >
-              PDF
-            </button>
+              On file
+            </span>
           </div>
         ))}
       </div>
@@ -3341,9 +3098,6 @@ export function ClientTeamDrawer() {
       onClose={closeDrawer}
       title="Team"
       description="Team members can see inquiry threads and bookings for this brand."
-      footer={
-        <PrimaryButton disabled>Invite member</PrimaryButton>
-      }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {[
@@ -3498,45 +3252,28 @@ export function ClientBrandSwitcherDrawer() {
             </button>
           );
         })}
-        <button type="button" disabled title="Coming soon" style={{
-          padding: "11px 14px", borderRadius: 10,
-          border: `1.5px dashed ${COLORS.border}`, background: "transparent",
-          color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
-          cursor: "not-allowed", textAlign: "center", opacity: 0.55,
-        }}>+ Add another profile</button>
       </div>
     </DrawerShell>
   );
 }
 
-// WS-8.8  Saved-search alerts — "Email me when matches" toggle per saved search
+// WS-8.8  Saved-search alerts summary.
 export function ClientSavedSearchDrawer() {
   const { state, closeDrawer, setClientPage } = useAdminShell();
   const open = state.drawer.drawerId === "client-saved-search";
 
-  const INIT_SEARCHES = [
+  const searches = [
     { id: "s1", name: "Madrid · 5′8″+ · Available May", count: 12, alert: true,  freq: "daily"  },
     { id: "s2", name: "Acme Models — bridal",            count:  4, alert: false, freq: "weekly" },
     { id: "s3", name: "Fitness · Female · Bilingual",    count:  7, alert: true,  freq: "daily"  },
   ];
-  const [searches, setSearches] = useState(INIT_SEARCHES);
-
-  const toggle = (id: string) =>
-    setSearches((prev) => prev.map((s) => s.id === id ? { ...s, alert: !s.alert } : s));
-  const setFreq = (id: string, freq: string) =>
-    setSearches((prev) => prev.map((s) => s.id === id ? { ...s, freq } : s));
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Saved searches"
-      description="Save complex filters and get notified when matching talent becomes available."
-      footer={
-        <PrimaryButton disabled>
-          Save preferences
-        </PrimaryButton>
-      }
+      description="Review saved filters and jump back into Discover."
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {searches.map((s) => (
@@ -3567,7 +3304,7 @@ export function ClientSavedSearchDrawer() {
               <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
             </button>
 
-            {/* Alert toggle row */}
+            {/* Alert status row */}
             <div
               style={{
                 display: "flex", alignItems: "center", gap: 10,
@@ -3575,52 +3312,29 @@ export function ClientSavedSearchDrawer() {
                 background: s.alert ? COLORS.accent + "06" : "transparent",
               }}
             >
-              {/* On/Off pill toggle */}
-              <button
-                type="button"
-                onClick={() => toggle(s.id)}
-                aria-pressed={s.alert}
+              <span
                 style={{
-                  width: 36, height: 20, borderRadius: 999,
+                  minWidth: 36,
+                  padding: "3px 8px",
+                  borderRadius: 999,
                   background: s.alert ? COLORS.accent : COLORS.borderSoft,
-                  border: "none", cursor: "pointer", position: "relative",
-                  transition: "background .15s", flexShrink: 0,
+                  color: s.alert ? "#fff" : COLORS.inkMuted,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  textAlign: "center",
+                  flexShrink: 0,
                 }}
               >
-                <span
-                  style={{
-                    position: "absolute", top: 2,
-                    left: s.alert ? 18 : 2,
-                    width: 16, height: 16, borderRadius: "50%",
-                    background: "#fff",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-                    transition: "left .15s",
-                  }}
-                />
-              </button>
-              <span style={{ fontSize: 12, color: s.alert ? COLORS.ink : COLORS.inkMuted, flex: 1 }}>
-                Email me when matches appear
+                {s.alert ? "On" : "Off"}
               </span>
-              {s.alert && (
-                <select
-                  value={s.freq}
-                  onChange={(e) => setFreq(s.id, e.target.value)}
-                  style={{
-                    fontSize: 11.5, padding: "2px 6px", borderRadius: 6,
-                    border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body,
-                    background: "#fff", color: COLORS.ink, cursor: "pointer",
-                  }}
-                >
-                  <option value="immediate">Immediately</option>
-                  <option value="daily">Daily digest</option>
-                  <option value="weekly">Weekly summary</option>
-                </select>
-              )}
+              <span style={{ fontSize: 12, color: s.alert ? COLORS.ink : COLORS.inkMuted, flex: 1 }}>
+                Email alerts {s.alert ? `· ${s.freq}` : "off"}
+              </span>
             </div>
           </div>
         ))}
 
-        {/* Add new saved search CTA */}
+        {/* Discover jump */}
         <button
           type="button"
           onClick={() => { setClientPage("discover"); closeDrawer(); }}
@@ -3632,8 +3346,8 @@ export function ClientSavedSearchDrawer() {
             fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted,
           }}
         >
-          <Icon name="plus" size={13} color={COLORS.inkMuted} />
-          Save new search
+          <Icon name="search" size={13} color={COLORS.inkMuted} />
+          Open Discover
         </button>
       </div>
     </DrawerShell>
@@ -3651,12 +3365,7 @@ export function ClientQuickQuestionDrawer() {
       title="Ask a question"
       description="Send a message directly to an agency without starting a full inquiry pipeline."
       footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton disabled>
-            Send message
-          </PrimaryButton>
-        </>
+        <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
@@ -3890,7 +3599,6 @@ export function ClientSpendReportDrawer() {
   const [view, setView] = useState<"talent" | "agency">("talent");
 
   const data = view === "talent" ? SPEND_BY_TALENT : SPEND_BY_AGENCY;
-  const total = data[0]?.amount ?? 0;
 
   const BAR_TRACK: React.CSSProperties = {
     flex: 1, height: 6, background: COLORS.surfaceAlt,
@@ -3981,10 +3689,7 @@ export function ClientBudgetDrawer() {
       title="Budget tracking"
       description="Set a quarterly spend cap and get alerted before you hit it."
       footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton disabled>Save</PrimaryButton>
-        </>
+        <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
