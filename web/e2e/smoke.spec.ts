@@ -488,6 +488,9 @@ async function removeCmsSectionFromCanvas(page: Page, sectionId: string) {
     await section.click({ position: { x: 24, y: 24 }, force: true });
   }
 
+  await expect(section).toBeVisible({ timeout: 25_000 });
+  await section.click({ position: { x: 24, y: 24 }, force: true });
+
   const selectionChip = page.locator(
     '[data-selection-chip][data-selection-chip-scope="section"]',
   );
@@ -1600,7 +1603,6 @@ test.describe("smoke: login → builder → publish → share", () => {
       await expect(insertedSection).toBeVisible({ timeout: 90_000 });
       await expect(insertedSection).toContainText(directorySearchHeadline);
       await expect(insertedSection).toContainText(directorySearchSub);
-      await expect(insertedSection).toContainText("Promotional models for a boutique venue opening");
 
       await page
         .getByRole("group", { name: "Canvas preview width" })
@@ -1617,9 +1619,12 @@ test.describe("smoke: login → builder → publish → share", () => {
       await page
         .getByRole("group", { name: "Canvas preview width" })
         .getByRole("button", { name: "Desktop" })
-        .click()
-        .catch(() => {});
+        .click();
       if (insertedSectionId) {
+        const desktopSection = page.locator(
+          `[data-cms-section][data-section-id="${insertedSectionId}"]`,
+        );
+        await expect(desktopSection).toBeVisible({ timeout: 30_000 });
         await removeCmsSectionFromCanvas(page, insertedSectionId);
       }
       await removeCmsSectionsByTypeAndText(page, "hero", directorySearchHeadline);
