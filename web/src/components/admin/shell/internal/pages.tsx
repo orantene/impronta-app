@@ -125,13 +125,10 @@ import {
   PayoutStatusChip,
   PaymentStatusChip,
   SwipeableRow,
-  BulkSelectBar,
-  BulkRowCheckbox,
   useKeyboardListNav,
   useRovingTabindex,
   scrollBehavior,
   FloatingFab,
-  ConfirmModal,
   AutoSaveIndicator,
   RetryCard,
   ActivityFeedItem,
@@ -3559,7 +3556,6 @@ function UnifiedInboxPage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"recent" | "oldest" | "client">("recent");
   const [pagesShown, setPagesShown] = useState(1);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const PAGE_SIZE = 8;
 
   const isOpen = (s: typeof inquiries[number]["stage"]) =>
@@ -3587,7 +3583,7 @@ function UnifiedInboxPage() {
 
   const rows = matched.slice(0, PAGE_SIZE * pagesShown);
 
-  // Reset pagination + selection when filter / search changes.
+  // Reset pagination when filter / search changes.
   useEffect(() => {
     setPagesShown(1);
   }, [filter, search, sort]);
@@ -3598,16 +3594,6 @@ function UnifiedInboxPage() {
     setFilter(v.filter);
     setSort(v.sort);
   };
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-  const clearSelection = () => setSelected(new Set());
 
   // Keyboard nav refs — populated on render.
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -3646,35 +3632,6 @@ function UnifiedInboxPage() {
         }
       />
       <SavedViewsBar viewKey="inbox" current={{ filter, sort }} onApply={onApplyView} />
-
-      <BulkSelectBar
-        count={selected.size}
-        onClear={clearSelection}
-        actions={[
-          {
-            label: "Mark read",
-            onClick: () => {
-              toast(`Marked ${selected.size} ${selected.size === 1 ? "item" : "items"} read`);
-              clearSelection();
-            },
-          },
-          {
-            label: "Snooze 4h",
-            onClick: () => {
-              toast(`Snoozed ${selected.size} for 4 hours`);
-              clearSelection();
-            },
-          },
-          {
-            label: "Archive",
-            tone: "red",
-            onClick: () => {
-              toast(`Archived ${selected.size} ${selected.size === 1 ? "item" : "items"}`);
-              clearSelection();
-            },
-          },
-        ]}
-      />
 
       {/* Search + sort row */}
       <div
@@ -3850,30 +3807,8 @@ function UnifiedInboxPage() {
         >
           {rows.map((inq, idx) => {
             const isOfferPending = inq.stage === "offer_pending";
-            const isSelected = selected.has(inq.id);
             return (
-              <SwipeableRow
-                key={inq.id}
-                leftActions={[
-                  {
-                    label: "Pin",
-                    tone: "ink",
-                    onClick: () => toast(`Pinned ${inq.clientName}`),
-                  },
-                ]}
-                rightActions={[
-                  {
-                    label: "Snooze",
-                    tone: "ink",
-                    onClick: () => toast(`Snoozed ${inq.clientName} for 4h`),
-                  },
-                  {
-                    label: "Archive",
-                    tone: "red",
-                    onClick: () => toast(`Archived ${inq.clientName}`),
-                  },
-                ]}
-              >
+              <SwipeableRow key={inq.id}>
                 <button
                   type="button"
                   data-tulala-row
@@ -3887,7 +3822,7 @@ function UnifiedInboxPage() {
                     gap: 12,
                     width: "100%",
                     padding: "14px 16px",
-                    background: isSelected ? COLORS.accentSoft : "#fff",
+                    background: "#fff",
                     border: "none",
                     borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
                     cursor: "pointer",
@@ -3895,18 +3830,6 @@ function UnifiedInboxPage() {
                     fontFamily: FONTS.body,
                   }}
                 >
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleSelect(inq.id);
-                    }}
-                    style={{ display: "inline-flex", marginTop: 8 }}
-                  >
-                    <BulkRowCheckbox
-                      checked={isSelected}
-                      onChange={() => toggleSelect(inq.id)}
-                    />
-                  </span>
                   <Avatar
                     initials={inq.clientName.slice(0, 2).toUpperCase()}
                     hashSeed={inq.clientName}
@@ -7113,7 +7036,6 @@ function ClientsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "dormant">("all");
   const [sort, setSort] = useState<"name" | "bookings" | "status">("name");
-  const [confirmArchive, setConfirmArchive] = useState<{ id: string; name: string } | null>(null);
 
   const filteredClients = clients
     .filter((c) => statusFilter === "all" || c.status === statusFilter)
@@ -7348,14 +7270,7 @@ function ClientsPage() {
           />
         )}
         {filteredClients.map((client, idx) => (
-          <SwipeableRow
-            key={client.id}
-            rightActions={[{
-              label: "Archive",
-              tone: "red",
-              onClick: () => setConfirmArchive({ id: client.id, name: client.name }),
-            }]}
-          >
+          <SwipeableRow key={client.id}>
           <button
             type="button"
             onClick={() => openDrawer("client-profile", { id: client.id })}
@@ -7435,18 +7350,6 @@ function ClientsPage() {
       {/* FAB — full quick-create menu (mobile only) */}
       {canEdit && <FabWithQuickCreate />}
 
-      {/* Confirm modal — archive client (#8) */}
-      <ConfirmModal
-        open={confirmArchive !== null}
-        title="Archive client"
-        message={`Archive ${confirmArchive?.name ?? "this client"}? Their booking history is preserved — you can unarchive any time.`}
-        confirmLabel="Archive"
-        onConfirm={() => {
-          toast(`Archived ${confirmArchive?.name ?? "client"}`);
-          setConfirmArchive(null);
-        }}
-        onCancel={() => setConfirmArchive(null)}
-      />
     </>
   );
 }
