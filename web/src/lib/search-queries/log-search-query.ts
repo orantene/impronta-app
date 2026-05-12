@@ -1,6 +1,7 @@
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 
 export type LogSearchQueryInput = {
   query: string | null;
@@ -45,8 +46,8 @@ export async function logSearchQuery(input: LogSearchQueryInput): Promise<void> 
     user_id: input.userId ?? null,
   });
 
-  if (error && process.env.NODE_ENV === "development") {
-    console.warn("[logSearchQuery]", error.message);
+  if (error) {
+    logServerError("log-search-query/insert", error);
   }
 
   if (!error) {

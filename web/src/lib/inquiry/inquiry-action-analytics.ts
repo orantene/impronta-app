@@ -1,4 +1,5 @@
 import { improntaLog } from "@/lib/server/structured-log";
+import { logServerError } from "@/lib/server/safe-error";
 
 export const INQUIRY_ACTION_EVENTS = [
   "message_sent",
@@ -27,10 +28,10 @@ export function logInquiryAction(
   role: string,
   metadata?: Record<string, unknown>,
 ): void {
-  void improntaLog("inquiry_action", {
+  improntaLog("inquiry_action", {
     event,
     inquiryId,
     role,
     ...(metadata as Record<string, string | number | boolean | null | undefined>),
-  });
+  }).catch((err) => logServerError("inquiry-action-analytics/improntaLog", err));
 }

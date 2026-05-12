@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchTenantControls } from "@/lib/ai/ai-provider-repository";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
+import { logServerError } from "@/lib/server/safe-error";
 
 const minuteBuckets = new Map<string, { bucket: number; count: number }>();
 
@@ -96,7 +97,6 @@ export async function recordAiUsageEstimate(
     p_spend_delta_cents: cents,
   });
   if (error) {
-     
-    console.warn("increment_ai_usage_monthly failed", error.message);
+    logServerError("ai-usage-gate/increment_ai_usage_monthly", error);
   }
 }

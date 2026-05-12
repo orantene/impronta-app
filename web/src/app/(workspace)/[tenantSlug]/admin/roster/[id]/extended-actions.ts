@@ -490,7 +490,9 @@ export async function removePortfolioPhoto(
     }
 
     const m = row as { bucket_id: string; storage_path: string };
-    void r.admin.storage.from(m.bucket_id).remove([m.storage_path]);
+    r.admin.storage.from(m.bucket_id).remove([m.storage_path]).catch((err) =>
+      logServerError("roster.removePortfolioPhoto.storage", err),
+    );
 
     refresh(tenantSlug, talentId);
     return { ok: true };
@@ -682,7 +684,9 @@ export async function hardDeleteTalent(
       .select("bucket_id, storage_path")
       .eq("owner_talent_profile_id", talentId);
     for (const m of (media ?? []) as { bucket_id: string; storage_path: string }[]) {
-      void r.admin.storage.from(m.bucket_id).remove([m.storage_path]);
+      r.admin.storage.from(m.bucket_id).remove([m.storage_path]).catch((err) =>
+        logServerError("roster.hardDeleteTalent.storage", err),
+      );
     }
 
     const { error: profileErr } = await r.admin

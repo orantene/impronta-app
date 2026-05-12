@@ -99,7 +99,9 @@ export async function actionUploadAndAssignMedia(
 
   if (insErr || !inserted) {
     logServerError("media.actions.uploadAssign.insert", insErr);
-    void admin.storage.from("media-public").remove([storagePath]);
+    admin.storage.from("media-public").remove([storagePath]).catch((err) =>
+      logServerError("media.actions.uploadAssign.cleanup", err),
+    );
     return { ok: false, error: "Could not save. Try again." };
   }
 
@@ -962,7 +964,10 @@ export async function actionImportSingleDriveFile(
     .single();
 
   if (insErr || !inserted) {
-    void admin.storage.from("media-public").remove([storagePath]);
+    logServerError("media.actions.importSingle.insert", insErr);
+    admin.storage.from("media-public").remove([storagePath]).catch((err) =>
+      logServerError("media.actions.importSingle.cleanup", err),
+    );
     return { ok: false, error: "Could not register file." };
   }
 
@@ -1068,7 +1073,10 @@ export async function actionImportFromGoogleDrive(
       .single();
 
     if (insErr || !inserted) {
-      void admin.storage.from("media-public").remove([storagePath]);
+      logServerError("media.actions.importBulk.insert", insErr);
+      admin.storage.from("media-public").remove([storagePath]).catch((err) =>
+        logServerError("media.actions.importBulk.cleanup", err),
+      );
       errors.push(`Could not register one file.`);
       continue;
     }

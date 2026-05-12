@@ -104,7 +104,9 @@ export async function POST(request: Request) {
     }
 
     const safe = sanitizeInquiryDraftOutput(draft).slice(0, INQUIRY_DRAFT_MAX_CHARS);
-    void recordAiUsageEstimate();
+    recordAiUsageEstimate().catch((err) =>
+      logServerError("api/ai/inquiry-draft/recordAiUsageEstimate", err),
+    );
     return NextResponse.json({ draft: safe || draft.slice(0, INQUIRY_DRAFT_MAX_CHARS) });
   } catch (e) {
     logServerError("api/ai/inquiry-draft", e);

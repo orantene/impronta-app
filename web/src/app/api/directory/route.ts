@@ -132,35 +132,37 @@ export async function GET(request: Request) {
       );
     }
     if (audit || handlerWallMs >= 1200) {
-      void improntaLog("api_directory_timing", {
+      improntaLog("api_directory_timing", {
         publicSettingsMs: Math.round(publicSettingsMs),
         fetchDirectoryPageMs: Math.round(fetchDirectoryPageMs),
         handlerWallMs: Math.round(handlerWallMs),
         hasCursor: Boolean(cursor),
         itemCount: body.items?.length ?? 0,
-      });
+      }).catch((err) => logServerError("api/directory/improntaLog", err));
     }
 
-    void getAiFeatureFlags().then((flags) =>
-      logSearchQuery({
-        query: query ? normalizeSearchQueryForEmbedding(query) : null,
-        filters: {
-          taxonomyTermIds,
-          locationSlug,
-          sort,
-          heightMinCm,
-          heightMaxCm,
-          locale,
-        },
-        resultsCount: body.items?.length ?? 0,
-        source: "directory",
-        searchMode: "classic",
-        aiEnabled: flags.ai_master_enabled && flags.ai_search_enabled,
-        rerankEnabled: flags.ai_rerank_enabled,
-        explanationEnabled: flags.ai_master_enabled && flags.ai_explanations_enabled,
-        flagSnapshot: { ...flags },
-      }),
-    );
+    getAiFeatureFlags()
+      .then((flags) =>
+        logSearchQuery({
+          query: query ? normalizeSearchQueryForEmbedding(query) : null,
+          filters: {
+            taxonomyTermIds,
+            locationSlug,
+            sort,
+            heightMinCm,
+            heightMaxCm,
+            locale,
+          },
+          resultsCount: body.items?.length ?? 0,
+          source: "directory",
+          searchMode: "classic",
+          aiEnabled: flags.ai_master_enabled && flags.ai_search_enabled,
+          rerankEnabled: flags.ai_rerank_enabled,
+          explanationEnabled: flags.ai_master_enabled && flags.ai_explanations_enabled,
+          flagSnapshot: { ...flags },
+        }),
+      )
+      .catch((err) => logServerError("api/directory/logSearchQuery", err));
 
     return NextResponse.json(body);
   } catch (e) {

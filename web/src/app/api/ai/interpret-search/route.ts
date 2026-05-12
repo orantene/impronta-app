@@ -108,7 +108,7 @@ export async function POST(request: Request) {
       locale,
     );
 
-    void insertAiSearchLog({
+    insertAiSearchLog({
       rawQuery: q,
       normalizedSummary: mapped.normalizedSummary,
       taxonomyTermIds: mapped.taxonomyTermIds,
@@ -117,10 +117,12 @@ export async function POST(request: Request) {
       heightMaxCm: mapped.heightMaxCm,
       locale,
       usedInterpreter: usedModel,
-    });
+    }).catch((err) => logServerError("api/ai/interpret-search/insertAiSearchLog", err));
 
     if (usedModel) {
-      void recordAiUsageEstimate();
+      recordAiUsageEstimate().catch((err) =>
+        logServerError("api/ai/interpret-search/recordAiUsageEstimate", err),
+      );
     }
 
     return NextResponse.json({
