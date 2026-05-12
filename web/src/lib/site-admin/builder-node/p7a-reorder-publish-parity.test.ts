@@ -257,3 +257,76 @@ test("P7A-4: cross-section move — paragraph from one blank_section to another 
     "destination section owns moved paragraph",
   );
 });
+
+test("P7A-4: cross-slot move — paragraph from body blank_section to footer blank_section stays publish-resolved", () => {
+  const sectionBody = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const sectionFooter = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const slots = [
+    {
+      slotKey: "body",
+      sortOrder: 0,
+      sectionId: sectionBody,
+      sectionTypeKey: "blank_section",
+      name: "Body",
+    },
+    {
+      slotKey: "footer",
+      sortOrder: 0,
+      sectionId: sectionFooter,
+      sectionTypeKey: "blank_section",
+      name: "Footer",
+    },
+  ] as const;
+
+  let tree = buildLegacySectionBuilderTree([...slots]);
+  assert.equal(tree.length, 2);
+  const secBody = tree.find((n) => n.kind === "section" && n.props.slotKey === "body");
+  const secFooter = tree.find((n) => n.kind === "section" && n.props.slotKey === "footer");
+  assert.equal(secBody?.kind, "section");
+  assert.equal(secFooter?.kind, "section");
+  if (!secBody || secBody.kind !== "section" || !secFooter || secFooter.kind !== "section") return;
+
+  const para: BuilderNode = {
+    id: "cross-slot-para",
+    kind: "paragraph",
+    props: { text: "In footer slot" },
+  };
+  const ins = insertBuilderNode({
+    tree,
+    parentId: secBody.id,
+    index: 0,
+    node: para,
+  });
+  assert.equal(ins.ok, true);
+  if (!ins.ok) return;
+  tree = ins.tree;
+
+  const before = resolveSnapshotBuilderTreeForPublish({
+    slots: [...slots],
+    builderTree: tree,
+  });
+  assert.equal(before.ok, true);
+
+  const moved = moveBuilderNode({
+    tree,
+    nodeId: para.id,
+    parentId: secFooter.id,
+    index: 0,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+
+  const after = resolveSnapshotBuilderTreeForPublish({
+    slots: [...slots],
+    builderTree: moved.tree,
+  });
+  assert.equal(after.ok, true);
+
+  const bodyNode = moved.tree.find((n) => n.id === secBody.id);
+  const footerNode = moved.tree.find((n) => n.id === secFooter.id);
+  assert.equal(bodyNode?.kind, "section");
+  assert.equal(footerNode?.kind, "section");
+  if (!bodyNode || bodyNode.kind !== "section" || !footerNode || footerNode.kind !== "section") return;
+  assert.deepEqual((bodyNode.children ?? []).map((c) => c.id), []);
+  assert.deepEqual((footerNode.children ?? []).map((c) => c.id), [para.id]);
+});
