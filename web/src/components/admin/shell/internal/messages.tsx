@@ -11715,7 +11715,6 @@ function LineupRowCard({
    *  change before the offer reaches the client. */
   onOpenRateSheet?: (mode: "submit" | "edit") => void;
 }) {
-  const { toast } = useAdminShell();
   const subCost = rowSubtotal(row, "cost");
   const subRevenue = rowSubtotal(row, "client");
   const subMargin = subRevenue - subCost;
@@ -11808,8 +11807,12 @@ function LineupRowCard({
           {row.status === "pending" && (
             <button
               type="button"
-              onClick={() => onOpenRateSheet?.("submit") ?? toast("Rate submitted")}
-              style={tinyBtn(COLORS.accent, "#fff")}
+              onClick={onOpenRateSheet ? () => onOpenRateSheet("submit") : undefined}
+              disabled={!onOpenRateSheet}
+              title={onOpenRateSheet ? undefined : "Rate submission needs a live offer workflow."}
+              style={onOpenRateSheet
+                ? tinyBtn(COLORS.accent, "#fff")
+                : disabledBtn(tinyBtn(COLORS.accent, "#fff"))}
             >
               Submit my rate
             </button>
@@ -11818,8 +11821,12 @@ function LineupRowCard({
             <>
               <button
                 type="button"
-                onClick={() => onOpenRateSheet?.("edit") ?? toast("Edit rate")}
-                style={tinyBtn(COLORS.accentSoft, COLORS.accentDeep, `rgba(15,79,62,0.18)`)}
+                onClick={onOpenRateSheet ? () => onOpenRateSheet("edit") : undefined}
+                disabled={!onOpenRateSheet}
+                title={onOpenRateSheet ? undefined : "Rate edits need a live offer workflow."}
+                style={onOpenRateSheet
+                  ? tinyBtn(COLORS.accentSoft, COLORS.accentDeep, `rgba(15,79,62,0.18)`)
+                  : disabledBtn(tinyBtn(COLORS.accentSoft, COLORS.accentDeep, `rgba(15,79,62,0.18)`))}
               >
                 Edit rate
               </button>
@@ -11836,8 +11843,12 @@ function LineupRowCard({
           {row.status === "countered" && (
             <button
               type="button"
-              onClick={() => onOpenRateSheet?.("edit") ?? toast("Review counter")}
-              style={tinyBtn(COLORS.amberSoft, COLORS.amberDeep, `${COLORS.amber}40`)}
+              onClick={onOpenRateSheet ? () => onOpenRateSheet("edit") : undefined}
+              disabled={!onOpenRateSheet}
+              title={onOpenRateSheet ? undefined : "Counter review needs a live offer workflow."}
+              style={onOpenRateSheet
+                ? tinyBtn(COLORS.amberSoft, COLORS.amberDeep, `${COLORS.amber}40`)
+                : disabledBtn(tinyBtn(COLORS.amberSoft, COLORS.amberDeep, `${COLORS.amber}40`))}
             >
               Review counter
             </button>
@@ -13413,8 +13424,8 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
         <ActionPinShell tone="amber" icon="📝"
           title="Crew assets due Jun 14"
           body="Solstice needs updated bios + portrait shots for the festival program. Tariq and Anouk haven't dropped them in Files yet."
-          primary={{ label: "Nudge crew", onClick: () => toast("Reminder sent to Tariq + Anouk") }}
-          secondary={{ label: "Upload mine", onClick: () => toast("Asset uploader") }}
+          primary={{ label: "Nudge crew", disabled: true, title: "Crew reminders need a live notification workflow." }}
+          secondary={{ label: "Upload mine", disabled: true, title: "Crew asset upload needs a live file request workflow." }}
         />
       );
     }
@@ -13441,8 +13452,12 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
       <ActionPinShell tone="amber" icon="⏰"
         title="Hold expires in 4h"
         body="Confirm now to keep this slot, or release it for the next talent."
-        primary={{ label: "Confirm hold", onClick: realAccept ?? (() => toast("Hold confirmed")) }}
-        secondary={{ label: "Release", onClick: realDecline ?? (() => toast("Hold released")) }}
+        primary={realAccept
+          ? { label: "Confirm hold", onClick: realAccept }
+          : { label: "Confirm hold", disabled: true, title: "Hold confirmation needs a real inquiry invitation." }}
+        secondary={realDecline
+          ? { label: "Release", onClick: realDecline }
+          : { label: "Release", disabled: true, title: "Hold release needs a real inquiry invitation." }}
       />
     );
   }
@@ -13454,13 +13469,10 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
       <ActionPinShell tone="indigo" icon="📋"
         title={label}
         body="Coordinator is waiting for your sign-off before set day."
-        primary={{
-          label: "Confirm",
-          onClick: realPostConfirm
-            ? () => realPostConfirm(label)
-            : () => toast(`${label} confirmed`),
-        }}
-        secondary={{ label: "Question", onClick: () => toast("Reply to coordinator") }}
+        primary={realPostConfirm
+          ? { label: "Confirm", onClick: () => realPostConfirm(label) }
+          : { label: "Confirm", disabled: true, title: "Confirmation needs a real inquiry thread." }}
+        secondary={{ label: "Question", disabled: true, title: "Use the composer below to reply in this mock thread." }}
       />
     );
   }
@@ -13472,8 +13484,10 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
         <ActionPinShell tone="indigo" icon="💸"
           title="Submit your rate"
           body={`${conv.leader?.name?.split(" ")[0] ?? "The coordinator"} is waiting on your number to send the offer to the client.`}
-          primary={{ label: "Submit rate", onClick: realSubmitRate ?? (() => toast("Rate submitted")) }}
-          secondary={{ label: "Ask coordinator to set", onClick: () => toast("Quote requested") }}
+          primary={realSubmitRate
+            ? { label: "Submit rate", onClick: realSubmitRate }
+            : { label: "Submit rate", disabled: true, title: "Rate submission needs a real inquiry invitation." }}
+          secondary={{ label: "Ask coordinator to set", disabled: true, title: "Coordinator rate requests need a live workflow." }}
         />
       );
     }
@@ -13482,7 +13496,7 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
         <ActionPinShell tone="indigo" icon="📸"
           title="Polaroids requested"
           body="Send 6 fresh polaroids so the client can pre-approve the look."
-          primary={{ label: "Upload polaroids", onClick: () => toast("Polaroid uploader") }}
+          primary={{ label: "Upload polaroids", disabled: true, title: "Polaroid upload needs a live media workflow." }}
         />
       );
     }
@@ -13490,8 +13504,12 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
       <ActionPinShell tone="indigo" icon="✋"
         title="Coordinator invited you"
         body={`Reply to ${conv.leader?.name ?? "the coordinator"} or accept the inquiry to lock your spot.`}
-        primary={{ label: "Accept", onClick: realAccept ?? (() => toast("Inquiry accepted")) }}
-        secondary={{ label: "Decline", onClick: realDecline ?? (() => toast("Inquiry declined")) }}
+        primary={realAccept
+          ? { label: "Accept", onClick: realAccept }
+          : { label: "Accept", disabled: true, title: "Accept needs a real inquiry invitation." }}
+        secondary={realDecline
+          ? { label: "Decline", onClick: realDecline }
+          : { label: "Decline", disabled: true, title: "Decline needs a real inquiry invitation." }}
       />
     );
   }
@@ -13505,8 +13523,8 @@ function ActionPinShell({
   icon: string;
   title: string;
   body: string;
-  primary?: { label: string; onClick: () => void };
-  secondary?: { label: string; onClick: () => void };
+  primary?: { label: string; onClick?: () => void; disabled?: boolean; title?: string };
+  secondary?: { label: string; onClick?: () => void; disabled?: boolean; title?: string };
 }) {
   const palette = tone === "amber"
     ? { bg: `${COLORS.amber}14`, border: `${COLORS.amber}40`, fg: COLORS.amber, primaryBg: COLORS.amber }
@@ -13531,18 +13549,42 @@ function ActionPinShell({
         <div style={{ fontSize: 11.5, color: COLORS.ink, marginTop: 2, lineHeight: 1.45 }}>{body}</div>
         {(primary || secondary) && (
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            {primary && (
-              <button type="button" onClick={primary.onClick} style={{
+            {primary && (() => {
+              const primaryDisabled = primary.disabled || !primary.onClick;
+              const style = {
                 padding: "5px 11px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
                 border: "none", background: palette.primaryBg, color: "#fff", cursor: "pointer",
-              }}>{primary.label}</button>
-            )}
-            {secondary && (
-              <button type="button" onClick={secondary.onClick} style={{
+              } satisfies React.CSSProperties;
+              return (
+                <button
+                  type="button"
+                  onClick={primaryDisabled ? undefined : primary.onClick}
+                  disabled={primaryDisabled}
+                  title={primary.title}
+                  style={primaryDisabled ? disabledBtn(style) : style}
+                >
+                  {primary.label}
+                </button>
+              );
+            })()}
+            {secondary && (() => {
+              const secondaryDisabled = secondary.disabled || !secondary.onClick;
+              const style = {
                 padding: "5px 11px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
                 border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.ink, cursor: "pointer",
-              }}>{secondary.label}</button>
-            )}
+              } satisfies React.CSSProperties;
+              return (
+                <button
+                  type="button"
+                  onClick={secondaryDisabled ? undefined : secondary.onClick}
+                  disabled={secondaryDisabled}
+                  title={secondary.title}
+                  style={secondaryDisabled ? disabledBtn(style) : style}
+                >
+                  {secondary.label}
+                </button>
+              );
+            })()}
           </div>
         )}
       </div>
