@@ -53,6 +53,7 @@ Record last run date and result here:
 | 2026-05-09 | HTTPS GET https://tulala.digital (curl) | HTTP 200; HTML body does not contain Host not registered |
 | 2026-05-09 | `npm run test:e2e:registered-host` | Pass (Chromium) — default URL `https://tulala.digital` |
 | 2026-05-09 | `npm run typecheck` + `npm run test:tenant-isolation` + `npm run test:builder-capabilities` + `npm run test:publish-preflight` + `test:e2e:browser-health` + `test:e2e:registered-host` (single batch) | Pass (local) |
+| 2026-05-12 | `cd web && npm run test:e2e:impronta-directory-search-hero` (requires local Next on `:3000` + dev sign-in env) | Pass (Chromium) — Directory Search Hero insert; desktop canvas + mobile preview iframe |
 
 ## Sign-off
 

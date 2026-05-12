@@ -538,3 +538,33 @@ Updated issue status:
 
 - Clean QA reset tooling: **improved / dry-run verified**.
 - Clean page state: **not applied yet**. The user or next operator must intentionally run `npm run reset:impronta-homepage:draft -- --apply` before the clean human QA loop.
+
+## Fix / Retest Update - 2026-05-12, Pass 6 (automation + dev ergonomics)
+
+Scope:
+
+- No new product UI in this pass.
+- Confirm automated regression coverage for the historical **BUG-002 / BUG-003** insert + device-preview paths (`Directory Search Hero` starter).
+- Reduce local setup confusion: path-tenant Impronta builder must use **`localhost`** as `Host`, not `app.local` through the host proxy.
+
+Automated checks:
+
+- From `web/`, `npm run test:e2e:impronta-directory-search-hero` → **Pass** (Chromium, ~35s) against `PLAYWRIGHT_BASE_URL=http://localhost:3000` with dev sign-in. Asserts desktop canvas content and content inside **`iframe[title="mobile preview"]`** after insert.
+- Repo root `npm run typecheck && npm run lint` → **Pass** (same session).
+
+Code / ops hygiene:
+
+- [`scripts/dev.sh`](../../scripts/dev.sh) now echoes that URLs like `/impronta?edit=1` require **`http://localhost:3000/...`**, not `http://app.local:3102/...` (see [`web/src/proxy.ts`](../src/proxy.ts) path-tenant rules).
+
+Updated issue status:
+
+- **BUG-002 / BUG-003 (Directory Search Hero path):** **mitigated by CI-playable e2e** on local dev; still **not a substitute** for a clean-page human run or the **Phase 0 registered-host matrix** ([phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md)).
+- **BUG-001** (local dev compile/memory): unchanged — still performance watch list; e2e passing does not prove fast first compile.
+- **BUG-004** (polluted homepage): unchanged — operator may still run `npm run reset:impronta-homepage:draft -- --apply` before subjective human passes.
+- **BUG-005** (publish trust vs wrong canvas): roadmap work landed copy/tooltip honesty and preflight slices per [builder-execution-plan-2026.md](./builder-execution-plan-2026.md) changelog; **full publish/reopen trust** remains **human-gated** on a clean baseline.
+
+Next recommended execution order:
+
+1. Optional: `npm run reset:impronta-homepage:draft -- --apply` (local) for a clean Scenario 2 surface.
+2. Human: run **Re-Test Script** § through publish on `localhost:3000/impronta?edit=1`, then **Phase 0** matrix on a **registered** host.
+3. Keep `npm run test:e2e:impronta-directory-search-hero` in the loop whenever edit-chrome or homepage render paths change.

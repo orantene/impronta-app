@@ -12,8 +12,8 @@ todos:
     content: Run Phase 0 human registered-host matrix (390 / ~820 / 1440) per phase-0-qa-registered-host.md.
     status: pending
   - id: exec-bugs-canvas-iframe
-    content: Close or mitigate BUG-002 / BUG-003 (insert/canvas + mobile iframe) if they still block trustworthy 7A demos.
-    status: pending
+    content: "Mitigated BUG-002/BUG-003 (DSH): Playwright `test:e2e:impronta-directory-search-hero` + prior snapshot-tree/iframe key fixes. Human clean-page + registered-host matrix still required."
+    status: completed
   - id: exec-p7a-0-schema
     content: P7A-0 — Builder-node schema + persistence contracts so library inserts round-trip draft + publish.
     status: completed
