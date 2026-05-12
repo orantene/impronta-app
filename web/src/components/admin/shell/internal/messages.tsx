@@ -8187,7 +8187,6 @@ export function DetailsPanel({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
 // ── CLIENT view — short, warm, reassurance-shaped ──
 function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
   const coord = inquiry.coordinators[0];
-  const { toast } = useAdminShell();
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       {/* Your project */}
@@ -8207,10 +8206,10 @@ function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
               <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{coord.name}</div>
               <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>Your coordinator</div>
             </div>
-            <button type="button" onClick={() => toast(`Messaging ${coord.name}…`)} style={{
+            <button type="button" disabled title="Use the Messages tab to contact this coordinator." style={disabledBtn({
               padding: "6px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
               border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.ink, cursor: "pointer",
-            }}>Message</button>
+            })}>Message</button>
           </div>
         </DetailSection>
       )}
@@ -8243,25 +8242,25 @@ function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
               cancelled — no edits past that point. */}
           {inquiry.status !== "wrapped" && inquiry.status !== "cancelled" && (
             <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => toast("Browse talent to add")} style={{
+              <button type="button" disabled title="Client talent requests need a live coordinator workflow." style={disabledBtn({
                 display: "inline-flex", alignItems: "center", gap: 5,
                 padding: "5px 10px", borderRadius: 999,
                 border: `1px dashed ${COLORS.border}`, background: "transparent",
                 color: COLORS.ink, cursor: "pointer",
                 fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
-              }}>
+              })}>
                 <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                   <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
                 Add talent
               </button>
-              <button type="button" onClick={() => toast("Request swap or alternate")} style={{
+              <button type="button" disabled title="Swap requests need a live coordinator workflow." style={disabledBtn({
                 display: "inline-flex", alignItems: "center", gap: 5,
                 padding: "5px 10px", borderRadius: 999,
                 border: "none", background: "transparent",
                 color: COLORS.inkMuted, cursor: "pointer",
                 fontSize: 11.5, fontWeight: 500, fontFamily: FONTS.body,
-              }}>
+              })}>
                 Request a swap
               </button>
             </div>
@@ -8298,12 +8297,10 @@ function ClientTalentCard({
   talent: { talentId: string; name: string; initials: string; state: string; photoUrl?: string };
   stagePast?: boolean;
   canEdit?: boolean;
-  // When provided, the swap button calls this instead of toasting —
-  // lets the parent open a real picker drawer (add/swap/remove). Falls
-  // back to a toast for places that haven't wired the drawer yet.
+  // When provided, the swap button calls this instead of staying disabled —
+  // lets the parent open a real picker drawer (add/swap/remove).
   onSwap?: () => void;
 }) {
-  const { toast } = useAdminShell();
   const stateMeta = (() => {
     const s = (talent.state || "").toLowerCase();
     if (s === "accepted" || s === "confirmed" || s === "booked") {
@@ -8337,21 +8334,33 @@ function ClientTalentCard({
           textTransform: "uppercase", letterSpacing: 0.4,
         }}>{stateMeta.label}</div>
       </div>
-      <button type="button" onClick={() => toast(`Open ${talent.name}'s profile`)} style={{
+      <button type="button" disabled title="Client-facing talent profile preview is not wired here yet." style={disabledBtn({
         flexShrink: 0,
         padding: "5px 10px", borderRadius: 999,
         border: `1px solid ${COLORS.border}`, background: "transparent",
         color: COLORS.ink, cursor: "pointer",
         fontSize: 11, fontWeight: 600, fontFamily: FONTS.body,
-      }}>View</button>
+      })}>View</button>
       {canEdit && !stagePast && (
-        <button type="button" onClick={() => onSwap ? onSwap() : toast(`Request swap for ${talent.name}`)} aria-label={`Swap ${talent.name}`} style={{
+        <button
+          type="button"
+          onClick={onSwap}
+          disabled={!onSwap}
+          title={onSwap ? undefined : "Swap requests need a live coordinator workflow."}
+          aria-label={`Swap ${talent.name}`}
+          style={onSwap ? {
           flexShrink: 0,
           width: 28, height: 28, borderRadius: 8,
           border: "none", background: "transparent",
           color: COLORS.inkMuted, cursor: "pointer",
           display: "inline-flex", alignItems: "center", justifyContent: "center",
-        }}>
+        } : disabledBtn({
+          flexShrink: 0,
+          width: 28, height: 28, borderRadius: 8,
+          border: "none", background: "transparent",
+          color: COLORS.inkMuted, cursor: "pointer",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        })}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <path d="M2 4h8l-2-2M12 10H4l2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
