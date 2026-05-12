@@ -20948,15 +20948,16 @@ function InstagramVerificationInstructions({
 // ════════════════════════════════════════════════════════════════════
 
 function TalentClaimInviteDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
   const open = state.drawer.drawerId === "talent-claim-invite";
   const [step, setStep] = useState<"review" | "claim" | "dispute">("review");
   const [email, setEmail] = useState("amelia.dorsey@example.com");
   const [agreed, setAgreed] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
 
-  const profileName = "Amelia Dorsey";
-  const agencyName = "Atelier Roma";
+  // Profile name comes from the invite payload; fall back to generic label.
+  const profileName = (state.drawer.payload?.profileName as string | undefined) ?? "Your profile";
+  const agencyName = effectiveTenant.name;
 
   const accept = () => {
     if (!agreed) { toast("Confirm you reviewed what's collected"); return; }

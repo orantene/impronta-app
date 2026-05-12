@@ -3270,8 +3270,8 @@ function DualTimeBadge({
 }
 
 function BookingPanel({ inquiry }: { inquiry: RichInquiry }) {
-  const { state } = useAdminShell();
-  const tenantSlug = state.effectiveTenant?.slug ?? "";
+  const { effectiveTenant } = useAdminShell();
+  const tenantSlug = effectiveTenant.slug;
 
   if (inquiry.bookingId) {
     // Only link if bookingId looks like a real UUID (not a prototype "BK-xxx" slug).
