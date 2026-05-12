@@ -3,6 +3,7 @@
 // an inquiry pre-filled with that talent.
 
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadWorkspaceRosterEnriched } from "../../_data-bridge";
@@ -16,6 +17,7 @@ const C = {
   inkMuted:   "rgba(11,11,13,0.55)",
   borderSoft: "rgba(24,24,27,0.08)",
   surface:    "rgba(11,11,13,0.02)",
+  accent:     "#1D4ED8",
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -75,8 +77,27 @@ export default async function ClientDiscoverPage({ params }: { params: PageParam
             Roster coming soon
           </div>
           <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 360, lineHeight: 1.5 }}>
-            {clientProfile.agencyName} is setting up their roster. Reach out directly to submit an inquiry.
+            {clientProfile.agencyName} is setting up their roster. You can still send a brief and let the agency recommend the right fit.
           </p>
+          <Link
+            href={`/${tenantSlug}/client/inquiries/new`}
+            style={{
+              display: "inline-flex",
+              marginTop: 16,
+              height: 36,
+              padding: "0 16px",
+              borderRadius: 8,
+              background: C.accent,
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 600,
+              textDecoration: "none",
+              alignItems: "center",
+              fontFamily: FONT,
+            }}
+          >
+            Start inquiry →
+          </Link>
         </div>
       )}
     </div>

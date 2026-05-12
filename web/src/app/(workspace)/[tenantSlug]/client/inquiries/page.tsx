@@ -310,7 +310,7 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
           </p>
         </div>
         <Link
-          href={`/${tenantSlug}/client/discover`}
+          href={`/${tenantSlug}/client/inquiries/new`}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -345,8 +345,47 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
             No inquiries yet
           </div>
           <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 360, lineHeight: 1.5 }}>
-            Browse the Discover tab to find talent and submit your first booking inquiry.
+            Send a booking inquiry now, or browse Discover first if you want to pick a specific talent.
           </p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 16 }}>
+            <Link
+              href={`/${tenantSlug}/client/inquiries/new`}
+              style={{
+                display: "inline-flex",
+                height: 36,
+                padding: "0 16px",
+                borderRadius: 8,
+                background: C.accent,
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                alignItems: "center",
+                fontFamily: FONT,
+              }}
+            >
+              Start inquiry →
+            </Link>
+            <Link
+              href={`/${tenantSlug}/client/discover`}
+              style={{
+                display: "inline-flex",
+                height: 36,
+                padding: "0 16px",
+                borderRadius: 8,
+                background: "#fff",
+                border: `1px solid ${C.borderSoft}`,
+                color: C.ink,
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                alignItems: "center",
+                fontFamily: FONT,
+              }}
+            >
+              Browse roster
+            </Link>
+          </div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>

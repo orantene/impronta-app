@@ -154,7 +154,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   let subline: string;
   if (allInquiries.length === 0) {
     headline = `Welcome, ${firstName}.`;
-    subline = `You're all set. Submit your first booking enquiry from the Discover tab.`;
+    subline = "You're all set. Send a booking inquiry when you have a brief ready.";
   } else if (needsDecision.length > 0) {
     headline = `${needsDecision.length === 1 ? "1 inquiry needs" : `${needsDecision.length} inquiries need`} your attention.`;
     subline = "Review and respond to keep the process moving.";
@@ -165,7 +165,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
     headline = `Hi ${firstName} — nothing urgent right now.`;
     subline = confirmed.length > 0
       ? `${confirmed.length} confirmed booking${confirmed.length > 1 ? "s" : ""} on your record.`
-      : "Browse the roster to discover talent and submit a new inquiry.";
+      : "Browse the roster or send a new inquiry when you have a brief ready.";
   }
 
   return (
@@ -186,7 +186,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           </p>
         </div>
         <Link
-          href={`/${tenantSlug}/client/discover`}
+          href={`/${tenantSlug}/client/inquiries/new`}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -233,27 +233,47 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>No inquiries yet</div>
           <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 360, lineHeight: 1.5 }}>
-            Discover talent and submit your first booking enquiry from the Discover tab.
+            Send your first booking inquiry now, or browse the roster first if you want to pick a specific talent.
           </p>
-          <Link
-            href={`/${tenantSlug}/client/discover`}
-            style={{
-              display: "inline-flex",
-              marginTop: 16,
-              height: 36,
-              padding: "0 16px",
-              borderRadius: 8,
-              background: C.accent,
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: "none",
-              alignItems: "center",
-              fontFamily: FONT,
-            }}
-          >
-            Discover talent →
-          </Link>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 16 }}>
+            <Link
+              href={`/${tenantSlug}/client/inquiries/new`}
+              style={{
+                display: "inline-flex",
+                height: 36,
+                padding: "0 16px",
+                borderRadius: 8,
+                background: C.accent,
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                alignItems: "center",
+                fontFamily: FONT,
+              }}
+            >
+              Start inquiry →
+            </Link>
+            <Link
+              href={`/${tenantSlug}/client/discover`}
+              style={{
+                display: "inline-flex",
+                height: 36,
+                padding: "0 16px",
+                borderRadius: 8,
+                background: "#fff",
+                border: `1px solid ${C.borderSoft}`,
+                color: C.ink,
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                alignItems: "center",
+                fontFamily: FONT,
+              }}
+            >
+              Browse roster
+            </Link>
+          </div>
         </div>
       ) : (
         /* Three-bucket layout */
@@ -333,7 +353,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           My inquiries
         </Link>
         <Link
-          href={`/${tenantSlug}/client/discover`}
+          href={`/${tenantSlug}/client/inquiries/new`}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -422,7 +442,7 @@ function BucketSection({
 
       <div style={{ background: C2.cardBg, border: `1px solid ${C2.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
         {items.map((inq, idx) => (
-          <a
+          <Link
             key={inq.id}
             href={`/${tenantSlug}/client/inquiries/${inq.id}`}
             style={{
@@ -479,7 +499,7 @@ function BucketSection({
             <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11, color: C2.inkDim }}>
               {relativeDate(inq.created_at)}
             </div>
-          </a>
+          </Link>
         ))}
       </div>
     </section>
