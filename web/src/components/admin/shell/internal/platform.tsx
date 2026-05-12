@@ -17,7 +17,7 @@
  * impersonation. Implemented via state.impersonating + startImpersonation().
  */
 
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   COLORS,
   ENTITY_TYPE_META,
@@ -87,6 +87,16 @@ const HQ = {
   green: "#5DD3A0",
   red: "#F36772",
 };
+
+function openPlatformSupportEmail(subject: string, body: string) {
+  const params = new URLSearchParams({ subject, body });
+  window.location.href = `mailto:support@tulala.digital?${params.toString()}`;
+}
+
+function requestPlatformSupport(toast: (message: string) => void, subject: string, lines: string[]) {
+  openPlatformSupportEmail(subject, lines.join("\n"));
+  toast("Opening platform support email");
+}
 
 export function PlatformSurface() {
   return (
@@ -1597,7 +1607,7 @@ export function PlatformTenantImpersonateDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Impersonate tenant"
-      description={`Step into ${t.name} as if you were on their team. Read-only by default — flip the toggle if you need to act.`}
+      description={`Preview ${t.name} through the tenant shell. This session is local and read-only.`}
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
@@ -1635,7 +1645,7 @@ export function PlatformTenantImpersonateDrawer() {
       >
         <Icon name="info" size={14} color="#7A2026" />
         <span>
-          Impersonation is logged to the audit trail. Read-only mode prevents writes — the tenant can't tell you're there.
+          This preview changes only your HQ shell session. It does not write tenant data, notify the tenant, or create an audit-log entry.
         </span>
       </div>
       <Divider label="What you'll see" />
@@ -1660,16 +1670,24 @@ export function PlatformTenantSuspendDrawer() {
   const open = state.drawer.drawerId === "platform-tenant-suspend";
   const id = state.drawer.payload?.id as string | undefined;
   const t = PLATFORM_TENANTS.find((t) => t.id === id) ?? PLATFORM_TENANTS[0];
+  const emailSuspendRequest = () => {
+    requestPlatformSupport(toast, "Tulala tenant suspension request", [
+      `Tenant: ${t.name}`,
+      `Tenant ID: ${t.id}`,
+      `Slug: ${t.slug}`,
+      "Please review this suspension request and confirm the operational steps before any tenant access changes.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Suspend tenant"
-      description={`Temporarily lock ${t.name} out of the platform. Their public site stays up but no one can sign in.`}
+      description={`Email support to start a reviewed suspension request for ${t.name}.`}
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast(`${t.name} suspended`); closeDrawer(); }}>Suspend</PrimaryButton>
+          <PrimaryButton onClick={emailSuspendRequest}>Email suspension request</PrimaryButton>
         </>
       }
     >
@@ -1685,7 +1703,7 @@ export function PlatformTenantSuspendDrawer() {
           lineHeight: 1.55,
         }}
       >
-        Suspension is reversible from this same drawer. The tenant gets a generic "account paused" email.
+        This drawer does not lock tenant access by itself. Support must confirm owner notice, billing state, and rollback plan.
       </div>
     </DrawerShell>
   );
@@ -1694,16 +1712,31 @@ export function PlatformTenantSuspendDrawer() {
 export function PlatformTenantPlanOverrideDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-tenant-plan-override";
+  const id = state.drawer.payload?.id as string | undefined;
+  const t = PLATFORM_TENANTS.find((t) => t.id === id) ?? PLATFORM_TENANTS[0];
+  const [selectedPlan, setSelectedPlan] = useState<PlatformTenant["plan"]>(t.plan);
+  useEffect(() => {
+    if (open) setSelectedPlan(t.plan);
+  }, [open, t.plan]);
+  const emailPlanOverrideRequest = () => {
+    requestPlatformSupport(toast, "Tulala plan override request", [
+      `Tenant: ${t.name}`,
+      `Tenant ID: ${t.id}`,
+      `Current plan: ${t.plan}`,
+      `Requested plan: ${selectedPlan}`,
+      "Please review billing impact and apply the override only after approval.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Override plan"
-      description="Temporarily set a different plan for this tenant. Reverts on next billing cycle unless extended."
+      description="Email support to request a reviewed plan override."
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Plan override saved"); closeDrawer(); }}>Save override</PrimaryButton>
+          <PrimaryButton onClick={emailPlanOverrideRequest}>Email override request</PrimaryButton>
         </>
       }
     >
@@ -1722,7 +1755,7 @@ export function PlatformTenantPlanOverrideDrawer() {
               cursor: "pointer",
             }}
           >
-            <input type="radio" name="plan-override" defaultChecked={p === "agency"} />
+            <input type="radio" name="plan-override" checked={selectedPlan === p} onChange={() => setSelectedPlan(p)} />
             <span style={{ flex: 1, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
               {PLAN_META[p].label}
             </span>
@@ -1765,21 +1798,27 @@ export function PlatformUserDetailDrawer() {
 export function PlatformUserMergeDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-user-merge";
+  const emailMergeRequest = () => {
+    requestPlatformSupport(toast, "Tulala account merge request", [
+      "Please review this account merge request.",
+      "The drawer currently has no live merge action or selected canonical target.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Merge accounts"
-      description="Combine duplicate users. The selected target keeps the canonical email."
+      description="Email support to start a reviewed account merge."
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Accounts merged"); closeDrawer(); }}>Merge</PrimaryButton>
+          <PrimaryButton onClick={emailMergeRequest}>Email merge request</PrimaryButton>
         </>
       }
     >
       <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
-        Merging is logged in the audit trail and emits a webhook. Duplicates that share login email get auto-detected.
+        Merges are irreversible and need a canonical target plus audit approval before support changes account records.
       </div>
     </DrawerShell>
   );
@@ -1788,21 +1827,27 @@ export function PlatformUserMergeDrawer() {
 export function PlatformUserResetDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-user-reset";
+  const emailResetRequest = () => {
+    requestPlatformSupport(toast, "Tulala password reset request", [
+      "Please send a password reset link for the selected platform user.",
+      "This drawer has no live auth-email action yet.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Send reset email"
-      description="Sends the standard password-reset email. We never set or see passwords directly."
+      description="Email support to request a password reset link."
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Reset email sent"); closeDrawer(); }}>Send</PrimaryButton>
+          <PrimaryButton onClick={emailResetRequest}>Email reset request</PrimaryButton>
         </>
       }
     >
       <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
-        The email arrives within a minute. If the user reports not getting it, check the audit log.
+        Support can verify the user record and trigger the auth provider email from the operational console.
       </div>
     </DrawerShell>
   );
@@ -1813,6 +1858,14 @@ export function PlatformHubSubmissionDrawer() {
   const open = state.drawer.drawerId === "platform-hub-submission";
   const id = state.drawer.payload?.id as string | undefined;
   const s = HUB_SUBMISSIONS.find((s) => s.id === id) ?? HUB_SUBMISSIONS[0];
+  const emailHubDecision = (decision: string) => {
+    requestPlatformSupport(toast, `Tulala hub submission ${decision} request`, [
+      `Talent: ${s.talentName}`,
+      `Agency: ${s.agency}`,
+      `Submission ID: ${s.id}`,
+      `Requested decision: ${decision}`,
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -1821,8 +1874,8 @@ export function PlatformHubSubmissionDrawer() {
       description={`${s.agency} · submitted ${s.submittedAt}`}
       footer={
         <>
-          <SecondaryButton onClick={() => { toast("Declined"); closeDrawer(); }}>Decline</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Featured"); closeDrawer(); }}>Feature</PrimaryButton>
+          <SecondaryButton onClick={() => emailHubDecision("decline")}>Email decline request</SecondaryButton>
+          <PrimaryButton onClick={() => emailHubDecision("feature")}>Email feature request</PrimaryButton>
         </>
       }
     >
@@ -1851,16 +1904,22 @@ export function PlatformHubSubmissionDrawer() {
 export function PlatformHubRulesDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-hub-rules";
+  const emailRulesRequest = () => {
+    requestPlatformSupport(toast, "Tulala hub rules change request", [
+      "Please review a hub rules change request.",
+      "Current visible baseline: featured rotation 30 days; ranking completeness x recency x engagement.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Hub rules"
-      description="Rotation length, ranking weights, and what disqualifies a submission."
+      description="Current rotation, ranking weights, and disqualification policy."
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Rules saved"); closeDrawer(); }}>Save</PrimaryButton>
+          <PrimaryButton onClick={emailRulesRequest}>Email change request</PrimaryButton>
         </>
       }
     >
@@ -1904,17 +1963,27 @@ export function PlatformRefundDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-refund";
   const canRefund = HQ_ROLE_META[state.hqRole].canRefund;
+  const invoiceId = state.drawer.payload?.invoiceId as string | undefined;
+  const tenantId = state.drawer.payload?.tenantId as string | undefined;
+  const emailRefundRequest = () => {
+    requestPlatformSupport(toast, "Tulala refund review request", [
+      `Invoice ID: ${invoiceId ?? "not provided"}`,
+      `Tenant ID: ${tenantId ?? "not provided"}`,
+      `HQ role: ${state.hqRole}`,
+      "Please review payment status and issue any Stripe refund from the billing system if approved.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Issue refund"
-      description={canRefund ? "Refunds emit a webhook and reverse the Stripe charge." : "Refunds require billing role."}
+      description={canRefund ? "Email support to start a reviewed refund." : "Refund requests require billing role."}
       footer={
         canRefund ? (
           <>
             <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-            <PrimaryButton onClick={() => { toast("Refund issued"); closeDrawer(); }}>Confirm refund</PrimaryButton>
+            <PrimaryButton onClick={emailRefundRequest}>Email refund request</PrimaryButton>
           </>
         ) : (
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
@@ -1923,7 +1992,7 @@ export function PlatformRefundDrawer() {
     >
       <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
         {canRefund
-          ? "This will trigger a Stripe refund and email the tenant a receipt."
+          ? "This drawer does not reverse a Stripe charge by itself. Billing must verify the invoice and apply the refund in the payment system."
           : "Switch your HQ role to Billing or Exec to issue refunds."}
       </div>
     </DrawerShell>
@@ -1933,6 +2002,13 @@ export function PlatformRefundDrawer() {
 export function PlatformDunningDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-dunning";
+  const invoiceId = state.drawer.payload?.invoiceId as string | undefined;
+  const emailDunningRequest = () => {
+    requestPlatformSupport(toast, "Tulala dunning retry request", [
+      `Invoice ID: ${invoiceId ?? "not provided"}`,
+      "Please review the failed payment and manually retry or adjust the dunning queue.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -1940,7 +2016,7 @@ export function PlatformDunningDrawer() {
       title="Dunning"
       description="Retry rules and follow-up emails for failed payments."
       footer={
-        <PrimaryButton onClick={() => { toast("Dunning queue updated"); closeDrawer(); }}>Retry now</PrimaryButton>
+        <PrimaryButton onClick={emailDunningRequest}>Email retry request</PrimaryButton>
       }
     >
       <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.6 }}>
@@ -1955,6 +2031,19 @@ export function PlatformFeatureFlagDrawer() {
   const open = state.drawer.drawerId === "platform-feature-flag";
   const id = state.drawer.payload?.id as string | undefined;
   const f = FEATURE_FLAGS.find((f) => f.id === id) ?? FEATURE_FLAGS[0];
+  const [selectedState, setSelectedState] = useState<FeatureFlag["state"]>(f.state);
+  useEffect(() => {
+    if (open) setSelectedState(f.state);
+  }, [f.state, open]);
+  const emailFlagRequest = () => {
+    requestPlatformSupport(toast, "Tulala feature flag change request", [
+      `Flag: ${f.name}`,
+      `Flag ID: ${f.id}`,
+      `Current state: ${f.state}`,
+      `Requested state: ${selectedState}`,
+      f.rollout ? `Current rollout: ${f.rollout}` : "Current rollout: none",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -1964,7 +2053,7 @@ export function PlatformFeatureFlagDrawer() {
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Flag updated"); closeDrawer(); }}>Save</PrimaryButton>
+          <PrimaryButton onClick={emailFlagRequest}>Email flag request</PrimaryButton>
         </>
       }
     >
@@ -1978,11 +2067,13 @@ export function PlatformFeatureFlagDrawer() {
         {(["off", "rollout", "on"] as const).map((s) => (
           <button
             key={s}
+            type="button"
+            onClick={() => setSelectedState(s)}
             style={{
               flex: 1,
               padding: "10px 12px",
-              background: f.state === s ? COLORS.fill : "#fff",
-              color: f.state === s ? "#fff" : COLORS.ink,
+              background: selectedState === s ? COLORS.fill : "#fff",
+              color: selectedState === s ? "#fff" : COLORS.ink,
               border: `1px solid ${COLORS.border}`,
               borderRadius: 8,
               fontFamily: FONTS.body,
@@ -2006,6 +2097,16 @@ export function PlatformModerationItemDrawer() {
   const open = state.drawer.drawerId === "platform-moderation-item";
   const id = state.drawer.payload?.id as string | undefined;
   const m = MODERATION_QUEUE.find((m) => m.id === id) ?? MODERATION_QUEUE[0];
+  const emailModerationRequest = (action: string) => {
+    requestPlatformSupport(toast, `Tulala moderation ${action} request`, [
+      `Subject: ${m.subject}`,
+      `Moderation ID: ${m.id}`,
+      `Kind: ${m.kind}`,
+      `Reason: ${m.reason}`,
+      `Severity: ${m.severity}`,
+      `Requested action: ${action}`,
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -2014,8 +2115,8 @@ export function PlatformModerationItemDrawer() {
       description={m.subject}
       footer={
         <>
-          <SecondaryButton onClick={() => { toast("Cleared"); closeDrawer(); }}>Clear</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Action taken"); closeDrawer(); }}>Take action</PrimaryButton>
+          <SecondaryButton onClick={() => emailModerationRequest("clear")}>Email clear request</SecondaryButton>
+          <PrimaryButton onClick={() => emailModerationRequest("action")}>Email action request</PrimaryButton>
         </>
       }
     >
@@ -2034,6 +2135,15 @@ export function PlatformSystemJobDrawer() {
   const open = state.drawer.drawerId === "platform-system-job";
   const id = state.drawer.payload?.id as string | undefined;
   const j = SYSTEM_JOBS.find((j) => j.id === id) ?? SYSTEM_JOBS[0];
+  const emailJobRequest = (action: string) => {
+    requestPlatformSupport(toast, `Tulala system job ${action} request`, [
+      `Job: ${j.name}`,
+      `Job ID: ${j.id}`,
+      `State: ${j.state}`,
+      `Last run: ${j.lastRun}`,
+      `Requested action: ${action}`,
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -2042,8 +2152,8 @@ export function PlatformSystemJobDrawer() {
       description={`Last run ${j.lastRun} · duration ${j.duration}`}
       footer={
         <>
-          <SecondaryButton onClick={() => { toast("Logs opened"); closeDrawer(); }}>View logs</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Job re-queued"); closeDrawer(); }}>Re-run now</PrimaryButton>
+          <SecondaryButton onClick={() => emailJobRequest("logs")}>Email logs request</SecondaryButton>
+          <PrimaryButton onClick={() => emailJobRequest("re-run")}>Email re-run request</PrimaryButton>
         </>
       }
     >
@@ -2059,6 +2169,16 @@ export function PlatformIncidentDrawer() {
   const open = state.drawer.drawerId === "platform-incident";
   const id = state.drawer.payload?.id as string | undefined;
   const i = PLATFORM_INCIDENTS.find((i) => i.id === id) ?? PLATFORM_INCIDENTS[0];
+  const emailIncidentRequest = (action: string) => {
+    requestPlatformSupport(toast, `Tulala incident ${action} request`, [
+      `Incident: ${i.title}`,
+      `Incident ID: ${i.id}`,
+      `Severity: ${i.severity}`,
+      `Current state: ${i.state}`,
+      `Started: ${i.startedAt}`,
+      `Requested action: ${action}`,
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -2067,13 +2187,13 @@ export function PlatformIncidentDrawer() {
       description={`${i.severity.toUpperCase()} · ${i.state} · started ${i.startedAt}`}
       footer={
         <>
-          <SecondaryButton onClick={() => { toast("Status updated"); closeDrawer(); }}>Update status</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Marked resolved"); closeDrawer(); }}>Mark resolved</PrimaryButton>
+          <SecondaryButton onClick={() => emailIncidentRequest("status update")}>Email status request</SecondaryButton>
+          <PrimaryButton onClick={() => emailIncidentRequest("resolution")}>Email resolution request</PrimaryButton>
         </>
       }
     >
       <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
-        Status updates auto-post to the public statuspage. Mark resolved when monitoring shows clean for 15 minutes.
+        This drawer does not post to the public status page. Support must verify monitoring and publish any status update.
       </div>
     </DrawerShell>
   );
@@ -2084,6 +2204,16 @@ export function PlatformSupportTicketDrawer() {
   const open = state.drawer.drawerId === "platform-support-ticket";
   const id = state.drawer.payload?.id as string | undefined;
   const t = SUPPORT_TICKETS.find((t) => t.id === id) ?? SUPPORT_TICKETS[0];
+  const emailTicketRequest = (action: string) => {
+    requestPlatformSupport(toast, `Tulala support ticket ${action} request`, [
+      `Ticket: ${t.subject}`,
+      `Ticket ID: ${t.id}`,
+      `Tenant: ${t.tenant}`,
+      `Reporter: ${t.reportedBy}`,
+      `Current state: ${t.state}`,
+      `Requested action: ${action}`,
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -2092,8 +2222,8 @@ export function PlatformSupportTicketDrawer() {
       description={`${t.tenant} · ${t.reportedBy} · ${t.ageHrs}h ago`}
       footer={
         <>
-          <SecondaryButton onClick={() => { toast("Reply sent"); closeDrawer(); }}>Reply</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Resolved"); closeDrawer(); }}>Mark resolved</PrimaryButton>
+          <SecondaryButton onClick={() => emailTicketRequest("reply")}>Email reply request</SecondaryButton>
+          <PrimaryButton onClick={() => emailTicketRequest("resolution")}>Email resolution request</PrimaryButton>
         </>
       }
     >
@@ -2109,6 +2239,12 @@ export function PlatformSupportTicketDrawer() {
 export function PlatformAuditExportDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-audit-export";
+  const emailAuditRequest = () => {
+    requestPlatformSupport(toast, "Tulala audit export request", [
+      "Please prepare the last 90 days of HQ actions as CSV.",
+      "Requested scope: impersonations, refunds, plan overrides, flag changes, suspensions.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -2116,7 +2252,7 @@ export function PlatformAuditExportDrawer() {
       title="Audit export"
       description="Export the last 90 days of HQ actions as CSV."
       footer={
-        <PrimaryButton onClick={() => { toast("CSV emailed"); closeDrawer(); }}>Email CSV</PrimaryButton>
+        <PrimaryButton onClick={emailAuditRequest}>Email export request</PrimaryButton>
       }
     >
       <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
@@ -2129,6 +2265,12 @@ export function PlatformAuditExportDrawer() {
 export function PlatformHqTeamDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-hq-team";
+  const emailInviteRequest = () => {
+    requestPlatformSupport(toast, "Tulala HQ team invite request", [
+      "Please review a new HQ team invite request.",
+      "The drawer currently has no member email input or live invite action.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -2136,7 +2278,7 @@ export function PlatformHqTeamDrawer() {
       title="HQ team"
       description="Tulala employees with HQ access."
       footer={
-        <PrimaryButton onClick={() => { toast("Invite sent"); closeDrawer(); }}>Invite member</PrimaryButton>
+        <PrimaryButton onClick={emailInviteRequest}>Email invite request</PrimaryButton>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -2183,6 +2325,12 @@ export function PlatformHqTeamDrawer() {
 export function PlatformRegionConfigDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "platform-region-config";
+  const emailRegionRequest = () => {
+    requestPlatformSupport(toast, "Tulala region config request", [
+      "Please review a region configuration change request.",
+      "Current visible baseline: EU eu-west-1 Stripe EU; NA us-east-1 Stripe US; APAC ap-southeast-1 Stripe APAC.",
+    ]);
+  };
   return (
     <DrawerShell
       open={open}
@@ -2190,7 +2338,7 @@ export function PlatformRegionConfigDrawer() {
       title="Region config"
       description="Routing rules per region (data residency, payment gateway, CDN)."
       footer={
-        <PrimaryButton onClick={() => { toast("Region config saved"); closeDrawer(); }}>Save</PrimaryButton>
+        <PrimaryButton onClick={emailRegionRequest}>Email change request</PrimaryButton>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
