@@ -2,6 +2,7 @@
 // Confirmed bookings (status = booked/converted) for this client.
 
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
@@ -45,15 +46,18 @@ function BookingRow({
   booking,
   idx,
   total,
+  tenantSlug,
 }: {
   booking: ClientBookingRow;
   idx: number;
   total: number;
+  tenantSlug: string;
 }) {
   const future = !isPast(booking.event_date);
   const dateParts = getClientDateParts(booking.event_date);
   return (
-    <div
+    <Link
+      href={`/${tenantSlug}/client/inquiries/${booking.id}`}
       style={{
         display: "grid",
         gridTemplateColumns: "48px 1fr auto",
@@ -62,6 +66,7 @@ function BookingRow({
         padding: "16px 18px",
         borderBottom: idx < total - 1 ? `1px solid ${C.borderSoft}` : "none",
         fontFamily: FONT,
+        textDecoration: "none",
       }}
     >
       {/* Date box */}
@@ -145,11 +150,11 @@ function BookingRow({
       >
         {future ? "Confirmed" : "Past"}
       </div>
-    </div>
+    </Link>
   );
 }
 
-function BookingSection({ rows, label }: { rows: ClientBookingRow[]; label: string }) {
+function BookingSection({ rows, label, tenantSlug }: { rows: ClientBookingRow[]; label: string; tenantSlug: string }) {
   if (rows.length === 0) return null;
   return (
     <section>
@@ -158,7 +163,7 @@ function BookingSection({ rows, label }: { rows: ClientBookingRow[]; label: stri
       </div>
       <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
         {rows.map((b, i) => (
-          <BookingRow key={b.id} booking={b} idx={i} total={rows.length} />
+          <BookingRow key={b.id} booking={b} idx={i} total={rows.length} tenantSlug={tenantSlug} />
         ))}
       </div>
     </section>
@@ -221,11 +226,30 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
           <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 360, lineHeight: 1.5 }}>
             Once your inquiries are confirmed, they&apos;ll appear here as bookings.
           </p>
+          <Link
+            href={`/${tenantSlug}/client/inquiries/new`}
+            style={{
+              display: "inline-flex",
+              marginTop: 16,
+              height: 36,
+              padding: "0 16px",
+              borderRadius: 8,
+              background: C.accent,
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 600,
+              textDecoration: "none",
+              alignItems: "center",
+              fontFamily: FONT,
+            }}
+          >
+            Start inquiry →
+          </Link>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-          <BookingSection rows={upcoming} label="Upcoming" />
-          <BookingSection rows={past}     label="Past" />
+          <BookingSection rows={upcoming} label="Upcoming" tenantSlug={tenantSlug} />
+          <BookingSection rows={past}     label="Past" tenantSlug={tenantSlug} />
         </div>
       )}
     </div>
