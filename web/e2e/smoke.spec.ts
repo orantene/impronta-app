@@ -160,6 +160,16 @@ async function expandNavigatorSectionChildList(
   await expect(childList).toBeVisible({ timeout: 25_000 });
 }
 
+/**
+ * In edit mode the top-level storefront DOM is `visibility:hidden` and the
+ * operator-visible canvas is the device preview iframe (`?iframe=1` — see
+ * `DeviceFrameSurface` in `edit-shell.tsx`). Assertions on `[data-cms-section]`
+ * must scope here.
+ */
+function improntaEditPreviewFrame(page: Page) {
+  return page.frameLocator('iframe[src*="iframe=1"]').first();
+}
+
 async function insertHeadingViaNavigatorFirstLayeredSection(page: Page) {
   const sectionRow = page
     .locator("[data-navigator-section-row]")
@@ -200,7 +210,7 @@ async function getFirstSectionBlockAddTrigger(page: Page) {
 async function getSectionBlockAddTriggerForType(page: Page, sectionTypeKey: string) {
   const row = page
     .locator(`[data-navigator-section-row][data-section-type-key="${sectionTypeKey}"]`)
-    .first();
+    .last();
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.hover();
   const trigger = row.locator("[data-builder-node-add-trigger]").first();
@@ -430,8 +440,9 @@ async function addSectionFromLibrary(
   await expect(sectionTile).toBeVisible({ timeout: 10_000 });
   await sectionTile.click();
 
+  const canvas = improntaEditPreviewFrame(page);
   await expect(
-    page.locator(`[data-cms-section][data-section-type-key="${typeKey}"]`).first(),
+    canvas.locator(`[data-cms-section][data-section-type-key="${typeKey}"]`).last(),
   ).toBeVisible({ timeout: 90_000 });
 }
 
@@ -1079,9 +1090,10 @@ test.describe("smoke: login → builder → publish → share", () => {
 
     await addSectionFromLibrary(page, "blank_section", "Blank section");
 
-    const blankWrap = page
+    const canvas = improntaEditPreviewFrame(page);
+    const blankWrap = canvas
       .locator('[data-cms-section][data-section-type-key="blank_section"]')
-      .first();
+      .last();
     await expect(blankWrap).toBeVisible({ timeout: 90_000 });
 
     const headingsInBlank = blankWrap.locator(

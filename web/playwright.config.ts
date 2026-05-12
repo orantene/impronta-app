@@ -13,6 +13,11 @@
  * Override the base URL when QAing a deployed environment:
  *   PLAYWRIGHT_BASE_URL=https://staging.tulala.digital npx playwright test
  *
+ * When `PLAYWRIGHT_BASE_URL` targets **localhost** or **127.0.0.1**, Playwright
+ * starts **`npm run dev`** automatically (unless a server already answers, or
+ * you set **`PLAYWRIGHT_SKIP_WEBSERVER=1`**). Remote hosts (e.g. `app.local`,
+ * staging) do **not** auto-start — use `./scripts/dev.sh` or your deploy URL.
+ *
  * Legacy `/admin` smoke is skipped on localhost unless:
  *   PLAYWRIGHT_LEGACY_ADMIN_SMOKE=1
  * (slugged tenants use `/impronta/...`; use Impronta smoke tests instead.)
@@ -53,6 +58,19 @@ loadEnvLocal();
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://app.local:3102";
 
+/** Impronta path-tenant smokes use `localhost:3000`; auto-start `next dev` when nothing is listening. */
+function shouldAutoStartNextDev(url: string): boolean {
+  if (process.env.PLAYWRIGHT_SKIP_WEBSERVER === "1") return false;
+  try {
+    const { hostname } = new URL(url);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
+const autoStartNextDev = shouldAutoStartNextDev(baseURL);
+
 /** Set `PLAYWRIGHT_CHANNEL=chrome` to run against the installed Google Chrome app (not bundled Chromium). */
 const useGoogleChrome = process.env.PLAYWRIGHT_CHANNEL === "chrome";
 
@@ -63,6 +81,18 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? "line" : "list",
+  ...(autoStartNextDev
+    ? {
+        webServer: {
+          command: "npm run dev",
+          url: baseURL,
+          reuseExistingServer: !process.env.CI,
+          timeout: 180_000,
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      }
+    : {}),
   use: {
     baseURL,
     trace: "retain-on-failure",

@@ -674,6 +674,8 @@ Do **not** imply Webflow/Figma-level freedom until the **data model and mutation
 
 ### Continue-mode execution queue (Cursor + doc alignment)
 
+For **batched agent runs** (few large todo buckets + exit criteria), see **[`builder-execution-batches.md`](./builder-execution-batches.md)** — it groups former atomic Cursor todos into seven execution batches without replacing the **Seq** order below.
+
 Use this subsection for **session-to-session** sequencing. Canonical definitions stay in the PR tables above and in [`.cursor/plans/builder-phase-truth-roadmap.plan.md`](../../.cursor/plans/builder-phase-truth-roadmap.plan.md) (do not treat this list as a second backlog file — update statuses in **one** place per workflow: either Cursor todos **or** the plan YAML when you are explicitly syncing the mirror).
 
 **Three task shapes (do not conflate them):**
@@ -711,6 +713,7 @@ Use this subsection for **session-to-session** sequencing. Canonical definitions
 
 | Date | Change |
 |------|--------|
+| 2026-05-12 | **Execution batches:** Added [`builder-execution-batches.md`](./builder-execution-batches.md) — seven **mega-batches** (Phase 0 / 7A code / 7A proof / `pr-*` sweep / pilot gates / parked 7B–7C / post-v1) for fast agent sessions; §8 links here for Cursor todo alignment. |
 | 2026-05-12 | **P7A-4 (automated slice — cross-slot body→footer):** [`p7a-reorder-publish-parity.test.ts`](../src/lib/site-admin/builder-node/p7a-reorder-publish-parity.test.ts) — moving a **paragraph** from a **`blank_section`** in **`body`** to a **`blank_section`** in **`footer`** keeps [`resolveSnapshotBuilderTreeForPublish`](../src/lib/site-admin/builder-node/snapshot-tree.ts) **ok**. |
 | 2026-05-12 | **P7A-4 (automated slice — cross-section move):** [`p7a-reorder-publish-parity.test.ts`](../src/lib/site-admin/builder-node/p7a-reorder-publish-parity.test.ts) — moving a **paragraph** from one **`blank_section`** row to another in the same slot keeps [`resolveSnapshotBuilderTreeForPublish`](../src/lib/site-admin/builder-node/snapshot-tree.ts) **ok** (complements same-section reorder + blank_section cases). Human **7A Reality Test** still required. |
 | 2026-05-12 | **P6-2 (`tagFor` / revalidate audit — shell publish parity):** [`publishPageSnapshot`](../src/lib/site-admin/edit-mode/page-composer-action.ts) now revalidates **`pages:{pageId}`** + **`pages-all`** on every CMS publish (matches `bustHomepageTags` / `bustPageTags`), and adds **`storefront`** when the row is **`site_shell`** so admin "publish draft" of the shell busts every tenant route the snapshot embeds in. [`site-shell-backfill-action.ts`](../src/lib/site-admin/edit-mode/site-shell-backfill-action.ts) seed publish also adds **`storefront`** after **`pages-all`** (was `pages-all` only) so backfill matches homepage publish + `republishSiteShellSnapshot` (`composition-actions.ts`). [`shell-reads.ts`](../src/lib/site-admin/server/shell-reads.ts) comment + [phase-b-site-shell.md](./phase-b-site-shell.md) C2 bullet updated to the full bust topology. Other surfaces unchanged: `navigation.ts` busts `navigation`; `design.ts` busts `branding`+`storefront`; `sections.ts` busts `sections`/`sections-all`. **`pr-p6-2`** still tracks manual smoke + tenant isolation on real shell publish. |
