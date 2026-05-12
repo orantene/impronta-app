@@ -78,6 +78,45 @@ async function waitForImprontaDraftSaved(page: Page) {
   );
 }
 
+/**
+ * Ensures nested builder nodes are visible under a navigator section row.
+ * When layers are already expanded, do not click the chevron — that would
+ * collapse the row and unmount `[data-navigator-child-list]` (navigator UX).
+ * Falls back to **Expand all nested blocks** when the per-row chevron does not
+ * surface the list (large navigators / focus edge cases).
+ */
+async function expandNavigatorSectionChildList(
+  page: Page,
+  sectionRow: Locator,
+  childList: Locator,
+) {
+  await expect(sectionRow).toBeVisible({ timeout: 30_000 });
+  if (await childList.isVisible().catch(() => false)) {
+    return;
+  }
+  await sectionRow.scrollIntoViewIfNeeded().catch(() => {});
+  await sectionRow.hover().catch(() => {});
+
+  const trigger = sectionRow.locator("[data-navigator-section-collapse-trigger]");
+  if ((await trigger.count()) > 0) {
+    await expect(trigger).toBeVisible({ timeout: 15_000 });
+    const expanded = await trigger.getAttribute("aria-expanded");
+    if (expanded !== "true") {
+      await trigger.click({ force: true });
+    }
+  }
+
+  if (await childList.isVisible().catch(() => false)) {
+    return;
+  }
+
+  const expandAll = page.locator("[data-navigator-expand-all]");
+  if (await expandAll.isEnabled().catch(() => false)) {
+    await expandAll.click();
+  }
+  await expect(childList).toBeVisible({ timeout: 25_000 });
+}
+
 async function insertHeadingViaNavigatorFirstLayeredSection(page: Page) {
   const sectionRow = page
     .locator("[data-navigator-section-row]")
@@ -1821,9 +1860,12 @@ test.describe("smoke: login → builder → publish → share", () => {
       .filter({ has: page.locator("[data-navigator-block-count]") })
       .first();
     await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
-    await firstLayeredSection
-      .locator("[data-navigator-section-collapse-trigger]")
-      .click();
+    const sectionId = await firstLayeredSection.getAttribute("data-section-id");
+    expect(sectionId).toBeTruthy();
+    const childList = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionId}"]`,
+    );
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childList);
     const childRow = page
       .locator("[data-navigator-child-node][data-builder-node-kind]")
       .first();
@@ -1901,10 +1943,7 @@ test.describe("smoke: login → builder → publish → share", () => {
     await collapseAll.click();
     await expect(allChildLists).toHaveCount(0);
 
-    await firstLayeredSection
-      .locator("[data-navigator-section-collapse-trigger]")
-      .click();
-    await expect(childList).toBeVisible({ timeout: 10_000 });
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childList);
     const firstChildKind = await childList
       .locator("[data-navigator-child-node]")
       .first()
@@ -2030,8 +2069,7 @@ test.describe("smoke: login → builder → publish → share", () => {
     const childList = page.locator(
       `[data-navigator-child-list][data-section-id="${sectionId}"]`,
     );
-    await firstLayeredSection.locator("[data-navigator-section-collapse-trigger]").click();
-    await expect(childList).toBeVisible({ timeout: 10_000 });
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childList);
     const childRows = childList.locator("[data-navigator-child-node]");
     const childCount = await childRows.count();
     expect(childCount).toBeGreaterThan(1);
@@ -2107,8 +2145,7 @@ test.describe("smoke: login → builder → publish → share", () => {
     let childList = page.locator(
       `[data-navigator-child-list][data-section-id="${sectionId}"]`,
     );
-    await firstLayeredSection.locator("[data-navigator-section-collapse-trigger]").click();
-    await expect(childList).toBeVisible({ timeout: 10_000 });
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childList);
     let childRows = childList.locator("[data-navigator-child-node]");
     let childCount = await childRows.count();
     if (childCount < 2) {
@@ -2121,6 +2158,8 @@ test.describe("smoke: login → builder → publish → share", () => {
       childCount = await childRows.count();
     }
     expect(childCount).toBeGreaterThan(1);
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childList);
+    childRows = childList.locator("[data-navigator-child-node]");
 
     const childIdAt = async (index: number) =>
       await childRows.nth(index).getAttribute("data-builder-node-id");
@@ -2152,8 +2191,7 @@ test.describe("smoke: login → builder → publish → share", () => {
     childList = page.locator(
       `[data-navigator-child-list][data-section-id="${sectionId}"]`,
     );
-    await firstLayeredSection.locator("[data-navigator-section-collapse-trigger]").click();
-    await expect(childList).toBeVisible({ timeout: 10_000 });
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childList);
     childRows = childList.locator("[data-navigator-child-node]");
     await expect
       .poll(async () => [
@@ -2191,8 +2229,7 @@ test.describe("smoke: login → builder → publish → share", () => {
     childList = page.locator(
       `[data-navigator-child-list][data-section-id="${sectionId}"]`,
     );
-    await firstLayeredSection.locator("[data-navigator-section-collapse-trigger]").click();
-    await expect(childList).toBeVisible({ timeout: 10_000 });
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childList);
     childRows = childList.locator("[data-navigator-child-node]");
     await expect
       .poll(async () => [
@@ -2257,9 +2294,12 @@ test.describe("smoke: login → builder → publish → share", () => {
       .filter({ has: page.locator("[data-navigator-block-count]") })
       .first();
     await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
-    await firstLayeredSection
-      .locator("[data-navigator-section-collapse-trigger]")
-      .click();
+    const sectionIdForStale = await firstLayeredSection.getAttribute("data-section-id");
+    expect(sectionIdForStale).toBeTruthy();
+    const childListForStale = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionIdForStale}"]`,
+    );
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childListForStale);
 
     const firstChildRow = page.locator("[data-navigator-child-node]").first();
     await expect(firstChildRow).toBeVisible({ timeout: 20_000 });
@@ -2303,9 +2343,12 @@ test.describe("smoke: login → builder → publish → share", () => {
       .filter({ has: page.locator("[data-navigator-block-count]") })
       .first();
     await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
-    await firstLayeredSection
-      .locator("[data-navigator-section-collapse-trigger]")
-      .click();
+    const sectionIdKbDel = await firstLayeredSection.getAttribute("data-section-id");
+    expect(sectionIdKbDel).toBeTruthy();
+    const childListKbDel = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionIdKbDel}"]`,
+    );
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childListKbDel);
 
     const firstChildRow = page.locator("[data-navigator-child-node]").first();
     await expect(firstChildRow).toBeVisible({ timeout: 20_000 });
@@ -2350,9 +2393,12 @@ test.describe("smoke: login → builder → publish → share", () => {
       .filter({ has: page.locator("[data-navigator-block-count]") })
       .first();
     await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
-    await firstLayeredSection
-      .locator("[data-navigator-section-collapse-trigger]")
-      .click();
+    const sectionIdSearch = await firstLayeredSection.getAttribute("data-section-id");
+    expect(sectionIdSearch).toBeTruthy();
+    const childListSearch = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionIdSearch}"]`,
+    );
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childListSearch);
 
     const firstChildRow = page.locator("[data-navigator-child-node]").first();
     await expect(firstChildRow).toBeVisible({ timeout: 20_000 });
@@ -2400,9 +2446,12 @@ test.describe("smoke: login → builder → publish → share", () => {
       .filter({ has: page.locator("[data-navigator-block-count]") })
       .first();
     await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
-    await firstLayeredSection
-      .locator("[data-navigator-section-collapse-trigger]")
-      .click();
+    const sectionIdRich = await firstLayeredSection.getAttribute("data-section-id");
+    expect(sectionIdRich).toBeTruthy();
+    const childListRich = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionIdRich}"]`,
+    );
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childListRich);
 
     const firstChildRow = page.locator("[data-navigator-child-node]").first();
     await expect(firstChildRow).toBeVisible({ timeout: 20_000 });
@@ -2446,9 +2495,12 @@ test.describe("smoke: login → builder → publish → share", () => {
       .filter({ has: page.locator("[data-navigator-block-count]") })
       .first();
     await expect(firstLayeredSection).toBeVisible({ timeout: 30_000 });
-    await firstLayeredSection
-      .locator("[data-navigator-section-collapse-trigger]")
-      .click();
+    const sectionIdLayerActions = await firstLayeredSection.getAttribute("data-section-id");
+    expect(sectionIdLayerActions).toBeTruthy();
+    const childListLayerActions = page.locator(
+      `[data-navigator-child-list][data-section-id="${sectionIdLayerActions}"]`,
+    );
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childListLayerActions);
     await expect(childRows.first()).toBeVisible({ timeout: 30_000 });
     const beforeNodeIds = new Set(
       await childRows.evaluateAll((nodes) =>

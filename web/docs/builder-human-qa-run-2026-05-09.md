@@ -568,3 +568,20 @@ Next recommended execution order:
 1. Optional: `npm run reset:impronta-homepage:draft -- --apply` (local) for a clean Scenario 2 surface.
 2. Human: run **Re-Test Script** § through publish on `localhost:3000/impronta?edit=1`, then **Phase 0** matrix on a **registered** host.
 3. Keep `npm run test:e2e:impronta-directory-search-hero` in the loop whenever edit-chrome or homepage render paths change.
+
+## Fix / Retest Update - 2026-05-12, Pass 7 (P0-3 docs + navigator e2e hardening)
+
+Scope:
+
+- **P0-3:** Populate **Deferred bugs** table in [phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md) (BUG-001…008, links back to this run log).
+- **E2E:** [`smoke.spec.ts`](../../e2e/smoke.spec.ts) — `expandNavigatorSectionChildList(page, sectionRow, childList)` avoids collapsing already-expanded navigator rows; uses **`[data-navigator-expand-all]`** fallback and `force: true` on the chevron when needed. Documented `test:e2e:impronta-phase0-edit-loop` in the Phase 0 automation command list.
+
+Automated checks:
+
+- `npm run test:e2e:impronta-directory-search-hero` → **Pass** (Chromium).
+- `npm run test:e2e:impronta-phase0-edit-loop` → **Fail** at **Publish now** disabled (~4m wait) on current local Impronta draft — **not** a navigator expand regression; treat as **draft/preflight hygiene** until clean baseline or preflight triage. See Phase 0 doc automation table row.
+- `npx playwright test e2e/smoke.spec.ts -g "impronta navigator layers show child-node metadata"` → **Pass**.
+
+Roadmap:
+
+- `.cursor/plans/builder-phase-truth-roadmap.plan.md` — **`pr-p0-3`** marked **completed**.

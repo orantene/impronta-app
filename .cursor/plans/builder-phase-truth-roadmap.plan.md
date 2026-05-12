@@ -39,8 +39,8 @@ todos:
     content: P0-2 — CMS insert → canvas parity + selection-layer scroll (regression watch).
     status: pending
   - id: pr-p0-3
-    content: P0-3 — Document deferred bugs with owner + severity.
-    status: pending
+    content: P0-3 — Document deferred bugs with owner + severity (phase-0-qa-registered-host.md §Deferred bugs).
+    status: completed
   - id: pr-p1-1
     content: P1-1 — Legacy /admin/site-settings/* redirects → workspace Website (no bookmark 404).
     status: pending
