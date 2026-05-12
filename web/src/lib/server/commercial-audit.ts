@@ -21,6 +21,25 @@ export async function logBookingActivity(
   }
 }
 
+/**
+ * Append a row to `inquiry_events` — the user-visible inquiry timeline.
+ *
+ * Historical note: this function used to insert into `inquiry_activity_log`,
+ * a table that was dropped in migration 20260527000005_drop_activity_log.sql
+ * and replaced by `inquiry_events` (success-only, user-visible) + a separate
+ * `inquiry_action_log` (operational audit incl. failures). The dropped
+ * write path silently failed for months. Restoring against `inquiry_events`
+ * here keeps every legacy call site (~15 across inquiry-engine-*.ts) working
+ * without a refactor.
+ *
+ * Defaults:
+ *   • actor_role  = 'system' (DB default — most legacy callers pass an
+ *                   inferred actor that maps via app context; for explicit
+ *                   admin/coordinator/client/talent emissions, prefer
+ *                   `emitStandardEngineEvent` in `inquiry-events.ts`).
+ *   • visibility  = 'participants' (DB default — visible to client + talent
+ *                   + staff).
+ */
 export async function logInquiryActivity(
   supabase: SupabaseClient,
   args: {
@@ -30,13 +49,13 @@ export async function logInquiryActivity(
     payload?: Record<string, unknown>;
   },
 ): Promise<void> {
-  const { error } = await supabase.from("inquiry_activity_log").insert({
+  const { error } = await supabase.from("inquiry_events").insert({
     inquiry_id: args.inquiryId,
     actor_user_id: args.actorUserId,
     event_type: args.eventType,
     payload: args.payload ?? {},
   });
   if (error) {
-    logServerError("commercial-audit/inquiry_activity_log", error);
+    logServerError("commercial-audit/inquiry_events", error);
   }
 }
