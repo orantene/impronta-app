@@ -18,7 +18,6 @@ const NAV_ITEMS = [
   { label: "Discover",   path: "discover"   },
   { label: "Inquiries",  path: "inquiries"  },
   { label: "Bookings",   path: "bookings"   },
-  { label: "Shortlists", path: "shortlists" },
   { label: "Settings",   path: "settings"   },
 ] as const;
 
