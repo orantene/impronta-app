@@ -783,7 +783,7 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           color: CHROME.green,
           borderColor: CHROME.greenLine,
         }}
-        title="Draft saved — visitors still see the last published version until you Publish"
+        title="Draft saved on the server. Visitors still see the last published version until you Publish. If the canvas looks one step behind, wait a moment for the preview refresh."
       >
         <span
           className={dot}
@@ -807,8 +807,8 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
         borderColor: CHROME.greenLine,
         opacity: 0.7,
       }}
-        title="Draft is saved on our servers — visitors still see the published site until you click Publish. Preview the page if something looks off."
-      aria-label="Draft up to date on the server. The live site still shows the last published version until you publish."
+      title="Draft is saved on our servers — visitors still see the published site until you click Publish. The editor preview can take a few seconds to match after inserts; try toggling device width or waiting briefly if something looks off."
+      aria-label="Draft up to date on the server. The live site still shows the last published version until you publish. Preview may briefly lag after layout changes."
     >
       <span
         className={dot}

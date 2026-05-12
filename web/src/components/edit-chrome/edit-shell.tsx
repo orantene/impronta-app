@@ -961,7 +961,13 @@ function DraftSavedToast() {
       >
         <polyline points="20 6 9 17 4 12" />
       </svg>
-      <span>Draft saved · {stamp}</span>
+      <span className="flex max-w-[min(420px,calc(100vw-96px))] flex-col gap-0.5 leading-snug">
+        <span>Draft saved · {stamp}</span>
+        <span className="font-normal text-emerald-800/85">
+          Live preview can lag a moment after inserts — the draft on the server is still what
+          Publish will read.
+        </span>
+      </span>
       <button
         type="button"
         onClick={clearDraftSavedToast}
