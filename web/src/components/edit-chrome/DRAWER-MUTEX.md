@@ -30,6 +30,10 @@ Right-rail drawers are `<aside>` panels, **not** modal dialogs: focus is **not**
 
 On close, the shared [`Drawer`](./kit/drawer.tsx) primitive returns focus to the element that had focus when the drawer **opened** (`restoreFocusOnClose`, default `true`, ~220ms after slide-out). This is a single-slot restore, not a stack — still no full trap; revisit `react-focus-lock` or Radix **only** if a drawer becomes modal-scale.
 
+## Reconciliation (roadmap)
+
+**2026-05-12 — P1-3 / `verify-p1-3`:** Mutex contract is centralized in [`edit-context.tsx`](./edit-context.tsx) (`closeAllRightRailDrawers`, `showExclusiveRightRailDrawer`, `dismissCompetingEditorChrome`, library/template flows). **PR checklist** above remains the gate for **new** surfaces; roadmap task **P1-3** is “don’t regress,” not a one-time build.
+
 ## Related
 
 - Stash / canvas polish (`wip-canvas-felt-quality-pre-mockup`): diff-review before cherry-pick; see [builder-experience-execution-plan.md](../../../docs/builder-experience-execution-plan.md).
