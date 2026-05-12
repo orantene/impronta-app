@@ -308,8 +308,16 @@ export async function publishPageSnapshot(input: {
 
   // Cache-bust the public reader. Next.js 16 requires the second
   // freshness arg ("default" matches the rest of the codebase).
+  // Per-page tag matches `bustHomepageTags` / `bustPageTags` (homepage.ts,
+  // pages.ts) so any `tagFor(tenantId, "pages", { id })` readers invalidate.
+  // Site shell snapshots embed on every tenant route — match homepage
+  // co-publish + site-shell-backfill (phase-b-site-shell.md C2).
   try {
+    revalidateTag(tagFor(scope.tenantId, "pages", { id: input.pageId }), "default");
     revalidateTag(tagFor(scope.tenantId, "pages-all"), "default");
+    if (page.system_template_key === "site_shell") {
+      revalidateTag(tagFor(scope.tenantId, "storefront"), "default");
+    }
   } catch {
     // tag system not initialised in test contexts; safe to ignore.
   }

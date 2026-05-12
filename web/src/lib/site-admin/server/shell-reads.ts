@@ -91,10 +91,12 @@ export function loadPublishedShell(
     },
     ["site-admin:published-shell", tenantId, locale],
     {
-      // Tag-bust on any pages-all event — shell publishes route through the
-      // same publishPageSnapshot path that already busts pages-all (see
-      // page-composer-action.ts). Per-shell narrow tagging would require a
-      // server-side shell-id resolution before the read; deferred.
+      // Tag-bust on any `pages-all` event — every shell publish path
+      // (`publishPageSnapshot` for `site_shell`, homepage publish +
+      // `republishSiteShellSnapshot`, `site-shell-backfill-action`) busts
+      // `pages-all` (plus `storefront` for full-route invalidation). Per-shell
+      // narrow tagging would need a server-side shell-id resolution before
+      // the read; deferred.
       tags: [tagFor(tenantId, "pages-all")],
     },
   )();

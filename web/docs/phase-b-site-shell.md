@@ -6,7 +6,7 @@
 
 1. **`site_shell` / synthetic page join** — convergence plan Phase B; snapshot rendering for `PublicHeader` + footer in edit mode.
 2. **Selection + inspector** — match body section affordances on the storefront shell regions.
-3. **Publish + cache (C2)** — when shell content publishes, every tenant route that embeds the shell must invalidate. Homepage publish path calls `republishSiteShellSnapshot` and revalidates `pages-all` plus **`storefront`** (`composition-actions.ts`). Audit remaining reads if any shell-specific cached surfaces appear.
+3. **Publish + cache (C2)** — when shell content publishes, every tenant route that embeds the shell must invalidate. Homepage publish calls `republishSiteShellSnapshot` then revalidates **`pages-all`** plus **`storefront`** (`composition-actions.ts`); shell seed/backfill publish uses the same pair (`site-shell-backfill-action.ts`); admin "publish draft" of a `site_shell` page row via `publishPageSnapshot` (`page-composer-action.ts`) revalidates **`pages:{pageId}`** + **`pages-all`** + **`storefront`**. `loadPublishedShell` is tagged with `pages-all` only (`shell-reads.ts`) so any of those busts invalidates it. Audit remaining reads if any shell-specific cached surfaces appear.
 
 ## Feature flag
 

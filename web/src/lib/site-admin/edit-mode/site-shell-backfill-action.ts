@@ -341,9 +341,13 @@ export async function backfillSiteShellForCurrentTenant(): Promise<ShellBackfill
     .eq("tenant_id", scope.tenantId)
     .eq("page_id", shellPage.id);
 
-  // Cache-bust public reads.
+  // Cache-bust public reads — match homepage publish + composition-actions
+  // after `republishSiteShellSnapshot` (`pages-all` + `storefront`; see
+  // phase-b-site-shell.md C2). Without `storefront`, tenant routes that
+  // embed the shell can serve stale headers/footers after a seed publish.
   try {
     revalidateTag(tagFor(scope.tenantId, "pages-all"), "default");
+    revalidateTag(tagFor(scope.tenantId, "storefront"), "default");
   } catch {
     // tag system may not be initialised in test contexts.
   }
