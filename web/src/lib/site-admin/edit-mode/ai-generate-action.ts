@@ -1,16 +1,14 @@
 "use server";
 
 /**
- * Phase 14 — AI section generation + alt-text + page critique.
+ * Phase 14 — AI section generation + alt-text.
  *
- * Three actions, all sharing the same provider adapter and rate limit
- * as the existing rewrite/translate actions:
+ * Two actions sharing the same provider adapter and rate limit as the
+ * existing rewrite/translate actions:
  *
  *   - generateSectionWithAi(sectionTypeKey, prompt) → returns props
  *     for that section, validated against its v1 schema.
  *   - generateAltTextWithAi(imageUrl, context) → returns alt string.
- *   - critiquePage() → audits the section list + theme tokens and
- *     returns prioritized findings.
  *
  * Image generation is deliberately NOT included — that needs a
  * Replicate / OpenAI Image API integration with cost gating that
@@ -25,7 +23,6 @@ import {
   SECTION_REGISTRY,
   type SectionTypeKey,
 } from "@/lib/site-admin/sections/registry";
-import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 
 // Reuse the same in-memory rate bucket as the rewrite action would —
 // we re-declare it here to avoid an import cycle. Per-tenant cap of
@@ -271,85 +268,6 @@ export async function generateAltTextWithAi(
     return { ok: true, alt };
   } catch (err) {
     logServerError("ai-generate/alt", err);
-    return { ok: false, error: "Couldn't reach the AI provider.", code: "AI_PROVIDER_ERROR" };
-  }
-}
-
-// ── Action: critique page ────────────────────────────────────────────────
-
-export interface CritiqueFinding {
-  severity: "high" | "med" | "low";
-  category: "design" | "copy" | "structure" | "a11y";
-  message: string;
-}
-
-export type CritiqueResult =
-  | { ok: true; findings: ReadonlyArray<CritiqueFinding>; summary: string }
-  | { ok: false; error: string; code?: string };
-
-const CRITIQUE_SYSTEM_PROMPT = `You audit small-business website page compositions. Given the section list with their headlines / key fields, return a JSON object:
-
-{
-  "summary": "one paragraph overall verdict",
-  "findings": [
-    { "severity": "high" | "med" | "low",
-      "category": "design" | "copy" | "structure" | "a11y",
-      "message": "specific actionable note" }
-  ]
-}
-
-Be concrete. Don't say "consider improving copy" — say "the hero headline is 14 words; aim for under 8 for visual punch." 5-10 findings is ideal. Sort by severity desc.`;
-
-export async function critiquePage(): Promise<CritiqueResult> {
-  const auth = await requireStaff();
-  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
-  if (!scope) return { ok: false, error: "Pick an agency workspace first." };
-  const limit = checkRate(scope.tenantId);
-  if (!limit.ok) return { ok: false, error: "AI limit reached (50/hour).", code: "RATE_LIMITED" };
-
-  const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);
-  // Compact section list — types + key text fields. Skip heavy props
-  // like image arrays.
-  const sections = rows.map((r) => {
-    const props = (r.props_jsonb as Record<string, unknown> | null) ?? {};
-    const compact: Record<string, unknown> = {};
-    for (const k of ["eyebrow", "headline", "subheadline", "title", "intro", "copy", "body"]) {
-      const v = props[k];
-      if (typeof v === "string" && v.trim()) compact[k] = v.slice(0, 300);
-    }
-    return { type: r.section_type_key, name: r.name, props: compact };
-  });
-
-  const userMessage = [
-    `Section list (${sections.length} sections):`,
-    JSON.stringify(sections, null, 2),
-  ].join("\n");
-
-  const adapter = await resolveAiChatAdapter();
-  try {
-    const result = await adapter.chatCompletion({
-      systemPrompt: CRITIQUE_SYSTEM_PROMPT,
-      userMessage,
-      temperature: 0.4,
-      maxTokens: 1600,
-    });
-    if (!result.ok) return { ok: false, error: result.message ?? "AI failed.", code: result.code };
-    let raw = result.text.trim();
-    if (raw.startsWith("```")) raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
-    let parsed: { summary?: string; findings?: ReadonlyArray<CritiqueFinding> };
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return { ok: false, error: "AI returned invalid JSON.", code: "AI_OUTPUT_INVALID" };
-    }
-    return {
-      ok: true,
-      summary: parsed.summary ?? "",
-      findings: Array.isArray(parsed.findings) ? parsed.findings : [],
-    };
-  } catch (err) {
-    logServerError("ai-generate/critique", err);
     return { ok: false, error: "Couldn't reach the AI provider.", code: "AI_PROVIDER_ERROR" };
   }
 }

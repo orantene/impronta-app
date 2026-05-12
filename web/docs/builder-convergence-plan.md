@@ -483,7 +483,7 @@ Real work, not required to call builder finished:
 | Item | Effort | Notes |
 |---|---|---|
 | Image focal-point + crop | ~3 days | `MediaPicker` returns `{url, focal:{x,y}, crop?:{ratio}}`. Renderer respects focal-point on `object-position`. |
-| Unified AI panel | ~1 week | Folds rewrite, translate, alt-text, critique, layout-suggest into one inspector tab. Usage chart on dashboard. |
+| Unified AI panel | ~1 week | Folds rewrite, translate, alt-text, page critique (restore when scoped), layout-suggest into one inspector tab. Usage chart on dashboard. |
 | Page-level undo | ~1 week | Operation log + Cmd-Z/Cmd-Shift-Z + persist on save. |
 | Per-breakpoint responsive editor | ~2 weeks | Per-section overrides on more than `mobileStack` + `visibility`. |
 | Reusable global blocks | ~2 weeks | "Convert to global" turns section into shell-scoped block reusable across pages. |
@@ -748,7 +748,7 @@ Every task across every phase, in one place. Completed items are checked + cross
 ### Post-v1 polish (sequenced AFTER v1, NOT part of milestone)
 
 - [ ] Image focal-point + crop (~3 days)
-- [ ] Unified AI panel — folds rewrite, translate, alt-text, critique, layout-suggest into one inspector tab (~1 week)
+- [ ] Unified AI panel — folds rewrite, translate, alt-text, page critique (restore `critiquePage` when scoped), layout-suggest into one inspector tab (~1 week)
 - [ ] AI usage dashboard card (server read of `cms_ai_usage_log`; prior `loadAiUsageSummary` action removed 2026-05 as orphan — restore when scoped)
 - [ ] Layout-suggest UI surface (prior `suggestLayoutImprovement` in `ai-generate-action.ts` removed 2026-05 as orphan — restore when unified AI panel is scoped)
 - [ ] Page-level undo / redo (Cmd-Z / Cmd-Shift-Z) (~1 week)
