@@ -23,7 +23,8 @@
  *   - Dual-tone ring: white inset 1px + ink outset 2px + halo 8px
  *   - Premium chip: 34px height, 10px radius, dark gradient, grip dots +
  *     section-type icon + name + type divider + toolbar
- *   - Drop indicator: blue gradient line + end-cap glow dots
+ *   - Drop indicator: blue gradient line + end-cap glow dots (allowed and
+ *     blocked slot targets)
  *   - Drag ghost: substantial dark card with icon + name + dynamic state
  *   - Source section while dragging: desaturate filter + dashed ring + 0.4 opacity
  */
@@ -124,6 +125,28 @@ const HOVER_STROKE = "rgba(36,41,66,0.45)";
 // end-cap dots use the 58,123,255 lighter shade for the glow.
 const BLUE = "#2c5fdb";
 const BLUE_RGB = "58,123,255";
+/** Drop line when a section cannot land in the hovered slot (type mismatch). */
+const DISALLOW_LINE = "rgba(220, 38, 38, 0.92)";
+const DISALLOW_RGB = "220, 38, 38";
+const DROP_LINE_HEIGHT = 4;
+const DROP_LINE_RADIUS = 2;
+
+// P3-2 polish — keyframes injected once via <style> at the portal root.
+// `kit/savechip.tsx` uses the same pattern. Both animations are skipped
+// under `prefers-reduced-motion: reduce` (gated at the consumer site).
+const SELECTION_LAYER_KEYFRAMES_ID = "selection-layer-keyframes";
+const DROP_CAP_PULSE = "selection-drop-cap-pulse";
+const GHOST_SPAWN = "selection-ghost-spawn";
+const SELECTION_LAYER_KEYFRAMES = `
+@keyframes ${DROP_CAP_PULSE} {
+  0%, 100% { transform: scale(0.92); opacity: 0.7; }
+  50%      { transform: scale(1.10); opacity: 1; }
+}
+@keyframes ${GHOST_SPAWN} {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+`;
 
 // ── Operator-chrome surfaces (Sprint 3.2) ─────────────────────────────────
 //
@@ -341,6 +364,25 @@ export function SelectionLayer() {
     const el = document.getElementById("edit-overlay-portal");
     setPortalEl(el);
   }, []);
+
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduceMotion(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (drag.phase !== "dragging") return undefined;
+    const prev = document.body.style.cursor;
+    document.body.style.cursor = "grabbing";
+    return () => {
+      document.body.style.cursor = prev;
+    };
+  }, [drag.phase]);
 
   const scheduleRectRecompute = () => {
     // Always cancel any pending frame and queue a fresh one. If we only bail
@@ -1184,6 +1226,12 @@ export function SelectionLayer() {
 
   return createPortal(
     <div data-edit-overlay className="pointer-events-none absolute inset-0">
+      {/* P3-2 — keyframes for drop-cap pulse + drag-ghost spawn.
+       * Consumers gate on `reduceMotion`; the rules themselves are
+       * cheap and inert when no element references them. */}
+      <style id={SELECTION_LAYER_KEYFRAMES_ID}>
+        {SELECTION_LAYER_KEYFRAMES}
+      </style>
       {/* ── Hover ring + per-section left-corner rail ───────────────
        *
        * Sprint 3.1 — replaces the between-section "+" bars (composition-
@@ -1218,7 +1266,9 @@ export function SelectionLayer() {
               pointerEvents: "none",
               transition: isScrollingRef.current
                 ? "none"
-                : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+                : reduceMotion
+                  ? "none"
+                  : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
             }}
           />
           {/* Per-section left-corner control rail. Uses RAIL_BG/SHADOW
@@ -1248,7 +1298,9 @@ export function SelectionLayer() {
                 userSelect: "none",
                 transition: isScrollingRef.current
                   ? "opacity 80ms"
-                  : "top 80ms linear, left 80ms linear, opacity 80ms",
+                  : reduceMotion
+                    ? "opacity 80ms"
+                    : "top 80ms linear, left 80ms linear, opacity 80ms",
               }}
             >
               <button
@@ -1270,7 +1322,7 @@ export function SelectionLayer() {
                   border: "none",
                   cursor: "grab",
                   touchAction: "none",
-                  transition: "background 100ms",
+                  transition: reduceMotion ? "none" : "background 100ms",
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.background =
@@ -1598,6 +1650,7 @@ export function SelectionLayer() {
               nodes={selectedNodeChildren}
               selectedNodeId={selectedBuilderNodeId}
               copiedKind={copiedBuilderNodeKind}
+              reduceMotion={reduceMotion}
               onSelect={selectBuilderNode}
               onMove={commitChildMove}
               onMoveToIndex={commitChildMoveToIndex}
@@ -1983,52 +2036,65 @@ export function SelectionLayer() {
           data-edit-overlay="drag-drop-line"
           style={{
             position: "fixed",
-            top: drag.drop.indicatorY - 1.5,
+            top: drag.drop.indicatorY - DROP_LINE_HEIGHT / 2,
             left: drag.drop.indicatorLeft,
             width: drag.drop.indicatorWidth,
-            height: 3,
+            height: DROP_LINE_HEIGHT,
+            borderRadius: DROP_LINE_RADIUS,
             background: drag.drop.allowed
-              ? `linear-gradient(90deg, transparent, ${BLUE}, transparent)`
-              : "linear-gradient(90deg, transparent, rgba(239,68,68,0.8), transparent)",
+              ? `linear-gradient(90deg, rgba(${BLUE_RGB},0) 0%, rgba(${BLUE_RGB},0.45) 12%, ${BLUE} 50%, rgba(${BLUE_RGB},0.45) 88%, rgba(${BLUE_RGB},0) 100%)`
+              : `linear-gradient(90deg, rgba(${DISALLOW_RGB},0) 0%, rgba(${DISALLOW_RGB},0.5) 12%, ${DISALLOW_LINE} 50%, rgba(${DISALLOW_RGB},0.5) 88%, rgba(${DISALLOW_RGB},0) 100%)`,
             boxShadow: drag.drop.allowed
-              ? `0 0 0 4px rgba(${BLUE_RGB},0.12), 0 0 16px 4px rgba(${BLUE_RGB},0.40)`
-              : "0 0 0 4px rgba(239,68,68,0.10), 0 0 16px 4px rgba(239,68,68,0.20)",
-            borderRadius: CANVAS_CHROME_RADIUS,
-            transition:
-              "top 80ms linear, left 80ms linear, width 80ms linear",
+              ? `inset 0 1px 0 rgba(255,255,255,0.42), 0 0 0 1px rgba(${BLUE_RGB},0.28), 0 4px 22px rgba(${BLUE_RGB},0.38)`
+              : `inset 0 1px 0 rgba(255,255,255,0.22), 0 0 0 1px rgba(${DISALLOW_RGB},0.35), 0 4px 18px rgba(${DISALLOW_RGB},0.28)`,
+            transition: reduceMotion
+              ? "none"
+              : "top 80ms linear, left 80ms linear, width 80ms linear",
             pointerEvents: "none",
           }}
         >
-          {/* Left end-cap dot */}
-          {drag.drop.allowed ? (
-            <>
-              <span
-                style={{
-                  position: "absolute",
-                  top: -5,
-                  left: -6,
-                  width: 12,
-                  height: 12,
-                  borderRadius: "50%",
-                  background: BLUE,
-                  boxShadow: `0 0 0 3px rgba(${BLUE_RGB},0.20), 0 0 12px rgba(${BLUE_RGB},0.50)`,
-                }}
-              />
-              {/* Right end-cap dot */}
-              <span
-                style={{
-                  position: "absolute",
-                  top: -5,
-                  right: -6,
-                  width: 12,
-                  height: 12,
-                  borderRadius: "50%",
-                  background: BLUE,
-                  boxShadow: `0 0 0 3px rgba(${BLUE_RGB},0.20), 0 0 12px rgba(${BLUE_RGB},0.50)`,
-                }}
-              />
-            </>
-          ) : null}
+          {/* End-cap dots — allowed (blue) and blocked (red) for parity.
+           * P3-2 polish — when valid + motion allowed, dots subtly
+           * breathe so the eye lands on the drop site. The pulse uses
+           * scale + opacity (cheap GPU transform; doesn't reflow). */}
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: (DROP_LINE_HEIGHT - 12) / 2,
+              left: -6,
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              background: drag.drop.allowed ? BLUE : DISALLOW_LINE,
+              boxShadow: drag.drop.allowed
+                ? `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${BLUE_RGB},0.22), 0 0 14px rgba(${BLUE_RGB},0.55)`
+                : `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${DISALLOW_RGB},0.22), 0 0 12px rgba(${DISALLOW_RGB},0.45)`,
+              animation:
+                drag.drop.allowed && !reduceMotion
+                  ? `${DROP_CAP_PULSE} 1.4s ease-in-out infinite`
+                  : undefined,
+            }}
+          />
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: (DROP_LINE_HEIGHT - 12) / 2,
+              right: -6,
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              background: drag.drop.allowed ? BLUE : DISALLOW_LINE,
+              boxShadow: drag.drop.allowed
+                ? `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${BLUE_RGB},0.22), 0 0 14px rgba(${BLUE_RGB},0.55)`
+                : `0 0 0 2px rgba(255,255,255,0.88), 0 0 0 4px rgba(${DISALLOW_RGB},0.22), 0 0 12px rgba(${DISALLOW_RGB},0.45)`,
+              animation:
+                drag.drop.allowed && !reduceMotion
+                  ? `${DROP_CAP_PULSE} 1.4s ease-in-out infinite`
+                  : undefined,
+            }}
+          />
         </div>
       ) : null}
 
@@ -2042,19 +2108,27 @@ export function SelectionLayer() {
             left: drag.pointerX + 16,
             pointerEvents: "none",
             zIndex: 100,
-            transform: "rotate(-1deg)",
+            transform: reduceMotion ? "translateZ(0)" : "rotate(-1deg) translateZ(0)",
+            willChange: reduceMotion ? undefined : "transform",
             background: CHIP_BG,
             color: "white",
             padding: "12px 16px",
             borderRadius: CANVAS_CHROME_RADIUS,
             boxShadow:
-              "0 24px 56px -12px rgba(0,0,0,0.42), 0 4px 12px -2px rgba(0,0,0,0.24), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)",
+              "0 28px 64px -14px rgba(0,0,0,0.44), 0 6px 16px -4px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.09), inset 0 1px 0 rgba(255,255,255,0.16)",
             display: "flex",
             alignItems: "center",
             gap: 12,
             fontFamily:
               'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
-            backdropFilter: "blur(12px)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            // P3-2 polish — subtle fade-in so the ghost "lifts" off the
+            // page rather than snapping in. Opacity-only keyframe avoids
+            // any conflict with the existing rotate/translateZ transform.
+            animation: reduceMotion
+              ? undefined
+              : `${GHOST_SPAWN} 110ms ease-out`,
           }}
         >
           {/* Section-type icon tile */}
@@ -2629,6 +2703,7 @@ function CanvasNodeChildrenPanel({
   nodes,
   selectedNodeId,
   copiedKind,
+  reduceMotion = false,
   onSelect,
   onMove,
   onMoveToIndex,
@@ -2644,6 +2719,7 @@ function CanvasNodeChildrenPanel({
   nodes: BuilderNode[];
   selectedNodeId: string | null;
   copiedKind: BuilderNode["kind"] | null;
+  reduceMotion?: boolean;
   onSelect: (nodeId: string) => void;
   onMove: (nodeId: string, direction: "up" | "down") => Promise<void>;
   onMoveToIndex: (
@@ -2803,11 +2879,13 @@ function CanvasNodeChildrenPanel({
                 <div
                   aria-hidden
                   style={{
-                    height: 2,
-                    margin: "0 2px 6px",
-                    borderRadius: CANVAS_CHROME_RADIUS,
-                    background: `rgba(${BLUE_RGB},0.95)`,
-                    boxShadow: `0 0 0 3px rgba(${BLUE_RGB},0.18)`,
+                    position: "relative",
+                    height: DROP_LINE_HEIGHT,
+                    margin: "0 2px 8px",
+                    borderRadius: DROP_LINE_RADIUS,
+                    background: `linear-gradient(90deg, rgba(${BLUE_RGB},0) 0%, rgba(${BLUE_RGB},0.4) 14%, ${BLUE} 50%, rgba(${BLUE_RGB},0.4) 86%, rgba(${BLUE_RGB},0) 100%)`,
+                    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.38), 0 0 0 1px rgba(${BLUE_RGB},0.22), 0 2px 14px rgba(${BLUE_RGB},0.32)`,
+                    transition: reduceMotion ? "none" : "opacity 120ms ease-out",
                   }}
                 />
               ) : null}
