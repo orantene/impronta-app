@@ -784,10 +784,10 @@ todos:
     status: completed
   - id: verify-p6-1
     content: Verify/reconcile roadmap — PP6-1 status vs implementation (close or update doc).
-    status: pending
+    status: completed
   - id: verify-p6-2
     content: Verify/reconcile roadmap — PP6-2 status vs implementation (close or update doc).
-    status: pending
+    status: completed
   - id: verify-p8-1
     content: Verify/reconcile roadmap — PP8-1 status vs implementation (close or update doc).
     status: pending
