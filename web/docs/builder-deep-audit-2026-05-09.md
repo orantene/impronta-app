@@ -47,7 +47,7 @@ The builder is **past prototype** for core homepage/CMS composition: **EditShell
 
 - **`router.refresh()` churn** under rapid edits (audit item; debouncing partially addressed in places).
 - **Synthetic builder nodes vs persisted tree** — Two pathways must stay in sync (`syncBuilderTreeSectionChildren`, `applyFieldEdit`, `persistBuilderTree`).
-- **AI discipline** — `suggestLayoutImprovement` remains **not unified** in publish UI (preflight comment in `publish-preflight-action.ts`).
+- **AI discipline** — `suggestLayoutImprovement` was an orphan server action (**removed 2026-05**); unified AI UX remains post-v1.
 
 ### Highest-impact improvements (ranked)
 
@@ -67,7 +67,7 @@ The builder is **past prototype** for core homepage/CMS composition: **EditShell
 | Preview QA | `*.vercel.app` / unregistered hosts → middleware 404 | “Builder broken” on raw preview URL | **High** | Document + test only on registered hosts (`CLAUDE.md`) | Documented |
 | Site shell | Header/footer not editable as body sections | Incomplete site control | **Critical** (product) | Phase B per convergence plan | Deferred (major) |
 | Nested hero “nodes” | Children **derived from props**, not free composition | User expects drag-reorder of headline vs CTA like Figma | **High** (expectations) | Variants + governed blocks + clearer UI copy | Needs work |
-| AI | `suggestLayoutImprovement` not in unified publish UX | Orphan capability | **Medium** | Wire preflight-only or hide | Deferred |
+| AI | `suggestLayoutImprovement` had no UI home | Orphan capability | **Medium** | Removed 2026-05; reinstate with unified AI panel | **Removed** |
 
 ---
 

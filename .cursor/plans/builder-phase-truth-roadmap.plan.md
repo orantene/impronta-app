@@ -46,7 +46,7 @@ todos:
     status: completed
   - id: pr-p1-2
     content: P1-2 — Audit orphan server actions; wire or remove per convergence.
-    status: pending
+    status: completed
   - id: pr-p1-3
     content: P1-3 — Drawer mutex checklist + new drawers follow DRAWER-MUTEX.
     status: pending

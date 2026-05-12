@@ -94,8 +94,8 @@ If any of those four is missing, the phase is not done — regardless of what th
 - [ ] "Code" tab in the page-settings drawer (says "Coming soon") — remove until in scope.
 - [ ] Half-mounted AI surfaces with no UI:
   - [x] `aria-landmark-action.ts` — **wired:** `runAriaLandmarkCheck` is imported from [`aria-landmark-action.ts`](../src/lib/site-admin/edit-mode/aria-landmark-action.ts) into [`publish-preflight-action.ts`](../src/lib/site-admin/edit-mode/publish-preflight-action.ts) so findings reach the publish drawer (Phase 0 sweep; see file header comment).
-  - [ ] `suggestLayoutImprovement` → wire into publish preflight as optional check (or delete).
-  - [ ] `loadAiUsageSummary` → keep action; build dashboard card OR delete (no orphans).
+  - [x] `suggestLayoutImprovement` — **removed** (2026-05): had no call sites; restore from git when the unified AI panel ships ([post-v1 polish](#post-v1-polish-sequenced-after-v1-not-part-of-milestone)).
+  - [x] `loadAiUsageSummary` — **removed** (2026-05): `ai-usage-summary-action.ts` deleted as orphan; restore when an AI usage dashboard card is scoped ([post-v1 polish](#post-v1-polish-sequenced-after-v1-not-part-of-milestone)).
 - [ ] `web/src/app/prototypes/admin-shell/*` — dead lint-error files. Delete unless actively used as design references; if so, move to `web/docs/prototypes/`.
 
 ### REDIRECT (keep URL, bounce to canonical)
@@ -203,7 +203,7 @@ Zero-risk deletions / pulls. Do this BEFORE Phase A.
 - [ ] Move "Templates" tab out of page-settings drawer (decide: topbar button OR fold into section-add picker).
 - [ ] Pick one mount point for workspace template gallery (currently mounted twice).
 - [ ] Delete `/admin/site-settings/sections` and `/admin/site-settings/structure` routes (replace with redirects). Keep `pages` until Phase F replaces it.
-- [ ] Action follow-ups: **`suggestLayoutImprovement`** and **`loadAiUsageSummary`** still have no unified UI home (deferred post-v1 per [`publish-preflight-action.ts`](../src/lib/site-admin/edit-mode/publish-preflight-action.ts) header). ~~`aria-landmark-action.ts`~~ is wired into publish preflight (see §1 REMOVE bullet above).
+- [x] Action follow-ups: **`suggestLayoutImprovement`** and **`loadAiUsageSummary`** were **orphan server actions** (no UI); **removed 2026-05** from [`ai-generate-action.ts`](../src/lib/site-admin/edit-mode/ai-generate-action.ts) and deleted [`ai-usage-summary-action.ts`](../src/lib/site-admin/edit-mode/ai-usage-summary-action.ts). Reinstate from git when a real surface ships (post-v1 AI / usage dashboard). ~~`aria-landmark-action.ts`~~ is wired into publish preflight (see §1 REMOVE bullet above).
 - [ ] Document in deployment memory: GH Action handles aliases on push; manual `vercel promote` not needed for `phase-1` pushes.
 - [ ] Add `prebuild` step or CI check that nukes `.next/dev/types` before running `tsc`. The M15 `revalidateTag` arity bug got past local checks because of stale types.
 
@@ -639,8 +639,8 @@ Every task across every phase, in one place. Completed items are checked + cross
 - [x] ~~Confirm `/admin/site-settings/structure` redirect~~
 - [x] ~~Move `starter-action.ts` to `lib/site-admin/edit-mode/`~~
 - [x] ~~Wire `runAriaLandmarkCheck` into `runPublishPreflight` as `aria` category~~
-- [x] ~~Decide on `suggestLayoutImprovement` (deferred to post-v1 unified AI panel)~~
-- [x] ~~Decide on `loadAiUsageSummary` (action kept; dashboard card deferred to post-v1)~~
+- [x] ~~Decide on `suggestLayoutImprovement`~~ **Removed 2026-05** as orphan (no UI); restore when unified AI panel ships.
+- [x] ~~Decide on `loadAiUsageSummary`~~ **Removed 2026-05** as orphan (`ai-usage-summary-action.ts` deleted); restore when usage dashboard ships.
 - [ ] Document in deployment memory: GH Action handles aliases on push; manual `vercel promote` not needed for `phase-1` pushes
 - [ ] Add `prebuild` step or CI check that nukes `.next/dev/types` before `tsc` (workaround used: manual `rm -rf .next/dev` before each tsc — not yet permanent)
 
@@ -749,8 +749,8 @@ Every task across every phase, in one place. Completed items are checked + cross
 
 - [ ] Image focal-point + crop (~3 days)
 - [ ] Unified AI panel — folds rewrite, translate, alt-text, critique, layout-suggest into one inspector tab (~1 week)
-- [ ] AI usage dashboard card (the home for `loadAiUsageSummary`)
-- [ ] Layout-suggest UI surface (the home for `suggestLayoutImprovement`)
+- [ ] AI usage dashboard card (server read of `cms_ai_usage_log`; prior `loadAiUsageSummary` action removed 2026-05 as orphan — restore when scoped)
+- [ ] Layout-suggest UI surface (prior `suggestLayoutImprovement` in `ai-generate-action.ts` removed 2026-05 as orphan — restore when unified AI panel is scoped)
 - [ ] Page-level undo / redo (Cmd-Z / Cmd-Shift-Z) (~1 week)
 - [ ] Per-breakpoint responsive editor beyond mobileStack/visibility (~2 weeks)
 - [ ] Reusable global blocks across pages (~2 weeks)

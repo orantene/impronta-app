@@ -11,9 +11,10 @@
  *
  * Phase 0 sweep (2026-04-26) — convergence-plan §1: the previously-orphan
  * `runAriaLandmarkCheck` action is now folded in here so its findings reach
- * an actual UI surface. `suggestLayoutImprovement` and `loadAiUsageSummary`
- * remain standalone server actions; their unified home is the post-v1 AI
- * panel (see plan §5 Post-v1 polish).
+ * an actual UI surface. Previously-unused AI helper actions
+ * (`suggestLayoutImprovement`, `loadAiUsageSummary`) were removed in 2026-05
+ * to clear orphan server actions; reinstate from history when a real UI
+ * surface ships (post-v1 AI / usage dashboard).
  */
 
 import { requireStaff } from "@/lib/server/action-guards";
