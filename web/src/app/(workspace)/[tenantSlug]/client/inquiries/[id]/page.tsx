@@ -115,7 +115,7 @@ export default async function ClientInquiryThreadPage({
       is_mine: isMine,
       sender_name: isMine
         ? "You"
-        : profile?.display_name?.trim() || m.sender_user_id?.slice(0, 8) || "Unknown",
+        : profile?.display_name?.trim() || "Coordinator",
     };
   });
 

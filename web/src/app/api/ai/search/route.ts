@@ -48,14 +48,20 @@ export async function POST(request: Request) {
     }
 
     const hostContext = await getPublicHostContext();
-    if (
-      hostContext.kind === "marketing" ||
-      hostContext.kind === "app" ||
-      hostContext.kind === "unknown"
-    ) {
+    // "marketing" and "app" hosts have no tenant context and should not use
+    // the AI search endpoint.  "unknown" only arises in local dev (host is
+    // "localhost:3000") — return a graceful empty result so the client doesn't
+    // log a 404 error during local QA.
+    if (hostContext.kind === "marketing" || hostContext.kind === "app") {
       return NextResponse.json(
-        { error: "Not available", results: [], search_mode: "classic" },
-        { status: 404 },
+        { results: [], search_mode: "classic", next_cursor: null, vector_active: false },
+        { status: 200 },
+      );
+    }
+    if (hostContext.kind === "unknown") {
+      return NextResponse.json(
+        { results: [], search_mode: "classic", next_cursor: null, vector_active: false, note: "no-tenant-context" },
+        { status: 200 },
       );
     }
     const tenantId = hostContext.kind === "agency" ? hostContext.tenantId : null;

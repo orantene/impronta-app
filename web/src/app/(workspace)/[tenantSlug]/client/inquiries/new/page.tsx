@@ -41,8 +41,10 @@ export default async function NewClientInquiryPage({
   const client = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!client) notFound();
 
+  // Include "claimed" talent (has a user account, not yet fully published)
+  // alongside "published" so the dropdown isn't empty on fresh workspaces.
   const roster = (await loadWorkspaceRosterEnriched(scope.tenantId)).filter(
-    (item) => item.state === "published",
+    (item) => item.state === "published" || item.state === "claimed",
   );
   const selectedTalent = talent ? roster.find((item) => item.id === talent) : null;
 
