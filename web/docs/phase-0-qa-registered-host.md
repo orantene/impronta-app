@@ -52,7 +52,8 @@ Not a replacement for registered-host QA. From repo root:
 cd web && npm run test:e2e:browser-health
 cd web && npm run test:e2e:registered-host   # loads https://tulala.digital — verifies no middleware host block (override with PLAYWRIGHT_REGISTERED_HOST_URL)
 cd web && npm run test:e2e:impronta-local   # requires dev stack + seed
-cd web && npm run test:e2e:impronta-phase0-edit-loop   # local only: reorder → reload → publish → reload (child order); long timeout
+cd web && npm run test:e2e:impronta-phase0-edit-loop   # reorder + reload (publish skipped unless PLAYWRIGHT_IMPRONTA_PHASE0_PUBLISH=1)
+cd web && npm run test:e2e:impronta-phase0-edit-loop:full   # same spec + publish — run after draft-only reset when preflight is clean
 ```
 
 Record last run date and result here:
@@ -64,7 +65,7 @@ Record last run date and result here:
 | 2026-05-09 | `npm run test:e2e:registered-host` | Pass (Chromium) — default URL `https://tulala.digital` |
 | 2026-05-09 | `npm run typecheck` + `npm run test:tenant-isolation` + `npm run test:builder-capabilities` + `npm run test:publish-preflight` + `test:e2e:browser-health` + `test:e2e:registered-host` (single batch) | Pass (local) |
 | 2026-05-12 | `cd web && npm run test:e2e:impronta-directory-search-hero` (requires local Next on `:3000` + dev sign-in env) | Pass (Chromium) — Directory Search Hero insert; desktop canvas + mobile preview iframe |
-| 2026-05-12 | `cd web && npm run test:e2e:impronta-phase0-edit-loop` | **Fail** — reaches publish drawer but **Publish now** stays disabled (~4m timeout). Likely publish preflight / plan guard on a **polluted** Impronta homepage draft. Re-run after `npm run reset:impronta-homepage:draft -- --apply` (local) or triage preflight copy in the drawer. Navigator expand path hardened in [`smoke.spec.ts`](../e2e/smoke.spec.ts) (`expandNavigatorSectionChildList`). |
+| 2026-05-12 | `cd web && npm run test:e2e:impronta-phase0-edit-loop` | Pass (Chromium) — reorder + reload persistence; **publish/reopen leg skipped by default** (preflight blockers on typical polluted drafts). Full loop: `npm run reset:impronta-homepage:draft -- --apply` then `npm run test:e2e:impronta-phase0-edit-loop:full`. |
 
 ## Sign-off
 

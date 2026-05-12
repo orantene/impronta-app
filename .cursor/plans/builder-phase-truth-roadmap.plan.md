@@ -6,7 +6,7 @@ todos:
     content: Stabilize local Impronta QA baseline (prefer draft-only reset; no destructive publish purge unless explicitly requested).
     status: completed
   - id: exec-p0-edit-loop
-    content: Verify add → edit → reorder → publish → reopen on a clean baseline (same path real users use).
+    content: "Automated: reorder + reload (`test:e2e:impronta-phase0-edit-loop`). Publish/reopen: opt-in `PLAYWRIGHT_IMPRONTA_PHASE0_PUBLISH=1` + clean draft (`test:e2e:impronta-phase0-edit-loop:full`). Human full loop on registered host still required."
     status: pending
   - id: exec-p0-registered-host
     content: Run Phase 0 human registered-host matrix (390 / ~820 / 1440) per phase-0-qa-registered-host.md.

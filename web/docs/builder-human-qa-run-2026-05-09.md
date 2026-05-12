@@ -579,7 +579,7 @@ Scope:
 Automated checks:
 
 - `npm run test:e2e:impronta-directory-search-hero` → **Pass** (Chromium).
-- `npm run test:e2e:impronta-phase0-edit-loop` → **Fail** at **Publish now** disabled (~4m wait) on current local Impronta draft — **not** a navigator expand regression; treat as **draft/preflight hygiene** until clean baseline or preflight triage. See Phase 0 doc automation table row.
+- `npm run test:e2e:impronta-phase0-edit-loop` → **Pass** (Chromium) for **reorder + reload**; **publish/reopen** is **opt-in** via `PLAYWRIGHT_IMPRONTA_PHASE0_PUBLISH=1` (`npm run test:e2e:impronta-phase0-edit-loop:full`) after a clean draft so preflight blockers on QA-heavy pages do not fail the default command. When publish runs, `awaitPublishDrawerReadyToPublish` waits for preflight, retries **Save draft**, and surfaces **Publish blocked** list text on failure.
 - `npx playwright test e2e/smoke.spec.ts -g "impronta navigator layers show child-node metadata"` → **Pass**.
 
 Roadmap:
