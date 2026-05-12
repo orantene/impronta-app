@@ -34,6 +34,8 @@ On close, the shared [`Drawer`](./kit/drawer.tsx) primitive returns focus to the
 
 **2026-05-12 — P1-3 / `verify-p1-3`:** Mutex contract is centralized in [`edit-context.tsx`](./edit-context.tsx) (`closeAllRightRailDrawers`, `showExclusiveRightRailDrawer`, `dismissCompetingEditorChrome`, library/template flows). **PR checklist** above remains the gate for **new** surfaces; roadmap task **P1-3** is “don’t regress,” not a one-time build.
 
+**2026-05-09 — P1-3 / `pr-p1-3`:** The same three checklist bullets are duplicated (with link) in [`.github/pull_request_template.md`](../../../.github/pull_request_template.md) under **Edit chrome — drawer / overlay mutex** for PRs that touch `web/src/components/edit-chrome/`.
+
 ## Related
 
 - Stash / canvas polish (`wip-canvas-felt-quality-pre-mockup`): diff-review before cherry-pick; see [builder-experience-execution-plan.md](../../../docs/builder-experience-execution-plan.md).

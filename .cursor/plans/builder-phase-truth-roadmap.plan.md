@@ -49,7 +49,7 @@ todos:
     status: completed
   - id: pr-p1-3
     content: P1-3 — Drawer mutex checklist + new drawers follow DRAWER-MUTEX.
-    status: pending
+    status: completed
   - id: pr-p2-1
     content: P2-1 — Publish drawer copy hierarchy (blocking vs advisory preflight).
     status: pending
