@@ -751,7 +751,7 @@ todos:
     status: completed
   - id: verify-p1-2
     content: Verify/reconcile roadmap — PP1-2 status vs implementation (close or update doc).
-    status: pending
+    status: completed
   - id: verify-p1-3
     content: Verify/reconcile roadmap — PP1-3 status vs implementation (close or update doc).
     status: pending

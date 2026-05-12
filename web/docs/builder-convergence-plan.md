@@ -93,19 +93,19 @@ If any of those four is missing, the phase is not done — regardless of what th
 - [ ] "Templates" tab inside the page-settings drawer — wrong place.
 - [ ] "Code" tab in the page-settings drawer (says "Coming soon") — remove until in scope.
 - [ ] Half-mounted AI surfaces with no UI:
-  - [ ] `aria-landmark-action.ts` → wire into publish preflight (or delete).
+  - [x] `aria-landmark-action.ts` — **wired:** `runAriaLandmarkCheck` is imported from [`aria-landmark-action.ts`](../src/lib/site-admin/edit-mode/aria-landmark-action.ts) into [`publish-preflight-action.ts`](../src/lib/site-admin/edit-mode/publish-preflight-action.ts) so findings reach the publish drawer (Phase 0 sweep; see file header comment).
   - [ ] `suggestLayoutImprovement` → wire into publish preflight as optional check (or delete).
   - [ ] `loadAiUsageSummary` → keep action; build dashboard card OR delete (no orphans).
 - [ ] `web/src/app/prototypes/admin-shell/*` — dead lint-error files. Delete unless actively used as design references; if so, move to `web/docs/prototypes/`.
 
 ### REDIRECT (keep URL, bounce to canonical)
 
-- [ ] `/admin/site-settings/structure` → `${tenant_storefront}/?edit=1`. (Already does this — keep.)
-- [ ] `/admin/site-settings/sections` → `${tenant_storefront}/?edit=1&panel=sections`.
-- [ ] `/admin/site-settings/pages` → `${tenant_storefront}/?edit=1&panel=pages`.
-- [ ] `/admin/site-settings/templates` (if exists) → `${tenant_storefront}/?edit=1&panel=templates`.
+- [x] `/admin/site-settings/structure` — **thin redirect** via [`legacy-site-settings-redirect.ts`](../src/lib/site-admin/legacy-site-settings-redirect.ts) → workspace **Website** (`/{slug}/admin/website`). Storefront `?edit=1` is the operator’s next hop from there.
+- [x] `/admin/site-settings/sections` — **thin redirect** stub (same helper; no parallel section CRUD surface on this URL).
+- [x] `/admin/site-settings/pages` — **thin redirect** stub (same helper).
+- [ ] `/admin/site-settings/templates` (if it exists as a bookmark) → `${tenant_storefront}/?edit=1&panel=templates`. **No dedicated legacy `templates` route file** in tree today — add only if real 404s show up in analytics.
 
-EditShell needs to learn the `?panel=` query param so old links open the right drawer.
+**`?panel=`:** EditShell already reads `panel` on first paint and dispatches ([`edit-shell.tsx`](../src/components/edit-chrome/edit-shell.tsx) — e.g. `panel=pages` opens the Pages picker; `panel=sections` is intentionally a no-op beyond URL cleanup because the canvas is the section navigator).
 
 ### DEMOTE (keep, but move out of primary path)
 
@@ -203,7 +203,7 @@ Zero-risk deletions / pulls. Do this BEFORE Phase A.
 - [ ] Move "Templates" tab out of page-settings drawer (decide: topbar button OR fold into section-add picker).
 - [ ] Pick one mount point for workspace template gallery (currently mounted twice).
 - [ ] Delete `/admin/site-settings/sections` and `/admin/site-settings/structure` routes (replace with redirects). Keep `pages` until Phase F replaces it.
-- [ ] Action orphans: wire `aria-landmark-action.ts` and `suggestLayoutImprovement` to publish preflight, OR delete. Decide on `loadAiUsageSummary` (build card or delete).
+- [ ] Action follow-ups: **`suggestLayoutImprovement`** and **`loadAiUsageSummary`** still have no unified UI home (deferred post-v1 per [`publish-preflight-action.ts`](../src/lib/site-admin/edit-mode/publish-preflight-action.ts) header). ~~`aria-landmark-action.ts`~~ is wired into publish preflight (see §1 REMOVE bullet above).
 - [ ] Document in deployment memory: GH Action handles aliases on push; manual `vercel promote` not needed for `phase-1` pushes.
 - [ ] Add `prebuild` step or CI check that nukes `.next/dev/types` before running `tsc`. The M15 `revalidateTag` arity bug got past local checks because of stale types.
 
