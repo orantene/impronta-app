@@ -1529,7 +1529,7 @@ test.describe("smoke: login → builder → publish → share", () => {
     }
   });
 
-  test("impronta Directory Search Hero starter renders on canvas after insert", async ({
+  test("impronta Directory Search Hero starter renders on desktop and mobile preview after insert", async ({
     page,
   }) => {
     test.setTimeout(150_000);
@@ -1601,7 +1601,24 @@ test.describe("smoke: login → builder → publish → share", () => {
       await expect(insertedSection).toContainText(directorySearchHeadline);
       await expect(insertedSection).toContainText(directorySearchSub);
       await expect(insertedSection).toContainText("Promotional models for a boutique venue opening");
+
+      await page
+        .getByRole("group", { name: "Canvas preview width" })
+        .getByRole("button", { name: "Mobile" })
+        .click();
+      const mobilePreview = page.frameLocator('iframe[title="mobile preview"]');
+      const mobileSection = mobilePreview.locator(
+        `[data-cms-section][data-section-id="${insertedSectionId!}"]`,
+      );
+      await expect(mobileSection).toBeVisible({ timeout: 60_000 });
+      await expect(mobileSection).toContainText(directorySearchHeadline);
+      await expect(mobileSection).toContainText(directorySearchSub);
     } finally {
+      await page
+        .getByRole("group", { name: "Canvas preview width" })
+        .getByRole("button", { name: "Desktop" })
+        .click()
+        .catch(() => {});
       if (insertedSectionId) {
         await removeCmsSectionFromCanvas(page, insertedSectionId);
       }
