@@ -43,7 +43,7 @@ todos:
     status: completed
   - id: pr-p1-1
     content: P1-1 — Legacy /admin/site-settings/* redirects → workspace Website (no bookmark 404).
-    status: pending
+    status: completed
   - id: pr-p1-2
     content: P1-2 — Audit orphan server actions; wire or remove per convergence.
     status: pending
@@ -748,7 +748,7 @@ todos:
     status: pending
   - id: verify-p1-1
     content: Verify/reconcile roadmap — PP1-1 status vs implementation (close or update doc).
-    status: pending
+    status: completed
   - id: verify-p1-2
     content: Verify/reconcile roadmap — PP1-2 status vs implementation (close or update doc).
     status: pending
