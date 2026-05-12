@@ -96,19 +96,19 @@ export function InboxSnippetsDrawer() {
     ]);
     setDraftTitle("");
     setDraftBody("");
-    toast("Snippet saved. Use / in any reply to insert.");
+    toast("Preview snippet added");
   };
   const removeSnippet = (id: string) => {
     setSnippets((s) => s.filter((x) => x.id !== id));
-    toast("Snippet removed");
+    toast("Preview snippet removed");
   };
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Saved snippets"
-      description="Reusable replies — type / in any message composer to insert one. Per-tenant."
+      title="Snippet library preview"
+      description="Review reusable replies before tenant-wide saved snippets are enabled."
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <section
@@ -131,7 +131,7 @@ export function InboxSnippetsDrawer() {
               letterSpacing: 0.05,
             }}
           >
-            New snippet
+            Preview snippet
           </div>
           <FieldRow label="Title">
             <TextInput
@@ -149,7 +149,7 @@ export function InboxSnippetsDrawer() {
             />
           </FieldRow>
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <PrimaryButton onClick={addSnippet}>Save snippet</PrimaryButton>
+            <PrimaryButton onClick={addSnippet}>Add preview snippet</PrimaryButton>
           </div>
         </section>
 
@@ -162,7 +162,7 @@ export function InboxSnippetsDrawer() {
                             color: COLORS.inkMuted,
             }}
           >
-            Library — {snippets.length}
+            Preview library — {snippets.length}
           </div>
           {snippets.map((s) => (
             <div
@@ -207,7 +207,7 @@ export function InboxSnippetsDrawer() {
                 </div>
               </div>
               <GhostButton size="sm" onClick={() => removeSnippet(s.id)}>
-                Delete
+                Remove
               </GhostButton>
             </div>
           ))}
@@ -692,7 +692,7 @@ const timeInputStyle: React.CSSProperties = {
 // ════════════════════════════════════════════════════════════════════
 
 export function DataExportDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "data-export";
   const [include, setInclude] = useState({
     roster: true,
@@ -702,7 +702,6 @@ export function DataExportDrawer() {
     branding: true,
     audit: false,
   });
-  const [requested, setRequested] = useState(false);
 
   return (
     <DrawerShell
@@ -762,35 +761,12 @@ export function DataExportDrawer() {
           ))}
         </section>
 
-        {requested ? (
-          <div
-            style={{
-              padding: 14,
-              background: COLORS.accentSoft,
-              border: `1px solid rgba(15,79,62,0.18)`,
-              borderRadius: 12,
-              fontSize: 13,
-              color: COLORS.accentDeep,
-              lineHeight: 1.55,
-            }}
-          >
-            <strong>Export queued.</strong> We&apos;ll email a download link to{" "}
-            <span style={{ fontFamily: FONTS.mono }}>orantene@gmail.com</span> within 10 minutes.
-            Link is valid for 24 hours.
-          </div>
-        ) : (
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-            <PrimaryButton
-              onClick={() => {
-                setRequested(true);
-                toast("Export queued — you'll receive an email with the link");
-              }}
-            >
-              Request export
-            </PrimaryButton>
-          </div>
-        )}
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <span title="Export downloads are coming soon">
+            <PrimaryButton disabled>Request export</PrimaryButton>
+          </span>
+        </div>
       </div>
     </DrawerShell>
   );
@@ -1532,7 +1508,7 @@ export function TalentAgencySwitcherDrawer() {
 // operations.
 
 export function WorkspaceProfileDrawer() {
-  const { state, closeDrawer, toast, setPage } = useAdminShell();
+  const { state, closeDrawer, setPage } = useAdminShell();
   const open = state.drawer.drawerId === "workspace-profile";
   // Mock — production reads from workspace.settings + state.role.
   // For demo we map state.role to a permission level. state.role lacks
@@ -2593,14 +2569,13 @@ export function TalentShareCardDrawer() {
   const talentName = (state.drawer.payload?.name as string) ?? "your talent";
   const slug = (state.drawer.payload?.slug as string) ?? "talent-slug";
   const url = `${TENANT.domain}/share/talent/${slug}`;
-  const [recipient, setRecipient] = useState("");
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title={`Share ${talentName}`}
-      description="A standalone client-friendly link with photos, rate hint, and a tracked-link inquiry CTA. No login required for the recipient."
+      description="Copy a standalone client-friendly link with photos, rate hint, and a tracked-link inquiry CTA."
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {/* Card preview */}
@@ -2678,27 +2653,6 @@ export function TalentShareCardDrawer() {
             >
               Copy
             </SecondaryButton>
-          </div>
-        </FieldRow>
-        <FieldRow label="Send to client" hint="Optional — sends a short intro email with the link.">
-          <div style={{ display: "flex", gap: 8 }}>
-            <TextInput
-              placeholder="hello@client.com"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-            />
-            <PrimaryButton
-              onClick={() => {
-                if (!recipient.trim()) {
-                  toast("Email required to send");
-                  return;
-                }
-                toast(`Share email queued to ${recipient}`);
-                closeDrawer();
-              }}
-            >
-              Send
-            </PrimaryButton>
           </div>
         </FieldRow>
       </div>
@@ -4456,7 +4410,7 @@ export function WhatsNewDrawer() {
 // #25 — HelpDrawer
 // ════════════════════════════════════════════════════════════════════
 export function HelpDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "help";
   return (
     <DrawerShell
@@ -4838,7 +4792,7 @@ const CLIENT_FIRST_RUN_STEPS = [
 ];
 
 export function ClientFirstRunBanner() {
-  const { openDrawer, toast, setClientPage } = useAdminShell();
+  const { openDrawer, setClientPage } = useAdminShell();
   const [currentStep, setCurrentStep] = useState(1);
   const [dismissed, setDismissed] = useState(false);
 
