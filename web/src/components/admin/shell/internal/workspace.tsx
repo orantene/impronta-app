@@ -1917,7 +1917,9 @@ function MessagingPanel({
           <button
             type="button"
             aria-label="Add attachment"
-            style={{ background: "none", border: "none", cursor: "pointer", padding: "6px", borderRadius: 8, color: COLORS.inkMuted, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            disabled
+            title="Attachments coming soon"
+            style={{ background: "none", border: "none", cursor: "not-allowed", padding: "6px", borderRadius: 8, color: COLORS.inkDim, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, opacity: 0.55 }}
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <circle cx="9" cy="9" r="8" stroke="currentColor" strokeWidth="1.4"/>
@@ -2504,13 +2506,6 @@ function Rail({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov
             </button>
           );
         })}
-        <button
-          type="button"
-          aria-label="Close rail"
-          style={{ background: "none", border: "none", cursor: "pointer", padding: "8px 12px", color: COLORS.inkMuted, marginBottom: -1 }}
-        >
-          <Icon name="x" size={13} color={COLORS.inkMuted} />
-        </button>
       </div>
 
       {/* Content */}
