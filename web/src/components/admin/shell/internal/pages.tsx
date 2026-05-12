@@ -2450,7 +2450,7 @@ function PageRouter({ page }: { page: WorkspacePage }) {
  * compact label, big tabular number. Mobile collapses to 2x2.
  */
 function WorkspaceStatStrip({ items }: {
-  items: { label: string; value: number; tone: string; onClick: () => void }[];
+  items: { label: string; value: number; tone: string; onClick: () => void; demo?: boolean }[];
 }) {
   return (
     <div data-tulala-stat-strip style={{
@@ -2475,10 +2475,12 @@ function WorkspaceStatStrip({ items }: {
           padding: "12px 14px", textAlign: "left",
           borderRight: i < items.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
           fontFamily: FONTS.body,
+          position: "relative",
         }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
+          {it.demo && <DemoBadge />}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: it.tone }} />
             <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>{it.label}</span>
@@ -2490,6 +2492,37 @@ function WorkspaceStatStrip({ items }: {
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Muted "Demo" pill — top-right of any metric card whose value is mock
+ * (no real bridge wiring yet). Honest signal to operators that the
+ * surrounding number is not derived from their tenant. Tooltip points
+ * the dev story forward without making it look broken.
+ */
+function DemoBadge() {
+  return (
+    <span
+      title="Wire-up pending. Coming soon."
+      style={{
+        position: "absolute",
+        top: 8,
+        right: 8,
+        padding: "1px 5px",
+        fontFamily: FONTS.body,
+        fontSize: 10,
+        fontWeight: 500,
+        letterSpacing: 0.2,
+        color: COLORS.inkDim,
+        background: COLORS.surfaceAlt,
+        borderRadius: 4,
+        lineHeight: 1.4,
+        pointerEvents: "auto",
+      }}
+    >
+      demo
+    </span>
   );
 }
 
@@ -2853,7 +2886,7 @@ function OverviewPage() {
           { label: "Needs you", value: awaiting.length + draftCount, tone: COLORS.coral, onClick: () => openDrawer("today-pulse") },
           { label: "Active", value: richInqs.filter((i) => i.stage !== "rejected" && i.stage !== "expired").length, tone: COLORS.indigo, onClick: () => openDrawer("pipeline") },
           { label: "Confirmed", value: confirmedThisWeek.length, tone: COLORS.success, onClick: () => openDrawer("confirmed-bookings") },
-          { label: "Views 7d", value: MOCK_STOREFRONT_STATS.views7d, tone: COLORS.inkMuted, onClick: () => openDrawer("storefront-visibility") },
+          { label: "Views 7d", value: MOCK_STOREFRONT_STATS.views7d, tone: COLORS.inkMuted, onClick: () => openDrawer("storefront-visibility"), demo: true },
         ]}
       />
 
@@ -3431,9 +3464,9 @@ function OverviewFree() {
         />
         <PrimaryCard
           title="Your roster"
-          description="3 talent profiles. Add more, invite talent to claim, or publish drafts."
+          description={`${pluralize(liveRoster.length, "talent profile", "talent profiles")}. Add more, invite talent to claim, or publish drafts.`}
           icon={<Icon name="team" size={14} stroke={1.7} />}
-          meta="3 profiles · 1 published"
+          meta={`${pluralize(liveRoster.length, "profile", "profiles")} · ${livePublished} published`}
           affordance="Open roster"
           onClick={() => setPage("talent")}
         />
