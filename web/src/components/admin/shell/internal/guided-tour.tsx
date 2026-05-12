@@ -150,7 +150,7 @@ export function GuidedTour({
   return (
     <div data-tulala-guided-tour={storageKey} style={{
       position: "fixed", inset: 0, zIndex: 1000,
-      pointerEvents: "auto",
+      pointerEvents: "none", // click-through; tooltip re-enables itself
       fontFamily: FONTS.body,
     }}>
       {rect ? (
@@ -192,6 +192,10 @@ export function GuidedTour({
           boxShadow: "0 24px 60px -10px rgba(11,11,13,0.40)",
           padding: 16,
           fontFamily: FONTS.body,
+          // Parent wrapper has pointerEvents:none (so spotlighted CTAs
+          // behind the dim are clickable). Re-enable here so Skip/Back/
+          // Next remain interactive.
+          pointerEvents: "auto",
         }}
       >
         <div style={{
