@@ -1529,6 +1529,86 @@ test.describe("smoke: login → builder → publish → share", () => {
     }
   });
 
+  test("impronta Directory Search Hero starter renders on canvas after insert", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    await openImprontaBuilderDirect(page);
+    const directorySearchHeadline = "Find the right talent for your brief";
+    const directorySearchSub = "Search the directory by role";
+    await removeCmsSectionsByTypeAndText(page, "hero", directorySearchHeadline);
+
+    const heroSections = page.locator(
+      '[data-cms-section][data-section-type-key="hero"]',
+    );
+    const beforeHeroIds = new Set(
+      await heroSections.evaluateAll((nodes) =>
+        nodes
+          .map((node) => node.getAttribute("data-section-id"))
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    let insertedSectionId: string | null = null;
+
+    try {
+      const addSection = page.getByRole("button", { name: /^add a section$/i }).first();
+      await expect(addSection).toBeVisible({ timeout: 20_000 });
+      await addSection.click();
+
+      const picker = page.locator('[data-edit-drawer="picker"]');
+      await expect(picker).toBeVisible({ timeout: 10_000 });
+      const search = picker.locator("input").first();
+      await search.fill("directory search hero");
+
+      const directoryStarter = picker.locator(
+        '[data-section-template-starter="directory-search-hero"]',
+      );
+      await expect(directoryStarter).toBeVisible({ timeout: 15_000 });
+      await directoryStarter.click();
+
+      const directoryReview = page.locator(
+        '[data-section-starter-review="directory-search-hero"]',
+      );
+      await expect(directoryReview).toBeVisible();
+      await directoryReview.getByRole("button", { name: "Editorial center" }).click();
+      await directoryReview.getByRole("button", { name: /add section/i }).click();
+      await expect(directoryReview).toBeHidden({ timeout: 45_000 });
+
+      await expect
+        .poll(async () => {
+          const ids = await heroSections.evaluateAll((nodes) =>
+            nodes
+              .map((node) => node.getAttribute("data-section-id"))
+              .filter((id): id is string => Boolean(id)),
+          );
+          return ids.find((id) => !beforeHeroIds.has(id)) ?? null;
+        }, { timeout: 90_000 })
+        .not.toBeNull();
+
+      const currentHeroIds = await heroSections.evaluateAll((nodes) =>
+        nodes
+          .map((node) => node.getAttribute("data-section-id"))
+          .filter((id): id is string => Boolean(id)),
+      );
+      insertedSectionId =
+        currentHeroIds.find((id) => !beforeHeroIds.has(id)) ?? null;
+
+      expect(insertedSectionId).toBeTruthy();
+      const insertedSection = page.locator(
+        `[data-cms-section][data-section-id="${insertedSectionId}"]`,
+      );
+      await expect(insertedSection).toBeVisible({ timeout: 90_000 });
+      await expect(insertedSection).toContainText(directorySearchHeadline);
+      await expect(insertedSection).toContainText(directorySearchSub);
+      await expect(insertedSection).toContainText("Promotional models for a boutique venue opening");
+    } finally {
+      if (insertedSectionId) {
+        await removeCmsSectionFromCanvas(page, insertedSectionId);
+      }
+      await removeCmsSectionsByTypeAndText(page, "hero", directorySearchHeadline);
+    }
+  });
+
   test("impronta starter kit inserts a sequence and cleans up", async ({ page }) => {
     test.setTimeout(210_000);
     await openImprontaBuilderDirect(page);
