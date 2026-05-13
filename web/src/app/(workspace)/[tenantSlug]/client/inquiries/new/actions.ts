@@ -21,6 +21,11 @@ export type ClientWorkspaceInquiryFormValues = {
   message: string;
 };
 
+// TODO A.4: convert to `ServerActionResult<T>`. `useFormState` shape for the
+// "new client inquiry" form — carries `values` for re-rendering the form
+// alongside `error`. Conversion requires moving `values` into a `data` /
+// `restore` payload and updating the form binding. Out of scope for the
+// initial sweep.
 export type ClientWorkspaceInquiryActionState = {
   error?: string;
   values: ClientWorkspaceInquiryFormValues;

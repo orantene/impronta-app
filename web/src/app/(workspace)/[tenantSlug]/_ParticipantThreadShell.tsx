@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { ServerActionResult } from "@/lib/server-actions/result";
 
 export type ParticipantThreadMessage = {
   id: string;
@@ -12,9 +13,10 @@ export type ParticipantThreadMessage = {
   is_mine: boolean;
 };
 
-export type ParticipantThreadSendResult =
-  | { id: string; created_at: string }
-  | { error: string };
+export type ParticipantThreadSendResult = ServerActionResult<{
+  id: string;
+  created_at: string;
+}>;
 
 type ThreadType = "private" | "group";
 
@@ -160,7 +162,7 @@ export default function ParticipantThreadShell({
 
     startSending(async () => {
       const result = await sendMessage(trimmed);
-      if ("error" in result) {
+      if (!result.ok) {
         setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
         setBody(trimmed);
         setError(result.error);
@@ -171,8 +173,8 @@ export default function ParticipantThreadShell({
         const opt = prev.find((m) => m.id === optimisticId);
         if (!opt) return prev;
         return [
-          ...prev.filter((m) => m.id !== optimisticId && m.id !== result.id),
-          { ...opt, id: result.id, created_at: result.created_at },
+          ...prev.filter((m) => m.id !== optimisticId && m.id !== result.data.id),
+          { ...opt, id: result.data.id, created_at: result.data.created_at },
         ];
       });
     });

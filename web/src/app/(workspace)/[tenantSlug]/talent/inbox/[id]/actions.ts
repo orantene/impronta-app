@@ -5,11 +5,13 @@ import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
+import type { ServerActionResult } from "@/lib/server-actions/result";
 import { loadTalentSelfProfile } from "../../../_data-bridge";
 
-export type SendTalentInquiryMessageResult =
-  | { id: string; created_at: string }
-  | { error: string };
+export type SendTalentInquiryMessageResult = ServerActionResult<{
+  id: string;
+  created_at: string;
+}>;
 
 function returnToThread(
   tenantSlug: string,
@@ -27,29 +29,29 @@ export async function sendTalentInquiryMessage(
   const trimmed = body.trim();
 
   if (!trimmed || trimmed.length > 10000) {
-    return { error: "Message is empty or too long." };
+    return { ok: false, error: "Message is empty or too long." };
   }
 
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) {
-    return { error: "Workspace not found." };
+    return { ok: false, error: "Workspace not found." };
   }
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
-    return { error: "Database unavailable." };
+    return { ok: false, error: "Database unavailable." };
   }
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { error: "Not authenticated." };
+    return { ok: false, error: "Not authenticated." };
   }
 
   const talent = await loadTalentSelfProfile(user.id, scope.tenantId);
   if (!talent) {
-    return { error: "Talent profile not found in this workspace." };
+    return { ok: false, error: "Talent profile not found in this workspace." };
   }
 
   const { data: inquiry } = await supabase
@@ -59,7 +61,7 @@ export async function sendTalentInquiryMessage(
     .eq("tenant_id", scope.tenantId)
     .maybeSingle();
   if (!inquiry) {
-    return { error: "Inquiry not found in this workspace." };
+    return { ok: false, error: "Inquiry not found in this workspace." };
   }
 
   const { data: participant } = await supabase
@@ -70,7 +72,7 @@ export async function sendTalentInquiryMessage(
     .in("status", ["invited", "active"])
     .maybeSingle();
   if (!participant) {
-    return { error: "You cannot message on this inquiry." };
+    return { ok: false, error: "You cannot message on this inquiry." };
   }
 
   const { data, error: insertError } = await supabase
@@ -87,7 +89,7 @@ export async function sendTalentInquiryMessage(
 
   if (insertError) {
     logServerError("talent.thread.send", insertError);
-    return { error: "Could not send message." };
+    return { ok: false, error: "Could not send message." };
   }
 
   const { error: readErr } = await supabase.rpc("inquiry_mark_thread_read", {
@@ -100,7 +102,7 @@ export async function sendTalentInquiryMessage(
 
   revalidatePath(`/${tenantSlug}/talent/inbox/${inquiryId}`);
   revalidatePath(`/${tenantSlug}/talent/inbox`);
-  return { id: data.id, created_at: data.created_at };
+  return { ok: true, data: { id: data.id, created_at: data.created_at } };
 }
 
 export async function markTalentInquiryThreadRead(
@@ -149,7 +151,7 @@ export async function markTalentInquiryThreadRead(
 
 // ─── Accept / decline invitation ────────────────────────────────────────────
 
-export type InvitationActionResult = { ok: true } | { error: string };
+export type InvitationActionResult = ServerActionResult;
 
 async function resolveParticipant(tenantSlug: string, inquiryId: string) {
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
@@ -182,7 +184,7 @@ export async function acceptTalentInvitation(
   inquiryId: string,
 ): Promise<InvitationActionResult> {
   const ctx = await resolveParticipant(tenantSlug, inquiryId);
-  if (!ctx.ok) return { error: ctx.error };
+  if (!ctx.ok) return { ok: false, error: ctx.error };
 
   const { error } = await ctx.supabase
     .from("inquiry_participants")
@@ -191,12 +193,12 @@ export async function acceptTalentInvitation(
 
   if (error) {
     logServerError("talent.acceptInvitation", error);
-    return { error: "Could not accept invitation. Try again." };
+    return { ok: false, error: "Could not accept invitation. Try again." };
   }
 
   revalidatePath(`/${tenantSlug}/talent/inbox/${inquiryId}`);
   revalidatePath(`/${tenantSlug}/talent/inbox`);
-  return { ok: true };
+  return { ok: true, data: undefined };
 }
 
 export async function declineTalentInvitation(
@@ -204,7 +206,7 @@ export async function declineTalentInvitation(
   inquiryId: string,
 ): Promise<InvitationActionResult> {
   const ctx = await resolveParticipant(tenantSlug, inquiryId);
-  if (!ctx.ok) return { error: ctx.error };
+  if (!ctx.ok) return { ok: false, error: ctx.error };
 
   const { error } = await ctx.supabase
     .from("inquiry_participants")
@@ -213,12 +215,12 @@ export async function declineTalentInvitation(
 
   if (error) {
     logServerError("talent.declineInvitation", error);
-    return { error: "Could not decline invitation. Try again." };
+    return { ok: false, error: "Could not decline invitation. Try again." };
   }
 
   revalidatePath(`/${tenantSlug}/talent/inbox/${inquiryId}`);
   revalidatePath(`/${tenantSlug}/talent/inbox`);
-  return { ok: true };
+  return { ok: true, data: undefined };
 }
 
 // Form-action wrappers for invitation (redirect-based, usable as <form action>)
@@ -228,7 +230,7 @@ export async function acceptInvitationFormAction(
   _formData: FormData,
 ): Promise<void> {
   const res = await acceptTalentInvitation(tenantSlug, inquiryId);
-  if ("error" in res) {
+  if (!res.ok) {
     redirect(`/${tenantSlug}/talent/inbox/${inquiryId}?err=${encodeURIComponent(res.error)}`);
   }
   redirect(`/${tenantSlug}/talent/inbox/${inquiryId}?ok=${encodeURIComponent("You've accepted this booking — welcome to the team!")}`);
@@ -240,7 +242,7 @@ export async function declineInvitationFormAction(
   _formData: FormData,
 ): Promise<void> {
   const res = await declineTalentInvitation(tenantSlug, inquiryId);
-  if ("error" in res) {
+  if (!res.ok) {
     redirect(`/${tenantSlug}/talent/inbox/${inquiryId}?err=${encodeURIComponent(res.error)}`);
   }
   redirect(`/${tenantSlug}/talent/inbox?declined=1`);
@@ -256,7 +258,7 @@ export async function sendTalentInquiryMessageAction(formData: FormData): Promis
   }
 
   const result = await sendTalentInquiryMessage(tenantSlug, inquiryId, body);
-  if ("error" in result) {
+  if (!result.ok) {
     returnToThread(
       tenantSlug,
       inquiryId,

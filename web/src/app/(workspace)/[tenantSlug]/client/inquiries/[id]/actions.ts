@@ -5,10 +5,12 @@ import { redirect } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
+import type { ServerActionResult } from "@/lib/server-actions/result";
 
-export type SendClientInquiryMessageResult =
-  | { id: string; created_at: string }
-  | { error: string };
+export type SendClientInquiryMessageResult = ServerActionResult<{
+  id: string;
+  created_at: string;
+}>;
 
 function returnToThread(
   tenantSlug: string,
@@ -25,22 +27,22 @@ export async function sendClientInquiryMessage(
 ): Promise<SendClientInquiryMessageResult> {
   const trimmed = body.trim();
   if (!trimmed || trimmed.length > 10000) {
-    return { error: "Message is empty or too long." };
+    return { ok: false, error: "Message is empty or too long." };
   }
 
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) {
-    return { error: "Workspace not found." };
+    return { ok: false, error: "Workspace not found." };
   }
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
-    return { error: "Database unavailable." };
+    return { ok: false, error: "Database unavailable." };
   }
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return { error: "Not authenticated." };
+    return { ok: false, error: "Not authenticated." };
   }
 
   const { data: inquiry } = await supabase
@@ -51,7 +53,7 @@ export async function sendClientInquiryMessage(
     .eq("client_user_id", user.id)
     .maybeSingle();
   if (!inquiry) {
-    return { error: "You cannot message on this inquiry." };
+    return { ok: false, error: "You cannot message on this inquiry." };
   }
 
   const { data, error: insertError } = await supabase
@@ -68,7 +70,7 @@ export async function sendClientInquiryMessage(
 
   if (insertError) {
     logServerError("client.thread.send", insertError);
-    return { error: "Could not send message." };
+    return { ok: false, error: "Could not send message." };
   }
 
   const { error: readErr } = await supabase.rpc("inquiry_mark_thread_read", {
@@ -81,7 +83,7 @@ export async function sendClientInquiryMessage(
 
   revalidatePath(`/${tenantSlug}/client/inquiries/${inquiryId}`);
   revalidatePath(`/${tenantSlug}/client/inquiries`);
-  return { id: data.id, created_at: data.created_at };
+  return { ok: true, data: { id: data.id, created_at: data.created_at } };
 }
 
 export async function markClientInquiryThreadRead(
@@ -125,7 +127,7 @@ export async function sendClientInquiryMessageAction(formData: FormData): Promis
   }
 
   const result = await sendClientInquiryMessage(tenantSlug, inquiryId, body);
-  if ("error" in result) {
+  if (!result.ok) {
     returnToThread(
       tenantSlug,
       inquiryId,
