@@ -2319,7 +2319,10 @@ export function EditProvider({
         case "section.rename": {
           const trimmed = mutation.newName.trim();
           if (!trimmed) {
-            return { ok: false, error: "Name cannot be empty." };
+            return {
+              ok: false,
+              error: "Enter a section name before saving.",
+            };
           }
           // Snapshot the section's current state — preferring local
           // `loadedSection` when it matches (the common case: operator
@@ -2542,7 +2545,8 @@ export function EditProvider({
         default:
           return {
             ok: false,
-            error: `dispatch: kind ${(mutation as EditorMutation).kind} not yet routed`,
+            error:
+              "This edit is not available yet — reload the page and try again.",
             code: "NOT_ROUTED",
           };
       }

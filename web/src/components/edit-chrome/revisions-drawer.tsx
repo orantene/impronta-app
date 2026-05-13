@@ -474,6 +474,7 @@ function RevisionCard({
             disabled={pending}
             style={iconBtnStyle()}
             title="Restore as draft"
+            aria-label="Restore this snapshot as your current draft"
           >
             <RestoreIcon /> Restore
           </button>
