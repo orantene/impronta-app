@@ -2886,7 +2886,13 @@ function OverviewPage() {
           { label: "Needs you", value: awaiting.length + draftCount, tone: COLORS.coral, onClick: () => openDrawer("today-pulse") },
           { label: "Active", value: richInqs.filter((i) => i.stage !== "rejected" && i.stage !== "expired").length, tone: COLORS.indigo, onClick: () => openDrawer("pipeline") },
           { label: "Confirmed", value: confirmedThisWeek.length, tone: COLORS.success, onClick: () => openDrawer("confirmed-bookings") },
-          { label: "Views 7d", value: MOCK_STOREFRONT_STATS.views7d, tone: COLORS.inkMuted, onClick: () => openDrawer("storefront-visibility"), demo: true },
+          {
+            label: "Views 7d",
+            value: overviewMetrics?.storefrontViews7d ?? MOCK_STOREFRONT_STATS.views7d,
+            tone: COLORS.inkMuted,
+            onClick: () => openDrawer("storefront-visibility"),
+            demo: overviewMetrics?.storefrontViews7d == null,
+          },
         ]}
       />
 

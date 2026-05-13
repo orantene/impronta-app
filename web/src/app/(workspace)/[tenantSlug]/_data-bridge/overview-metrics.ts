@@ -32,6 +32,10 @@ export type WorkspaceOverviewMetrics = {
   nextBookingLabel: string | null;
   /** ISO date of the next upcoming booking. Null if none. */
   nextBookingDate: string | null;
+  /** Public-surface (directory + talent profile + card) views in the last 7d. Null if disabled / errored. */
+  storefrontViews7d: number | null;
+  /** Growth label vs. prior 7d window (e.g. "+18%", "-5%", "new"). Null if no prior data. */
+  storefrontGrowthLabel: string | null;
 };
 
 export async function loadWorkspaceOverviewMetrics(
@@ -41,7 +45,7 @@ export async function loadWorkspaceOverviewMetrics(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
 
-    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes] = await Promise.all([
+    const [rosterRes, openInquiriesRes, teamRes, pendingRes, awaitingClientRes, draftInqRes, oldestCoordRes, nextBookingRes, viewsRes] = await Promise.all([
       // Roster: total + published count
       supabase
         .from("agency_talent_roster")
@@ -106,6 +110,7 @@ export async function loadWorkspaceOverviewMetrics(
         .gte("event_date", new Date().toISOString().slice(0, 10))
         .order("event_date", { ascending: true })
         .limit(1),
+      loadStorefrontViews7d(tenantId),
     ]);
 
     if (rosterRes.error) {
@@ -161,9 +166,67 @@ export async function loadWorkspaceOverviewMetrics(
       oldestCoordinatorWaitDays,
       nextBookingLabel,
       nextBookingDate,
+      storefrontViews7d: viewsRes?.views ?? null,
+      storefrontGrowthLabel: viewsRes?.growthLabel ?? null,
     };
   } catch (err) {
     logServerError("workspace.loadOverviewMetrics", err);
+    return null;
+  }
+}
+
+/**
+ * Storefront / directory views in the last 7 days, with growth vs. the
+ * prior 7-day window. Reads `analytics_events` for event names that
+ * represent a public-surface view (`view_directory`, `view_talent_card`,
+ * `view_talent_profile`). Returns `null` on error or no signal so the
+ * caller can fall back to the demo badge.
+ */
+export type StorefrontViews7d = { views: number; growthLabel: string | null };
+
+export async function loadStorefrontViews7d(
+  tenantId: string,
+): Promise<StorefrontViews7d | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    const now = Date.now();
+    const day = 86_400_000;
+    const sevenAgo = new Date(now - 7 * day).toISOString();
+    const fourteenAgo = new Date(now - 14 * day).toISOString();
+    const VIEW_EVENTS = ["view_directory", "view_talent_card", "view_talent_profile"];
+
+    const [cur, prev] = await Promise.all([
+      supabase
+        .from("analytics_events")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .in("name", VIEW_EVENTS)
+        .gte("created_at", sevenAgo),
+      supabase
+        .from("analytics_events")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .in("name", VIEW_EVENTS)
+        .gte("created_at", fourteenAgo)
+        .lt("created_at", sevenAgo),
+    ]);
+
+    const views = cur.count ?? 0;
+    const prevViews = prev.count ?? 0;
+
+    let growthLabel: string | null = null;
+    if (prevViews > 0) {
+      const pct = Math.round(((views - prevViews) / prevViews) * 100);
+      growthLabel = `${pct >= 0 ? "+" : ""}${pct}%`;
+    } else if (views > 0) {
+      growthLabel = "new";
+    }
+
+    return { views, growthLabel };
+  } catch (err) {
+    logServerError("workspace.loadStorefrontViews7d", err);
     return null;
   }
 }
