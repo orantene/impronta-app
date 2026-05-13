@@ -80,10 +80,16 @@ export async function proxy(request: NextRequest) {
   // if we ever point Stripe at a `*.vercel.app` preview. Each of these
   // endpoints has its own auth (signature, bearer token, allow-list) so
   // tenant-host gating is unnecessary and actively harmful here.
+  //
+  // Also short-circuit the branded unregistered-host page itself so the
+  // internal rewrite below doesn't recurse back through host resolution.
   if (
     pathname.startsWith("/api/stripe/") ||
     pathname.startsWith("/api/cron/") ||
     pathname === "/api/analytics/events" ||
+    // Branded 404 page for unregistered hosts — must bypass host gating to
+    // avoid infinite rewrite loops when the middleware rewrites here.
+    pathname === "/_host-unregistered" ||
     // Dev-only sign-in shortcut — blocked by the route handler in production
     (process.env.NODE_ENV === "development" && pathname.startsWith("/api/dev/"))
   ) {
@@ -121,10 +127,14 @@ export async function proxy(request: NextRequest) {
     // Fail-hard (Plan L37): an unregistered hostname does NOT fall back
     // to tenant #1 or the hub. A 404 tells the operator the domain needs
     // seeding in `agency_domains`.
-    return new NextResponse("Host not registered. Seed agency_domains.", {
-      status: 404,
-      headers: { "content-type": "text/plain; charset=utf-8" },
-    });
+    //
+    // Rewrite to the branded 404 page instead of returning plain text.
+    // The rewrite target `/_host-unregistered` is whitelisted in the
+    // short-circuit block above so this does not recurse.
+    return NextResponse.rewrite(
+      new URL("/_host-unregistered", request.url),
+      { status: 404 },
+    );
   }
 
   if (
