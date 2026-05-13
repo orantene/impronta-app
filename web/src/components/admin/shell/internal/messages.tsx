@@ -11226,6 +11226,12 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
   const [pending, startTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
+  // Slice 1 (Messages consolidation): collapsed-by-default. The fat
+  // vertical list ate ~200px of vertical real estate above the tab bar
+  // even on inquiries with two participants. We now render a compact
+  // 32px avatar-stack strip and reveal the manage UI only on demand.
+  // Existing data loading + add/remove/reorder logic is preserved.
+  const [expanded, setExpanded] = useState(false);
 
   // Skip the DB roundtrip entirely for synthetic mock inquiry ids — the
   // demo conversations use "RI-XXX" / "c1" style ids that won't resolve.
@@ -11289,30 +11295,133 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
     });
   };
 
+  // Initials from a display name. Falls back to "·" when missing — keeps
+  // the avatar strip visually consistent even on legacy participant rows.
+  const initialsOf = (name: string | null): string => {
+    if (!name) return "·";
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "·";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const MAX_AVATARS = 5;
+  const visibleAvatars = lineup.slice(0, MAX_AVATARS);
+  const overflowCount = Math.max(0, lineup.length - MAX_AVATARS);
+
   return (
     <div style={{
       background: COLORS.surfaceAlt, border: `1px solid ${COLORS.borderSoft}`,
-      borderRadius: RADIUS.md, padding: 12, marginBottom: 10,
+      borderRadius: RADIUS.md, padding: expanded ? 12 : "6px 10px",
+      marginBottom: 10,
       fontFamily: FONTS.body, fontSize: 12,
+      transition: "padding 0.12s ease",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontWeight: 700, color: COLORS.ink }}>
-          Live lineup ({lineup.length})
+      {/* Compact strip — always visible. Clickable to expand the panel. */}
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        aria-controls={`lineup-panel-${inquiryId}`}
+        style={{
+          width: "100%",
+          background: "transparent", border: "none", padding: 0, margin: 0,
+          display: "flex", alignItems: "center", gap: 10,
+          cursor: "pointer", textAlign: "left",
+          fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink,
+        }}
+      >
+        <span style={{ fontWeight: 700, color: COLORS.ink, whiteSpace: "nowrap" }}>
+          Lineup
         </span>
-        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
-          inquiry_participants
-        </span>
+        {/* Overlapping avatar stack */}
+        {lineup.length === 0 ? (
+          <span style={{ color: COLORS.inkMuted, fontSize: 11, fontStyle: "italic" }}>
+            empty — add talent to start
+          </span>
+        ) : (
+          <span
+            style={{
+              display: "inline-flex", alignItems: "center",
+              paddingLeft: 0,
+            }}
+          >
+            {visibleAvatars.map((p, idx) => (
+              <span
+                key={p.id}
+                style={{
+                  marginLeft: idx === 0 ? 0 : -6,
+                  border: `1.5px solid ${COLORS.surfaceAlt}`,
+                  borderRadius: "50%",
+                  display: "inline-flex",
+                  // Subtle dim on declined/removed so the user sees state at a glance.
+                  opacity: p.status === "declined" || p.status === "removed" ? 0.4 : 1,
+                }}
+                title={`${p.talentDisplayName ?? "Unnamed"} · ${p.status}`}
+              >
+                <Avatar
+                  size={22}
+                  initials={initialsOf(p.talentDisplayName)}
+                  tone="auto"
+                  hashSeed={p.talentDisplayName ?? p.id}
+                />
+              </span>
+            ))}
+            {overflowCount > 0 && (
+              <span
+                style={{
+                  marginLeft: -6,
+                  width: 22, height: 22,
+                  borderRadius: "50%",
+                  background: COLORS.surfaceAlt,
+                  border: `1.5px solid ${COLORS.surfaceAlt}`,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 10, fontWeight: 700, color: COLORS.inkMuted,
+                }}
+                title={`+${overflowCount} more`}
+              >+{overflowCount}</span>
+            )}
+            <span style={{
+              marginLeft: 8, fontSize: 11, color: COLORS.inkMuted, fontWeight: 600,
+            }}>
+              {lineup.length} talent{lineup.length === 1 ? "" : "s"}
+            </span>
+          </span>
+        )}
         <span style={{ flex: 1 }} />
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => setPickerOpen((o) => !o)}
-          style={primaryBtn(COLORS.accent)}
-        >
-          {pickerOpen ? "Close picker" : "Add talent"}
-        </button>
-      </div>
-      {lineup.length > 0 && (
+        <span
+          aria-hidden
+          style={{
+            color: COLORS.inkMuted, fontSize: 11,
+            transition: "transform 0.12s ease",
+            transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+            display: "inline-block", width: 12,
+          }}
+        >▸</span>
+        <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
+          {expanded ? "Hide" : "Manage"}
+        </span>
+      </button>
+
+      {/* Expanded: full management UI (existing list + picker). Only
+          mounts when the user opens the panel. */}
+      {expanded && (
+        <div id={`lineup-panel-${inquiryId}`} style={{ marginTop: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{ color: COLORS.inkMuted, fontSize: 11 }}>
+              inquiry_participants · drag to reorder
+            </span>
+            <span style={{ flex: 1 }} />
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setPickerOpen((o) => !o)}
+              style={primaryBtn(COLORS.accent)}
+            >
+              {pickerOpen ? "Close picker" : "Add talent"}
+            </button>
+          </div>
+          {lineup.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
           {lineup.map((p, idx) => (
             <div
@@ -11419,6 +11528,8 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
               </button>
             ))}
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>
