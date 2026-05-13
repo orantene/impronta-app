@@ -127,13 +127,22 @@ export default function ParticipantThreadShell({
           });
 
           if (!viewerUserId || row.sender_user_id === viewerUserId) return;
-          void markRead();
+          // A.5 — surface markRead failures so a busted RLS path or
+          // network blip doesn't silently leave the read pointer stale.
+          markRead().catch((err) => {
+            console.error("[ParticipantThreadShell] markRead failed", err);
+          });
         },
       )
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      // A.5 — channel cleanup is fire-and-forget by design (component
+      // unmount path) but log on the off-chance the disconnect throws
+      // so we notice if the realtime client gets into a stuck state.
+      supabase.removeChannel(channel).catch?.((err: unknown) => {
+        console.error("[ParticipantThreadShell] removeChannel failed", err);
+      });
     };
   }, [inquiryId, markRead, threadType, viewerUserId]);
 

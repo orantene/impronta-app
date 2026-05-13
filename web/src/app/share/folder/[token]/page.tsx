@@ -68,11 +68,15 @@ export default async function FolderSharePage({ params }: PageParams) {
     return <ShareError reason="expired" />;
   }
 
-  // Increment view count (fire-and-forget)
-  void admin
+  // A.5 — view-count increment is fire-and-forget but log on failure
+  // so we notice if the table schema drifts or the row gets locked.
+  admin
     .from("media_folders")
     .update({ share_view_count: folder.share_view_count + 1, updated_at: new Date().toISOString() })
-    .eq("id", folder.id);
+    .eq("id", folder.id)
+    .then((res) => {
+      if (res.error) console.error("[share/folder] view-count update failed", res.error);
+    });
 
   // Load folder items → asset IDs
   const { data: items } = await admin
