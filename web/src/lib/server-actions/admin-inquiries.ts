@@ -237,7 +237,7 @@ export async function updateInquiry(
 
   const { data: priorInq, error: priorInqErr } = await supabase
     .from("inquiries")
-    .select("client_account_id, client_contact_id")
+    .select("client_account_id, client_contact_id, status, assigned_staff_id, staff_notes, source_channel, closed_reason")
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -324,6 +324,35 @@ export async function updateInquiry(
     });
   }
 
+  // Details v3 §4.3 — field-level audit emit (additive to inquiry_events).
+  const inqPairs: Array<{
+    key: string;
+    group: string;
+    visibility: "client_visible" | "talent_visible" | "coord_visible" | "admin_only";
+    before: unknown;
+    after: unknown;
+  }> = [
+    { key: "status",            group: "lifecycle",  visibility: "client_visible", before: priorInq.status,            after: status },
+    { key: "assigned_staff_id", group: "assignment", visibility: "coord_visible",  before: priorInq.assigned_staff_id, after: assigned_staff_id || null },
+    { key: "staff_notes",       group: "internal",   visibility: "admin_only",     before: priorInq.staff_notes,       after: staff_notes || null },
+    { key: "source_channel",    group: "source",     visibility: "admin_only",     before: priorInq.source_channel,    after: source_channel },
+    { key: "closed_reason",     group: "lifecycle",  visibility: "coord_visible",  before: priorInq.closed_reason,     after: closed_reason || null },
+    { key: "client_account_id", group: "client",     visibility: "admin_only",     before: priorInq.client_account_id, after: client_account_id },
+    { key: "client_contact_id", group: "client",     visibility: "admin_only",     before: priorInq.client_contact_id, after: client_contact_id },
+  ];
+  for (const p of inqPairs) {
+    if (p.before === p.after) continue;
+    await emitFieldChange(supabase, {
+      inquiryId: id,
+      fieldGroup: p.group,
+      fieldKey: p.key,
+      oldValue: p.before,
+      newValue: p.after,
+      visibility: p.visibility,
+      actorRole: "admin",
+    }).then((r) => { if (!r.ok) logServerError("admin/updateInquiry/fieldEmit", r.error); });
+  }
+
   revalidatePath("/admin/inquiries");
   revalidatePath(`/admin/inquiries/${id}`);
   return undefined;
@@ -362,6 +391,14 @@ export async function updateInquiryClientInfo(
     }
   }
 
+  // Snapshot prior column values for Details v3 §4.3 field-level audit emit.
+  const { data: priorCI } = await supabase
+    .from("inquiries")
+    .select("contact_name, contact_email, contact_phone, company, client_user_id")
+    .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("inquiries")
     .update({
@@ -378,6 +415,34 @@ export async function updateInquiryClientInfo(
   if (error) {
     logServerError("admin/updateInquiryClientInfo", error);
     return { error: CLIENT_ERROR.update };
+  }
+
+  if (priorCI) {
+    const ciPairs: Array<{
+      key: string;
+      group: string;
+      visibility: "client_visible" | "talent_visible" | "coord_visible" | "admin_only";
+      before: unknown;
+      after: unknown;
+    }> = [
+      { key: "contact_name",  group: "client", visibility: "client_visible", before: priorCI.contact_name,  after: contact_name },
+      { key: "contact_email", group: "client", visibility: "client_visible", before: priorCI.contact_email, after: contact_email },
+      { key: "contact_phone", group: "client", visibility: "client_visible", before: priorCI.contact_phone, after: contact_phone || null },
+      { key: "company",       group: "client", visibility: "client_visible", before: priorCI.company,       after: company || null },
+      { key: "client_user_id", group: "client", visibility: "admin_only",    before: priorCI.client_user_id, after: client_user_id },
+    ];
+    for (const p of ciPairs) {
+      if (p.before === p.after) continue;
+      await emitFieldChange(supabase, {
+        inquiryId: inquiry_id,
+        fieldGroup: p.group,
+        fieldKey: p.key,
+        oldValue: p.before,
+        newValue: p.after,
+        visibility: p.visibility,
+        actorRole: "admin",
+      }).then((r) => { if (!r.ok) logServerError("admin/updateInquiryClientInfo/fieldEmit", r.error); });
+    }
   }
 
   revalidatePath("/admin/inquiries");
@@ -448,6 +513,30 @@ export async function updateInquiryLocation(
       eventType: INQUIRY_AUDIT.CLIENT_CONTACT_CHANGED,
       payload: { from: prior.client_contact_id, to: resolved.contactId, via: "primary_card" },
     });
+  }
+
+  // Details v3 §4.3 — field-level audit emit (additive to inquiry_events).
+  const locPairs: Array<{
+    key: string;
+    group: string;
+    visibility: "client_visible" | "talent_visible" | "coord_visible" | "admin_only";
+    before: unknown;
+    after: unknown;
+  }> = [
+    { key: "client_account_id", group: "client", visibility: "admin_only", before: prior.client_account_id, after: resolved.accountId },
+    { key: "client_contact_id", group: "client", visibility: "admin_only", before: prior.client_contact_id, after: resolved.contactId },
+  ];
+  for (const p of locPairs) {
+    if (p.before === p.after) continue;
+    await emitFieldChange(supabase, {
+      inquiryId: inquiry_id,
+      fieldGroup: p.group,
+      fieldKey: p.key,
+      oldValue: p.before,
+      newValue: p.after,
+      visibility: p.visibility,
+      actorRole: "admin",
+    }).then((r) => { if (!r.ok) logServerError("admin/updateInquiryLocation/fieldEmit", r.error); });
   }
 
   revalidatePath("/admin/inquiries");
