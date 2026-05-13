@@ -1308,7 +1308,7 @@ function PublishSplitButton({
           type="button"
           onClick={onPublish}
           disabled={disabled}
-          title="Review preflight and publish your draft to the live site"
+          title="Review publish checks in the drawer, then publish your draft to the live site"
           className="cursor-pointer border-none text-[13px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
           style={{ padding: "0 16px", background: "transparent" }}
         >

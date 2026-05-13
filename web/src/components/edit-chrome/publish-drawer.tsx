@@ -594,8 +594,8 @@ export function PublishDrawer() {
                       <p className="sr-only" role="status" aria-live="polite">
                         Publish diff shows zero changes versus the last published
                         snapshot. If the canvas or mobile preview still looks wrong,
-                        scroll the page, try Preview mode, or wait for autosave before
-                        trusting Publish.
+                        scroll the page, try Preview mode, review publish checks in this drawer,
+                        or wait for autosave before trusting Publish.
                       </p>
                     ) : null}
                     <div
