@@ -8436,7 +8436,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
         else toast(`Couldn't load payment state: ${r.error}`);
       })
       .finally(() => setLoading(false));
-  }, [inquiry.id, effectiveTenant.slug]);
+  }, [inquiry.id, effectiveTenant.slug, toast]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -11161,7 +11161,7 @@ function useLiveLineupOverride(inquiryId: string): InquiryTalentInvite[] | null 
       else toast(`Lineup is showing cached data: ${r.error}`);
     });
     return () => { cancelled = true; };
-  }, [inquiryId, isUuid, effectiveTenant.slug]);
+  }, [inquiryId, isUuid, effectiveTenant.slug, toast]);
   if (!isUuid) return null;
   if (rows == null) return null;
   return rows.map(mapParticipantToInvite);
@@ -11198,7 +11198,7 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
         else toast(`Couldn't load lineup: ${r.error}`);
       })
       .finally(() => setLoading(false));
-  }, [inquiryId, isUuid, effectiveTenant.slug]);
+  }, [inquiryId, isUuid, effectiveTenant.slug, toast]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -11402,7 +11402,7 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
         else if (!r.ok) toast(`Couldn't load offer draft: ${r.error}`);
       })
       .finally(() => setLoading(false));
-  }, [offerId, effectiveTenant.slug]);
+  }, [offerId, effectiveTenant.slug, toast]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -13046,7 +13046,7 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
         else toast(`Couldn't load files: ${r.error}`);
       })
       .finally(() => setLoading(false));
-  }, [inquiryId, isUuid, effectiveTenant.slug]);
+  }, [inquiryId, isUuid, effectiveTenant.slug, toast]);
 
   useEffect(() => { reload(); }, [reload]);
 
