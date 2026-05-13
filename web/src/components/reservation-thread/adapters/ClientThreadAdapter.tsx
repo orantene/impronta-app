@@ -17,7 +17,9 @@
  * proven against `inquiry_messages` realtime.
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   ReservationThread,
   type ActionPill,
@@ -174,6 +176,56 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
   const stage = mapStage(inquiry.status);
   const closedReason = statusToClosedReason(inquiry.status);
   const palette = PALETTES.client;
+  const router = useRouter();
+
+  // B10 — realtime on inquiry status + lineup + offer changes.
+  // The page is RSC-rendered (server-loaded data), so client-side
+  // mutations elsewhere (agency sends an offer, talent accepts, status
+  // moves) won't show up until the client navigates. Subscribe to the
+  // three tables the page reads and trigger a router.refresh() on any
+  // event so the server re-renders with fresh data. Debounced so a
+  // burst of changes (e.g. agency adds 3 talents in 2s) only triggers
+  // one refresh.
+  useEffect(() => {
+    if (!inquiry.id) return;
+    const supabase = createClient();
+    if (!supabase) return;
+
+    let scheduled = false;
+    const triggerRefresh = () => {
+      if (scheduled) return;
+      scheduled = true;
+      // 400ms debounce — gives the engine room to commit multi-step
+      // mutations atomically before we re-fetch.
+      setTimeout(() => {
+        scheduled = false;
+        router.refresh();
+      }, 400);
+    };
+
+    const channel = supabase
+      .channel(`client-thread-${inquiry.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "inquiries", filter: `id=eq.${inquiry.id}` },
+        triggerRefresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "inquiry_participants", filter: `inquiry_id=eq.${inquiry.id}` },
+        triggerRefresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "inquiry_offers", filter: `inquiry_id=eq.${inquiry.id}` },
+        triggerRefresh,
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [inquiry.id, router]);
 
   // Pills — order: Lineup, Offer, Event, Files. Mobile keeps this order
   // but the strip is horizontally scrollable.
