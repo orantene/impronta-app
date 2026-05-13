@@ -344,6 +344,8 @@ export function HeroEditor({
                   (e.target.value || undefined) as LayoutVariant | undefined,
                 )
               }
+              aria-describedby="hero-layout-hint"
+              aria-label="Hero layout variant"
             >
               <option value="">Default (centered)</option>
               {LAYOUT_OPTIONS.map((o) => (
@@ -352,7 +354,7 @@ export function HeroEditor({
                 </option>
               ))}
             </select>
-            <span className={HINT}>
+            <span id="hero-layout-hint" className={HINT} role="status" aria-live="polite">
               {LAYOUT_OPTIONS.find((o) => o.value === state.layout)?.hint ??
                 "Spatial composition. Centered is the editorial default; split variants pair copy with media."}
             </span>
