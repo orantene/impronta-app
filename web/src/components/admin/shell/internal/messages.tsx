@@ -7936,6 +7936,63 @@ function AdminBookingTab({
         </div>
       )}
 
+      {/* Slice 4 (Messages consolidation): "Last activity" feed from
+          inquiry.timeline — requested in the prior session as
+          "Maybe can had last activities too under detailes." Shows
+          the most recent 6 events so the user can see at a glance
+          what's happened on the project without leaving the Project
+          tab. Renders nothing when no timeline events exist. */}
+      {inquiry.timeline.length > 0 && (
+        <div data-booking-card style={cardStyle}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+            <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>Last activity</div>
+            <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>
+              {inquiry.timeline.length} event{inquiry.timeline.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* Most recent first — the timeline is stored chronologically,
+                so we slice from the end. */}
+            {[...inquiry.timeline].slice(-6).reverse().map((ev) => {
+              const toneColor = ev.tone === "success" ? (COLORS.successDeep ?? COLORS.success)
+                : ev.tone === "warn" ? COLORS.amber
+                : ev.tone === "info" ? COLORS.indigoDeep
+                : COLORS.inkMuted;
+              return (
+                <div key={ev.id} style={{
+                  display: "flex", gap: 9, alignItems: "flex-start",
+                  fontSize: 12, lineHeight: 1.45,
+                }}>
+                  <span aria-hidden style={{
+                    flexShrink: 0, marginTop: 5,
+                    width: 6, height: 6, borderRadius: "50%",
+                    background: toneColor,
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: COLORS.ink }}>
+                      <span style={{ fontWeight: 600 }}>{ev.actor}</span>
+                      <span style={{ color: COLORS.inkMuted }}> · </span>
+                      <span>{ev.body}</span>
+                    </div>
+                    <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 1 }}>
+                      {ev.ts}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {inquiry.timeline.length > 6 && (
+            <div style={{
+              marginTop: 8, fontSize: 11, color: COLORS.inkMuted,
+              textAlign: "center", fontStyle: "italic",
+            }}>
+              + {inquiry.timeline.length - 6} earlier event{inquiry.timeline.length - 6 === 1 ? "" : "s"}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Internal notes — coordinator's private memory pad. Distinct from
           the client's "Your notes" because admin notes are workspace-
           internal: nobody outside the coord team sees them. */}
