@@ -97,12 +97,14 @@ export function Pill({
     lineHeight: 1.2,
     cursor: disabled ? "not-allowed" : onClick ? "pointer" : "default",
     opacity: disabled ? 0.55 : 1,
-    transition: "background 120ms, border-color 120ms, transform 120ms",
+    transition: "background 120ms, border-color 120ms, transform 120ms, box-shadow 120ms",
     whiteSpace: "nowrap",
     flexShrink: 0,
     // Stable touch target on mobile.
     WebkitTapHighlightColor: "transparent",
     userSelect: "none",
+    // C6 a11y — let the browser's :focus-visible style win via outline.
+    outline: "none",
   };
 
   return (
@@ -184,6 +186,11 @@ export function Pill({
       <style jsx>{`
         @keyframes rt-pill-spin {
           to { transform: rotate(360deg); }
+        }
+        /* C6 — keyboard-only focus ring. Mouse clicks don't trigger the
+           ring (focus-visible is the modern browser-handled hint). */
+        button:focus-visible {
+          box-shadow: 0 0 0 2px ${palette.accent}, 0 0 0 4px ${palette.surface};
         }
       `}</style>
     </button>
