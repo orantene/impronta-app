@@ -11,7 +11,7 @@
 import { useState, type CSSProperties } from "react";
 import type { ActionPill as ActionPillData, ReservationPov } from "./types";
 import { Pill } from "./Pill";
-import { DENSITY, MOBILE_BP_PX, PALETTES, TYPE } from "./tokens";
+import { MOBILE_BP_PX, PALETTES, TYPE } from "./tokens";
 
 interface ActionRowProps {
   pov: ReservationPov;
