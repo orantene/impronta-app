@@ -19,6 +19,9 @@
  *   invoice.payment_failed              → mark past_due
  *   charge.refunded                     → reverse balance top-up if linked
  *   charge.dispute.created              → log; future: pause trust elevation
+ *   account.updated                     → sync connected-account snapshot
+ *                                         to agencies row (Connect onboarding,
+ *                                         charges/payouts toggles)
  *
  * Security: this route MUST NOT be behind authentication middleware.
  * Stripe signature verification is the only auth mechanism.
@@ -40,6 +43,10 @@ import {
   syncClientBalanceTopupToDb,
   syncClientBalanceRefundToDb,
 } from "@/lib/stripe/client-billing";
+import {
+  persistAccountSnapshot,
+  findAgencyByStripeAccountId,
+} from "@/lib/payments/stripe-connect";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type Stripe from "stripe";
@@ -281,6 +288,41 @@ async function handleTrialWillEnd(event: Stripe.Event): Promise<void> {
   );
 }
 
+/**
+ * Phase B PR 3 — Connect `account.updated` handler.
+ *
+ * Stripe fires this every time the connected account's state changes
+ * (KYC complete, capabilities updated, charges or payouts toggled,
+ * requirements added, etc). We resolve the account id → agency row
+ * and call the shared `persistAccountSnapshot` so the agencies row
+ * stays in sync with Stripe's source of truth.
+ *
+ * Unknown accounts (not in `agencies`) are logged and silently
+ * acknowledged — we never want to 4xx a webhook for an account that
+ * was disconnected on our side but is still flapping on Stripe's.
+ */
+async function handleConnectAccountUpdated(event: Stripe.Event): Promise<void> {
+  const account = event.data.object as Stripe.Account;
+  const accountId = account.id;
+  if (!accountId) return;
+
+  const agency = await findAgencyByStripeAccountId(accountId);
+  if (!agency) {
+    logServerError(
+      "stripe-webhook.account.updated.unknown",
+      `no agency for stripe_account_id=${accountId} (event ${event.id})`,
+    );
+    return;
+  }
+
+  const result = await persistAccountSnapshot(agency.agencyId, account);
+  if (!result.ok) {
+    // Treat DB failures as transient — Stripe will retry. (Throwing a
+    // TransientWebhookError here would surface 5xx; an Error suffices.)
+    throw new Error(`account.updated persist failed: ${result.error}`);
+  }
+}
+
 // ─── Subscription router (audit C5) ──────────────────────────────────────────
 
 async function routeSubscriptionEvent(
@@ -388,6 +430,16 @@ export async function POST(req: Request): Promise<NextResponse> {
 
       case "charge.dispute.created":
         await handleChargeDisputeCreated(event);
+        break;
+
+      // ─── Connect events (Phase B PR 3) ──────────────────────────────────
+      // `account.updated` fires whenever the Express account's
+      // capabilities, requirements, or charges/payouts flags change —
+      // e.g. when KYC completes, when Stripe disables charges, when the
+      // owner updates bank details. We just refresh the snapshot on the
+      // agencies row so `canRouteCheckoutsToAgency` reflects reality.
+      case "account.updated":
+        await handleConnectAccountUpdated(event);
         break;
 
       default:
