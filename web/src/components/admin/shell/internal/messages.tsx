@@ -9082,20 +9082,32 @@ export function resolveShellAction(
   options: ShellActionResolverOptions = {},
 ): { primary?: ShellAction; secondary?: ShellAction; hint?: string } {
   const offer = MOCK_OFFER_FOR_CONV[conv.id];
-  // Booked → role-shaped logistics nudge, not commerce. Stays its own
-  // branch because once booked the focus shifts from offer to call sheet.
+  // Slice E (Messages consolidation v2): verb table from plan §9.
+  // Booked stage — role-shaped action verbs. Call sheet editor is
+  // shipped (B2), so the copy points users at it concretely.
   if (conv.stage === "booked") {
     if (pov === "client")
-      return { hint: "Booking confirmed. Call sheet tools are coming soon." };
+      return {
+        hint: "Booked. Open the event plan + your payment status.",
+        primary: { label: "Open event", tone: "success", onClick: options.onOpenOffer ?? (() => {}) },
+      };
     if (pov === "talent" || pov === "talent_coord")
-      return { hint: "You're booked. Call sheet tools are coming soon." };
-    return { hint: "Booked. Call sheet tools are coming soon." };
+      return {
+        hint: "You're booked. Open the call sheet for prep + arrival.",
+        primary: { label: "Open event", tone: "success", onClick: options.onOpenOffer ?? (() => {}) },
+      };
+    // admin
+    return {
+      hint: "Booked. Open the event details + call sheet.",
+      primary: { label: "Open event", tone: "success", onClick: options.onOpenOffer ?? (() => {}) },
+    };
   }
 
-  // Past stage — wrapped + paid; conversation is read-only context.
+  // Past (wrapped) stage — payouts + receipts.
   if (conv.stage === "past") {
-    if (pov === "client") return { hint: "Wrapped. Archive tools are coming soon." };
-    if (pov === "talent" || pov === "talent_coord") return { hint: "Wrapped. Receipt tools are coming soon." };
+    if (pov === "client") return { hint: "Wrapped. Receipt + invoice available in Files." };
+    if (pov === "talent" || pov === "talent_coord") return { hint: "Wrapped. Payment cleared — receipt in Files." };
+    return { hint: "Wrapped. Mark payouts ready when settled." };
   }
 
   // ── Offer-driven actions: defer to nextActionFor as the single
