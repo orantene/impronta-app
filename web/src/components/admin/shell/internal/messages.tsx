@@ -6992,18 +6992,20 @@ function ClientProjectViewTab({
                   </div>
                 </div>
                 {/* Coordinator-change requests need a persisted agency-ops
-                    queue before we can safely expose them to clients. */}
+                    queue before we can safely expose them to clients.
+                    Phase A C1 — kebab now toasts on click instead of
+                    just sitting inert. */}
                 {inquiry.status !== "wrapped" && inquiry.status !== "cancelled" && (
                   <button type="button"
-                    disabled
-                    title="Coordinator change requests coming soon"
-                    aria-label="Coordinator management coming soon"
+                    onClick={() => toast("Coordinator change requests land with the agency-ops queue in a future phase. For now, message the coordinator directly.")}
+                    title="Coming soon"
+                    aria-label="Coordinator management — coming soon"
                     style={{
                       flexShrink: 0,
                       width: 28, height: 28, borderRadius: 8,
                       border: `1px solid ${COLORS.borderSoft}`,
                       background: "transparent", color: COLORS.inkMuted,
-                      cursor: "not-allowed", opacity: 0.45,
+                      cursor: "pointer",
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
                     }}>
                     <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -7420,7 +7422,7 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
    *  there. Studio / Agency / Hub-Network all surface it. */
   planTier?: "free" | "studio" | "agency" | "hub-network";
 }) {
-  const { state } = useAdminShell();
+  const { state, toast } = useAdminShell();
   const router = useRouter();
   const [lineupOpen, setLineupOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -7471,16 +7473,18 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
             amber palette as the create-workspace Free-cap explainer
             for visual consistency. */}
         {planTier === "free" && currentCoord && meetsRole(state.role, "admin") && (
+          /* Phase A C1 — was disabled chrome. Now a clickable upsell
+             that toasts the user with the reason and the upgrade path. */
           <button type="button"
-            disabled
-            title="Team coordinator reassignment needs a paid workspace and live handoff workflow."
-            style={disabledBtn({
+            onClick={() => toast("Reassigning a coordinator needs a Studio or Agency workspace. Upgrade in Settings → Plan.")}
+            title="Upgrade to unlock"
+            style={{
               padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
               borderRadius: 999, border: `1px dashed rgba(214,158,46,0.5)`,
               background: "rgba(214,158,46,0.08)", color: "#7C5A14",
               cursor: "pointer", fontFamily: FONTS.body,
               display: "inline-flex", alignItems: "center", gap: 5,
-            })}>
+            }}>
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path d="M6 1l1.5 3.2L11 5l-2.5 2.4.6 3.4L6 9l-3.1 1.8.6-3.4L1 5l3.5-.8L6 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
             </svg>
@@ -8188,17 +8192,26 @@ function TalentPaymentTab({ conv, yourRate }: { conv: Conversation; yourRate: st
 
       {isPast && (
         <DetailSection title="Receipt">
-          <button type="button" disabled title="Receipt downloads coming soon" style={{
-            padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
-            border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink, cursor: "not-allowed", opacity: 0.45,
-            display: "inline-flex", alignItems: "center", gap: 6,
-          }}>
+          {/* Phase A C1 — dead-chrome sweep: was disabled with no
+              feedback. Now click → toast about when it lands. */}
+          <button
+            type="button"
+            onClick={() => toast("Receipt download lands with the Money phase (Stripe-issued PDF). Coming soon.")}
+            title="Coming soon"
+            style={{
+              padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
+              border: `1.5px dashed ${COLORS.border}`,
+              background: "rgba(214,158,46,0.06)", color: "#7C5A14",
+              cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}
+          >
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <path d="M7 1v9m0 0L4 7m3 3l3-3M2 12h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             Receipt download
+            <span style={{ fontSize: 10.5, opacity: 0.7 }}>· soon</span>
           </button>
-          <span style={{ marginLeft: 8, fontSize: 11, color: COLORS.inkMuted }}>Coming soon</span>
         </DetailSection>
       )}
     </div>
@@ -8230,7 +8243,21 @@ function PaymentStep({ done, label, detail }: { done?: boolean; label: string; d
 }
 
 export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
+  const { toast } = useAdminShell();
   const isClient = pov === "client";
+  // Phase A C1 — dead-chrome sweep: each "Coming soon" button now
+  // toasts instead of staring back inertly at the user.
+  const comingSoon = (what: string) => {
+    toast(`${what} is on the next phase — Production sheet editor lands with the calendar pipeline.`);
+  };
+  const futureBtnStyle: React.CSSProperties = {
+    padding: "8px 14px", borderRadius: 10,
+    border: `1.5px dashed ${COLORS.border}`,
+    background: "rgba(214,158,46,0.06)", color: "#7C5A14",
+    fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+    cursor: "pointer",
+    display: "inline-flex", alignItems: "center", gap: 6,
+  };
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       <DetailSection title="Call sheet">
@@ -8238,10 +8265,16 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
         {inquiry.schedule.callTime && <DetailField label="Call time" value={inquiry.schedule.callTime} />}
         {inquiry.schedule.wrapTime && <DetailField label="Wrap" value={inquiry.schedule.wrapTime} />}
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-          <button type="button" disabled style={{ ...primaryBtn(COLORS.accent), opacity: 0.45, cursor: "default" }}>
+          <button
+            type="button"
+            onClick={() => comingSoon(isClient ? "Call sheet viewer" : "Call sheet editor")}
+            title="Coming soon"
+            style={futureBtnStyle}
+          >
+            <span aria-hidden>✦</span>
             {isClient ? "View call sheet" : "Edit call sheet"}
+            <span style={{ fontSize: 10.5, opacity: 0.7 }}>· soon</span>
           </button>
-          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Coming soon</span>
         </div>
       </DetailSection>
       <DetailSection title="Location">
@@ -8263,8 +8296,15 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
           Add transport, parking, or accommodation as needed.
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button type="button" disabled style={{ ...ghostBtn(), opacity: 0.45, cursor: "default" }}>+ Add transport</button>
-          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Coming soon</span>
+          <button
+            type="button"
+            onClick={() => comingSoon("Transport editor")}
+            title="Coming soon"
+            style={futureBtnStyle}
+          >
+            <span aria-hidden>✦</span>+ Add transport
+            <span style={{ fontSize: 10.5, opacity: 0.7 }}>· soon</span>
+          </button>
         </div>
       </DetailSection>
     </div>
