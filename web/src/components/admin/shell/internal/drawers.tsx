@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useId, useTransition, startTransition, type ReactNode } from "react";
+import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { addTalentToRoster, bulkAddTalentToRoster } from "./actions";
 import { parseTalentCsv } from "./csv-parser";
@@ -17634,7 +17634,27 @@ function batchNotifications(items: NotificationItem[]): NotifListItem[] {
 }
 
 function NotificationsDrawer() {
-  const { closeDrawer, openDrawer, toast, bridgeUserNotifications } = useAdminShell();
+  const { closeDrawer, openDrawer, toast, bridgeUserNotifications, bridgeTenantIdentity } = useAdminShell();
+  const [marking, setMarking] = useState(false);
+  const handleMarkAllRead = useCallback(async () => {
+    const tenantId = bridgeTenantIdentity?.tenantId;
+    if (!tenantId) {
+      toast("Workspace context not loaded yet — try again in a moment.");
+      return;
+    }
+    setMarking(true);
+    try {
+      const { markAllNotificationsRead } = await import("@/lib/notifications/actions");
+      const res = await markAllNotificationsRead(tenantId);
+      if (res.ok) {
+        toast(res.count === 0 ? "All notifications already read." : `Marked ${res.count} as read.`);
+      } else {
+        toast("Couldn't mark all read — try again.");
+      }
+    } finally {
+      setMarking(false);
+    }
+  }, [bridgeTenantIdentity?.tenantId, toast]);
   const [filter, setFilter] = useState<"all" | "unread" | "action">("all");
   // WS-11.2 — track which batches are expanded
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
@@ -17694,7 +17714,13 @@ function NotificationsDrawer() {
   const renderSingleItem = (n: NotificationItem, compact?: boolean) => (
     <button
       key={n.id}
-      onClick={() => openDrawer(n.targetDrawer, n.targetPayload)}
+      onClick={() => {
+        // F.15 — mark this notification read on click (fire-and-forget).
+        if (!n.read && bridgeUserNotifications !== null) {
+          import("@/lib/notifications/actions").then((m) => m.markNotificationRead(n.id)).catch(() => {});
+        }
+        openDrawer(n.targetDrawer, n.targetPayload);
+      }}
       style={{
         background: !n.read ? "#fff" : "rgba(11,11,13,0.015)",
         border: `1px solid ${COLORS.borderSoft}`,
@@ -17887,7 +17913,9 @@ function NotificationsDrawer() {
       footer={
         <>
           <GhostButton onClick={() => openDrawer("my-activity")}>Your activity</GhostButton>
-          <GhostButton onClick={() => toast("Notifications backend pending — Mark all read isn't live yet")}>Mark all read</GhostButton>
+          <GhostButton onClick={handleMarkAllRead} disabled={marking}>
+            {marking ? "Marking…" : "Mark all read"}
+          </GhostButton>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
