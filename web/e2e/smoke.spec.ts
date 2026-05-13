@@ -79,8 +79,8 @@ async function waitForImprontaDraftSaved(page: Page) {
 }
 
 /**
- * Publish drawer disables **Publish now** while preflight runs, while the page
- * is dirty / saving, when required slots are empty, or when preflight returns
+ * Publish drawer disables **Publish now** while publish checks run, while the page
+ * is dirty / saving, when required slots are empty, or when checks return
  * blocking errors. Waits for the async path most dev stacks hit; retries **Save
  * draft** once to clear a stuck dirty flag after heavy navigator actions.
  */
@@ -91,8 +91,8 @@ async function awaitPublishDrawerReadyToPublish(
   const publishNow = publishDrawer.getByRole("button", { name: /publish now/i });
   await expect(publishNow).toBeVisible({ timeout: 30_000 });
 
-  const runningPreflight = publishDrawer.getByText(/Running preflight/i);
-  await expect(runningPreflight).toBeHidden({ timeout: 180_000 });
+  const runningPublishChecks = publishDrawer.getByText(/Running publish checks/i);
+  await expect(runningPublishChecks).toBeHidden({ timeout: 180_000 });
 
   await waitForImprontaDraftSaved(page);
 
@@ -101,7 +101,7 @@ async function awaitPublishDrawerReadyToPublish(
     if (await saveDraft.isEnabled()) {
       await saveDraft.click();
       await waitForImprontaDraftSaved(page);
-      await expect(runningPreflight).toBeHidden({ timeout: 180_000 });
+      await expect(runningPublishChecks).toBeHidden({ timeout: 180_000 });
     }
   }
 
@@ -114,7 +114,7 @@ async function awaitPublishDrawerReadyToPublish(
       .allTextContents()
       .catch(() => [] as string[]);
     throw new Error(
-      `Publish now stayed disabled after preflight + save attempts. ${
+      `Publish now stayed disabled after publish checks + save attempts. ${
         listItems.length ? listItems.join(" | ") : (await blocked.textContent().catch(() => null)) ?? "unknown"
       } For local QA on a polluted Impronta homepage, run \`cd web && npm run reset:impronta-homepage:draft -- --apply\` then re-run with PLAYWRIGHT_IMPRONTA_PHASE0_PUBLISH=1 (see package.json script \`test:e2e:impronta-phase0-edit-loop:full\`).`,
     );

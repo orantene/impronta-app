@@ -454,11 +454,9 @@ export function PublishDrawer() {
     const reasons: string[] = [];
     if (preflightBlockingErrors > 0) {
       reasons.push(
-        `${preflightBlockingErrors} item${
+        `${preflightBlockingErrors} publish check${
           preflightBlockingErrors === 1 ? "" : "s"
-        } in Preflight above ${
-          preflightBlockingErrors === 1 ? "is" : "are"
-        } marked Blocker and must be fixed. Warnings are advisory — they do not stop publish.`,
+        } marked Blocker above must be fixed. Warnings are advisory — they do not stop publish.`,
       );
     }
     if (getCompositionCasVersion() === null) {
@@ -544,7 +542,7 @@ export function PublishDrawer() {
               </p>
               <p style={{ margin: "8px 0 0", fontSize: 11, color: CHROME.muted2, lineHeight: 1.45 }}>
                 Saving only stores your draft — it does not mean visitors see these changes. Scroll the
-                canvas, try Preview mode, and review preflight below before publishing.
+                canvas, try Preview mode, and review the publish checks below before publishing.
               </p>
             </div>
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}

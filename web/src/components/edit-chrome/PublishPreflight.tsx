@@ -97,7 +97,7 @@ export function PublishPreflight({
         aria-live="polite"
         className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground"
       >
-        Running preflight…
+        Running publish checks…
       </div>
     );
   }
@@ -120,7 +120,7 @@ export function PublishPreflight({
         aria-live="polite"
         className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300"
       >
-        ✓ Preflight clean — publish checks passed.
+        ✓ All publish checks passed.
       </div>
     );
   }
@@ -185,7 +185,7 @@ export function PublishPreflight({
             }}
             className="mt-1 inline-flex cursor-pointer items-center rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted"
           >
-            Focus section
+            Show on canvas
           </button>
         ) : null}
       </div>
@@ -196,14 +196,14 @@ export function PublishPreflight({
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-3 text-xs">
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {errors > 0
-          ? `Preflight results: ${errors} blocking issue${errors === 1 ? "" : "s"}, ${warns} advisory warning${warns === 1 ? "" : "s"}.`
+          ? `Publish checks: ${errors} blocking issue${errors === 1 ? "" : "s"}, ${warns} advisory warning${warns === 1 ? "" : "s"}.`
           : warns > 0
-            ? `Preflight results: no blockers, ${warns} advisory warning${warns === 1 ? "" : "s"}.`
-            : "Preflight results: no issues found."}
+            ? `Publish checks: no blockers, ${warns} advisory warning${warns === 1 ? "" : "s"}.`
+            : "Publish checks: no issues found."}
       </p>
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Preflight
+          Publish checks
         </span>
         <span className="text-[10px] text-muted-foreground">
           {errors > 0 ? `${errors} blocker${errors === 1 ? "" : "s"} · ` : ""}
@@ -228,7 +228,7 @@ export function PublishPreflight({
                 onClick={() => onFocusSection?.(firstFocusableBlockingSectionId)}
                 className="inline-flex cursor-pointer items-center rounded border border-rose-300/80 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 hover:bg-rose-50"
               >
-                Focus first blocker
+                Go to first blocker
               </button>
             ) : null}
           </div>
