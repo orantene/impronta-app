@@ -47,8 +47,21 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
 };
 
 function deriveInitialTalentPage(pathname: string, tenantSlug: string): TalentPage {
-  const prefix = `/${tenantSlug}/talent`;
-  const after = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "";
+  // Task 0.6 — accept BOTH canonical (/{slug}/talent/segment) and branded
+  // (/talent/segment) URLs. The proxy rewrites branded URLs to canonical
+  // internally but `ORIGINAL_PATHNAME_HEADER` carries the public URL — so on
+  // branded agency hosts (impronta.tulala.digital/talent/profile) the
+  // pathname here lacks the slug prefix. Without this fallback the initial
+  // page was always "today", and the route syncer + router-push race could
+  // leave the body blank if the page changed mid-mount.
+  const candidatePrefixes = [`/${tenantSlug}/talent`, "/talent"];
+  let after = "";
+  for (const prefix of candidatePrefixes) {
+    if (pathname.startsWith(prefix)) {
+      after = pathname.slice(prefix.length);
+      break;
+    }
+  }
   const segment = after.replace(/^\//, "").split("/")[0] ?? "";
   return TALENT_SEGMENT_MAP[segment] ?? "today";
 }

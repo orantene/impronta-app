@@ -669,11 +669,40 @@ function TalentRouter() {
       page = <SettingsPage />;
       break;
   }
+  // Task 0.6 — defensive fallback. If `state.talentPage` is ever an unknown
+  // value (e.g. URL race, stale persisted state) `page` would stay null and
+  // the body would render blank. Surface a visible loading / unknown-state
+  // card instead so the user never sees an empty shell.
+  if (page === null) {
+    page = <TalentRouterFallback talentPage={state.talentPage} />;
+  }
   return (
     <div key={state.talentPage} data-tulala-talent-page-anim style={{ animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" }}>
       <style>{`@keyframes tulala-page-fade { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-tulala-talent-page-anim] { animation: none !important; } }`}</style>
       {page}
     </div>
+  );
+}
+
+/**
+ * Task 0.6 — Defensive fallback rendered when the talent router can't match
+ * `state.talentPage` to a known case. Ensures the body never renders blank
+ * inside the talent shell. Title is generic ("Loading talent surface") so a
+ * fast subsequent setTalentPage() update can swap to the correct page
+ * without surfacing an alarming error to the user.
+ */
+function TalentRouterFallback({ talentPage }: { talentPage: string }) {
+  return (
+    <>
+      <PageHeader
+        title="Loading"
+        subtitle="One moment — preparing your talent surface."
+      />
+      <EmptyState
+        title="Almost there"
+        body={`We're loading the "${talentPage}" view. If this card stays up, refresh the page or pick another section from the top nav.`}
+      />
+    </>
   );
 }
 

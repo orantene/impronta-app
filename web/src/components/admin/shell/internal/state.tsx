@@ -7388,10 +7388,18 @@ export function AdminShellProvider({
     // would break that and yank the user out of the admin shell.
     if (initialSurface !== "talent") return;
     const segment = talentPageToSegment(p);
-    const targetHref = `/${slug}/talent/${segment}`;
-    if (typeof window !== "undefined" && window.location.pathname !== targetHref) {
-      router.push(targetHref);
-    }
+    // Task 0.6 — match BOTH canonical (/{slug}/talent/segment) and branded
+    // (/talent/segment) URLs. Without the branded check, hitting a branded
+    // agency host like impronta.tulala.digital/talent/profile would
+    // immediately router-push /impronta/talent/profile, ripping the user
+    // out of the branded URL pattern (the proxy doesn't pass through
+    // slug-prefixed URLs on agency hosts).
+    if (typeof window === "undefined") return;
+    const currentPath = window.location.pathname;
+    const canonicalHref = `/${slug}/talent/${segment}`;
+    const brandedHref = `/talent/${segment}`;
+    if (currentPath === canonicalHref || currentPath === brandedHref) return;
+    router.push(canonicalHref);
   }, [router, initialSurface]);
   // client
   const [clientPlan, setClientPlan] = useState<ClientPlan>("pro");
