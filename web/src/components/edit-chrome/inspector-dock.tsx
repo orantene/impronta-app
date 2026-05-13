@@ -738,11 +738,22 @@ export function InspectorDock() {
   >(() => {
     if (!selectedSectionId) return [];
     const crumbs: InspectorBreadcrumbCrumb[] = [{ id: "page", label: "Page", selectable: false }];
-    const rootLabel =
-      isSiteHeaderSelected
-        ? "Site header"
-        : sectionTitle && sectionTitle !== "Inspector" && sectionTitle !== "Loading…"
-          ? sectionTitle
+    // The breadcrumb shows section TYPE (e.g. "Hero"), not the content-
+    // derived display name (which is what `sectionTitle` carries and
+    // matches across the navigator + chip + dock title per QA-2).
+    //
+    // The previous behavior repeated `sectionTitle` here, which made the
+    // breadcrumb read like a child H1 was selected — e.g. "Page > A
+    // house of curated talent." looked exactly like the breadcrumb for
+    // a selected H1 nested block. Showing section type gives the operator
+    // a clear visual anchor for "what level of the tree am I in" even
+    // when content-derived names collide.
+    const rootLabel = isSiteHeaderSelected
+      ? "Site header"
+      : currentLoadedSection
+        ? humanizeTypeKey(currentLoadedSection.sectionTypeKey)
+        : skeletonHint
+          ? humanizeTypeKey(skeletonHint.typeKey)
           : null;
     if (rootLabel) {
       crumbs.push({
@@ -765,11 +776,12 @@ export function InspectorDock() {
     }
     return crumbs;
   }, [
+    currentLoadedSection,
     isSiteHeaderSelected,
-    sectionTitle,
     selectedBuilderNode,
     selectedBuilderNodePath,
     selectedSectionId,
+    skeletonHint,
   ]);
   const handleInspectorCrumbSelect = useCallback(
     (crumb: InspectorBreadcrumbCrumb) => {

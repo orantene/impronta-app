@@ -18,7 +18,7 @@
  * positions via MutationObserver + scroll/resize listeners.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -846,11 +846,34 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
  */
 function FirstPaintTip() {
   const { selectedSectionId, hoveredSectionId } = useEditContext();
-  const [dismissed, setDismissed] = useState(false);
+  // Session-scoped — once dismissed, stays dismissed across in-session
+  // navigations (page swap, locale switch, viewport-mode toggle that
+  // forces a remount). Without this, navigating to a different page
+  // re-mounted FirstPaintTip with fresh `dismissed=false` and the
+  // operator saw the tip again 5 seconds into their session. Walks
+  // through the builder shouldn't re-onboard the user.
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.sessionStorage.getItem("edit:first-paint-tip:dismissed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const dismiss = useCallback(() => {
+    setDismissed(true);
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem("edit:first-paint-tip:dismissed", "1");
+    } catch {
+      // sessionStorage can throw in private mode / quota cases; degrade
+      // silently — the operator just sees the tip again next nav.
+    }
+  }, []);
   // Auto-dismiss on first interaction with a section.
   useEffect(() => {
-    if (selectedSectionId || hoveredSectionId) setDismissed(true);
-  }, [selectedSectionId, hoveredSectionId]);
+    if (selectedSectionId || hoveredSectionId) dismiss();
+  }, [selectedSectionId, hoveredSectionId, dismiss]);
   if (dismissed) return null;
   return (
     <div
@@ -893,7 +916,7 @@ function FirstPaintTip() {
       <span>Click any section on the page to edit it</span>
       <button
         type="button"
-        onClick={() => setDismissed(true)}
+        onClick={dismiss}
         aria-label="Dismiss tip"
         className="pointer-events-auto ml-1 inline-flex size-[18px] items-center justify-center rounded-full transition hover:bg-white/15"
         style={{

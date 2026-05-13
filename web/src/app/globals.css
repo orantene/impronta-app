@@ -1260,3 +1260,32 @@ body[data-edit-preview="1"] [data-edit-affordance] {
 .site-hero[data-hero-layout="split-right"] .site-hero__subheadline {
   text-align: left;
 }
+
+/* P7B follow-on — per-variant typography ramp. In a centered hero, the
+ * headline lives in a ~60ch full-width column where clamp(2rem, 5vw,
+ * 3.75rem) reads as one or two lines. In split-left/right, the copy
+ * column shrinks to ~50% so the same clamp wrapped to 4–5 lines and read
+ * cramped (caught in the 2026-05-13 QA walk). Override with a tighter
+ * ramp + slightly less max-width so the headline still reads as 2–3
+ * lines in the narrower column. Cinematic mood retains its larger ramp
+ * but capped at 4rem in split layouts. */
+@media (min-width: 640px) {
+  .site-hero[data-hero-layout="split-left"] .site-hero__headline,
+  .site-hero[data-hero-layout="split-right"] .site-hero__headline {
+    font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+    line-height: 1.1;
+    max-width: 18ch;
+  }
+  .site-hero[data-hero-layout="split-left"][data-hero-mood="cinematic"]
+    .site-hero__headline,
+  .site-hero[data-hero-layout="split-right"][data-hero-mood="cinematic"]
+    .site-hero__headline {
+    font-size: clamp(2rem, 4vw, 4rem);
+    max-width: 16ch;
+  }
+  .site-hero[data-hero-layout="split-left"] .site-hero__subheadline,
+  .site-hero[data-hero-layout="split-right"] .site-hero__subheadline {
+    font-size: clamp(0.95rem, 1.1vw, 1.0625rem);
+    max-width: 28ch;
+  }
+}

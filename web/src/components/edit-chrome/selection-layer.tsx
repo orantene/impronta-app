@@ -2740,11 +2740,21 @@ function CanvasNodeChildrenPanel({
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
+  // Per-selection dismissal — operator can `×` the panel for the active
+  // selection when they don't need the nested-block picker in the way of
+  // the canvas content. Reset when the selection changes so the panel
+  // reappears for the next section. Caught in 2026-05-13 QA: panel sits
+  // on top of the section background with no way to hide.
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    setDismissed(false);
+  }, [parentNodeId]);
   const viewportHeight =
     typeof window === "undefined" ? selectedRect.top + selectedRect.height + 220 : window.innerHeight;
   const viewportWidth =
     typeof window === "undefined" ? selectedRect.left + 308 : window.innerWidth;
   if (viewportWidth <= 520) return null;
+  if (dismissed) return null;
   const clearDragState = () => {
     setDraggingNode(null);
     setDropIndex(null);
@@ -2849,13 +2859,44 @@ function CanvasNodeChildrenPanel({
         </div>
         <div
           style={{
-            fontSize: 10.5,
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.62)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
             flexShrink: 0,
           }}
         >
-          {nodes.length} block{nodes.length === 1 ? "" : "s"}
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.62)",
+            }}
+          >
+            {nodes.length} block{nodes.length === 1 ? "" : "s"}
+          </span>
+          <button
+            type="button"
+            aria-label="Hide nested blocks panel"
+            title="Hide for this selection"
+            onClick={() => setDismissed(true)}
+            style={{
+              width: 18,
+              height: 18,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "none",
+              borderRadius: CANVAS_CHROME_RADIUS,
+              background: "transparent",
+              color: "rgba(255,255,255,0.62)",
+              cursor: "pointer",
+              padding: 0,
+              fontSize: 14,
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
         </div>
       </div>
       <div
