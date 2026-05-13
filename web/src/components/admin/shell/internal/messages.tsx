@@ -4207,11 +4207,16 @@ function TalentJobInbox({
 // row: slim 4-step funnel (Inquiry → Offer → Booked → Wrapped). Trust
 // badges relocate to the Details rail.
 function TalentJobShellHeader({
-  conv, yourRate, onBack,
+  conv, yourRate, onBack, coordCommissionLabel,
 }: {
   conv: Conversation;
   yourRate: string;
   onBack: () => void;
+  /** Slice H + item #17 wiring: when this talent is ALSO a coordinator
+   *  on the same offer, the caller computes the coord-commission share
+   *  and passes it as a small "+€Y coord" badge to surface inline with
+   *  the talent rate. Null/undefined hides the badge. */
+  coordCommissionLabel?: string | null;
 }) {
   const sc = stageStyle(conv.stage);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -4403,6 +4408,19 @@ function TalentJobShellHeader({
                 {conv.stage === "past" ? "Paid" : "Your pay"}
               </span>
               <span>{yourRate}</span>
+              {coordCommissionLabel && (
+                <span
+                  title="You also coordinate this job — coord commission shown separately"
+                  style={{
+                    marginLeft: 2,
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    background: "rgba(43,63,163,0.10)",
+                    color: "#2B3FA3",
+                    fontSize: 10, fontWeight: 700,
+                  }}
+                >{coordCommissionLabel}</span>
+              )}
               {isReal && (
                 <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ transform: breakdownOpen ? "rotate(180deg)" : "rotate(0)", transition: TRANSITION.sm, opacity: 0.7 }}>
                   <path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
@@ -4888,6 +4906,25 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
         conv={conv}
         yourRate={yourRate}
         onBack={onBack}
+        coordCommissionLabel={(() => {
+          // Item #17 wiring: when this talent is also a coordinator on
+          // the same offer they earn BOTH lanes. Surface the coord
+          // share inline with the rate so the header chip reads
+          // "Your line: €X · +€Y coord".
+          if (!isCoordinator) return null;
+          const offer = MOCK_OFFER_FOR_CONV[conv.id];
+          if (!offer) return null;
+          const myTalentId = currentTalentId();
+          if (!isTalentCoordOnOffer(offer, myTalentId)) return null;
+          const combined = talentCoordCombinedTotal(offer, myTalentId);
+          const talentRow = offer.rows.find((r) => r.talentId === myTalentId);
+          if (!talentRow) return null;
+          const talentPayout = talentRow.units * talentRow.costRate;
+          const coordShare = combined - talentPayout;
+          // Format using the same currency as the talent rate.
+          const currency = yourRate.match(/[€£$]/)?.[0] ?? "€";
+          return `+${currency}${Math.round(coordShare).toLocaleString()} coord`;
+        })()}
       />
 
       {/* TAB BAR — Conversation | Offer | Files | Details (no Client thread for talent) */}
@@ -12353,20 +12390,33 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
             display: "grid", gridTemplateColumns: "1.6fr 0.8fr 0.6fr 0.8fr 0.8fr 28px",
             gap: 6, alignItems: "center",
           }}>
-            <select
-              value={li.talentProfileId ?? ""}
-              onChange={(e) => {
-                const id = e.target.value || null;
-                const match = rosterOptions.find((p) => p.id === id);
-                updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: match?.name ?? li.label });
-              }}
-              style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-            >
-              <option value="">— choose talent —</option>
-              {rosterOptions.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
+              <select
+                value={li.talentProfileId ?? ""}
+                onChange={(e) => {
+                  const id = e.target.value || null;
+                  const match = rosterOptions.find((p) => p.id === id);
+                  updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: match?.name ?? li.label });
+                }}
+                style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4, flex: 1, minWidth: 0 }}
+              >
+                <option value="">— choose talent —</option>
+                {rosterOptions.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              {/* Item #16 wiring: talent-coord badge. Surfaces "+coord"
+                  next to the talent select when the selected talent is
+                  ALSO a coordinator on this inquiry — visual cue that
+                  they earn both lanes (talent payout + workspace fee
+                  share per commission engine snapshot, plan §7.4).
+                  Data dependency: caller must pass coordTalentIds prop
+                  from inquiry_participants[role=coordinator] to this
+                  drafter. Until plumbed, the badge stays hidden. The
+                  isTalentCoordOnOffer + talentCoordCombinedTotal
+                  helpers in this file (Slice H) compute the math. */}
+              {/* TODO(plumb): conditional badge once coordTalentIds prop lands */}
+            </div>
             <select
               value={li.pricingUnit}
               onChange={(e) => updateLine(li.id, { pricingUnit: e.target.value as "hour" | "day" | "week" | "event" })}
