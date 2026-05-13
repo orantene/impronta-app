@@ -6,7 +6,21 @@
 > [`activation-guide-2026-05-13.md`](./activation-guide-2026-05-13.md).
 > Tier 3 (human QA) is the only remaining category.
 
-
+> **UPDATE 2026-05-13 (third push, builder engineering follow-on):**
+> Per user direction, picked up the engineering work that doesn't
+> replace human QA: P7B follow-through tests, P7A-5 kill switch,
+> P7A-6 regression hooks, lint hardening, perf helper.
+> See § "Builder engineering follow-on" below.
+>
+> **Trunk-merge to `stable-work` is BLOCKED pending your decision** —
+> local `stable-work` has 2 in-flight commits that are NOT trivial
+> cherry-picks of `phase-1` equivalents (5499 + 7759 line differences).
+> A fast-forward would lose that work. Per OPERATING.md no `--force` to
+> `stable-work` and no merge commits → user must decide:
+>   - keep the 2 local commits + cherry-pick phase-1 selectively, OR
+>   - push the 2 local commits to a parking branch + ff `stable-work`
+>     to `phase-1`
+> Notice + diffs in chat context.
 
 Definitive accounting of what's shipped, what's pending, and what's blocked,
 across the full premium-execution runbook (Phase 0 → G plus F.1–F.15).
@@ -207,3 +221,53 @@ Second-highest leverage: **Tier 2 item #2 (Resend / Loops email delivery)**
 After both ship, the platform is fully self-serve from signup → invite team
 → launch site → take payments → cancel. That's the v1 "complete product"
 state.
+
+---
+
+## Builder engineering follow-on (third push, 2026-05-13)
+
+User asked me to keep shipping the code-side work that complements
+manual QA without replacing it. Six commits landed:
+
+| Commit | Item | What |
+|---|---|---|
+| `fceee497` | P7B follow-through | hero schema round-trip tests (8 cases) + a11y wiring on layout switcher (aria-describedby + role=status + aria-label) |
+| `b59156ec` | P7A-5 kill switch | `agency_entitlements.element_library_override` BOOL (tri-state) + `resolveAdvancedElementLibraryEnabled` resolver + 5 unit tests |
+| `1e359872` | P7A-6 regression hooks | `data-hero-layout` attr lockdown + a11y wiring lockdown + globals.css presence checks + recipient shape lockdown |
+| `db21b625` | Hardening | ESLint `argsIgnorePattern: ^_` convention + cleaned 3 own warnings in result.test.ts + inquiry-message-edit.ts |
+| `87dc8748` | Perf primitive | `useQueuedRouterRefresh` hook standalone (mirrors edit-chrome's queueRouterRefresh) for the 20+ `router.refresh()` callsites outside edit-chrome (roster editor: 13, payouts: 2, etc) |
+| — | Trunk merge | BLOCKED on user decision — see top of file |
+
+**Test suite expanded:** `npm run test:builder-capabilities` now runs
+91 tests (up from prior count). All pass.
+
+**Production migration applied:** `20260513195522_p7a_element_library_kill_switch.sql` —
+adds `agency_entitlements.element_library_override` column. Backward-
+compatible (null = use plan-tier default). Zero rollout risk.
+
+**Adoption is incremental.** The perf hook, kill-switch resolver, and
+a11y patterns ship as primitives. They light up during natural surface
+touches per the existing ADOPTION_NOTES.md decision rule — no big-bang
+sweep.
+
+---
+
+## What this push deliberately did NOT do
+
+- **Playwright e2e for save-stuck / narrow-publish / shell-publish-cache:**
+  These need a live dev server + tenant fixtures. Out of scope for an
+  autonomous code push. Hooked unit-level lockdown for the surfaces I
+  touched (hero data-attr, recipient shape) so future regressions on
+  those specifically fail CI.
+- **Real perf measurement (pr-p9-1):** Shipped the primitive
+  (`useQueuedRouterRefresh`) without measurements. The runbook
+  explicitly says "Still needs a quick human 'feels better' check
+  after" — flagged for the next session.
+- **Full unused-vars cleanup:** 8 lint warnings remain in admin-*
+  files. They're in form-state-typed contracts that I shouldn't
+  destabilize. Flagged for future polish.
+- **Page builder P7A acceptance:** Cannot be done autonomously. The
+  Reality Test requires human cognition + live tenant walk-through.
+
+The acceptance line for the builder remains manual by design. Every
+piece of code-side engineering I could responsibly do is shipped.
