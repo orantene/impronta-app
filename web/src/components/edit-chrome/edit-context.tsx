@@ -45,6 +45,7 @@ import {
   type CompositionSectionRef,
   type CompositionSlotDef,
 } from "@/lib/site-admin/edit-mode/composition-actions";
+import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
   loadSectionForEditAction,
   saveSectionDraftAction,
@@ -2603,13 +2604,26 @@ export function EditProvider({
         return { ok: false, error: "This page is still loading — try again in a moment." };
       }
 
-      const save = await saveHomepageCompositionAction({
-        locale,
-        pageId,
-        expectedVersion: casVersion,
-        ...stripSnapshotForSave(next),
-        builderTree: builderTreeForSave,
-      });
+      const save = await safeAction(
+        () =>
+          saveHomepageCompositionAction({
+            locale,
+            pageId,
+            expectedVersion: casVersion,
+            ...stripSnapshotForSave(next),
+            builderTree: builderTreeForSave,
+          }),
+        {
+          name: "saveHomepageCompositionAction",
+          timeoutMs: 45_000,
+          fallback: {
+            ok: false as const,
+            error:
+              "Network error — your draft could not be saved. Refresh and try again.",
+            code: "network",
+          },
+        },
+      );
       setSaving(false);
       if (!save.ok) {
         // roll back the optimistic apply
@@ -2660,20 +2674,33 @@ export function EditProvider({
       setFuture([]);
       setSaving(true);
 
-      const res = await createAndInsertSectionAction({
-        locale,
-        pageId,
-        expectedVersion: activePageVersion,
-        metadata: snap.metadata,
-        slots: stripSnapshotForSave(snap).slots,
-        builderTree: builderTreeRef.current,
-        targetSlotKey: target.slotKey,
-        insertAfterSortOrder: target.insertAfterSortOrder,
-        sectionTypeKey,
-        sectionTemplateStarterId: options?.sectionTemplateStarterId ?? null,
-        sectionTemplateStarterStylePresetId:
-          options?.sectionTemplateStarterStylePresetId ?? null,
-      });
+      const res = await safeAction(
+        () =>
+          createAndInsertSectionAction({
+            locale,
+            pageId,
+            expectedVersion: activePageVersion,
+            metadata: snap.metadata,
+            slots: stripSnapshotForSave(snap).slots,
+            builderTree: builderTreeRef.current,
+            targetSlotKey: target.slotKey,
+            insertAfterSortOrder: target.insertAfterSortOrder,
+            sectionTypeKey,
+            sectionTemplateStarterId: options?.sectionTemplateStarterId ?? null,
+            sectionTemplateStarterStylePresetId:
+              options?.sectionTemplateStarterStylePresetId ?? null,
+          }),
+        {
+          name: "createAndInsertSectionAction",
+          timeoutMs: 45_000,
+          fallback: {
+            ok: false as const,
+            error:
+              "Adding this section is taking too long. Refresh the draft and try again.",
+            code: "timeout",
+          },
+        },
+      );
       setSaving(false);
 
       if (!res.ok) {
@@ -2994,14 +3021,27 @@ export function EditProvider({
       setBuilderTree(nextTree);
       setSaving(true);
       const snapshot = currentSnapshot();
-      const save = await saveDraftHomepageAction({
-        locale,
-        pageId,
-        expectedVersion: activePageVersion,
-        metadata: snapshot.metadata,
-        slots: stripSnapshotForSave(snapshot).slots,
-        builderTree: nextTree,
-      });
+      const save = await safeAction(
+        () =>
+          saveDraftHomepageAction({
+            locale,
+            pageId,
+            expectedVersion: activePageVersion,
+            metadata: snapshot.metadata,
+            slots: stripSnapshotForSave(snapshot).slots,
+            builderTree: nextTree,
+          }),
+        {
+          name: "saveDraftHomepageAction",
+          timeoutMs: 45_000,
+          fallback: {
+            ok: false as const,
+            error:
+              "Network error — your block changes could not be saved. Refresh and try again.",
+            code: "network",
+          },
+        },
+      );
       setSaving(false);
       if (!save.ok) {
         builderTreeRef.current = prevTree;
@@ -4078,13 +4118,26 @@ export function EditProvider({
     }
     const snap = currentSnapshot();
     setSaving(true);
-    const res = await saveDraftHomepageAction({
-      locale,
-      pageId,
-      expectedVersion: casVersion,
-      ...stripSnapshotForSave(snap),
-      builderTree: reconcileBuilderTreeFromSlots(builderTree, snap.slots),
-    });
+    const res = await safeAction(
+      () =>
+        saveDraftHomepageAction({
+          locale,
+          pageId,
+          expectedVersion: casVersion,
+          ...stripSnapshotForSave(snap),
+          builderTree: reconcileBuilderTreeFromSlots(builderTree, snap.slots),
+        }),
+      {
+        name: "saveDraftHomepageAction",
+        timeoutMs: 45_000,
+        fallback: {
+          ok: false as const,
+          error:
+            "Network error — your draft could not be saved. Refresh and try again.",
+          code: "network",
+        },
+      },
+    );
     setSaving(false);
     if (!res.ok) {
       if (res.code === "VERSION_CONFLICT") {

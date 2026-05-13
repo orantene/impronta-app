@@ -190,11 +190,11 @@ const NAV_LINKS: NavLink[] = [
     icon: <FolderTree className="size-4" />,
   },
   {
-    href: "/admin/site-settings",
-    label: "Site Settings (overview)",
+    href: "/admin/site",
+    label: "Public site",
     category: "Site",
-    hint: "CMS hub — content, SEO, structure",
-    keywords: "cms pages posts redirects navigation seo sitemap site content",
+    hint: "Site control center — pages, design, navigation, SEO (same destination as legacy Site Settings)",
+    keywords: "cms pages posts redirects navigation seo sitemap site content website hub",
     icon: <Globe className="size-4" />,
   },
   {

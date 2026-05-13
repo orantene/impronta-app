@@ -10,8 +10,8 @@
  *
  * What remains is one contextual "Open editor" pill that takes the operator
  * to the in-place storefront editor. The pill links to
- * `/admin/site-settings/structure` — a tiny server route that resolves the
- * tenant preview origin and bounces to `${origin}/?edit=1`. The storefront
+ * `/admin/site-settings/structure` — a thin redirect (same family as `/admin/site`)
+ * that resolves the tenant and bounces to `${origin}/?edit=1`. The storefront
  * EditChrome reads `edit=1` and auto-engages edit mode, so it's one click
  * from a settings sub-page into the live canvas on the correct host.
  *

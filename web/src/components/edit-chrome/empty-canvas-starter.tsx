@@ -23,6 +23,7 @@
 
 import {
   useActionState,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -365,32 +366,6 @@ export function EmptyCanvasStarter({
   );
 
   useEffect(() => {
-    if (state?.ok) {
-      // Ask EditProvider (which owns composition state) to refresh in
-      // place, then only hard-reload as a fallback if no ack arrives.
-      let synced = false;
-      const onSynced = () => {
-        synced = true;
-      };
-      window.addEventListener("impronta:starter-sync-complete", onSynced);
-      window.dispatchEvent(new CustomEvent("impronta:starter-applied"));
-      const fallbackTimer = window.setTimeout(() => {
-        if (synced) return;
-        if (editCtx) {
-          void editCtx.queueRouterRefresh();
-        } else {
-          router.refresh();
-        }
-        window.location.reload();
-      }, 2000);
-      return () => {
-        window.removeEventListener("impronta:starter-sync-complete", onSynced);
-        window.clearTimeout(fallbackTimer);
-      };
-    }
-  }, [state, router, editCtx]);
-
-  useEffect(() => {
     let cancelled = false;
     void (async () => {
       const res = await loadStarterAvailability();
@@ -434,6 +409,55 @@ export function EmptyCanvasStarter({
     });
   }, [galleryCatalogTiles, templateGalleryCategory, templateGalleryQuery]);
 
+  const requestStarterSync = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    await new Promise<void>((resolve) => {
+      let finished = false;
+      let fallbackTimer: number | null = null;
+
+      function onSynced() {
+        finish();
+      }
+
+      function cleanup() {
+        window.removeEventListener("impronta:starter-sync-complete", onSynced);
+        if (fallbackTimer !== null) {
+          window.clearTimeout(fallbackTimer);
+        }
+      }
+
+      function finish() {
+        if (finished) return;
+        finished = true;
+        cleanup();
+        resolve();
+      }
+
+      window.addEventListener("impronta:starter-sync-complete", onSynced);
+      window.dispatchEvent(new CustomEvent("impronta:starter-applied"));
+
+      fallbackTimer = window.setTimeout(() => {
+        if (finished) return;
+        if (editCtx) {
+          void editCtx.queueRouterRefresh();
+        } else {
+          router.refresh();
+        }
+        window.location.reload();
+        finish();
+      }, 2000);
+    });
+  }, [editCtx, router]);
+
+  useEffect(() => {
+    if (state?.ok) {
+      // Ask EditProvider (which owns composition state) to refresh in
+      // place, then only hard-reload as a fallback if no ack arrives.
+      void requestStarterSync();
+    }
+  }, [state, requestStarterSync]);
+
   function openTemplateGallery(slug?: string) {
     setHighlightedTemplateSlug(slug ?? null);
     setTemplateGalleryOpen(true);
@@ -449,12 +473,7 @@ export function EmptyCanvasStarter({
         setQuickInsertError(result?.error ?? "Couldn't add the hero section.");
         return;
       }
-      if (editCtx) {
-        void editCtx.queueRouterRefresh();
-      } else {
-        router.refresh();
-      }
-      window.location.assign(window.location.href);
+      await requestStarterSync();
     });
   }
 

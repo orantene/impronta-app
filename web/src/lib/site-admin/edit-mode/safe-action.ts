@@ -32,16 +32,26 @@ interface SafeActionOptions<F> {
   fallback: F;
   /** Optional label used in console.warn so dev logs show which action failed. */
   name?: string;
+  /** Optional guard for action transports that stall without rejecting. */
+  timeoutMs?: number;
 }
 
 export async function safeAction<R, F>(
   invoke: () => Promise<R>,
   opts: SafeActionOptions<F>,
 ): Promise<R | F> {
+  const label = opts.name ?? "server action";
+  let action: Promise<R | F>;
   try {
-    return await invoke();
+    action = invoke().catch((err) => {
+      if (err instanceof Error) {
+        console.warn(`[safeAction] ${label} failed:`, err.message);
+      } else {
+        console.warn(`[safeAction] ${label} failed with non-Error:`, err);
+      }
+      return opts.fallback;
+    });
   } catch (err) {
-    const label = opts.name ?? "server action";
     if (err instanceof Error) {
       console.warn(`[safeAction] ${label} failed:`, err.message);
     } else {
@@ -49,6 +59,27 @@ export async function safeAction<R, F>(
     }
     return opts.fallback;
   }
+
+  if (opts.timeoutMs && opts.timeoutMs > 0) {
+    let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+    const timeout = new Promise<F>((resolve) => {
+      timeoutId = globalThis.setTimeout(() => {
+        console.warn(
+          `[safeAction] ${label} timed out after ${opts.timeoutMs}ms`,
+        );
+        resolve(opts.fallback);
+      }, opts.timeoutMs);
+    });
+    try {
+      return await Promise.race([action, timeout]);
+    } finally {
+      if (timeoutId !== null) {
+        globalThis.clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  return await action;
 }
 
 /**

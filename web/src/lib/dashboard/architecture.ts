@@ -301,8 +301,8 @@ export const ADMIN_DASHBOARD_GROUPS: DashboardNavGroup[] = [
       },
       {
         id: "admin-site-settings",
-        href: "/admin/site-settings",
-        label: "Site Settings",
+        href: "/admin/site",
+        label: "Public site",
         match: "prefix",
         icon: "siteSettings",
       },

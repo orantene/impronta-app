@@ -125,7 +125,7 @@ export function CancelFlow({ currentPlan, onComplete, onCancel }: CancelFlowProp
       {step === "reason" && (
         <>
           <h3 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 4px", letterSpacing: -0.2 }}>
-            What's making you leave?
+            What&apos;s making you leave?
           </h3>
           <p style={{ fontSize: 13, color: C.inkMuted, lineHeight: 1.5, marginTop: 0 }}>
             We use this to improve the product. Pick the closest match — you can add detail below.
@@ -247,8 +247,8 @@ export function CancelFlow({ currentPlan, onComplete, onCancel }: CancelFlowProp
             Confirm cancellation
           </h3>
           <p style={{ fontSize: 13, color: C.inkMuted, lineHeight: 1.6, marginTop: 0 }}>
-            You're moving from <strong style={{ color: C.ink, textTransform: "capitalize" }}>{currentPlan}</strong> to{" "}
-            <strong style={{ color: C.ink }}>Free</strong>. Here's what changes:
+            You&apos;re moving from <strong style={{ color: C.ink, textTransform: "capitalize" }}>{currentPlan}</strong> to{" "}
+            <strong style={{ color: C.ink }}>Free</strong>. Here&apos;s what changes:
           </p>
           <ul
             style={{

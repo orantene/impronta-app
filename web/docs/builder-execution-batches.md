@@ -62,7 +62,11 @@
 
 **Goal:** **7A Reality Test** + demo evidence so §8 can mark 7A “accepted”.
 
-**Status (2026-05-13):** **Not complete.** Registered-host pass on `improntamodels.com` filed evidence under [`qa-evidence/2026-05-13-registered-host/`](./qa-evidence/2026-05-13-registered-host/) — **BUG-010** (publish unreachable narrow widths), **BUG-004** / preflight (desktop publish blocked), **BUG-009** (console). **2026-05-14:** Code mitigations landed for BUG-010/009/004 + **BUG-006** topbar site·page line — re-run matrix after deploy; update [phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md) honestly.
+**Status (2026-05-15 sync):** **Not complete** for registered-host acceptance. Last matrix snapshot: [`phase-0-qa-registered-host.md`](./phase-0-qa-registered-host.md) (Fail cells tied to **BUG-010** / **BUG-004** / **BUG-009** until re-tested on production). Evidence pack: [`qa-evidence/2026-05-13-registered-host/`](./qa-evidence/2026-05-13-registered-host/). **Mitigations in tree (2026-05-14):** topbar horizontal scroll + `test:e2e:impronta-topbar-publish-narrow`, preflight URL hygiene, client-only Speed Insights, **BUG-006** brand line, publish-trust / SR copy — see [builder-execution-plan-2026.md](./builder-execution-plan-2026.md) changelog.
+
+**Local only (does not waive Phase 0):** [`qa-evidence/phase0-localhost-2026-05-13.md`](./qa-evidence/phase0-localhost-2026-05-13.md) + screenshots — viewport dry-run; 7A flow was blocked on stuck saving until **`safeAction`** wrapping on composition/starter saves; re-run locally after merge.
+
+**Promote / verify:** Follow deploy ladder in [`OPERATING.md`](../../OPERATING.md) §3 (`vercel promote` pre-launch) and ghost-domain **alias** notes in [`CLAUDE.md`](../../CLAUDE.md); raw `*.vercel.app` still will not hit tenant middleware — QA on **`improntamodels.com`** (or another registered host). Then update the §Viewport matrix + deferred BUG table honestly.
 
 **Includes:** `exec-p7a-4-roundtrip`, `gate-qa-7a-demo`, `acc-ph7a`, `pr-p3-2` (premium drop feel), optional `pr-p2-*` / `pr-p9-*` spot-checks if blocking narrative.
 
@@ -89,7 +93,7 @@
 
 1. Open [builder-execution-plan-2026.md §4](./builder-execution-plan-2026.md) — use the **PR task IDs** table as the row list (files + risk + test hints live there).
 2. For each `pr-p2-*` / `pr-p4-*` / … row in scope: run the **manual** step (VoiceOver, drag feel, shell smoke, etc.), then append one **changelog** line in § Implementation status with **Pass**, **Waive (name + risk)**, or **Blocked (symptom)**.
-3. Do **not** start Batch 06 (7B/7C) until §8 lifts the park — Batch 04 is polish on shipped code, not new composition surfaces.
+3. Do **not** start **7C** or **open-ended P7B inner-tree / slot work** until Batch 03 closes **7A acceptance** — Batch 04 stays polish on shipped code. **Exception:** a **bounded Hero layout pilot** (P7B — enum on existing Hero row) may exist on `phase-1`; it does **not** satisfy 7A or replace the Reality Test.
 
 ---
 
@@ -103,13 +107,15 @@
 
 ---
 
-## Batch 06 — PARKED: 7B / 7C / Hero variants
+## Batch 06 — 7B / 7C — **pilot slice shipped; expansion still gated**
 
-**Goal:** **No execution** until §8 “Park until 7A accepted” is lifted.
+**Shipped on `phase-1` (2026-05-13):** **P7B pilot** — Hero **layout variants** (`centered` \| `split-left` \| `split-right`) on the existing Hero section (schema + inspector + `data-hero-layout` CSS). Honest model: **props on the legacy Hero row**, not synthetic navigator children.
 
-**Includes:** All `7c-*`, `pr-p7b-*`, `p7b-var-*`, `acc-ph7b`.
+**Still parked until 7A accepted:** **7C** repeat patterns, **P7B-2+** governed inner slots / builder-node tree on Hero, **`p7b-var-*`**, **`acc-ph7b`**, broad **`7c-*`** — do not treat the pilot as **Advanced Mode (7A)** complete.
 
-**Process:** Only pick up when Batch 03 is **Done**.
+**Includes (when un-parked):** All `7c-*`, `pr-p7b-*` (beyond layout enum), `p7b-var-*`, `acc-ph7b`.
+
+**Process:** **Batch 03** remains the acceptance gate; use the Hero pilot for product feedback only.
 
 ---
 
@@ -128,4 +134,4 @@
 3. Finish with **one summary**: evidence links, commits, what remains.
 4. Update **Cursor todos** to match only the **batch** rows (this file + todo tool stay in sync).
 
-Last updated: 2026-05-14 (Batch 04 operating checklist + Phase 0 five-step table).
+Last updated: 2026-05-15 (Batch 03 promote path + P7B pilot vs park alignment).

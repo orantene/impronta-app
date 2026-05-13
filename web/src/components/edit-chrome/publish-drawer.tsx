@@ -241,6 +241,7 @@ export function PublishDrawer() {
   >(null);
   const [lastPublishedAt, setLastPublishedAt] = useState<string | null>(null);
   const [publishedRowsLoading, setPublishedRowsLoading] = useState(false);
+  const [reloadCompositionBusy, setReloadCompositionBusy] = useState(false);
 
   // Local mini-edit working copy for the page-settings card. Resyncs from
   // upstream metadata on open; commits via savePageMetadata on blur.
@@ -597,6 +598,57 @@ export function PublishDrawer() {
                         scroll the page, try Preview mode, review publish checks in this drawer,
                         or wait for autosave before trusting Publish.
                       </p>
+                    ) : null}
+                    {!publishDiff.loading && publishedRows && publishDiff.summary.total === 0 ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: 11,
+                            lineHeight: 1.45,
+                            color: CHROME.muted2,
+                          }}
+                        >
+                          Diff shows no section changes vs last publish — the canvas or device
+                          preview can still lag your saved draft. Use Preview, review checks below,
+                          wait for autosave, or reload composition if the tree looks stale.
+                        </p>
+                        <button
+                          type="button"
+                          disabled={reloadCompositionBusy || saving || state.kind === "publishing"}
+                          onClick={() => {
+                            setReloadCompositionBusy(true);
+                            void (async () => {
+                              try {
+                                await refreshComposition();
+                              } finally {
+                                setReloadCompositionBusy(false);
+                              }
+                            })();
+                          }}
+                          style={{
+                            marginTop: 8,
+                            height: 28,
+                            padding: "0 10px",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: CHROME.text2,
+                            background: CHROME.surface,
+                            border: `1px solid ${CHROME.lineMid}`,
+                            borderRadius: 7,
+                            cursor:
+                              reloadCompositionBusy || saving || state.kind === "publishing"
+                                ? "not-allowed"
+                                : "pointer",
+                            opacity:
+                              reloadCompositionBusy || saving || state.kind === "publishing"
+                                ? 0.55
+                                : 1,
+                          }}
+                        >
+                          {reloadCompositionBusy ? "Reloading…" : "Reload composition"}
+                        </button>
+                      </div>
                     ) : null}
                     <div
                       style={{

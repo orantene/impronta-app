@@ -261,7 +261,7 @@ function PagePicker({
     editCtx?.workspaceMembershipSlug != null &&
     editCtx.workspaceMembershipSlug !== ""
       ? `/${editCtx.workspaceMembershipSlug}/admin/website`
-      : "/admin/site-settings/pages";
+      : "/admin/site";
 
   const [open, setOpen] = useState(false);
   const [pages, setPages] = useState<PagePickerItem[] | null>(null);

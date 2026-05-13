@@ -899,7 +899,7 @@ export async function resendTalentClaimInvite(
 
   // Fall back to talent_profiles.invitation_email when no previous invite exists.
   let email = (previous as { invited_email?: string | null } | null)?.invited_email ?? null;
-  let phone = (previous as { invited_phone?: string | null } | null)?.invited_phone ?? null;
+  const phone = (previous as { invited_phone?: string | null } | null)?.invited_phone ?? null;
 
   if (!email && !phone) {
     const { data: talent } = await supabase

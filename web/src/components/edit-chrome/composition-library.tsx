@@ -795,13 +795,19 @@ export function CompositionLibraryOverlay() {
     if (!libraryTarget) return;
     setBusyTypeKey(typeKey);
     setError(null);
-    const res = await insertSection(libraryTarget, typeKey);
-    setBusyTypeKey(null);
-    if (!res.ok) {
-      setError(res.error ?? "Couldn't add the section.");
-      return;
+    try {
+      const res = await insertSection(libraryTarget, typeKey);
+      if (!res.ok) {
+        setError(res.error ?? "Couldn't add the section.");
+        return;
+      }
+      closeLibrary();
+    } catch (err) {
+      console.warn("[composition-library] insertSection failed", err);
+      setError("Couldn't add the section. Refresh the draft and try again.");
+    } finally {
+      setBusyTypeKey(null);
     }
-    closeLibrary();
   }
 
   const handleTemplatePick = useCallback(async (
@@ -817,17 +823,23 @@ export function CompositionLibraryOverlay() {
     const busyKey = `template:${starter.id}`;
     setBusyTypeKey(busyKey);
     setError(null);
-    const res = await insertSection(libraryTarget, starter.sectionTypeKey, {
-      sectionTemplateStarterId: starter.id,
-      sectionTemplateStarterStylePresetId: stylePresetId ?? null,
-    });
-    setBusyTypeKey(null);
-    if (!res.ok) {
-      setError(res.error ?? "Couldn't add the section template.");
-      return;
+    try {
+      const res = await insertSection(libraryTarget, starter.sectionTypeKey, {
+        sectionTemplateStarterId: starter.id,
+        sectionTemplateStarterStylePresetId: stylePresetId ?? null,
+      });
+      if (!res.ok) {
+        setError(res.error ?? "Couldn't add the section template.");
+        return;
+      }
+      setReviewStarter(null);
+      closeLibrary();
+    } catch (err) {
+      console.warn("[composition-library] insertSection failed", err);
+      setError("Couldn't add the section template. Refresh the draft and try again.");
+    } finally {
+      setBusyTypeKey(null);
     }
-    setReviewStarter(null);
-    closeLibrary();
   }, [closeLibrary, getStarterCompatibility, insertSection, libraryTarget]);
 
   const handleKitPick = useCallback(async (
