@@ -5324,8 +5324,10 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
             {/* Details v3 (plan §10): canonical DetailsTab renders when
                 we have a real inquiry UUID. Mock conversations fall
                 straight through to the legacy panels — DetailsTab's
-                data loader requires real DB rows. */}
-            {/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id) && (
+                data loader requires real DB rows. NOTE: the parens
+                around the regex literal are load-bearing — `{/^...`
+                in JSX collides with the `{/*` comment-opener token. */}
+            {(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).test(conv.id) && (
               <div style={{ padding: 14 }}>
                 <DetailsTabContainer
                   inquiryId={conv.id}
@@ -6460,8 +6462,10 @@ function ClientTabsBlock({
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
           {/* Details v3 (plan §10): canonical DetailsTab on top for
               real inquiries; legacy DetailsPanel stays below until
-              the v3 surface fully replaces it. */}
-          {/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id) && (
+              the v3 surface fully replaces it. NOTE: the parens
+              around the regex literal are load-bearing — `{/^...`
+              in JSX collides with the `{/*` comment-opener token. */}
+          {(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).test(conv.id) && (
             <div style={{ padding: 14 }}>
               <DetailsTabContainer inquiryId={conv.id} pov="client" />
             </div>
