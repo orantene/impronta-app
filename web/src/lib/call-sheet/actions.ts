@@ -17,7 +17,6 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import {
   normalizeCallSheetPayload,
-  EMPTY_CALL_SHEET,
   type CallSheetPayload,
 } from "./types";
 
@@ -145,5 +144,7 @@ export async function clearBookingCallSheet(
   }
 }
 
-/** Re-export an empty payload so the editor can use it as a default. */
-export { EMPTY_CALL_SHEET };
+// Note: do NOT re-export `EMPTY_CALL_SHEET` here — Next.js forbids
+// non-async exports in `"use server"` files (would crash the production
+// build with "A 'use server' file can only export async functions").
+// Import constants directly from `./types`.
