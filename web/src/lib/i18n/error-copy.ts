@@ -114,3 +114,30 @@ export function resolveErrorCopy(
   if (entry) return entry[locale];
   return fallbackEn ?? reason;
 }
+
+/**
+ * Format a `rate_limited` engine response into a user-facing message that
+ * includes the actual retry-after window. Engine paths return
+ * `{ rateLimited: true, retryAfterMs }`; this helper produces "try again
+ * in 7s" / "try again in 2 min" so the user isn't guessing.
+ *
+ * C5 — Rate-limited action UI from inquiry-booking-improvement-plan.
+ */
+export function formatRateLimitedCopy(
+  retryAfterMs: number | null | undefined,
+  locale: ErrorLocale = "en",
+): string {
+  // No timing info — fall back to the generic copy.
+  if (!retryAfterMs || retryAfterMs <= 0) return ERROR_COPY.rate_limited[locale];
+
+  const seconds = Math.ceil(retryAfterMs / 1000);
+  if (seconds < 60) {
+    return locale === "es"
+      ? `Vas un poco rápido. Intenta de nuevo en ${seconds}s.`
+      : `Going a bit fast — try again in ${seconds}s.`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  return locale === "es"
+    ? `Vas un poco rápido. Intenta de nuevo en ${minutes} min.`
+    : `Going a bit fast — try again in ${minutes} min.`;
+}

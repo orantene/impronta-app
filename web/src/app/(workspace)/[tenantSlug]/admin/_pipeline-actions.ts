@@ -23,6 +23,7 @@ import {
   loadBookingCommissionSnapshot,
 } from "@/lib/billing/commission-engine";
 import type { PaymentMethod, BookingCommissionSnapshot } from "@/lib/billing/commission";
+import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { assignCoordinator } from "@/lib/inquiry/inquiry-engine-coordinator";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine-booking";
 import {
@@ -98,13 +99,15 @@ export async function convertInquiryToBookingAction(
       const reason = (result as { reason?: string; error?: string }).reason
         ?? (result as { error?: string }).error
         ?? "Could not convert inquiry to booking.";
+      const retryAfterMs = (result as { retryAfterMs?: number }).retryAfterMs;
       const friendly =
         reason === "approvals_incomplete" ? "Client hasn't approved the offer yet."
         : reason === "no_active_offer" ? "There's no active offer on this inquiry."
         : reason === "version_conflict" ? "This inquiry was updated elsewhere — refresh and retry."
         : reason === "requirement_groups_unfulfilled" ? "Some requirement groups are still unfulfilled."
         : reason === "inquiry_frozen" ? "This inquiry is frozen."
-        : reason === "rate_limited" ? "Too many conversion attempts — try again shortly."
+        // C5 — surface actual retry-after window so user isn't guessing.
+        : reason === "rate_limited" ? formatRateLimitedCopy(retryAfterMs)
         : reason;
       return { ok: false, error: friendly };
     }
@@ -150,9 +153,11 @@ export async function submitTalentRate(
       const reason = (result as { reason?: string; error?: string }).reason
         ?? (result as { error?: string }).error
         ?? "Could not submit rate.";
+      const retryAfterMs = (result as { retryAfterMs?: number }).retryAfterMs;
       const friendly =
         reason === "invalid_rate" ? "Rate must be a positive number."
-        : reason === "rate_limited" ? "Too many attempts — try again shortly."
+        // C5 — surface actual retry-after window.
+        : reason === "rate_limited" ? formatRateLimitedCopy(retryAfterMs)
         : reason === "forbidden" ? "You can only submit a rate on your own line item."
         : reason === "offer_not_editable" ? "This offer is locked — counter the offer to revise rates."
         : reason === "line_item_not_found" ? "Line item not found."
@@ -1351,12 +1356,14 @@ export async function saveOfferDraft(
       const reason = (result as { reason?: string; error?: string }).reason
         ?? (result as { error?: string }).error
         ?? "Could not save offer.";
+      const retryAfterMs = (result as { retryAfterMs?: number }).retryAfterMs;
       const friendly =
         reason === "version_conflict" ? "Offer was updated elsewhere — refresh and retry."
         : reason === "offer_not_editable" ? "This offer is locked (already sent / accepted)."
         : reason === "post_booking_immutable" ? "Inquiry is past its mutable phase."
         : reason === "inquiry_frozen" ? "Inquiry is frozen."
-        : reason === "rate_limited" ? "Too many save attempts — try again shortly."
+        // C5 — surface actual retry-after window.
+        : reason === "rate_limited" ? formatRateLimitedCopy(retryAfterMs)
         : reason;
       return { ok: false, error: friendly };
     }
