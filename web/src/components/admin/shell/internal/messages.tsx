@@ -45,6 +45,7 @@ import { CoordRequestSheet } from "@/components/coord-request/CoordRequestSheet"
 import { OverflowMenu } from "@/components/chat-interactions";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
+import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
 import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyles";
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
@@ -2765,11 +2766,15 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
             <FilesTab conv={{ id: inquiry.id } as Conversation} povCanSeeTalentFiles={true} />
           </div>
         )}
-        {/* Slice B: "event" replaces "booking"/"details"/"project". Same
-            polished card-grid (AdminBookingTab) — the rename is purely
-            vocabulary cleanup. Legacy IDs still honored. */}
+        {/* Details v3 (plan §10): canonical 9-section <DetailsTab>
+            renders first as the new front-of-house surface; legacy
+            AdminBookingTab + LiveBookingActions stay below for now
+            so admin operators don't lose access to engine actions
+            mid-migration. */}
         {(activeTab === "event" || activeTab === "booking" || activeTab === "details") && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
+            <DetailsTabContainer inquiryId={inquiry.id} pov="admin" />
+            <div style={{ height: 24 }} />
             <AdminBookingTab inquiry={toInquiry(inquiry)} planTier={planTier} />
             <LiveBookingActions inquiryId={inquiry.id} inquiryStage={inquiry.stage} />
           </div>
