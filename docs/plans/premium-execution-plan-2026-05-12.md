@@ -1,6 +1,44 @@
 # Premium Execution Plan — Tulala
 **Date:** 2026-05-12
-**Status:** Synthesis of 5 parallel surface audits (client / admin / talent / public+onboarding / cross-cutting) executed after Waves 1-6 audit-recovery sweep landed on `phase-1`.
+**Status:** Synthesis of 5 parallel surface audits (client / admin / talent / public+onboarding / cross-cutting) + a hand-driven user audit on the same day. Reconciled across both. Waves 1-6 audit-recovery sweep already on `phase-1`.
+
+---
+
+## ⚠️ Critical reframe from user audit (read this first)
+
+A hand-driven user audit on **the same day** sharpened the framing in a way the agent audit missed:
+
+> *"The most important work isn't visual polish — it's connection. Impronta has the bones of a premium SaaS product, but the core business loop is not trustworthy yet. The next best work is connecting roster → inquiry → assignment → talent inbox → client messaging so the product behaves like an operating system, not separate dashboard screens."*
+
+This **inverts** the priority order I originally drafted. Phase 0 (below) is now the highest priority — without it, foundation + polish gains are wasted on a broken core loop.
+
+### What the user audit confirmed that I had:
+- Public directory shows 0 talent profiles (had as **PUB-5 P1**, user upgrades to **P0**)
+- Client discover disconnect (had implicit, user makes it explicit — **P0**)
+- Mock-data leaks in talent settings (had as **TAL-10 P3**, user re-rates to **P0** because it's wrong-*tenant* data, not generic mock)
+- Talent calendar mock-only (had as **TAL-1 P1**, user keeps it at P1)
+
+### What the user audit found that I missed:
+| User finding | Severity | Why I missed it |
+|---|---|---|
+| **Talent inbox still empty after admin assignment** — *the loop is still broken end-to-end* | P0 | Wave 3 fix was assumed sufficient; user's live test shows it isn't. Needs root-cause investigation, possibly an event-emit bug |
+| **Client discover page filter excludes "claimed" talent** | P0 | Wave 3 fixed the same filter in inquiry-form but missed discover. **Fixed in commit `9aa3d4f1` immediately after this audit.** |
+| **Admin settings "no custom domain" despite improntamodels.com configured** | P0 | `pages.tsx:9586` gates the "Live at your custom domain" badge on `meetsPlan(state.plan, "studio")` — the local mock plan, not the actual `agency_domains` table |
+| **Inquiry form lacks real-brief fields** (event type, budget/rate, usage, timing, files, multi-talent select) | P1 | I audited form **validation** but not form **completeness** for the business use case |
+| **Quantity field label "2 talent / 3 talent" reads as selected talent**, not quantity | P1 | Subtle copy/IA finding — easy to miss in a code audit, obvious in live use |
+| **Admin overview has visible "Load demo data" button + prototype modules** | P1 | Dashboard fixtures are obvious in live use, less so in code |
+| **Admin message timestamps show raw decimals** | P1 | Live render bug not visible in static reads |
+| **Client mobile nav overflows horizontally** + cookie banner blocks bottom CTAs | P1 | Mobile-only — needs device QA, not desktop code reading |
+| **Disabled CTAs (admin calendar booking, etc.) lack inline reasons** | P2 | Easy to miss in a code-only sweep |
+| **Talent profile / calendar bodies render BLANK in user's test** | P0 (if reproducible) | Likely a shell-init / hydration bug specific to those routes. Pages are simple `TalentPageRouteSyncer` syncs — issue is in `talent.tsx` shell rendering |
+
+### Reframed top-3 priorities (replaces old top-10)
+
+1. **🔴 P0 — Reconnect the inquiry loop (Phase 0).** Without this, the product doesn't deliver on its core value prop ("replace WhatsApp coordination"). All other work waits.
+2. **🔴 P0 — Kill cross-tenant data leakage in talent surface** (Atelier Roma on Impronta tenant; fake plan; fake verification). Trust-destroying.
+3. **🔴 P0 — Fix the operational-honesty gap in admin settings** (custom domain reads wrong, demo data toggles visible to real users).
+
+Phase A (foundations) and Phase B (real data wiring) follow, but Phase 0 ships first.
 
 ---
 
@@ -12,15 +50,16 @@ However, audit surfaces **~60 cross-cutting gaps** that hold the product back fr
 
 | Bucket | Severity mix | Effort estimate |
 |---|---|---|
+| **0. Reconnect the loop** (admin→talent inbox, public/discover/domain readout, blank routes, cross-tenant cleanup) | 7 × P0 | **~2-4 days** *(blocker for everything else)* |
 | **A. Foundation gaps** (silent failures, type holes, RLS edge cases) | 3 × P0, 7 × P1 | ~5 days |
-| **B. Mock-data leaks** (calendar, notifications, public talent profile, workspace registry) | 4 × P1 | ~10 days |
+| **B. Mock-data leaks** (calendar, notifications, public talent profile, workspace registry, inquiry-form completeness) | 6 × P1 | ~10-12 days |
 | **C. System consistency** (toast/error/result shapes, empty/loading states, i18n) | ~12 × P1 | ~7 days |
-| **D. Mobile + accessibility** (viewport, touch targets, aria, focus mgmt) | 5 × P1, 8 × P2 | ~4 days |
+| **D. Mobile + accessibility** (viewport, touch targets, aria, focus, cookie banner, nav overflow) | 6 × P1, 8 × P2 | ~4-5 days |
 | **E. Trust signals & first impressions** (login, branded 404s, OG images, claim flow, social proof) | 1 × P0, 6 × P2 | ~4 days |
 | **F. Backend features behind toast stubs** (team invite, deposits, payment methods, …) | 15 × stubs | scoped per feature; ~3 weeks total |
-| **G. Polish** (optimistic UI, microcopy personalization, message edit/delete) | 8 × P2/P3 | ~3 days |
+| **G. Polish** (optimistic UI, microcopy personalization, message edit/delete, timestamps, disabled CTAs) | 12 × P2/P3 | ~3 days |
 
-**Total realistic effort to "premium":** ~6 focused weeks of Sonnet/Opus work + 1 week of human-driven QA. Phases A–E ship the *feeling* of premium without building new feature surface area; Phase F is real product growth.
+**Total realistic effort to "premium":** ~6.5 focused weeks of Sonnet/Opus work + 1 week of human-driven QA. **Phase 0 unlocks the core value prop; Phases A–E ship the *feeling* of premium; Phase F is real product growth.**
 
 ---
 
@@ -188,6 +227,34 @@ Before writing code: every new task in Phases A–G must satisfy this checklist 
 
 Phases are designed to be **independently shippable** — each one ends with a deployable, regression-free state. Estimated durations assume sonnet-grade agents with focused prompts; opus may compress by 30%.
 
+### Phase 0 — Reconnect the loop *(NEW, highest priority)* — *2-4 days*
+
+**Goal:** The five-step core loop actually works end-to-end on real data. Trust gate: the product behaves like an operating system, not separate dashboards.
+
+> **client request → admin selects talent → talent sees job → talent responds → client sees structured next step**
+
+Each step has a known break. Verify each in **live QA on the Impronta tenant** before proceeding to Phase A. Sequence matters.
+
+| # | Task | Files | Effort | Verify (live, Impronta) |
+|---|---|---|---|---|
+| 0.1 | **Discover filter widened** — include `claimed` state | `client/discover/page.tsx:38` | ✅ done in commit `9aa3d4f1` | Visit `/impronta/client/discover` → roster appears |
+| 0.2 | **Inquiry-form talent dropdown populated** — verify same fix applies | `client/inquiries/new/page.tsx:44-46` | ✅ done in Wave 3 (verify) | Open new inquiry → dropdown lists Tina, Nalea, etc. |
+| 0.3 | **Admin-to-talent assignment surfaces in talent inbox** — root-cause why talent inbox is empty after Wave 5 backfill. Investigate the assignment → inbox query path. | `_data-bridge/talent.ts`, talent inbox loader | 1d (investigation + fix) | Admin adds talent to inquiry → talent immediately sees the inquiry in their inbox |
+| 0.4 | **Public directory shows talent** — `directory/page.tsx` and/or `(public)/[tenantSlug]/page.tsx` likely use a stricter filter than client surface; widen consistent with 0.1 | `app/(public)/directory/page.tsx`, possibly `agency-home-storefront.tsx` | 4h | Visit `improntamodels.com/directory` → real talent cards, not "0 profiles" |
+| 0.5 | **Custom-domain readout reflects reality** — read `agency_domains` table for verified rows; show real domain regardless of plan tier | `pages.tsx:9586` and the underlying TierCard | 4h | Admin settings on Impronta shows "Live at improntamodels.com · Verified" |
+| 0.6 | **Talent profile / calendar / settings stop rendering blank** — shell-init bug; investigate `talent.tsx` initialization path on those routes | `talent.tsx` (shell), `talent/profile/page.tsx`, `talent/calendar/page.tsx`, `talent/settings/page.tsx` | 1d (investigation + fix) | Visit each route → content renders within 2s |
+| 0.7 | **Talent settings stops claiming wrong-tenant data** — strip Atelier Roma / fake Pro plan / fake verification claims; render only real DB-backed fields | `talent.tsx` (settings panel section) | 4h | Talent on Impronta sees "Impronta Models", real plan tier, real verification state |
+
+**Exit criteria:**
+- Live QA walk-through on `tulala.digital` with three browser sessions (admin, client, talent of same tenant) completes the five-step loop with all touch points populated.
+- `grep -rn "Atelier Roma\|atelier-roma" web/src/app/(workspace)/[tenantSlug]/talent` returns 0 production-render hits (allowed only in clearly-flagged demo fallback paths).
+- Public directory and client discover both render real talent for the Impronta tenant.
+- Admin settings shows real domain status for Impronta.
+
+**This phase is non-negotiable.** Until 0.3 lands (admin → talent inbox), the product cannot demonstrate its core value. Phase A foundations should wait.
+
+---
+
 ### Phase A — Foundation gaps (P0 first) — *3-5 days*
 
 **Goal:** No silent failures. No data-access risks. Trust gate: "no silent failures."
@@ -219,8 +286,11 @@ Phases are designed to be **independently shippable** — each one ends with a d
 | B.5 — Empty roster CTA on storefront | `agency-home-storefront.tsx` — detect 0 published, render "Add your first talent →" linking to admin | 4h | Fresh agency storefront → friendly empty state |
 | B.6 — Trust badges source from DB | schema check on `talent_profiles.badges`, populate via verification-event hooks (ID/age/agency) | 2d | Verify identity → badge appears on profile + inbox |
 | B.7 — Client trust chips on talent inbox | `talent.tsx:351-400` add `ClientTrustChip` rendering | 4h | Inbox shows tier next to client name |
+| B.8 — Admin overview real-data sweep | `pages.tsx` Overview tab — remove "Load demo data" toggle visible to real users; replace prototype analytics with operational "needs you today" cards backed by real `inquiry_events` queries | 1d | Admin overview on Impronta shows only real numbers; no demo controls |
+| B.9 — Inquiry-form completeness (real brief) | `client/inquiries/new/new-inquiry-form.tsx` — add event_type select, budget/rate range, usage type, call time, files/reference upload (Supabase Storage), multi-talent select widening | 2d | New inquiry form captures a brief admin can act on without follow-up |
+| B.10 — Quantity label disambiguation | `new-inquiry-form.tsx` field label "Quantity" → "How many talent do you need?" with helper; render value as "{n} talent **slots**" downstream | 1h | "2 talent" no longer reads as selected talent |
 
-**Exit criteria:** `grep -rn "MOCK_\|TENANT\." web/src` returns only test/fixture-prototype-mode hits. Every list/feed reads from a real source. Phase 5 calendar data model migrations applied.
+**Exit criteria:** `grep -rn "MOCK_\|TENANT\." web/src` returns only test/fixture-prototype-mode hits. Every list/feed reads from a real source. Phase 5 calendar data model migrations applied. Inquiry form captures sufficient brief detail.
 
 ---
 
@@ -321,6 +391,10 @@ Each item is a self-contained mini-project. Tackle in priority order:
 | G.6 — Hover-action consistency on inbox rows | 2h |
 | G.7 — Read receipts (visible "Seen at HH:MM" on threads) | 4h |
 | G.8 — Unsaved-changes warning on Settings nav-away | 2h |
+| G.9 — Admin message timestamps friendly format | 1h |
+| G.10 — Disabled-CTA inline reasons (hover/tap tooltip) | 4h |
+| G.11 — Mobile cookie-banner non-blocking + nav overflow fix | 4h |
+| G.12 — Talent status chip surfaced everywhere (draft / published / hidden / invited / incomplete) | 4h |
 
 **Exit criteria:** Feels noticeably snappier on the same hardware. Microcopy reads like the product knows the user.
 
@@ -431,33 +505,43 @@ Three quality gates per breakpoint:
 ## Section 5 — Ordering & dependencies
 
 ```
-Phase A ─┬─→ Phase C ─┬─→ Phase G
-         │            │
-Phase B ─┴─→ Phase D ─┘
-                      │
-            Phase E ──┴─→ Phase F (most features depend on B for notifications)
+Phase 0 (reconnect loop) ─→ Phase A ─┬─→ Phase C ─┬─→ Phase G
+                                     │            │
+                          Phase B ───┴─→ Phase D ─┘
+                                                  │
+                                     Phase E ────┴─→ Phase F (most features depend on B for notifications)
 ```
 
-**Critical path:** A → B.2 (notifications backend) → F.15 (mark-all-read), F.13 (migration queued).
-**Parallelizable:** Phases C, D, E can run concurrently with B once A is done.
-**Last:** Phase F mini-features can ship one at a time after B; G can interleave with anything.
+**Critical path:** **0 (loop) → A (foundations) → B.2 (notifications backend) → F.15, F.13.**
+**Phase 0 blocks everything else.** It is short (2-4 days) but it must finish first — without a working core loop, foundation polish doesn't matter.
+**Parallelizable after Phase A:** Phases C, D, E can run concurrently with B.
+**Last:** Phase F mini-features ship one at a time after B; G can interleave with anything.
 
-**Recommended sprint structure (6 weeks):**
+**Recommended sprint structure (revised — 6.5 weeks):**
 
 | Week | Phases active | Focus |
 |---|---|---|
+| 0.5 | **Phase 0** | Reconnect the loop — admin→talent inbox visibility, real public/discover/domain readout, kill cross-tenant talent settings, fix blank-render routes |
 | 1 | A | Foundation P0s, lint rules, wrappers |
-| 2 | B (start) + C (start) | Workspace identity + error copy + result shapes |
-| 3 | B (continue) + D | Calendar + notifications backend + mobile |
-| 4 | B (finish) + E + G (start) | Public talent profile + first impressions |
+| 2 | B (start) + C (start) | Workspace identity + error copy + result shapes + inquiry-form completeness (B.9) |
+| 3 | B (continue) + D | Calendar + notifications backend + mobile + cookie-banner + nav overflow |
+| 4 | B (finish) + E + G (start) | Public talent profile + first impressions + admin overview real-data (B.8) |
 | 5 | F (top 5 features) + G | Highest-value backend features |
 | 6 | F (next 5) + QA + polish | Round out features, full regression |
+| 6.5 | Live QA + bug-bash | End-to-end loop walk-through on Impronta tenant with admin + client + talent sessions |
 
 ---
 
 ## Section 6 — Verification per phase
 
 Each phase ends with an explicit "is this done" gate. Don't merge until green.
+
+**Phase 0 done when:**
+- Live walk-through on `tulala.digital` Impronta tenant: admin logs in → adds talent to a fresh inquiry → talent (other browser session) sees the inquiry in their inbox without refresh. Client (third session) submits a brief that includes a talent → admin sees the talent attached in the lineup.
+- `grep -rn "Atelier Roma" web/src/app/(workspace)/[tenantSlug]/talent` returns 0 production-render hits.
+- `improntamodels.com/directory` shows real talent (≥ 1 card) — not "0 profiles".
+- Admin settings on Impronta tenant displays "Live at improntamodels.com · Verified" (or accurate equivalent for the actual `agency_domains` state).
+- Visiting `/[slug]/talent/profile`, `/calendar`, `/settings` renders body content within 2s (no blank).
 
 **Phase A done when:**
 - `grep -rn "catch { }" web/src` → 0 hits
@@ -513,6 +597,7 @@ Each phase ends with an explicit "is this done" gate. Don't merge until green.
 
 ## Section 8 — What this gets us toward "premium"
 
+After Phase 0: **The loop works.** Client request → admin selects talent → talent sees job → talent responds → client sees structured next step. The product is an operating system, not separate dashboards. *(this is the unlock — without it the rest is decoration)*
 After Phase A: **Nothing fails silently.** Every action says yes or no. Trust earned.
 After Phase B: **What you see is real.** No more demo pollution. The product is the product.
 After Phase C: **Everything feels designed by one team.** One toast, one empty state, one error voice.
