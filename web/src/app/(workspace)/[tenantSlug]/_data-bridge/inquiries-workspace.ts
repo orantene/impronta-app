@@ -36,8 +36,8 @@ export type WorkspaceInquiryRow = {
   created_at: string;
   /** next_action_by value: 'admin' | 'coordinator' | 'client' | 'talent' | null */
   next_action_by: string | null;
-  /** Inquiry source: 'direct' | 'hub' | 'manual' | 'marketplace' | null */
-  source: string | null;
+  /** Inquiry source channel — renamed from `source` to match the actual DB column. */
+  source_channel: string | null;
 };
 
 /**
@@ -57,7 +57,10 @@ export async function loadWorkspaceInquiries(
     const { data, error } = await supabase
       .from("inquiries")
       .select(
-        "id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source",
+        // `inquiries.source` doesn't exist — the real columns are `source_channel`,
+        // `source_type`, `source_page`, `source_workspace_id`, `source_pitch_id`.
+        // Use `source_channel` which is the most user-facing identifier.
+        "id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source_channel",
       )
       .eq("tenant_id", tenantId)
       .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`)

@@ -129,6 +129,30 @@ export async function addTalentToRoster(
         .limit(1)
         .maybeSingle();
       resolvedGroupId = (defaultGroup?.id as string | undefined) ?? null;
+
+      // Defensive fallback: if no requirement group exists for this inquiry
+      // (e.g. legacy inquiry that escaped the Wave 5 backfill, or a future
+      // bug that drops the default group), create one inline.  Without this,
+      // the participant insert below trips the M5.6 NOT NULL on
+      // `requirement_group_id` with the unfriendly Postgres error the audit
+      // surfaced on 2026-05-12.
+      if (!resolvedGroupId) {
+        const { data: created, error: createErr } = await supabase
+          .from("inquiry_requirement_groups")
+          .insert({
+            inquiry_id: ctx.inquiryId,
+            tenant_id: ctx.tenantId,
+            role_key: "talent",
+            quantity_required: 1,
+            sort_order: 0,
+          })
+          .select("id")
+          .single();
+        if (createErr || !created) {
+          return { success: false, error: "no_requirement_group" };
+        }
+        resolvedGroupId = created.id as string;
+      }
     }
 
     const { data: tp } = await supabase

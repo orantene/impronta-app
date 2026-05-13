@@ -17852,7 +17852,10 @@ function NotificationsDrawer() {
       open
       onClose={closeDrawer}
       title="Notifications"
-      description="Everything that happened recently across your workspace."
+      // Honest framing — this surface is still on prototype fixture data
+      // (NOTIFICATIONS const); the live event/read backend lands in a later
+      // phase.  See `project_trust_the_loop_audit.md` deferred-work section.
+      description="Demo · prototype data. Live notifications land in a later phase."
       toolbar={
         <GhostButton size="sm" onClick={() => openDrawer("notifications-prefs")}>
           Preferences
@@ -17861,7 +17864,7 @@ function NotificationsDrawer() {
       footer={
         <>
           <GhostButton onClick={() => openDrawer("my-activity")}>Your activity</GhostButton>
-          <GhostButton onClick={() => toast("Marked all as read")}>Mark all read</GhostButton>
+          <GhostButton onClick={() => toast("Notifications backend pending — Mark all read isn't live yet")}>Mark all read</GhostButton>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }

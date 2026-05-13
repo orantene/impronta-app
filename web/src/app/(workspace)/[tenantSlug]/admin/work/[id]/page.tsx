@@ -159,7 +159,9 @@ export default async function WorkspaceWorkDetailPage({
 
   const { data: inquiry } = await supabase
     .from("inquiries")
-    .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source, source_pitch_id")
+    // `inquiries.source` doesn't exist — use `source_channel` (canonical) +
+    // `source_pitch_id` for pitch-attribution lookups.
+    .select("id, status, contact_name, company, event_date, event_location, quantity, created_at, next_action_by, source_channel, source_pitch_id")
     .eq("tenant_id", scope.tenantId)
     .eq("id", inquiryId)
     .maybeSingle();
@@ -189,7 +191,7 @@ export default async function WorkspaceWorkDetailPage({
 
   // Age of this inquiry in days
   const ageDays = Math.floor((Date.now() - new Date(inquiry.created_at).getTime()) / (1000 * 60 * 60 * 24));
-  const inquirySource = (inquiry as { source?: string | null }).source ?? null;
+  const inquirySource = (inquiry as { source_channel?: string | null }).source_channel ?? null;
   const sourcePitchId =
     (inquiry as { source_pitch_id?: string | null }).source_pitch_id ?? null;
 
