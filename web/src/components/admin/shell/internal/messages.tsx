@@ -40,7 +40,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ReservationThread,
+  type PillDescriptor,
+  type PillKind,
+  type SheetDescriptor,
+  type ReservationStage,
+} from "@/components/reservation-thread";
 import { createAgencyInquiry, quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { sendMessage as sendMessageAction, markThreadRead } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
 import {
@@ -2301,6 +2308,15 @@ function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: I
 function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
   const { toast, state, effectiveTenant } = useAdminShell();
   const [activeTab, setActiveTab] = useState<ThreadTabId>("client");
+
+  /* Phase A PR 2 — admin re-skin onto the ReservationThread primitive,
+   * behind a `?rt=1` search-param flag. Hook is called unconditionally
+   * here at the top; the conditional render decision happens AFTER all
+   * other hooks fire to satisfy Rules of Hooks (see end of derived-state
+   * block below). Audit: web/docs/messages-consolidation-audit-2026-05-13.md */
+  const searchParams = useSearchParams();
+  const useReservationThread = searchParams?.get("rt") === "1";
+
   // Plan tier drives admin-only affordances inside the booking tab
   // (e.g. Free hides Reassign coordinator). The state plan uses
   // "network" — map to AdminBookingTab's "hub-network" key.
@@ -2330,7 +2346,13 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
     } else if (activeTab === "talent") {
       void markThreadRead(effectiveTenant.slug, inquiry.id, "group");
     }
-  }, [activeTab, inquiry.id, inquiryIsUuid]);
+  }, [activeTab, inquiry.id, inquiryIsUuid, effectiveTenant.slug]);
+
+  // Phase A PR 2 — defer to new primitive when the flag is on. Placed
+  // AFTER all hooks so React Hooks order is stable across renders.
+  if (useReservationThread) {
+    return <AdminReservationView inquiry={inquiry} onBack={onBack} />;
+  }
 
   // Offer state
   const offer = inquiry.offer;
@@ -2552,6 +2574,266 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
       <ShellNextActionBar {...adminAction} />
     </div>
   );
+}
+
+/* ─── AdminReservationView ──────────────────────────────────────────
+ * Phase A PR 2 — admin POV rendered through <ReservationThread>.
+ * Behind `?rt=1` flag inside AdminInquiryDetail. The legacy detail UI
+ * remains unchanged when the flag is off.
+ *
+ * Strategy: keep this lean. Pills carry status; sheets wrap the existing
+ * tab components (OfferTab, FilesTab, LogisticsTab, AdminBookingTab,
+ * LiveLineupPanel) so we don't fork rendering logic for v1. As each
+ * sheet's content gets a proper redesign in follow-up PRs, we replace
+ * its inner body, not the shell.
+ */
+function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
+  const { effectiveTenant } = useAdminShell();
+  const planTier = usePlanTierFromShell();
+  void effectiveTenant; // reserved for future server-action calls inside sheets
+
+  const allTalents = inquiry.requirementGroups.flatMap(g => g.talents);
+  const lineupTotal = allTalents.length;
+  const lineupAccepted = allTalents.filter(t => t.status === "accepted").length;
+  const lineupPending = allTalents.filter(t => t.status === "pending").length;
+  const fileCount = (MOCK_FILES_FOR_CONV[resolveFileKey(inquiry.id)] ?? []).length;
+  const inquiryR = toInquiry(inquiry);
+
+  // Pipeline stage mapping (admin uses the same 5-step strip as client/talent).
+  const stage: ReservationStage =
+    inquiry.stage === "draft" || inquiry.stage === "submitted" ? "inquiry"
+    : inquiry.stage === "coordination" ? "review"
+    : inquiry.stage === "offer_pending" ? "offer"
+    : inquiry.stage === "approved" || inquiry.stage === "booked" ? "booked"
+    : inquiry.stage === "rejected" || inquiry.stage === "expired" ? "wrapped"
+    : "inquiry";
+
+  const closedReason =
+    inquiry.stage === "rejected" ? "This inquiry was declined."
+    : inquiry.stage === "expired" ? "This inquiry expired."
+    : undefined;
+
+  // Offer summary for pill status.
+  const offerStatus: { text: string; tone: PillDescriptor["tone"] } = (() => {
+    if (!inquiry.offer) return { text: "Not started", tone: "neutral" };
+    const o = inquiry.offer;
+    if (o.status === "draft")     return { text: `Draft · ${o.total}`,            tone: "neutral" };
+    if (o.status === "sent")      return { text: `${o.total} · awaiting client`,  tone: "warn" };
+    if (o.status === "accepted")  return { text: `${o.total} · approved`,         tone: "ok" };
+    if (o.status === "rejected")  return { text: `${o.total} · declined`,         tone: "alert" };
+    return { text: o.total, tone: "neutral" };
+  })();
+
+  const eventStatus = (() => {
+    const parts: string[] = [];
+    if (inquiry.date) parts.push(inquiry.date);
+    if (inquiry.location) parts.push(String(inquiry.location).split(",")[0]?.trim() ?? "");
+    return parts.filter(Boolean).join(" · ") || "TBC";
+  })();
+
+  const lineupStatus = lineupTotal === 0
+    ? "Empty"
+    : `${lineupAccepted}/${lineupTotal} accepted${lineupPending > 0 ? ` · ${lineupPending} pending` : ""}`;
+
+  const pills: PillDescriptor[] = [
+    {
+      kind: "lineup",
+      label: "Lineup",
+      status: lineupStatus,
+      tone: lineupTotal === 0 ? "neutral" : lineupAccepted === lineupTotal ? "ok" : "warn",
+    },
+    {
+      kind: "offer",
+      label: "Offer",
+      status: offerStatus.text,
+      tone: offerStatus.tone,
+    },
+    {
+      kind: "event",
+      label: "Event",
+      status: eventStatus,
+      tone: "neutral",
+    },
+    {
+      kind: "files",
+      label: "Files",
+      status: fileCount === 0 ? "" : String(fileCount),
+      tone: "neutral",
+    },
+    {
+      kind: "team",
+      label: "Team",
+      status: inquiry.coordinator?.name ?? "Unassigned",
+      tone: inquiry.coordinator ? "neutral" : "warn",
+    },
+  ];
+
+  const sheets: Partial<Record<PillKind, SheetDescriptor>> = {
+    lineup: {
+      kind: "lineup",
+      title: "Lineup",
+      content: <LiveLineupPanel inquiryId={inquiry.id} />,
+    },
+    offer: {
+      kind: "offer",
+      title: "Offer",
+      content: (
+        <div style={{ margin: -14 }}>
+          <OfferTab conv={{ id: inquiry.id } as Conversation} pov={{ kind: "admin" }} />
+        </div>
+      ),
+    },
+    event: {
+      kind: "event",
+      title: "Event details",
+      content: (
+        <div style={{ margin: -14 }}>
+          <LogisticsTab inquiry={inquiryR} pov="admin" />
+        </div>
+      ),
+    },
+    files: {
+      kind: "files",
+      title: "Files",
+      content: (
+        <div style={{ margin: -14 }}>
+          <FilesTab conv={{ id: inquiry.id } as Conversation} povCanSeeTalentFiles={true} />
+        </div>
+      ),
+    },
+    team: {
+      kind: "team",
+      title: "Team & coordination",
+      content: (
+        <div style={{ margin: -14 }}>
+          <AdminBookingTab inquiry={inquiryR} planTier={planTier} />
+          <LiveBookingActions inquiryId={inquiry.id} inquiryStage={inquiry.stage} />
+        </div>
+      ),
+    },
+  };
+
+  // Stage transition menu — keep the existing dropdown component
+  // by wrapping its handler into the new header's `moveToMenu`.
+  // For v1 we just link out to the legacy menu instance via a
+  // hidden span anchor.
+  const moveToMenu = useStageTransitionMenuForReservation(inquiry.id, inquiry.stage);
+
+  // Stream = client thread for v1. Talent group goes inside the Team
+  // sheet in a future PR; for now the existing AdminBookingTab handles
+  // most of that affordance.
+  const clientMessages = inquiry.messages.filter(m => m.threadType === "private");
+  const stageBucket: "inquiry" | "hold" | "booked" | "past" =
+      inquiry.stage === "draft" || inquiry.stage === "submitted" || inquiry.stage === "coordination" ? "inquiry"
+    : inquiry.stage === "offer_pending" ? "hold"
+    : inquiry.stage === "approved" || inquiry.stage === "booked" ? "booked"
+    : "past";
+  const smartCtx = stageBucket === "inquiry" ? "inquiry"
+    : stageBucket === "hold" ? "hold"
+    : stageBucket === "booked" ? "offer"
+    : "default";
+
+  const stream = (
+    <AdminMessageStream
+      messages={clientMessages}
+      placeholder={`Reply to ${inquiry.clientName}…`}
+      threadKey={`admin:${inquiry.id}:client`}
+      smartReplyContext={smartCtx}
+      firstTimeClientName={isFirstConvWith(inquiry.clientName) ? inquiry.clientName : undefined}
+      closed={inquiry.stage === "rejected" || inquiry.stage === "expired"}
+      closedNotice={inquiry.stage === "rejected"
+        ? "Closed · the client passed on this offer."
+        : "Closed · auto-expired (no client response in the window)."}
+      inquiryId={inquiry.id}
+      tenantSlug={effectiveTenant.slug}
+      threadType="private"
+    />
+  );
+
+  // AdminMessageStream embeds its own composer; the primitive's
+  // composer slot stays empty.
+  return (
+    <ReservationThread
+      pov="admin"
+      header={{
+        title: inquiry.brief || inquiry.clientName,
+        subtitle: [inquiry.clientName, eventStatus].filter(Boolean).join(" · "),
+        stage,
+        closedReason,
+        moveToMenu,
+      }}
+      pills={pills}
+      sheets={sheets}
+      stream={stream}
+      composer={
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back to inbox"
+          style={{
+            display: "none",
+          }}
+        >
+          Back
+        </button>
+      }
+    />
+  );
+}
+
+/** Tiny helper hook that re-exposes the admin shell plan tier in the
+ *  form AdminBookingTab expects. Named `use*` per Rules of Hooks since
+ *  it calls another hook (useAdminShell). Inline to keep AdminReservationView
+ *  self-contained — when the re-skin lands fully we'll fold this. */
+function usePlanTierFromShell(): "free" | "studio" | "agency" | "hub-network" {
+  const { state } = useAdminShell();
+  return state.plan === "network" ? "hub-network" : state.plan;
+}
+
+/** Maps the legacy StageTransitionMenu's options into the new header's
+ *  moveToMenu shape. Returns undefined when no transitions are legal
+ *  (closed inquiries) — header hides the ⋯ button in that case.
+ *  Defers to the same engine pipeline the legacy menu uses
+ *  (quickPatchInquiryStatus / convertInquiryToBookingAction) so engine
+ *  guards (version, RLS, audit log) fire identically. */
+function useStageTransitionMenuForReservation(
+  inquiryId: string,
+  stage: RichInquiry["stage"],
+): Array<{ id: string; label: string; onClick: () => void; danger?: boolean }> | undefined {
+  const router = useRouter();
+  const { effectiveTenant, toast } = useAdminShell();
+  const transitions = NEXT_STAGES[stage as string] ?? [];
+  if (transitions.length === 0) return undefined;
+  return transitions.map((t) => ({
+    id: t.value,
+    label: t.label,
+    danger: t.value === "rejected" || t.value === "expired" || t.value === "closed_lost",
+    onClick: () => {
+      void (async () => {
+        try {
+          if (t.value === "booked") {
+            const r = await convertInquiryToBookingAction(effectiveTenant.slug, inquiryId);
+            if (!r.ok) { toast(`Convert failed: ${r.error}`); return; }
+            toast("Inquiry booked");
+            router.refresh();
+            return;
+          }
+          const fd = new FormData();
+          fd.set("inquiry_id", inquiryId);
+          fd.set("status", t.value);
+          const r = await quickPatchInquiryStatus(fd);
+          if (r && "error" in r && r.error) {
+            toast(`Stage update failed: ${r.error}`);
+            return;
+          }
+          toast(`Moved to ${t.label.replace(/^Move to /, "").replace(/^Close /, "")}`);
+          router.refresh();
+        } catch (err) {
+          toast(`Stage change failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      })();
+    },
+  }));
 }
 
 // Stream renderer for admin. Reads from RichInquiry.messages directly
