@@ -1038,6 +1038,9 @@ export function PitchComposeDrawer({
           not_authenticated: "Sign in again, then retry.",
           tenant_not_found: "Workspace not found.",
           no_talents: "Add at least one publishable talent (must be approved + public).",
+          // Phase G PR 3 — plan-tier gate now blocks Free workspaces.
+          // Friendly message points to the upgrade path.
+          plan_not_eligible: "Pitches are a Studio + Agency feature. Upgrade your workspace plan in Settings → Plan to send curated talent suggestions to clients.",
         };
         setError(map[reason] ?? draft.message ?? "Could not save draft. Try again.");
         return;
@@ -1050,6 +1053,7 @@ export function PitchComposeDrawer({
           no_talents: "All selected talents are no longer publishable.",
           forbidden: "You don't have permission to send pitches.",
           draft_required: "This pitch is no longer in draft state.",
+          plan_not_eligible: "Pitches are a Studio + Agency feature. Upgrade in Settings → Plan to send this pitch.",
         };
         setError(map[reason] ?? sent.message ?? "Could not send. Try again.");
         return;
