@@ -266,10 +266,12 @@ export default async function ClientLayout({
                 Client
               </div>
 
-              {/* Notification bell (stub — no unread count on client surface yet) */}
+              {/* Notification bell — D.4: 44x44 touch target (WCAG min). */}
               <div
+                role="button"
+                tabIndex={0}
                 aria-label="Notifications"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer" }}
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 10, cursor: "pointer" }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: C.inkMuted }}>
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -277,8 +279,8 @@ export default async function ClientLayout({
                 </svg>
               </div>
 
-              {/* Help */}
-              <div aria-label="Help" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, cursor: "pointer", color: C.inkMuted, fontFamily: FONT_BODY, fontSize: 14, fontWeight: 600 }}>
+              {/* Help — D.4: 44x44 touch target. */}
+              <div role="button" tabIndex={0} aria-label="Help" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 10, cursor: "pointer", color: C.inkMuted, fontFamily: FONT_BODY, fontSize: 15, fontWeight: 600 }}>
                 ?
               </div>
 
@@ -298,13 +300,13 @@ export default async function ClientLayout({
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
                     border: `1px solid ${C.borderSoft}`,
                     background: "transparent",
                     color: C.inkMuted,
-                    fontSize: 13,
+                    fontSize: 15,
                     cursor: "pointer",
                     fontFamily: FONT_BODY,
                   }}
