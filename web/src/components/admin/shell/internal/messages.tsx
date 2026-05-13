@@ -7767,27 +7767,20 @@ function AdminBookingTab({
         <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, lineHeight: 1.35 }}>
           {inquiry.title}
         </div>
-        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>
-          {inquiry.client.name ? `For ${inquiry.client.name}` : ""}
-          {coord && ` · ${coord.name} coordinating`}
-        </div>
-        {sourceMeta && (
-          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{
-              fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
-              textTransform: "uppercase", color: COLORS.inkDim,
-            }}>Came in via</span>
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              padding: "3px 9px", borderRadius: 999,
-              background: sourceMeta.bg, color: sourceMeta.fg,
-              fontSize: 11, fontWeight: 700,
-            }}>
-              <span aria-hidden style={{ display: "inline-flex" }}>{sourceMeta.icon}</span>
-              {sourceMeta.label}
-            </span>
+        {/* Slice 3 (Messages consolidation): identity line below the
+            project title is suppressed when the same client + coord
+            facts already live in ShellHeader above. Only the brief
+            (summary + notes + coord read) stays here — it's the
+            project-detail surface, not the identity surface. */}
+        {!inquiry.client.name && !coord && (
+          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>
+            (no client or coordinator linked yet)
           </div>
         )}
+        {/* "Came in via" source chip removed — duplicates ShellHeader's
+            source meta on every render. The header is the canonical
+            source-of-truth display; if the user wants to dig into
+            source detail, the header chip is already there. */}
         {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
           <div style={{ fontSize: 12.5, color: COLORS.ink, marginTop: 8, lineHeight: 1.55 }}>
             {inquiry.brief.summary}
@@ -7871,94 +7864,16 @@ function AdminBookingTab({
         </div>
       </div>
 
-      {/* Lineup + Coordinator 2-up. Lineup card hosts AdminParticipantsActions
-          which already wires Add talent + Reassign coordinator (the latter
-          honors plan-tier — Free hides it because there's no team to
-          reassign to). */}
-      <div data-booking-grid style={{
-        display: "grid",
-        gridTemplateColumns: coord ? "1.4fr 1fr" : "1fr",
-        gap: 10,
-      }}>
-        <div data-booking-card style={cardStyle}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-            <div data-booking-section-title style={{ ...sectionTitle, marginBottom: 0 }}>
-              {/* Free-tier copy: "Lineup" is team language and doesn't
-                  fit a solo workspace. On Free, the talent IS the
-                  workspace, so the section reads as "On this job". */}
-              {planTier === "free" ? "On this job" : "Lineup"}
-            </div>
-            {lineupTotal > 0 && (() => {
-              const tone = lineupAccepted === 0 ? "red"
-                : lineupAccepted < lineupTotal ? "amber"
-                : "green";
-              const palette = tone === "red"
-                ? { bg: `${COLORS.coral}15`, fg: COLORS.coralDeep }
-                : tone === "amber"
-                ? { bg: `${COLORS.amber}1c`, fg: COLORS.amber }
-                : { bg: COLORS.successSoft, fg: COLORS.successDeep ?? COLORS.success };
-              return (
-                <span aria-label={`${lineupAccepted} of ${lineupTotal} accepted${lineupPending ? `, ${lineupPending} pending` : ""}`} style={{
-                  fontSize: 10, fontWeight: 700, fontVariantNumeric: "tabular-nums",
-                  padding: "1px 7px", borderRadius: 999,
-                  background: palette.bg, color: palette.fg,
-                }}>{lineupAccepted}/{lineupTotal}</span>
-              );
-            })()}
-          </div>
-          {lineup.length === 0 ? (
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, padding: "8px 0" }}>
-              No talent on this job yet.
-            </div>
-          ) : (
-            lineup.map(t => (
-              <RosterMemberRow
-                key={t.talentId} talent={t}
-                isMe={false}
-                stagePast={inquiry.status === "wrapped" || inquiry.status === "cancelled"}
-              />
-            ))
-          )}
-          {canEdit && (
-            <div style={{ marginTop: 10 }}>
-              <AdminParticipantsActions inquiry={inquiry} planTier={planTier} />
-            </div>
-          )}
-        </div>
-        {coord && (
-          <div data-booking-card data-booking-coord style={cardStyle}>
-            <div data-booking-section-title style={sectionTitle}>Coordinator</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-              <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
-                <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
-                <PresenceDot name={coord.name} />
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 13, fontWeight: 700, color: COLORS.ink,
-                  display: "flex", alignItems: "center", gap: 6,
-                  minWidth: 0, flexWrap: "wrap",
-                }}>
-                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {coord.name}
-                  </span>
-                  <CoordRoleBadge role={coord.role} />
-                  {/* Admin-only: workload pill so admins see how busy
-                      this coord is at a glance. Tone red >=10 active /
-                      amber >=6 / green otherwise. */}
-                  <CoordWorkloadPill name={coord.name} />
-                </div>
-                <div style={{
-                  fontSize: 11, color: COLORS.inkMuted,
-                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                }}>
-                  {coord.role === "owner" ? "Workspace owner" : "Coordinator"}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Slice 3 (Messages consolidation): the Lineup roster card +
+          standalone Coordinator card both lived here AND in the shell
+          surface — Lineup duplicated the compact LiveLineupPanel above
+          the tab bar, Coordinator duplicated ShellHeader.metaExtras's
+          coord row. Both removed. The compact LiveLineupPanel handles
+          add/remove/reorder; ShellHeader handles coord identity.
+
+          AdminParticipantsActions (the canonical add-talent + reassign
+          control) is still reachable via the LiveLineupPanel's
+          expanded state, which renders the same picker. */}
 
       {/* Files preview — same surface the client gets, with a "View all"
           jump when there's overflow. */}
