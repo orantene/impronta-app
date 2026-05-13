@@ -2332,7 +2332,11 @@ function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: I
 // Tab content adapts per active tab.
 function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
   const { toast, state, effectiveTenant } = useAdminShell();
-  const [activeTab, setActiveTab] = useState<ThreadTabId>("client");
+  // Slice B (Messages consolidation v2): admin lands on the unified
+  // Chat tab; Client is the default sub-thread (client conversation
+  // is the primary sales surface for admin/coord).
+  const [activeTab, setActiveTab] = useState<ThreadTabId>("chat");
+  const [chatSubThread, setChatSubThread] = useState<ChatSubThreadId>("client");
 
   /* Phase A PR 2 — admin re-skin onto the ReservationThread primitive,
    * behind a `?rt=1` search-param flag. Hook is called unconditionally
@@ -2366,12 +2370,21 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
   const inquiryIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiry.id);
   useEffect(() => {
     if (!inquiryIsUuid) return;
-    if (activeTab === "client") {
+    // Slice B (Messages consolidation v2): unified Chat tab — mark read
+    // based on which sub-thread is active. Legacy IDs ("client" /
+    // "talent") still honored for any code path that hasn't migrated.
+    if (activeTab === "chat") {
+      if (chatSubThread === "client") {
+        void markThreadRead(effectiveTenant.slug, inquiry.id, "private");
+      } else if (chatSubThread === "group") {
+        void markThreadRead(effectiveTenant.slug, inquiry.id, "group");
+      }
+    } else if (activeTab === "client") {
       void markThreadRead(effectiveTenant.slug, inquiry.id, "private");
     } else if (activeTab === "talent") {
       void markThreadRead(effectiveTenant.slug, inquiry.id, "group");
     }
-  }, [activeTab, inquiry.id, inquiryIsUuid, effectiveTenant.slug]);
+  }, [activeTab, chatSubThread, inquiry.id, inquiryIsUuid, effectiveTenant.slug]);
 
   // Phase A PR 2 — defer to new primitive when the flag is on. Placed
   // AFTER all hooks so React Hooks order is stable across renders.
@@ -2398,15 +2411,17 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
     if (inquiry.nextActionBy !== "coordinator") return {};
     if (stageBucket === "inquiry") return {
       hint: "Reply to client to keep this moving.",
-      primary: { label: "Reply to client", tone: "primary", onClick: () => { setActiveTab("client"); } },
+      // Slice B: unified Chat tab + Client sub-thread.
+      primary: { label: "Reply to client", tone: "primary", onClick: () => { setActiveTab("chat"); setChatSubThread("client"); } },
     };
     if (stageBucket === "hold") return {
       hint: "Hold open — send the revised offer.",
       primary: { label: "Open offer", tone: "primary", onClick: () => { setActiveTab("offer"); } },
     };
     if (stageBucket === "booked") return {
-      hint: "Booked. Call sheet editing is coming soon.",
-      primary: { label: "Open logistics", tone: "success", onClick: () => { setActiveTab("logistics"); } },
+      hint: "Booked. Open the event details + call sheet.",
+      // Slice B: Logistics rolled into Event tab.
+      primary: { label: "Open event", tone: "success", onClick: () => { setActiveTab("event"); } },
     };
     return {};
   })();
@@ -2578,16 +2593,72 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
             planTier,
           })}
         />
-        {/* Stage-aware smart-reply context — pipeline position drives
-            which suggestion set the composer surfaces. */}
+        {/* Slice B (Messages consolidation v2): unified Chat tab with
+            [Client | Group | DM] sub-toggle. Client = sales surface;
+            Group = internal talent coordination; DM = 1:1 (future
+            slice — placeholder UI for now). */}
         {(() => {
           const adminSmartCtx = stageBucket === "inquiry" ? "inquiry"
             : stageBucket === "hold" ? "hold"
             : stageBucket === "booked" ? "offer"
             : "default";
+          const isOnChat = activeTab === "chat";
+          const isLegacyClient = activeTab === "client"; // backward compat
+          const isLegacyTalent = activeTab === "talent"; // backward compat
+          const showClientStream = (isOnChat && chatSubThread === "client") || isLegacyClient;
+          const showGroupStream = (isOnChat && chatSubThread === "group") || isLegacyTalent;
+          const showDmStream = isOnChat && chatSubThread === "dm";
           return (
             <>
-              {activeTab === "client" && (
+              {/* Chat sub-toggle (only on the new unified Chat tab) */}
+              {isOnChat && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 4,
+                  padding: "8px 10px",
+                  borderBottom: `1px solid ${COLORS.borderSoft}`,
+                  background: COLORS.surfaceAlt,
+                }}>
+                  {(["client", "group", "dm"] as const).map((sub) => {
+                    const active = chatSubThread === sub;
+                    const label = sub === "client" ? "Client" : sub === "group" ? "Group" : "DM";
+                    const subUnread = sub === "client" ? inquiry.unreadPrivate
+                      : sub === "group" ? inquiry.unreadGroup
+                      : 0;
+                    return (
+                      <button
+                        key={sub}
+                        type="button"
+                        onClick={() => setChatSubThread(sub)}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          padding: "5px 11px", borderRadius: 7,
+                          border: "none", cursor: "pointer",
+                          fontFamily: FONTS.body, fontSize: 12,
+                          fontWeight: active ? 700 : 500,
+                          color: active ? COLORS.ink : COLORS.inkMuted,
+                          background: active ? "#fff" : "transparent",
+                          boxShadow: active ? "0 1px 3px rgba(11,11,13,0.10)" : "none",
+                          transition: "all 100ms",
+                        }}
+                      >
+                        {label}
+                        {subUnread > 0 && (
+                          <span style={{
+                            minWidth: 16, height: 16,
+                            padding: "0 4px",
+                            borderRadius: 999,
+                            background: COLORS.indigoDeep, color: "#fff",
+                            fontSize: 10, fontWeight: 700,
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          }}>{subUnread}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {showClientStream && (
                 <AdminMessageStream
                   messages={clientMessages}
                   placeholder={`Reply to ${inquiry.clientName}…`}
@@ -2603,7 +2674,7 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                   threadType="private"
                 />
               )}
-              {activeTab === "talent" && (
+              {showGroupStream && (
                 <AdminMessageStream
                   messages={talentMessages}
                   placeholder="Message talent group…"
@@ -2618,22 +2689,35 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                   threadType="group"
                 />
               )}
+              {showDmStream && (
+                <div style={{
+                  flex: 1, minHeight: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  padding: 28, textAlign: "center",
+                  fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted,
+                }}>
+                  DM threads land here in a later slice. Pick a participant from
+                  the Lineup tab to start a 1:1 conversation.
+                </div>
+              )}
             </>
           );
         })()}
+        {/* Slice B: new universal Lineup tab — DB-backed roster manager */}
+        {activeTab === "lineup" && (
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
+            <LiveLineupPanel inquiryId={inquiry.id} />
+          </div>
+        )}
         {activeTab === "offer" && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             <OfferTab conv={{ id: inquiry.id } as Conversation} pov={{ kind: "admin" }} />
           </div>
         )}
-        {activeTab === "logistics" && (
+        {/* Slice B: legacy "logistics" + "payment" route to Event tab */}
+        {(activeTab === "logistics" || activeTab === "payment") && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             <LogisticsTab inquiry={toInquiry(inquiry)} pov="admin" />
-          </div>
-        )}
-        {activeTab === "payment" && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            <PaymentTab inquiry={toInquiry(inquiry)} pov="admin" />
           </div>
         )}
         {activeTab === "files" && (
@@ -2641,12 +2725,10 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
             <FilesTab conv={{ id: inquiry.id } as Conversation} povCanSeeTalentFiles={true} />
           </div>
         )}
-        {/* Merged Project tab — admin now uses the same `booking` tab id
-            as talent + client so all three povs route the polished
-            card-grid view through the same key. Older `details` id is
-            kept as a fallback for any external callers that still pin
-            it (e.g. notification deep-links) until they migrate. */}
-        {(activeTab === "booking" || activeTab === "details") && (
+        {/* Slice B: "event" replaces "booking"/"details"/"project". Same
+            polished card-grid (AdminBookingTab) — the rename is purely
+            vocabulary cleanup. Legacy IDs still honored. */}
+        {(activeTab === "event" || activeTab === "booking" || activeTab === "details") && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
             <AdminBookingTab inquiry={toInquiry(inquiry)} planTier={planTier} />
             <LiveBookingActions inquiryId={inquiry.id} inquiryStage={inquiry.stage} />
@@ -5978,6 +6060,61 @@ export function buildInquiryTabs(opts: {
   planTier?: "free" | "studio" | "agency" | "hub-network" | "network";
 }): TabDef[] {
   const { status, pov, unread = {}, offerNeedsAttention, paymentDue, planTier } = opts;
+
+  // Slice B (Messages consolidation v2): admin pov gets the new
+  // universal tab set per plan §3. Talent + client keep legacy tabs
+  // until Slices C + D migrate them. The unread badges roll up across
+  // both client + group threads onto the single Chat tab.
+  if (pov === "admin") {
+    const chatUnread = (unread.client ?? 0) + (unread.talent ?? 0);
+    const adminTabs: TabDef[] = [
+      {
+        id: "chat",
+        label: "Chat",
+        state: "active",
+        badge: chatUnread > 0 ? chatUnread : undefined,
+      },
+      {
+        id: "lineup",
+        label: "Lineup",
+        state: "active",
+      },
+    ];
+    if (status === "inquiry") {
+      adminTabs.push({
+        id: "offer",
+        label: "Offer",
+        state: "active",
+        badge: offerNeedsAttention ? "!" : undefined,
+      });
+    } else if (status === "booked") {
+      adminTabs.push({
+        id: "offer",
+        label: "Offer",
+        state: "active",
+        badge: paymentDue ? "€" : undefined,
+      });
+    }
+    adminTabs.push({
+      id: "event",
+      label: "Event",
+      state: "active",
+    });
+    adminTabs.push({
+      id: "files",
+      label: "Files",
+      state: "active",
+      badge: unread.files && unread.files > 0 ? unread.files : undefined,
+    });
+    // Free-tier still hides nothing here — chat sub-toggle handles
+    // it: solo workspaces just don't render the Group sub-thread.
+    void planTier;
+    return adminTabs;
+  }
+
+  // ── Legacy path for talent + client + talent_coord ──────────
+  // Migrated in Slices C + D. Kept stable until then so existing
+  // shells don't break.
   const tabs: TabDef[] = [];
 
   // Client thread — visible to admin/client/talent_coord. Hidden entirely
@@ -10257,10 +10394,20 @@ function ComposerSelect({ value, onChange, options }: { value: string; onChange:
 // AND the booking config (client | talent | logistics | files | payment | details)
 // without TypeScript fighting us.
 export type ThreadTabId =
+  // Slice B (Messages consolidation v2): new universal tab IDs.
+  | "chat"     // single Chat tab with Client | Group | DM sub-toggle
+  | "lineup"   // people on this inquiry (was Live lineup panel)
+  | "event"    // when/where/transport/lodging/call-sheet/activity (was Project/Details)
+  // Legacy IDs kept active during multi-slice migration. Talent + client
+  // shells still emit these; they remain valid tab keys until Slices C + D.
   | "client" | "talent" | "offer" | "files" | "details"
-  | "logistics" | "payment"   // booking-only tabs
+  | "logistics" | "payment"   // booking-only legacy tabs
   | "booking"                  // talent merged details+logistics view
   | (string & {});
+
+/** Slice B: which sub-thread is active inside the Chat tab.
+ *  Visibility per role lives in §3 of the consolidation plan. */
+export type ChatSubThreadId = "client" | "group" | "dm";
 
 type TabState = "active" | "locked";
 
