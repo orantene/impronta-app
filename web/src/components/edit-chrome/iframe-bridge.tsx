@@ -232,6 +232,25 @@ export function IframeBridgeParent() {
   // (which would loop). Also track iframe-ready handshake.
   const lastPostedSelectionKeyRef = useRef<string | undefined>(undefined);
   const iframeReadyRef = useRef(false);
+  // Mirror the live selection in refs so the message-listener effect can
+  // read the freshest values without being re-registered on every
+  // selection change. Without this, the `editor:ready` branch would
+  // close over the stale snapshot from when the listener was registered,
+  // so toggling viewports would re-push an out-of-date selection (the
+  // QA-reported bug where the inspector breadcrumb jumped from "Hero —
+  // new" to the H1 child block after viewport flips — 2026-05-13).
+  const selectedSectionIdRef = useRef(selectedSectionId);
+  const selectedBuilderNodeIdRef = useRef(selectedBuilderNodeId);
+  const previewingRef = useRef(previewing);
+  useEffect(() => {
+    selectedSectionIdRef.current = selectedSectionId;
+  }, [selectedSectionId]);
+  useEffect(() => {
+    selectedBuilderNodeIdRef.current = selectedBuilderNodeId;
+  }, [selectedBuilderNodeId]);
+  useEffect(() => {
+    previewingRef.current = previewing;
+  }, [previewing]);
 
   // Helper: post to the iframe's contentWindow if it's mounted.
   function postToIframe(msg: BridgeMessage) {
@@ -279,20 +298,29 @@ export function IframeBridgeParent() {
         iframeReadyRef.current = true;
         // Sync the Preview toggle FIRST so the iframe doesn't briefly
         // show editing chrome before suppressing it.
-        postToIframe({ type: "editor:setPreviewing", previewing });
-        if (selectedSectionId) {
+        postToIframe({
+          type: "editor:setPreviewing",
+          previewing: previewingRef.current,
+        });
+        // Read selection from refs, not closure — the listener effect's
+        // dep array intentionally omits selection state to avoid
+        // re-registering on every selection change. See ref-mirror
+        // comment above.
+        const liveSectionId = selectedSectionIdRef.current;
+        const liveBuilderNodeId = selectedBuilderNodeIdRef.current;
+        if (liveSectionId) {
           lastPostedSelectionKeyRef.current = selectionKey(
-            selectedSectionId,
-            selectedBuilderNodeId,
+            liveSectionId,
+            liveBuilderNodeId,
           );
           postToIframe({
             type: "editor:setSelection",
-            sectionId: selectedSectionId,
-            builderNodeId: selectedBuilderNodeId ?? null,
+            sectionId: liveSectionId,
+            builderNodeId: liveBuilderNodeId ?? null,
           });
           postToIframe({
             type: "editor:scrollToSection",
-            sectionId: selectedSectionId,
+            sectionId: liveSectionId,
           });
         }
         return;
@@ -301,13 +329,11 @@ export function IframeBridgeParent() {
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    selectBuilderNode,
-    selectedBuilderNodeId,
-    focusSectionForEdit,
-    setHoveredSectionId,
-  ]);
+    // Selection + preview state read from refs above so the listener
+    // stays registered across selection changes — re-registering would
+    // race with a child-originated `editor:sectionClicked` that arrives
+    // during the swap. Action callbacks are stable refs from the context.
+  }, [selectBuilderNode, focusSectionForEdit, setHoveredSectionId]);
 
   // Sprint 3.x — when the parent's selection changes (e.g. operator
   // picked a section in the navigator while iframe is up), push it

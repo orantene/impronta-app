@@ -1101,13 +1101,15 @@ function ViewportSwitcher({
             title={viewportPreviewTitle(opt.key, opt.label)}
             aria-label={opt.label}
             aria-pressed={active}
-            className="inline-flex items-center gap-[5px] rounded-full border-none px-[13px] py-[5px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
+            className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[6px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
             style={{
               background: active ? CHROME.surface : "transparent",
               color: active ? CHROME.ink : CHROME.muted,
               boxShadow: active
                 ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
                 : "none",
+              minWidth: 80,
+              justifyContent: "center",
               cursor: "pointer",
             }}
           >

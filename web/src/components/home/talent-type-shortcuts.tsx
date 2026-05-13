@@ -77,9 +77,15 @@ export function TalentTypeShortcuts({
         <h2 className="text-center font-display text-sm font-medium uppercase tracking-[0.3em] text-[var(--impronta-gold-dim)]">
           {sectionKicker}
         </h2>
-        {/* Horizontal scroll on mobile, wrap on desktop */}
-        <div className="-mx-4 mt-8 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:overflow-x-visible sm:px-0 sm:pb-0">
-          <div className="flex w-max gap-3 sm:w-auto sm:flex-wrap sm:justify-center sm:gap-4">
+        {/* Horizontal scroll on mobile, wrap on desktop.
+            Right-edge fade hints at off-screen chips so users discover
+            the scrollable affordance — without the fade, the last visible
+            chip clips against the viewport with no scrollable cue. The
+            mask is disabled on sm+ where chips wrap. */}
+        <div
+          className="-mx-4 mt-8 overflow-x-auto px-4 pb-1 scrollbar-none [-webkit-mask-image:linear-gradient(to_right,black_0,black_calc(100%-32px),transparent_100%)] [mask-image:linear-gradient(to_right,black_0,black_calc(100%-32px),transparent_100%)] sm:mx-0 sm:overflow-x-visible sm:px-0 sm:pb-0 sm:[-webkit-mask-image:none] sm:[mask-image:none]"
+        >
+          <div className="flex w-max gap-3 pr-8 sm:w-auto sm:flex-wrap sm:justify-center sm:gap-4 sm:pr-0">
             {shortcuts.map((s) => (
               <Link
                 key={s.slug}

@@ -93,6 +93,35 @@ const HERO_MOOD_OPTIONS: ReadonlyArray<{
   { value: "cinematic", label: "Cinematic", hint: "Oversized, dramatic." },
 ];
 
+// P7B Hero layout variants. Lives here (not in sections/hero/Editor.tsx)
+// because the Hero Style tab is rendered by this panel, not by the per-
+// section Editor — see web/docs/qa-evidence/p7-builder-live-walk-2026-05-13.md
+// for the earlier divergence finding.
+//
+// Empty string = inherit (centered). The Component reads `data-hero-layout`
+// from the schema and applies the matching CSS rule in globals.css.
+const HERO_LAYOUT_OPTIONS: ReadonlyArray<{
+  value: string;
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: "",
+    label: "Centered",
+    hint: "Copy centered, image full-bleed behind. Editorial default.",
+  },
+  {
+    value: "split-left",
+    label: "Image left",
+    hint: "Background photo on the left, copy on the right.",
+  },
+  {
+    value: "split-right",
+    label: "Image right",
+    hint: "Copy on the left, background photo on the right.",
+  },
+];
+
 // Divider thumbnail — a small SVG that previews the visual treatment so
 // the operator picks by appearance, not enum name.
 function DividerPreview({ kind }: { kind: string }) {
@@ -2354,6 +2383,7 @@ export function StylePanel({
   const dividerValue = present("dividerTop");
   const moodValue = root("mood");
   const overlayValue = root("overlay");
+  const layoutValue = root("layout");
   const videoBackground = present("videoBackground");
   const videoPoster = present("videoPoster");
   const videoOverlayRaw = (presentation as Record<string, unknown>).videoOverlay;
@@ -4609,6 +4639,33 @@ export function StylePanel({
               onChange={(next) => setOrToggleRoot("overlay", next)}
               options={HERO_OVERLAY_OPTIONS}
             />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className={FIELD_LABEL}>Layout</span>
+              {!layoutValue ? (
+                <span className={INHERIT_HINT}>Centered</span>
+              ) : null}
+            </div>
+            <Segmented
+              fullWidth
+              compact
+              value={layoutValue}
+              onChange={(next) => setOrToggleRoot("layout", next)}
+              options={HERO_LAYOUT_OPTIONS.map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+            />
+            <span
+              id="hero-layout-hint"
+              className={HINT}
+              role="status"
+              aria-live="polite"
+            >
+              {HERO_LAYOUT_OPTIONS.find((o) => o.value === layoutValue)?.hint ??
+                ""}
+            </span>
           </div>
         </section>
       ) : null}
