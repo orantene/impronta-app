@@ -346,6 +346,11 @@ export function AssetsDrawer(): ReactElement | null {
         const form = new FormData();
         form.set("tenantId", tenantId);
         form.set("file", file);
+        // Tab discriminator drives MIME whitelist + bucket subdirectory
+        // + media_assets.purpose on the server side (Phase 8 — videos +
+        // documents now share the upload route).
+        const uploadKind = tab === "videos" ? "video" : tab === "documents" ? "document" : "image";
+        form.set("kind", uploadKind);
         const res = await fetch("/api/admin/media/upload", {
           method: "POST",
           body: form,
@@ -393,7 +398,7 @@ export function AssetsDrawer(): ReactElement | null {
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [tenantId],
+    [tenantId, tab],
   );
 
   // Counts for tab badges. We compute against the full library regardless of
@@ -482,8 +487,6 @@ export function AssetsDrawer(): ReactElement | null {
           <ErrorBanner>{loadError}</ErrorBanner>
         ) : busy === "loading" && items === null ? (
           <SkeletonGrid />
-        ) : tab === "videos" || tab === "documents" ? (
-          <ComingSoonState kind={tab} />
         ) : filtered.length === 0 ? (
           <EmptyState
             tab={tab}
@@ -560,7 +563,13 @@ export function AssetsDrawer(): ReactElement | null {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept={
+                  tab === "videos"
+                    ? "video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska"
+                    : tab === "documents"
+                      ? ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv"
+                      : "image/*"
+                }
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) void handleFileChosen(f);
@@ -901,15 +910,9 @@ function EmptyState({
   );
 }
 
-function ComingSoonState({ kind }: { kind: "videos" | "documents" }) {
-  const label = kind === "videos" ? "Video" : "Document";
-  return (
-    <Calm
-      title={`${label} uploads coming soon`}
-      body={`The library is laid out for ${label.toLowerCase()}s, but their upload route ships in a later milestone. Use Images today.`}
-    />
-  );
-}
+// Phase 8 — ComingSoonState retired. Videos + documents now upload via the
+// same /api/admin/media/upload route with a `kind` discriminator. The
+// videos/documents tabs render the real EmptyState + grid like images do.
 
 function Calm({ title, body }: { title: string; body: string }) {
   return (
