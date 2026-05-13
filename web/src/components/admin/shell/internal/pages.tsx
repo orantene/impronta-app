@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { HybridModeSwitcher } from "@/components/hybrid-identity/HybridModeSwitcher";
+import { loadHybridSwitcherProps, type HybridSwitcherProps } from "@/lib/server-actions/hybrid-identity-self";
 import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
 import {
   buildPostPublicPathname,
@@ -521,6 +522,21 @@ const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "team" | "user" |
 export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests, overviewMetrics } = useAdminShell();
   const copy = useDashboardText();
+  // Item #8 wiring: load hybrid identity for the signed-in user so
+  // the HybridModeSwitcher knows whether to render + where to route.
+  // Renders nothing on non-hybrids automatically. Lazy-loaded after
+  // mount to avoid blocking the topbar render.
+  const [hybridProps, setHybridProps] = useState<HybridSwitcherProps>({
+    canTalent: false, canWorkspace: false, current: "workspace",
+    talentHref: "#", workspaceHref: "#",
+  });
+  useEffect(() => {
+    let cancelled = false;
+    loadHybridSwitcherProps().then((p) => {
+      if (!cancelled) setHybridProps(p);
+    });
+    return () => { cancelled = true; };
+  }, []);
   const pendingVerifications = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
   ).length;
@@ -700,13 +716,7 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
               the topbar's parent should consume resolveActorIdentity
               and pass the props down. Placeholder defaults render
               nothing — wire when hybrid identity data is in scope. */}
-          <HybridModeSwitcher
-            current="workspace"
-            canTalent={false}
-            canWorkspace={false}
-            talentHref="#"
-            workspaceHref="#"
-          />
+          <HybridModeSwitcher {...hybridProps} />
           {/* #2 — Global search chip. Opens the existing CommandPalette
               (⌘K) so power-users can find anything instantly. */}
           {onOpenSearch && (

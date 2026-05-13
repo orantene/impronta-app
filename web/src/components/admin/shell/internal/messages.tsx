@@ -49,6 +49,7 @@ import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyle
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
 import { PayoutNudgeCard } from "@/components/talent-payouts/PayoutNudgeCard";
+import { loadCurrentTalentPayoutSnapshot, type TalentPayoutSnapshot } from "@/lib/server-actions/talent-self";
 import {
   MessageReactionMenu,
   ReplyContextBar,
@@ -12570,6 +12571,11 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
   const [collapsed, setCollapsed] = useState(true);
+  // Item #11 wiring: which talent_profile_ids on this inquiry are
+  // ALSO coordinators? Drives the inline "+coord" badge in the offer
+  // line-item rows. Loaded once on mount; falls back to empty Set so
+  // mock inquiries (no DB lineup) don't break the drafter.
+  const [coordTalentIds, setCoordTalentIds] = useState<Set<string>>(new Set());
 
   const reload = React.useCallback(() => {
     setLoading(true);
@@ -12580,6 +12586,23 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
       })
       .finally(() => setLoading(false));
   }, [offerId, effectiveTenant.slug, toast]);
+
+  // Load coordinator participant talent ids once for this inquiry.
+  useEffect(() => {
+    let cancelled = false;
+    loadInquiryLineup(effectiveTenant.slug, inquiryId).then((r) => {
+      if (cancelled) return;
+      if (!r.ok || !r.data) return;
+      const ids = new Set<string>();
+      for (const p of r.data) {
+        if (p.role === "coordinator" && p.talentProfileId) {
+          ids.add(p.talentProfileId);
+        }
+      }
+      setCoordTalentIds(ids);
+    });
+    return () => { cancelled = true; };
+  }, [inquiryId, effectiveTenant.slug]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -12729,17 +12752,29 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
-              {/* Item #16 wiring: talent-coord badge. Surfaces "+coord"
-                  next to the talent select when the selected talent is
-                  ALSO a coordinator on this inquiry — visual cue that
-                  they earn both lanes (talent payout + workspace fee
-                  share per commission engine snapshot, plan §7.4).
-                  Data dependency: caller must pass coordTalentIds prop
-                  from inquiry_participants[role=coordinator] to this
-                  drafter. Until plumbed, the badge stays hidden. The
-                  isTalentCoordOnOffer + talentCoordCombinedTotal
-                  helpers in this file (Slice H) compute the math. */}
-              {/* TODO(plumb): conditional badge once coordTalentIds prop lands */}
+              {/* Item #11 final: live coord badge. Renders "+coord"
+                  inline when the selected talent is a coordinator on
+                  this inquiry. Engine commission snapshot pays both
+                  lanes (talent payout + workspace fee share per
+                  coordinator_pct, plan §7.4). */}
+              {li.talentProfileId && coordTalentIds.has(li.talentProfileId) && (
+                <span
+                  title="Also coordinates — earns both talent payout + coord commission"
+                  style={{
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    background: "rgba(43,63,163,0.10)",
+                    color: "#2B3FA3",
+                    fontSize: 9.5, fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  +coord
+                </span>
+              )}
             </div>
             <select
               value={li.pricingUnit}
@@ -12900,6 +12935,19 @@ function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }
 function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const { toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
+  // Item #7 wiring: live talent payout snapshot drives PayoutNudgeCard
+  // visibility. Loads on mount for talent / talent-coord povs; admin /
+  // client viewers don't need it. Snapshot.hasProfile=false hides the
+  // nudge entirely (the viewer isn't a talent).
+  const [talentPayout, setTalentPayout] = useState<TalentPayoutSnapshot | null>(null);
+  useEffect(() => {
+    if (pov.kind !== "talent") return;
+    let cancelled = false;
+    loadCurrentTalentPayoutSnapshot().then((s) => {
+      if (!cancelled) setTalentPayout(s);
+    });
+    return () => { cancelled = true; };
+  }, [pov.kind]);
   const [, startClientOfferTransition] = useTransition();
   const baseOffer = getOffer(conv.id);
   const isClient = pov.kind === "client";
@@ -12930,7 +12978,15 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               Stripe Connect Express account isn't enabled yet. Snapshot
               status data is mock here; real talent OfferTab will pass
               status from server-loaded talent_profiles snapshot. */}
-          <PayoutNudgeCard tenantSlug={effectiveTenant?.slug ?? "impronta"} status="none" />
+          {/* Item #7 final: live snapshot drives status. PayoutNudgeCard
+              hides on enabled / when hasProfile=false. */}
+          {talentPayout && talentPayout.hasProfile && (
+            <PayoutNudgeCard
+              tenantSlug={effectiveTenant?.slug ?? "impronta"}
+              status={talentPayout.status}
+              pendingPayouts={talentPayout.pendingPayouts}
+            />
+          )}
           <div style={{
             background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
             borderRadius: RADIUS.md, padding: 16,
