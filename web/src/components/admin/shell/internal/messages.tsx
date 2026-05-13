@@ -93,6 +93,9 @@ import {
   bulkReassignInquiriesToMe,
   bulkNudgeInquiries,
   duplicateInquiryBooking,
+  loadWorkspaceCoordinatorCandidates,
+  reassignCoordinatorAction,
+  type WorkspaceCoordinatorCandidate,
   type InquiryPaymentState,
   type InquiryAttachment,
   type InquiryParticipant,
@@ -2190,13 +2193,17 @@ function AdminInboxList({
 // advance an inquiry through the pipeline. Calls quickPatchInquiryStatus
 // server action and optimistically updates the UI via router.refresh().
 type InquiryStage = RichInquiry["stage"];
+// 2026-05-12 fix S0.7: labels unified with the funnel vocabulary so
+// the "Move to" menu speaks the same words as the funnel chip
+// (Inquiry → Review → Offer → Booked → Wrapped). The DB enum values
+// are unchanged — only the UI labels.
 const NEXT_STAGES: Record<string, { label: string; value: string }[]> = {
-  submitted:    [{ label: "Start review", value: "reviewing" }, { label: "Mark lost", value: "closed_lost" }],
-  reviewing:    [{ label: "Send offer", value: "offer_pending" }, { label: "Mark lost", value: "closed_lost" }],
-  offer_pending:[{ label: "Mark approved", value: "approved" }, { label: "Mark rejected", value: "rejected" }],
-  approved:     [{ label: "Convert to booking", value: "booked" }],
-  coordination: [{ label: "Start review", value: "reviewing" }, { label: "Mark lost", value: "closed_lost" }],
-  draft:        [{ label: "Submit", value: "submitted" }],
+  submitted:    [{ label: "Move to Review",  value: "reviewing"     }, { label: "Close as lost", value: "closed_lost" }],
+  reviewing:    [{ label: "Move to Offer",   value: "offer_pending" }, { label: "Close as lost", value: "closed_lost" }],
+  offer_pending:[{ label: "Mark approved by client", value: "approved" }, { label: "Mark rejected by client", value: "rejected" }],
+  approved:     [{ label: "Move to Booked",  value: "booked"        }],
+  coordination: [{ label: "Move to Review",  value: "reviewing"     }, { label: "Close as lost", value: "closed_lost" }],
+  draft:        [{ label: "Submit",          value: "submitted"     }],
 };
 
 function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: InquiryStage }) {
@@ -6635,24 +6642,68 @@ function ClientProjectViewTab({
 //   • Posts a system event to the timeline so all parties see it
 // ──
 function ReassignCoordinatorSheet({
-  open, onClose, currentCoordName, onReassign,
+  open, onClose, inquiryId, currentCoordName, currentCoordUserId, onSuccess,
 }: {
   open: boolean;
   onClose: () => void;
+  inquiryId: string;
   currentCoordName: string;
-  onReassign: (newCoordName: string, handoffNote: string, notifyOutgoing: boolean) => void;
+  currentCoordUserId: string | null;
+  onSuccess: () => void;
 }) {
+  const { toast, effectiveTenant } = useAdminShell();
   const [picked, setPicked] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [notifyOutgoing, setNotifyOutgoing] = useState(true);
-  // Mock workspace coordinators with load + availability. Production
-  // reads from workspace.members where role includes "coordinator".
-  const coords = [
-    { name: "Marta Reyes",  initials: "MR", load: 8,  available: true,  meta: "8 active · senior coordinator" },
-    { name: "Theo Marsh",   initials: "TM", load: 5,  available: true,  meta: "5 active · accepts handoffs" },
-    { name: "Cleo Vega",    initials: "CV", load: 12, available: false, meta: "12 active · OOO until May 9" },
-    { name: "Sara Mendez",  initials: "SM", load: 3,  available: true,  meta: "3 active · light load" },
-  ].filter(c => c.name !== currentCoordName);
+  const [coords, setCoords] = useState<WorkspaceCoordinatorCandidate[] | null>(null);
+  const [loadingCoords, setLoadingCoords] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch real workspace coordinators on open. 2026-05-12 fix A5:
+  // replaces the hardcoded mock list with a live agency_memberships
+  // pull. Excludes the current coordinator so the picker only shows
+  // viable handoff targets.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoadingCoords(true);
+    setError(null);
+    loadWorkspaceCoordinatorCandidates(effectiveTenant.slug, {
+      excludeUserId: currentCoordUserId,
+    }).then((r) => {
+      if (cancelled) return;
+      if (r.ok) setCoords(r.data ?? []);
+      else { setError(r.error); setCoords([]); }
+    }).finally(() => {
+      if (!cancelled) setLoadingCoords(false);
+    });
+    return () => { cancelled = true; };
+  }, [open, effectiveTenant.slug, currentCoordUserId]);
+
+  const reset = () => {
+    setPicked(null); setNote(""); setNotifyOutgoing(true);
+    setError(null); setSubmitting(false);
+  };
+
+  const handleClose = () => { reset(); onClose(); };
+
+  const submit = async () => {
+    if (!picked || !note.trim() || submitting) return;
+    setSubmitting(true); setError(null);
+    const r = await reassignCoordinatorAction(
+      effectiveTenant.slug, inquiryId, picked, note.trim(),
+    );
+    setSubmitting(false);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    toast("Coordinator reassigned");
+    onSuccess();
+    handleClose();
+  };
+
   if (!open) return null;
   return (
     <div role="dialog" aria-modal="true" aria-label="Reassign coordinator" style={{
@@ -6690,7 +6741,7 @@ function ReassignCoordinatorSheet({
               Move this project from {currentCoordName} to a teammate.
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" style={{
+          <button type="button" onClick={handleClose} aria-label="Close" style={{
             flexShrink: 0,
             width: 28, height: 28, borderRadius: 8,
             border: "none", background: "transparent",
@@ -6702,37 +6753,54 @@ function ReassignCoordinatorSheet({
             <div style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
               Pick the new coordinator
             </div>
+            {loadingCoords && (
+              <div style={{ padding: "10px 12px", fontSize: 12, color: COLORS.inkMuted }}>Loading workspace…</div>
+            )}
+            {!loadingCoords && coords != null && coords.length === 0 && (
+              <div style={{
+                padding: "10px 12px", fontSize: 12, color: COLORS.inkMuted,
+                background: COLORS.surfaceAlt, borderRadius: 8,
+              }}>
+                No other workspace members can take over this inquiry yet. Invite a teammate from Settings → Team.
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              {coords.map(c => (
-                <button key={c.name}
-                  type="button"
-                  onClick={() => c.available && setPicked(c.name)}
-                  disabled={!c.available}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "8px 10px", borderRadius: 10,
-                    background: picked === c.name ? COLORS.surfaceAlt : "#fff",
-                    border: `1px solid ${picked === c.name ? COLORS.accent : COLORS.borderSoft}`,
-                    cursor: c.available ? "pointer" : "not-allowed",
-                    opacity: c.available ? 1 : 0.55,
-                    textAlign: "left", fontFamily: FONTS.body,
-                  }}>
-                  <Avatar size={32} tone="auto" hashSeed={c.name} initials={c.initials} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{c.name}</div>
-                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{c.meta}</div>
-                  </div>
-                  {picked === c.name && (
-                    <span aria-hidden style={{
-                      flexShrink: 0,
-                      width: 18, height: 18, borderRadius: "50%",
-                      background: COLORS.accent, color: "#fff",
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 11, fontWeight: 700,
-                    }}>✓</span>
-                  )}
-                </button>
-              ))}
+              {(coords ?? []).map(c => {
+                const initials = c.displayName
+                  .split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+                const meta = c.status === "pending_acceptance"
+                  ? "Pending invite acceptance"
+                  : `${c.activeInquiryCount} active · ${c.role}`;
+                const isPicked = picked === c.userId;
+                return (
+                  <button key={c.userId}
+                    type="button"
+                    onClick={() => setPicked(c.userId)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 10px", borderRadius: 10,
+                      background: isPicked ? COLORS.surfaceAlt : "#fff",
+                      border: `1px solid ${isPicked ? COLORS.accent : COLORS.borderSoft}`,
+                      cursor: "pointer",
+                      textAlign: "left", fontFamily: FONTS.body,
+                    }}>
+                    <Avatar size={32} tone="auto" hashSeed={c.displayName} initials={initials} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{c.displayName}</div>
+                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{meta}</div>
+                    </div>
+                    {isPicked && (
+                      <span aria-hidden style={{
+                        flexShrink: 0,
+                        width: 18, height: 18, borderRadius: "50%",
+                        background: COLORS.accent, color: "#fff",
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, fontWeight: 700,
+                      }}>✓</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div>
@@ -6762,30 +6830,39 @@ function ReassignCoordinatorSheet({
             />
             Notify {currentCoordName} (sends a system message in the team thread)
           </label>
+          {error && (
+            <div role="alert" style={{
+              padding: "8px 10px", borderRadius: 8, fontSize: 12,
+              background: `${COLORS.coral}1c`, color: COLORS.coralDeep ?? COLORS.coral,
+              border: `1px solid ${COLORS.coral}40`,
+            }}>
+              {error}
+            </div>
+          )}
         </div>
         <div style={{
           padding: 12, borderTop: `1px solid ${COLORS.borderSoft}`,
           display: "flex", gap: 8, justifyContent: "flex-end",
         }}>
-          <button type="button" onClick={onClose} style={{
+          <button type="button" onClick={handleClose} disabled={submitting} style={{
             padding: "8px 14px", borderRadius: 999,
             border: `1px solid ${COLORS.border}`, background: "transparent",
             color: COLORS.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
             fontFamily: FONTS.body,
           }}>Cancel</button>
           <button type="button"
-            disabled={!picked || !note.trim()}
-            onClick={() => { if (picked && note.trim()) { onReassign(picked, note.trim(), notifyOutgoing); onClose(); } }}
+            disabled={!picked || !note.trim() || submitting}
+            onClick={submit}
             style={{
               padding: "8px 16px", borderRadius: 999,
               border: "none",
-              background: (picked && note.trim()) ? COLORS.fill : "rgba(11,11,13,0.12)",
+              background: (picked && note.trim() && !submitting) ? COLORS.fill : "rgba(11,11,13,0.12)",
               color: "#fff",
               fontSize: 12.5, fontWeight: 700,
-              cursor: (picked && note.trim()) ? "pointer" : "not-allowed",
+              cursor: (picked && note.trim() && !submitting) ? "pointer" : "not-allowed",
               fontFamily: FONTS.body,
             }}>
-            Reassign
+            {submitting ? "Reassigning…" : "Reassign"}
           </button>
         </div>
       </aside>
@@ -6841,7 +6918,9 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
   planTier?: "free" | "studio" | "agency" | "hub-network";
 }) {
   const { state } = useAdminShell();
+  const router = useRouter();
   const [lineupOpen, setLineupOpen] = useState(false);
+  const [reassignOpen, setReassignOpen] = useState(false);
   const conv = buildConvFromInquiry(inquiry);
   const currentCoord = inquiry.coordinators[0];
   const canEdit = inquiry.status !== "wrapped" && inquiry.status !== "cancelled";
@@ -6876,12 +6955,12 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
           </button>
         )}
         {canReassign && (
-          <button type="button" disabled title="Coordinator handoff needs a live reassignment workflow." style={disabledBtn({
+          <button type="button" onClick={() => setReassignOpen(true)} style={{
             padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
             borderRadius: 999, border: `1px solid ${COLORS.border}`,
             background: "transparent", color: COLORS.ink, cursor: "pointer",
             fontFamily: FONTS.body,
-          })}>Reassign coordinator</button>
+          }}>Reassign coordinator</button>
         )}
         {/* Free-tier upgrade nudge — Reassign hides on Free, but
             instead of leaving silence, surface a soft upsell so the
@@ -6917,6 +6996,16 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
         pickerPov="admin"
         planTier={planTier}
       />
+      {currentCoord && (
+        <ReassignCoordinatorSheet
+          open={reassignOpen}
+          onClose={() => setReassignOpen(false)}
+          inquiryId={inquiry.id}
+          currentCoordName={currentCoord.name}
+          currentCoordUserId={currentCoord.id}
+          onSuccess={() => router.refresh()}
+        />
+      )}
     </>
   );
 }

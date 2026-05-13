@@ -218,6 +218,24 @@ export async function loadTalentInquiries(
     } = await supabase.auth.getUser();
     const myUserId = user?.id ?? null;
 
+    // Task 0.3 — talent inbox loop hardening.
+    //
+    // The bridge MUST stay keyed on `talent_profile_id`, NOT `user_id`.
+    // Reasoning:
+    //   1. RLS (`inquiry_participants_talent_select`) gates rows on
+    //      `talent_profiles.user_id = auth.uid()` via the profile, so this
+    //      filter is auth-correct even when participant.user_id is NULL
+    //      (admin added the talent BEFORE the talent claimed their account).
+    //   2. The engine sets `participants.user_id = talent_profiles.user_id`
+    //      at insert time. Legacy rows from pre-claim adds keep user_id NULL
+    //      forever — switching this filter to `user_id` would silently hide
+    //      every such row from the talent's inbox after they claim. That was
+    //      the loop-break the user spotted (audit 2026-05-12).
+    //
+    // We also explicitly exclude `status = 'removed'` and pin `role = 'talent'`.
+    // RLS already enforces `role = 'talent'` for this SELECT path, but making
+    // it explicit at the query layer means a future RLS regression cannot
+    // leak coordinator/client rows into the talent inbox.
     const { data, error } = await supabase
       .from("inquiry_participants")
       .select(`
@@ -235,6 +253,8 @@ export async function loadTalentInquiries(
         )
       `)
       .eq("talent_profile_id", talentProfileId)
+      .eq("role", "talent")
+      .neq("status", "removed")
       .eq("inquiries.tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(100);
