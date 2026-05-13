@@ -3243,6 +3243,10 @@ function AdminMessageStream({
     senderName: string;
     senderRole: string;
     senderInitials: string;
+    /** Item #4 wiring: when non-text, the bubble row swaps in the
+     *  appropriate ChatCard via renderChatCardForMessage. */
+    messageKind?: string;
+    cardPayload?: Record<string, unknown> | null;
   }> = [
     ...messages.map(m => ({
       id: m.id, body: m.body, ts: m.ts, isYou: !!m.isYou,
@@ -3254,6 +3258,12 @@ function AdminMessageStream({
         : m.senderName,
       senderRole: m.senderRole as string,
       senderInitials: m.senderInitials,
+      // Mock RichInquiry rows don't yet carry message_kind /
+      // card_payload — they fall through to plain text. Real DB rows
+      // (post-migration 20260513214948) provide both via the optional
+      // cast below.
+      messageKind: (m as { messageKind?: string }).messageKind,
+      cardPayload: (m as { cardPayload?: Record<string, unknown> | null }).cardPayload ?? null,
     })),
     // Stashed sends honor the per-message sender so workspace-attributed
     // posts render as System User bubbles (not "you" bubbles). When
@@ -3413,6 +3423,13 @@ function AdminMessageStream({
                     initials={m.senderInitials}
                   />
                 )}
+                {/* Item #4 wiring: typed message → ChatCard render.
+                    Plain text rows fall through to the bubble below. */}
+                {m.messageKind && m.messageKind !== "text" ? (
+                  <div data-msg-card-wrap style={{ maxWidth: "78%", flex: 1 }}>
+                    {renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast)}
+                  </div>
+                ) : (
                 <div style={{
                   maxWidth: "78%",
                   background: mine ? COLORS.fill : COLORS.surfaceAlt,
@@ -3453,6 +3470,7 @@ function AdminMessageStream({
                     )}
                   </div>
                 </div>
+                )}
               </div>
             </React.Fragment>
           );

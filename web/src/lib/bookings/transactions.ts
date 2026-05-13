@@ -357,9 +357,30 @@ export async function requestPayment(
 export async function markPaid(
   transactionId: string,
 ): Promise<TransactionResult<BookingTransaction>> {
-  return transitionStatus(transactionId, ["payment_requested", "pending", "disputed"], "paid", {
+  const result = await transitionStatus(transactionId, ["payment_requested", "pending", "disputed"], "paid", {
     paid_at: new Date().toISOString(),
   });
+  // Item #15 wiring: audit emit on successful paid transition. Inquiry
+  // id resolved from the transaction's sourceInquiryId. Fire-and-forget
+  // — failure logs only, never breaks the user-facing action.
+  if (result.ok && result.data.sourceInquiryId) {
+    const sb = createServiceRoleClient();
+    if (sb) {
+      sb.rpc("inquiry_audit_emit", {
+        p_inquiry_id: result.data.sourceInquiryId,
+        p_kind: "payment_paid",
+        p_payload: {
+          transaction_id: result.data.id,
+          booking_id: result.data.bookingId,
+        },
+        p_amount_cents: result.data.grossAmountCents,
+        p_currency: result.data.currency,
+      }).then((r) => {
+        if (r.error) logServerError("transactions.markPaid.audit", r.error);
+      });
+    }
+  }
+  return result;
 }
 
 /**
