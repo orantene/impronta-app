@@ -7796,7 +7796,7 @@ function PayoutReceiverPicker({
   useEffect(() => {
     loadInquiryPayoutReceiverCandidates(effectiveTenant.slug, inquiryId)
       .then((r) => { if (r.ok) setCandidates(r.data ?? []); });
-  }, [inquiryId]);
+  }, [inquiryId, effectiveTenant.slug]);
 
   const apply = () => {
     if (!selected) { toast("Choose a payout receiver."); return; }
@@ -7894,7 +7894,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
     loadInquiryPaymentState(effectiveTenant.slug, inquiry.id)
       .then((r) => { if (r.ok) setState(r.data ?? null); })
       .finally(() => setLoading(false));
-  }, [inquiry.id]);
+  }, [inquiry.id, effectiveTenant.slug]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -10652,7 +10652,7 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
     loadInquiryLineup(effectiveTenant.slug, inquiryId)
       .then((r) => { if (r.ok) setLineup(r.data ?? []); })
       .finally(() => setLoading(false));
-  }, [inquiryId, isUuid]);
+  }, [inquiryId, isUuid, effectiveTenant.slug]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -10853,7 +10853,7 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
     loadOfferDraft(effectiveTenant.slug, offerId)
       .then((r) => { if (r.ok && r.data) setSnapshot(r.data); })
       .finally(() => setLoading(false));
-  }, [offerId]);
+  }, [offerId, effectiveTenant.slug]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -12494,7 +12494,7 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
     loadInquiryAttachments(effectiveTenant.slug, inquiryId)
       .then((r) => { if (r.ok) setFiles(r.data ?? []); })
       .finally(() => setLoading(false));
-  }, [inquiryId, isUuid]);
+  }, [inquiryId, isUuid, effectiveTenant.slug]);
 
   useEffect(() => { reload(); }, [reload]);
 
