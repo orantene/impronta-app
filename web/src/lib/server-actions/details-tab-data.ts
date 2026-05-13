@@ -53,6 +53,14 @@ type InquiryRow = {
   event_location: string | null;
   quantity: number | null;
   next_action_by: string | null;
+  event_timezone: string | null;
+  wardrobe_notes: string | null;
+  equipment_notes: string | null;
+  transport_notes: string | null;
+  lodging_notes: string | null;
+  meals_notes: string | null;
+  access_notes: string | null;
+  deadline_at: string | null;
 };
 
 type BookingRow = {
@@ -195,7 +203,9 @@ export async function loadDetailsTabData(
 
     const { data: inquiryRaw, error: inqErr } = await supabase
       .from("inquiries")
-      .select("id, tenant_id, status, contact_name, company, event_date, event_location, quantity, next_action_by")
+      .select(
+        "id, tenant_id, status, contact_name, company, event_date, event_location, quantity, next_action_by, event_timezone, wardrobe_notes, equipment_notes, transport_notes, lodging_notes, meals_notes, access_notes, deadline_at",
+      )
       .eq("id", inquiryId)
       .maybeSingle();
     if (inqErr || !inquiryRaw) {
@@ -299,10 +309,10 @@ export async function loadDetailsTabData(
       if (!inquiry.event_date && !booking?.event_date) missing.push("Event date");
       if (!inquiry.event_location && !booking?.venue_location_text) missing.push("Location");
       if (!booking) missing.push("Booking not yet created");
-      else {
-        if (!booking.deadline_at) missing.push("Deadline");
-        if (!booking.timezone) missing.push("Timezone");
-      }
+      const tz = booking?.timezone ?? inquiry.event_timezone;
+      const dl = booking?.deadline_at ?? inquiry.deadline_at;
+      if (!dl) missing.push("Deadline");
+      if (!tz) missing.push("Timezone");
       missingItems = missing;
 
       const risks: string[] = [];
@@ -344,13 +354,13 @@ export async function loadDetailsTabData(
       talentCount: inquiry.quantity ?? undefined,
 
       date: formatDate(booking?.event_date ?? inquiry.event_date),
-      timezone: booking?.timezone ?? undefined,
-      deadline: formatDate(booking?.deadline_at),
+      timezone: booking?.timezone ?? inquiry.event_timezone ?? undefined,
+      deadline: formatDate(booking?.deadline_at ?? inquiry.deadline_at),
 
       venue: booking?.venue_name ?? undefined,
       address: booking?.venue_location_text ?? undefined,
       city: inquiry.event_location ?? undefined,
-      accessNotes: booking?.access_notes ?? undefined,
+      accessNotes: booking?.access_notes ?? inquiry.access_notes ?? undefined,
 
       clientName: booking?.contact_name ?? inquiry.contact_name ?? undefined,
       coordinators,
@@ -361,11 +371,11 @@ export async function loadDetailsTabData(
       paymentLabel,
       paymentStatus,
 
-      wardrobe: booking?.wardrobe_notes ?? undefined,
-      equipment: booking?.equipment_notes ?? undefined,
-      transport: booking?.transport_notes ?? undefined,
-      lodging: booking?.lodging_notes ?? undefined,
-      meals: booking?.meals_notes ?? undefined,
+      wardrobe: booking?.wardrobe_notes ?? inquiry.wardrobe_notes ?? undefined,
+      equipment: booking?.equipment_notes ?? inquiry.equipment_notes ?? undefined,
+      transport: booking?.transport_notes ?? inquiry.transport_notes ?? undefined,
+      lodging: booking?.lodging_notes ?? inquiry.lodging_notes ?? undefined,
+      meals: booking?.meals_notes ?? inquiry.meals_notes ?? undefined,
       callTime: formatTime(booking?.event_date),
 
       missingItems,
