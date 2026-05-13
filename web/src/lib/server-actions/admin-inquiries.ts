@@ -18,6 +18,7 @@ import { resolveClientAccountContactForSave } from "@/lib/server/client-account-
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
+import { emitFieldChange } from "@/lib/inquiry/audit-field-emit";
 import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
 
 // Type-only import + re-export. Combined into one statement so Turbopack
@@ -478,6 +479,16 @@ export async function updateInquiryRequestDetails(
 
   const { inquiry_id, raw_ai_query, message, event_location, source_channel, staff_notes } = parsed.data;
 
+  // Snapshot prior values so we can emit a field-level audit row for
+  // each changed column. Details v3 §4.3 — audit_log.visibility_scope
+  // drives which roles see each change on the Details-tab activity feed.
+  const { data: priorReq } = await supabase
+    .from("inquiries")
+    .select("raw_ai_query, message, event_location, source_channel, staff_notes")
+    .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("inquiries")
     .update({
@@ -494,6 +505,34 @@ export async function updateInquiryRequestDetails(
   if (error) {
     logServerError("admin/updateInquiryRequestDetails", error);
     return { error: CLIENT_ERROR.update };
+  }
+
+  if (priorReq) {
+    const pairs: Array<{
+      key: string;
+      group: string;
+      visibility: "client_visible" | "talent_visible" | "coord_visible" | "admin_only";
+      before: unknown;
+      after: unknown;
+    }> = [
+      { key: "event_location", group: "location",  visibility: "client_visible", before: priorReq.event_location, after: event_location || null },
+      { key: "message",         group: "brief",     visibility: "client_visible", before: priorReq.message,         after: message || null },
+      { key: "raw_ai_query",    group: "brief",     visibility: "admin_only",     before: priorReq.raw_ai_query,    after: raw_ai_query || null },
+      { key: "source_channel",  group: "source",    visibility: "admin_only",     before: priorReq.source_channel,  after: source_channel },
+      { key: "staff_notes",     group: "internal",  visibility: "admin_only",     before: priorReq.staff_notes,     after: staff_notes || null },
+    ];
+    for (const p of pairs) {
+      if (p.before === p.after) continue;
+      await emitFieldChange(supabase, {
+        inquiryId: inquiry_id,
+        fieldGroup: p.group,
+        fieldKey: p.key,
+        oldValue: p.before,
+        newValue: p.after,
+        visibility: p.visibility,
+        actorRole: "admin",
+      }).then((r) => { if (!r.ok) logServerError("admin/updateInquiryRequestDetails/fieldEmit", r.error); });
+    }
   }
 
   revalidatePath("/admin/inquiries");
