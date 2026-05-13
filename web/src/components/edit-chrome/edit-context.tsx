@@ -2950,7 +2950,10 @@ export function EditProvider({
           ? idx - 1
           : idx + 2;
       if (target < 0 || target > list.length) {
-        return { ok: false, error: "Already at the edge of the slot." };
+        return {
+          ok: false,
+          error: "This section can't move further in that part of the page.",
+        };
       }
       return moveSectionTo(sectionId, slotKey, target);
     },
@@ -3183,7 +3186,10 @@ export function EditProvider({
         };
       }
       if (targetIndex < 0 || targetIndex >= location.siblingCount) {
-        return { ok: false, error: "Already at the edge of this group." };
+        return {
+          ok: false,
+          error: "This block can't move further within this group.",
+        };
       }
       if (targetIndex === location.index) {
         return { ok: true };
@@ -3465,7 +3471,10 @@ export function EditProvider({
   >(
     (name) => {
       if (!copiedBuilderNode || copiedBuilderNode.kind === "section") {
-        return { ok: false, error: "Copy a block before saving a preset." };
+        return {
+          ok: false,
+          error: "Copy a block on the page first, then save a preset.",
+        };
       }
       const presetId = crypto.randomUUID();
       const label = builderNodeLabel(copiedBuilderNode.kind);
@@ -3552,7 +3561,10 @@ export function EditProvider({
   >(
     async (targetNodeId) => {
       if (!copiedBuilderNode) {
-        return { ok: false, error: "Copy a block before pasting." };
+        return {
+          ok: false,
+          error: "Copy a block on the page before pasting here.",
+        };
       }
 
       const pasteTarget = resolveCopiedBuilderNodePasteTarget({
