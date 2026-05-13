@@ -211,6 +211,8 @@ Suggested fixes:
 - Example: `Tulala Builder · Impronta · Homepage`.
 - Add clear page breadcrumb and tenant badge.
 
+**Mitigation (2026-05-14):** [`topbar.tsx`](../src/components/edit-chrome/topbar.tsx) — `BrandMark` second line shows **`{tenant display name or workspace slug} · {current page title}`** (e.g. `Impronta · Homepage`) plus a single `aria-label` that includes both; slug fallback when `tenantSiteLabel` is unset.
+
 ## Medium Findings
 
 ### BUG-007 - Add-section library is powerful but dense

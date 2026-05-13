@@ -54,7 +54,7 @@ Tracked human-QA / engineering backlog (see [builder-human-qa-run-2026-05-09.md]
 | Critical | BUG-003 — Device preview iframe blank for some selections (mitigations in code + DSH e2e) | TBD | [Human QA run](./builder-human-qa-run-2026-05-09.md) |
 | High | BUG-004 — Polluted / duplicate homepage draft makes subjective QA noisy | TBD | [Human QA run](./builder-human-qa-run-2026-05-09.md) · [Baseline reset](./impronta-local-qa-homepage-baseline.md) |
 | High | BUG-005 — Publish / “saved” trust when canvas still wrong (preflight + copy slices landed; full loop human-gated) | TBD | [Human QA run](./builder-human-qa-run-2026-05-09.md) |
-| High | BUG-006 — Tulala shell vs Impronta tenant brand clarity in edit chrome | TBD | [Human QA run](./builder-human-qa-run-2026-05-09.md) |
+| High | BUG-006 — Tulala shell vs Impronta tenant brand clarity in edit chrome | Web | [Human QA run](./builder-human-qa-run-2026-05-09.md) · mitigation: [`topbar.tsx`](../src/components/edit-chrome/topbar.tsx) `BrandMark` shows **site · page** (slug fallback) |
 | Medium | BUG-007 — Add-section library density for first-time users | TBD | [Human QA run](./builder-human-qa-run-2026-05-09.md) |
 | Medium | BUG-008 — Technical labels in review / metadata surfaces | TBD | [Human QA run](./builder-human-qa-run-2026-05-09.md) |
 | Medium | BUG-009 — Registered-host console noise (404/400, Speed Insights `script.js` MIME, React #418) | Web | [Human QA run](./builder-human-qa-run-2026-05-09.md) · mitigation: client-only [`ClientSpeedInsights`](../src/components/analytics/client-speed-insights.tsx) |

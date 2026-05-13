@@ -178,11 +178,21 @@ function TbIconBtn({
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
-function BrandMark({ tenantSiteLabel }: { tenantSiteLabel: string | null }) {
+function BrandMark({
+  siteLabel,
+  pageTitle,
+}: {
+  /** Tenant display name, or workspace slug fallback — never product-only when we can help it (BUG-006). */
+  siteLabel: string | null;
+  /** Current page title (e.g. Homepage) — shown with site on second line. */
+  pageTitle: string | null;
+}) {
   const product = "Tulala Builder";
-  const aria = tenantSiteLabel
-    ? `${product} — editing ${tenantSiteLabel}`
-    : product;
+  const trimmedPage = pageTitle?.trim() || null;
+  const trimmedSite = siteLabel?.trim() || null;
+  const subtitleParts = [trimmedSite, trimmedPage].filter(Boolean);
+  const subtitle = subtitleParts.length > 0 ? subtitleParts.join(" · ") : null;
+  const aria = subtitle ? `${product} — ${subtitle}` : product;
   return (
     <div
       className="inline-flex min-w-0 shrink-0 items-center gap-[10px] pr-2"
@@ -209,13 +219,13 @@ function BrandMark({ tenantSiteLabel }: { tenantSiteLabel: string | null }) {
         >
           {product}
         </span>
-        {tenantSiteLabel ? (
+        {subtitle ? (
           <span
-            className="max-w-[min(200px,28vw)] truncate text-[10px] font-semibold tracking-[0.01em]"
+            className="max-w-[min(240px,32vw)] truncate text-[10px] font-semibold tracking-[0.01em]"
             style={{ color: CHROME.muted }}
-            title={tenantSiteLabel}
+            title={subtitle}
           >
-            {tenantSiteLabel}
+            {subtitle}
           </span>
         ) : null}
       </div>
@@ -2033,7 +2043,10 @@ export function TopBar({
 }: TopBarProps) {
   const router = useRouter();
   const editCtx = useMaybeEditContext();
-  const tenantSiteLabel = editCtx?.tenantSiteLabel ?? null;
+  const workspaceSlug = editCtx?.workspaceMembershipSlug?.trim() || null;
+  const brandSiteLabel =
+    editCtx?.tenantSiteLabel?.trim() || workspaceSlug || null;
+  const brandPageTitle = pageTitle?.trim() || null;
 
   function handleMenuSelect(opt: PublishMenuOption) {
     if (opt === "schedule") {
@@ -2082,7 +2095,7 @@ export function TopBar({
           width; outer bar scrolls. */}
       <div className="flex h-full min-w-max items-center gap-[8px] px-[12px]">
       {/* ── Left cluster ── */}
-      <BrandMark tenantSiteLabel={tenantSiteLabel} />
+      <BrandMark siteLabel={brandSiteLabel} pageTitle={brandPageTitle} />
       <TbDivider />
       <PagePicker
         title={pageTitle ?? "Homepage"}

@@ -62,7 +62,7 @@
 
 **Goal:** **7A Reality Test** + demo evidence so §8 can mark 7A “accepted”.
 
-**Status (2026-05-13):** **Not complete.** Registered-host pass on `improntamodels.com` filed evidence under [`qa-evidence/2026-05-13-registered-host/`](./qa-evidence/2026-05-13-registered-host/) — **BUG-010** (publish unreachable narrow widths), **BUG-004** / preflight (desktop publish blocked), **BUG-009** (console). Re-run matrix after mitigations land; update [phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md) honestly.
+**Status (2026-05-13):** **Not complete.** Registered-host pass on `improntamodels.com` filed evidence under [`qa-evidence/2026-05-13-registered-host/`](./qa-evidence/2026-05-13-registered-host/) — **BUG-010** (publish unreachable narrow widths), **BUG-004** / preflight (desktop publish blocked), **BUG-009** (console). **2026-05-14:** Code mitigations landed for BUG-010/009/004 + **BUG-006** topbar site·page line — re-run matrix after deploy; update [phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md) honestly.
 
 **Includes:** `exec-p7a-4-roundtrip`, `gate-qa-7a-demo`, `acc-ph7a`, `pr-p3-2` (premium drop feel), optional `pr-p2-*` / `pr-p9-*` spot-checks if blocking narrative.
 
