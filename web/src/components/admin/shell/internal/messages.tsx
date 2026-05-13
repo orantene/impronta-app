@@ -8321,7 +8321,10 @@ function PayoutReceiverPicker({
 
   useEffect(() => {
     loadInquiryPayoutReceiverCandidates(effectiveTenant.slug, inquiryId)
-      .then((r) => { if (r.ok) setCandidates(r.data ?? []); });
+      .then((r) => {
+        if (r.ok) setCandidates(r.data ?? []);
+        else toast(`Couldn't load payout candidates: ${r.error}`);
+      });
   }, [inquiryId, effectiveTenant.slug]);
 
   const apply = () => {
@@ -8418,7 +8421,10 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
   const reload = React.useCallback(() => {
     setLoading(true);
     loadInquiryPaymentState(effectiveTenant.slug, inquiry.id)
-      .then((r) => { if (r.ok) setState(r.data ?? null); })
+      .then((r) => {
+        if (r.ok) setState(r.data ?? null);
+        else toast(`Couldn't load payment state: ${r.error}`);
+      })
       .finally(() => setLoading(false));
   }, [inquiry.id, effectiveTenant.slug]);
 
@@ -11133,7 +11139,7 @@ function mapParticipantToInvite(p: InquiryParticipant): InquiryTalentInvite {
  * they were reading the legacy `requirementGroups`-derived field.
  */
 function useLiveLineupOverride(inquiryId: string): InquiryTalentInvite[] | null {
-  const { effectiveTenant } = useAdminShell();
+  const { effectiveTenant, toast } = useAdminShell();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
   const [rows, setRows] = useState<InquiryParticipant[] | null>(null);
   useEffect(() => {
@@ -11142,6 +11148,7 @@ function useLiveLineupOverride(inquiryId: string): InquiryTalentInvite[] | null 
     loadInquiryLineup(effectiveTenant.slug, inquiryId).then((r) => {
       if (cancelled) return;
       if (r.ok) setRows(r.data ?? []);
+      else toast(`Lineup is showing cached data: ${r.error}`);
     });
     return () => { cancelled = true; };
   }, [inquiryId, isUuid, effectiveTenant.slug]);
@@ -11176,7 +11183,10 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
     if (!isUuid) { setLoading(false); return; }
     setLoading(true);
     loadInquiryLineup(effectiveTenant.slug, inquiryId)
-      .then((r) => { if (r.ok) setLineup(r.data ?? []); })
+      .then((r) => {
+        if (r.ok) setLineup(r.data ?? []);
+        else toast(`Couldn't load lineup: ${r.error}`);
+      })
       .finally(() => setLoading(false));
   }, [inquiryId, isUuid, effectiveTenant.slug]);
 
@@ -11377,7 +11387,10 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
   const reload = React.useCallback(() => {
     setLoading(true);
     loadOfferDraft(effectiveTenant.slug, offerId)
-      .then((r) => { if (r.ok && r.data) setSnapshot(r.data); })
+      .then((r) => {
+        if (r.ok && r.data) setSnapshot(r.data);
+        else if (!r.ok) toast(`Couldn't load offer draft: ${r.error}`);
+      })
       .finally(() => setLoading(false));
   }, [offerId, effectiveTenant.slug]);
 
@@ -13018,7 +13031,10 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
     if (!isUuid) { setLoading(false); return; }
     setLoading(true);
     loadInquiryAttachments(effectiveTenant.slug, inquiryId)
-      .then((r) => { if (r.ok) setFiles(r.data ?? []); })
+      .then((r) => {
+        if (r.ok) setFiles(r.data ?? []);
+        else toast(`Couldn't load files: ${r.error}`);
+      })
       .finally(() => setLoading(false));
   }, [inquiryId, isUuid, effectiveTenant.slug]);
 
