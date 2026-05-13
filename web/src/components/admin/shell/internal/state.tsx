@@ -6742,6 +6742,12 @@ type Ctx = {
    * render an empty state, NOT Marta's MY_AGENCIES mocks.
    */
   bridgeTalentAgencies: TalentAgencyRow[] | null;
+  /**
+   * B.2 — Notifications feed loaded from `user_notifications`. `null` means
+   * the layout didn't load it (fall back to MOCK NOTIFICATIONS in drawer);
+   * empty array means real data, no rows.
+   */
+  bridgeUserNotifications: import("./data-bridge").UserNotification[] | null;
 
   /**
    * Media photos from the bridge. `null` = mock mode (Media page falls
@@ -8238,6 +8244,9 @@ export function AdminShellProvider({
   // them (workspace-only entry); empty array means "real bridge, no
   // agency relationships yet" — render empty state, not Marta's mocks.
   const bridgeTalentAgencies = initialBridgeData?.talentAgencies ?? null;
+  // B.2 — user notifications feed. `null` falls back to mock NOTIFICATIONS
+  // in the drawer; empty array means real bridge with no rows yet.
+  const bridgeUserNotifications = initialBridgeData?.userNotifications ?? null;
 
   // Media gallery bridge — `null` falls back to MOCK_MEDIA in WorkspaceMediaPage,
   // empty array means "live mode, no photos yet" → renders empty state.
@@ -8359,6 +8368,7 @@ export function AdminShellProvider({
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
       bridgeTalentAgencies,
+      bridgeUserNotifications,
       bridgeMediaPhotos,
       bridgeMediaFolders,
       bridgeTenantIdentity,
@@ -8456,6 +8466,7 @@ export function AdminShellProvider({
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
       bridgeTalentAgencies,
+      bridgeUserNotifications,
       bridgeMediaPhotos,
       bridgeMediaFolders,
       bridgeTenantIdentity,

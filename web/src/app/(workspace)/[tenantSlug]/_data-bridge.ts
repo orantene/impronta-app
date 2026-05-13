@@ -127,6 +127,12 @@ export {
 // Moved to ./_data-bridge/calendar.ts (rev 13 split). Re-exported below.
 export { type CalendarEvent, loadCalendarEvents } from "./_data-bridge/calendar";
 
+// ─── Notifications — B.2 (user_notifications backend)
+export {
+  type UserNotification,
+  loadUserNotifications,
+} from "./_data-bridge/notifications";
+
 // ─── Website data — moved to ./_data-bridge/website.ts (rev 13)
 export {
   type WebsitePageItem,

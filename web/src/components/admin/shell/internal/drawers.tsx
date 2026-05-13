@@ -17634,7 +17634,7 @@ function batchNotifications(items: NotificationItem[]): NotifListItem[] {
 }
 
 function NotificationsDrawer() {
-  const { closeDrawer, openDrawer, toast } = useAdminShell();
+  const { closeDrawer, openDrawer, toast, bridgeUserNotifications } = useAdminShell();
   const [filter, setFilter] = useState<"all" | "unread" | "action">("all");
   // WS-11.2 — track which batches are expanded
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
@@ -17651,7 +17651,30 @@ function NotificationsDrawer() {
 
   const ACTION_KINDS: NotificationItem["kind"][] = ["message", "offer", "approval", "profile"];
 
-  const items = NOTIFICATIONS.filter((n) => n.surface === "workspace");
+  // B.2 — when bridge data is present, use real notifications. When null,
+  // fall back to the demo NOTIFICATIONS constant so standalone/mock mode
+  // still renders something meaningful.
+  const items = useMemo<NotificationItem[]>(() => {
+    if (bridgeUserNotifications !== null) {
+      return bridgeUserNotifications
+        .filter((n) => n.surface === "workspace")
+        .map((n) => ({
+          id: n.id,
+          kind: n.kind as NotificationItem["kind"],
+          inquiryId: n.originInquiryId ?? undefined,
+          title: n.title,
+          body: n.body ?? "",
+          ts: n.ts,
+          read: n.read,
+          actorName: "",
+          actorInitials: n.actorInitials ?? "·",
+          surface: "workspace" as const,
+          targetDrawer: (n.targetDrawer ?? "notifications") as NotificationItem["targetDrawer"],
+          targetPayload: n.originInquiryId ? { inquiryId: n.originInquiryId } : undefined,
+        }));
+    }
+    return NOTIFICATIONS.filter((n) => n.surface === "workspace");
+  }, [bridgeUserNotifications]);
   const filtered = items.filter((n) => {
     if (filter === "unread") return !n.read;
     if (filter === "action") return ACTION_KINDS.includes(n.kind) && !n.read;

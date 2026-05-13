@@ -23,6 +23,8 @@ export {
   loadTalentSelfProfile,
   loadTalentInquiries,
   loadTalentAgencies,
+  // B.2 — user notifications backend
+  loadUserNotifications,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 // Media gallery + watermark bridge (Agency tier feature)
@@ -47,6 +49,8 @@ export type {
   TalentSelfProfile,
   TalentInquiryRow,
   TalentAgencyRow,
+  // B.2 — user notifications backend
+  UserNotification,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 // Type-only import. `_state.tsx` is a client module ("use client") and
@@ -67,6 +71,7 @@ import type {
   TalentSelfProfile,
   TalentInquiryRow,
   TalentAgencyRow,
+  UserNotification,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 /**
@@ -140,6 +145,8 @@ export type BridgeData = {
   teamMembers: WorkspaceTeamMember[] | null;
   /** Unread message count for the nav badge. */
   totalUnread: number;
+  /** B.2 — user notifications feed for the workspace surface drawer. */
+  userNotifications?: UserNotification[] | null;
 
   // ── Phase 3.12.2 talent self-surface bridge fields ─────────────────────────
   /**

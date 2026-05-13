@@ -27,6 +27,7 @@ import {
   loadWebsiteData,
   loadTalentSelfProfile,
   loadTalentInquiries,
+  loadUserNotifications,
 } from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
@@ -113,6 +114,7 @@ export default async function WorkspaceAdminLayout({
     mediaBridge,
     talentSelfProfile,
     websiteData,
+    userNotifications,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(),
     loadInquiriesForMessages(tenantId),
@@ -131,6 +133,8 @@ export default async function WorkspaceAdminLayout({
     // don't. Returns null when the user has no talent profile here.
     loadTalentSelfProfile(session.user.id, tenantId),
     loadWebsiteData(tenantId),
+    // B.2 — user notifications feed for the workspace surface.
+    loadUserNotifications(tenantId, "workspace"),
   ]);
 
   // Pre-fetch hybrid-only data (talent inquiries + cross-mode unread + user
@@ -194,6 +198,7 @@ export default async function WorkspaceAdminLayout({
           preferredSurface: userPrefs?.preferredSurface ?? null,
           firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
           website: websiteData,
+          userNotifications,
         }}
       >
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}
