@@ -2624,6 +2624,9 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
         borderRadius: RADIUS.md, overflow: "hidden",
         flex: 1, minHeight: 0,
         display: "flex", flexDirection: "column",
+        // Anchor for the floating ChatSubToggleDropdown (absolute,
+        // top:4 left:8 — see component).
+        position: "relative",
       }}>
         <ThreadTabBar
           activeId={activeTab}
@@ -4876,6 +4879,8 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
         borderRadius: RADIUS.md, overflow: "hidden",
         flex: 1, minHeight: 0,
         display: "flex", flexDirection: "column",
+        // Anchor for the floating ChatSubToggleDropdown switch.
+        position: "relative",
       }}>
         <ThreadTabBar
           activeId={activeTab}
@@ -10782,21 +10787,20 @@ function ThreadSearchTrigger({
 }
 
 /**
- * ChatSubToggleDropdown — floating sub-thread switcher for the Chat
- * tab. Renders as a small "Client ▾" pill that opens an absolute-
- * positioned panel listing all 3 sub-threads. Auto-closes on selection
- * + backdrop tap + Esc.
+ * ChatSubToggleDropdown — floating absolute segmented switch for the
+ * Chat tab. NOT a dropdown — a 3-button pill that hovers below the
+ * Chat tab. Click any button to switch threads immediately.
  *
- * Replaces the prior 32px-tall always-on segmented row. Reclaims the
- * vertical space for the conversation pane.
+ * Position is `absolute` so it doesn't reserve vertical space — it
+ * floats above the conversation pane's top edge. Parent must be
+ * `position: relative`. The conversation pane below sits 36px down
+ * from the tab bar (the floating switch overlays that gap visually).
  */
 function ChatSubToggleDropdown({
   current,
   onSelect,
   clientUnread,
   groupUnread,
-  /** Plain talent shells can pass `lockClient` so the Client item
-   *  renders disabled + opens the coord-request sheet on tap. */
   lockClient = false,
   onLockedClick,
 }: {
@@ -10807,25 +10811,6 @@ function ChatSubToggleDropdown({
   lockClient?: boolean;
   onLockedClick?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   const labelOf = (s: ChatSubThreadId): string =>
     s === "client" ? "Client" : s === "group" ? "Group" : "DM";
 
@@ -10833,141 +10818,82 @@ function ChatSubToggleDropdown({
 
   return (
     <div
-      ref={wrapRef}
+      data-chat-sub-toggle
       style={{
-        position: "relative",
-        display: "flex", alignItems: "center",
-        padding: "6px 10px",
-        background: COLORS.surfaceAlt,
-        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        // Floats down from the Chat tab. Parent must be
+        // `position: relative`. Top offset accounts for the ~44px
+        // ThreadTabBar height + a 4px gap so the switch sits flush
+        // beneath the tab strip without reserving vertical space in
+        // the conversation column.
+        position: "absolute",
+        top: 48,
+        left: 10,
+        zIndex: 6,
+        display: "inline-flex",
+        gap: 2,
+        padding: 3,
+        background: "rgba(255,255,255,0.96)",
+        backdropFilter: "blur(8px)",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 999,
+        boxShadow: "0 6px 14px rgba(11,11,13,0.10)",
       }}
     >
-      <span style={{
-        fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
-        color: COLORS.inkMuted, textTransform: "uppercase",
-        marginRight: 8,
-      }}>
-        Thread
-      </span>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 5,
-          padding: "4px 10px",
-          background: "#fff",
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: 999,
-          cursor: "pointer",
-          fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
-          color: COLORS.ink,
-          boxShadow: "0 1px 2px rgba(11,11,13,0.04)",
-        }}
-      >
-        {labelOf(current)}
-        {((current === "client" && (clientUnread ?? 0) > 0)
-          || (current === "group" && (groupUnread ?? 0) > 0)) && (
-          <span style={{
-            minWidth: 16, height: 16, padding: "0 4px",
-            borderRadius: 999,
-            background: COLORS.indigoDeep, color: "#fff",
-            fontSize: 10, fontWeight: 700,
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-          }}>
-            {current === "client" ? clientUnread : groupUnread}
-          </span>
-        )}
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden style={{
-          transform: open ? "rotate(180deg)" : "rotate(0deg)",
-          transition: "transform 120ms",
-        }}>
-          <path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 10 + 8 + 60, // align under the pill — pad + label + pill width approx
-            // On mobile the constant left positioning may be slightly off;
-            // since the dropdown is small (180px wide) it stays in view.
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 10,
-            boxShadow: "0 12px 32px rgba(11,11,13,0.14)",
-            minWidth: 180,
-            zIndex: 50,
-            padding: 4,
-            display: "flex", flexDirection: "column",
-          }}
-        >
-          {subs.map((s) => {
-            const active = current === s;
-            const locked = s === "client" && lockClient;
-            const subUnread = s === "client" ? clientUnread
-              : s === "group" ? groupUnread
-              : 0;
-            return (
-              <button
-                key={s}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  if (locked) {
-                    onLockedClick?.();
-                    setOpen(false);
-                    return;
-                  }
-                  onSelect(s);
-                  setOpen(false);
-                }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "9px 10px",
-                  border: "none",
-                  background: active ? COLORS.surfaceAlt : "transparent",
-                  cursor: locked ? "not-allowed" : "pointer",
-                  borderRadius: 6,
-                  fontFamily: FONTS.body, fontSize: 13, fontWeight: active ? 700 : 500,
-                  color: locked ? COLORS.inkDim : (active ? COLORS.ink : COLORS.ink),
-                  textAlign: "left",
-                  minHeight: 36,
-                  opacity: locked ? 0.7 : 1,
-                }}
-              >
-                {locked && (
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
-                    <rect x="2.5" y="5" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
-                    <path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" strokeWidth="1.4"/>
-                  </svg>
-                )}
-                <span style={{ flex: 1 }}>{labelOf(s)}</span>
-                {(subUnread ?? 0) > 0 && (
-                  <span style={{
-                    minWidth: 18, height: 18, padding: "0 6px",
-                    borderRadius: 999,
-                    background: COLORS.indigoSoft, color: COLORS.indigoDeep,
-                    fontSize: 10.5, fontWeight: 700,
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {subUnread}
-                  </span>
-                )}
-                {active && (
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-                    <path d="M2.5 6l2.5 2.5L10 3.5" stroke={COLORS.accent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {subs.map((s) => {
+        const active = current === s;
+        const locked = s === "client" && lockClient;
+        const subUnread = s === "client" ? clientUnread
+          : s === "group" ? groupUnread
+          : 0;
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => {
+              if (locked) {
+                onLockedClick?.();
+                return;
+              }
+              onSelect(s);
+            }}
+            title={locked ? "Locked — request to join as coordinator" : undefined}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "4px 10px",
+              borderRadius: 999,
+              border: "none",
+              cursor: locked ? "not-allowed" : "pointer",
+              fontFamily: FONTS.body, fontSize: 12,
+              fontWeight: active ? 700 : 600,
+              color: locked ? COLORS.inkDim : (active ? "#fff" : COLORS.inkMuted),
+              background: active ? COLORS.accent : "transparent",
+              opacity: locked ? 0.7 : 1,
+              transition: "background 100ms, color 100ms",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {locked && (
+              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <rect x="2.5" y="5" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" strokeWidth="1.4"/>
+              </svg>
+            )}
+            {labelOf(s)}
+            {(subUnread ?? 0) > 0 && (
+              <span style={{
+                minWidth: 15, height: 15, padding: "0 4px",
+                borderRadius: 999,
+                background: active ? "rgba(255,255,255,0.25)" : COLORS.indigoSoft,
+                color: active ? "#fff" : COLORS.indigoDeep,
+                fontSize: 9.5, fontWeight: 700,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {subUnread}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
