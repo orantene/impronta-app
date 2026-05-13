@@ -3,6 +3,7 @@ import { loadAccessProfile } from "@/lib/access-profile";
 import { isStaffRole } from "@/lib/auth-flow";
 import { fetchGoogleGlobalCityPredictions, isGooglePlacesConfigured } from "@/lib/google-places";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { logServerError } from "@/lib/server/safe-error";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -29,7 +30,8 @@ export async function GET(request: Request) {
   try {
     const predictions = await fetchGoogleGlobalCityPredictions(q);
     return NextResponse.json({ predictions, configured: true });
-  } catch {
+  } catch (err) {
+    logServerError("api.places-city-global.GET", err);
     return NextResponse.json({ predictions: [], configured: true });
   }
 }

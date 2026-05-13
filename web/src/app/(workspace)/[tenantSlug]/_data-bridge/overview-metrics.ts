@@ -182,7 +182,8 @@ export async function loadPendingRosterCount(tenantId: string): Promise<number> 
       .eq("tenant_id", tenantId)
       .eq("status", "pending");
     return count ?? 0;
-  } catch {
+  } catch (err) {
+    logServerError("workspace.loadPendingRosterCount", err);
     return 0;
   }
 }
