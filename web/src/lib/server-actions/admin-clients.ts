@@ -7,7 +7,7 @@ import { requireStaff } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-// TODO A.4: convert to `ServerActionResult<T>`. This is a `useFormState`
+// A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. This is a `useFormState`
 // payload (admin "new client" sheet) that carries both success metadata
 // (`createdUserId`, `temporaryPassword`, etc.) and error state on the same
 // object. Conversion requires moving the create-result fields under `data`

@@ -10,7 +10,7 @@ import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
 
-// TODO A.4: convert to `ServerActionResult<T>`. `useFormState` shape for the
+// A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. `useFormState` shape for the
 // client profile edit form; conversion requires updating the form action and
 // every consumer. Out of scope for the initial sweep.
 export type ClientProfileActionState =

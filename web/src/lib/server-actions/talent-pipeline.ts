@@ -24,7 +24,7 @@ import {
   submitTalentRate,
 } from "@/lib/inquiry/inquiry-engine-offers";
 
-// TODO A.4: align with canonical `ServerActionResult<T>` — currently kept
+// A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently kept
 // as a structurally compatible local type so `withInquiryContext` can return
 // `TalentActionResult & { data?: T }` without restructuring every caller.
 // Convert once the pipeline data-payload story is unified across all wrappers.

@@ -25,7 +25,7 @@ import {
 } from "@/lib/payments/stripe-connect";
 import { headers } from "next/headers";
 
-// TODO A.4: align with canonical `ServerActionResult<T>` — currently
+// A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently
 // preserved as a structurally compatible local type so `startInquiryCheckout`
 // can attach `url`/`mock` on success without restructuring callers (Stripe
 // redirect flow). Convert when checkout response is moved into a `data`

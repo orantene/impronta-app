@@ -25,7 +25,7 @@ import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inqui
 // `ReferenceError: AdminActionState is not defined` at module evaluation
 // when the prior `import type ... ; export type { ... }` pair was used).
 //
-// TODO A.4: align with canonical `ServerActionResult<T>`. `AdminActionState`
+// A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>`. `AdminActionState`
 // is a `useFormState` shape consumed by 15+ admin functions and 10+ form
 // components; conversion requires re-binding every form action + narrowing
 // site. Out of scope for the initial sweep.

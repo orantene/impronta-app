@@ -20,7 +20,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// TODO A.4: convert to `ServerActionResult<T>`. Currently a `useFormState`
+// A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. Currently a `useFormState`
 // shape consumed by 4+ admin components — conversion requires changing every
 // `useFormState`/`useActionState` binding and the `if ("error" in state)`
 // narrowing in each consumer. Out of scope for the initial sweep.
