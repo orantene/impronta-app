@@ -35,7 +35,10 @@ export default async function ClientDiscoverPage({ params }: { params: PageParam
   if (!clientProfile) notFound();
 
   const roster = await loadWorkspaceRosterEnriched(scope.tenantId);
-  const visible = roster.filter((r) => r.state === "published");
+  // Include "claimed" talent (has a user account, not yet fully published)
+  // alongside "published" so the discover page isn't empty on fresh workspaces.
+  // Mirrors the filter widened in `inquiries/new/page.tsx` in Wave 3 (2026-05-12).
+  const visible = roster.filter((r) => r.state === "published" || r.state === "claimed");
 
   return (
     <div style={{ fontFamily: FONT }}>
