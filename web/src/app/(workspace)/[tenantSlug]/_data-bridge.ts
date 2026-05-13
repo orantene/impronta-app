@@ -133,6 +133,13 @@ export {
   loadUserNotifications,
 } from "./_data-bridge/notifications";
 
+// ─── Talent calendar — B.3 (talent_bookings + holds + availability_blocks)
+export {
+  type TalentCalendarEntry,
+  type TalentCalendarEntryKind,
+  loadTalentCalendarEntries,
+} from "./_data-bridge/talent-calendar";
+
 // ─── Website data — moved to ./_data-bridge/website.ts (rev 13)
 export {
   type WebsitePageItem,
