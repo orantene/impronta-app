@@ -29,6 +29,7 @@ export async function sendMessage(
   inquiryId: string,
   threadType: ThreadType,
   body: string,
+  replyToMessageId?: string | null,
 ): Promise<{ id: string; created_at: string } | { error: string }> {
   try {
     const trimmed = body.trim();
@@ -60,6 +61,7 @@ export async function sendMessage(
         sender_user_id: user.id,
         body: trimmed,
         tenant_id: scope.tenantId,
+        ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
       })
       .select("id, created_at")
       .single();
