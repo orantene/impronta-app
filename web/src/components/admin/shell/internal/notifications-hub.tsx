@@ -16,11 +16,41 @@
  * items don't reappear after page reload.
  */
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { COLORS, FONTS, useAdminShell, RICH_INQUIRIES } from "./state";
 import { MOCK_CONVERSATIONS } from "./talent";
 import { ageLabel } from "./messages";
 import { useDashboardText } from "./dashboard-i18n";
+import type { UserNotification } from "./data-bridge";
+import {
+  markAllAdminNotificationsRead,
+  markAdminNotificationRead,
+} from "@/lib/notifications/admin-notifications-actions";
+
+/** Bucket inference from the structured `kind` column on user_notifications.
+ *  - approval, offer (when awaiting decision) → action
+ *  - payment, plan, system → system
+ *  - everything else (message, booking confirm, profile) → update */
+function bucketForKind(kind: UserNotification["kind"]): "action" | "update" | "system" {
+  if (kind === "approval") return "action";
+  if (kind === "system") return "system";
+  if (kind === "payment") return "system";
+  // 'message' / 'offer' / 'booking' / 'profile' → update (recap, not blocking)
+  return "update";
+}
+
+/** Icon per kind — emoji vocabulary aligned with existing hub items. */
+function iconForKind(kind: UserNotification["kind"]): string {
+  switch (kind) {
+    case "approval": return "👤";
+    case "message":  return "💬";
+    case "offer":    return "💼";
+    case "booking":  return "📅";
+    case "payment":  return "💳";
+    case "profile":  return "✎";
+    case "system":   return "ⓘ";
+  }
+}
 
 export type HubItem = {
   id: string;
@@ -56,13 +86,21 @@ function writeSet(key: string, set: Set<string>) {
 }
 
 /** Anchored bell + popover. Caller renders this where the bell goes;
- *  the count + popover are managed internally. */
+ *  the count + popover are managed internally.
+ *
+ *  A9 — reads real notifications from `bridgeUserNotifications` on the
+ *  admin shell context. When that's non-empty, real rows REPLACE the
+ *  previous fixture-derived "new inquiry" / "booking confirmed" mock
+ *  items. Pending-talent (still derived from shell state) + plan-cap
+ *  (system) stay as-is. When the bridge is null/empty, the legacy mock
+ *  items render so dev dashboards still demo. */
 export function NotificationsBell({
   size = "md",
 }: {
   size?: "sm" | "md";
 }) {
-  const { state, openDrawer, pendingTalent } = useAdminShell();
+  const { state, openDrawer, pendingTalent, bridgeUserNotifications } = useAdminShell();
+  const realNotifications = bridgeUserNotifications;
   const copy = useDashboardText();
   const popoverId = useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -70,6 +108,25 @@ export function NotificationsBell({
   const [readSetState, setReadSetState] = useState<Set<string>>(() => readSet(READ_KEY));
   const [dismissedState, setDismissedState] = useState<Set<string>>(() => readSet(DISMISSED_KEY));
   const [, force] = useState(0);
+
+  // A9 — seed the read-set with notifications whose row already has
+  // `read_at` set on the server (mapped to `read: true` by the loader).
+  // Otherwise opening the bell shows stale unread counts after a tab
+  // refresh.
+  useEffect(() => {
+    if (!realNotifications || realNotifications.length === 0) return;
+    const alreadyRead = realNotifications.filter((n) => n.read).map((n) => `notif-${n.id}`);
+    if (alreadyRead.length === 0) return;
+    setReadSetState((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of alreadyRead) {
+        if (!next.has(id)) { next.add(id); changed = true; }
+      }
+      if (changed) writeSet(READ_KEY, next);
+      return changed ? next : prev;
+    });
+  }, [realNotifications]);
 
   // Native popover="auto" places the element in the browser's top layer,
   // so position:absolute relative to its DOM parent no longer applies.
@@ -108,11 +165,17 @@ export function NotificationsBell({
 
   const closePopover = () => popoverRef.current?.hidePopover?.();
 
-  // Build items from real proto state — pendingTalent + a couple of
-  // mocks for the other buckets.
+  // A9 — when real notifications are passed in, prefer them and skip the
+  // fixture sections (MOCK_CONVERSATIONS / RICH_INQUIRIES "new inquiry"
+  // items + the "Booking confirmed · Bvlgari" demo item). When absent,
+  // fall back to the legacy mock items so dev dashboards still demo.
+  const useRealData = Array.isArray(realNotifications) && realNotifications.length > 0;
+
   const items: HubItem[] = useMemo(() => {
     const out: HubItem[] = [];
-    // Action: pending approvals
+
+    // Action: pending approvals — derived from shell state, NOT routed
+    // notifications. Stays regardless of which mode we're in.
     pendingTalent.forEach((p) => {
       out.push({
         id: `pending-${p.id}`,
@@ -126,39 +189,58 @@ export function NotificationsBell({
         cta: { label: copy.t("Review"), run: () => openDrawer("talent-approvals") },
       });
     });
-    // Action: brand-new (unseen) inquiries from MOCK_CONVERSATIONS +
-    // RICH_INQUIRIES. The bell should reflect what the inbox is
-    // already flagging with the NEW pill — not lag behind it.
-    MOCK_CONVERSATIONS.filter(c => c.seen === false).forEach(c => {
-      out.push({
-        id: `new-conv-${c.id}`,
-        bucket: "action",
-        icon: "📥",
-        title: `${copy.t("New inquiry")} · ${c.client}`,
-        body: c.lastMessage.preview.slice(0, 90),
-        whenLabel: ageLabel(c.lastMessage.ageHrs),
+
+    if (useRealData) {
+      // Real notifications path — one HubItem per `user_notifications` row.
+      // Bucket inferred from `kind`; icon picked from a small vocab.
+      // ID prefix keeps these in their own namespace so localStorage
+      // read/dismissed sets don't collide with fixture items.
+      for (const n of realNotifications!) {
+        out.push({
+          id: `notif-${n.id}`,
+          bucket: bucketForKind(n.kind),
+          icon: iconForKind(n.kind),
+          title: n.title,
+          body: n.body ?? "",
+          whenLabel: n.ts,
+        });
+      }
+    } else {
+      // Legacy fixture-mode (dev dashboards / synthetic data demos).
+      // Brand-new (unseen) inquiries from MOCK_CONVERSATIONS + RICH_INQUIRIES.
+      MOCK_CONVERSATIONS.filter(c => c.seen === false).forEach(c => {
+        out.push({
+          id: `new-conv-${c.id}`,
+          bucket: "action",
+          icon: "📥",
+          title: `${copy.t("New inquiry")} · ${c.client}`,
+          body: c.lastMessage.preview.slice(0, 90),
+          whenLabel: ageLabel(c.lastMessage.ageHrs),
+        });
       });
-    });
-    RICH_INQUIRIES.filter(i => i.seen === false).forEach(i => {
-      out.push({
-        id: `new-inq-${i.id}`,
-        bucket: "action",
-        icon: "📥",
-        title: `${copy.t("New inquiry")} · ${i.clientName}`,
-        body: i.brief,
-        whenLabel: ageLabel(i.lastActivityHrs),
+      RICH_INQUIRIES.filter(i => i.seen === false).forEach(i => {
+        out.push({
+          id: `new-inq-${i.id}`,
+          bucket: "action",
+          icon: "📥",
+          title: `${copy.t("New inquiry")} · ${i.clientName}`,
+          body: i.brief,
+          whenLabel: ageLabel(i.lastActivityHrs),
+        });
       });
-    });
-    // Update mocks
-    out.push({
-      id: "rev-203", bucket: "update", icon: "✓",
-      title: `${copy.t("Booking confirmed")} · Bvlgari`,
-      body: copy.isSpanish
-        ? `Kai Lin · 2 días · €3,200 · ${copy.t("payment cleared.")}`
-        : `Kai Lin · 2 days · €3,200 · ${copy.t("payment cleared.")}`,
-      whenLabel: copy.isSpanish ? "hace 1 h" : "1h ago",
-    });
-    // System mocks
+      // Demo "booking confirmed" item — only in legacy mode.
+      out.push({
+        id: "rev-203", bucket: "update", icon: "✓",
+        title: `${copy.t("Booking confirmed")} · Bvlgari`,
+        body: copy.isSpanish
+          ? `Kai Lin · 2 días · €3,200 · ${copy.t("payment cleared.")}`
+          : `Kai Lin · 2 days · €3,200 · ${copy.t("payment cleared.")}`,
+        whenLabel: copy.isSpanish ? "hace 1 h" : "1h ago",
+      });
+    }
+
+    // System: plan-cap nudge stays in both modes (it's not a notification,
+    // it's a contextual prompt derived from the workspace plan).
     if (state.plan === "free") {
       out.push({
         id: "plan-cap", bucket: "system", icon: "↑",
@@ -169,28 +251,50 @@ export function NotificationsBell({
       });
     }
     return out.filter(i => !dismissedState.has(i.id));
-  }, [copy, pendingTalent, state.plan, openDrawer, dismissedState]);
+  }, [copy, pendingTalent, state.plan, openDrawer, dismissedState, useRealData, realNotifications]);
 
   const unreadActionCount = items.filter(i => i.bucket === "action" && !readSetState.has(i.id)).length;
   const totalUnread = items.filter(i => !readSetState.has(i.id)).length;
 
-  const markRead = (id: string) => {
+  // A9 — when an item is a real notification (`notif-<uuid>`), also fire
+  // the server action to persist read state. Otherwise localStorage-only
+  // (legacy fixture items have no server-side row to update).
+  const realNotifIdFromItemId = (id: string): string | null => {
+    if (!id.startsWith("notif-")) return null;
+    return id.slice("notif-".length);
+  };
+  const markRead = useCallback((id: string) => {
     const next = new Set(readSetState);
     next.add(id);
     writeSet(READ_KEY, next);
     setReadSetState(next);
-  };
-  const markAllRead = () => {
+    const realId = realNotifIdFromItemId(id);
+    if (realId) {
+      void markAdminNotificationRead(realId);
+    }
+  }, [readSetState]);
+  const markAllRead = useCallback(() => {
     const next = new Set([...readSetState, ...items.map(i => i.id)]);
     writeSet(READ_KEY, next);
     setReadSetState(next);
-  };
-  const dismiss = (id: string) => {
+    if (useRealData) {
+      // Fire-and-forget bulk action — UI is already optimistic. Failures
+      // get re-shown on the next layout reload.
+      void markAllAdminNotificationsRead();
+    }
+  }, [readSetState, items, useRealData]);
+  const dismiss = useCallback((id: string) => {
     const next = new Set(dismissedState);
     next.add(id);
     writeSet(DISMISSED_KEY, next);
     setDismissedState(next);
-  };
+    // Dismiss = mark-read on the server side too (we treat dismissal as
+    // the strongest form of "I've seen this and don't want to see it again").
+    const realId = realNotifIdFromItemId(id);
+    if (realId) {
+      void markAdminNotificationRead(realId);
+    }
+  }, [dismissedState]);
 
   // Group items by bucket for rendering
   const grouped = {
