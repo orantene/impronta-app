@@ -817,7 +817,8 @@ function SaveStatus({ dirty, saving }: { dirty: boolean; saving: boolean }) {
           color: CHROME.amber,
           borderColor: CHROME.amberLine,
         }}
-        title="Edits are only in your draft until you publish"
+        title="Edits are only in your draft until you publish. If the canvas or device preview looks one step behind, wait for autosave to finish or switch viewport to refresh the preview."
+        aria-label="Unsaved draft — changes are not fully saved yet, or the preview may still be catching up."
       >
         <span
           className={dot}
@@ -913,6 +914,13 @@ const VIEWPORT_OPTS: ReadonlyArray<{
     ),
   },
 ];
+
+function viewportPreviewTitle(device: EditDevice, label: string): string {
+  if (device === "desktop") {
+    return `${label} — full-width editing canvas`;
+  }
+  return `${label} — device-width iframe preview; reloads when the draft saves so breakpoints stay accurate`;
+}
 
 /**
  * Locale switcher pill — visible only when the active tenant publishes more
@@ -1090,7 +1098,7 @@ function ViewportSwitcher({
             key={opt.key}
             type="button"
             onClick={() => setDevice(opt.key)}
-            title={opt.label}
+            title={viewportPreviewTitle(opt.key, opt.label)}
             aria-label={opt.label}
             aria-pressed={active}
             className="inline-flex items-center gap-[5px] rounded-full border-none px-[13px] py-[5px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
