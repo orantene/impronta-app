@@ -166,7 +166,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: FONT }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: FONT, paddingBottom: "calc(72px + env(safe-area-inset-bottom))" }}>
       <style>{`.client-inq-row:hover { background: ${C.surfaceAlt}; }`}</style>
 
       {/* Header */}
@@ -316,14 +316,16 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
         </div>
       )}
 
-      {/* Sticky bottom action bar */}
+      {/* Sticky bottom action bar — flex-wraps on narrow widths so the two
+          CTAs always fit; safe-area inset for iOS notch / home-indicator. */}
       <div
         style={{
           position: "sticky",
-          bottom: 20,
+          bottom: "calc(12px + env(safe-area-inset-bottom))",
           display: "flex",
           justifyContent: "center",
           gap: 10,
+          flexWrap: "wrap",
           pointerEvents: "none",
         }}
       >

@@ -32,8 +32,10 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
         position: "sticky",
         top: 56,
         zIndex: 40,
-        padding: "0 24px",
         height: 52,
+        // D.3 — horizontal scroll on narrow widths instead of overflow
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
       }}
     >
       <div
@@ -44,6 +46,10 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
           maxWidth: 1440,
           margin: "0 auto",
           gap: 2,
+          padding: "0 24px",
+          // D.3 — flex children stay on one line; container scrolls if needed
+          width: "max-content",
+          minWidth: "100%",
         }}
       >
         {NAV_ITEMS.map(({ label, path }) => {
