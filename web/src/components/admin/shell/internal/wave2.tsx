@@ -317,10 +317,17 @@ export function NotificationsPrefsDrawer() {
         const merged = { ...current };
         for (const [ev, channels] of Object.entries(saved)) {
           if (ev in merged) {
+            // F.12 — restore all 5 channels; fall back to current defaults
+            // when the saved row predates the multi-channel persistence
+            // (older shape only stored email + push).
+            const c = channels as { email?: boolean; push?: boolean; inApp?: boolean; sms?: boolean; digest?: boolean };
             merged[ev as NotifEvent] = {
               ...merged[ev as NotifEvent],
-              email: channels.email,
-              push: channels.push,
+              email: c.email ?? merged[ev as NotifEvent].email,
+              push: c.push ?? merged[ev as NotifEvent].push,
+              inApp: c.inApp ?? merged[ev as NotifEvent].inApp,
+              sms: c.sms ?? merged[ev as NotifEvent].sms,
+              digest: c.digest ?? merged[ev as NotifEvent].digest,
             };
           }
         }
@@ -371,9 +378,16 @@ export function NotificationsPrefsDrawer() {
             onClick={async () => {
               setSaving(true);
               setSaveError(null);
-              const serverPrefs: Record<string, { email: boolean; push: boolean }> = {};
+              // F.12 — persist the full 5-channel matrix, not just email/push.
+              const serverPrefs: Record<string, { email: boolean; push: boolean; inApp?: boolean; sms?: boolean; digest?: boolean }> = {};
               for (const [ev, channels] of Object.entries(prefs)) {
-                serverPrefs[ev] = { email: channels.email ?? false, push: channels.push ?? false };
+                serverPrefs[ev] = {
+                  email: channels.email ?? false,
+                  push: channels.push ?? false,
+                  inApp: channels.inApp ?? false,
+                  sms: channels.sms ?? false,
+                  digest: channels.digest ?? false,
+                };
               }
               try {
                 await setNotificationPrefs(serverPrefs);

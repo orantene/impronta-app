@@ -16,10 +16,23 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 
+/** F.12 — Full channel matrix per event. Email + push remain primary
+ * (canonical signals); inApp/sms/digest extend the matrix for adopters
+ * with richer surfaces. Old callers still passing { email, push } get
+ * the other channels defaulted to undefined which the loader normalizes
+ * back. */
+export type NotificationChannelPrefs = {
+  email: boolean;
+  push: boolean;
+  inApp?: boolean;
+  sms?: boolean;
+  digest?: boolean;
+};
+
 export type UserPrefs = {
   preferredSurface: "talent" | "workspace" | null;
   firstRunToggleTipSeen: boolean;
-  notificationPrefs: Record<string, { email: boolean; push: boolean }>;
+  notificationPrefs: Record<string, NotificationChannelPrefs>;
 };
 
 /**
@@ -138,7 +151,7 @@ export async function markToggleTipSeen(): Promise<void> {
  * Auth required — reads user from session cookie.
  */
 export async function setNotificationPrefs(
-  prefs: Record<string, { email: boolean; push: boolean }>,
+  prefs: Record<string, NotificationChannelPrefs>,
 ): Promise<void> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -164,7 +177,7 @@ export async function setNotificationPrefs(
  * Load notification preferences for the current session user.
  * Returns empty object on error (caller uses defaults).
  */
-export async function getNotificationPrefs(): Promise<Record<string, { email: boolean; push: boolean }>> {
+export async function getNotificationPrefs(): Promise<Record<string, NotificationChannelPrefs>> {
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return {};
@@ -179,7 +192,7 @@ export async function getNotificationPrefs(): Promise<Record<string, { email: bo
       .maybeSingle();
 
     if (error || !data) return {};
-    return (data as { notification_prefs: Record<string, { email: boolean; push: boolean }> | null }).notification_prefs ?? {};
+    return (data as { notification_prefs: Record<string, NotificationChannelPrefs> | null }).notification_prefs ?? {};
   } catch {
     return {};
   }
