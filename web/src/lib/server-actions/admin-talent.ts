@@ -41,6 +41,11 @@ import { assertLocaleConsistency } from "@/lib/translation-center/save/assert-lo
 import type { Locale } from "@/i18n/config";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 
+// TODO A.4: convert to `ServerActionResult<T>`. Both shapes are `useFormState`
+// payloads (note the `| undefined` for the initial state) consumed by admin
+// talent edit forms; conversion requires re-binding every `useFormState` and
+// updating each `state.error` / `state.success` narrowing. Out of scope for
+// the initial sweep.
 export type TalentActionState = { error?: string; success?: boolean } | undefined;
 
 export type AdminTalentFieldValuesState =

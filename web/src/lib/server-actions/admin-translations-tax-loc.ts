@@ -6,11 +6,12 @@ import { z } from "zod";
 
 import { revalidateTaxonomyCaches } from "@/lib/revalidate-public";
 import { requireStaff } from "@/lib/server/action-guards";
+import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const idSchema = z.object({ id: z.string().uuid() });
 const bulkSchema = z.object({ ids: z.array(z.string().uuid()).max(500) });
 
-export type TaxLocActionResult = { error?: string; success?: true };
+export type TaxLocActionResult = ServerActionResult;
 
 async function markTaxonomyTranslatedCore(
   supabase: SupabaseClient,
@@ -69,78 +70,78 @@ export async function adminMarkTaxonomyTranslated(
   input: z.infer<typeof idSchema>,
 ): Promise<TaxLocActionResult> {
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid term." };
+  if (!parsed.success) return { ok: false, error: "Invalid term." };
 
   const { error } = await markTaxonomyTranslatedCore(auth.supabase, parsed.data.id);
-  if (error) return { error };
+  if (error) return { ok: false, error };
 
   revalidatePath("/admin/translations");
   revalidatePath("/admin/taxonomy");
-  return { success: true };
+  return { ok: true, data: undefined };
 }
 
 export async function adminMarkLocationTranslated(
   input: z.infer<typeof idSchema>,
 ): Promise<TaxLocActionResult> {
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid location." };
+  if (!parsed.success) return { ok: false, error: "Invalid location." };
 
   const { error } = await markLocationTranslatedCore(auth.supabase, parsed.data.id);
-  if (error) return { error };
+  if (error) return { ok: false, error };
 
   revalidatePath("/admin/translations");
   revalidatePath("/admin/locations");
-  return { success: true };
+  return { ok: true, data: undefined };
 }
 
-export type BulkTaxLocResult = { ok: number; failed: { id: string; message: string }[] };
+export type BulkTaxLocSummary = { processed: number; failed: { id: string; message: string }[] };
 
 export async function adminBulkMarkTaxonomyTranslated(
   input: z.infer<typeof bulkSchema>,
-): Promise<BulkTaxLocResult | { error: string }> {
+): Promise<ServerActionResult<BulkTaxLocSummary>> {
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = bulkSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid selection." };
+  if (!parsed.success) return { ok: false, error: "Invalid selection." };
   const ids = parsed.data.ids;
-  if (ids.length === 0) return { error: "Select at least one row." };
+  if (ids.length === 0) return { ok: false, error: "Select at least one row." };
 
   const failed: { id: string; message: string }[] = [];
-  let ok = 0;
+  let processed = 0;
   for (const id of ids) {
     const { error } = await markTaxonomyTranslatedCore(auth.supabase, id);
     if (error) failed.push({ id, message: error });
-    else ok += 1;
+    else processed += 1;
   }
   revalidatePath("/admin/translations");
   revalidatePath("/admin/taxonomy");
-  return { ok, failed };
+  return { ok: true, data: { processed, failed } };
 }
 
 export async function adminBulkMarkLocationTranslated(
   input: z.infer<typeof bulkSchema>,
-): Promise<BulkTaxLocResult | { error: string }> {
+): Promise<ServerActionResult<BulkTaxLocSummary>> {
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = bulkSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid selection." };
+  if (!parsed.success) return { ok: false, error: "Invalid selection." };
   const ids = parsed.data.ids;
-  if (ids.length === 0) return { error: "Select at least one row." };
+  if (ids.length === 0) return { ok: false, error: "Select at least one row." };
 
   const failed: { id: string; message: string }[] = [];
-  let ok = 0;
+  let processed = 0;
   for (const id of ids) {
     const { error } = await markLocationTranslatedCore(auth.supabase, id);
     if (error) failed.push({ id, message: error });
-    else ok += 1;
+    else processed += 1;
   }
   revalidatePath("/admin/translations");
   revalidatePath("/admin/locations");
-  return { ok, failed };
+  return { ok: true, data: { processed, failed } };
 }
 
 const labelEsSchema = z.object({
@@ -171,11 +172,11 @@ export type LocationTranslationPanelPayload = {
 
 export async function adminLoadTaxonomyTranslationPanelData(
   input: z.infer<typeof idSchema>,
-): Promise<{ error: string } | { data: TaxonomyTranslationPanelPayload }> {
+): Promise<ServerActionResult<TaxonomyTranslationPanelPayload>> {
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid term." };
+  if (!parsed.success) return { ok: false, error: "Invalid term." };
 
   const { data: row, error } = await auth.supabase
     .from("taxonomy_terms")
@@ -183,8 +184,9 @@ export async function adminLoadTaxonomyTranslationPanelData(
     .eq("id", parsed.data.id)
     .is("archived_at", null)
     .maybeSingle();
-  if (error || !row) return { error: "Term not found." };
+  if (error || !row) return { ok: false, error: "Term not found." };
   return {
+    ok: true,
     data: {
       id: row.id as string,
       kind: String(row.kind ?? ""),
@@ -197,11 +199,11 @@ export async function adminLoadTaxonomyTranslationPanelData(
 
 export async function adminLoadLocationTranslationPanelData(
   input: z.infer<typeof idSchema>,
-): Promise<{ error: string } | { data: LocationTranslationPanelPayload }> {
+): Promise<ServerActionResult<LocationTranslationPanelPayload>> {
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid location." };
+  if (!parsed.success) return { ok: false, error: "Invalid location." };
 
   const { data: row, error } = await auth.supabase
     .from("locations")
@@ -209,8 +211,9 @@ export async function adminLoadLocationTranslationPanelData(
     .eq("id", parsed.data.id)
     .is("archived_at", null)
     .maybeSingle();
-  if (error || !row) return { error: "Location not found." };
+  if (error || !row) return { ok: false, error: "Location not found." };
   return {
+    ok: true,
     data: {
       id: row.id as string,
       country_code: String(row.country_code ?? ""),
@@ -225,9 +228,9 @@ export async function adminSaveTaxonomySpanishLabel(
   input: z.infer<typeof labelEsSchema>,
 ): Promise<TaxLocActionResult> {
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = labelEsSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid data." };
+  if (!parsed.success) return { ok: false, error: "Invalid data." };
 
   const now = new Date().toISOString();
   const { error } = await auth.supabase
@@ -237,21 +240,21 @@ export async function adminSaveTaxonomySpanishLabel(
       updated_at: now,
     })
     .eq("id", parsed.data.id);
-  if (error) return { error: error.message };
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/admin/translations");
   revalidatePath("/admin/taxonomy");
   revalidateTaxonomyCaches();
-  return { success: true };
+  return { ok: true, data: undefined };
 }
 
 export async function adminSaveLocationSpanishDisplay(
   input: z.infer<typeof locationEsSchema>,
 ): Promise<TaxLocActionResult> {
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = locationEsSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid data." };
+  if (!parsed.success) return { ok: false, error: "Invalid data." };
 
   const now = new Date().toISOString();
   const { error } = await auth.supabase
@@ -261,10 +264,10 @@ export async function adminSaveLocationSpanishDisplay(
       updated_at: now,
     })
     .eq("id", parsed.data.id);
-  if (error) return { error: error.message };
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/admin/translations");
   revalidatePath("/admin/locations");
   revalidateTaxonomyCaches();
-  return { success: true };
+  return { ok: true, data: undefined };
 }

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import type { WorkspacePlan } from "@/lib/dashboard/admin-workspace-summary";
+import type { ServerActionResult } from "@/lib/server-actions/result";
 
 /**
  * Default seat caps mirror the public pricing page. Network is unlimited
@@ -26,9 +27,7 @@ const VALID_PLANS = new Set<WorkspacePlan>([
   "network",
 ]);
 
-export type ChangeWorkspacePlanResult =
-  | { ok: true; plan: WorkspacePlan }
-  | { ok: false; error: string };
+export type ChangeWorkspacePlanResult = ServerActionResult<{ plan: WorkspacePlan }>;
 
 /**
  * Updates `agencies.plan_tier` (+ resets `talent_seat_limit` to the tier
@@ -73,5 +72,5 @@ export async function changeWorkspacePlan(
   // AccountBillingPanels, capability catalog gates.
   revalidatePath("/admin", "layout");
 
-  return { ok: true, plan };
+  return { ok: true, data: { plan } };
 }

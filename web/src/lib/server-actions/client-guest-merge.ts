@@ -6,15 +6,24 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requireClient } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
 
+// TODO A.4: convert to `ServerActionResult<T>`. `useFormState` shape for the
+// client profile edit form; conversion requires updating the form action and
+// every consumer. Out of scope for the initial sweep.
 export type ClientProfileActionState =
   | { error?: string; success?: boolean }
   | undefined;
 
+export type MergeGuestActivitySummary = {
+  mergedSavedCount: number;
+  mergedInquiryCount: number;
+};
+
 export async function mergeGuestActivity(): Promise<
-  { ok: true; mergedSavedCount: number; mergedInquiryCount: number } | { ok: false; error: string }
+  ServerActionResult<MergeGuestActivitySummary>
 > {
   const auth = await requireClient();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -22,7 +31,9 @@ export async function mergeGuestActivity(): Promise<
 
   const cookieStore = await cookies();
   const sessionKey = cookieStore.get(GUEST_COOKIE)?.value;
-  if (!sessionKey) return { ok: true, mergedSavedCount: 0, mergedInquiryCount: 0 };
+  if (!sessionKey) {
+    return { ok: true, data: { mergedSavedCount: 0, mergedInquiryCount: 0 } };
+  }
 
   const { data: guestSession } = await supabase
     .from("guest_sessions")
@@ -31,7 +42,7 @@ export async function mergeGuestActivity(): Promise<
     .maybeSingle();
 
   if (!guestSession?.id) {
-    return { ok: true, mergedSavedCount: 0, mergedInquiryCount: 0 };
+    return { ok: true, data: { mergedSavedCount: 0, mergedInquiryCount: 0 } };
   }
 
   const [{ count: savedCount }, { count: inquiryCount }] = await Promise.all([
@@ -55,8 +66,10 @@ export async function mergeGuestActivity(): Promise<
   revalidatePath("/directory");
   return {
     ok: true,
-    mergedSavedCount: savedCount ?? 0,
-    mergedInquiryCount: inquiryCount ?? 0,
+    data: {
+      mergedSavedCount: savedCount ?? 0,
+      mergedInquiryCount: inquiryCount ?? 0,
+    },
   };
 }
 

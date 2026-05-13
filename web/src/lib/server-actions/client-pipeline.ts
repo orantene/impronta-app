@@ -25,6 +25,11 @@ import {
 } from "@/lib/payments/stripe-connect";
 import { headers } from "next/headers";
 
+// TODO A.4: align with canonical `ServerActionResult<T>` — currently
+// preserved as a structurally compatible local type so `startInquiryCheckout`
+// can attach `url`/`mock` on success without restructuring callers (Stripe
+// redirect flow). Convert when checkout response is moved into a `data`
+// payload across all callers.
 export type ClientActionResult = { ok: true } | { ok: false; error: string };
 
 async function loadClientInquiryContext(inquiryId: string): Promise<

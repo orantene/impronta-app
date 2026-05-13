@@ -19,6 +19,7 @@ import {
   adminSaveLocationSpanishDisplay,
   adminSaveTaxonomySpanishLabel,
 } from "@/lib/server-actions/admin-translations-tax-loc";
+import type { ServerActionResult } from "@/lib/server-actions/result";
 import type { TranslationQuickSaveKind } from "@/lib/translation-center/types";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 
@@ -47,21 +48,22 @@ export type TranslationQuickEditPayload = {
 
 export async function loadTranslationQuickEditPayload(
   input: z.infer<typeof loadSchema>,
-): Promise<{ error: string } | { data: TranslationQuickEditPayload }> {
+): Promise<ServerActionResult<TranslationQuickEditPayload>> {
   const parsed = loadSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid request." };
+  if (!parsed.success) return { ok: false, error: "Invalid request." };
 
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   const { adapterId, entityId, parentEntityId } = parsed.data;
 
   if (adapterId === "talentBio") {
     const res = await adminLoadBioTranslationPanelData({ talent_profile_id: entityId });
-    if ("error" in res) return { error: res.error ?? "Could not load bio." };
+    if (!res.ok) return { ok: false, error: res.error || "Could not load bio." };
     const d = res.data;
     const enPub = canonicalBioEn(d.bio_en, d.short_bio) ?? "";
     return {
+      ok: true,
       data: {
         title: "Talent bio (bilingual)",
         subtitle: d.talent_profile_id,
@@ -74,9 +76,10 @@ export async function loadTranslationQuickEditPayload(
   }
   if (adapterId === "taxonomyTermName") {
     const res = await adminLoadTaxonomyTranslationPanelData({ id: entityId });
-    if ("error" in res) return { error: res.error ?? "Could not load term." };
+    if (!res.ok) return { ok: false, error: res.error || "Could not load term." };
     const d = res.data;
     return {
+      ok: true,
       data: {
         title: `Taxonomy · ${d.kind}`,
         subtitle: d.slug,
@@ -89,9 +92,10 @@ export async function loadTranslationQuickEditPayload(
   }
   if (adapterId === "locationDisplay") {
     const res = await adminLoadLocationTranslationPanelData({ id: entityId });
-    if ("error" in res) return { error: res.error ?? "Could not load location." };
+    if (!res.ok) return { ok: false, error: res.error || "Could not load location." };
     const d = res.data;
     return {
+      ok: true,
       data: {
         title: `${d.country_code} · ${d.city_slug}`,
         fields: {
@@ -102,7 +106,7 @@ export async function loadTranslationQuickEditPayload(
     };
   }
   if (adapterId === "fieldValueTextI18n") {
-    if (!parentEntityId) return { error: "Missing parent profile id." };
+    if (!parentEntityId) return { ok: false, error: "Missing parent profile id." };
     const { data: fv, error } = await auth.supabase
       .from("field_values")
       .select("id, value_text, value_i18n")
@@ -111,13 +115,14 @@ export async function loadTranslationQuickEditPayload(
       .maybeSingle();
     if (error) {
       logServerError("translation-center/quickEdit/loadFieldValue", error);
-      return { error: "Could not load field value." };
+      return { ok: false, error: "Could not load field value." };
     }
-    if (!fv) return { error: "Field value not found." };
+    if (!fv) return { ok: false, error: "Field value not found." };
     const i18n = fv.value_i18n as Record<string, unknown> | null;
     const en = String(i18n?.en ?? fv.value_text ?? "").trim();
     const es = String(i18n?.es ?? "").trim();
     return {
+      ok: true,
       data: {
         title: "Profile field (i18n)",
         subtitle: entityId,
@@ -126,7 +131,7 @@ export async function loadTranslationQuickEditPayload(
     };
   }
 
-  return { error: "Inline editing is not available for this domain." };
+  return { ok: false, error: "Inline editing is not available for this domain." };
 }
 
 const saveSchema = z.object({
@@ -136,16 +141,16 @@ const saveSchema = z.object({
   fields: z.record(z.string(), z.string()),
 });
 
-export type TranslationQuickEditSaveResult = { error?: string; success?: true };
+export type TranslationQuickEditSaveResult = ServerActionResult;
 
 export async function applyTranslationQuickEditSave(
   input: z.infer<typeof saveSchema>,
 ): Promise<TranslationQuickEditSaveResult> {
   const parsed = saveSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid data." };
+  if (!parsed.success) return { ok: false, error: "Invalid data." };
 
   const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   const { saveKind, entityId, parentEntityId, fields } = parsed.data;
 
@@ -176,7 +181,7 @@ export async function applyTranslationQuickEditSave(
     });
   }
   if (saveKind === "field_value_i18n") {
-    if (!parentEntityId) return { error: "Missing parent profile id." };
+    if (!parentEntityId) return { ok: false, error: "Missing parent profile id." };
     const en = (fields.en ?? "").trim();
     const es = (fields.es ?? "").trim();
     const value_i18n = { en, es };
@@ -192,16 +197,16 @@ export async function applyTranslationQuickEditSave(
       .eq("talent_profile_id", parentEntityId);
     if (error) {
       if (String(error.message ?? "").includes("value_i18n")) {
-        return { error: "Database is missing value_i18n — apply migrations." };
+        return { ok: false, error: "Database is missing value_i18n — apply migrations." };
       }
       logServerError("translation-center/quickEdit/saveFieldValue", error);
-      return { error: error.message };
+      return { ok: false, error: error.message };
     }
     await scheduleRebuildAiSearchDocument(auth.supabase, parentEntityId);
     revalidatePath("/admin/translations");
     revalidatePath(`/admin/talent/${parentEntityId}`);
-    return { success: true };
+    return { ok: true, data: undefined };
   }
 
-  return { error: "Save is not configured for this action." };
+  return { ok: false, error: "Save is not configured for this action." };
 }

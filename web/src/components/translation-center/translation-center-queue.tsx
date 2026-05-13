@@ -104,7 +104,7 @@ export function TranslationCenterQueue({ units }: { units: TranslationUnitDTO[] 
         parentEntityId: unit.parentEntityId ?? null,
       });
       if (cancelled) return;
-      if ("error" in res) {
+      if (!res.ok) {
         toast.error(res.error);
         return;
       }
@@ -130,7 +130,7 @@ export function TranslationCenterQueue({ units }: { units: TranslationUnitDTO[] 
         parentEntityId: unit.parentEntityId ?? null,
         fields,
       });
-      if (res.error) {
+      if (!res.ok) {
         toast.error(res.error);
         return;
       }

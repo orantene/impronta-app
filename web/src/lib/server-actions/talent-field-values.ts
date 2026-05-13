@@ -8,6 +8,10 @@ import { mirrorHeightCmToTalentProfile } from "@/lib/field-values-height-mirror"
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
+// TODO A.4: convert to `ServerActionResult<T>`. `useFormState` payload for
+// the talent self-edit field-values forms; conversion requires re-binding the
+// form action + narrowing in `basic-info-extra-scalar-fields.tsx`. Out of
+// scope for the initial sweep.
 export type TalentFieldValuesState = { error?: string; success?: boolean; message?: string } | undefined;
 
 const SUPPORTED_VALUE_TYPES = ["text", "textarea", "number", "boolean", "date"] as const;
