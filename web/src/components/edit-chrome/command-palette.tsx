@@ -567,7 +567,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         actionRow(
           "paste-block",
           pastePreview?.mode === "blocked"
-            ? "Paste copied block unavailable"
+            ? "Pasting here isn't allowed"
             : pastePreview
               ? `Paste ${pastePreview.copiedLabel}`
               : "Paste copied block",

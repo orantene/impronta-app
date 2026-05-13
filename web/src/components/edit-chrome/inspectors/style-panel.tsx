@@ -2048,11 +2048,13 @@ export function StylePanel({
     try {
       parsed = JSON.parse(raw);
     } catch {
-      window.alert("Invalid JSON. Paste a valid presets payload.");
+      window.alert(
+        "That isn't valid JSON — paste the presets array you exported from this panel.",
+      );
       return;
     }
     if (!Array.isArray(parsed)) {
-      window.alert("Invalid payload. Expected an array of presets.");
+      window.alert("Paste a JSON array of presets — use Export from this panel first.");
       return;
     }
 
