@@ -21,7 +21,7 @@
  * post-launch promotion.
  */
 
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type FrameLocator, type Locator, type Page } from "@playwright/test";
 
 const USE_DEV_SIGNIN = process.env.PLAYWRIGHT_USE_DEV_SIGNIN === "1";
 const ADMIN_EMAIL =
@@ -161,13 +161,34 @@ async function expandNavigatorSectionChildList(
 }
 
 /**
- * In edit mode the top-level storefront DOM is `visibility:hidden` and the
- * operator-visible canvas is the device preview iframe (`?iframe=1` — see
- * `DeviceFrameSurface` in `edit-shell.tsx`). Assertions on `[data-cms-section]`
- * must scope here.
+ * In edit mode, tablet/mobile use `DeviceFrameSurface` — the storefront loads in
+ * an iframe with `?iframe=1` (see `edit-shell.tsx`). The parent document still
+ * contains a mirror storefront tree, but it is **`visibility: hidden`** while the
+ * iframe is active — assertions must use {@link Page.frameLocator}, not `page`, or
+ * they attach to the hidden copy.
+ *
+ * **Desktop** (`DEVICE_WIDTHS.desktop === null`) mounts no preview iframe; the
+ * live storefront stays in the main document.
  */
-function improntaEditPreviewFrame(page: Page) {
-  return page.frameLocator('iframe[src*="iframe=1"]').first();
+async function improntaEditCanvasRoot(page: Page): Promise<Page | FrameLocator> {
+  const iframe = page.locator('iframe[src*="iframe=1"]');
+  if ((await iframe.count()) > 0) {
+    await expect(iframe.first()).toBeVisible({ timeout: 30_000 });
+    return page.frameLocator('iframe[src*="iframe=1"]').first();
+  }
+  return page;
+}
+
+/** Prefer desktop preview so the storefront renders in the main document (no
+ * `DeviceFrameSurface` body `visibility:hidden` + iframe lag). Viewport choice
+ * can persist in session storage across runs. */
+async function ensureDesktopCanvasPreview(page: Page) {
+  const group = page.getByRole("group", { name: /Canvas preview width/i });
+  const desktopBtn = group.getByRole("button", { name: /^Desktop$/ });
+  await expect(desktopBtn).toBeVisible({ timeout: 20_000 });
+  if ((await desktopBtn.getAttribute("aria-pressed")) !== "true") {
+    await desktopBtn.click();
+  }
 }
 
 async function insertHeadingViaNavigatorFirstLayeredSection(page: Page) {
@@ -440,10 +461,23 @@ async function addSectionFromLibrary(
   await expect(sectionTile).toBeVisible({ timeout: 10_000 });
   await sectionTile.click();
 
-  const canvas = improntaEditPreviewFrame(page);
   await expect(
-    canvas.locator(`[data-cms-section][data-section-type-key="${typeKey}"]`).last(),
+    page
+      .locator(`[data-navigator-section-row][data-section-type-key="${typeKey}"]`)
+      .last(),
   ).toBeVisible({ timeout: 90_000 });
+
+  const canvas = await improntaEditCanvasRoot(page);
+  const canvasSection = canvas
+    .locator(`[data-cms-section][data-section-type-key="${typeKey}"]`)
+    .last();
+  await expect(canvasSection).toBeAttached({ timeout: 30_000 });
+  // `blank_section` renders `Component` as null — the CMS wrapper can have
+  // zero layout height until nested builder nodes exist, so Playwright's
+  // toBeVisible() stays false even though the section is live in the tree.
+  if (typeKey !== "blank_section") {
+    await expect(canvasSection).toBeVisible({ timeout: 90_000 });
+  }
 }
 
 async function gotoWithRetry(
@@ -1088,13 +1122,47 @@ test.describe("smoke: login → builder → publish → share", () => {
       await addHeroFromBlankState(page);
     }
 
+    await ensureDesktopCanvasPreview(page);
+
+    const blankNavigatorRows = page.locator(
+      '[data-navigator-section-row][data-section-type-key="blank_section"]',
+    );
+    const blankSectionIdsBefore = new Set(
+      await blankNavigatorRows.evaluateAll((els) =>
+        els
+          .map((el) => el.getAttribute("data-section-id"))
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+
     await addSectionFromLibrary(page, "blank_section", "Blank section");
 
-    const canvas = improntaEditPreviewFrame(page);
+    let sectionId: string | null = null;
+    await expect
+      .poll(
+        async () => {
+          const ids = await blankNavigatorRows.evaluateAll((els) =>
+            els
+              .map((el) => el.getAttribute("data-section-id"))
+              .filter((id): id is string => Boolean(id)),
+          );
+          sectionId = ids.find((id) => !blankSectionIdsBefore.has(id)) ?? null;
+          return sectionId;
+        },
+        { timeout: 90_000 },
+      )
+      .not.toBeNull();
+    expect(sectionId).toBeTruthy();
+
+    const canvas = await improntaEditCanvasRoot(page);
+    // Same section id can exist on many cloned DOM layers in the editor canvas;
+    // pin one element like `addSectionFromLibrary` does (`.last()`).
     const blankWrap = canvas
-      .locator('[data-cms-section][data-section-type-key="blank_section"]')
+      .locator(
+        `[data-cms-section][data-section-type-key="blank_section"][data-section-id="${sectionId}"]`,
+      )
       .last();
-    await expect(blankWrap).toBeVisible({ timeout: 90_000 });
+    await expect(blankWrap).toBeAttached({ timeout: 90_000 });
 
     const headingsInBlank = blankWrap.locator(
       ".site-builder-node--heading[data-builder-node-id]",
@@ -1107,6 +1175,12 @@ test.describe("smoke: login → builder → publish → share", () => {
     const insertMenu = page.locator("[data-builder-node-insert-menu]").first();
     await expect(insertMenu).toBeVisible({ timeout: 10_000 });
     await insertMenu.getByRole("button", { name: "Heading", exact: true }).click();
+
+    await expect(
+      page.locator(
+        `[data-navigator-child-list][data-section-id="${sectionId}"] [data-navigator-child-node][data-builder-node-kind="heading"]`,
+      ),
+    ).toBeVisible({ timeout: 60_000 });
 
     await expect
       .poll(async () => headingsInBlank.count(), { timeout: 90_000 })

@@ -175,7 +175,18 @@ export async function resolveTenantContext(
 
   let value: HostContext;
   if (error || !data) {
-    value = { kind: "not_found", tenantId: null, hostname };
+    // `next dev` + Playwright use `localhost` / `127.0.0.1` (see
+    // `20260922100000_agency_domains_localhost_app_dev.sql`). Until that row
+    // exists on a linked DB, treat loopback as `app` in development only so
+    // `proxy.ts` path-based tenant dispatch (`/impronta`, …) can run.
+    if (
+      process.env.NODE_ENV === "development" &&
+      (hostname === "localhost" || hostname === "127.0.0.1")
+    ) {
+      value = { kind: "app", tenantId: null, hostname };
+    } else {
+      value = { kind: "not_found", tenantId: null, hostname };
+    }
   } else {
     switch (data.kind) {
       case "marketing":

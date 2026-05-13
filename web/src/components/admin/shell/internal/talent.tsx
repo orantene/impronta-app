@@ -8108,7 +8108,7 @@ function MessageBubble({ msg, stage, isFirstOfGroup = true }: { msg: Msg; stage:
     ? msg.sender === "coordinator"
       ? "Sara · Coordinator"
       : msg.sender === "agency"
-        ? "Atelier Roma"
+        ? "Agency"
         : msg.sender === "client"
           ? "Client"
           : ""
@@ -14006,7 +14006,7 @@ const MOCK_CIRCLE_PREVIEW_COUNT = 6;
  *  Renders on the talent's Settings page. Tapping opens the talent-trust-detail
  *  drawer for the full lifecycle (Verify Instagram, Request Tulala Review,
  *  see claim status). */
-function TalentTrustCard({ onOpenDetail }: { onOpenDetail: () => void }) {
+function TalentTrustCard({ onOpenDetail, primaryAgencyName }: { onOpenDetail: () => void; primaryAgencyName?: string }) {
   // Demo: the prototype's "current talent" maps to roster id `t1` (Marta).
   // In production this comes from the auth session.
   const TALENT_ID = "t1";
@@ -14052,7 +14052,7 @@ function TalentTrustCard({ onOpenDetail }: { onOpenDetail: () => void }) {
     {
       label: "Agency",
       status: trust.badges.some(b => b.type === "agency_confirmed" && b.status === "active")
-        ? "Confirmed by Atelier Roma"
+        ? `Confirmed by ${primaryAgencyName ?? "your agency"}`
         : "Not confirmed",
       tone: trust.badges.some(b => b.type === "agency_confirmed" && b.status === "active") ? "good" : "muted",
       emoji: "✦",
@@ -14138,6 +14138,10 @@ function SettingsPage() {
         bookingsYTD: 0,
       }))
     : MY_AGENCIES;
+  // Derive primary agency name for trust card — prefer bridge data so
+  // a real tenant never sees "Atelier Roma" (task 0.7).
+  const primaryAgencyName = settingsAgencies.find((a) => a.isPrimary)?.name
+    ?? settingsAgencies[0]?.name;
   // Settings privacy → admin section of profile shell. Same funnel
   // as MyProfilePage / ProfileHero / TalentTodayPage.
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
@@ -14155,7 +14159,7 @@ function SettingsPage() {
       />
 
       {/* Trust & Verification — talent's view of their own trust state */}
-      <TalentTrustCard onOpenDetail={() => openDrawer("talent-trust-detail")} />
+      <TalentTrustCard onOpenDetail={() => openDrawer("talent-trust-detail")} primaryAgencyName={primaryAgencyName} />
 
       {/* Account security — passkey-based sign-in (WebAuthn). Real
           navigator.credentials API; in this prototype the credential ID
@@ -14269,36 +14273,23 @@ function SettingsPage() {
         />
       </Grid>
 
+      {/* Personal page — subscription tier not yet in bridge; show
+          Demo label so real tenants never see Marta's "Pro" plan (task 0.7). */}
       <Divider label="Personal page" />
       <Grid cols="2">
         <SecondaryCard
-          title={`Plan · ${TALENT_TIER_META[MY_TALENT_PROFILE.subscription.tier].label}`}
-          description={
-            MY_TALENT_PROFILE.subscription.tier === "basic"
-              ? "Standard public profile. Upgrade to unlock templates, embeds, press band, and a custom domain."
-              : MY_TALENT_PROFILE.subscription.tier === "pro"
-                ? `Pro · ${TALENT_TIER_META.pro.monthlyPrice}. Renews ${MY_TALENT_PROFILE.subscription.renewsOn ?? "monthly"}.`
-                : `Portfolio · ${TALENT_TIER_META.portfolio.monthlyPrice}. Renews ${MY_TALENT_PROFILE.subscription.renewsOn ?? "monthly"}.`
-          }
-          meta={
-            <>
-              <StatDot tone={MY_TALENT_PROFILE.subscription.tier === "basic" ? "dim" : "green"} />
-              {MY_TALENT_PROFILE.subscription.tier === "basic" ? "Free" : "Active"}
-            </>
-          }
-          affordance={MY_TALENT_PROFILE.subscription.tier === "portfolio" ? "Manage plan" : "Compare plans"}
+          title="Plan · coming soon"
+          description="Talent subscription tiers (Basic / Pro / Portfolio) will appear here once billing is live."
+          meta={<><StatDot tone="dim" /> Demo · coming soon</>}
+          affordance="Compare plans"
           onClick={() => openDrawer("talent-tier-compare")}
         />
         <SecondaryCard
           title="Personal page builder"
           description="Templates, sections, embeds and (Portfolio) custom domain. Coexists with all your agency rosters."
-          meta={MY_TALENT_PROFILE.subscription.personalPageEnabled ? <><StatDot tone="green" /> Live</> : <><StatDot tone="dim" /> Off</>}
-          affordance={tierAllows(MY_TALENT_PROFILE.subscription.tier, "extra-sections") ? "Edit page" : "Choose template"}
-          onClick={() =>
-            tierAllows(MY_TALENT_PROFILE.subscription.tier, "extra-sections")
-              ? openDrawer("talent-personal-page")
-              : openDrawer("talent-page-template")
-          }
+          meta={<><StatDot tone="dim" /> Coming soon</>}
+          affordance="Choose template"
+          onClick={() => openDrawer("talent-page-template")}
         />
       </Grid>
 
