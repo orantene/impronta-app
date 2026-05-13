@@ -199,15 +199,19 @@ export function NewInquiryForm({
               <input name="eventDate" type="date" defaultValue={state.values.eventDate} style={FIELD_STYLE} />
             </label>
             <label style={{ display: "grid", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink }}>
-              Quantity
+              How many talent do you need?
               <input
                 name="quantity"
                 type="number"
                 min={1}
                 inputMode="numeric"
+                placeholder="e.g. 3"
                 defaultValue={state.values.quantity}
                 style={FIELD_STYLE}
               />
+              <span style={{ fontSize: 11, color: C.inkMuted, fontWeight: 400, lineHeight: 1.4 }}>
+                Total slots to fill — separate from any preferred talent above.
+              </span>
             </label>
           </div>
 
