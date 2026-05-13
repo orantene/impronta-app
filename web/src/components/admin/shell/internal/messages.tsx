@@ -4682,13 +4682,24 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
   // booked conversation and request the "logistics" tab, that beats
   // the stage-default. One-shot consumption so a refresh resets to the
   // stage-appropriate default.
+  // Slice C (Messages consolidation v2): talent lands on the unified
+  // Chat tab. Coord-talents default sub-thread is Client (the sales
+  // surface they're managing); plain talent default is Group. The
+  // legacy pinned-tab override still works for deep-links.
   const defaultTab: ThreadTabId = (() => {
     const pinned = consumePendingThreadTab();
-    if (pinned) return pinned as ThreadTabId;
-    if (isCoordinator && (conv.stage === "inquiry" || conv.stage === "hold")) return "client";
-    return "talent";
+    if (pinned) {
+      // Map legacy IDs to v2 IDs so deep-links keep working.
+      const p = pinned as string;
+      if (p === "client" || p === "talent") return "chat";
+      if (p === "booking" || p === "details" || p === "logistics") return "event";
+      return pinned as ThreadTabId;
+    }
+    return "chat";
   })();
+  const defaultSubThread: ChatSubThreadId = isCoordinator ? "client" : "group";
   const [activeTab, setActiveTab] = useState<ThreadTabId>(defaultTab);
+  const [chatSubThread, setChatSubThread] = useState<ChatSubThreadId>(defaultSubThread);
   // Single shared lineup-drawer state — both the conversation team
   // strip AND the Details tab's "Who's on this job" trigger this same
   // drawer so we never have two divergent representations of the same
@@ -4750,30 +4761,125 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
             paymentDue: conv.stage === "booked",
           })}
         />
-        {/* Tab content — ChannelDescriptor removed. The tab name +
-            team-strip on the conversation already convey "you're in
-            booking team / client thread", so the descriptor was just
-            redundant chrome eating vertical space on mobile. */}
-        {activeTab === "talent" && (
-          <ConversationTab
-            conv={conv}
-            threadKey={`${conv.id}:talent`}
-            placeholder="Message booking team…"
-            crossThreadBridge={!isCoordinator ? { who: conv.leader.name, clientName: conv.client } : undefined}
-            povCanEditLineup={isCoordinator}
-            povCanSeeOffers={isCoordinator}
-            povCanSeeCoordNote={true}
-          />
-        )}
-        {activeTab === "client" && isCoordinator && (
-          <ConversationTab
-            conv={conv}
-            threadKey={`${conv.id}:client`}
-            placeholder={`Message ${conv.client}…`}
-            povCanEditLineup={isCoordinator}
-            povCanSeeOffers={isCoordinator}
-            povCanSeeCoordNote={true}
-          />
+        {/* Slice C (Messages consolidation v2): unified Chat tab with
+            [Client | Group | DM] sub-toggle. Plain talent: Client is
+            locked (Slice G adds the request-to-join flow); Group is
+            the default. Coord-talent: all 3 unlocked. */}
+        {(activeTab === "chat" || activeTab === "talent" || activeTab === "client") && (() => {
+          // Resolve effective sub-thread from chat-state OR legacy tab id.
+          const effSub: ChatSubThreadId =
+            activeTab === "talent" ? "group"
+            : activeTab === "client" ? "client"
+            : chatSubThread;
+          const showClient = effSub === "client";
+          const showGroup = effSub === "group";
+          const showDm = effSub === "dm";
+          return (
+            <>
+              {activeTab === "chat" && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 4,
+                  padding: "8px 10px",
+                  borderBottom: `1px solid ${COLORS.borderSoft}`,
+                  background: COLORS.surfaceAlt,
+                }}>
+                  {(["client", "group", "dm"] as const).map((sub) => {
+                    const active = chatSubThread === sub;
+                    const label = sub === "client" ? "Client" : sub === "group" ? "Group" : "DM";
+                    const clientLocked = sub === "client" && !isCoordinator;
+                    return (
+                      <button
+                        key={sub}
+                        type="button"
+                        onClick={() => {
+                          if (clientLocked) {
+                            // Slice G placeholder — full request-to-join
+                            // flow lands in that slice. For now: subtle
+                            // toast nudging the user.
+                            toast("Client thread requires coordinator status. Coming: request to join.");
+                            return;
+                          }
+                          setChatSubThread(sub);
+                        }}
+                        title={clientLocked ? "Locked — request to join as coordinator" : undefined}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          padding: "5px 11px", borderRadius: 7,
+                          border: "none", cursor: clientLocked ? "not-allowed" : "pointer",
+                          fontFamily: FONTS.body, fontSize: 12,
+                          fontWeight: active ? 700 : 500,
+                          color: clientLocked ? COLORS.inkDim : (active ? COLORS.ink : COLORS.inkMuted),
+                          background: active ? "#fff" : "transparent",
+                          boxShadow: active ? "0 1px 3px rgba(11,11,13,0.10)" : "none",
+                          opacity: clientLocked ? 0.6 : 1,
+                          transition: "all 100ms",
+                        }}
+                      >
+                        {clientLocked && (
+                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+                            <rect x="2.5" y="5" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+                            <path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" strokeWidth="1.4"/>
+                          </svg>
+                        )}
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {showGroup && (
+                <ConversationTab
+                  conv={conv}
+                  threadKey={`${conv.id}:talent`}
+                  placeholder="Message booking team…"
+                  crossThreadBridge={!isCoordinator ? { who: conv.leader.name, clientName: conv.client } : undefined}
+                  povCanEditLineup={isCoordinator}
+                  povCanSeeOffers={isCoordinator}
+                  povCanSeeCoordNote={true}
+                />
+              )}
+              {showClient && isCoordinator && (
+                <ConversationTab
+                  conv={conv}
+                  threadKey={`${conv.id}:client`}
+                  placeholder={`Message ${conv.client}…`}
+                  povCanEditLineup={isCoordinator}
+                  povCanSeeOffers={isCoordinator}
+                  povCanSeeCoordNote={true}
+                />
+              )}
+              {showDm && (
+                <div style={{
+                  flex: 1, minHeight: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  padding: 28, textAlign: "center",
+                  fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted,
+                }}>
+                  Direct messages with your coordinator land here in a later slice.
+                </div>
+              )}
+            </>
+          );
+        })()}
+        {/* Slice C: new universal Lineup tab — opens the same drawer
+            the old "Who's on this job" trigger used so the data path is
+            unchanged. */}
+        {activeTab === "lineup" && (
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14, fontFamily: FONTS.body }}>
+            <div style={{ fontSize: 12.5, color: COLORS.ink, marginBottom: 10 }}>
+              Tap a teammate below to view their role and contact.
+            </div>
+            <button
+              type="button"
+              onClick={() => setLineupOpen(true)}
+              style={{
+                padding: "8px 14px", borderRadius: 8,
+                background: COLORS.accent, color: "#fff",
+                border: "none", cursor: "pointer",
+                fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+              }}
+            >Open lineup drawer</button>
+          </div>
         )}
         {/* Non-conversation tabs — each gets its own scrollable
             wrapper so the parent shell stays fixed (header + tab bar
@@ -4801,26 +4907,26 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
             <TalentPaymentTab conv={conv} yourRate={yourRate} />
           </div>
         )}
-        {activeTab === "details" && (
+        {/* Slice C (Messages consolidation v2): Event tab — same merged
+            view for both stages. Legacy "details" + "booking" IDs alias
+            to the new "event" ID. Booked stage uses TalentBookingTab
+            (countdown + schedule + lineup + coord); inquiry stage uses
+            DetailsPanel (lighter info card). */}
+        {(activeTab === "event" || activeTab === "details" || activeTab === "booking") && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            <DetailsPanel
-              inquiry={convToInquiry(conv)}
-              pov={isCoordinator ? "talent_coord" : "talent"}
-            />
-          </div>
-        )}
-        {/* Booking — talent-only merged view. Replaces the old separate
-            Logistics + Details tabs at the booked stage. Single screen
-            holds: countdown → schedule + location two-up → transport +
-            lodging two-up → who's on this job → coordinator → my notes. */}
-        {activeTab === "booking" && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            <TalentBookingTab
-              conv={conv}
-              inquiry={convToInquiry(conv)}
-              isCoordinator={isCoordinator}
-              onOpenLineup={() => setLineupOpen(true)}
-            />
+            {conv.stage === "booked" || conv.stage === "past" ? (
+              <TalentBookingTab
+                conv={conv}
+                inquiry={convToInquiry(conv)}
+                isCoordinator={isCoordinator}
+                onOpenLineup={() => setLineupOpen(true)}
+              />
+            ) : (
+              <DetailsPanel
+                inquiry={convToInquiry(conv)}
+                pov={isCoordinator ? "talent_coord" : "talent"}
+              />
+            )}
           </div>
         )}
       </div>
@@ -6112,9 +6218,48 @@ export function buildInquiryTabs(opts: {
     return adminTabs;
   }
 
-  // ── Legacy path for talent + client + talent_coord ──────────
-  // Migrated in Slices C + D. Kept stable until then so existing
-  // shells don't break.
+  // Slice C (Messages consolidation v2): talent + talent_coord get
+  // the universal tab set. Client + Group + DM live as sub-toggles
+  // inside the Chat tab; for plain talent the Client sub-toggle
+  // renders locked (Slice G adds the request-to-join flow). Booked-
+  // stage payment surfaces via the offer chip + Event tab, not as a
+  // standalone tab.
+  if (pov === "talent" || pov === "talent_coord") {
+    const chatUnread = unread.talent ?? 0;
+    const talentTabs: TabDef[] = [
+      {
+        id: "chat",
+        label: "Chat",
+        state: "active",
+        badge: chatUnread > 0 ? chatUnread : undefined,
+      },
+      {
+        id: "lineup",
+        label: "Lineup",
+        state: "active",
+      },
+      {
+        id: "offer",
+        label: "Offer",
+        state: "active",
+        badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? "€" : undefined),
+      },
+      {
+        id: "event",
+        label: "Event",
+        state: "active",
+      },
+      {
+        id: "files",
+        label: "Files",
+        state: "active",
+        badge: unread.files && unread.files > 0 ? unread.files : undefined,
+      },
+    ];
+    return talentTabs;
+  }
+
+  // ── Legacy path for client (will migrate in Slice D) ────────
   const tabs: TabDef[] = [];
 
   // Client thread — visible to admin/client/talent_coord. Hidden entirely
