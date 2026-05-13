@@ -2438,7 +2438,7 @@ export function EditProvider({
           // the previous bespoke removeSection).
           const targetId = mutation.sectionId;
           const dm = dispatchMutationRef.current;
-          if (!dm) return { ok: false, error: "Dispatcher not ready" };
+          if (!dm) return { ok: false, error: "The editor is still starting — try again in a second." };
           const result = await dm((prev) => {
             const nextSlots: Record<string, CompositionSectionRef[]> = {};
             let removed = false;
@@ -2460,7 +2460,7 @@ export function EditProvider({
         case "composition.metadata": {
           const { metadata } = mutation;
           const dm = dispatchMutationRef.current;
-          if (!dm) return { ok: false, error: "Dispatcher not ready" };
+          if (!dm) return { ok: false, error: "The editor is still starting — try again in a second." };
           const result = await dm((prev) => ({
             ...prev,
             // Mutation type uses `Record<string, unknown>` to keep the
@@ -2482,7 +2482,7 @@ export function EditProvider({
           // breaks the temporal-dead-zone (moveSectionTo declared
           // below dispatch in the file).
           const fn = moveSectionToRef.current;
-          if (!fn) return { ok: false, error: "Dispatcher not ready" };
+          if (!fn) return { ok: false, error: "The editor is still starting — try again in a second." };
           const result = await fn(
             mutation.sectionId,
             mutation.targetSlotKey,
@@ -2501,7 +2501,7 @@ export function EditProvider({
           // newSectionId on the unified DispatchResult envelope so the
           // chip / picker can promote the new section to selection.
           const fn = insertSectionRef.current;
-          if (!fn) return { ok: false, error: "Dispatcher not ready" };
+          if (!fn) return { ok: false, error: "The editor is still starting — try again in a second." };
           const result = await fn(mutation.target, mutation.sectionTypeKey);
           if (result.ok) {
             recordDispatchAudit(result.newSectionId ?? null);
@@ -2515,7 +2515,7 @@ export function EditProvider({
           // (server-generated id, splice into slots, surface
           // newSectionId).
           const fn = duplicateSectionRef.current;
-          if (!fn) return { ok: false, error: "Dispatcher not ready" };
+          if (!fn) return { ok: false, error: "The editor is still starting — try again in a second." };
           const result = await fn(mutation.sectionId);
           if (result.ok) {
             recordDispatchAudit(result.newSectionId ?? mutation.sectionId);
@@ -2554,11 +2554,11 @@ export function EditProvider({
       compute: (prev: CompositionSnapshot) => CompositionSnapshot | null,
     ): Promise<{ ok: boolean; error?: string }> => {
       if (pageVersionRef.current === null) {
-        return { ok: false, error: "Composition not loaded yet." };
+        return { ok: false, error: "This page is still loading — try again in a moment." };
       }
       const snap = currentSnapshot();
       const nextRaw = compute(snap);
-      if (!nextRaw) return { ok: false, error: "Mutation produced no change." };
+      if (!nextRaw) return { ok: false, error: "Nothing changed — try again if that was unexpected." };
       const normalizedSlots = normalizeCompositionSlots(nextRaw.slots);
       const next = { ...nextRaw, slots: normalizedSlots };
 
@@ -2581,7 +2581,7 @@ export function EditProvider({
         setSlotsAndBuilderTree(snap.slots);
         setPageMetadata(snap.metadata);
         setPast((p) => p.slice(0, -1));
-        return { ok: false, error: "Composition not loaded yet." };
+        return { ok: false, error: "This page is still loading — try again in a moment." };
       }
 
       const save = await saveHomepageCompositionAction({
@@ -2630,7 +2630,7 @@ export function EditProvider({
     async (target, sectionTypeKey, options) => {
       const activePageVersion = pageVersionRef.current;
       if (activePageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
+        return { ok: false, error: "This page is still loading — try again in a moment." };
       }
       const snap = currentSnapshot();
       // capture history + clear future BEFORE the round-trip so if the
@@ -2735,7 +2735,7 @@ export function EditProvider({
   const duplicateSection = useCallback<EditContextValue["duplicateSection"]>(
     async (sectionId) => {
       if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
+        return { ok: false, error: "This page is still loading — try again in a moment." };
       }
       const snap = currentSnapshot();
       setPast((p) =>
@@ -2840,7 +2840,7 @@ export function EditProvider({
         }
       }
       if (!sourceSlot || !sourceRef) {
-        return { ok: false, error: "Section not found." };
+        return { ok: false, error: "That section was not found on the page." };
       }
       if (sourceSlot !== targetSlotKey) {
         const compatibility = checkSlotTypeCompatibility({
@@ -2939,7 +2939,7 @@ export function EditProvider({
           break;
         }
       }
-      if (slotKey === null) return { ok: false, error: "Section not found." };
+      if (slotKey === null) return { ok: false, error: "That section was not found on the page." };
       const list = slots[slotKey]!;
       // For "up": drop before idx-1 (i.e., at list-position idx-1, which after
       // the remove-then-insert is the index before source). For "down": drop
@@ -2964,7 +2964,7 @@ export function EditProvider({
         return {
           ok: false as const,
           code: "SAVE_FAILED" as const,
-          error: "Composition not loaded yet.",
+          error: "This page is still loading — try again in a moment.",
         };
       }
       const prevTree = builderTreeRef.current;
@@ -3074,7 +3074,7 @@ export function EditProvider({
         return {
           ok: false,
           code: "SAVE_FAILED",
-          error: "Composition not loaded yet.",
+          error: "This page is still loading — try again in a moment.",
         };
       }
 
@@ -3387,7 +3387,7 @@ export function EditProvider({
       }
       const duplicatedNodeId = duplicated.nodeId ?? null;
       if (!duplicatedNodeId) {
-        return { ok: false, error: "Duplicate failed to return a new node id." };
+        return { ok: false, error: "Duplicate did not finish — refresh the page and try again." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         duplicated.tree,
@@ -3420,7 +3420,7 @@ export function EditProvider({
       if (location.node.kind === "section") {
         return {
           ok: false,
-          error: "Sections use the section duplicate action.",
+          error: "To duplicate a whole section, use Duplicate section from the section menu — not Copy block.",
         };
       }
       const copiedNode = cloneBuilderNode(location.node);
@@ -3499,7 +3499,7 @@ export function EditProvider({
     async (presetId, targetNodeId) => {
       const preset = builderBlockPresets.find((item) => item.id === presetId);
       if (!preset) {
-        return { ok: false, error: "Block preset not found." };
+        return { ok: false, error: "That style preset was not found." };
       }
       const pasteTarget = resolveCopiedBuilderNodePasteTarget({
         tree: builderTreeRef.current,
@@ -3526,7 +3526,7 @@ export function EditProvider({
       }
       const pastedNodeId = pasted.nodeId ?? null;
       if (!pastedNodeId) {
-        return { ok: false, error: "Paste failed to return a new node id." };
+        return { ok: false, error: "Paste did not finish — refresh the page and try again." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         pasted.tree,
@@ -3581,7 +3581,7 @@ export function EditProvider({
       }
       const pastedNodeId = pasted.nodeId ?? null;
       if (!pastedNodeId) {
-        return { ok: false, error: "Paste failed to return a new node id." };
+        return { ok: false, error: "Paste did not finish — refresh the page and try again." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         pasted.tree,
@@ -3963,7 +3963,7 @@ export function EditProvider({
   const restoreRevision = useCallback<EditContextValue["restoreRevision"]>(
     async (revisionId) => {
       if (pageVersion === null) {
-        return { ok: false, error: "Composition not loaded yet." };
+        return { ok: false, error: "This page is still loading — try again in a moment." };
       }
       setSaving(true);
       const res = await restoreHomepageRevisionAction({
@@ -4039,7 +4039,7 @@ export function EditProvider({
   const saveDraft = useCallback<EditContextValue["saveDraft"]>(async () => {
     const casVersion = pageVersionRef.current;
     if (casVersion === null) {
-      return { ok: false, error: "Composition not loaded yet." };
+      return { ok: false, error: "This page is still loading — try again in a moment." };
     }
     const snap = currentSnapshot();
     setSaving(true);
