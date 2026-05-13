@@ -40,7 +40,7 @@
  * via the normal mutation-error toast.
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 
 import {
   Card,
@@ -995,14 +995,29 @@ function AdvancedTab({
     return JSON.stringify(sorted, null, 2);
   }, [draft]);
 
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [copyError, setCopyError] = useState(false);
   const onCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(json);
       setCopied(true);
+      setCopyError(false);
       setTimeout(() => setCopied(false), 1400);
     } catch {
-      // clipboard write can be blocked in headless / iframe contexts; the
-      // textarea is selectable as a fallback so we don't surface an error.
+      // QA 2026-05-13 — clipboard write can be blocked in headless /
+      // sandboxed-iframe contexts. Previously the empty catch left
+      // the operator with no feedback — they clicked "Copy", nothing
+      // happened, "Copied" badge never appeared. Now we select the
+      // textarea so Cmd/Ctrl+C works manually, and flag `copyError`
+      // so the button label shifts to "Select all" until the
+      // operator dismisses.
+      setCopyError(true);
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+      setTimeout(() => setCopyError(false), 4000);
     }
   }, [json]);
 
@@ -1027,12 +1042,17 @@ function AdvancedTab({
                 cursor: "pointer",
               }}
             >
-              {copied ? "Copied" : "Copy"}
+              {copied
+                ? "Copied"
+                : copyError
+                  ? "Select all (clipboard blocked)"
+                  : "Copy"}
             </button>
           }
         />
         <CardBody padding="tight">
           <textarea
+            ref={textareaRef}
             readOnly
             value={json}
             spellCheck={false}

@@ -145,7 +145,10 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
     return () => clearTimeout(t);
   }, [status]);
 
-  // Initial load.
+  // Initial load. `loadAttempt` bumps to force a retry from the error
+  // banner.
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const retryLoad = useCallback(() => setLoadAttempt((n) => n + 1), []);
   useEffect(() => {
     let cancelled = false;
     setLoadError(null);
@@ -161,7 +164,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
 
   // ── Save queue ───────────────────────────────────────────────────────
   // Single in-flight save + a queued "next" payload. The inspector
@@ -586,7 +589,24 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
             color: CHROME.amber,
           }}
         >
-          Couldn’t load header config — {loadError}
+          <p className="m-0">Couldn’t load header config — {loadError}</p>
+          {/* QA 2026-05-13 — without a Retry, a transient network blip
+              forced the operator to close + reopen the entire
+              inspector to recover. Now we expose a Retry that
+              re-fires the loader via the `loadAttempt` bump. */}
+          <button
+            type="button"
+            onClick={retryLoad}
+            className="mt-2 inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-semibold"
+            style={{
+              background: "white",
+              border: `1px solid ${CHROME.amberLine}`,
+              color: CHROME.amber,
+              cursor: "pointer",
+            }}
+          >
+            Retry
+          </button>
         </div>
       </DrawerBody>
     );
