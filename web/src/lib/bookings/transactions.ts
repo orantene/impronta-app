@@ -378,6 +378,21 @@ export async function markPaid(
       }).then((r) => {
         if (r.error) logServerError("transactions.markPaid.audit", r.error);
       });
+      // §6 chat-card: emit payment_paid card into the private thread.
+      const amountLabel = result.data.grossAmountCents
+        ? `${(result.data.grossAmountCents / 100).toFixed(2)} ${result.data.currency ?? "USD"}`
+        : "";
+      sb.from("inquiry_messages").insert({
+        inquiry_id: result.data.sourceInquiryId,
+        tenant_id: result.data.sourceTenantId,
+        thread_type: "private",
+        sender_user_id: null,
+        body: `Payment received: ${amountLabel}`.trim(),
+        message_kind: "payment_paid",
+        card_payload: { amount_label: amountLabel, transaction_id: result.data.id },
+      }).then((r) => {
+        if (r.error) logServerError("transactions.markPaid.chatCard", r.error);
+      });
     }
   }
   return result;

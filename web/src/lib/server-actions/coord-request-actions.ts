@@ -79,6 +79,29 @@ export async function approveCoordinatorJoin(requestId: string): Promise<ActionR
         p_kind: "coordinator_added",
         p_payload: { request_id: requestId },
       }).then((res) => { if (res.error) logServerError("audit.emit.coordinator_added", res.error); });
+      // §6 chat-card: emit coordinator_request card into the group thread.
+      try {
+        // Resolve tenant_id for the inquiry.
+        const { data: inqRow } = await supabase
+          .from("inquiries")
+          .select("tenant_id")
+          .eq("id", inquiryId)
+          .maybeSingle();
+        const tenantId = (inqRow?.tenant_id as string | null) ?? null;
+        if (tenantId) {
+          await supabase.from("inquiry_messages").insert({
+            inquiry_id: inquiryId,
+            tenant_id: tenantId,
+            thread_type: "group",
+            sender_user_id: session.user!.id,
+            body: "Coordinator joined this inquiry.",
+            message_kind: "coordinator_request",
+            card_payload: { summary: "Coordinator joined this inquiry", status: "approved" },
+          });
+        }
+      } catch (emitErr) {
+        logServerError("coord-request.approve.chatCard", emitErr);
+      }
     }
   }
   return r;

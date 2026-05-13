@@ -112,6 +112,20 @@ export async function clientApproveCurrentOffer(inquiryId: string): Promise<Clie
     }).then((r) => {
       if (r.error) logServerError("client-pipeline.approve.audit", r.error);
     });
+    // §6 chat-card: emit offer_event card into the private thread.
+    try {
+      await ctx.supabase.from("inquiry_messages").insert({
+        inquiry_id: inquiryId,
+        tenant_id: ctx.tenantId,
+        thread_type: "private",
+        sender_user_id: ctx.userId,
+        body: "Client approved the offer.",
+        message_kind: "offer_event",
+        card_payload: { status: "accepted", total_label: "" },
+      });
+    } catch (emitErr) {
+      logServerError("client-pipeline.approve.chatCard", emitErr);
+    }
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
@@ -162,6 +176,20 @@ export async function clientRejectCurrentOffer(
     }).then((r) => {
       if (r.error) logServerError("client-pipeline.reject.audit", r.error);
     });
+    // §6 chat-card: emit offer_event card into the private thread.
+    try {
+      await ctx.supabase.from("inquiry_messages").insert({
+        inquiry_id: inquiryId,
+        tenant_id: ctx.tenantId,
+        thread_type: "private",
+        sender_user_id: ctx.userId,
+        body: "Client declined the offer.",
+        message_kind: "offer_event",
+        card_payload: { status: "declined", reason },
+      });
+    } catch (emitErr) {
+      logServerError("client-pipeline.reject.chatCard", emitErr);
+    }
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {

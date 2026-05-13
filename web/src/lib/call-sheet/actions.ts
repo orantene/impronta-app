@@ -117,6 +117,21 @@ export async function saveBookingCallSheet(
           changed_by_user_id: user.id,
         },
       }).then((r) => { if (r.error) logServerError("audit.emit.call_sheet_changed", r.error); });
+      // §6 chat-card: emit call_sheet_update card into the group thread.
+      try {
+        const byName = (user as { display_name?: string }).display_name ?? "";
+        await supabase.from("inquiry_messages").insert({
+          inquiry_id: auditInquiryId,
+          tenant_id: tenantId,
+          thread_type: "group",
+          sender_user_id: user.id,
+          body: "Call sheet updated.",
+          message_kind: "call_sheet_update",
+          card_payload: { changed_field: "schedule", by_name: byName },
+        });
+      } catch (emitErr) {
+        logServerError("call-sheet.save.chatCard", emitErr);
+      }
     }
 
     return { ok: true, data: undefined };
