@@ -1,10 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { OnboardingActionState } from "@/app/onboarding/actions";
+import {
+  clearFormPersistence,
+  useFormPersistence,
+} from "@/lib/ui/use-form-persistence";
 
 const GENDER_OPTIONS = [
   { value: "female", label: "Female" },
@@ -24,9 +28,22 @@ export function TalentLocationOnboardingForm({
   nextPath?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // E.7 — persist field values across reloads / validation failures.
+  useFormPersistence(formRef, { step: "talent-location" });
+
+  // Clear the draft once the server reports a successful submit. The
+  // OnboardingActionState convention: no error + non-pending after a
+  // submit attempt = success.
+  useEffect(() => {
+    if (state && !state.error && !pending) {
+      clearFormPersistence("talent-location");
+    }
+  }, [state, pending]);
 
   return (
-    <form action={formAction} className="space-y-8">
+    <form ref={formRef} action={formAction} className="space-y-8">
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
       {/* ── Identity ── */}
