@@ -229,6 +229,13 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
 
   // Pills — order: Lineup, Offer, Event, Files. Mobile keeps this order
   // but the strip is horizontally scrollable.
+  // Slice D (Messages consolidation v2): the client adapter is already
+  // on the universal shell model — pills match plan §3 vocabulary
+  // (Lineup · Offer · Event · Files) and the conversation pane is the
+  // dominant surface (plan §0 principle 1). No tab-dispatch restructure
+  // needed here. Admin + talent (Slices B + C) migrated TOWARD this
+  // pattern, not the other way around. Future polish lives in Slice F+G
+  // (coord-request flow surfaces in client's approval surface).
   const pills: PillDescriptor[] = useMemo(() => {
     const lineupAccepted = lineup.filter((l) => l.isConfirmed).length;
     const lineupTotal    = lineup.length;
