@@ -6764,6 +6764,12 @@ type Ctx = {
     kind: string;
     /** Brand logo URL — replaces the TULALA wordmark when present. */
     logoUrl?: string | null;
+    /**
+     * Task 0.5 — Verified custom domain from agency_domains. Null when
+     * no custom domain is live yet. The Website settings TierCard reads
+     * this directly instead of inferring from plan tier.
+     */
+    verifiedDomain?: string | null;
   } | null;
   /**
    * Real signed-in user identity. null = standalone demo mode; chrome falls

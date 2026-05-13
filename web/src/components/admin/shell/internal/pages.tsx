@@ -9583,7 +9583,11 @@ function SitePage() {
         />
         <TierCard
           title="Custom domain & home"
-          description={meetsPlan(state.plan, "studio") ? `Live at your custom domain` : `Currently at ${bridgeTenantIdentity?.slug ? `${bridgeTenantIdentity.slug}.tulala.app` : effectiveTenant.domain}`}
+          description={
+            bridgeTenantIdentity?.verifiedDomain
+              ? `Live at ${bridgeTenantIdentity.verifiedDomain}`
+              : `Currently at ${bridgeTenantIdentity?.slug ? `${bridgeTenantIdentity.slug}.tulala.app` : effectiveTenant.domain}`
+          }
           icon="globe"
           requiredPlan="studio"
           currentPlan={state.plan}
@@ -9596,7 +9600,7 @@ function SitePage() {
               unlocks: ["Custom domain", "Verified email-from", "Auto SSL"],
             })
           }
-          meta={meetsPlan(state.plan, "studio") ? <><StatDot tone="green" /> Verified</> : undefined}
+          meta={bridgeTenantIdentity?.verifiedDomain ? <><StatDot tone="green" /> Verified</> : undefined}
         />
       </TierSection>
 

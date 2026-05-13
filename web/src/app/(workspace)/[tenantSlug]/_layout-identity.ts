@@ -25,6 +25,14 @@ export type TenantIdentityPayload = {
    *  identity bar. Stored in agency_branding.theme_json.logo_url for
    *  parity with the public storefront's branded chrome. */
   logoUrl: string | null;
+  /**
+   * The tenant's verified custom domain hostname, if any. Derived from
+   * `agency_domains` where `kind='custom'` and `status IN ('verified',
+   * 'ssl_provisioned', 'active')`. Null when no custom domain is verified.
+   * Used by the Website settings TierCard to show the real domain instead
+   * of inferring from the plan tier.
+   */
+  verifiedDomain: string | null;
 };
 
 export async function loadTenantIdentity(
@@ -32,8 +40,8 @@ export async function loadTenantIdentity(
 ): Promise<TenantIdentityPayload | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  // Run agency + branding lookups in parallel; branding is optional.
-  const [agencyRes, brandingRes] = await Promise.all([
+  // Run agency, branding, and verified-custom-domain lookups in parallel.
+  const [agencyRes, brandingRes, domainRes] = await Promise.all([
     admin
       .from("agencies")
       .select("id, slug, display_name, plan_tier, kind")
@@ -43,6 +51,19 @@ export async function loadTenantIdentity(
       .from("agency_branding")
       .select("theme_json")
       .eq("tenant_id", tenantId)
+      .maybeSingle(),
+    // Task 0.5: Fetch the tenant's verified custom domain (if any).
+    // We consider a domain "live" when its status is 'verified',
+    // 'ssl_provisioned', or 'active' — the three states that indicate
+    // the domain is confirmed and serving traffic.
+    admin
+      .from("agency_domains")
+      .select("hostname")
+      .eq("tenant_id", tenantId)
+      .eq("kind", "custom")
+      .in("status", ["verified", "ssl_provisioned", "active"])
+      .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle(),
   ]);
   if (agencyRes.error || !agencyRes.data) {
@@ -60,6 +81,8 @@ export async function loadTenantIdentity(
     themeJson?.logo_url && typeof themeJson.logo_url === "string"
       ? themeJson.logo_url
       : null;
+  const verifiedDomain =
+    (domainRes.data as { hostname: string } | null)?.hostname ?? null;
   return {
     tenantId: data.id,
     slug: data.slug ?? "",
@@ -67,6 +90,7 @@ export async function loadTenantIdentity(
     planTier: data.plan_tier ?? "free",
     kind: data.kind ?? "agency",
     logoUrl,
+    verifiedDomain,
   };
 }
 

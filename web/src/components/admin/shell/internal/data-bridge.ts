@@ -219,6 +219,15 @@ export type BridgeData = {
     /** Optional brand logo URL — replaces the TULALA wordmark in the
      *  identity bar when set. */
     logoUrl?: string | null;
+    /**
+     * Task 0.5 — The tenant's verified custom domain hostname, if any.
+     * Populated from `agency_domains` where kind='custom' and
+     * status IN ('verified', 'ssl_provisioned', 'active'). Null when
+     * no custom domain is live yet. The Website settings TierCard reads
+     * this to show "Live at <domain>" vs "Currently at <subdomain>"
+     * without relying on the shell's plan-tier mock.
+     */
+    verifiedDomain?: string | null;
   } | null;
   /**
    * Real signed-in user identity. When provided, the prototype's chrome
