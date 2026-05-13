@@ -133,6 +133,7 @@ export type PitchErrorReason =
   | "token_expired"
   | "token_revoked"
   | "validation_failed"
+  | "plan_not_eligible"
   | "internal_error";
 
 export type CreatePitchDraftInput = {

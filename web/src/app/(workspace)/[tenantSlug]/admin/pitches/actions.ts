@@ -25,6 +25,7 @@ import {
   sendPitch as sendPitchEngine,
   updatePitchDraft as updatePitchDraftEngine,
 } from "@/lib/pitch/pitch-engine";
+import { canUsePitchFeature } from "@/lib/pitch/pitch-plan-gate";
 import {
   signPitchToken,
   buildPitchShareUrl,
@@ -63,6 +64,23 @@ async function authorise(tenantSlug: string): Promise<AuthOk | AuthErr> {
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "internal_error" };
+
+  // Phase G PR 3 — plan-tier gate. Pitches are a Studio+ feature per the
+  // binding spec (project_pitch_feature.md). Free workspaces hit this
+  // gate; the UI reads `canUsePitchFeature(plan)` from the same module
+  // to render the upsell card instead of the compose UI.
+  const { data: agency, error: agencyErr } = await admin
+    .from("agencies")
+    .select("plan")
+    .eq("id", scope.tenantId)
+    .maybeSingle();
+  if (agencyErr) {
+    logServerError("pitches.authorise.loadPlan", agencyErr);
+    return { ok: false, reason: "internal_error" };
+  }
+  if (!canUsePitchFeature(agency?.plan ?? null)) {
+    return { ok: false, reason: "plan_not_eligible" };
+  }
 
   return { ok: true, tenantId: scope.tenantId, actorUserId: session.user.id, admin };
 }
