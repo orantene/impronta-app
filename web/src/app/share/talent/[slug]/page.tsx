@@ -1,79 +1,206 @@
 /**
  * Public talent share-card landing page.
  *
- * Coordinators copy a shareable URL from the workspace TalentShareCard
- * drawer; recipients land here. Renders a standalone client-friendly
- * page with photos, basic info, and a tracked-link "Send inquiry" CTA
- * that prefills the composer with attribution metadata.
+ * Resolves the `[slug]` to a real `talent_profiles.profile_code` and renders
+ * a public profile card with gallery, agency representation, and an inquiry
+ * CTA that deeplinks back to the agency's workspace pre-filled with this talent.
  *
- * The prototype version is mock-driven — slug is taken at face value
- * and rendered against a static talent record. Production version will
- * resolve the slug to a live talent row, log a `profile_view` event
- * (with referrer + UTM), and POST to `/api/inquiries/from-share` with
- * the attribution chain.
+ * Previously rendered hardcoded MOCK_TALENT — fully wired to DB (B.4, 2026-05-13).
  */
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-// Mock talent — keyed by slug. Replace with a Supabase query.
-const MOCK_TALENT: Record<
-  string,
-  {
-    name: string;
-    headline: string;
-    location: string;
-    height: string;
-    specialty: string;
-    bio: string;
-    repAgency: string;
-    coverEmoji: string;
-  }
-> = {
-  "marta-reyes": {
-    name: "Marta Reyes",
-    headline: "Editorial · Runway · Commercial",
-    location: "Madrid · Available worldwide",
-    height: "5'10\" · 178cm",
-    specialty: "Editorial, runway, beauty",
-    bio: "Madrid-based, signed with Atelier Roma. Recent: Vogue Italia spring spread, Mango lookbook, Bvlgari jewelry campaign.",
-    repAgency: "Atelier Roma",
-    coverEmoji: "✨",
-  },
+export const dynamic = "force-dynamic";
+
+const MEDIA_BUCKET = "media-public";
+
+type ProfileRow = {
+  id: string;
+  profile_code: string;
+  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  short_bio: string | null;
+  height_cm: number | null;
+  workflow_status: string | null;
+  visibility: string | null;
 };
 
-const FALLBACK = {
-  name: "Talent",
-  headline: "Editorial · Runway · Commercial",
-  location: "Available worldwide",
-  height: "—",
-  specialty: "—",
-  bio: "Profile loading. In production this resolves the slug to a live talent record.",
-  repAgency: "Tulala roster",
-  coverEmoji: "✨",
+type MediaRow = {
+  storage_path: string;
+  variant_kind: string | null;
+  sort_order: number | null;
+  deleted_at: string | null;
+  approval_state: string | null;
 };
+
+type RosterRow = {
+  status: string;
+  tenant_id: string;
+  agency_visibility: string | null;
+  agencies: { display_name: string | null; slug: string } | { display_name: string | null; slug: string }[] | null;
+};
+
+type LoadedTalent = {
+  profile: ProfileRow;
+  avatarUrl: string | null;
+  heroUrl: string | null;
+  galleryUrls: string[];
+  agencyName: string;
+  agencySlug: string;
+  cityLabel: string | null;
+};
+
+function unwrapAgency(value: RosterRow["agencies"]): { display_name: string | null; slug: string } | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+function inchesFromCm(cm: number): string {
+  const inches = cm / 2.54;
+  const ft = Math.floor(inches / 12);
+  const remaining = Math.round(inches - ft * 12);
+  return `${ft}'${remaining}" · ${cm}cm`;
+}
+
+async function loadTalent(slug: string): Promise<LoadedTalent | null> {
+  const supabase = createPublicSupabaseClient();
+  if (!supabase) return null;
+
+  const normalized = slug.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const { data: profile, error: profileErr } = await supabase
+    .from("talent_profiles")
+    .select(
+      "id, profile_code, display_name, first_name, last_name, short_bio, height_cm, workflow_status, visibility, location_id",
+    )
+    .eq("profile_code", normalized)
+    .in("workflow_status", ["published", "approved"])
+    .eq("visibility", "public")
+    .maybeSingle();
+
+  if (profileErr || !profile) return null;
+
+  const typedProfile = profile as ProfileRow & { location_id: string | null };
+
+  // Load agency representation via the roster.
+  const { data: rosterRows } = await supabase
+    .from("agency_talent_roster")
+    .select(
+      "status, tenant_id, agency_visibility, agencies!tenant_id ( display_name, slug )",
+    )
+    .eq("talent_profile_id", typedProfile.id)
+    .eq("status", "active")
+    .in("agency_visibility", ["site_visible", "featured"])
+    .limit(1);
+
+  const roster = (rosterRows ?? [])[0] as RosterRow | undefined;
+  const agency = unwrapAgency(roster?.agencies ?? null);
+  const agencyName = agency?.display_name ?? "Tulala roster";
+  const agencySlug = agency?.slug ?? "";
+
+  // Load gallery media.
+  const { data: mediaRows } = await supabase
+    .from("media_assets")
+    .select("storage_path, variant_kind, sort_order, deleted_at, approval_state")
+    .eq("owner_talent_profile_id", typedProfile.id)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true })
+    .limit(50);
+
+  const visible = ((mediaRows ?? []) as MediaRow[]).filter(
+    (m) => m.approval_state === null || m.approval_state === "approved",
+  );
+
+  const toUrl = (path: string) => supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
+
+  const avatar = visible.find((m) => m.variant_kind === "avatar");
+  const hero = visible.find((m) => m.variant_kind === "hero");
+  const gallery = visible
+    .filter((m) => m.variant_kind === "gallery" || m.variant_kind === "card" || m.variant_kind === "polaroid")
+    .slice(0, 8)
+    .map((m) => toUrl(m.storage_path));
+
+  // Load residence city label.
+  let cityLabel: string | null = null;
+  if (typedProfile.location_id) {
+    const { data: loc } = await supabase
+      .from("locations")
+      .select("display_name_en")
+      .eq("id", typedProfile.location_id)
+      .maybeSingle();
+    cityLabel = (loc as { display_name_en?: string } | null)?.display_name_en ?? null;
+  }
+
+  return {
+    profile: typedProfile,
+    avatarUrl: avatar ? toUrl(avatar.storage_path) : null,
+    heroUrl: hero ? toUrl(hero.storage_path) : (avatar ? toUrl(avatar.storage_path) : null),
+    galleryUrls: gallery,
+    agencyName,
+    agencySlug,
+    cityLabel,
+  };
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const t = MOCK_TALENT[slug] ?? FALLBACK;
+  const talent = await loadTalent(slug);
+
+  if (!talent) {
+    return {
+      title: "Profile not found · Tulala",
+      description: "This talent profile is no longer available.",
+    };
+  }
+
+  const name =
+    talent.profile.display_name ??
+    [talent.profile.first_name, talent.profile.last_name].filter(Boolean).join(" ") ??
+    "Talent";
+  const description = talent.profile.short_bio ?? `${name} — represented by ${talent.agencyName}.`;
+
   return {
-    title: `${t.name} · Tulala`,
-    description: `${t.headline}. ${t.bio}`,
+    title: `${name} · ${talent.agencyName}`,
+    description,
     openGraph: {
-      title: `${t.name} — talent profile`,
-      description: t.headline,
+      title: `${name} — talent profile`,
+      description,
       type: "profile",
+      images: talent.heroUrl ? [{ url: talent.heroUrl }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${name} — talent profile`,
+      description,
+      images: talent.heroUrl ? [talent.heroUrl] : undefined,
     },
   };
 }
 
 export default async function TalentSharePage({ params }: PageProps) {
   const { slug } = await params;
-  const t = MOCK_TALENT[slug] ?? FALLBACK;
+  const talent = await loadTalent(slug);
+
+  if (!talent) notFound();
+
+  const name =
+    talent.profile.display_name ??
+    [talent.profile.first_name, talent.profile.last_name].filter(Boolean).join(" ") ??
+    "Talent";
+  const firstName = (talent.profile.first_name ?? name.split(" ")[0] ?? name).trim();
+  const heightLabel = talent.profile.height_cm ? inchesFromCm(talent.profile.height_cm) : "—";
+  const inquiryHref = talent.agencySlug
+    ? `/${talent.agencySlug}/client/inquiries/new?talent=${encodeURIComponent(talent.profile.profile_code)}&utm_source=share`
+    : `/?inquiry=${encodeURIComponent(talent.profile.profile_code)}&utm_source=share`;
 
   return (
     <div
@@ -99,8 +226,10 @@ export default async function TalentSharePage({ params }: PageProps) {
         {/* Cover */}
         <div
           style={{
-            background: "linear-gradient(135deg, #F2F2EE 0%, #E5E1D7 100%)",
-            height: 220,
+            background: talent.heroUrl
+              ? `url(${talent.heroUrl}) center / cover no-repeat`
+              : "linear-gradient(135deg, #F2F2EE 0%, #E5E1D7 100%)",
+            height: 280,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -108,7 +237,7 @@ export default async function TalentSharePage({ params }: PageProps) {
             color: "#0F4F3E",
           }}
         >
-          {t.coverEmoji}
+          {!talent.heroUrl ? "✨" : null}
         </div>
 
         {/* Identity */}
@@ -122,7 +251,7 @@ export default async function TalentSharePage({ params }: PageProps) {
               color: "rgba(11,11,13,0.55)",
             }}
           >
-            Represented by {t.repAgency}
+            Represented by {talent.agencyName}
           </div>
           <h1
             style={{
@@ -134,18 +263,20 @@ export default async function TalentSharePage({ params }: PageProps) {
               lineHeight: 1.1,
             }}
           >
-            {t.name}
+            {name}
           </h1>
-          <div
-            style={{
-              fontSize: 15,
-              color: "rgba(11,11,13,0.62)",
-              marginTop: 6,
-              lineHeight: 1.55,
-            }}
-          >
-            {t.headline}
-          </div>
+          {talent.profile.short_bio ? (
+            <div
+              style={{
+                fontSize: 15,
+                color: "rgba(11,11,13,0.62)",
+                marginTop: 6,
+                lineHeight: 1.55,
+              }}
+            >
+              {talent.profile.short_bio}
+            </div>
+          ) : null}
 
           {/* Stats grid */}
           <div
@@ -159,51 +290,45 @@ export default async function TalentSharePage({ params }: PageProps) {
               borderBottom: "1px solid rgba(24,24,27,0.06)",
             }}
           >
-            <Stat label="Based in" value={t.location.split(" · ")[0] ?? t.location} />
-            <Stat label="Height" value={t.height} />
-            <Stat label="Specialty" value={t.specialty} />
+            <Stat label="Based in" value={talent.cityLabel ?? "—"} />
+            <Stat label="Height" value={heightLabel} />
+            <Stat label="Agency" value={talent.agencyName} />
           </div>
 
-          {/* Bio */}
-          <p
-            style={{
-              fontSize: 14,
-              color: "#0B0B0D",
-              lineHeight: 1.65,
-              marginTop: 20,
-              maxWidth: 560,
-            }}
-          >
-            {t.bio}
-          </p>
-
-          {/* Photo grid placeholder */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 6,
-              marginTop: 20,
-            }}
-          >
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  aspectRatio: "3 / 4",
-                  background: "#F2F2EE",
-                  borderRadius: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                  color: "rgba(11,11,13,0.38)",
-                }}
-              >
-                Photo {i + 1}
-              </div>
-            ))}
-          </div>
+          {/* Gallery */}
+          {talent.galleryUrls.length > 0 ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 6,
+                marginTop: 20,
+              }}
+            >
+              {talent.galleryUrls.slice(0, 8).map((url, i) => (
+                <div
+                  key={url + i}
+                  style={{
+                    aspectRatio: "3 / 4",
+                    background: `url(${url}) center / cover no-repeat, #F2F2EE`,
+                    borderRadius: 8,
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: 20,
+                padding: "20px 0",
+                fontSize: 13,
+                color: "rgba(11,11,13,0.45)",
+                textAlign: "center",
+              }}
+            >
+              Portfolio uploading soon.
+            </div>
+          )}
 
           {/* CTA */}
           <div
@@ -215,7 +340,7 @@ export default async function TalentSharePage({ params }: PageProps) {
             }}
           >
             <div style={{ fontSize: 15, fontWeight: 600, color: "#093328" }}>
-              Want to book {t.name.split(" ")[0]}?
+              Want to book {firstName}?
             </div>
             <div
               style={{
@@ -225,12 +350,11 @@ export default async function TalentSharePage({ params }: PageProps) {
                 lineHeight: 1.55,
               }}
             >
-              Tell us about your project — dates, brief, and budget. {t.repAgency} replies
-              within the hour.
+              Tell {talent.agencyName} about your project — dates, brief, and budget.
             </div>
-            <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
+            <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <Link
-                href={`/?inquiry=${slug}&utm_source=share`}
+                href={inquiryHref}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -247,24 +371,26 @@ export default async function TalentSharePage({ params }: PageProps) {
               >
                 Send inquiry →
               </Link>
-              <Link
-                href={`/?talent=${slug}`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  padding: "10px 18px",
-                  background: "transparent",
-                  color: "#093328",
-                  border: "1px solid rgba(9,51,40,0.22)",
-                  borderRadius: 9,
-                  fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textDecoration: "none",
-                }}
-              >
-                See more talent
-              </Link>
+              {talent.agencySlug ? (
+                <Link
+                  href={`/${talent.agencySlug}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "10px 18px",
+                    background: "transparent",
+                    color: "#093328",
+                    border: "1px solid rgba(9,51,40,0.22)",
+                    borderRadius: 9,
+                    fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    textDecoration: "none",
+                  }}
+                >
+                  See more talent
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>
