@@ -45,6 +45,7 @@ import { CoordRequestSheet } from "@/components/coord-request/CoordRequestSheet"
 import { OverflowMenu } from "@/components/chat-interactions";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
+import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyles";
 import {
   ReservationThread,
   type PillDescriptor,
@@ -2455,11 +2456,12 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
   const fileCount = (MOCK_FILES_FOR_CONV[resolveFileKey(inquiry.id)] ?? []).length;
 
   return (
-    <div style={{
+    <div data-msg-shell style={{
       padding: 16, fontFamily: FONTS.body,
       display: "flex", flexDirection: "column", gap: 10,
       height: "100%", minHeight: 0,
     }}>
+      <MobileShellStyles />
       {/* Unified shell header — same compact band as the talent + client
           shells. Admin variant: SLA chip on the right (urgency cue),
           adapted RichInquiry → ShellHeaderInput, no "you're coord" pill. */}
@@ -4848,7 +4850,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
   }
 
   return (
-    <div style={{
+    <div data-msg-shell style={{
       padding: 16, fontFamily: FONTS.body,
       display: "flex", flexDirection: "column", gap: 10,
       // Fill the parent's available height so the inner tab content
@@ -4857,6 +4859,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
       // disappeared as the user read down the message stream.
       height: "100%", minHeight: 0,
     }}>
+      <MobileShellStyles />
       {/* Unified header — replaces PageTopThread + StageProgress +
           ParticipantTrustStrip + TakeHomeCard. One band, three pieces of
           chrome (back+title, take-home chip, status pill) and a slim
