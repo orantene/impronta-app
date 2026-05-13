@@ -55,6 +55,8 @@ import {
   type ReplyTarget,
   replyTargetFromMessage,
 } from "@/components/chat-interactions";
+import { addReaction as addReactionAction, removeReaction as removeReactionAction } from "@/lib/server-actions/message-reactions";
+import { OfferCard, PaymentRequestCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard } from "@/components/chat-cards/ChatCard";
 import {
   ReservationThread,
   type PillDescriptor,
@@ -3123,6 +3125,72 @@ function useStageTransitionMenuForReservation(
 // role tag, day separators, mine/theirs alignment, double-check ts,
 // closure-aware footer that swaps the composer for a closed-conv notice
 // when the inquiry is past / cancelled / rejected / expired.
+
+/**
+ * Item #4 helper: render a typed ChatCard for messages with non-text
+ * `message_kind`. Returns null when the kind is unknown — caller falls
+ * back to the plain bubble render.
+ */
+function renderChatCardForMessage(
+  kind: string,
+  payload: Record<string, unknown>,
+  toast: (s: string) => void,
+): React.ReactNode {
+  const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
+  switch (kind) {
+    case "offer_event": {
+      const status = get<"draft" | "sent" | "accepted" | "declined" | "countered">("status", "sent");
+      return (
+        <OfferCard
+          status={status}
+          totalLabel={get<string>("total_label", "—")}
+          hint={get<string>("hint", "")}
+          onOpen={() => toast("Open offer — wire to setActiveTab('offer')")}
+        />
+      );
+    }
+    case "payment_request":
+      return (
+        <PaymentRequestCard
+          amountLabel={get<string>("amount_label", "—")}
+          status="requested"
+          hint={get<string>("hint", "")}
+          onPayNow={() => toast("Open Pay-Now sheet — wire on client adapter")}
+        />
+      );
+    case "payment_paid":
+      return <PaymentRequestCard amountLabel={get<string>("amount_label", "—")} status="paid" />;
+    case "coordinator_request":
+      return (
+        <CoordinatorRequestCard
+          requesterName={get<string>("requester_name", "Someone")}
+          pitch={get<string>("pitch", "")}
+        />
+      );
+    case "talent_rate":
+      return (
+        <TalentRateCard
+          talentName={get<string>("talent_name", "Talent")}
+          rateLabel={get<string>("rate_label", "—")}
+          state={get<"submitted" | "accepted" | "countered" | "pending">("state", "submitted")}
+        />
+      );
+    case "call_sheet_update":
+      return (
+        <CallSheetUpdateCard
+          changedField={get<string>("changed_field", "")}
+          byName={get<string>("by_name", "")}
+          onOpen={() => toast("Open Event tab — wire to setActiveTab('event')")}
+        />
+      );
+    case "booking_status":
+    case "system_event":
+      return <SystemEventCard text={get<string>("text", "Status updated")} />;
+    default:
+      return null;
+  }
+}
+
 function AdminMessageStream({
   messages, placeholder, closed, closedNotice, threadKey, smartReplyContext = "default",
   firstTimeClientName, inquiryId, tenantSlug, threadType,
@@ -3277,7 +3345,21 @@ function AdminMessageStream({
                 >
                   <MessageReactionMenu
                     toast={(s) => toast(s)}
-                    placement={mine ? "above" : "above"}
+                    placement="above"
+                    onReact={async (emoji) => {
+                      const r = await addReactionAction(m.id, emoji);
+                      if (!r.ok) toast(`Reaction failed: ${r.error}`);
+                    }}
+                    onToggle={async (emoji) => {
+                      // Optimistic toggle: insert first; on duplicate-key
+                      // error (from the unique index) fall through to
+                      // delete to clear the existing row.
+                      const add = await addReactionAction(m.id, emoji);
+                      if (!add.ok) {
+                        const remove = await removeReactionAction(m.id, emoji);
+                        if (!remove.ok) toast(`Reaction toggle failed: ${remove.error}`);
+                      }
+                    }}
                   />
                   <button
                     type="button"
@@ -3412,18 +3494,25 @@ function AdminMessageStream({
             placeholder={placeholder}
             smartReplyContext={smartReplyContext}
             onSend={(text) => {
+              // Items 1-3 final wiring: thread the active reply target
+              // through the send so the inserted row gets
+              // reply_to_message_id (migration 20260513210912).
+              const replyId = replyTarget?.messageId ?? null;
               appendLocalMessage(threadKey, text);
+              setReplyTarget(null);
               startTransition(async () => {
-                const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text);
+                const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text, replyId);
                 if ("error" in result) toast(`Send failed: ${result.error}`);
               });
             }}
             workspaceName={wsName}
             canSendAsWorkspace={canSendAsWs}
             onSendAsWorkspace={(text) => {
+              const replyId = replyTarget?.messageId ?? null;
               appendLocalMessage(threadKey, text, "workspace");
+              setReplyTarget(null);
               startTransition(async () => {
-                const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text);
+                const result = await sendMessageAction(tenantSlug, inquiryId, threadType, text, replyId);
                 if ("error" in result) toast(`Send failed: ${result.error}`);
               });
             }}
