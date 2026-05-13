@@ -11,6 +11,17 @@ import type { HeroSlide, HeroV1 } from "./schema";
 
 type OverlayFlavor = NonNullable<HeroV1["overlay"]>;
 type MoodPreset = NonNullable<HeroV1["mood"]>;
+type LayoutVariant = NonNullable<HeroV1["layout"]>;
+
+const LAYOUT_OPTIONS: ReadonlyArray<{
+  value: LayoutVariant;
+  label: string;
+  hint: string;
+}> = [
+  { value: "centered",    label: "Centered",       hint: "Copy centered, image full-bleed behind. Default." },
+  { value: "split-left",  label: "Image left",     hint: "Background photo on the left half, copy on the right. Editorial split." },
+  { value: "split-right", label: "Image right",    hint: "Copy on the left, background photo on the right. Conversion-focused." },
+];
 
 const OVERLAY_OPTIONS: ReadonlyArray<{
   value: OverlayFlavor;
@@ -320,6 +331,30 @@ export function HeroEditor({
             <span className={HINT}>
               {MOOD_OPTIONS.find((o) => o.value === state.mood)?.hint ??
                 "Drives type scale + spacing rhythm."}
+            </span>
+          </label>
+          <label className={FIELD}>
+            <span className={LABEL}>Layout</span>
+            <select
+              className={INPUT}
+              value={state.layout ?? ""}
+              onChange={(e) =>
+                update(
+                  "layout",
+                  (e.target.value || undefined) as LayoutVariant | undefined,
+                )
+              }
+            >
+              <option value="">Default (centered)</option>
+              {LAYOUT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <span className={HINT}>
+              {LAYOUT_OPTIONS.find((o) => o.value === state.layout)?.hint ??
+                "Spatial composition. Centered is the editorial default; split variants pair copy with media."}
             </span>
           </label>
           <label className={FIELD}>

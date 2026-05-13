@@ -68,6 +68,19 @@ export const heroSchemaV1 = z.object({
     .optional(),
   /** Editorial rhythm preset. Drives type scale + spacing. */
   mood: z.enum(["clean", "editorial", "cinematic"]).optional(),
+  /**
+   * P7B — Layout variant. Spatial composition for the hero copy + media.
+   *   - "centered"    (default): headline + subheadline + CTAs centered;
+   *                              background is full-bleed image or scrim
+   *   - "split-left":  background image / media on the LEFT, copy on RIGHT
+   *   - "split-right": copy on the LEFT, background image on the RIGHT
+   *
+   * Emitted as `data-hero-layout` on the container so CSS / tenant brand
+   * stylesheets can target each variant. Component rendering applies a
+   * grid template based on the variant for the desktop breakpoint;
+   * mobile collapses to a single column.
+   */
+  layout: z.enum(["centered", "split-left", "split-right"]).optional(),
   /** Auto-advancing image reel. Up to 8 slides; 2+ triggers slider render. */
   slides: z.array(heroSlideSchema).max(8).optional(),
   /** Per-slide duration in ms (2s–20s). Applied as CSS animation-duration. */

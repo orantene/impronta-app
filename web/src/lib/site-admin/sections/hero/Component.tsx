@@ -343,6 +343,7 @@ export function HeroComponent({
       data-hero-mood={effectiveMood}
       data-hero-overlay={effectiveOverlay}
       data-hero-variant={isSlider ? "slider" : hasSlides ? "image" : "clean"}
+      data-hero-layout={(props as { layout?: string }).layout ?? "centered"}
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >

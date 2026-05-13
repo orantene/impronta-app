@@ -1211,3 +1211,52 @@ body[data-edit-preview="1"] [data-edit-affordance] {
     --hover-actions-events: auto;
   }
 }
+
+/* P7B — Hero layout variants. Spatial composition controls inherited from
+ * `data-hero-layout` set by sections/hero/Component.tsx based on the
+ * `layout` field in the v1 schema. Centered is the default and matches
+ * the legacy rendering. Split variants use a 2-col grid on >=640px and
+ * collapse to a single column on phones. */
+.site-hero[data-hero-layout="split-left"] .site-hero__inner,
+.site-hero[data-hero-layout="split-right"] .site-hero__inner {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: center;
+  text-align: left;
+  max-width: 100%;
+}
+@media (min-width: 640px) {
+  .site-hero[data-hero-layout="split-left"] .site-hero__inner {
+    grid-template-columns: 1fr 1.2fr;
+    /* Image fills the left grid cell via the existing
+     * .site-hero__media absolute layer; offset the inner so copy
+     * lives on the right side. */
+    padding-left: max(36%, 18rem);
+  }
+  .site-hero[data-hero-layout="split-right"] .site-hero__inner {
+    grid-template-columns: 1.2fr 1fr;
+    padding-right: max(36%, 18rem);
+  }
+}
+.site-hero[data-hero-layout="split-left"] .site-hero__media,
+.site-hero[data-hero-layout="split-right"] .site-hero__media {
+  /* Constrain the photo to the appropriate half on desktop. */
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .site-hero[data-hero-layout="split-left"] .site-hero__media {
+    clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+  }
+  .site-hero[data-hero-layout="split-right"] .site-hero__media {
+    clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+  }
+}
+/* Center text alignment changes for split variants — left-align reads
+ * better when copy doesn't span the full container width. */
+.site-hero[data-hero-layout="split-left"] .site-hero__headline,
+.site-hero[data-hero-layout="split-left"] .site-hero__subheadline,
+.site-hero[data-hero-layout="split-right"] .site-hero__headline,
+.site-hero[data-hero-layout="split-right"] .site-hero__subheadline {
+  text-align: left;
+}
