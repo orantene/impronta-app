@@ -11203,7 +11203,14 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
   useEffect(() => { reload(); }, [reload]);
 
   if (!isUuid) return null;
-  if (loading || lineup == null) return null;
+  // C9 — loading skeleton on lineup hydrate.
+  if (loading || lineup == null) {
+    return (
+      <div data-live-lineup-loading style={{ padding: 14, fontFamily: FONTS.body }}>
+        <PanelSkeleton lines={3} />
+      </div>
+    );
+  }
 
   const onLineupTalentIds = new Set(lineup.map((p) => p.talentProfileId).filter((x): x is string => !!x));
   // Roster talent ids are real UUIDs (synthetic mock roster won't match
@@ -11407,7 +11414,16 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
   useEffect(() => { reload(); }, [reload]);
 
   if (!isAdmin) return null;
-  if (loading) return null;
+  // C9 — loading skeleton (was a blank flash before).
+  if (loading) {
+    return (
+      <div data-offer-draft-loading style={{
+        padding: 14, fontFamily: FONTS.body, color: COLORS.inkMuted, fontSize: 12,
+      }}>
+        <PanelSkeleton lines={4} />
+      </div>
+    );
+  }
   if (!snapshot) return null;
 
   const addLineItem = () => {
@@ -12393,6 +12409,43 @@ function ghostBtn(): React.CSSProperties {
 function disabledBtn(base: React.CSSProperties): React.CSSProperties {
   return { ...base, opacity: 0.45, cursor: "not-allowed" };
 }
+
+/** C9 — small shimmer-rows placeholder used while panel data hydrates.
+ *  Renders N stacked light-grey bars with a subtle shimmer animation so
+ *  the panel doesn't flash blank → populated. */
+function PanelSkeleton({ lines = 3 }: { lines?: number }) {
+  const rows = Array.from({ length: Math.max(1, Math.min(lines, 8)) });
+  return (
+    <div
+      role="status"
+      aria-label="Loading"
+      style={{ display: "flex", flexDirection: "column", gap: 8 }}
+    >
+      {rows.map((_, i) => (
+        <span
+          key={i}
+          aria-hidden
+          style={{
+            display: "block",
+            height: 14,
+            width: i === 0 ? "60%" : i === rows.length - 1 ? "40%" : "85%",
+            borderRadius: 6,
+            background:
+              "linear-gradient(90deg, rgba(11,11,13,0.06), rgba(11,11,13,0.10), rgba(11,11,13,0.06))",
+            backgroundSize: "200% 100%",
+            animation: "tulala-skel-shimmer 1.6s ease-in-out infinite",
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes tulala-skel-shimmer {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+    </div>
+  );
+}
 function dashedBtn(_label: string): React.CSSProperties {
   return {
     padding: "10px 14px", borderRadius: 10,
@@ -13051,7 +13104,14 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   useEffect(() => { reload(); }, [reload]);
 
   if (!isUuid) return null;
-  if (loading || !files) return null;
+  // C9 — loading skeleton on files panel hydrate.
+  if (loading || !files) {
+    return (
+      <div data-live-files-loading style={{ padding: 14, fontFamily: FONTS.body }}>
+        <PanelSkeleton lines={2} />
+      </div>
+    );
+  }
   // Even with zero files, render so the upload affordance is reachable.
 
   const remove = (id: string, name: string) => {

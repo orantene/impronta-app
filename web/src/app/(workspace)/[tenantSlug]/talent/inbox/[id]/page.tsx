@@ -1,17 +1,24 @@
-import { redirect } from "next/navigation";
+import { PinThenRedirect } from "./_pin-then-redirect";
 
-// Phase 3.12.2 — The prototype talent shell handles inquiry thread selection
-// via click-driven state (not URL routing). Deep links to /talent/inbox/[id]
-// redirect to the inbox list where the user can select the thread.
-// Full URL-deep-link support is Phase 4+ work.
+// C8 — Talent thread deep-link.
+//
+// Old behavior: redirect to /talent/inbox, losing the id entirely.
+// New behavior: pin the id into the talent shell's pending-conversation
+// slot, then redirect — the shell opens directly to the threaded view
+// on mount.
+//
+// The actual conversation rendering lives inside the prototype-style
+// talent shell (a single PageRouter that swaps panes by state). URL-as-
+// state is Phase X work; this bridge gives us deep-link parity without
+// rebuilding the shell.
 
 type PageParams = Promise<{ tenantSlug: string; id: string }>;
 
-export default async function TalentInquiryThreadRedirect({
+export default async function TalentInquiryThreadDeepLink({
   params,
 }: {
   params: PageParams;
 }) {
-  const { tenantSlug } = await params;
-  redirect(`/${tenantSlug}/talent/inbox`);
+  const { tenantSlug, id } = await params;
+  return <PinThenRedirect conversationId={id} tenantSlug={tenantSlug} />;
 }
