@@ -42,6 +42,9 @@
 import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CoordRequestSheet } from "@/components/coord-request/CoordRequestSheet";
+import { OverflowMenu } from "@/components/chat-interactions";
+import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
+import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
 import {
   ReservationThread,
   type PillDescriptor,
@@ -2355,6 +2358,8 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
   // is the primary sales surface for admin/coord).
   const [activeTab, setActiveTab] = useState<ThreadTabId>("chat");
   const [chatSubThread, setChatSubThread] = useState<ChatSubThreadId>("client");
+  // Slice P wiring: Status sheet state — opens on header status pill tap.
+  const [statusSheetOpen, setStatusSheetOpen] = useState(false);
 
   /* Phase A PR 2 — admin re-skin onto the ReservationThread primitive,
    * behind a `?rt=1` search-param flag. Hook is called unconditionally
@@ -2475,9 +2480,19 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
         onBack={onBack}
         backLabel="Inbox"
         showCoordPill={false}
+        onStatusClick={() => setStatusSheetOpen(true)}
         rightSlot={(
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <StageTransitionMenu inquiryId={inquiry.id} stage={inquiry.stage} />
+            <ThreadSearchTrigger
+              inquiryId={inquiry.id}
+              messages={inquiry.messages}
+              onJumpOffer={() => setActiveTab("offer")}
+              onJumpCallSheet={() => setActiveTab("event")}
+              onJumpPayment={() => setActiveTab("offer")}
+              onJumpApproval={() => setActiveTab("offer")}
+            />
+            <OverflowMenu toast={toast} size="sm" />
           </div>
         )}
         // Slice A (Messages consolidation v2): row 3 of the universal
@@ -2729,8 +2744,88 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
         )}
       </div>
       <ShellNextActionBar {...adminAction} />
+      {/* Slice P wiring: Status sheet — opens from the header status
+          pill. Derives the 4-family status data from the inquiry's
+          current state + lineup + offer + payment. Engine reads are
+          best-effort with sensible fallbacks; missing data renders
+          empty sections rather than broken rows. */}
+      <StatusSheet
+        open={statusSheetOpen}
+        onClose={() => setStatusSheetOpen(false)}
+        data={deriveAdminStatusSheetData(inquiry, stageBucket, allTalents, offerLabel)}
+      />
     </div>
   );
+}
+
+/** Derive the 4-family status data for the admin Status sheet. Keeps
+ *  the per-pov mapping co-located with the caller; talent + client
+ *  shells get their own derivers when wired. */
+function deriveAdminStatusSheetData(
+  inquiry: RichInquiry,
+  stageBucket: "inquiry" | "hold" | "booked" | "past",
+  allTalents: Array<{ name: string; status: string }>,
+  offerLabel: string | null,
+): StatusSheetData {
+  const stage: StatusSheetData["stage"] =
+      stageBucket === "inquiry" ? "Inquiry"
+    : stageBucket === "hold" ? "Offer sent"
+    : stageBucket === "booked" ? "Booked"
+    : stageBucket === "past" ? "Wrapped"
+    : "Inquiry";
+
+  const offerStatus: StatusSheetData["offer"]["status"] =
+      !offerLabel ? "No offer"
+    : offerLabel.toLowerCase().includes("draft") ? "Draft"
+    : offerLabel.toLowerCase().includes("sent") || offerLabel.toLowerCase().includes("awaiting") ? "Sent"
+    : offerLabel.toLowerCase().includes("accepted") || offerLabel.toLowerCase().includes("booked") ? "Accepted"
+    : offerLabel.toLowerCase().includes("rejected") || offerLabel.toLowerCase().includes("declined") ? "Declined"
+    : "Sent";
+
+  const paymentStatus: StatusSheetData["payment"]["status"] =
+      stageBucket === "past" ? "Paid"
+    : stageBucket === "booked" ? "Requested"
+    : "Not requested";
+
+  return {
+    stage,
+    offer: {
+      status: offerStatus,
+      totalLabel: offerLabel ?? undefined,
+      nextAction:
+          offerStatus === "No offer" ? "Draft offer when lineup is set."
+        : offerStatus === "Draft" ? "Send to client."
+        : offerStatus === "Sent" ? "Awaiting client response."
+        : offerStatus === "Accepted" ? "Offer locked — proceed to event."
+        : undefined,
+    },
+    talents: allTalents.map((t) => ({
+      name: t.name,
+      status: ((s: string): StatusSheetData["talents"][number]["status"] => {
+        if (s === "accepted" || s === "confirmed") return "Accepted";
+        if (s === "pending" || s === "invited") return "Invited";
+        if (s === "declined") return "Declined";
+        if (s === "removed") return "Removed";
+        if (s === "hold" || s === "superseded") return "Hold";
+        return "Invited";
+      })(t.status),
+    })),
+    payment: {
+      status: paymentStatus,
+      amountLabel: offerLabel ?? undefined,
+      nextAction:
+          paymentStatus === "Not requested" ? "Send payment request once booked."
+        : paymentStatus === "Requested" ? "Awaiting client payment."
+        : paymentStatus === "Paid" ? "Cleared. Payout pending."
+        : undefined,
+    },
+    nextStep:
+        stage === "Inquiry" ? "Build the shortlist and confirm talent rates."
+      : stage === "Offer sent" ? "Client is reviewing the offer."
+      : stage === "Booked" ? "Production planning — open the Event tab."
+      : stage === "Wrapped" ? "Booking closed. Settle payouts."
+      : undefined,
+  };
 }
 
 /* ─── AdminReservationView ──────────────────────────────────────────
@@ -4362,6 +4457,7 @@ type ShellHeaderInput = {
 
 function ShellHeader({
   conv, onBack, backLabel, rightSlot, primaryChip, showCoordPill = true, metaExtras,
+  onStatusClick,
 }: {
   conv: ShellHeaderInput;
   onBack: () => void;
@@ -4378,6 +4474,10 @@ function ShellHeader({
    *  lineup count + coord owner inside the same header card so the
    *  detail view doesn't grow a second floating chip strip below. */
   metaExtras?: React.ReactNode;
+  /** Slice P wiring (Messages consolidation v2): when provided, the
+   *  default status pill becomes a button that opens the Status sheet
+   *  with the 4-family status breakdown. */
+  onStatusClick?: () => void;
 }) {
   const sc = stageStyle(conv.stage);
   const stageLabel = conv.stage === "past" ? "Wrapped"
@@ -4470,13 +4570,37 @@ function ShellHeader({
           {rightSlot}
           {primaryChip !== null && (
             primaryChip ?? (
-              <span style={{
-                flexShrink: 0,
-                fontSize: 10.5, fontWeight: 700,
-                padding: "3px 9px", borderRadius: 999,
-                background: sc.bg, color: sc.fg,
-                textTransform: "uppercase", letterSpacing: 0.4, marginTop: 1,
-              }}>{stageLabel}</span>
+              onStatusClick ? (
+                <button
+                  type="button"
+                  onClick={onStatusClick}
+                  aria-label={`Status: ${stageLabel} — open full breakdown`}
+                  title="View full status"
+                  style={{
+                    flexShrink: 0,
+                    fontSize: 10.5, fontWeight: 700,
+                    padding: "3px 9px", borderRadius: 999,
+                    background: sc.bg, color: sc.fg,
+                    textTransform: "uppercase", letterSpacing: 0.4, marginTop: 1,
+                    border: "none", cursor: "pointer",
+                    fontFamily: FONTS.body,
+                    display: "inline-flex", alignItems: "center", gap: 3,
+                  }}
+                >
+                  {stageLabel}
+                  <svg width="8" height="8" viewBox="0 0 10 10" fill="none" aria-hidden style={{ opacity: 0.6 }}>
+                    <path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              ) : (
+                <span style={{
+                  flexShrink: 0,
+                  fontSize: 10.5, fontWeight: 700,
+                  padding: "3px 9px", borderRadius: 999,
+                  background: sc.bg, color: sc.fg,
+                  textTransform: "uppercase", letterSpacing: 0.4, marginTop: 1,
+                }}>{stageLabel}</span>
+              )
             )
           )}
         </div>
@@ -4696,6 +4820,9 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
   // Slice G (Messages consolidation v2): coordinator-request sheet
   // state. Opens when a plain talent taps the locked Client sub-toggle.
   const [coordRequestOpen, setCoordRequestOpen] = useState(false);
+  // Slice P wiring: Status sheet state — opens when the user taps the
+  // header status pill. Shows the 4-family status breakdown.
+  const [statusSheetOpen, setStatusSheetOpen] = useState(false);
   // Single shared lineup-drawer state — both the conversation team
   // strip AND the Details tab's "Who's on this job" trigger this same
   // drawer so we never have two divergent representations of the same
@@ -10578,6 +10705,76 @@ function ThreadTabBar({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * ThreadSearchTrigger — search icon button + sheet, wired with the
+ * current thread's messages + jump-to targets.
+ */
+function ThreadSearchTrigger({
+  inquiryId, messages, onJumpOffer, onJumpCallSheet, onJumpPayment, onJumpApproval,
+}: {
+  inquiryId: string;
+  messages: Array<{ id: string; body: string; createdAt?: string; created_at?: string; senderName?: string; senderRole?: string; isYou?: boolean }>;
+  onJumpOffer?: () => void;
+  onJumpCallSheet?: () => void;
+  onJumpPayment?: () => void;
+  onJumpApproval?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  // Adapt the message rows to ThreadSearchMessage shape.
+  const adaptedMessages: ThreadSearchMessage[] = useMemo(
+    () => messages.map((m) => ({
+      id: m.id,
+      body: m.body || "",
+      createdAt: (m.createdAt || m.created_at || "").slice(0, 16).replace("T", " "),
+      senderName: m.senderName ?? (m.isYou ? "You" : "Someone"),
+      hasAttachment: false,
+    })),
+    [messages],
+  );
+  const jumpTargets: JumpTarget[] = useMemo(() => {
+    const out: JumpTarget[] = [];
+    if (onJumpOffer) out.push({ kind: "offer", label: "Offer", onJump: onJumpOffer });
+    if (onJumpCallSheet) out.push({ kind: "call-sheet", label: "Call sheet", onJump: onJumpCallSheet });
+    if (onJumpPayment) out.push({ kind: "payment", label: "Payment", onJump: onJumpPayment });
+    if (onJumpApproval) out.push({ kind: "approval", label: "Client approval", onJump: onJumpApproval });
+    return out;
+  }, [onJumpOffer, onJumpCallSheet, onJumpPayment, onJumpApproval]);
+  // Reference inquiryId in the closure so it's not dead-prop.
+  void inquiryId;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Search this conversation"
+        title="Search conversation"
+        style={{
+          width: 32, height: 32,
+          padding: 0,
+          background: "transparent",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 8,
+          cursor: "pointer",
+          color: COLORS.inkMuted,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="6" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.4"/>
+          <path d="M9 9l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+      </button>
+      <ThreadSearch
+        open={open}
+        messages={adaptedMessages}
+        jumpTargets={jumpTargets}
+        onResultClick={() => {/* caller scrolls; we just close */}}
+        onClose={() => setOpen(false)}
+      />
+    </>
   );
 }
 
