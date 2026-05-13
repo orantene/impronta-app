@@ -4448,13 +4448,27 @@ export function StylePanel({
       </details>
 
       {/* ── Divider ──────────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
+      {/* QA 2026-05-13 — Style tab grouping. Top Divider, Video
+          Background are rarely touched; collapse them by default so
+          the high-traffic surfaces (Surface, Hero Treatment with the
+          Mood/Overlay/Layout chips) sit higher in the visible scroll.
+          Auto-expand when the field is actually set (`dividerValue`
+          / `videoBackground`) so the operator can find their config
+          again on revisit. */}
+      <details
+        open={Boolean(dividerValue)}
+        className="flex flex-col gap-3"
+      >
+        <summary
+          className="flex cursor-pointer items-center justify-between"
+          style={{ listStyle: "none" }}
+        >
           <div className={SECTION_TITLE}>Top divider</div>
           {!dividerValue ? (
             <span className={INHERIT_HINT}>None</span>
           ) : null}
-        </div>
+        </summary>
+        <section className="flex flex-col gap-3">
         {/* Thumbnail gallery: each tile previews the divider treatment so
             the operator picks by sight. Includes "None" as a dashed
             placeholder so the empty state is itself a visible choice. */}
@@ -4497,12 +4511,26 @@ export function StylePanel({
             );
           })}
         </div>
-      </section>
+        </section>
+      </details>
 
       {/* ── Video background (Phase 5 — motion + backgrounds) ────────── */}
-      <section className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
+      <details
+        open={Boolean(videoBackground)}
+        className="flex flex-col gap-2"
+      >
+        <summary
+          className="flex cursor-pointer items-center justify-between"
+          style={{ listStyle: "none" }}
+        >
           <div className={SECTION_TITLE}>Video background</div>
+          {videoBackground ? null : (
+            <span className={INHERIT_HINT}>None</span>
+          )}
+        </summary>
+        <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE} style={{ display: "none" }}>Video background</div>
           {videoBackground ? (
             <button
               type="button"
@@ -4597,7 +4625,8 @@ export function StylePanel({
             For text legibility over busy footage.
           </span>
         </div>
-      </section>
+        </section>
+      </details>
 
       {/* ── Hero treatment (only when section is a hero) ─────────────── */}
       {sectionTypeKey === "hero" ? (

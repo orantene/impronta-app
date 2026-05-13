@@ -391,9 +391,19 @@ export function IframeBridgeParent() {
  */
 export function postToActiveIframe(msg: BridgeMessage): boolean {
   if (typeof document === "undefined") return false;
-  const iframe = document.querySelector<HTMLIFrameElement>(
-    "[data-edit-iframe-host] iframe",
-  );
+  // QA 2026-05-13 — DevicePreview now keeps multiple iframes warm
+  // (one per device tier visited), hiding inactive ones via display:none.
+  // Target only the active iframe (data-active="true") so we don't
+  // post selection/scroll messages into a hidden frame. Fallback to
+  // the bare selector for the single-iframe case (back-compat with any
+  // surface that mounts a lone iframe-host).
+  const iframe =
+    document.querySelector<HTMLIFrameElement>(
+      "[data-edit-iframe-host] iframe[data-active=\"true\"]",
+    ) ??
+    document.querySelector<HTMLIFrameElement>(
+      "[data-edit-iframe-host] iframe",
+    );
   if (!iframe || !iframe.contentWindow) return false;
   iframe.contentWindow.postMessage(msg, window.location.origin);
   return true;

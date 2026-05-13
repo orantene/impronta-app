@@ -1199,7 +1199,6 @@ function DeviceFrameSurface({
   navigatorWidth: number;
   inspectorOpen: boolean;
 }) {
-  const width = DEVICE_WIDTHS[device];
   // Sprint 3.x — scale-fit logic. The iframe's INTERNAL viewport must
   // be the device width (390/834 px) so the storefront's `@media`
   // queries fire at the right breakpoint. But when the editor itself
@@ -1225,7 +1224,48 @@ function DeviceFrameSurface({
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  if (!width) return null;
+  // QA 2026-05-13 — warm-keep iframes across device toggles.
+  // Previously each Desktop↔Tablet↔Mobile click full-unmounted the
+  // current iframe and mounted a fresh one for the new device, which
+  // burned 3–5s on every toggle (full storefront reload + composition
+  // re-render + bridge handshake). Now we track which non-desktop
+  // tiers have ever been activated in this session and keep each one
+  // mounted (display:none for inactive). The visible iframe is the
+  // one whose device matches `device`; others stay in the DOM with
+  // hot `contentWindow` state so flipping back is instant.
+  //
+  // Trade-offs: the second tier loads on first use (so the first
+  // tablet→mobile flip still pays a one-time cost), but every
+  // subsequent flip is a CSS `display` change. Memory cost is two
+  // iframes worth of storefront DOM — same as one fully-rendered
+  // public page each, negligible on any operator laptop. We never
+  // mount iframes the operator hasn't asked for.
+  const [everVisited, setEverVisited] = useState<ReadonlySet<EditDevice>>(
+    () => new Set(),
+  );
+  useEffect(() => {
+    if (device === "desktop") return;
+    setEverVisited((prev) => {
+      if (prev.has(device)) return prev;
+      const next = new Set(prev);
+      next.add(device);
+      return next;
+    });
+  }, [device]);
+
+  // Nothing to mount until at least one non-desktop tier has been
+  // visited. Once the operator clicks Tablet or Mobile, the host
+  // stays in the DOM for the rest of the session.
+  if (everVisited.size === 0) return null;
+
+  // `width` is the active device's width; null only when device is
+  // desktop AND we're rendering only-for-warm-keep (no visible frame).
+  const activeWidth = DEVICE_WIDTHS[device];
+  const isDesktop = device === "desktop";
+  // Use the active width when we have one (tablet/mobile active),
+  // otherwise fall back to ANY warmed device's width for layout math
+  // — doesn't matter since we display:none the host on desktop.
+  const width = activeWidth ?? DEVICE_WIDTHS.tablet ?? 834;
 
   // Padding rules — large gutters on desktop where the navigator + inspector
   // can be open; tight on phone where neither is mounted (their wrappers
@@ -1258,16 +1298,32 @@ function DeviceFrameSurface({
     iframeSrc = u.pathname + u.search + u.hash;
   }
 
+  // Order the visited devices so the iframe DOM order is stable across
+  // renders (React reconciles by index/key for unkeyed lists; we use
+  // keys anyway, but consistent ordering keeps z-index predictable).
+  const orderedVisited: EditDevice[] = (["tablet", "mobile"] as const).filter(
+    (d) => everVisited.has(d),
+  );
+
   return (
     <>
-      <style>{`
-        body > *:not([data-edit-chrome]):not([data-edit-iframe-host]) {
-          visibility: hidden !important;
-          pointer-events: none !important;
-        }
-      `}</style>
+      {/* The body-clip style only applies when a non-desktop device is
+          active — on desktop the operator wants to see the real
+          storefront, not have it hidden behind the warm-kept iframes. */}
+      {!isDesktop ? (
+        <style>{`
+          body > *:not([data-edit-chrome]):not([data-edit-iframe-host]) {
+            visibility: hidden !important;
+            pointer-events: none !important;
+          }
+        `}</style>
+      ) : null}
       <div
         data-edit-iframe-host
+        // Hide the host entirely on desktop so it doesn't intercept
+        // pointer events / take layout space. Iframes inside remain
+        // mounted (display:none doesn't unmount), so flipping back to
+        // Tablet or Mobile is instant — no reload, no bridge re-handshake.
         style={{
           position: "fixed",
           top: 54,
@@ -1275,7 +1331,7 @@ function DeviceFrameSurface({
           left: leftPad,
           right: rightPad,
           background: "#f3f0e8",
-          display: "flex",
+          display: isDesktop ? "none" : "flex",
           alignItems: "flex-start",
           justifyContent: "center",
           overflow: "hidden",
@@ -1294,27 +1350,43 @@ function DeviceFrameSurface({
         <div
           style={{
             width: displayedW,
-            height: displayedH / scale * scale, // = displayedH; lints want clarity
+            height: displayedH,
             position: "relative",
           }}
         >
-          <iframe
-            key={`${device}:${pageSlug ?? "/"}:${pageVersion ?? "pending"}`}
-            src={iframeSrc}
-            title={`${device} preview`}
-            style={{
-              width,
-              height: displayedH / scale,
-              border: 0,
-              borderRadius: 16,
-              boxShadow:
-                "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
-              background: "white",
-              display: "block",
-              transform: `scale(${scale})`,
-              transformOrigin: "top left",
-            }}
-          />
+          {orderedVisited.map((d) => {
+            const dWidth = DEVICE_WIDTHS[d] ?? width;
+            const dScale = Math.min(1, containerWidth / dWidth);
+            const dDisplayedW = dWidth * dScale;
+            const isActive = d === device;
+            return (
+              <iframe
+                key={`${d}:${pageSlug ?? "/"}:${pageVersion ?? "pending"}`}
+                src={iframeSrc}
+                title={`${d} preview`}
+                data-active={isActive ? "true" : undefined}
+                data-device-tier={d}
+                hidden={!isActive}
+                style={{
+                  // Absolute layering so the inactive iframes stack
+                  // beneath the active one without affecting flex flow.
+                  position: "absolute",
+                  top: 0,
+                  left: (displayedW - dDisplayedW) / 2,
+                  width: dWidth,
+                  height: displayedH / dScale,
+                  border: 0,
+                  borderRadius: 16,
+                  boxShadow:
+                    "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
+                  background: "white",
+                  display: isActive ? "block" : "none",
+                  transform: `scale(${dScale})`,
+                  transformOrigin: "top left",
+                }}
+              />
+            );
+          })}
         </div>
       </div>
     </>
