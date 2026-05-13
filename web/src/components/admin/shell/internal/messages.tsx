@@ -276,38 +276,21 @@ export type WorkspaceIdentity = {
   signature?: string;
 };
 
-// Demo workspaces — production reads from `state.workspaceName` +
-// `state.plan` + a workspace-settings record we don't ship yet. The
-// WORKSPACE_REGISTRY is keyed by the agency name we already use in
-// Conversation.agency so it's a 1:1 lookup from existing data.
-const WORKSPACE_REGISTRY: Record<string, WorkspaceIdentity> = {
-  "Atelier Roma": {
-    name: "Atelier Roma", initials: "AR", planTier: "agency",
-    slug: "atelier-roma", signature: "Sent on behalf of Atelier Roma",
-  },
-  "Acme Models": {
-    name: "Acme Models", initials: "AM", planTier: "agency",
-    slug: "acme-models", signature: "Sent on behalf of Acme Models",
-  },
-  "Praline London": {
-    name: "Praline London", initials: "PL", planTier: "studio",
-    slug: "praline-london", signature: "Sent by Praline London",
-  },
-  "Reyes Movement Studio": {
-    name: "Reyes Movement Studio", initials: "RM", planTier: "studio",
-    slug: "reyes-movement", signature: "Sent by Reyes Movement Studio",
-  },
-};
-
 /**
- * Resolve a workspace identity from an agency name. Falls back to a
- * synthesized identity built from the name when there's no entry — keeps
- * the chat bubble renderable for any agency the demo introduces without
- * us having to register them all up front.
+ * Resolve a workspace identity from an agency name.
+ *
+ * Production callers pass `effectiveTenant.name` (live tenant identity from
+ * the bridge); the synthesizer below derives initials + URL-safe slug from
+ * that string. Plan tier defaults to "agency" — workspace plan is read
+ * separately via `state.plan` where it actually matters (gating).
+ *
+ * Previously contained a `WORKSPACE_REGISTRY` lookup with demo entries
+ * (Atelier Roma, Acme Models, Praline London, Reyes Movement Studio) that
+ * baked prototype names into production code. Removed 2026-05-13 (B.1).
+ * The synthesized fallback below handles every tenant correctly without
+ * any hardcoded names.
  */
 export function getWorkspaceIdentity(agencyName: string): WorkspaceIdentity {
-  const hit = WORKSPACE_REGISTRY[agencyName];
-  if (hit) return hit;
   return {
     name: agencyName,
     initials: agencyName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "AG",
