@@ -204,7 +204,31 @@ export type TalentInquiryRow = {
 
 /**
  * Load the talent's inquiries via inquiry_participants.
- * Shows all inquiries where the talent is a participant.
+ *
+ * Contract (task 0.3 — root-cause why the talent inbox was empty after
+ * admin assignment):
+ *
+ * 1. Key on `talent_profile_id`, never on `user_id`. The engine sets
+ *    `participants.user_id = talent_profiles.user_id` at insert time, but
+ *    that can be NULL for talents who haven't claimed their account yet.
+ *    Once the talent claims, the legacy participant rows still carry
+ *    `user_id = NULL`. Filtering by `user_id` would invisibly hide every
+ *    one of those rows after the claim — exactly the loop-break the user
+ *    spotted live on 2026-05-12.
+ *
+ * 2. Do NOT filter `status = 'active'`. New invitations land with
+ *    `status = 'invited'` and the inbox must surface them — that IS the
+ *    inbox's whole job. We only filter out `status = 'removed'` so admin
+ *    deletions stop showing up.
+ *
+ * 3. RLS (`inquiry_participants_talent_select` +
+ *    `inquiries_select_talent_participant`) gates rows on
+ *    `talent_profiles.user_id = auth.uid()` via the profile join, so the
+ *    query stays auth-correct even when the participant row's `user_id`
+ *    column is NULL.
+ *
+ * Returns the inquiries the talent is a roster participant on, ordered
+ * newest first, with per-inquiry unread counts from the group thread.
  */
 export async function loadTalentInquiries(
   talentProfileId: string,
