@@ -133,9 +133,122 @@ export async function POST(req: NextRequest) {
         }
         break;
       }
+
+      // ── F.6 subscription lifecycle ──────────────────────────────────────
+      case "customer.subscription.updated": {
+        // Cancel-at-period-end toggle + status transitions (active → past_due
+        // → unpaid → canceled). Mirror to workspace_subscriptions.
+        const sub = event.data.object as import("stripe").Stripe.Subscription;
+        const admin = createServiceRoleClient();
+        if (!admin) break;
+        // current_period_end moved onto subscription items in newer Stripe
+        // typings (one period per item). Read the first item's period end
+        // as the canonical billing-cycle marker — Tulala plans are single-
+        // item subscriptions so this matches the old top-level field.
+        const periodEndUnix =
+          (sub.items.data[0] as { current_period_end?: number } | undefined)?.current_period_end ?? null;
+        await admin
+          .from("workspace_subscriptions")
+          .update({
+            status: sub.status,
+            cancel_at_period_end: sub.cancel_at_period_end ?? false,
+            current_period_end_at: periodEndUnix
+              ? new Date(periodEndUnix * 1000).toISOString()
+              : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("stripe_customer_id", typeof sub.customer === "string" ? sub.customer : sub.customer.id);
+        break;
+      }
+      case "customer.subscription.deleted": {
+        // Subscription fully cancelled. Drop the workspace to 'free' so
+        // entitlements degrade cleanly + record the cancellation audit row
+        // (F.6 audit was already inserted client-side; this is the
+        // billing-system confirmation).
+        const sub = event.data.object as import("stripe").Stripe.Subscription;
+        const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+        const admin = createServiceRoleClient();
+        if (!admin) break;
+        const { data: ws } = await admin
+          .from("workspace_subscriptions")
+          .select("tenant_id")
+          .eq("stripe_customer_id", customerId)
+          .maybeSingle();
+        const tenantId = (ws as { tenant_id?: string } | null)?.tenant_id;
+        if (tenantId) {
+          await admin
+            .from("agencies")
+            .update({ plan_tier: "free", talent_seat_limit: 5, updated_at: new Date().toISOString() })
+            .eq("id", tenantId);
+        }
+        await admin
+          .from("workspace_subscriptions")
+          .update({
+            status: "canceled",
+            canceled_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("stripe_customer_id", customerId);
+        break;
+      }
+      case "invoice.payment_succeeded": {
+        // Subscription renewal billed successfully. No state change needed
+        // — entitlements stay where they are. Log for audit traceability.
+        const invoice = event.data.object as import("stripe").Stripe.Invoice;
+        if (process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.info(
+            `[stripe.subscription] invoice paid customer=${typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id ?? "?"} amount=${invoice.amount_paid} ${invoice.currency}`,
+          );
+        }
+        break;
+      }
+      case "invoice.payment_failed": {
+        // Subscription renewal failed (dunning). Stripe will retry per the
+        // smart-retry schedule; we mark the workspace as past_due so the
+        // UI can surface "Your card needs attention".
+        const invoice = event.data.object as import("stripe").Stripe.Invoice;
+        const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+        if (!customerId) break;
+        const admin = createServiceRoleClient();
+        if (!admin) break;
+        await admin
+          .from("workspace_subscriptions")
+          .update({ status: "past_due", updated_at: new Date().toISOString() })
+          .eq("stripe_customer_id", customerId);
+        break;
+      }
+
+      // ── F.5 booking deposit ─────────────────────────────────────────────
+      case "payment_intent.succeeded": {
+        const intent = event.data.object as import("stripe").Stripe.PaymentIntent;
+        const purpose = (intent.metadata?.purpose as string | undefined) ?? null;
+        if (purpose !== "booking_deposit") break;
+        const bookingId = (intent.metadata?.booking_id as string | undefined) ?? null;
+        if (!bookingId) {
+          logServerError("webhooks.stripe.depositPaid", new Error(`PI ${intent.id} missing booking_id`));
+          break;
+        }
+        const admin = createServiceRoleClient();
+        if (!admin) break;
+        const { error: updateErr } = await admin
+          .from("bookings")
+          .update({
+            deposit_paid_at: new Date().toISOString(),
+            deposit_amount_cents: intent.amount,
+            deposit_currency: intent.currency.toUpperCase(),
+            deposit_payment_intent_id: intent.id,
+          })
+          .eq("id", bookingId);
+        if (updateErr) {
+          logServerError("webhooks.stripe.depositPaid.update", updateErr);
+        }
+        break;
+      }
+
       default:
-        // Ignore other event types — we only care about checkout completion
-        // and Connect account lifecycle.
+        // Ignore other event types — we only care about checkout completion,
+        // Connect account lifecycle, subscription lifecycle, and deposits.
         break;
     }
     return NextResponse.json({ received: true });
@@ -148,5 +261,6 @@ export async function POST(req: NextRequest) {
 // Suppress "unused import" warning for the loadActiveBookingTransaction
 // helper that's reserved for a future enhancement (e.g. validating the
 // transaction is in the expected status before marking paid).
+// createServiceRoleClient is now used by the subscription + deposit
+// handlers above.
 void loadActiveBookingTransaction;
-void createServiceRoleClient;
