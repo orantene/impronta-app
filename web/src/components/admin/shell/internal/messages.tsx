@@ -10981,12 +10981,36 @@ type Offer = {
   stage: OfferStage;
   clientBudget?: ClientBudget;   // optional — client may not have named one yet
   agencyFee: number;             // workspace fee on top of talent costs
+  // Slice H (Messages consolidation v2 §7.4): talent-coord earns BOTH
+  // lanes — talent line item (in `rows`) AND a share of the workspace
+  // fee per `coordinatorPct`. The Phase B PR 3 commission engine
+  // snapshots both into booking_commission_snapshot.
   coordinatorPct: number;        // % the coordinator(s) keep from agency fee
   coordinators: CoordinatorRef[];// 1–2 coordinators
   rows: LineupRow[];
   timeline: TimelineEvent[];
   expiresInHours?: number;
 };
+
+/** Slice H helper: is this person both a talent line item AND a
+ *  coordinator on this offer? Used by the offer drafter to badge
+ *  talent-coord rows and by the header offer chip to surface the
+ *  combined total to talent-coord viewers. */
+export function isTalentCoordOnOffer(offer: Offer, talentId: string): boolean {
+  const isTalentRow = offer.rows.some((r) => r.talentId === talentId);
+  const isCoord = offer.coordinators.some((c) => c.id === talentId);
+  return isTalentRow && isCoord;
+}
+
+/** Slice H: combined offer total for a talent-coord = talent payout +
+ *  their share of the workspace fee (split evenly across coords). */
+export function talentCoordCombinedTotal(offer: Offer, talentId: string): number {
+  const talentLine = offer.rows.find((r) => r.talentId === talentId);
+  if (!talentLine) return 0;
+  const talentPayout = talentLine.units * talentLine.costRate;
+  const coordShare = (offer.agencyFee * offer.coordinatorPct / 100) / Math.max(1, offer.coordinators.length);
+  return talentPayout + coordShare;
+}
 
 const MOCK_OFFER_FOR_CONV: Record<string, Offer> = {
   c1: {
