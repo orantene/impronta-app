@@ -345,9 +345,37 @@ export async function createBookingTransaction(opts: {
 export async function requestPayment(
   transactionId: string,
 ): Promise<TransactionResult<BookingTransaction>> {
-  return transitionStatus(transactionId, "draft", "payment_requested", {
+  const result = await transitionStatus(transactionId, "draft", "payment_requested", {
     requested_at: new Date().toISOString(),
   });
+  // §6 chat-card: emit payment_request card into the private thread on
+  // successful transition. Mirrors the markPaid emit pattern — fire-
+  // and-forget via the service-role client so failure never blocks the
+  // user action.
+  if (result.ok && result.data.sourceInquiryId) {
+    const sb = createServiceRoleClient();
+    if (sb) {
+      const amountLabel = result.data.grossAmountCents
+        ? `${(result.data.grossAmountCents / 100).toFixed(2)} ${result.data.currency ?? "USD"}`
+        : "";
+      sb.from("inquiry_messages").insert({
+        inquiry_id: result.data.sourceInquiryId,
+        tenant_id: result.data.sourceTenantId,
+        thread_type: "private",
+        sender_user_id: null,
+        body: `Payment requested: ${amountLabel}`.trim(),
+        message_kind: "payment_request",
+        card_payload: {
+          amount_label: amountLabel,
+          transaction_id: result.data.id,
+          hint: "Pay to confirm the booking.",
+        },
+      }).then((r) => {
+        if (r.error) logServerError("transactions.requestPayment.chatCard", r.error);
+      });
+    }
+  }
+  return result;
 }
 
 /**

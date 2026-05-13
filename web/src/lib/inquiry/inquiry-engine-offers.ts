@@ -252,6 +252,33 @@ export async function sendOffer(
       p_payload: { offer_id: ctx.offerId, sent_by_user_id: ctx.actorUserId },
     }).then((r) => { if (r.error) logServerError("audit.emit.offer_sent", r.error); });
 
+    // §6 chat-card: emit offer_event card (status=sent) into the private
+    // thread. Fire-and-forget — never block the user action on emit failure.
+    try {
+      const { data: offerRow } = await supabase
+        .from("inquiry_offers")
+        .select("total_client_price, currency_code")
+        .eq("id", ctx.offerId)
+        .eq("tenant_id", ctx.tenantId)
+        .maybeSingle();
+      const total = offerRow?.total_client_price as number | null | undefined;
+      const currency = (offerRow?.currency_code as string | null | undefined) ?? "";
+      const totalLabel = typeof total === "number"
+        ? `${Number(total).toFixed(2)}${currency ? ` ${currency}` : ""}`
+        : "";
+      await supabase.from("inquiry_messages").insert({
+        inquiry_id: ctx.inquiryId,
+        tenant_id: ctx.tenantId,
+        thread_type: "private",
+        sender_user_id: ctx.actorUserId,
+        body: "Offer sent to client.",
+        message_kind: "offer_event",
+        card_payload: { status: "sent", total_label: totalLabel, offer_id: ctx.offerId },
+      });
+    } catch (emitErr) {
+      logServerError("inquiry-engine-offers.sendOffer.chatCard", emitErr);
+    }
+
     return { success: true };
   });
 }
@@ -532,7 +559,7 @@ export async function submitTalentRate(
 
     const { data: offer } = await supabase
       .from("inquiry_offers")
-      .select("id, status, inquiry_id")
+      .select("id, status, inquiry_id, currency_code")
       .eq("id", ctx.offerId)
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
@@ -565,6 +592,44 @@ export async function submitTalentRate(
       actorUserId: ctx.actorUserId,
       data: { offerId: ctx.offerId, lineItemId: ctx.lineItemId },
     });
+
+    // §6 chat-card: emit talent_rate card into the group thread.
+    // state="submitted" when talent submits their own rate; "accepted"
+    // when an admin/coordinator sets it on the talent's behalf. Fire-
+    // and-forget — never block the user action on emit failure.
+    try {
+      let talentName = "Talent";
+      if (line.talent_profile_id) {
+        const { data: tp } = await supabase
+          .from("talent_profiles")
+          .select("display_name, full_name")
+          .eq("id", line.talent_profile_id as string)
+          .maybeSingle();
+        const tpRow = tp as { display_name?: string | null; full_name?: string | null } | null;
+        talentName = tpRow?.display_name?.trim() || tpRow?.full_name?.trim() || "Talent";
+      }
+      const currency = (offer as { currency_code?: string | null } | null)?.currency_code ?? "";
+      const rateLabel = `${ctx.talentCost.toFixed(2)}${currency ? ` ${currency}` : ""}`;
+      const state: "submitted" | "accepted" = isStaff ? "accepted" : "submitted";
+      const bodyText = isStaff
+        ? `Coordinator set ${talentName}'s rate to ${rateLabel}.`
+        : `${talentName} submitted a rate of ${rateLabel}.`;
+      await supabase.from("inquiry_messages").insert({
+        inquiry_id: ctx.inquiryId,
+        tenant_id: ctx.tenantId,
+        thread_type: "group",
+        sender_user_id: ctx.actorUserId,
+        body: bodyText,
+        message_kind: "talent_rate",
+        card_payload: {
+          talent_name: talentName,
+          rate_label: rateLabel,
+          state,
+        },
+      });
+    } catch (emitErr) {
+      logServerError("inquiry-engine-offers.submitTalentRate.chatCard", emitErr);
+    }
 
     return { success: true };
   });
@@ -599,11 +664,35 @@ export async function counterOffer(
       .maybeSingle();
     currency = (prev?.currency_code as string | null) ?? undefined;
   }
-  return createOffer(supabase, {
+  const result = await createOffer(supabase, {
     inquiryId: ctx.inquiryId,
     tenantId: ctx.tenantId,
     actorUserId: ctx.actorUserId,
     expectedVersion: ctx.expectedVersion,
     currencyCode: currency ?? "MXN",
   });
+
+  // §6 chat-card: emit offer_event card (status=countered) into the
+  // private thread on successful counter draft. Fire-and-forget.
+  if (result.success) {
+    try {
+      await supabase.from("inquiry_messages").insert({
+        inquiry_id: ctx.inquiryId,
+        tenant_id: ctx.tenantId,
+        thread_type: "private",
+        sender_user_id: ctx.actorUserId,
+        body: "Coordinator started a counter offer.",
+        message_kind: "offer_event",
+        card_payload: {
+          status: "countered",
+          total_label: "",
+          hint: "Counter offer drafted",
+        },
+      });
+    } catch (emitErr) {
+      logServerError("inquiry-engine-offers.counterOffer.chatCard", emitErr);
+    }
+  }
+
+  return result;
 }

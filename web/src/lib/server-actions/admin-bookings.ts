@@ -547,6 +547,32 @@ export async function updateBooking(
       eventType: BOOKING_AUDIT.STATUS_CHANGED,
       payload: { from: prior.status, to: d.status },
     });
+    // §6 chat-card: emit booking_status card into the group thread on a
+    // status transition. Keyed on source_inquiry_id (the thread is
+    // inquiry-scoped) so manual bookings with no source inquiry silently
+    // skip. Fire-and-forget — never block the user action.
+    const statusInquiryId = (prior.source_inquiry_id as string | null) ?? null;
+    if (statusInquiryId) {
+      try {
+        const fromLabel = String(prior.status ?? "—");
+        const toLabel = String(d.status);
+        await supabase.from("inquiry_messages").insert({
+          inquiry_id: statusInquiryId,
+          tenant_id: tenantId,
+          thread_type: "group",
+          sender_user_id: actor,
+          body: `Booking status changed: ${fromLabel} → ${toLabel}.`,
+          message_kind: "booking_status",
+          card_payload: {
+            text: `Booking ${toLabel}`,
+            from: fromLabel,
+            to: toLabel,
+          },
+        });
+      } catch (emitErr) {
+        logServerError("admin/updateBooking/statusChatCard", emitErr);
+      }
+    }
   }
   if (
     prior.payment_status !== d.payment_status ||
