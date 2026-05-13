@@ -246,6 +246,8 @@ Suggested fixes:
 - Hide implementation labels from default persona view.
 - Keep advanced metadata available only in an advanced/details mode.
 
+**Mitigation (2026-05-14):** [`composition-library.tsx`](../src/components/edit-chrome/composition-library.tsx) — kit review rows use **plain kind labels** (Data-backed / Design-led / Conversion), **source kind** instead of raw `dataSource` on the meta line, **“How you’ll edit”** (edit-model headline) instead of **Recipe**; starter review renames **Component recipe** → **What’s included** (middot-separated blocks); starter tiles rename **Recipe** → **What’s included** and footer uses **edit headline · edit scope** instead of `dataSource Edit:`.
+
 ### BUG-009 - Registered-host console noise (Speed Insights script MIME, 404/400, React #418)
 
 Severity: Medium (matrix “console” column)

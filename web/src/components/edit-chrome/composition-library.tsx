@@ -2175,14 +2175,15 @@ function KitReviewOverlay({
                               : "rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-600 ring-1 ring-inset ring-zinc-200"
                         }
                       >
-                        {starter.kind}
+                        {starterKindLabel(starter.kind)}
                       </span>
                     </span>
                     <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
                       {starter.description}
                     </span>
-                    <span className="mt-1 block text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-                      {starter.sectionTypeKey.replace(/_/g, " ")} · {starter.dataSource}
+                    <span className="mt-1 block text-[10px] font-medium text-zinc-500">
+                      {starter.sectionTypeKey.replace(/_/g, " ")} ·{" "}
+                      {sourceKindLabel(starter.sourceKind)}
                     </span>
                     <span className="mt-1 inline-flex">
                       <ReadinessBadge readiness={starter.readiness} />
@@ -2200,8 +2201,11 @@ function KitReviewOverlay({
                         Home core
                       </span>
                     ) : null}
-                    <span className="mt-2 block rounded-lg border border-zinc-100 bg-white/75 px-2 py-1.5 text-[10px] leading-snug text-zinc-500">
-                      Recipe: {starter.componentRecipe.join(" + ")}
+                    <span className="mt-2 block rounded-lg border border-zinc-100 bg-white/75 px-2 py-1.5 text-[10px] leading-snug text-zinc-600">
+                      <span className="font-semibold text-zinc-700">
+                        How you&apos;ll edit:{" "}
+                      </span>
+                      {editModelHeadline(starter.editModel)}
                     </span>
                     {stylePresets.length > 0 ? (
                       <span className="mt-3 block">
@@ -2419,10 +2423,10 @@ function StarterReviewOverlay({
           </div>
           <div className="mt-3 rounded-xl border border-[#eee9dd] bg-white p-3">
             <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
-              Component recipe
+              What&apos;s included
             </span>
             <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-700">
-              {starter.componentRecipe.join(" + ")}
+              {starter.componentRecipe.join(" · ")}
             </span>
             <span className="mt-2 block text-[11px] leading-relaxed text-zinc-500">
               <span className="font-medium text-zinc-600">What you can change: </span>
@@ -2721,6 +2725,17 @@ function sourceKindLabel(kind: SectionTemplateStarterSourceKind): string {
       return "Action";
     case "starter-content":
       return "Starter content";
+  }
+}
+
+function starterKindLabel(kind: SectionTemplateStarterKind): string {
+  switch (kind) {
+    case "data":
+      return "Data-backed";
+    case "design":
+      return "Design-led";
+    case "conversion":
+      return "Conversion";
   }
 }
 
@@ -3063,7 +3078,7 @@ function TemplateStarterCard({
                 : "shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-600 ring-1 ring-inset ring-zinc-200"
           }
         >
-          {starter.kind}
+          {starterKindLabel(starter.kind)}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 px-0.5">
@@ -3084,16 +3099,16 @@ function TemplateStarterCard({
       </p>
       <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 px-2 py-1.5">
         <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-400">
-          Recipe
+          What&apos;s included
         </span>
         <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-zinc-500">
-          {starter.componentRecipe.join(" + ")}
+          {starter.componentRecipe.join(" · ")}
         </p>
       </div>
       <div className="mt-auto flex items-center justify-between gap-2 px-0.5 pt-1">
         <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400">
           {compatibility.ok
-            ? `${starter.dataSource} Edit: ${starter.editScope}`
+            ? `${editModelHeadline(starter.editModel)} · ${starter.editScope}`
             : (compatibility.reason ?? "Not available for this slot")}
         </span>
         <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[#3d4f7c]">
