@@ -12,6 +12,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { logServerError } from "@/lib/server/safe-error";
 import {
   submitCoordRequest,
   approveCoordRequest,
@@ -59,8 +60,27 @@ export async function approveCoordinatorJoin(requestId: string): Promise<ActionR
   if (!session.user) return { ok: false, error: "Sign in required." };
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, error: "Database unavailable." };
+
+  // Read inquiry_id before calling the RPC so we can emit the audit row.
+  const { data: req } = await supabase
+    .from("coordinator_join_requests")
+    .select("inquiry_id")
+    .eq("id", requestId)
+    .maybeSingle();
+  const inquiryId = req?.inquiry_id as string | null ?? null;
+
   const r = unwrap(await approveCoordRequest(supabase, { requestId }));
-  if (r.ok) revalidatePath("/", "layout");
+  if (r.ok) {
+    revalidatePath("/", "layout");
+    // Audit emit — fire-and-forget. Failure must never block the action.
+    if (inquiryId) {
+      await supabase.rpc("inquiry_audit_emit", {
+        p_inquiry_id: inquiryId,
+        p_kind: "coordinator_added",
+        p_payload: { request_id: requestId },
+      }).then((res) => { if (res.error) logServerError("audit.emit.coordinator_added", res.error); });
+    }
+  }
   return r;
 }
 
@@ -101,7 +121,26 @@ export async function revokeCoordinator(
   if (!session.user) return { ok: false, error: "Sign in required." };
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, error: "Database unavailable." };
+
+  // Read inquiry_id before calling the RPC so we can emit the audit row.
+  const { data: req } = await supabase
+    .from("coordinator_join_requests")
+    .select("inquiry_id")
+    .eq("id", requestId)
+    .maybeSingle();
+  const inquiryId = req?.inquiry_id as string | null ?? null;
+
   const r = unwrap(await revokeCoordRequest(supabase, { requestId, reason: reason?.trim() || null }));
-  if (r.ok) revalidatePath("/", "layout");
+  if (r.ok) {
+    revalidatePath("/", "layout");
+    // Audit emit — fire-and-forget. Failure must never block the action.
+    if (inquiryId) {
+      await supabase.rpc("inquiry_audit_emit", {
+        p_inquiry_id: inquiryId,
+        p_kind: "coordinator_removed",
+        p_payload: { request_id: requestId },
+      }).then((res) => { if (res.error) logServerError("audit.emit.coordinator_removed", res.error); });
+    }
+  }
   return r;
 }

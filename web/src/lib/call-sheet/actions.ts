@@ -76,7 +76,7 @@ export async function saveBookingCallSheet(
     // Verify the booking belongs to the caller's tenant.
     const { data: booking, error: lookupErr } = await supabase
       .from("agency_bookings")
-      .select("id")
+      .select("id, source_inquiry_id")
       .eq("id", bookingId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -104,6 +104,21 @@ export async function saveBookingCallSheet(
     }
 
     revalidatePath(`/${tenantSlug}`, "layout");
+
+    // Audit emit — fire-and-forget. Failure must never block the save.
+    const auditInquiryId = (booking.source_inquiry_id as string | null) ?? null;
+    if (auditInquiryId) {
+      await supabase.rpc("inquiry_audit_emit", {
+        p_inquiry_id: auditInquiryId,
+        p_kind: "call_sheet_changed",
+        p_payload: {
+          booking_id: bookingId,
+          changed_at: new Date().toISOString(),
+          changed_by_user_id: user.id,
+        },
+      }).then((r) => { if (r.error) logServerError("audit.emit.call_sheet_changed", r.error); });
+    }
+
     return { ok: true, data: undefined };
   } catch (err) {
     logServerError("call-sheet/save_unhandled", err);

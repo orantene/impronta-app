@@ -139,6 +139,27 @@ export async function persistBookingCommissionSnapshot(
     return { ok: false, reason: "persist_failed", detail: persistError.message };
   }
 
+  // Audit emit — fire-and-forget. Resolve inquiry_id from the booking so the
+  // emit lands on the correct audit thread. Failure must never surface to callers.
+  const { data: bk } = await supabase
+    .from("agency_bookings")
+    .select("source_inquiry_id")
+    .eq("id", bookingId)
+    .maybeSingle();
+  const auditInquiryId = (bk?.source_inquiry_id as string | null) ?? null;
+  if (auditInquiryId) {
+    await supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: auditInquiryId,
+      p_kind: "commission_split_changed",
+      p_payload: {
+        booking_id: bookingId,
+        platform_fee_cents: snapshot.platform_fee_cents,
+        workspace_fee_cents: snapshot.workspace_fee_cents,
+        talent_fee_cents: snapshot.talent_net_cents,
+      },
+    }).then((r) => { if (r.error) logServerError("audit.emit.commission_split_changed", r.error); });
+  }
+
   return { ok: true, snapshot };
 }
 
