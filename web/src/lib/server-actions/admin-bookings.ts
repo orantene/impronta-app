@@ -18,7 +18,29 @@ import { logBookingActivity, logInquiryActivity } from "@/lib/server/commercial-
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { emitFieldChange, type FieldVisibility } from "@/lib/inquiry/audit-field-emit";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+/** Details v3 §4.3 — per-field audit emit visibility map for the
+ *  `agency_bookings` columns that admin edit surfaces touch. Each entry
+ *  pairs the column with the Activity-feed `field_group` + the
+ *  `visibility_scope` the audit row is filed under. Keep in sync with
+ *  the columns selected in `updateBooking`'s prior-snapshot. */
+const BOOKING_FIELD_MAP: Record<
+  string,
+  { group: string; visibility: FieldVisibility }
+> = {
+  title:               { group: "brief",     visibility: "client_visible" },
+  status:              { group: "status",    visibility: "client_visible" },
+  event_date:          { group: "schedule",  visibility: "client_visible" },
+  starts_at:           { group: "schedule",  visibility: "client_visible" },
+  ends_at:             { group: "schedule",  visibility: "client_visible" },
+  venue_name:          { group: "location",  visibility: "client_visible" },
+  venue_location_text: { group: "location",  visibility: "client_visible" },
+  client_summary:      { group: "brief",     visibility: "client_visible" },
+  internal_notes:      { group: "internal",  visibility: "admin_only" },
+  client_visible_at:   { group: "visibility", visibility: "admin_only" },
+};
 
 // A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. Currently a `useFormState`
 // shape consumed by 4+ admin components — conversion requires changing every
@@ -397,7 +419,9 @@ export async function updateBooking(
   const { data: prior, error: priorErr } = await supabase
     .from("agency_bookings")
     .select(
-      "status, owner_staff_id, client_account_id, client_contact_id, payment_status, payment_method, client_visible_at",
+      // Extra columns (title/event_date/venue/notes/source_inquiry_id)
+      // power the v3 §4.3 per-field audit emit below.
+      "status, owner_staff_id, client_account_id, client_contact_id, payment_status, payment_method, client_visible_at, source_inquiry_id, title, event_date, starts_at, ends_at, venue_name, venue_location_text, client_summary, internal_notes",
     )
     .eq("id", d.booking_id)
     .eq("tenant_id", tenantId)
@@ -548,6 +572,42 @@ export async function updateBooking(
       eventType: BOOKING_AUDIT.CLIENT_PORTAL_VISIBILITY_CHANGED,
       payload: { from: prevVis, to: nextVis },
     });
+  }
+
+  // v3 §4.3: per-field audit emits, keyed on the booking's
+  // `source_inquiry_id`. The audit log is inquiry-scoped, so manual
+  // bookings (no source inquiry) silently skip this — their changes
+  // still land in the booking_events log via `logBookingActivity`
+  // above.
+  const auditInquiryId = (prior.source_inquiry_id as string | null) ?? null;
+  if (auditInquiryId) {
+    const nextValues: Record<string, unknown> = {
+      title: d.title,
+      status: d.status,
+      event_date: d.event_date.length > 0 ? d.event_date : null,
+      starts_at: d.starts_at.length > 0 ? d.starts_at : null,
+      ends_at: d.ends_at.length > 0 ? d.ends_at : null,
+      venue_name: d.venue_name || null,
+      venue_location_text: d.venue_location_text || null,
+      client_summary: d.client_summary || null,
+      internal_notes: d.internal_notes || null,
+      client_visible_at: nextClientVisibleAt,
+    };
+    const priorRow = prior as unknown as Record<string, unknown>;
+    for (const [key, meta] of Object.entries(BOOKING_FIELD_MAP)) {
+      const before = priorRow[key] ?? null;
+      const after = nextValues[key] ?? null;
+      if (String(before ?? "") === String(after ?? "")) continue;
+      await emitFieldChange(supabase, {
+        inquiryId: auditInquiryId,
+        fieldGroup: meta.group,
+        fieldKey: `booking.${key}`,
+        oldValue: before,
+        newValue: after,
+        visibility: meta.visibility,
+        actorRole: "admin",
+      }).then((r) => { if (!r.ok) logServerError("admin/updateBooking/fieldEmit", r.error); });
+    }
   }
 
   revalidatePath("/admin/bookings");

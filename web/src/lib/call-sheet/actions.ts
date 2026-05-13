@@ -14,11 +14,33 @@ import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { emitFieldChange, type FieldVisibility } from "@/lib/inquiry/audit-field-emit";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import {
   normalizeCallSheetPayload,
   type CallSheetPayload,
 } from "./types";
+
+/** Field-level audit map for call-sheet payload keys (Details v3 §4.3).
+ *  Maps each scalar payload key to its activity-feed group + visibility
+ *  scope. Array fields (talents/contacts) are intentionally excluded —
+ *  diffing nested arrays produces noisy rows; the existing
+ *  `call_sheet_changed` audit event + chat card already cover those. */
+const CALL_SHEET_FIELD_MAP: Record<
+  keyof Omit<CallSheetPayload, "talents" | "contacts">,
+  { group: string; visibility: FieldVisibility }
+> = {
+  general_call_time:  { group: "schedule",  visibility: "client_visible" },
+  general_wrap_time:  { group: "schedule",  visibility: "client_visible" },
+  hmua_call_time:     { group: "schedule",  visibility: "talent_visible" },
+  venue:              { group: "location",  visibility: "client_visible" },
+  venue_address:      { group: "location",  visibility: "client_visible" },
+  parking_note:       { group: "logistics", visibility: "talent_visible" },
+  holding_area:       { group: "logistics", visibility: "talent_visible" },
+  transport_note:     { group: "logistics", visibility: "talent_visible" },
+  weather_note:       { group: "logistics", visibility: "talent_visible" },
+  internal_note:      { group: "internal",  visibility: "admin_only" },
+};
 
 /** Load the call sheet payload + a few booking facts (title, dates) so
  *  the editor page can render the header without a second query. Returns
@@ -73,10 +95,12 @@ export async function saveBookingCallSheet(
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
-    // Verify the booking belongs to the caller's tenant.
+    // Verify the booking belongs to the caller's tenant. Also pull the
+    // prior call_sheet_payload so we can diff per-field for the Details-
+    // tab audit feed (v3 §4.3) after the UPDATE succeeds.
     const { data: booking, error: lookupErr } = await supabase
       .from("agency_bookings")
-      .select("id, source_inquiry_id")
+      .select("id, source_inquiry_id, call_sheet_payload")
       .eq("id", bookingId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -88,6 +112,7 @@ export async function saveBookingCallSheet(
 
     // Defensive normalize — strips unknown fields, fills missing keys.
     const normalized = normalizeCallSheetPayload(payload);
+    const priorPayload = normalizeCallSheetPayload(booking.call_sheet_payload);
 
     const { error: updErr } = await supabase
       .from("agency_bookings")
@@ -117,6 +142,28 @@ export async function saveBookingCallSheet(
           changed_by_user_id: user.id,
         },
       }).then((r) => { if (r.error) logServerError("audit.emit.call_sheet_changed", r.error); });
+
+      // v3 §4.3: per-field audit emits so the Details-tab Activity feed
+      // shows one row per changed scalar with the correct visibility
+      // scope. Keyed on source_inquiry_id (the audit log is inquiry-
+      // scoped). Array fields (talents/contacts) skipped — covered by
+      // the parent `call_sheet_changed` event above.
+      for (const [key, meta] of Object.entries(CALL_SHEET_FIELD_MAP) as Array<
+        [keyof typeof CALL_SHEET_FIELD_MAP, { group: string; visibility: FieldVisibility }]
+      >) {
+        const before = priorPayload[key];
+        const after = normalized[key];
+        if (before === after) continue;
+        await emitFieldChange(supabase, {
+          inquiryId: auditInquiryId,
+          fieldGroup: meta.group,
+          fieldKey: `call_sheet.${key}`,
+          oldValue: before,
+          newValue: after,
+          visibility: meta.visibility,
+          actorRole: "admin",
+        }).then((r) => { if (!r.ok) logServerError("call-sheet.save.fieldEmit", r.error); });
+      }
       // §6 chat-card: emit call_sheet_update card into the group thread.
       try {
         const byName = (user as { display_name?: string }).display_name ?? "";
