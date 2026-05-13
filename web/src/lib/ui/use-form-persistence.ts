@@ -41,7 +41,10 @@ export function useFormPersistence(
   opts: FormPersistenceOptions,
 ): void {
   const optsRef = useRef(opts);
-  optsRef.current = opts;
+
+  useEffect(() => {
+    optsRef.current = opts;
+  }, [opts]);
 
   useEffect(() => {
     const form = formRef.current;
