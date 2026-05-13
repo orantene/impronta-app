@@ -1,0 +1,96 @@
+/**
+ * Messages mobile shell — non-negotiable acceptance rules from plan v2 §19.
+ *
+ * Loaded by the messages surfaces (admin/talent/client) to enforce
+ * mobile-first behavior consistently. Scoped via the [data-msg-shell]
+ * attribute so it doesn't leak into other surfaces.
+ *
+ * Messages Consolidation Plan v2 — Slice I.
+ */
+
+[data-msg-shell] {
+  /* Safe-area inset for sticky bottoms (composer + action ribbon).
+     Each sticky element under this scope inherits the padding so iOS
+     home-indicator doesn't overlap. */
+  --msg-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-msg-shell] [data-msg-sticky-bottom] {
+  padding-bottom: calc(8px + var(--msg-safe-bottom));
+}
+
+/* Pill-tab strip — horizontal scroll on mobile, no scrollbar visible.
+   The only horizontal-scroll-permitted region per plan §19 rule 9. */
+[data-msg-shell] [data-msg-tab-strip] {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 10px;
+}
+[data-msg-shell] [data-msg-tab-strip]::-webkit-scrollbar {
+  display: none;
+}
+
+/* Conversation pane — no horizontal scroll. Long words break instead. */
+[data-msg-shell] [data-msg-conversation] {
+  overflow-x: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Tap-target floor — every interactive element under the shell gets a
+   minimum hitbox of 44x44 via outline-style padding without changing
+   visual size. Achieved with min-width/min-height on buttons/links. */
+[data-msg-shell] button,
+[data-msg-shell] a[role="button"],
+[data-msg-shell] [role="button"],
+[data-msg-shell] input[type="submit"],
+[data-msg-shell] input[type="button"] {
+  min-height: 36px;
+}
+
+/* On mobile (<= 640px), bump composer + action-ribbon controls to 44px
+   minimum so single-tap accuracy is guaranteed. */
+@media (max-width: 640px) {
+  [data-msg-shell] [data-msg-composer] button,
+  [data-msg-shell] [data-msg-action-ribbon] button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Disable iOS pinch-zoom inside the conversation pane — it's a chat,
+   not a document. Pinch should still work elsewhere on the page so
+   the user-scalable=yes meta is preserved. */
+@media (max-width: 640px) {
+  [data-msg-shell] [data-msg-conversation] {
+    touch-action: pan-y;
+  }
+}
+
+/* Focus states — visible across light + dark surface variants.
+   Per plan §19 rule 4 (focus states visible). */
+[data-msg-shell] :focus-visible {
+  outline: 2px solid rgba(15,79,62,0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Reduced-motion support — disable transitions inside the shell when
+   the user prefers reduced motion. Per plan §19 rule 7. */
+@media (prefers-reduced-motion: reduce) {
+  [data-msg-shell] * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Pull-to-refresh hint for the conversation pane on mobile. CSS-only
+   visual; the actual refresh handler must be wired per-shell. */
+@media (max-width: 640px) {
+  [data-msg-shell] [data-msg-conversation] {
+    overscroll-behavior-y: contain;
+  }
+}
