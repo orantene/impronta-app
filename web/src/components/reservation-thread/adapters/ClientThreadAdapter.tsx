@@ -30,6 +30,7 @@ import {
 import { OverflowMenu } from "@/components/chat-interactions";
 import { PALETTES } from "@/components/reservation-thread/tokens";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
+import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import ParticipantThreadShell, {
   type ParticipantThreadMessage,
   type ParticipantThreadSendResult,
@@ -54,6 +55,12 @@ export interface ClientThreadInquiry {
   quantity: number | null;
   /** ISO timestamp. */
   createdAt: string;
+  /** Slice M wiring (item #12): pitch id when this inquiry was
+   *  originated from a Pitch (per project_pitch_feature.md). When
+   *  set, PitchOriginCard renders at the top of the client Chat. */
+  pitchId?: string | null;
+  /** Optional pitch title for the originating card. */
+  pitchTitle?: string | null;
 }
 
 export interface ClientThreadLineupEntry {
@@ -525,6 +532,20 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
           </button>
         </div>
       ) : null}
+      {/* Item #12 wiring: pitch-origin card on the client surface
+          when this inquiry was generated from a Pitch. Sits above the
+          ReservationThread so the originating context is the first
+          thing the client sees. */}
+      {inquiry.pitchId && (
+        <div style={{ margin: "8px 0" }}>
+          <PitchOriginCard
+            tenantSlug={props.tenantSlug}
+            pitchId={inquiry.pitchId}
+            pitchTitle={inquiry.pitchTitle ?? "Pitch"}
+            compact
+          />
+        </div>
+      )}
       <ReservationThread
         pov="client"
         header={{
