@@ -2444,61 +2444,118 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
         showCoordPill={false}
         rightSlot={(
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {offerLabel && (
-              <span title={offerLabel} style={{
-                padding: "3px 9px", borderRadius: 999,
-                background: COLORS.surfaceAlt, color: COLORS.inkMuted,
-                fontSize: 11, fontWeight: 600,
-                fontFamily: FONTS.body, fontVariantNumeric: "tabular-nums",
-                maxWidth: 180, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-              }}>{offerLabel}</span>
-            )}
             <StageTransitionMenu inquiryId={inquiry.id} stage={inquiry.stage} />
           </div>
         )}
-        // Admin's lineup + coord signals — folded into the header instead
-        // of a separate floating strip below, so the workspace detail
-        // matches the client/talent header silhouette (single card).
-        metaExtras={lineupTotal > 0 || inquiry.coordinator ? (
+        // Slice A (Messages consolidation v2): row 3 of the universal
+        // header — avatar stack (left) + offer chip (right). Replaces
+        // the old "N/N accepted · coord name" text + the standalone
+        // LiveLineupPanel band below the header. Avatar stack is the
+        // user's at-a-glance answer to "who's on this". Offer chip is
+        // the at-a-glance answer to "how much money."
+        // - Coord avatars carry a star overlay.
+        // - Declined/removed talents dim to 40%.
+        // - Tap "Manage" to scroll to Lineup tab (Slice I migrates this
+        //   to a Sheet on mobile).
+        metaExtras={lineupTotal > 0 || offerLabel ? (
           <>
-            {lineupTotal > 0 && (() => {
-              const tone = lineupAccepted === 0 ? "red"
-                : lineupAccepted < lineupTotal ? "amber"
-                : "green";
-              const palette = tone === "red"
-                ? { dot: COLORS.coral, fg: COLORS.coralDeep }
-                : tone === "amber"
-                ? { dot: COLORS.amber, fg: COLORS.amber }
-                : { dot: COLORS.success, fg: COLORS.successDeep ?? COLORS.success };
-              return (
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  fontWeight: 700, color: palette.fg,
-                }}>
-                  <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: palette.dot }} />
-                  {lineupAccepted}/{lineupTotal} accepted
+            {/* LEFT: avatar stack + count */}
+            {lineupTotal > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("lineup")}
+                aria-label={`${lineupTotal} talent on this inquiry — open Lineup tab`}
+                style={{
+                  background: "transparent", border: "none", padding: 0,
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  cursor: "pointer", fontFamily: FONTS.body, fontSize: 11.5,
+                  color: COLORS.inkMuted,
+                }}
+              >
+                <span style={{ display: "inline-flex" }}>
+                  {allTalents.slice(0, 5).map((t, idx) => {
+                    const isDeclined = t.status === "rejected" || t.status === "removed";
+                    const isAccepted = t.status === "accepted";
+                    return (
+                      <span
+                        key={t.talentId}
+                        style={{
+                          marginLeft: idx === 0 ? 0 : -6,
+                          border: `1.5px solid #fff`,
+                          borderRadius: "50%",
+                          display: "inline-flex",
+                          position: "relative",
+                          opacity: isDeclined ? 0.4 : 1,
+                        }}
+                        title={`${t.name} · ${t.status}`}
+                      >
+                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={t.initials} />
+                        {isAccepted && (
+                          <span aria-hidden style={{
+                            position: "absolute", bottom: -1, right: -1,
+                            width: 7, height: 7, borderRadius: "50%",
+                            background: COLORS.success, border: `1.5px solid #fff`,
+                          }} />
+                        )}
+                      </span>
+                    );
+                  })}
+                  {allTalents.length > 5 && (
+                    <span style={{
+                      marginLeft: -6, width: 22, height: 22,
+                      borderRadius: "50%",
+                      background: COLORS.surfaceAlt,
+                      border: `1.5px solid #fff`,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 10, fontWeight: 700, color: COLORS.inkMuted,
+                    }}>+{allTalents.length - 5}</span>
+                  )}
                 </span>
-              );
-            })()}
-            {lineupPending > 0 && (
-              <>
-                <span aria-hidden style={{ opacity: 0.35 }}>·</span>
-                <span style={{ color: COLORS.amber, fontWeight: 600 }}>{lineupPending} pending</span>
-              </>
+                <span style={{ fontWeight: 600, color: COLORS.ink }}>
+                  {lineupTotal} talent{lineupTotal === 1 ? "" : "s"}
+                </span>
+                {lineupTotal > 0 && (
+                  <span style={{ color: COLORS.inkDim }}>
+                    · {lineupAccepted}/{lineupTotal} accepted
+                  </span>
+                )}
+              </button>
             )}
-            {inquiry.coordinator && (
-              <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <Avatar size={16} tone="ink" hashSeed={inquiry.coordinator.name} initials={inquiry.coordinator.initials} />
-                <span style={{ color: COLORS.ink, fontWeight: 600 }}>{inquiry.coordinator.name}</span>
-              </span>
+
+            {/* SPACER */}
+            <span style={{ flex: 1 }} />
+
+            {/* RIGHT: offer chip — tap to jump to Offer tab */}
+            {offerLabel && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("offer")}
+                aria-label={`Offer state: ${offerLabel} — open Offer tab`}
+                title={offerLabel}
+                style={{
+                  background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  padding: "3px 9px", borderRadius: 999,
+                  fontSize: 11, fontWeight: 600,
+                  fontFamily: FONTS.body, fontVariantNumeric: "tabular-nums",
+                  maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  cursor: "pointer",
+                }}
+              >{offerLabel}</button>
             )}
           </>
         ) : undefined}
       />
 
-      {/* Live lineup panel — DB-backed roster manager. Renders nothing for
-          synthetic/mock inquiries, so the demo experience stays clean. */}
-      <LiveLineupPanel inquiryId={inquiry.id} />
+      {/* Slice A (Messages consolidation v2): the standalone
+          <LiveLineupPanel /> band that sat between the header and
+          tab bar is REMOVED. The avatar stack in the header's row 3
+          (metaExtras above) replaces the always-visible part. Full
+          add/remove/reorder still lives in LiveLineupPanel — it now
+          renders only inside the Lineup tab body (see ThreadTabBar
+          panes below, where the "lineup" tab content is mounted).
+          This change reclaims ~140-220px of vertical space for the
+          conversation pane on every inquiry. */}
 
       {/* TAB BAR — admin sees all 4 tabs unlocked. Lineup + Offer summaries
           live inside the Offer tab now (single source of truth). The hero
@@ -4349,7 +4406,12 @@ function ShellHeader({
           )}
         </div>
       </div>
-      <JobStageFunnel currentStage={conv.stage} compact={false} />
+      {/* Slice A (Messages consolidation v2): the 4-dot stage-funnel row
+          is removed from the header. Status is now a single derived pill
+          on row 1's right edge (rightSlot / primaryChip). Full stage
+          breakdown opens via the Status sheet (Slice P). Saves ~36px of
+          chrome on every thread. JobStageFunnel function remains in use
+          by inbox-row + other compact contexts. */}
       {metaExtras && (
         <div style={{
           paddingTop: 8,
