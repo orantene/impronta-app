@@ -1640,35 +1640,62 @@ export async function createOfferAction(
   inquiryId: string,
   currencyCode: string = "EUR",
 ): Promise<PipelineActionResult<{ offerId: string }>> {
-  try {
-    const auth = await requireStaffTenantAction();
-    if (!auth.ok) return { ok: false, error: auth.error };
-    const { supabase, user, tenantId } = auth;
+  // Hard timeout — the 2026-05-12 audit reported the button hanging on
+  // "Starting…" forever. Wrap the whole flow so any silent block surfaces
+  // as a toast instead of locking the button.
+  const ACTION_TIMEOUT_MS = 12_000;
+  const timer = new Promise<PipelineActionResult<{ offerId: string }>>((resolve) =>
+    setTimeout(
+      () =>
+        resolve({
+          ok: false,
+          error: "Timed out after 12s — check server logs for createOfferAction.",
+        }),
+      ACTION_TIMEOUT_MS,
+    ),
+  );
+  const work = (async (): Promise<PipelineActionResult<{ offerId: string }>> => {
+    try {
+      const auth = await requireStaffTenantAction();
+      if (!auth.ok) return { ok: false, error: auth.error };
+      const { supabase, user, tenantId } = auth;
 
-    const { data: inq } = await supabase
-      .from("inquiries")
-      .select("version")
-      .eq("id", inquiryId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
-    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
+      const { data: inq, error: inqErr } = await supabase
+        .from("inquiries")
+        .select("version")
+        .eq("id", inquiryId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (inqErr) {
+        logServerError("createOfferAction/load_inquiry", inqErr);
+        return { ok: false, error: `Inquiry lookup failed: ${inqErr.message}` };
+      }
+      if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
 
-    const result = await createOffer(supabase, {
-      inquiryId,
-      tenantId,
-      actorUserId: user.id,
-      expectedVersion: (inq.version as number | null) ?? 1,
-      currencyCode,
-    });
-    if (!result.success) {
-      return { ok: false, error: (result as { reason?: string; error?: string }).reason ?? (result as { error?: string }).error ?? "Could not create offer." };
+      const result = await createOffer(supabase, {
+        inquiryId,
+        tenantId,
+        actorUserId: user.id,
+        expectedVersion: (inq.version as number | null) ?? 1,
+        currencyCode,
+      });
+      if (!result.success) {
+        const reason = (result as { reason?: string }).reason;
+        const errMsg = (result as { error?: string }).error;
+        logServerError(
+          "createOfferAction/engine_failed",
+          new Error(`reason=${reason ?? ""} error=${errMsg ?? ""}`),
+        );
+        return { ok: false, error: reason ?? errMsg ?? "Could not create offer." };
+      }
+      revalidatePath(`/${auth.tenantSlug}`, "layout");
+      const offerId = (result as { data?: { offerId?: string } }).data?.offerId;
+      if (!offerId) return { ok: false, error: "Offer created but no id returned." };
+      return { ok: true, data: { offerId } };
+    } catch (err) {
+      logServerError("admin._pipeline-actions.createOfferAction", err);
+      return { ok: false, error: `Unexpected error: ${err instanceof Error ? err.message : String(err)}` };
     }
-    revalidatePath(`/${auth.tenantSlug}`, "layout");
-    const offerId = (result as { data?: { offerId?: string } }).data?.offerId;
-    if (!offerId) return { ok: false, error: "Offer created but no id returned." };
-    return { ok: true, data: { offerId } };
-  } catch (err) {
-    logServerError("admin._pipeline-actions.createOfferAction", err);
-    return { ok: false, error: "Unexpected error." };
-  }
+  })();
+  return Promise.race([work, timer]);
 }

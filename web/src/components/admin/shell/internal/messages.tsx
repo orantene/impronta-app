@@ -102,7 +102,7 @@ import {
   COLORS, FONTS, RADIUS, TRANSITION,
   MY_TALENT_PROFILE,
   RICH_INQUIRIES, type RichInquiry, type ClientTrustLevel,
-  type InquiryUnitType, type InquiryRecord, toInquiry,
+  type InquiryUnitType, type InquiryRecord, type InquiryTalentInvite, toInquiry,
   useAdminShell,
   ROSTER_AGENCY, ROSTER_FREE,
   meetsRole,
@@ -2538,7 +2538,7 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
         {(activeTab === "booking" || activeTab === "details") && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
             <AdminBookingTab inquiry={toInquiry(inquiry)} planTier={planTier} />
-            <LiveBookingActions inquiryId={inquiry.id} />
+            <LiveBookingActions inquiryId={inquiry.id} inquiryStage={inquiry.stage} />
           </div>
         )}
       </div>
@@ -6952,7 +6952,12 @@ function AdminBookingTab({
   const offer = getOffer(conv.id);
   const days = countdownLabel(inquiry.schedule.start);
   const coord = inquiry.coordinators[0];
-  const lineup = inquiry.talent;
+  // 2026-05-12 fix S0.2: Project tab was reading legacy mock-derived
+  // `inquiry.talent`. For real (UUID) inquiries override with the canonical
+  // `inquiry_participants` lineup so the count + roster always match the
+  // Live lineup chip at the top of the workspace.
+  const liveLineupOverride = useLiveLineupOverride(inquiry.id);
+  const lineup = liveLineupOverride ?? inquiry.talent;
   const lineupTotal = lineup.length;
   const lineupAccepted = lineup.filter(t => {
     const s = (t.state ?? "").toLowerCase();
@@ -10472,6 +10477,65 @@ function nextActionFor(offer: Offer, pov: OfferPov): { label: string; cta?: stri
 }
 
 /**
+ * Map an `inquiry_participants` row (talent role) into the legacy
+ * InquiryTalentInvite shape consumed across the admin shell. Used by the
+ * live-lineup override hook so Project / Lineup drawer / Offer / etc. all
+ * read from the canonical DB lineup instead of the mock requirementGroups.
+ */
+function mapParticipantToInvite(p: InquiryParticipant): InquiryTalentInvite {
+  const name = p.talentDisplayName ?? p.talentProfileId ?? "Talent";
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "T";
+  const state: InquiryTalentInvite["state"] =
+      p.status === "active"   ? "confirmed"
+    : p.status === "declined" ? "declined"
+    : p.status === "removed"  ? "withdrawn"
+    : "invited";
+  return {
+    talentId: p.talentProfileId ?? p.id,
+    name,
+    initials,
+    state,
+  };
+}
+
+/**
+ * Returns the live `inquiry_participants` lineup as InquiryTalentInvite[],
+ * or `null` for mock inquiries (non-UUID ids) and while loading. Consumers
+ * should `??` against the legacy `inquiry.talent` so mock surfaces still
+ * render their fixture data:
+ *
+ *   const live = useLiveLineupOverride(inquiry.id);
+ *   const lineup = live ?? inquiry.talent;
+ *
+ * Fixes the 2026-05-12 audit P0 where Live lineup chip showed N talent but
+ * the Project / Lineup drawer / etc. tabs reported "No talent yet" because
+ * they were reading the legacy `requirementGroups`-derived field.
+ */
+function useLiveLineupOverride(inquiryId: string): InquiryTalentInvite[] | null {
+  const { effectiveTenant } = useAdminShell();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
+  const [rows, setRows] = useState<InquiryParticipant[] | null>(null);
+  useEffect(() => {
+    if (!isUuid) return;
+    let cancelled = false;
+    loadInquiryLineup(effectiveTenant.slug, inquiryId).then((r) => {
+      if (cancelled) return;
+      if (r.ok) setRows(r.data ?? []);
+    });
+    return () => { cancelled = true; };
+  }, [inquiryId, isUuid, effectiveTenant.slug]);
+  if (!isUuid) return null;
+  if (rows == null) return null;
+  return rows.map(mapParticipantToInvite);
+}
+
+/**
  * LiveLineupPanel — DB-backed roster manager for an inquiry. Lists active
  * `inquiry_participants.role='talent'` rows and exposes an inline Remove
  * for each (wraps `rosterRemoveParticipant`). An "Add talent by id" input
@@ -12446,14 +12510,31 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
 /**
  * LiveBookingActions — bookings-related real DB actions exposed in the
  * Booking/Project tab. Currently: Duplicate booking. Renders nothing for
- * synthetic mock inquiry ids.
+ * synthetic mock inquiry ids, or for inquiries that have not yet been
+ * converted to a booking — duplicating a not-yet-booked inquiry would
+ * create a confusing ghost row.
+ *
+ * 2026-05-12 fix S0.6: gated behind inquiry stage. Booking-only actions
+ * must not surface before a booking exists.
  */
-function LiveBookingActions({ inquiryId }: { inquiryId: string }) {
+function LiveBookingActions({
+  inquiryId,
+  inquiryStage,
+}: {
+  inquiryId: string;
+  inquiryStage: string;
+}) {
   const { toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
   if (!isUuid) return null;
+  // Booking actions are only meaningful once an inquiry has been converted
+  // (status: booked / converted) or after it wrapped — never on submitted /
+  // coordination / offer_pending / approved.
+  const stage = (inquiryStage ?? "").toLowerCase();
+  const hasBooking = stage === "booked" || stage === "converted" || stage === "wrapped";
+  if (!hasBooking) return null;
 
   const dup = () => {
     if (!confirm("Duplicate this booking?")) return;
@@ -12952,6 +13033,11 @@ function LineupDrawer({
   planTier?: "free" | "studio" | "agency" | "network" | "hub-network";
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  // 2026-05-12 fix S0.2/S0.3: drawer was reading legacy `inquiry.talent`,
+  // diverging from the LiveLineupPanel chip. Override with the canonical
+  // participants for real inquiries so the drawer mirrors the chip.
+  const liveLineupOverride = useLiveLineupOverride(inquiry.id);
+  const drawerLineup = liveLineupOverride ?? inquiry.talent;
   if (!open) return null;
   return (
     <div role="dialog" aria-modal="true" aria-label="Lineup" style={{
@@ -13029,7 +13115,7 @@ function LineupDrawer({
             />
           ) : (
             <>
-              {inquiry.talent.map(t => (
+              {drawerLineup.map(t => (
                 <LineupMemberRow
                   key={t.talentId}
                   talent={t}

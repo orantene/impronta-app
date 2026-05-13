@@ -1,16 +1,21 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 
+// Notification inserts go through a SECURITY DEFINER RPC because the
+// notifications_own RLS policy only permits user_id = auth.uid(). Staff /
+// coordinator code paths that ping a different user (e.g. talent on roster
+// add, client on offer-sent) would otherwise be silently blocked.
+// RPC: engine_emit_notification (migration 20260513041617).
 export async function notifyUsers(
   supabase: SupabaseClient,
   recipients: Array<{ userId: string; title: string; body?: string | null }>,
 ): Promise<Error[]> {
   const errors: Error[] = [];
   for (const r of recipients) {
-    const { error } = await supabase.from("notifications").insert({
-      user_id: r.userId,
-      title: r.title,
-      body: r.body ?? null,
+    const { error } = await supabase.rpc("engine_emit_notification", {
+      p_user_id: r.userId,
+      p_title: r.title,
+      p_body: r.body ?? null,
     });
     if (error) {
       logServerError("inquiry-notifications/insert", error);
