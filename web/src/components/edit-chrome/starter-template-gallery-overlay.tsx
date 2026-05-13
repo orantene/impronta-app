@@ -140,7 +140,7 @@ export function StarterTemplateGalleryOverlay() {
   const errorMessage =
     actionError ??
     (availabilityError
-      ? `Could not load full template access: ${availabilityError}`
+      ? `Couldn't load full template access: ${availabilityError}`
       : null);
 
   return (

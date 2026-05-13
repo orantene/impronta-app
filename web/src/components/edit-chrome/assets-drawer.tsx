@@ -385,7 +385,9 @@ export function AssetsDrawer(): ReactElement | null {
           [item.id]: { assetId: item.id, refCount: 0, sectionIds: [] },
         }));
       } catch (e) {
-        setUploadError(e instanceof Error ? e.message.slice(0, 200) : "Upload failed.");
+        setUploadError(
+          e instanceof Error ? e.message.slice(0, 200) : "Couldn't upload — try again.",
+        );
       } finally {
         setUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";

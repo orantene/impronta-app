@@ -320,7 +320,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
         } catch (e) {
           setStatus({
             kind: "error",
-            message: e instanceof Error ? e.message : "Save failed.",
+            message: e instanceof Error ? e.message : "Couldn't save — try again.",
           });
           // Keep the entry in the queue so a retry could pick it up.
           return;

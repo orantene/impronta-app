@@ -41,7 +41,7 @@ export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
         className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700"
       >
         <span className="size-1.5 rounded-full bg-rose-500" />
-        Save failed
+        Couldn&apos;t save
       </span>
     );
   }

@@ -8,7 +8,7 @@
  *   - "saved"     green · last draft save committed
  *   - "saving"    blue + pulsing dot · save in flight
  *   - "dirty"     amber · unsaved changes
- *   - "error"     rose · last save failed
+ *   - "error"     rose · last save did not complete
  *   - "count"     violet · neutral count badge ("3 selected", "Mobile draft")
  *
  * Visual rules from mockup `.savechip`:
@@ -86,7 +86,7 @@ function defaultLabel(status: SaveChipStatus): string {
     case "dirty":
       return "Unsaved";
     case "error":
-      return "Save failed";
+      return "Couldn't save";
     case "count":
       return "—";
   }

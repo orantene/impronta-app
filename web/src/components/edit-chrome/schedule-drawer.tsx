@@ -169,7 +169,7 @@ export function ScheduleDrawer() {
         if (cancelled) return;
         setState({
           kind: "error",
-          message: err instanceof Error ? err.message : "Could not load schedule.",
+          message: err instanceof Error ? err.message : "Couldn't load the schedule — try again.",
         });
       });
     return () => {
