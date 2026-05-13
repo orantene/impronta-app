@@ -232,7 +232,7 @@ export async function POST(req: NextRequest) {
         const admin = createServiceRoleClient();
         if (!admin) break;
         const { error: updateErr } = await admin
-          .from("bookings")
+          .from("agency_bookings")
           .update({
             deposit_paid_at: new Date().toISOString(),
             deposit_amount_cents: intent.amount,
