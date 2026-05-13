@@ -6748,6 +6748,12 @@ type Ctx = {
    * empty array means real data, no rows.
    */
   bridgeUserNotifications: import("./data-bridge").UserNotification[] | null;
+  /**
+   * B.3 — Talent calendar entries (bookings + holds + availability_blocks).
+   * `null` means mock mode (CalendarPage falls back to TALENT_BOOKINGS +
+   * TALENT_REQUESTS fixtures); empty array = live mode with no entries yet.
+   */
+  bridgeTalentCalendarEntries: import("./data-bridge").TalentCalendarEntry[] | null;
 
   /**
    * Media photos from the bridge. `null` = mock mode (Media page falls
@@ -8247,6 +8253,9 @@ export function AdminShellProvider({
   // B.2 — user notifications feed. `null` falls back to mock NOTIFICATIONS
   // in the drawer; empty array means real bridge with no rows yet.
   const bridgeUserNotifications = initialBridgeData?.userNotifications ?? null;
+  // B.3 — talent calendar entries from bookings + holds + blocks.
+  // `null` falls back to mock TALENT_BOOKINGS + TALENT_REQUESTS in CalendarPage.
+  const bridgeTalentCalendarEntries = initialBridgeData?.talentCalendarEntries ?? null;
 
   // Media gallery bridge — `null` falls back to MOCK_MEDIA in WorkspaceMediaPage,
   // empty array means "live mode, no photos yet" → renders empty state.
@@ -8369,6 +8378,7 @@ export function AdminShellProvider({
       bridgeTalentSelfProfile,
       bridgeTalentAgencies,
       bridgeUserNotifications,
+      bridgeTalentCalendarEntries,
       bridgeMediaPhotos,
       bridgeMediaFolders,
       bridgeTenantIdentity,
@@ -8467,6 +8477,7 @@ export function AdminShellProvider({
       bridgeTalentSelfProfile,
       bridgeTalentAgencies,
       bridgeUserNotifications,
+      bridgeTalentCalendarEntries,
       bridgeMediaPhotos,
       bridgeMediaFolders,
       bridgeTenantIdentity,

@@ -25,6 +25,8 @@ export {
   loadTalentAgencies,
   // B.2 — user notifications backend
   loadUserNotifications,
+  // B.3 — talent calendar (bookings + holds + availability_blocks)
+  loadTalentCalendarEntries,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 // Media gallery + watermark bridge (Agency tier feature)
@@ -51,6 +53,9 @@ export type {
   TalentAgencyRow,
   // B.2 — user notifications backend
   UserNotification,
+  // B.3 — talent calendar
+  TalentCalendarEntry,
+  TalentCalendarEntryKind,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 // Type-only import. `_state.tsx` is a client module ("use client") and
@@ -72,6 +77,8 @@ import type {
   TalentInquiryRow,
   TalentAgencyRow,
   UserNotification,
+  TalentCalendarEntry,
+  TalentCalendarEntryKind,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 
 /**
@@ -147,6 +154,8 @@ export type BridgeData = {
   totalUnread: number;
   /** B.2 — user notifications feed for the workspace surface drawer. */
   userNotifications?: UserNotification[] | null;
+  /** B.3 — talent calendar entries (bookings + holds + blocks). null = mock mode. */
+  talentCalendarEntries?: TalentCalendarEntry[] | null;
 
   // ── Phase 3.12.2 talent self-surface bridge fields ─────────────────────────
   /**

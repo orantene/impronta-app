@@ -23,6 +23,7 @@ import {
   loadTalentSelfProfile,
   loadTalentInquiries,
   loadTalentAgencies,
+  loadTalentCalendarEntries,
 } from "@/components/admin/shell/internal/data-bridge";
 import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
@@ -113,6 +114,7 @@ export default async function TalentLayout({
     userPrefsRaw,
     tenantIdentity,
     profileDisplayName,
+    talentCalendarEntries,
   ] = await Promise.all([
     loadTalentInquiries(talentSelfProfile.id, tenantId),
     // Talent's agency relationships (cross-tenant — a talent can be on
@@ -127,6 +129,8 @@ export default async function TalentLayout({
     // showing the real tenant name + branding.
     loadTenantIdentity(tenantId),
     loadProfileDisplayName(session.user.id),
+    // B.3 — calendar bookings + holds + availability blocks.
+    loadTalentCalendarEntries(talentSelfProfile.id),
   ]);
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
@@ -169,6 +173,8 @@ export default async function TalentLayout({
         workspaceUnread: workspaceUnread ?? 0,
         preferredSurface: userPrefs?.preferredSurface ?? null,
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
+        // B.3 — talent calendar bridge
+        talentCalendarEntries,
       }}
     >
       {/* TalentPageRouteSyncer lives here — inside AdminShellProvider context, returns null */}

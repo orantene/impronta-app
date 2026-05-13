@@ -11042,11 +11042,49 @@ function parseDateForCalMonth(
 }
 
 function CalendarPage() {
-  const { openDrawer, toast, bridgeTalentSelfProfile } = useAdminShell();
+  const { openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentCalendarEntries } = useAdminShell();
   // Bridge-aware conversations — same source as TalentTodayPage and
   // TalentJobShell. When the bridge has real data, use it for the calendar.
   const conversations = useTalentConversations();
   const isBridgeMode = !!bridgeTalentSelfProfile;
+  // B.3 — real calendar data from talent_bookings + talent_holds +
+  // talent_availability_blocks. Adapted to the UI's CalendarEvent shape so
+  // existing rendering / filtering / month nav works unchanged. Blocks
+  // (talent OOO) are skipped for v1 — the calendar UI doesn't render them
+  // yet; talent_availability_blocks UI lands in a follow-up.
+  const bridgeEvents = useMemo<CalendarEvent[] | null>(() => {
+    if (!bridgeTalentCalendarEntries) return null;
+    const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return bridgeTalentCalendarEntries
+      .filter((entry) => entry.kind !== "block")
+      .map((entry): CalendarEvent => {
+        const startDate = new Date(entry.startsAt);
+        const endDate = new Date(entry.endsAt);
+        const startDay = startDate.getDate();
+        const endDay = endDate.getDate();
+        const dateLabel = startDay === endDay
+          ? `${MONTH_SHORT[startDate.getMonth()]} ${startDay}`
+          : `${MONTH_SHORT[startDate.getMonth()]} ${startDay}–${endDay}`;
+        const uiKind: CalendarEventKind =
+          entry.kind === "booking" && entry.status === "confirmed" ? "booked"
+          : entry.kind === "booking" && entry.status === "completed" ? "past"
+          : entry.kind === "hold" ? "pending"
+          : "inquiry";
+        return {
+          id: entry.id,
+          kind: uiKind,
+          client: entry.title,
+          brief: entry.subLabel ?? "",
+          startDay,
+          endDay,
+          dateLabel,
+          status: entry.kind === "hold"
+            ? (entry.holdStrength === "firm" ? "Firm hold" : "Soft hold")
+            : (entry.status ?? "Confirmed"),
+          drawer: { id: "talent-hub-detail", payload: { id: entry.inquiryId ?? entry.id } },
+        };
+      });
+  }, [bridgeTalentCalendarEntries]);
   const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "cancelled" | "all">("booked");
   // F7: Month / Week / Day view toggle.
   // Bridge mode defaults to "week" — the month grid is static mock-only;
@@ -11085,7 +11123,11 @@ function CalendarPage() {
     RICH_INQUIRIES.filter((i) => i.stage === "approved" || i.stage === "booked").map((i) => i.id),
   );
 
-  const events: CalendarEvent[] = [
+  // B.3 — when bridge has live entries, use them as the source of truth
+  // (replacing the mock fixture composition below). Empty arrays from the
+  // bridge still take precedence so users see a real empty state instead
+  // of mock data.
+  const events: CalendarEvent[] = bridgeEvents ?? [
     // Confirmed bookings
     ...confirmedBookings.map((b): CalendarEvent => ({
       id: b.id,
