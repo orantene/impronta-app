@@ -2454,7 +2454,10 @@ export function EditProvider({
             recordDispatchAudit(mutation.sectionId);
             return { ok: true };
           }
-          return { ok: false, error: result.error ?? "Remove failed" };
+          return {
+            ok: false,
+            error: result.error ?? "Could not remove this section — try again.",
+          };
         }
 
         case "composition.metadata": {
@@ -2473,7 +2476,10 @@ export function EditProvider({
             recordDispatchAudit(null);
             return { ok: true };
           }
-          return { ok: false, error: result.error ?? "Save failed" };
+          return {
+            ok: false,
+            error: result.error ?? "Could not save your changes — try again.",
+          };
         }
 
         case "composition.move": {
@@ -2492,7 +2498,10 @@ export function EditProvider({
             recordDispatchAudit(mutation.sectionId);
             return { ok: true };
           }
-          return { ok: false, error: result.error ?? "Move failed" };
+          return {
+            ok: false,
+            error: result.error ?? "Could not move this section — try again.",
+          };
         }
 
         case "composition.insert": {
@@ -2507,7 +2516,10 @@ export function EditProvider({
             recordDispatchAudit(result.newSectionId ?? null);
             return { ok: true, data: { newSectionId: result.newSectionId } };
           }
-          return { ok: false, error: result.error ?? "Insert failed" };
+          return {
+            ok: false,
+            error: result.error ?? "Could not add this section — try again.",
+          };
         }
 
         case "composition.duplicate": {
@@ -2521,7 +2533,10 @@ export function EditProvider({
             recordDispatchAudit(result.newSectionId ?? mutation.sectionId);
             return { ok: true, data: { newSectionId: result.newSectionId } };
           }
-          return { ok: false, error: result.error ?? "Duplicate failed" };
+          return {
+            ok: false,
+            error: result.error ?? "Could not duplicate this section — try again.",
+          };
         }
 
         default:
@@ -4037,7 +4052,11 @@ export function EditProvider({
       });
       return result.ok
         ? { ok: true }
-        : { ok: false, error: result.error ?? "Save failed" };
+        : {
+            ok: false,
+            error:
+              result.error ?? "Could not save your changes — try again.",
+          };
     },
     [dispatch],
   );
