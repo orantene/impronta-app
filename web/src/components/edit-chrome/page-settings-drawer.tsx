@@ -286,7 +286,7 @@ export function PageSettingsDrawer() {
     const res = await savePageMetadata(draft);
     setSubmitting(false);
     if (!res.ok) {
-      setErrorMsg(res.error ?? "Could not save page settings.");
+      setErrorMsg(res.error ?? "Couldn't save page settings — try again.");
       return;
     }
     closePageSettings();
@@ -318,7 +318,7 @@ export function PageSettingsDrawer() {
       void savePageMetadata(draft).then((res) => {
         setSubmitting(false);
         if (!res.ok) {
-          setErrorMsg(res.error ?? "Could not save page settings.");
+          setErrorMsg(res.error ?? "Couldn't save page settings — try again.");
         }
       });
     }, 800);

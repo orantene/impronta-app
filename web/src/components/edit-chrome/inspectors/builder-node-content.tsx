@@ -957,7 +957,9 @@ function NestedBlocksCard({
                   void onPaste(parentNodeId);
                 }}
               >
-                {pastePreview.mode === "blocked" ? "Cannot paste here" : "Paste in group"}
+                {pastePreview.mode === "blocked"
+                  ? "Pasting isn't allowed here"
+                  : "Paste in group"}
               </button>
               {pastePreview.mode !== "blocked" ? (
                 <button

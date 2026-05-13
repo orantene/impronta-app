@@ -2240,7 +2240,7 @@ function SelectionContextMenu({
   const pasteDisabled = saving || pastePreview?.mode === "blocked";
   const pasteLabel =
     pastePreview?.mode === "blocked"
-      ? "Cannot paste here"
+      ? "Pasting isn't allowed here"
       : pastePreview
         ? `Paste ${pastePreview.copiedLabel}`
         : "Paste copied block";
