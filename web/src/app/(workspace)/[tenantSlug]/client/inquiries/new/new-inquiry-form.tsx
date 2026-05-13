@@ -1,10 +1,14 @@
 "use client";
 
-import { useActionState, useState, useCallback } from "react";
+import { useActionState, useState, useCallback, useEffect, useRef } from "react";
 import {
   createClientWorkspaceInquiryAction,
   type ClientWorkspaceInquiryActionState,
 } from "./actions";
+import {
+  clearFormPersistence,
+  useFormPersistence,
+} from "@/lib/ui/use-form-persistence";
 
 type TalentOption = {
   id: string;
@@ -76,6 +80,25 @@ export function NewInquiryForm({
   const [selectedId, setSelectedId] = useState(state.values.talentProfileId);
   const selectedTalent = roster.find((item) => item.id === selectedId) ?? null;
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // F.9 — persist brief draft across reloads, tabs, and validation failures.
+  // Step key includes the tenant slug so different workspaces have separate
+  // local drafts. Excluded fields: contactName/company are server-prefilled
+  // from the client profile; talentProfileId is route-scoped.
+  useFormPersistence(formRef, {
+    step: `inquiry-brief-${tenantSlug}`,
+    exclude: ["contactName", "company", "talentProfileId", "tenantSlug"],
+  });
+
+  // On a confirmed successful submit the action redirects, so this useEffect
+  // primarily catches the rare "we got a non-error state back without
+  // redirecting" path; both clear the saved draft.
+  useEffect(() => {
+    if (state && !state.error && !pending) {
+      clearFormPersistence(`inquiry-brief-${tenantSlug}`);
+    }
+  }, [state, pending, tenantSlug]);
 
   const clearFieldError = useCallback((name: string) => {
     setFieldErrors((prev) => { const n = { ...prev }; delete n[name]; return n; });
@@ -129,6 +152,7 @@ export function NewInquiryForm({
       ) : null}
 
       <form
+        ref={formRef}
         action={formAction}
         onSubmit={handlePreSubmit}
         style={{
