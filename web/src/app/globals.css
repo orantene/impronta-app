@@ -1193,3 +1193,21 @@ body[data-edit-preview="1"] [data-edit-affordance] {
   ) {
   border-radius: 0 !important;
 }
+
+/* G.6 — Canonical hover-action reveal for list rows.
+ * Anchored to data-hover-row + data-hover-actions so the HoverActions
+ * primitive works with any row layout. On touch / no-hover devices,
+ * actions stay visible always. */
+@media (hover: hover) {
+  [data-hover-row]:hover [data-hover-actions]:not([data-always-visible]),
+  [data-hover-row]:focus-within [data-hover-actions]:not([data-always-visible]) {
+    --hover-actions-opacity: 1;
+    --hover-actions-events: auto;
+  }
+}
+@media (hover: none) {
+  [data-hover-actions]:not([data-always-visible]) {
+    --hover-actions-opacity: 1;
+    --hover-actions-events: auto;
+  }
+}
