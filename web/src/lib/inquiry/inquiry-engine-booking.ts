@@ -7,6 +7,7 @@ import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logInquiryAction } from "./inquiry-action-log";
 import { getInquiryGroupShortfall } from "./inquiry-fulfillment";
+import { persistBookingCommissionSnapshot } from "@/lib/billing/commission-engine";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Before invoking the RPC
 // we verify the inquiry row belongs to ctx.tenantId so cross-tenant ids are
@@ -199,6 +200,23 @@ export async function convertToBooking(
       currencyCode: "",
       clientAccountId: null,
     });
+
+    // Phase B PR 2 — persist commission snapshot. Non-fatal: a failure
+    // here is logged but does NOT roll back the booking. Commissions
+    // can be backfilled later by an admin if the snapshot fails (rare).
+    // Default payment_method='card' — workspaces flip to off-platform
+    // via the dedicated mark-as-cash action (lands in a follow-up PR).
+    const commissionResult = await persistBookingCommissionSnapshot(supabase, bookingId);
+    if (!commissionResult.ok) {
+      await improntaLog("convertToBooking.commission_snapshot_failed", {
+        bookingId,
+        reason: commissionResult.reason,
+        detail: commissionResult.detail ?? "",
+      });
+      // Continue — booking is real even without the snapshot. UI will
+      // show a "Commission not yet computed" hint for the rare case
+      // until a backfill action fixes it.
+    }
 
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 

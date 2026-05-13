@@ -18,6 +18,11 @@
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  persistBookingCommissionSnapshot,
+  loadBookingCommissionSnapshot,
+} from "@/lib/billing/commission-engine";
+import type { PaymentMethod, BookingCommissionSnapshot } from "@/lib/billing/commission";
 import { assignCoordinator } from "@/lib/inquiry/inquiry-engine-coordinator";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine-booking";
 import {
@@ -1858,5 +1863,196 @@ export async function reassignCoordinatorAction(
   } catch (err) {
     logServerError("admin._pipeline-actions.reassignCoordinatorAction", err);
     return { ok: false, error: `Unexpected error: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+// ─── Commission / payment method actions (Phase B PR 2) ─────────────────────
+// Spec: web/docs/commission-model-2026-05-13.md
+// Imports hoisted to file top.
+
+const VALID_PAYMENT_METHODS: PaymentMethod[] = [
+  "card", "apple_pay", "google_pay", "bank_transfer",
+  "cash", "wire", "venue_paid", "crypto", "other",
+];
+
+/**
+ * Load the commission snapshot for a booking — for UI consumption
+ * (admin Money settings, offer-drafter breakdown, talent earnings view).
+ */
+export async function loadBookingCommissionSnapshotAction(
+  _tenantSlug: string,
+  bookingId: string,
+): Promise<PipelineActionResult<BookingCommissionSnapshot | null>> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId } = auth;
+
+    // Verify booking belongs to the calling tenant.
+    const { data: booking, error: bookingErr } = await supabase
+      .from("agency_bookings")
+      .select("id")
+      .eq("id", bookingId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (bookingErr) {
+      logServerError("loadBookingCommissionSnapshotAction/lookup", bookingErr);
+      return { ok: false, error: bookingErr.message };
+    }
+    if (!booking) return { ok: false, error: "Booking not found in this workspace." };
+
+    const snap = await loadBookingCommissionSnapshot(supabase, bookingId);
+    return { ok: true, data: snap };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.loadBookingCommissionSnapshotAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Mark a booking as paid via an off-platform method (cash / wire / venue /
+ * crypto / other) — OR back to an on-platform card path.
+ *
+ * v1: if no snapshot exists yet (rare race), creates one with the chosen
+ * method. If snapshot exists with the same method → no-op. If snapshot
+ * exists with a different method → blocks the change (the snapshot is
+ * immutable in v1; payment-method reclassification lands in a follow-up
+ * PR with proper reversal-movement logic). The workspace UI should
+ * surface this as "Payment method already set — contact support to
+ * reclassify."
+ *
+ * Spec §4.B + §11 decision #4: off-platform → accrual movement + balance
+ * bump. Reversal of an existing accrual is the harder case, deferred.
+ */
+export async function markBookingPaymentMethodAction(
+  _tenantSlug: string,
+  bookingId: string,
+  method: PaymentMethod,
+  reason?: string | null,
+): Promise<PipelineActionResult<{ snapshot: BookingCommissionSnapshot }>> {
+  try {
+    if (!VALID_PAYMENT_METHODS.includes(method)) {
+      return { ok: false, error: "Invalid payment method." };
+    }
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, tenantId, tenantSlug } = auth;
+
+    // Verify booking belongs to the calling tenant.
+    const { data: booking, error: bookingErr } = await supabase
+      .from("agency_bookings")
+      .select("id")
+      .eq("id", bookingId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (bookingErr) {
+      logServerError("markBookingPaymentMethodAction/lookup", bookingErr);
+      return { ok: false, error: bookingErr.message };
+    }
+    if (!booking) return { ok: false, error: "Booking not found in this workspace." };
+
+    // Check current snapshot state. If no snapshot exists, create one with
+    // the chosen method (catches edge cases where the booking landed but
+    // the post-commit commission step failed).
+    const existing = await loadBookingCommissionSnapshot(supabase, bookingId);
+    if (!existing) {
+      const result = await persistBookingCommissionSnapshot(
+        supabase, bookingId, method, reason ?? null,
+      );
+      if (!result.ok) {
+        return { ok: false, error: `Could not record commission: ${result.detail ?? result.reason}` };
+      }
+      revalidatePath(`/${tenantSlug}`, "layout");
+      return { ok: true, data: { snapshot: result.snapshot } };
+    }
+    if (existing.payment_method === method) {
+      return { ok: true, data: { snapshot: existing } };
+    }
+    // Reclassification path — blocked in v1. Returns the immutability
+    // message; UI surfaces support hand-off.
+    return {
+      ok: false,
+      error: "Payment method already recorded for this booking. Reclassification needs a refund-style reversal which lands in a follow-up — contact platform support to change.",
+    };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.markBookingPaymentMethodAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Workspace submits a custom-rate request. Tulala platform admin reviews
+ * and either approves (writes the actual rate) or denies. Spec §11 #5.
+ *
+ * Idempotent: if an open request already exists for this tenant, this
+ * updates it. If a closed (approved/denied) request exists, this opens
+ * a new one (workspace can revise their ask).
+ */
+export async function requestPlatformRateOverrideAction(
+  _tenantSlug: string,
+  requestedTakeBps: number,
+  note: string,
+): Promise<PipelineActionResult> {
+  try {
+    if (!Number.isInteger(requestedTakeBps) || requestedTakeBps < 0 || requestedTakeBps > 5000) {
+      return { ok: false, error: "Requested rate must be between 0% and 50%." };
+    }
+    if (!note || note.trim().length < 10) {
+      return { ok: false, error: "Please explain the rate request (at least 10 characters)." };
+    }
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId, tenantSlug } = auth;
+
+    // Upsert request fields on the workspace_commission_overrides row.
+    // The RLS policy lets tenant staff INSERT/UPDATE the requested_* fields
+    // only; rate fields are write-locked to platform admin.
+    const { data: existing, error: existingErr } = await supabase
+      .from("workspace_commission_overrides")
+      .select("tenant_id, request_status")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (existingErr) {
+      logServerError("requestPlatformRateOverrideAction/lookup", existingErr);
+      return { ok: false, error: existingErr.message };
+    }
+
+    if (!existing) {
+      const { error: insErr } = await supabase
+        .from("workspace_commission_overrides")
+        .insert({
+          tenant_id: tenantId,
+          requested_platform_take_bps: requestedTakeBps,
+          requested_note: note.trim(),
+          requested_at: new Date().toISOString(),
+          requested_by_user_id: user.id,
+          request_status: "open",
+        });
+      if (insErr) {
+        logServerError("requestPlatformRateOverrideAction/insert", insErr);
+        return { ok: false, error: insErr.message };
+      }
+    } else {
+      const { error: updErr } = await supabase
+        .from("workspace_commission_overrides")
+        .update({
+          requested_platform_take_bps: requestedTakeBps,
+          requested_note: note.trim(),
+          requested_at: new Date().toISOString(),
+          requested_by_user_id: user.id,
+          request_status: "open",
+        })
+        .eq("tenant_id", tenantId);
+      if (updErr) {
+        logServerError("requestPlatformRateOverrideAction/update", updErr);
+        return { ok: false, error: updErr.message };
+      }
+    }
+
+    revalidatePath(`/${tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.requestPlatformRateOverrideAction", err);
+    return { ok: false, error: "Unexpected error." };
   }
 }
