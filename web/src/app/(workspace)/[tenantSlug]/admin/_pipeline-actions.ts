@@ -2056,3 +2056,94 @@ export async function requestPlatformRateOverrideAction(
     return { ok: false, error: "Unexpected error." };
   }
 }
+
+// ─── B1 — talent holds (workspace-staff calendar locks) ─────────────────────
+// Thin wrappers around the engine layer in `lib/talent-calendar/hold-actions.ts`
+// so the admin inquiry surface can place/release holds without importing
+// from the lib directly. Each wrapper takes the standard tenantSlug
+// signature the admin shell uses (curried at the page level).
+
+export async function placeTalentHoldAction(
+  tenantSlug: string,
+  inquiryId: string,
+  talentProfileId: string,
+  input: {
+    title: string;
+    clientLabel?: string | null;
+    startsAt: string;
+    endsAt: string;
+    allDay?: boolean;
+    holdStrength?: "soft" | "firm";
+    expiresAt?: string | null;
+  },
+): Promise<PipelineActionResult<{ holdId: string }>> {
+  try {
+    const { placeTalentHold } = await import("@/lib/talent-calendar/hold-actions");
+    const r = await placeTalentHold({
+      tenantSlug,
+      talentProfileId,
+      inquiryId,
+      title: input.title,
+      clientLabel: input.clientLabel ?? null,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      allDay: input.allDay,
+      holdStrength: input.holdStrength,
+      expiresAt: input.expiresAt ?? undefined,
+    });
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true, data: r.data };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.placeTalentHoldAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+export async function releaseTalentHoldAction(
+  _tenantSlug: string,
+  holdId: string,
+): Promise<PipelineActionResult> {
+  try {
+    const { releaseTalentHold } = await import("@/lib/talent-calendar/hold-actions");
+    const r = await releaseTalentHold(holdId);
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.releaseTalentHoldAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+export async function loadHoldsForInquiryAction(
+  _tenantSlug: string,
+  inquiryId: string,
+): Promise<PipelineActionResult<Array<{
+  id: string;
+  talentProfileId: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  holdStrength: "soft" | "firm";
+  expiresAt: string | null;
+}>>> {
+  try {
+    const { loadHoldsForInquiry } = await import("@/lib/talent-calendar/hold-actions");
+    const r = await loadHoldsForInquiry(inquiryId);
+    if (!r.ok) return { ok: false, error: r.error };
+    return {
+      ok: true,
+      data: r.data.map((h) => ({
+        id: h.id,
+        talentProfileId: h.talentProfileId,
+        title: h.title,
+        startsAt: h.startsAt,
+        endsAt: h.endsAt,
+        holdStrength: h.holdStrength,
+        expiresAt: h.expiresAt,
+      })),
+    };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.loadHoldsForInquiryAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
