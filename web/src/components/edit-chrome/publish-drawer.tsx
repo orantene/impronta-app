@@ -580,14 +580,20 @@ export function PublishDrawer() {
                       label={`section${summary.totalSections === 1 ? "" : "s"} ready`}
                       tone="ink"
                     />
+                    {/* QA 2026-05-13 — while `publishDiff.loading` is true,
+                        the count used to render as the ellipsis character
+                        "…" inside the tone="blue" colored chip, which read
+                        as junk data ("blue badge with garbage in it"). Now
+                        the chip stays muted with the same dash placeholder
+                        we use elsewhere for not-yet-loaded data; once the
+                        loader settles, the real count + tone come back. */}
                     <StatLine
-                      count={publishDiff.loading ? "…" : publishDiff.summary.total}
+                      count={publishDiff.loading ? "—" : publishDiff.summary.total}
                       label="changes since last publish"
-                      tone="blue"
+                      tone={publishDiff.loading ? "ink" : "blue"}
                       muted={
-                        publishDiff.loading
-                          ? false
-                          : publishDiff.summary.total === 0
+                        publishDiff.loading ||
+                        publishDiff.summary.total === 0
                       }
                     />
                     {!publishDiff.loading && publishDiff.summary.total > 0 ? (

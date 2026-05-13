@@ -10,12 +10,12 @@
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { resolveActorIdentity, defaultPreferredSurface, type HybridMode } from "@/lib/identity/hybrid-mode";
+import { resolveActorIdentity, defaultPreferredSurface } from "@/lib/identity/hybrid-mode";
 
 export type HybridSwitcherProps = {
   canTalent: boolean;
   canWorkspace: boolean;
-  current: HybridMode | "workspace";
+  current: "talent" | "workspace";
   talentHref: string;
   workspaceHref: string;
 };

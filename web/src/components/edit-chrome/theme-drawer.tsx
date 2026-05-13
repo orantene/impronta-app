@@ -569,24 +569,40 @@ export function ThemeDrawer(): ReactElement | null {
       zIndex={87}
       ariaLabelledBy="theme-drawer-title"
     >
+      {/* QA 2026-05-13 — during the first ~2s while `loadDesignAction`
+          is in flight, `snapshot` is null. The previous render fell
+          through to `"Theme · Custom"` + `"Never published"` and three
+          empty placeholder cards below — which read as actual data
+          (operator's brand has zero theme) for the duration of the
+          load. Now we surface a neutral "Loading…" head when busy is
+          "loading" and no snapshot has resolved yet; once the real
+          snapshot arrives the head fills in with the right preset and
+          publish meta. Matches the convention we just set in
+          publish-drawer for `Last published`. */}
       <DrawerHead
         titleId="theme-drawer-title"
         title={
-          snapshot?.presetSlug
-            ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
-            : "Theme · Custom"
+          !snapshot && busy === "loading"
+            ? "Theme · loading…"
+            : snapshot?.presetSlug
+              ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
+              : "Theme · Custom"
         }
         icon={<ThemeIcon />}
         saveChip={<SaveChip status={chipStatus} />}
         meta={
-          <>
-            {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Never published"}
-            {snapshot ? (
-              <>
-                <span style={{ color: CHROME.muted2 }}> · </span>v{snapshot.version}
-              </>
-            ) : null}
-          </>
+          !snapshot && busy === "loading" ? (
+            <span style={{ color: CHROME.muted2 }}>Loading theme…</span>
+          ) : (
+            <>
+              {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Never published"}
+              {snapshot ? (
+                <>
+                  <span style={{ color: CHROME.muted2 }}> · </span>v{snapshot.version}
+                </>
+              ) : null}
+            </>
+          )
         }
         onClose={busy === "publishing" ? undefined : closeTheme}
       />

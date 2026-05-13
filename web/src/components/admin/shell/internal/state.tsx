@@ -7216,17 +7216,48 @@ const AdminShellContext = createContext<Ctx | null>(null);
 // back to plain execution on browsers without support (Firefox <125,
 // Safari <18) and is skipped entirely when prefers-reduced-motion is
 // set. Used by openDrawer / closeDrawer to crossfade between drawers.
+//
+// QA 2026-05-13 — same family as the locale-switch bug fixed at
+// b5a3ee970. `startViewTransition` can throw `InvalidStateError:
+// Transition was aborted because of invalid state` if another VT is
+// mid-cleanup (or the document hits a state the spec considers
+// invalid). Without try/catch + async catch on the returned handle,
+// the throw silently aborts the work() call and the drawer state
+// mutation never lands — operator clicks "Open team drawer" and
+// nothing happens. We catch sync + async failures and re-run work()
+// directly so the drawer actually opens, just without the crossfade.
 function runWithViewTransition(work: () => void): void {
   if (typeof window === "undefined") { work(); return; }
   const reduced = typeof window.matchMedia === "function"
     && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  type DocWithVT = Document & { startViewTransition?: (cb: () => void) => unknown };
+  type ViewTransitionHandle = { updateCallbackDone?: Promise<void>; finished?: Promise<void> };
+  type DocWithVT = Document & {
+    startViewTransition?: (cb: () => void) => ViewTransitionHandle | undefined;
+  };
   const doc = document as DocWithVT;
   if (reduced || typeof doc.startViewTransition !== "function") {
     work();
     return;
   }
-  doc.startViewTransition(work);
+  let ranFallback = false;
+  const runFallback = (err: unknown) => {
+    if (ranFallback) return;
+    ranFallback = true;
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn("[admin-shell] view-transition failed, falling back", err);
+    }
+    work();
+  };
+  try {
+    const handle = doc.startViewTransition(work);
+    handle?.updateCallbackDone?.catch(runFallback);
+    handle?.finished?.catch(() => {
+      /* updateCallbackDone already handled the recovery */
+    });
+  } catch (err) {
+    runFallback(err);
+  }
 }
 
 /**
