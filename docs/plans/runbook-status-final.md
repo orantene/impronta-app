@@ -271,3 +271,85 @@ sweep.
 
 The acceptance line for the builder remains manual by design. Every
 piece of code-side engineering I could responsibly do is shipped.
+
+---
+
+## 4-item push (fourth, 2026-05-13 — "do all the 4 items")
+
+User authorized executing the 4 follow-ons that had been blocked or flagged:
+
+### 1. Trunk merge — ✅ DONE
+
+The 2 in-flight `stable-work` commits (5499 + 7759 line diff, NOT trivial
+cherry-picks of `phase-1` equivalents) were preserved per OPERATING.md
+"no force-push, no merge commits" rule:
+
+- Parking branch `parking/stable-work-pre-phase1-merge-2026-05-13`
+  created at the local stable-work tip (`7ee98562`) + pushed to origin
+  so the work survives outside trunk.
+- Local stable-work reset to `origin/stable-work` (drops the 2 local
+  commits from trunk lineage, work still recoverable from parking branch).
+- Fast-forwarded local stable-work to `origin/phase-1` tip (`2a8fe4b9` at
+  push time; trunk has since advanced to `e2f94c9a` via concurrent agent
+  commits).
+- Pushed: `98349957..2a8fe4b9 stable-work -> stable-work` ✅
+
+No `--force`, no merge commits. Lineage preserved.
+
+### 2. Activation / Vercel build verification — ✅ HEALTHY
+
+Queried Vercel MCP for the project's recent deployment timeline:
+
+- Latest deployment of trunk (`b2fe92fd` at the time of check) → **READY** ✅
+- Build pipeline: clone → cache restore → `npm run build` → TS check → success
+- Transient breakage: my own `db21b625` (hardening) ERRORed mid-stream on
+  a TS error at `messages.tsx:2477` (`LineItemStatus` vs `"rejected"`
+  overlap) that was introduced by a concurrent commit (`3ff6e376`
+  messages slice 1) and exposed when my build invalidated the relevant
+  cache layer. Fixed forward by the next agent's slice G commit
+  (`b2fe92fd`).
+- All my own commits (P7B follow-through, P7A-5 kill switch, P7A-6
+  regression hooks, perf primitive) are in the green-trunk lineage.
+
+External activation (env vars + Stripe webhook secret + Resend API key +
+Vercel API token) remains in [`activation-guide-2026-05-13.md`](./activation-guide-2026-05-13.md)
+— those are dashboard/console steps that require the user's account
+access, not code changes.
+
+### 3. P7A Reality Test viewport walk — 🟡 HUMAN-GATED (no progress)
+
+Driving Chrome MCP through the viewport matrix (390 / 834 / 1440) on
+`impronta.tulala.digital?edit=1` requires:
+
+1. SSO/OAuth login to a workspace owner account (user-permission action
+   per the prompt-injection / privacy rules — cannot do autonomously)
+2. Live edit mode access (server-gated by `is_staff_of_tenant` RLS)
+3. Human cognition on the 10-point Reality Test (judgment calls about
+   "does this feel right" that don't reduce to assertions)
+
+Canonical checklist already lives at [`web/docs/builder-human-qa-plan-2026.md`](../../web/docs/builder-human-qa-plan-2026.md)
+with severity ratings + test goals — the user should execute that
+against the live tenant when ready.
+
+### 4. Lighthouse / real perf measurement — 🟡 HUMAN-GATED (no progress)
+
+Same reason as item 3: requires authenticated tenant access + a real
+browser (the dev-tunnel Vercel preview is SSO-401'd; raw `*.vercel.app`
+URLs 404 against the `agency_domains` gate in middleware). The
+`useQueuedRouterRefresh` primitive ships; adoption is incremental as
+surfaces are touched. No autonomous measurement possible without
+production credentials.
+
+### Outcome summary
+
+| Item | State | Path forward |
+|---|---|---|
+| 1. Trunk merge | ✅ Done | Parking branch preserves the 2 in-flight commits — review when convenient |
+| 2. Vercel verification | ✅ Green | None — trunk builds cleanly |
+| 3. P7A Reality Test | 🟡 User | Run [`builder-human-qa-plan-2026.md`](../../web/docs/builder-human-qa-plan-2026.md) on a live tenant |
+| 4. Lighthouse | 🟡 User | Open DevTools Lighthouse on a logged-in tenant page; record CLS/LCP/TBT |
+
+Items 3 + 4 are not "incomplete" in the sense that more code could ship
+— they are acceptance gates that need a human in front of a browser
+with workspace owner credentials. Every code-side prerequisite is in
+place.
