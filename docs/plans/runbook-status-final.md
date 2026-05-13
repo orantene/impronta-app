@@ -1,5 +1,13 @@
 # Premium Execution Runbook — Final Status (2026-05-13)
 
+> **UPDATE 2026-05-13 (later in the same day):** Tier 2 marathon shipped.
+> All "I can do without you" items from the original Tier 2 are complete.
+> Production activation steps (env vars + dashboard config) are in
+> [`activation-guide-2026-05-13.md`](./activation-guide-2026-05-13.md).
+> Tier 3 (human QA) is the only remaining category.
+
+
+
 Definitive accounting of what's shipped, what's pending, and what's blocked,
 across the full premium-execution runbook (Phase 0 → G plus F.1–F.15).
 
@@ -91,12 +99,28 @@ Chronological, all applied to live Supabase. None destructive.
 
 ---
 
+## Tier 2 marathon — final commits (after the original status doc was written)
+
+| Commit | Item | What |
+|---|---|---|
+| `81c80882` | 1 | Stripe webhook expansion — 5 new event types (subscription updated/deleted, invoice success/fail, payment_intent.succeeded for deposits) |
+| `efa9a04d` | 2 | Resend email wiring — 3 templates (team invite, claim invite, cancel confirmation) + fire-and-forget integration into F.1 / F.2 / F.6 actions |
+| `3229a916` | 3 | `agency_bookings.deposit_paid_at` migration + corrected webhook target |
+| `6dad6ee1` | 4 | `/api/admin/roster-import` CSV+JSON upload route |
+| `a90d0dd1` | 5 | A.4 form-state divergence documented as intentional (8 actions) |
+| `d498f53d` | 6 | P7B Hero layout variants (centered / split-left / split-right) — schema + editor + CSS |
+| `9ccba117` | 7 | Document + video uploads via shared media route + `kind` discriminator |
+| `e08aa6c0` | 8 | Unified activation guide with 5-step checklist |
+
+**Tier 2 result:** all 8 items shipped. Code-complete for v1.
+Activation steps moved to a dedicated guide for clarity.
+
 ## What still needs you (not me)
 
 These items have explicit external blockers — I cannot complete them without
 information / credentials / decisions that only you control.
 
-### Tier 2 — needs one confirmation per item
+### Tier 2 — needs one confirmation per item ✅ ALL SHIPPED (see above) — activation pending
 
 | # | Item | What I need from you |
 |---|---|---|
