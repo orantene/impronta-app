@@ -850,24 +850,36 @@ function FirstPaintTip() {
   // navigations (page swap, locale switch, viewport-mode toggle that
   // forces a remount). Without this, navigating to a different page
   // re-mounted FirstPaintTip with fresh `dismissed=false` and the
-  // operator saw the tip again 5 seconds into their session. Walks
-  // through the builder shouldn't re-onboard the user.
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === "undefined") return false;
+  // operator saw the tip again 5 seconds into their session.
+  //
+  // QA 2026-05-13 — read sessionStorage in a post-mount effect rather
+  // than in `useState` initializer. SSR has no sessionStorage so the
+  // initializer always returned false on server; on the client, after
+  // a prior dismissal it would return true, and the tree shape
+  // (rendered vs returned-null) differed between SSR and CSR → React
+  // hydration mismatch error in console. Both passes now render the
+  // tip initially; the effect dismisses it on the next tick if the
+  // session flag is set, which doesn't trip the hydration check.
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
     try {
-      return window.sessionStorage.getItem("edit:first-paint-tip:dismissed") === "1";
+      if (
+        typeof window !== "undefined" &&
+        window.sessionStorage.getItem("edit:first-paint-tip:dismissed") === "1"
+      ) {
+        setDismissed(true);
+      }
     } catch {
-      return false;
+      // sessionStorage can throw in private mode / quota cases.
     }
-  });
+  }, []);
   const dismiss = useCallback(() => {
     setDismissed(true);
     if (typeof window === "undefined") return;
     try {
       window.sessionStorage.setItem("edit:first-paint-tip:dismissed", "1");
     } catch {
-      // sessionStorage can throw in private mode / quota cases; degrade
-      // silently — the operator just sees the tip again next nav.
+      // Degrade silently — the operator just sees the tip again next nav.
     }
   }, []);
   // Auto-dismiss on first interaction with a section.

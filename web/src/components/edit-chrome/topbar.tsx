@@ -971,26 +971,29 @@ function LocaleSwitcher({
         startTransition(() => {
           router.push(target);
         });
-      // Browser-native View Transitions: when supported, the swap from
-      // the old composition to the new locale's composition crossfades
-      // instead of flashing. Falls back to a hard swap on Safari < 18,
-      // older Firefox, etc. Wrapping `startTransition` inside the view-
-      // transition callback keeps both the pending state AND the visual
-      // animation tied to the same navigation.
-      if (
-        typeof document !== "undefined" &&
-        typeof (document as Document & {
-          startViewTransition?: (cb: () => void) => unknown;
-        }).startViewTransition === "function"
-      ) {
-        (
-          document as Document & {
-            startViewTransition: (cb: () => void) => unknown;
-          }
-        ).startViewTransition(doNavigate);
-      } else {
-        doNavigate();
-      }
+      // Locale switch — plain navigation, no View Transitions.
+      //
+      // QA 2026-05-13 — `document.startViewTransition(doNavigate)` was
+      // throwing `InvalidStateError: Transition was aborted because of
+      // invalid state` and silently swallowing the navigation. The
+      // operator clicked ES and nothing happened — locale switching was
+      // effectively broken in development. The error tracks back to
+      // either a concurrent transition mid-cleanup OR (more likely on
+      // this codebase) interaction with the admin-shell's parallel
+      // `startViewTransition` call in `state.tsx:7229`, which can leave
+      // the document's transition slot in an aborted state for the next
+      // call.
+      //
+      // We previously tried wrapping in try/catch + handle.updateCallbackDone.catch
+      // — neither caught the error reliably across browsers. The pragmatic
+      // fix is to skip the crossfade for locale switches: the operator
+      // does this maybe twice per session, the perceived flash is no
+      // worse than any other route change in Next.js, and the navigation
+      // actually happens. If the crossfade is missed enough that someone
+      // notices, we can revive it once the underlying view-transition
+      // contention is fixed at the platform level (probably moving all
+      // VT calls behind a single coordinator).
+      doNavigate();
     },
     [activeLocale, dirty, pathSettings, pathname, router],
   );
