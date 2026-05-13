@@ -39,7 +39,7 @@ create policy message_reactions_select on public.message_reactions
       join public.inquiry_participants p
         on p.inquiry_id = m.inquiry_id
         and p.user_id = auth.uid()
-        and p.status in ('active', 'accepted', 'invited')
+        and p.status in ('active', 'invited')
       where m.id = message_reactions.message_id
     )
   );
@@ -57,7 +57,7 @@ create policy message_reactions_insert on public.message_reactions
       join public.inquiry_participants p
         on p.inquiry_id = m.inquiry_id
         and p.user_id = auth.uid()
-        and p.status in ('active', 'accepted', 'invited')
+        and p.status in ('active', 'invited')
       where m.id = message_reactions.message_id
         and (
           -- Group thread: any participant except clients

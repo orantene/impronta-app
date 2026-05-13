@@ -123,7 +123,7 @@ begin
     where inquiry_id = p_inquiry_id
       and user_id = p_user_id
       and role = 'coordinator'
-      and status in ('active', 'accepted', 'invited')
+      and status in ('active', 'invited')
   ) into v_is_coord;
   if v_is_coord then return true; end if;
 
@@ -157,7 +157,7 @@ create policy coord_request_insert on public.coordinator_join_requests
       where inquiry_id = coordinator_join_requests.inquiry_id
         and user_id = auth.uid()
         and role = 'talent'
-        and status in ('active', 'accepted', 'invited')
+        and status in ('active', 'invited')
     )
   );
 
@@ -196,7 +196,7 @@ begin
       on p.inquiry_id = i.id
       and p.user_id = v_user
       and p.role = 'talent'
-      and p.status in ('active', 'accepted', 'invited')
+      and p.status in ('active', 'invited')
     where i.id = p_inquiry_id;
 
   if v_tenant is null then
@@ -273,7 +273,7 @@ begin
   -- is a no-op via the not-equal check.
   update public.inquiry_participants
     set role = 'coordinator',
-        status = case when status in ('active','accepted') then status else 'active' end
+        status = case when status = 'active' then status else 'active' end
     where inquiry_id = v_inquiry
       and user_id = v_requester
       and role = 'talent';

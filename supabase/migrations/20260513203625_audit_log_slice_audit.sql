@@ -83,7 +83,7 @@ create policy inquiry_audit_log_select on public.inquiry_audit_log
       select 1 from public.inquiry_participants p
       where p.inquiry_id = inquiry_audit_log.inquiry_id
         and p.user_id = auth.uid()
-        and p.status in ('active','accepted','invited')
+        and p.status in ('active','invited')
     )
   );
 

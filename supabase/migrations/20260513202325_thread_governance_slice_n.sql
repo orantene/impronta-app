@@ -30,7 +30,7 @@ CREATE POLICY inquiry_messages_group_select_participant
       SELECT 1 FROM public.inquiry_participants p
       WHERE p.inquiry_id = inquiry_messages.inquiry_id
         AND p.user_id = auth.uid()
-        AND p.status IN ('active', 'accepted', 'invited')
+        AND p.status IN ('active', 'invited')
         -- Plan §4.2: clients NEVER see the Talent Group thread.
         AND p.role <> 'client'
     )
@@ -49,24 +49,37 @@ CREATE POLICY inquiry_messages_group_insert_participant
       SELECT 1 FROM public.inquiry_participants p
       WHERE p.inquiry_id = inquiry_messages.inquiry_id
         AND p.user_id = auth.uid()
-        AND p.status IN ('active', 'accepted', 'invited')
+        AND p.status IN ('active', 'invited')
         -- Plan §4.2: clients NEVER send to the Talent Group thread.
         AND p.role <> 'client'
     )
   );
 
 -- ── Documentation: the locked permission matrix from plan §6 ────────
-COMMENT ON POLICY inquiry_messages_private_select_participant
-  ON public.inquiry_messages IS
-  'Plan §6: Client thread visible to client + admin + approved coordinators only. Talent is excluded (role=talent fails the IN clause).';
+-- Wrapped in DO blocks because some target policies live in
+-- companion migrations whose run-order vs. this one is not
+-- guaranteed across environments (fresh remote vs. local linked
+-- replays diverge). If the policy isn't there yet, skip — the
+-- comment is documentation, not load-bearing behavior.
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'inquiry_messages_private_select_participant' AND tablename = 'inquiry_messages') THEN
+    EXECUTE $cmt$COMMENT ON POLICY inquiry_messages_private_select_participant
+      ON public.inquiry_messages IS
+      'Plan §6: Client thread visible to client + admin + approved coordinators only. Talent is excluded (role=talent fails the IN clause).'$cmt$;
+  END IF;
+END $$;
 
 COMMENT ON POLICY inquiry_messages_group_select_participant
   ON public.inquiry_messages IS
   'Plan §6: Group thread visible to admin + coordinators + talent participants. Clients are excluded (role<>client).';
 
-COMMENT ON POLICY inquiry_messages_private_insert_participant
-  ON public.inquiry_messages IS
-  'Plan §6: only client + coordinators can post to the Client thread. Plain talent cannot — they upgrade via coordinator_join_requests first.';
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'inquiry_messages_private_insert_participant' AND tablename = 'inquiry_messages') THEN
+    EXECUTE $cmt$COMMENT ON POLICY inquiry_messages_private_insert_participant
+      ON public.inquiry_messages IS
+      'Plan §6: only client + coordinators can post to the Client thread. Plain talent cannot — they upgrade via coordinator_join_requests first.'$cmt$;
+  END IF;
+END $$;
 
 COMMENT ON POLICY inquiry_messages_group_insert_participant
   ON public.inquiry_messages IS
