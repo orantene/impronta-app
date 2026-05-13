@@ -193,6 +193,7 @@ export function syncLocaleCookieForPath(
   res: import("next/server").NextResponse,
   originalPathname: string,
   settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+  request?: import("next/server").NextRequest,
 ): void {
   if (isNonDefaultLocalePrefixedPath(originalPathname, settings)) {
     const inner = stripNonDefaultLocalePrefix(originalPathname, settings);
@@ -203,6 +204,21 @@ export function syncLocaleCookieForPath(
     return;
   }
   if (isUnprefixedPublicDefaultPath(originalPathname, settings)) {
+    // QA 2026-05-13 — previously this unconditionally wrote
+    // `locale=<defaultLocale>`, which clobbered an explicit non-default
+    // choice the operator had just made. Concrete repro:
+    //   1. operator clicks ES toggle, switcher pushes `/es/impronta`
+    //   2. proxy.ts 308's that to `/impronta` and sets `locale=es`
+    //   3. browser follows redirect to `/impronta`
+    //   4. THIS line ran and overwrote the cookie back to `locale=en`
+    //   5. page renders in EN — switcher appears broken
+    // Now we respect an existing locale cookie that names a supported
+    // public locale. Fresh visits (no cookie) still get the default,
+    // matching prior behavior.
+    const existing = request?.cookies?.get(LOCALE_COOKIE)?.value;
+    const existingIsSupported =
+      existing && settings.publicLocales.some((l) => l === existing);
+    if (existingIsSupported) return;
     res.cookies.set(LOCALE_COOKIE, settings.defaultLocale, localeCookieOptions);
   }
 }
