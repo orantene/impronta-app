@@ -635,11 +635,13 @@ export function ServiceAreasSection({
   const [draftFee, setDraftFee] = useState(false);
   const [draftNotes, setDraftNotes] = useState("");
 
+  const [validationError, setValidationError] = useState<string | null>(null);
   const handleAdd = useCallback(() => {
     if (!draftCity.trim()) {
-      alert("Add a city name.");
+      setValidationError("Add a city name.");
       return;
     }
+    setValidationError(null);
     startMutation(async () => {
       await addTalentServiceArea(tenantSlug, talentId, {
         serviceKind: draftKind,
@@ -694,7 +696,8 @@ export function ServiceAreasSection({
             <input
               placeholder={t("admin.talent.edit.serviceAreas.cityPlaceholder")}
               value={draftCity}
-              onChange={(e) => setDraftCity(e.target.value)}
+              onChange={(e) => { setDraftCity(e.target.value); setValidationError(null); }}
+              aria-invalid={!!validationError}
               style={inputStyle()}
             />
             <input
@@ -705,6 +708,11 @@ export function ServiceAreasSection({
               style={inputStyle()}
             />
           </div>
+          {validationError ? (
+            <div role="alert" style={{ fontSize: 12, color: "#A33A3A", marginTop: -2 }}>
+              {validationError}
+            </div>
+          ) : null}
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.ink }}>
               <input type="checkbox" checked={draftFee} onChange={(e) => setDraftFee(e.target.checked)} />

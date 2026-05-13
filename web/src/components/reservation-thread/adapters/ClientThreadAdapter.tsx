@@ -353,6 +353,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
   const [, startTransition] = useTransition();
   const [counterOpen, setCounterOpen] = useState(false);
   const [counterText, setCounterText] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const offerActionRow: ActionPill[] | null = useMemo(() => {
     if (!activeOffer || activeOffer.status !== "sent") return null;
@@ -366,7 +367,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
           await new Promise<void>((resolve) => {
             startTransition(async () => {
               const r = await approveOffer(activeOffer.id, inquiry.version);
-              if (!r.ok) alert(r.error);
+              if (!r.ok) setActionError(r.error ?? "Action failed.");
               resolve();
             });
           });
@@ -388,7 +389,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
           await new Promise<void>((resolve) => {
             startTransition(async () => {
               const r = await declineOffer(activeOffer.id, inquiry.version, reason);
-              if (!r.ok) alert(r.error);
+              if (!r.ok) setActionError(r.error ?? "Action failed.");
               resolve();
             });
           });
@@ -412,6 +413,38 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
 
   return (
     <>
+      {actionError ? (
+        <div
+          role="alert"
+          style={{
+            margin: "8px 0",
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "rgba(163,58,58,0.08)",
+            color: "#A33A3A",
+            fontSize: 12.5,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#A33A3A",
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       <ReservationThread
         pov="client"
         header={{
@@ -433,7 +466,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
           onSubmit={async (body) => {
             if (!body.trim()) return;
             const r = await counterOffer(body.trim());
-            if (!r.ok) { alert(r.error); return; }
+            if (!r.ok) { setActionError(r.error ?? "Counter failed."); return; }
             setCounterOpen(false); setCounterText("");
           }}
           value={counterText}
