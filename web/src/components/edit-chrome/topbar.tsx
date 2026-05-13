@@ -306,7 +306,7 @@ function PagePicker({
         }
       })
       .catch(() => {
-        setFetchErr("Failed to load pages.");
+        setFetchErr("Couldn't load pages — try again.");
         setPages([]);
         setAvailability(null);
       })

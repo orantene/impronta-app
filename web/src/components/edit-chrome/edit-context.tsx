@@ -2054,7 +2054,7 @@ export function EditProvider({
       }
     } catch (err) {
       setCompositionError(
-        err instanceof Error ? err.message : "Failed to load composition.",
+        err instanceof Error ? err.message : "Couldn't load the page — try again.",
       );
     } finally {
       setCompositionLoading(false);
