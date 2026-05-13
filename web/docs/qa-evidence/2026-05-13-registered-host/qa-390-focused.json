@@ -1,0 +1,54 @@
+{
+  "date": "2026-05-13T06:55:00.394Z",
+  "host": "https://improntamodels.com",
+  "tenant": "Impronta",
+  "width": 390,
+  "status": "Insert + navigator + canvas pass; publish control not fully reachable at 390px",
+  "consoleErrors": [
+    {
+      "phase": "login",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "phase": "login",
+      "text": "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "phase": "open",
+      "text": "pageerror: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+    },
+    {
+      "phase": "open",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "phase": "open",
+      "text": "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    }
+  ],
+  "cleanup": [
+    {
+      "sectionId": "a4038ff8-3889-4ff7-a03c-3a888943dfa9",
+      "refsBefore": [
+        {
+          "page_id": "90552cf6-2230-4a40-8320-c2e303e3ee56",
+          "section_id": "a4038ff8-3889-4ff7-a03c-3a888943dfa9",
+          "is_draft": true
+        }
+      ],
+      "refsAfter": [],
+      "sectionDeleted": true
+    }
+  ],
+  "browser": "148.0.7778.97",
+  "publishButtonBox": {
+    "x": 1088.4375,
+    "y": 8.5,
+    "width": 76.9375,
+    "height": 36
+  },
+  "publishButtonFullyInViewport": false,
+  "sectionId": "a4038ff8-3889-4ff7-a03c-3a888943dfa9",
+  "navText": "Directory search hero\nNEWEST",
+  "screenshot": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/matrix-390-inserted-section-focused.png"
+}

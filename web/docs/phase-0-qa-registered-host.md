@@ -15,11 +15,25 @@ For each width, complete the checklist and note **Pass / Fail** and **Issue ID**
 
 | Width | Insert section visible on canvas | Navigator sync | Publish succeeds | No console errors on insert/publish |
 |-------|-----------------------------------|------------------|------------------|--------------------------------------|
-| ~390px | | | | |
-| ~820px | | | | |
-| ~1440px | | | | |
+| ~390px | Pass | Pass | **Fail** — [BUG-010](./builder-human-qa-run-2026-05-09.md) (re-test after `topbar` scroll strip + `test:e2e:impronta-topbar-publish-narrow`) | **Fail** — [BUG-009](./builder-human-qa-run-2026-05-09.md) |
+| ~820px | Pass | Pass | **Fail** — [BUG-010](./builder-human-qa-run-2026-05-09.md) | **Fail** — [BUG-009](./builder-human-qa-run-2026-05-09.md) |
+| ~1440px | Pass (draft 7A w/ temp blank section) | Pass | **Fail** — [BUG-004](./builder-human-qa-run-2026-05-09.md) / preflight (masonry URL overflow + section count) | **Fail** — [BUG-009](./builder-human-qa-run-2026-05-09.md) |
 
-**Roadmap reconciliation:** Cursor plan item `verify-p0-1` tracks “doc vs roadmap truth,” not completion of this matrix. Closing `verify-p0-1` is allowed while the cells above are still empty — that only means the repo honestly records that **P0-1 is outstanding**. Filling Pass/Fail (or recording an explicit waiver + approver in [builder-execution-plan-2026.md](./builder-execution-plan-2026.md)) remains **`pr-p0-1`**.
+**Evidence (2026-05-13):** `https://improntamodels.com` — Chrome 148 — logs under [`qa-evidence/2026-05-13-registered-host/`](./qa-evidence/2026-05-13-registered-host/). **Batch 03 / 7A acceptance:** not closed until matrix + publish path are green or waived with approver (see [`builder-execution-batches.md`](./builder-execution-batches.md) §Batch 03).
+
+**Roadmap reconciliation:** Cursor plan item `verify-p0-1` tracks “doc vs roadmap truth,” not that every cell is **Pass**. Filling Pass/Fail (or recording an explicit waiver + approver in [builder-execution-plan-2026.md](./builder-execution-plan-2026.md)) remains **`pr-p0-1`** until product accepts the matrix or waives risk.
+
+### Builder continuation (five-step queue)
+
+Use this after **BUG-010 / BUG-009 / BUG-004** mitigations are on a **registered host** you can load (see [CLAUDE.md](../../CLAUDE.md) — raw `*.vercel.app` previews do not hit tenant routes).
+
+| Step | Owner | Action |
+|------|--------|--------|
+| 1 | Eng | Ship builder fixes (topbar scroll, client Speed Insights, preflight URL hygiene); run `cd web && npm run qa:impronta-registered-host-matrix-local` before promote. |
+| 2 | Human | Re-run the **viewport matrix** above on `improntamodels.com` (or your QA tenant); update Pass/Fail + date in §Viewport matrix and [builder-human-qa-run-2026-05-09.md](./builder-human-qa-run-2026-05-09.md) if BUG rows move. |
+| 3 | Human | **7A Reality Test** (blank section → library insert → reorder → publish → hard refresh → reopen); attach evidence under `web/docs/qa-evidence/` and note `gate-qa-7a-demo` in [builder-execution-plan-2026.md](./builder-execution-plan-2026.md). |
+| 4 | Human + Eng | **BUG-004** class: if publish still blocks, run [impronta-local-qa-homepage-baseline.md](./impronta-local-qa-homepage-baseline.md) draft reset or clean long URLs in content; file new issues if preflight is wrong, not just noisy drafts. |
+| 5 | Human | After Batch 03 is **Done** or explicitly waived: [Batch 04](./builder-execution-batches.md) `pr-*` manual sweep (VoiceOver + polish sign-offs). |
 
 ### Steps (repeat per viewport)
 
@@ -43,6 +57,8 @@ Tracked human-QA / engineering backlog (see [builder-human-qa-run-2026-05-09.md]
 | High | BUG-006 — Tulala shell vs Impronta tenant brand clarity in edit chrome | TBD | [Human QA run](./builder-human-qa-run-2026-05-09.md) |
 | Medium | BUG-007 — Add-section library density for first-time users | TBD | [Human QA run](./builder-human-qa-run-2026-05-09.md) |
 | Medium | BUG-008 — Technical labels in review / metadata surfaces | TBD | [Human QA run](./builder-human-qa-run-2026-05-09.md) |
+| Medium | BUG-009 — Registered-host console noise (404/400, Speed Insights `script.js` MIME, React #418) | Web | [Human QA run](./builder-human-qa-run-2026-05-09.md) · mitigation: client-only [`ClientSpeedInsights`](../src/components/analytics/client-speed-insights.tsx) |
+| High | BUG-010 — Publish control off-screen / unreachable on ~390 / ~820 builder viewports | Web | [Human QA run](./builder-human-qa-run-2026-05-09.md) · mitigation: [`topbar.tsx`](../src/components/edit-chrome/topbar.tsx) horizontal scroll + `test:e2e:impronta-topbar-publish-narrow` |
 
 ## Automated substitute (local dev only)
 
@@ -59,6 +75,7 @@ cd web && npm run test:e2e:impronta-navigator-child-reorder
 cd web && npm run test:e2e:impronta-navigator-layers-collapse-search   # same Playwright filter as test:e2e:impronta-navigator-layer-filtering
 cd web && npm run qa:impronta-navigator-sanity   # both navigator tests above + test:builder-node-bindings
 cd web && npm run qa:impronta-phase0-edit-loop:full   # destructive: draft reset + publish e2e + builder-node tests (see impronta-local-qa-homepage-baseline.md)
+cd web && npm run qa:impronta-registered-host-matrix-local   # typecheck + narrow topbar + Phase 0 edit loop + blank_section (run before re-doing registered-host matrix after BUG-010 deploy)
 ```
 
 Record last run date and result here:
@@ -74,7 +91,7 @@ Record last run date and result here:
 | 2026-05-12 | `cd web && npm run qa:impronta-phase0-edit-loop:full` | Chains draft-only reset + full Phase 0 e2e + `test:builder-node-bindings` — run only when you accept DB writes (see [impronta-local-qa-homepage-baseline.md](./impronta-local-qa-homepage-baseline.md)). |
 | 2026-05-13 | `cd web && npm run test:e2e:impronta-navigator-child-reorder` | Pass (Chromium) — same-parent move down + move up |
 | 2026-05-13 | `cd web && npm run test:e2e:impronta-navigator-layers-collapse-search` (alias `test:e2e:impronta-navigator-layer-filtering`) | Pass (Chromium) — expand all / collapse all + layer search |
-| 2026-05-14 | `cd web && npm run qa:impronta-navigator-sanity` | Pass (local) — child reorder + layers/search e2e + `test:builder-node-bindings` |
+| 2026-05-14 | `cd web && npm run test:e2e:impronta-topbar-publish-narrow` | Local guard for BUG-010 — Publish stays within viewport width after topbar horizontal scroll at 390 / 820. |
 
 ## Sign-off
 

@@ -1,0 +1,166 @@
+{
+  "date": "2026-05-13T06:52:28.073Z",
+  "host": "https://improntamodels.com",
+  "tenant": "Impronta",
+  "status": "Draft/edit/reorder/hard-refresh pass; publish blocked by preflight",
+  "browser": "148.0.7778.97",
+  "consoleErrors": [
+    {
+      "phase": "login",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "phase": "login",
+      "text": "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "phase": "login",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    },
+    {
+      "phase": "open",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    },
+    {
+      "phase": "open",
+      "text": "pageerror: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+    },
+    {
+      "phase": "open",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    },
+    {
+      "phase": "open",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "phase": "open",
+      "text": "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "phase": "refresh",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    },
+    {
+      "phase": "refresh",
+      "text": "pageerror: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+    },
+    {
+      "phase": "refresh",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "phase": "refresh",
+      "text": "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "phase": "refresh",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/7a-rerun2-draft-before-refresh.png"
+    },
+    {
+      "file": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/7a-rerun2-after-hard-refresh.png"
+    },
+    {
+      "file": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/7a-rerun2-publish-blocked.png"
+    }
+  ],
+  "cleanup": [
+    {
+      "sectionId": "2226dc9e-e944-4961-91b0-880945e71185",
+      "refsBefore": [
+        {
+          "page_id": "90552cf6-2230-4a40-8320-c2e303e3ee56",
+          "section_id": "2226dc9e-e944-4961-91b0-880945e71185",
+          "is_draft": true
+        }
+      ],
+      "refsAfter": [],
+      "sectionDeleted": true
+    }
+  ],
+  "sectionId": "2226dc9e-e944-4961-91b0-880945e71185",
+  "unique": {
+    "uniqueHeading": "QA 7A registered host 20260513T065228Z",
+    "uniqueParagraph": "Draft persistence proof 20260513T065228Z",
+    "uniqueButton": "QA proof contact"
+  },
+  "nodes": {
+    "heading": {
+      "id": "builder-heading-35fee4df-f800-493c-b34f-abbe5229e9e3",
+      "kind": "heading",
+      "text": "HHeading"
+    },
+    "paragraph": {
+      "id": "builder-paragraph-90c99384-40b8-401d-b253-2766ca5c2977",
+      "kind": "paragraph",
+      "text": "PParagraph"
+    },
+    "button": {
+      "id": "builder-button-f26e1ce8-e2cc-49fa-a124-29b374cd95ac",
+      "kind": "button",
+      "text": "BButton: Button"
+    },
+    "image": {
+      "id": "builder-image-fa81b666-c640-47a1-a546-edce6a997814",
+      "kind": "image",
+      "text": "IImage: Editorial portrait"
+    },
+    "divider": {
+      "id": "builder-divider-89c1a437-936a-4671-b9a4-83f80ca60b16",
+      "kind": "divider",
+      "text": "DDivider"
+    }
+  },
+  "reorder": {
+    "before": [
+      "builder-heading-35fee4df-f800-493c-b34f-abbe5229e9e3",
+      "builder-paragraph-90c99384-40b8-401d-b253-2766ca5c2977",
+      "builder-button-f26e1ce8-e2cc-49fa-a124-29b374cd95ac",
+      "builder-image-fa81b666-c640-47a1-a546-edce6a997814",
+      "builder-divider-89c1a437-936a-4671-b9a4-83f80ca60b16"
+    ],
+    "after": [
+      "builder-paragraph-90c99384-40b8-401d-b253-2766ca5c2977",
+      "builder-heading-35fee4df-f800-493c-b34f-abbe5229e9e3",
+      "builder-button-f26e1ce8-e2cc-49fa-a124-29b374cd95ac",
+      "builder-image-fa81b666-c640-47a1-a546-edce6a997814",
+      "builder-divider-89c1a437-936a-4671-b9a4-83f80ca60b16"
+    ]
+  },
+  "reloaded": [
+    {
+      "id": "builder-paragraph-90c99384-40b8-401d-b253-2766ca5c2977",
+      "kind": "paragraph",
+      "text": "PDraft persistence proof 20260513T065228Z"
+    },
+    {
+      "id": "builder-heading-35fee4df-f800-493c-b34f-abbe5229e9e3",
+      "kind": "heading",
+      "text": "HQA 7A registered host 20260513T065228Z"
+    },
+    {
+      "id": "builder-button-f26e1ce8-e2cc-49fa-a124-29b374cd95ac",
+      "kind": "button",
+      "text": "BButton: QA proof contact"
+    },
+    {
+      "id": "builder-image-fa81b666-c640-47a1-a546-edce6a997814",
+      "kind": "image",
+      "text": "IImage: QA image alt 20260513T065228Z"
+    },
+    {
+      "id": "builder-divider-89c1a437-936a-4671-b9a4-83f80ca60b16",
+      "kind": "divider",
+      "text": "DDivider"
+    }
+  ],
+  "publish": {
+    "enabled": false,
+    "text": "Publish homepage\nLast published Apr 28, 7:07 PM\nWhat publishing does\n\nAutosave keeps your in-progress work as a draft. Publishing replaces the current public version of your homepage with that draft — so visitors then see this page as you have it now. Other pages are unchanged. Use Revisions to roll back to a previous snapshot if needed.\n\nSaving only stores your draft — it does not mean visitors see these changes. Scroll the canvas, try Preview mode, and review preflight below before publishing.\n\nPreflight results: 3 blocking issues, 12 advisory warnings.\n\nPREFLIGHT\n3 blockers · 12 advisorys\n\nBlockers disable Publish now until fixed. Advisory items are non-blocking — review them, then publish if you accept the risk.\n\nPUBLISH BLOCKERS (3)\nFocus first blocker\nLAYOUT\nBLOCKER\n\nPhase E QA — Masonry: blocking mobile overflow risk from long unbroken text in props.items[0].src (93 chars: \"https://images.unsplash.…\"). Add wraps/spacing or shorten before publish.\n\nFocus section\nLAYOUT\nBLOCKER\n\nPhase E QA — Masonry: blocking mobile overflow risk from long unbroken text in props.items[1].src (93 chars: \"https://images.unsplash.…\"). Add wraps/spacing or shorten before publish.\n\nFocus section\nPERFORMANCE\nBLOCKER\n\nBuilder performance: Navigator has 63 sections. Reduce active sections before publish for stable editor performance.\n\nLayout · 2\nPerformance · 1\nADVISORY — NON-BLOCKING (12)\nALT TEXT\nADVISORY\n\nMasonry — new: 3 images are missing alt text.\n\nFocus section\nALT TEXT\nADVISORY\n\nCarousel — new: 3 images are missing alt text.\n\nFocus section\nALT TEXT\nADVISORY\n\nPhase E QA — Scroll carousel: 6 images are missing alt text.\n\nFocus section\nALT TEXT\nADVISORY\n\nPhase E QA — Masonry: 6 images are missing alt text.\n\nFocus section\nACCESSIBILITY\nADVISORY\n\n\"Studio & Services — migrated body\" has no headline — screen readers will announce this region without a label.\n\nFocus section\nFEATURED ROSTER\nADVISORY\n\nFeatured professionals — new: this visible featured roster block resolves zero public profiles. Add/publish roster people or adjust the source filter.\n\nFocus section\nFEATURED ROSTER\nADVISORY\n\nFeatured professionals — new: this visible featured roster block resolves zero public profiles. Add/publish roster people or adjust the source filter.\n\nFocus section\nFEATURED ROSTER\nADVISORY\n\nFeatured talent grid: this visible featured roster block resolves zero public profiles. Add/publish roster people or adjust the source filter.\n\nFocus section\nHEADINGS\nADVISORY\n\n25 sections emit an H1 — pages should usually have exactly one.\n\nLAYOUT\nADVISORY\n\nMasonry — new: possible mobile overflow from long unbroken text in props.items[0].src (60 chars: \"https://images.unsplash.…\").\n\nFocus section\nLAYOUT\nADVISORY\n\nMasonry — new: possible mobile overflow from long unbroken text in props.items[1].src (60 chars: \"https://images.unsplash.…\").\n\nFocus section\nSEO\nADVISORY\n\nMissing published homepage snapshot for locale: es.\n\n63\nsections ready\n63\nchanges since last publish\n+63 added · 0 moved · -0 removed\nimprontamodels.com · /\nPAGE SETTINGS\nOpen full\nPage title\nBrowser tab + Google\nUsed in browser tabs and search results.\n8/60\nMeta description\nShown beneath title in Google.\n0/160\nSEARCH PREVIEW\nimprontamodels.com\nHomepage\nAdd a meta description to control the snippet.\nWHAT'S GOING LIVE\n63 sections\nHero — new\nADDED\nHERO\nHero — new\nADDED\nHERO\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nBlank section\nADDED\nTRUST BAND (UNDER HERO)\nSplit — new\nADDED\nTRUST BAND (UNDER HERO)\nSplit — new\nADDED\nTRUST BAND (UNDER HERO)\nFinal CTA — new\nADDED\nTRUST BAND (UNDER HERO)\nExplore by location\nADDED\nTRUST BAND (UNDER HERO)\nServices deep-dive — new\nADDED\nTRUST BAND (UNDER HERO)\nSplit — new\nADDED\nTRUST BAND (UNDER HERO)\nFeatured professionals — new\nADDED\nTRUST BAND (UNDER HERO)\nFinal CTA — new\nADDED\nTRUST BAND (UNDER HERO)\nDestinations — new\nADDED\nTRUST BAND (UNDER HERO)\nBrief intake CTA\nADDED\nTRUST BAND (UNDER HERO)\nHero — new\nADDED\nTRUST BAND (UNDER HERO)\nMasonry — new\nADDED\nTRUST BAND (UNDER HERO)\nDirectory search hero\nADDED\nTRUST BAND (UNDER HERO)\nFinal CTA — new\nADDED\nTRUST BAND (UNDER HERO)\nFinal CTA — new\nADDED\nTRUST BAND (UNDER HERO)\nCarousel — new\nADDED\nTRUST BAND (UNDER HERO)\nBrief intake CTA\nADDED\nTRUST BAND (UNDER HERO)\nTabs — new\nADDED\nTRUST BAND (UNDER HERO)\nFAQ — new\nADDED\nTRUST BAND (UNDER HERO)\nServices / categories\nEmpty\nFeatured professionals\nEmpty\nHow it works / process\nEmpty\nDestinations / service areas\nEmpty\nGallery / moments\nEmpty\nTestimonials\nEmpty\nFinal CTA banner\nEmpty\nShow 0 legacy sections\nPUBLISH BLOCKED\n3 items in Preflight above are marked Blocker and must be fixed. Warnings are advisory — they do not stop publish.\nSave draft\nCancel\nPublish now"
+  }
+}

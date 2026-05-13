@@ -9,7 +9,7 @@ import {
   Raleway,
 } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
 import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
@@ -178,7 +178,7 @@ export default async function RootLayout({
         {children}
         <EditChromeMount />
         <Analytics />
-        <SpeedInsights />
+        <ClientSpeedInsights />
       </body>
     </html>
   );

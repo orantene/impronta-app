@@ -169,7 +169,7 @@ Suggested fixes:
 - Add a "QA reset page" script/runbook so every test starts from the same state.
 - Improve generated/default copy quality for starter insertions.
 
-### BUG-005 - Save/publish trust is weak when visual output is wrong
+**2026-05-13 registered host (`improntamodels.com`):** At ~1440px, **draft** insert/reorder/hard-refresh loop passed with a temporary blank section, but **publish was blocked by preflight** (masonry gallery long-URL overflow + navigator section-count rules) — same hygiene class as polluted drafts; clean URLs / section inventory or adjust preflight policy before expecting a green “Publish succeeds” matrix cell. **2026-05-14:** Layout preflight treats **whole-field `https?://` strings** as asset URLs (not prose overflow) and excludes leaf keys `src` / `poster`, reducing false blocks on masonry/CDN props; polluted drafts / true copy overflow still surface normally.
 
 Severity: High
 
@@ -243,6 +243,40 @@ Suggested fixes:
 - Replace `section props` with human copy like `Preset section fields`.
 - Hide implementation labels from default persona view.
 - Keep advanced metadata available only in an advanced/details mode.
+
+### BUG-009 - Registered-host console noise (Speed Insights script MIME, 404/400, React #418)
+
+Severity: Medium (matrix “console” column)
+
+Observed (2026-05-13, `improntamodels.com`):
+
+- Browser console: `404` / `400` on resources; `Refused to execute script …/script.js … MIME type ('text/plain')` (same-origin Speed Insights inject path); **`Minified React error #418`** (hydration mismatch class — often text/HTML divergence between server and client).
+
+Mitigations shipped in repo:
+
+- [`ClientSpeedInsights`](../src/components/analytics/client-speed-insights.tsx) mounts **after** hydration so root HTML is stable; [`layout.tsx`](../src/app/layout.tsx) uses it instead of SSR `SpeedInsights`.
+
+Suggested follow-ups:
+
+- Re-run registered-host matrix; if #418 persists, bisect tenant-specific text (dates, locale strings) vs RSC boundaries.
+- Resolve remaining 404/400 against real missing assets or CMS URLs (often content, not chrome).
+
+### BUG-010 - Publish off-screen on narrow builder viewports (~390 / ~820)
+
+Severity: High (blocks Phase 0 publish column on two widths)
+
+Observed:
+
+- Playwright (and humans) could not click **Publish**: control exists but sits **outside the viewport** on a fixed topbar wider than `100vw` with no scroll parent.
+
+Mitigations shipped in repo:
+
+- [`topbar.tsx`](../src/components/edit-chrome/topbar.tsx): outer `[data-edit-topbar]` is **`overflow-x-auto`** with an inner **`min-w-max`** flex row so operators can **scroll the bar horizontally** to reach Publish/Exit; **Live · …** chip hidden below `lg` to claw width.
+- Local guard: `npm run test:e2e:impronta-topbar-publish-narrow` ([`smoke.spec.ts`](../e2e/smoke.spec.ts)).
+
+Suggested follow-ups:
+
+- Re-verify on production-like registered host; consider a second-row CTA strip if horizontal scroll is still too obscure for first-time users.
 
 ## Passing / Positive Signals
 

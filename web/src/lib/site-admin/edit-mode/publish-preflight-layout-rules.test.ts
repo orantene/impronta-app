@@ -29,6 +29,24 @@ test("collectLayoutOverflowRisks ignores url-like fields", () => {
   assert.equal(risks.length, 0);
 });
 
+test("collectLayoutOverflowRisks ignores long https strings on src-like leaves (masonry / gallery)", () => {
+  const longCdn =
+    "https://cdn.example.com/v7/fit/w/2000/h/2000/q/85/https%3A%2F%2Fstorage.example.com%2Fobj%2Fpublic%2Fmedia%2Fvery-long-key.jpg";
+  const risks = collectLayoutOverflowRisks({
+    items: [{ src: longCdn, alt: "ok" }],
+  });
+  assert.equal(risks.length, 0);
+});
+
+test("collectLayoutOverflowRisks ignores whole-field remote URLs even when path has no url token", () => {
+  const longCdn =
+    "https://cdn.example.com/v7/fit/w/2000/h/2000/q/85/https%3A%2F%2Fstorage.example.com%2Fobj%2Fpublic%2Fmedia%2Fvery-long-key.jpg";
+  const risks = collectLayoutOverflowRisks({
+    heroImage: longCdn,
+  });
+  assert.equal(risks.length, 0);
+});
+
 test("collectLayoutOverflowRisks scans nested arrays and objects", () => {
   const risks = collectLayoutOverflowRisks({
     cards: [

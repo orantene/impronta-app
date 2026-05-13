@@ -62,6 +62,8 @@
 
 **Goal:** **7A Reality Test** + demo evidence so §8 can mark 7A “accepted”.
 
+**Status (2026-05-13):** **Not complete.** Registered-host pass on `improntamodels.com` filed evidence under [`qa-evidence/2026-05-13-registered-host/`](./qa-evidence/2026-05-13-registered-host/) — **BUG-010** (publish unreachable narrow widths), **BUG-004** / preflight (desktop publish blocked), **BUG-009** (console). Re-run matrix after mitigations land; update [phase-0-qa-registered-host.md](./phase-0-qa-registered-host.md) honestly.
+
 **Includes:** `exec-p7a-4-roundtrip`, `gate-qa-7a-demo`, `acc-ph7a`, `pr-p3-2` (premium drop feel), optional `pr-p2-*` / `pr-p9-*` spot-checks if blocking narrative.
 
 **Process:**
@@ -82,6 +84,12 @@
 **Process:** Checklist per item in roadmap table; mark waived only with named risk.
 
 **Done when:** Each row has **Pass / Waive+approver / Blocked** note in a single tracking doc or roadmap changelog.
+
+**Operating checklist (pick up after Batch 03 evidence is honest):**
+
+1. Open [builder-execution-plan-2026.md §4](./builder-execution-plan-2026.md) — use the **PR task IDs** table as the row list (files + risk + test hints live there).
+2. For each `pr-p2-*` / `pr-p4-*` / … row in scope: run the **manual** step (VoiceOver, drag feel, shell smoke, etc.), then append one **changelog** line in § Implementation status with **Pass**, **Waive (name + risk)**, or **Blocked (symptom)**.
+3. Do **not** start Batch 06 (7B/7C) until §8 lifts the park — Batch 04 is polish on shipped code, not new composition surfaces.
 
 ---
 
@@ -120,4 +128,4 @@
 3. Finish with **one summary**: evidence links, commits, what remains.
 4. Update **Cursor todos** to match only the **batch** rows (this file + todo tool stay in sync).
 
-Last updated: 2026-05-12.
+Last updated: 2026-05-14 (Batch 04 operating checklist + Phase 0 five-step table).

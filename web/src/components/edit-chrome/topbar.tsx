@@ -2066,15 +2066,21 @@ export function TopBar({
   return (
     <div
       data-edit-topbar
-      className="fixed inset-x-0 top-0 z-[90] flex items-center gap-[8px] px-[12px]"
+      className="fixed inset-x-0 top-0 z-[90] overflow-x-auto overflow-y-hidden"
       style={{
         height: TOPBAR_H,
         background: "rgba(255,255,255,0.88)",
         backdropFilter: "blur(20px) saturate(160%)",
         WebkitBackdropFilter: "blur(20px) saturate(160%)",
         borderBottom: `1px solid ${CHROME.line}`,
+        WebkitOverflowScrolling: "touch",
       }}
     >
+      {/* BUG-010 — narrow viewports: the cluster exceeds `100vw`; without a
+          horizontal scroll parent, Publish/Exit sit outside the viewport and
+          Playwright (and operators) cannot reach them. Inner row keeps natural
+          width; outer bar scrolls. */}
+      <div className="flex h-full min-w-max items-center gap-[8px] px-[12px]">
       {/* ── Left cluster ── */}
       <BrandMark tenantSiteLabel={tenantSiteLabel} />
       <TbDivider />
@@ -2094,7 +2100,10 @@ export function TopBar({
       ) : null}
       <span className="inline-flex min-w-0 shrink items-center gap-[6px]">
         <SaveStatus dirty={dirty} saving={saving} />
-        <LiveSitePublishedChip publishedAt={liveSitePublishedAt} />
+        {/* Hide on <lg to claw horizontal space toward Publish (BUG-010). */}
+        <span className="hidden lg:contents">
+          <LiveSitePublishedChip publishedAt={liveSitePublishedAt} />
+        </span>
       </span>
       <TbDivider />
 
@@ -2192,6 +2201,7 @@ export function TopBar({
 
       {/* ── Exit ── */}
       <ExitForm dirty={dirty} saving={saving} />
+      </div>
     </div>
   );
 }

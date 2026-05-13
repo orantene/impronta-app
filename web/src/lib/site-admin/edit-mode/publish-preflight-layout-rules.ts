@@ -27,7 +27,10 @@ export interface BreakpointOrderRisk {
   reason: "mobile-exceeds-tablet";
 }
 
-const KEY_EXCLUSIONS = ["url", "href", "link", "canonical", "slug"];
+/** Path substring match — e.g. `imageUrl`, `canonicalUrl`. */
+const PATH_SUBSTRING_EXCLUSIONS = ["url", "href", "link", "canonical", "slug"];
+/** Exact last segment after `.` / `[` — avoids substring traps like `resource`. */
+const PATH_LEAF_EXCLUSIONS = new Set(["src", "poster"]);
 const MIN_OVERFLOW_TOKEN_LENGTH = 36;
 const BREAKPOINT_KEYS = ["tablet", "mobile"] as const;
 const CASCADE_FIELDS = [
@@ -63,7 +66,19 @@ const ORDER_FIELDS = [
 
 function shouldIgnorePath(path: string): boolean {
   const lower = path.toLowerCase();
-  return KEY_EXCLUSIONS.some((piece) => lower.includes(piece));
+  if (PATH_SUBSTRING_EXCLUSIONS.some((piece) => lower.includes(piece))) return true;
+  const segments = lower.split(/[.[\]]+/).filter(Boolean);
+  const leaf = segments[segments.length - 1] ?? "";
+  return PATH_LEAF_EXCLUSIONS.has(leaf);
+}
+
+/** Full-string URLs (Supabase/CDN) are not prose overflow; masonry often uses `src` without "url" in the path. */
+function looksLikeRemoteAssetUrl(value: string): boolean {
+  const t = value.trim();
+  if (!t) return false;
+  if (/^https?:\/\//i.test(t)) return true;
+  if (t.startsWith("//")) return true;
+  return false;
 }
 
 function longestUnbrokenToken(value: string): string {
@@ -84,6 +99,7 @@ export function collectLayoutOverflowRisks(
   function walk(current: unknown, currentPath: string): void {
     if (typeof current === "string") {
       if (shouldIgnorePath(currentPath)) return;
+      if (looksLikeRemoteAssetUrl(current)) return;
       const token = longestUnbrokenToken(current);
       if (token.length >= MIN_OVERFLOW_TOKEN_LENGTH) {
         risks.push({

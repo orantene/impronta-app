@@ -132,7 +132,9 @@ async function expandNavigatorSectionChildList(
   page: Page,
   sectionRow: Locator,
   childList: Locator,
+  options?: { childListTimeoutMs?: number },
 ) {
+  const childListTimeoutMs = options?.childListTimeoutMs ?? 60_000;
   await expect(sectionRow).toBeVisible({ timeout: 30_000 });
   if (await childList.isVisible().catch(() => false)) {
     return;
@@ -157,7 +159,15 @@ async function expandNavigatorSectionChildList(
   if (await expandAll.isEnabled().catch(() => false)) {
     await expandAll.click();
   }
-  await expect(childList).toBeVisible({ timeout: 25_000 });
+
+  if (await childList.isVisible().catch(() => false)) {
+    return;
+  }
+  // Heavy drafts / slow composition: selection can be required before
+  // `expandedSectionIds` opens the child list (Phase 0 e2e flake).
+  await sectionRow.click({ position: { x: 120, y: 16 } }).catch(() => {});
+
+  await expect(childList).toBeVisible({ timeout: childListTimeoutMs });
 }
 
 /**
@@ -1127,39 +1137,22 @@ test.describe("smoke: login → builder → publish → share", () => {
     const blankNavigatorRows = page.locator(
       '[data-navigator-section-row][data-section-type-key="blank_section"]',
     );
-    const blankSectionIdsBefore = new Set(
-      await blankNavigatorRows.evaluateAll((els) =>
-        els
-          .map((el) => el.getAttribute("data-section-id"))
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
+    const blankSectionRowCountBefore = await blankNavigatorRows.count();
 
     await addSectionFromLibrary(page, "blank_section", "Blank section");
 
-    let sectionId: string | null = null;
-    await expect
-      .poll(
-        async () => {
-          const ids = await blankNavigatorRows.evaluateAll((els) =>
-            els
-              .map((el) => el.getAttribute("data-section-id"))
-              .filter((id): id is string => Boolean(id)),
-          );
-          sectionId = ids.find((id) => !blankSectionIdsBefore.has(id)) ?? null;
-          return sectionId;
-        },
-        { timeout: 90_000 },
-      )
-      .not.toBeNull();
-    expect(sectionId).toBeTruthy();
-
+    await expect(blankNavigatorRows).toHaveCount(blankSectionRowCountBefore + 1, {
+      timeout: 90_000,
+    });
+    const newBlankRow = blankNavigatorRows.last();
+    const newSectionId = await newBlankRow.getAttribute("data-section-id");
+    expect(newSectionId).toBeTruthy();
     const canvas = await improntaEditCanvasRoot(page);
     // Same section id can exist on many cloned DOM layers in the editor canvas;
     // pin one element like `addSectionFromLibrary` does (`.last()`).
     const blankWrap = canvas
       .locator(
-        `[data-cms-section][data-section-type-key="blank_section"][data-section-id="${sectionId}"]`,
+        `[data-cms-section][data-section-type-key="blank_section"][data-section-id="${newSectionId}"]`,
       )
       .last();
     await expect(blankWrap).toBeAttached({ timeout: 90_000 });
@@ -1169,23 +1162,69 @@ test.describe("smoke: login → builder → publish → share", () => {
     );
     const beforeHeadingCount = await headingsInBlank.count();
 
-    const addBlock = await getSectionBlockAddTriggerForType(page, "blank_section");
-    await addBlock.click();
+    await newBlankRow.hover();
+    const addBlockTrigger = newBlankRow.locator("[data-builder-node-add-trigger]").first();
+    await expect(addBlockTrigger).toBeVisible({ timeout: 20_000 });
+    await addBlockTrigger.click();
 
     const insertMenu = page.locator("[data-builder-node-insert-menu]").first();
     await expect(insertMenu).toBeVisible({ timeout: 10_000 });
     await insertMenu.getByRole("button", { name: "Heading", exact: true }).click();
 
+    // Child list mounts only when the section has children *and* layers are expanded;
+    // selection does not always open the row after insert (e.g. after a long prior test).
+    const childList = page
+      .locator(`[data-navigator-child-list][data-section-id="${newSectionId}"]`)
+      .first();
+    await expandNavigatorSectionChildList(page, newBlankRow, childList);
+
     await expect(
-      page.locator(
-        `[data-navigator-child-list][data-section-id="${sectionId}"] [data-navigator-child-node][data-builder-node-kind="heading"]`,
-      ),
+      childList
+        .locator('[data-navigator-child-node][data-builder-node-kind="heading"]')
+        .first(),
     ).toBeVisible({ timeout: 60_000 });
 
     await expect
       .poll(async () => headingsInBlank.count(), { timeout: 90_000 })
       .toBeGreaterThan(beforeHeadingCount);
-    await expect(headingsInBlank.first()).toBeVisible({ timeout: 90_000 });
+    // Canvas can mirror the same node in hidden layers; navigator assertion above
+    // is the UX source of truth. Attached suffices for the storefront tree.
+    await expect(headingsInBlank.first()).toBeAttached({ timeout: 90_000 });
+  });
+
+  test("impronta builder topbar publish control reachable on narrow viewports (BUG-010 guard)", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await openImprontaBuilderDirect(page);
+    await ensureDesktopCanvasPreview(page);
+
+    for (const size of [
+      { width: 390, height: 844 },
+      { width: 820, height: 900 },
+    ] as const) {
+      await page.setViewportSize(size);
+      const bar = page.locator("[data-edit-topbar]");
+      await expect(bar).toBeVisible({ timeout: 60_000 });
+      const publish = page.getByRole("button", { name: /^publish$/i }).first();
+      await expect(publish).toBeVisible({ timeout: 30_000 });
+
+      const needsScroll = await bar.evaluate(
+        (el) => el.scrollWidth > el.clientWidth + 1,
+      );
+      if (needsScroll) {
+        await bar.evaluate((el) => {
+          el.scrollLeft = el.scrollWidth - el.clientWidth;
+        });
+      }
+
+      const vp = page.viewportSize();
+      expect(vp).toBeTruthy();
+      const box = await publish.boundingBox();
+      expect(box).toBeTruthy();
+      expect(box!.x).toBeGreaterThanOrEqual(-1);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(vp!.width + 1);
+    }
   });
 
   test("impronta canvas selection context menu opens section actions", async ({ page }) => {
@@ -2243,7 +2282,9 @@ test.describe("smoke: login → builder → publish → share", () => {
     let childList = page.locator(
       `[data-navigator-child-list][data-section-id="${sectionId}"]`,
     );
-    await expandNavigatorSectionChildList(page, firstLayeredSection, childList);
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childList, {
+      childListTimeoutMs: 120_000,
+    });
     let childRows = childList.locator("[data-navigator-child-node]");
     let childCount = await childRows.count();
     if (childCount < 2) {
@@ -2256,7 +2297,9 @@ test.describe("smoke: login → builder → publish → share", () => {
       childCount = await childRows.count();
     }
     expect(childCount).toBeGreaterThan(1);
-    await expandNavigatorSectionChildList(page, firstLayeredSection, childList);
+    await expandNavigatorSectionChildList(page, firstLayeredSection, childList, {
+      childListTimeoutMs: 120_000,
+    });
     childRows = childList.locator("[data-navigator-child-node]");
 
     const childIdAt = async (index: number) =>

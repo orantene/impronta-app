@@ -1,0 +1,157 @@
+{
+  "date": "2026-05-13T06:42:57.321Z",
+  "host": "https://improntamodels.com",
+  "tenant": "Impronta",
+  "browser": "148.0.7778.97",
+  "viewportMatrix": {
+    "~390px": {
+      "width": 390,
+      "insert": "Fail",
+      "navigator": "Fail",
+      "publish": "Not run",
+      "console": "Fail",
+      "sectionId": null,
+      "notes": [
+        "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-edit-drawer=\"picker\"]') to be visible\u001b[22m\n"
+      ]
+    },
+    "~820px": {
+      "width": 820,
+      "insert": "Pass",
+      "navigator": "Pass",
+      "publish": "Not run",
+      "console": "Fail",
+      "sectionId": "5d7f7c3c-3725-4df7-96eb-25e0435a0af4",
+      "notes": [
+        "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^publish$/i })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" title=\"Review preflight and publish your draft to the live site\" class=\"cursor-pointer border-none text-[13px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50\">Publish</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - element is outside of the viewport\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - element is outside of the viewport\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    56 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - element is outside of the viewport\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+      ]
+    },
+    "~1440px": {
+      "width": 1440,
+      "insert": "Fail",
+      "navigator": "Fail",
+      "publish": "Not run",
+      "console": "Fail",
+      "sectionId": "dc9181f9-3fc4-4764-b82e-1cb215111aba",
+      "notes": [
+        "locator.waitFor: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-navigator-child-list][data-section-id=\"dc9181f9-3fc4-4764-b82e-1cb215111aba\"]') to be visible\u001b[22m\n"
+      ],
+      "loadErrors": [
+        "Failed to load resource: the server responded with a status of 400 ()",
+        "pageerror: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+        "Failed to load resource: the server responded with a status of 404 ()",
+        "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.",
+        "Failed to load resource: the server responded with a status of 400 ()"
+      ]
+    }
+  },
+  "reality7A": {
+    "status": "Fail",
+    "sectionId": "dc9181f9-3fc4-4764-b82e-1cb215111aba",
+    "error": "locator.waitFor: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-navigator-child-list][data-section-id=\"dc9181f9-3fc4-4764-b82e-1cb215111aba\"]') to be visible\u001b[22m\n"
+  },
+  "consoleErrors": [
+    {
+      "phase": "setup",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "phase": "setup",
+      "text": "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "phase": "setup",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    },
+    {
+      "phase": "matrix-390-load",
+      "text": "pageerror: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+    },
+    {
+      "phase": "matrix-390-load",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "phase": "matrix-390-load",
+      "text": "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "phase": "matrix-820-load",
+      "text": "pageerror: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+    },
+    {
+      "phase": "matrix-820-load",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "phase": "matrix-820-load",
+      "text": "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "phase": "matrix-820-cleanup",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    },
+    {
+      "phase": "7a-load",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    },
+    {
+      "phase": "7a-load",
+      "text": "pageerror: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+    },
+    {
+      "phase": "7a-load",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "phase": "7a-load",
+      "text": "Refused to execute script from 'https://improntamodels.com/930bb43b337ee27f/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "phase": "7a-load",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    },
+    {
+      "phase": "7a-actions",
+      "text": "Failed to load resource: the server responded with a status of 400 ()"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/00-registered-host-edit-baseline-polluted-draft.png"
+    },
+    {
+      "file": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/matrix-390-failure.png"
+    },
+    {
+      "file": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/matrix-820-inserted-section.png"
+    },
+    {
+      "file": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/matrix-820-failure.png"
+    },
+    {
+      "file": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/7a-failure.png"
+    },
+    {
+      "file": "/Users/oranpersonal/Desktop/impronta-app/web/docs/qa-evidence/2026-05-13-registered-host/99-after-cleanup-draft.png"
+    }
+  ],
+  "cleanup": [
+    {
+      "sectionId": "5d7f7c3c-3725-4df7-96eb-25e0435a0af4",
+      "status": "removed from draft via UI; orphan cms_sections row removed afterward",
+      "sectionDeleted": true
+    },
+    {
+      "sectionId": "dc9181f9-3fc4-4764-b82e-1cb215111aba",
+      "status": "cleanup failed",
+      "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-selection-chip][data-selection-chip-scope=\"section\"]') to be visible\u001b[22m\n"
+    },
+    {
+      "sectionId": "dc9181f9-3fc4-4764-b82e-1cb215111aba",
+      "status": "removed via targeted DB cleanup after UI cleanup failed",
+      "refsAfter": [],
+      "sectionDeleted": true
+    }
+  ]
+}
