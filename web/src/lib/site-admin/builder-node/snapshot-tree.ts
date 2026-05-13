@@ -109,7 +109,14 @@ export function builderSectionNodeAddressKey(
 ): string | null {
   if (!address.sectionId) return null;
   const slotKey = address.slotKey ?? "";
-  const sortOrder = typeof address.sortOrder === "number" ? address.sortOrder : "";
+  // Align with `compositionRowsToLegacySlots` / DB (`Number(e.sortOrder ?? 0))`).
+  // Section nodes from older clients may omit `sortOrder`; using `""` here
+  // produced `sid:slot:` keys that never matched `sid:slot:0` from snapshot
+  // slots — composition children (e.g. blank_section) failed to bind on canvas.
+  const sortOrder =
+    typeof address.sortOrder === "number" && Number.isFinite(address.sortOrder)
+      ? address.sortOrder
+      : 0;
   return `${address.sectionId}:${slotKey}:${sortOrder}`;
 }
 

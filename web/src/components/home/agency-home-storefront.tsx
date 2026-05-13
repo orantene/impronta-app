@@ -341,7 +341,8 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                 return (
                   <HomepageCmsSections
                     key={`cms-slot-${entry.slotKey}-${entry.sectionId}-${entry.sortOrder}`}
-                    snapshot={{ ...snap, slots: [entry] }}
+                    snapshot={snap}
+                    onlySectionId={entry.sectionId}
                     tenantId={tenantId}
                     locale={locale}
                   />

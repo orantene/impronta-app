@@ -53,12 +53,114 @@ import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
 import { getHomepageData } from "@/lib/home-data";
 
+function resolveBuilderSectionBindingForSlotEntry(
+  entry: HomepageSnapshot["slots"][number],
+  builderSectionNodeIds: ReadonlyMap<string, string>,
+  builderSectionNodes: ReadonlyMap<string, Extract<BuilderNode, { kind: "section" }>>,
+  options?: { onlySectionId?: string },
+): {
+  builderNodeId: string | undefined;
+  builderSectionNode: Extract<BuilderNode, { kind: "section" }> | undefined;
+} {
+  const directKey =
+    builderSectionNodeAddressKey({
+      sectionId: entry.sectionId,
+      slotKey: entry.slotKey,
+      sortOrder: entry.sortOrder,
+    }) ?? "";
+
+  const byAddress = builderSectionNodes.get(directKey);
+  if (byAddress) {
+    return {
+      builderNodeId: builderSectionNodeIds.get(directKey) ?? byAddress.id,
+      builderSectionNode: byAddress,
+    };
+  }
+
+  const wantSlot = entry.slotKey ?? "";
+  const wantOrder =
+    typeof entry.sortOrder === "number" && Number.isFinite(entry.sortOrder)
+      ? entry.sortOrder
+      : 0;
+
+  for (const node of builderSectionNodes.values()) {
+    if (node.kind !== "section") continue;
+    if (node.props.sectionId !== entry.sectionId) continue;
+
+    const nodeSlot = node.props.slotKey ?? "";
+    const nodeOrder =
+      typeof node.props.sortOrder === "number" && Number.isFinite(node.props.sortOrder)
+        ? node.props.sortOrder
+        : 0;
+
+    const slotMatches = nodeSlot === "" || nodeSlot === wantSlot;
+    const orderMatches = nodeOrder === wantOrder;
+    if (slotMatches && orderMatches) {
+      return { builderNodeId: node.id, builderSectionNode: node };
+    }
+  }
+
+  // Storefront maps one `<HomepageCmsSections />` per slot entry (`onlySectionId`).
+  // Draft builder trees can disagree with snapshot rows on slotKey/sortOrder while
+  // still carrying the correct `sectionId` + composition children. When the canonical
+  // address misses, bind by `sectionId` and disambiguate duplicate section nodes in
+  // corrupt trees: prefer slot/sort alignment, then prefer the node that actually
+  // carries nested blocks.
+  if (options?.onlySectionId === entry.sectionId) {
+    const candidates = [...builderSectionNodes.values()].filter(
+      (node): node is Extract<BuilderNode, { kind: "section" }> =>
+        node.kind === "section" && node.props.sectionId === entry.sectionId,
+    );
+    if (candidates.length === 0) {
+      return { builderNodeId: undefined, builderSectionNode: undefined };
+    }
+    if (candidates.length === 1) {
+      const sole = candidates[0]!;
+      return { builderNodeId: sole.id, builderSectionNode: sole };
+    }
+
+    const wantSlotInner = entry.slotKey ?? "";
+    const wantOrderInner =
+      typeof entry.sortOrder === "number" && Number.isFinite(entry.sortOrder)
+        ? entry.sortOrder
+        : 0;
+
+    const exactSlot = candidates.filter((n) => (n.props.slotKey ?? "") === wantSlotInner);
+    const slotPool = exactSlot.length > 0 ? exactSlot : candidates;
+
+    const orderPool = slotPool.filter((n) => {
+      const no =
+        typeof n.props.sortOrder === "number" && Number.isFinite(n.props.sortOrder)
+          ? n.props.sortOrder
+          : 0;
+      return no === wantOrderInner;
+    });
+    const pool = orderPool.length > 0 ? orderPool : slotPool;
+
+    const sorted = [...pool].sort(
+      (a, b) => (b.children?.length ?? 0) - (a.children?.length ?? 0),
+    );
+    const sole = sorted[0]!;
+    return { builderNodeId: sole.id, builderSectionNode: sole };
+  }
+
+  return { builderNodeId: undefined, builderSectionNode: undefined };
+}
+
 interface HomepageCmsSectionsProps {
   snapshot: HomepageSnapshot;
   tenantId: string;
   locale: string;
   /** Restrict rendering to a specific slot key (e.g. `"hero"`). */
   onlySlot?: string;
+  /**
+   * When the caller maps one section per `<HomepageCmsSections />` mount (storefront
+   * layout), pass the **full** `snapshot` (including `builderTree`) and set this to
+   * the section id to render. Passing a single-slot `slots` slice without this kept
+   * the old merge/fallback behavior from seeing the full composition — and address
+   * drift between tree nodes vs slot rows could leave `blank_section` children unbound.
+   */
+  onlySectionId?: string;
 }
 
 export async function HomepageCmsSections({
@@ -66,6 +168,7 @@ export async function HomepageCmsSections({
   tenantId,
   locale,
   onlySlot,
+  onlySectionId,
 }: HomepageCmsSectionsProps) {
   const [editMode, previewActive, publicPathPrefix] = await Promise.all([
     isEditModeActiveForTenant(tenantId),
@@ -196,20 +299,13 @@ export async function HomepageCmsSections({
         const scopedCss = presentationScopedCss(entry.sectionId, presentation);
         const videoBg = presentationVideoBackground(presentation);
         const isBlankSection = entry.sectionTypeKey === "blank_section";
-        const builderNodeId = builderSectionNodeIds.get(
-          builderSectionNodeAddressKey({
-            sectionId: entry.sectionId,
-            slotKey: entry.slotKey,
-            sortOrder: entry.sortOrder,
-          }) ?? "",
-        );
-        const builderSectionNode = builderSectionNodes.get(
-          builderSectionNodeAddressKey({
-            sectionId: entry.sectionId,
-            slotKey: entry.slotKey,
-            sortOrder: entry.sortOrder,
-          }) ?? "",
-        );
+        const { builderNodeId, builderSectionNode } =
+          resolveBuilderSectionBindingForSlotEntry(
+            entry,
+            builderSectionNodeIds,
+            builderSectionNodes,
+            onlySectionId ? { onlySectionId } : undefined,
+          );
         const builderSectionChildren = builderSectionNode?.children ?? [];
         const roleBindingResult = buildBuilderNodeRoleBindings(
           builderNodeId

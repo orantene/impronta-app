@@ -113,7 +113,8 @@ export default async function ShareTokenPage({ params }: SharePageParams) {
         {sortedSlots.map((entry) => (
           <HomepageCmsSections
             key={`share-slot-${entry.slotKey}-${entry.sectionId}-${entry.sortOrder}`}
-            snapshot={{ ...snapshot, slots: [entry] }}
+            snapshot={snapshot}
+            onlySectionId={entry.sectionId}
             tenantId={claims.tenantId}
             locale={locale}
           />

@@ -2948,6 +2948,20 @@ test("indexBuilderSectionNodes maps section address to section node", () => {
   assert.equal(index.get(key!)?.props.sectionTypeKey, "cta_banner");
 });
 
+test("builderSectionNodeAddressKey treats omitted sortOrder as 0 for stable slot matching", () => {
+  assert.equal(
+    builderSectionNodeAddressKey({
+      sectionId: "11111111-1111-4111-8111-111111111111",
+      slotKey: "trust_band",
+      sortOrder: 0,
+    }),
+    builderSectionNodeAddressKey({
+      sectionId: "11111111-1111-4111-8111-111111111111",
+      slotKey: "trust_band",
+    }),
+  );
+});
+
 test("indexBuilderSectionChildNodeIds maps section node id to descendant node ids", () => {
   const sectionNodeId = "legacy:hero:0:11111111-1111-4111-8111-111111111111";
   const tree = [
