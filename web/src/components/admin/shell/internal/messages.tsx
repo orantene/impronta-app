@@ -4465,7 +4465,10 @@ function funnelIndexFor(stage: string): number {
 function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
   const { toast } = useAdminShell();
   const router = useRouter();
-  const [, startTalentInviteTransition] = useTransition();
+  // C4 — capture pending to no-op duplicate clicks during in-flight
+  // Accept / Decline. Double-tap was firing two engine calls + producing
+  // confusing "Inquiry accepted" + "version_conflict" toast pairs.
+  const [invitePending, startTalentInviteTransition] = useTransition();
   const yourRate = TALENT_RATE_FOR_CONV[conv.id] ?? "—";
 
   /* Phase A PR 3 — talent re-skin onto the ReservationThread primitive,
@@ -4659,8 +4662,9 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           ...baseAction,
           primary: baseAction.primary ? {
             ...baseAction.primary,
-            disabled: false,
+            disabled: invitePending,
             onClick: () => {
+              if (invitePending) return;
               startTalentInviteTransition(async () => {
                 const r = await acceptInquiryInvitation(conv.id);
                 if (!r.ok) toast(`Accept failed: ${r.error}`);
@@ -4670,8 +4674,9 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           } : baseAction.primary,
           secondary: baseAction.secondary ? {
             ...baseAction.secondary,
-            disabled: false,
+            disabled: invitePending,
             onClick: () => {
+              if (invitePending) return;
               startTalentInviteTransition(async () => {
                 const r = await declineInquiryInvitation(conv.id);
                 if (!r.ok) toast(`Decline failed: ${r.error}`);
@@ -4716,7 +4721,8 @@ function TalentReservationView({
 }) {
   const { toast } = useAdminShell();
   const router = useRouter();
-  const [, startInviteTxn] = useTransition();
+  // C4 — capture pending to no-op duplicate clicks on Accept/Decline.
+  const [invitePending, startInviteTxn] = useTransition();
   void onBack;
 
   const stage: ReservationStage =
@@ -4842,7 +4848,9 @@ function TalentReservationView({
       label: "Accept",
       emphasis: "primary" as const,
       preamble: `Coordinator invited you. Take this job, or decline.`,
+      disabled: invitePending,
       onClick: () => {
+        if (invitePending) return;
         startInviteTxn(async () => {
           const r = await acceptInquiryInvitation(conv.id);
           if (!r.ok) toast(`Accept failed: ${r.error}`);
@@ -4854,7 +4862,9 @@ function TalentReservationView({
       id: "decline",
       label: "Decline",
       emphasis: "danger" as const,
+      disabled: invitePending,
       onClick: () => {
+        if (invitePending) return;
         if (!confirm("Decline this invite?")) return;
         startInviteTxn(async () => {
           const r = await declineInquiryInvitation(conv.id);
@@ -14103,7 +14113,11 @@ function AddTalentPicker({ onCancel, onAdd, pov = "talent_coord", planTier }: {
 function ConversationActionPin({ conv }: { conv: Conversation }) {
   const { toast } = useAdminShell();
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  // C4 — capture `pending` so we can no-op duplicate clicks during an
+  // in-flight Accept / Decline / Submit-rate call. Without this, a
+  // double-tap would fire two engine round-trips and produce confusing
+  // toast pairs ("Inquiry accepted" + "version_conflict").
+  const [pending, startTransition] = useTransition();
   // Look at the most recent action message in the thread to figure out
   // what's actually being asked. Beats stage-based heuristics — the
   // pin reflects the conversation, not just the funnel position.
@@ -14118,6 +14132,7 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
   // toast-only stub behavior so the demo flow continues to work.
   const isRealInquiry = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
   const realAccept = isRealInquiry ? () => {
+    if (pending) return;
     startTransition(async () => {
       const r = await acceptInquiryInvitation(conv.id);
       if (!r.ok) toast(`Accept failed: ${r.error}`);
@@ -14125,6 +14140,7 @@ function ConversationActionPin({ conv }: { conv: Conversation }) {
     });
   } : null;
   const realDecline = isRealInquiry ? () => {
+    if (pending) return;
     startTransition(async () => {
       const r = await declineInquiryInvitation(conv.id);
       if (!r.ok) toast(`Decline failed: ${r.error}`);
