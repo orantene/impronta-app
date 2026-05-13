@@ -288,6 +288,42 @@ export async function submitMyRate(
 }
 
 /**
+ * Talent counters a SENT offer — proposes a different rate.
+ *
+ * `submitMyRate` only works while the offer is `status='draft'`. Once the
+ * coordinator sends the offer to the client, the engine locks line-item
+ * edits. But the talent still needs a way to say "I'd want 1200 not
+ * 1000" so the coordinator can re-draft.
+ *
+ * v1 approach (B7): send a tagged `[Counter request]` message into the
+ * talent-group thread with the proposed rate + optional note. Coordinator
+ * sees it in the thread, drafts a new offer via the standard
+ * `counterOffer` engine path (which creates a fresh draft from the
+ * accepted-or-sent offer's snapshot).
+ *
+ * The engine `counterOffer` path is workspace-side; the talent doesn't
+ * directly drive it. This keeps the workspace as authority over the
+ * offer document — the talent just signals intent.
+ *
+ * No engine mutation in this action — just a tagged message. Audit
+ * trail comes through the standard `inquiry_messages` write path.
+ */
+export async function submitMyCounterRate(
+  inquiryId: string,
+  proposedRate: number,
+  note?: string | null,
+): Promise<TalentActionResult> {
+  if (!Number.isFinite(proposedRate) || proposedRate < 0) {
+    return { ok: false, error: "Rate must be a positive number." };
+  }
+  // Compose the tagged message body. Coordinator-side UI parses the
+  // `[Counter request]` prefix to surface the counter on the offer card.
+  const noteSegment = note?.trim() ? ` — ${note.trim()}` : "";
+  const body = `[Counter request] Proposed rate: ${proposedRate}${noteSegment}`;
+  return sendInquiryMessageAsTalent(inquiryId, body);
+}
+
+/**
  * Upload a file to the inquiry-files bucket on behalf of a talent participant.
  * Mirrors `uploadInquiryAttachment` in `_pipeline-actions.ts` but uses
  * participant-role gating instead of staff capability:
