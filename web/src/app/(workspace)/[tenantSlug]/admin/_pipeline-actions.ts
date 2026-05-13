@@ -24,6 +24,8 @@ import {
 } from "@/lib/billing/commission-engine";
 import type { PaymentMethod, BookingCommissionSnapshot } from "@/lib/billing/commission";
 import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
+import { logBookingActivity } from "@/lib/server/commercial-audit";
+import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { assignCoordinator } from "@/lib/inquiry/inquiry-engine-coordinator";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine-booking";
 import {
@@ -2151,6 +2153,199 @@ export async function loadHoldsForInquiryAction(
     };
   } catch (err) {
     logServerError("admin._pipeline-actions.loadHoldsForInquiryAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── B3 — booking cancel / reschedule ───────────────────────────────────────
+// Closes B3 from the inquiry-booking improvement plan. Each transition
+// validates the booking belongs to the calling tenant, checks the
+// current status is one that allows the transition, writes a
+// BOOKING_AUDIT.STATUS_CHANGED entry, and revalidates.
+
+const CANCELLABLE_STATES = new Set(["tentative", "confirmed", "draft", "in_progress"]);
+const RESCHEDULABLE_STATES = new Set(["tentative", "confirmed", "draft", "in_progress"]);
+
+export async function cancelBookingAction(
+  _tenantSlug: string,
+  bookingId: string,
+  reason: string | null,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId, tenantSlug } = auth;
+
+    const { data: booking, error: lookupErr } = await supabase
+      .from("agency_bookings")
+      .select("id, status")
+      .eq("id", bookingId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (lookupErr) {
+      logServerError("cancelBookingAction/lookup", lookupErr);
+      return { ok: false, error: lookupErr.message };
+    }
+    if (!booking) return { ok: false, error: "Booking not found in this workspace." };
+
+    const prevStatus = booking.status as string;
+    if (!CANCELLABLE_STATES.has(prevStatus)) {
+      return { ok: false, error: `Booking is already ${prevStatus} and can't be cancelled.` };
+    }
+
+    const { error: updErr } = await supabase
+      .from("agency_bookings")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", bookingId)
+      .eq("tenant_id", tenantId);
+    if (updErr) {
+      logServerError("cancelBookingAction/update", updErr);
+      return { ok: false, error: updErr.message };
+    }
+
+    await logBookingActivity(supabase, {
+      bookingId,
+      actorUserId: user.id,
+      eventType: BOOKING_AUDIT.STATUS_CHANGED,
+      payload: { from: prevStatus, to: "cancelled", reason: reason?.trim() || null },
+    });
+
+    revalidatePath(`/${tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.cancelBookingAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+export async function rescheduleBookingAction(
+  _tenantSlug: string,
+  bookingId: string,
+  newStartsAt: string,
+  newEndsAt: string | null,
+  note?: string | null,
+): Promise<PipelineActionResult> {
+  try {
+    if (!newStartsAt) return { ok: false, error: "Start date required." };
+    if (newEndsAt && new Date(newEndsAt).getTime() <= new Date(newStartsAt).getTime()) {
+      return { ok: false, error: "End must be after start." };
+    }
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId, tenantSlug } = auth;
+
+    const { data: booking, error: lookupErr } = await supabase
+      .from("agency_bookings")
+      .select("id, status, starts_at, ends_at")
+      .eq("id", bookingId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (lookupErr) {
+      logServerError("rescheduleBookingAction/lookup", lookupErr);
+      return { ok: false, error: lookupErr.message };
+    }
+    if (!booking) return { ok: false, error: "Booking not found in this workspace." };
+    const status = booking.status as string;
+    if (!RESCHEDULABLE_STATES.has(status)) {
+      return { ok: false, error: `Booking is ${status} — reschedule isn't supported.` };
+    }
+
+    const prevStartsAt = booking.starts_at as string | null;
+    const prevEndsAt = booking.ends_at as string | null;
+
+    const { error: updErr } = await supabase
+      .from("agency_bookings")
+      .update({
+        starts_at: newStartsAt,
+        ends_at: newEndsAt ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", bookingId)
+      .eq("tenant_id", tenantId);
+    if (updErr) {
+      logServerError("rescheduleBookingAction/update", updErr);
+      return { ok: false, error: updErr.message };
+    }
+
+    await logBookingActivity(supabase, {
+      bookingId,
+      actorUserId: user.id,
+      eventType: BOOKING_AUDIT.STATUS_CHANGED, // reusing STATUS_CHANGED — no dedicated RESCHEDULED enum yet
+      payload: {
+        kind: "rescheduled",
+        previous: { starts_at: prevStartsAt, ends_at: prevEndsAt },
+        next: { starts_at: newStartsAt, ends_at: newEndsAt ?? null },
+        note: note?.trim() || null,
+      },
+    });
+
+    revalidatePath(`/${tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.rescheduleBookingAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+// ─── B4 — post-booking close (wrap) flow ────────────────────────────────────
+// Closes B4 from the improvement plan. Transitions an in-progress or
+// confirmed booking to 'completed' — the "wrapped" state in product
+// vocabulary. Captures an optional completion note for the audit log.
+
+const CLOSEABLE_STATES = new Set(["confirmed", "in_progress"]);
+
+export async function closeBookingAction(
+  _tenantSlug: string,
+  bookingId: string,
+  completionNote?: string | null,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId, tenantSlug } = auth;
+
+    const { data: booking, error: lookupErr } = await supabase
+      .from("agency_bookings")
+      .select("id, status")
+      .eq("id", bookingId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (lookupErr) {
+      logServerError("closeBookingAction/lookup", lookupErr);
+      return { ok: false, error: lookupErr.message };
+    }
+    if (!booking) return { ok: false, error: "Booking not found in this workspace." };
+
+    const prevStatus = booking.status as string;
+    if (prevStatus === "completed") return { ok: true }; // idempotent
+    if (!CLOSEABLE_STATES.has(prevStatus)) {
+      return {
+        ok: false,
+        error: `Booking is ${prevStatus} — close is only available from confirmed/in_progress.`,
+      };
+    }
+
+    const { error: updErr } = await supabase
+      .from("agency_bookings")
+      .update({ status: "completed", updated_at: new Date().toISOString() })
+      .eq("id", bookingId)
+      .eq("tenant_id", tenantId);
+    if (updErr) {
+      logServerError("closeBookingAction/update", updErr);
+      return { ok: false, error: updErr.message };
+    }
+
+    await logBookingActivity(supabase, {
+      bookingId,
+      actorUserId: user.id,
+      eventType: BOOKING_AUDIT.STATUS_CHANGED,
+      payload: { from: prevStatus, to: "completed", note: completionNote?.trim() || null },
+    });
+
+    revalidatePath(`/${tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.closeBookingAction", err);
     return { ok: false, error: "Unexpected error." };
   }
 }
