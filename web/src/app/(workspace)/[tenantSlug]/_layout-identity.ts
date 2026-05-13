@@ -33,6 +33,12 @@ export type TenantIdentityPayload = {
    * of inferring from the plan tier.
    */
   verifiedDomain: string | null;
+  /**
+   * F.1 — Workspace-level default coordinator (auto-assigned on new
+   * inquiries). Null when unset (engine falls back to workspace owner).
+   * UI surfaces a dropdown to change this only on Agency-tier workspaces.
+   */
+  defaultCoordinatorUserId: string | null;
 };
 
 export async function loadTenantIdentity(
@@ -44,7 +50,7 @@ export async function loadTenantIdentity(
   const [agencyRes, brandingRes, domainRes] = await Promise.all([
     admin
       .from("agencies")
-      .select("id, slug, display_name, plan_tier, kind")
+      .select("id, slug, display_name, plan_tier, kind, default_coordinator_user_id")
       .eq("id", tenantId)
       .maybeSingle(),
     admin
@@ -91,6 +97,8 @@ export async function loadTenantIdentity(
     kind: data.kind ?? "agency",
     logoUrl,
     verifiedDomain,
+    defaultCoordinatorUserId:
+      (data as { default_coordinator_user_id?: string | null }).default_coordinator_user_id ?? null,
   };
 }
 

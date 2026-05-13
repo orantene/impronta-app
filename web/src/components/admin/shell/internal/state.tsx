@@ -6782,6 +6782,12 @@ type Ctx = {
      * this directly instead of inferring from plan tier.
      */
     verifiedDomain?: string | null;
+    /**
+     * F.1 — Workspace-level default coordinator (auto-assigned on new
+     * inquiries). The Team drawer surfaces a dropdown to change this on
+     * Agency-tier workspaces.
+     */
+    defaultCoordinatorUserId?: string | null;
   } | null;
   /**
    * Real signed-in user identity. null = standalone demo mode; chrome falls
