@@ -46,6 +46,8 @@ import { OverflowMenu } from "@/components/chat-interactions";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
 import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyles";
+import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
+import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
 import {
   ReservationThread,
   type PillDescriptor,
@@ -2669,6 +2671,21 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                   clientUnread={inquiry.unreadPrivate}
                   groupUnread={inquiry.unreadGroup}
                 />
+              )}
+              {/* Slice M wiring (item #6): originating pitch context.
+                  Renders only when this inquiry was generated from a
+                  Pitch (inquiry.pitchId is set). Sits at the top of
+                  the Chat content; clicking deep-links to the pitch
+                  page. */}
+              {isOnChat && inquiry.pitchId && (
+                <div style={{ padding: "44px 12px 4px" }}>
+                  <PitchOriginCard
+                    tenantSlug={effectiveTenant.slug}
+                    pitchId={inquiry.pitchId}
+                    pitchTitle={inquiry.pitchTitle ?? "Pitch"}
+                    compact
+                  />
+                </div>
               )}
 
               {showClientStream && (

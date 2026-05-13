@@ -1076,6 +1076,15 @@ export type RichInquiry = {
    *  false = brand-new, requires "new" badge in the inbox sort tier.
    *  undefined = pre-seen-model data (treated as seen). */
   seen?: boolean;
+  /** Slice M wiring: pitch origin id — set when this inquiry was
+   *  created from a Pitch (per project_pitch_feature.md). When present,
+   *  the Chat tab top renders <PitchOriginCard> linking back to the
+   *  pitch and the Event tab surfaces the originating pitch reference.
+   *  Optional + nullable for back-compat with non-pitch inquiries. */
+  pitchId?: string | null;
+  /** Optional human-readable pitch title — surfaced in PitchOriginCard
+   *  header. Falls back to "Pitch" when missing. */
+  pitchTitle?: string | null;
 };
 
 // ═══════════════════════════════════════════════════════════════════════

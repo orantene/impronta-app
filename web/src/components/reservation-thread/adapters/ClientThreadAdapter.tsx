@@ -28,6 +28,7 @@ import {
   type SheetDescriptor,
 } from "@/components/reservation-thread";
 import { PALETTES } from "@/components/reservation-thread/tokens";
+import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
 import ParticipantThreadShell, {
   type ParticipantThreadMessage,
   type ParticipantThreadSendResult,
@@ -414,8 +415,27 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
   const [counterText, setCounterText] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Slice J wiring (item #7): PayNowSheet state. When the active offer
+  // is "accepted" the action row swaps in a "Pay now" CTA that opens
+  // the bottom-sheet → kicks off Stripe Connect Direct Charge via
+  // startInquiryCheckout (Phase B PR 3 wiring).
+  const [payNowOpen, setPayNowOpen] = useState(false);
+
   const offerActionRow: ActionPill[] | null = useMemo(() => {
-    if (!activeOffer || activeOffer.status !== "sent") return null;
+    if (!activeOffer) return null;
+    // Accepted offer → "Pay now" surface. Plan v2 §11 stage 7.
+    if (activeOffer.status === "accepted") {
+      return [
+        {
+          id: "pay-now",
+          label: "Pay now",
+          emphasis: "primary",
+          preamble: `Offer accepted. Complete payment to confirm the booking.`,
+          onClick: () => setPayNowOpen(true),
+        },
+      ];
+    }
+    if (activeOffer.status !== "sent") return null;
     return [
       {
         id: "approve",
@@ -530,6 +550,15 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
           }}
           value={counterText}
           onChange={setCounterText}
+        />
+      )}
+      {/* Slice J wiring (item #7): PayNowSheet for the accepted-offer
+          payment step. Opens from the action-row "Pay now" CTA. */}
+      {payNowOpen && activeOffer && (
+        <PayNowSheet
+          inquiryId={inquiry.id}
+          amountLabel={fmtMoney(activeOffer.totalClientPrice, activeOffer.currencyCode)}
+          onClose={() => setPayNowOpen(false)}
         />
       )}
     </>

@@ -47,6 +47,10 @@ import {
   persistAccountSnapshot,
   findAgencyByStripeAccountId,
 } from "@/lib/payments/stripe-connect";
+import {
+  persistTalentAccountSnapshot,
+  findTalentByStripeAccountId,
+} from "@/lib/payments/stripe-connect-talent";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type Stripe from "stripe";
@@ -306,21 +310,36 @@ async function handleConnectAccountUpdated(event: Stripe.Event): Promise<void> {
   const accountId = account.id;
   if (!accountId) return;
 
+  // Try agency-bound first. Most Connect events on this platform are
+  // agency accounts (Phase B PR 3 onboarding).
   const agency = await findAgencyByStripeAccountId(accountId);
-  if (!agency) {
-    logServerError(
-      "stripe-webhook.account.updated.unknown",
-      `no agency for stripe_account_id=${accountId} (event ${event.id})`,
-    );
+  if (agency) {
+    const result = await persistAccountSnapshot(agency.agencyId, account);
+    if (!result.ok) {
+      throw new Error(`account.updated agency persist failed: ${result.error}`);
+    }
     return;
   }
 
-  const result = await persistAccountSnapshot(agency.agencyId, account);
-  if (!result.ok) {
-    // Treat DB failures as transient — Stripe will retry. (Throwing a
-    // TransientWebhookError here would surface 5xx; an Error suffices.)
-    throw new Error(`account.updated persist failed: ${result.error}`);
+  // Slice K wiring (item #12): fall through to talent-bound accounts.
+  // Talent Express accounts get the same persist path against
+  // talent_profiles. See web/src/lib/payments/stripe-connect-talent.ts.
+  const talent = await findTalentByStripeAccountId(accountId);
+  if (talent) {
+    const result = await persistTalentAccountSnapshot(talent.talentProfileId, account);
+    if (!result.ok) {
+      throw new Error(`account.updated talent persist failed: ${result.error}`);
+    }
+    return;
   }
+
+  // Unknown account — log and silently ack so Stripe stops retrying.
+  // Account was likely disconnected on our side but Stripe is still
+  // flapping it.
+  logServerError(
+    "stripe-webhook.account.updated.unknown",
+    `no agency or talent for stripe_account_id=${accountId} (event ${event.id})`,
+  );
 }
 
 // ─── Subscription router (audit C5) ──────────────────────────────────────────

@@ -102,6 +102,16 @@ export async function clientApproveCurrentOffer(inquiryId: string): Promise<Clie
         : reason;
       return { ok: false, error: friendly };
     }
+    // Slice AUDIT wiring: emit audit row on successful approval. Fire-
+    // and-forget — if the audit emit fails (network/transient), the
+    // approval still stands. The user-facing action result is unchanged.
+    await ctx.supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: inquiryId,
+      p_kind: "offer_accepted",
+      p_payload: { offer_id: ctx.currentOfferId, accepted_by: ctx.userId },
+    }).then((r) => {
+      if (r.error) logServerError("client-pipeline.approve.audit", r.error);
+    });
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
@@ -139,6 +149,19 @@ export async function clientRejectCurrentOffer(
         ?? "Could not reject offer.";
       return { ok: false, error: r };
     }
+    // Slice AUDIT wiring: emit audit row on successful decline.
+    await ctx.supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: inquiryId,
+      p_kind: "offer_declined",
+      p_payload: {
+        offer_id: ctx.currentOfferId,
+        declined_by: ctx.userId,
+        reason,
+        reason_text: reasonText ?? null,
+      },
+    }).then((r) => {
+      if (r.error) logServerError("client-pipeline.reject.audit", r.error);
+    });
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
