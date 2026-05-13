@@ -35,7 +35,7 @@ export async function fetchLegacyDirectorySearchTalentIds(
       .from("talent_profiles")
       .select("id")
       .is("deleted_at", null)
-      .eq("workflow_status", "approved")
+      .in("workflow_status", ["approved", "published"])
       .eq("visibility", "public")
       .or(
         `display_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,profile_code.ilike.%${term}%,short_bio.ilike.%${term}%,bio_en.ilike.%${term}%,bio_es.ilike.%${term}%`,
@@ -80,7 +80,7 @@ export async function fetchLegacyDirectorySearchTalentIds(
       .from("talent_profiles")
       .select("id")
       .is("deleted_at", null)
-      .eq("workflow_status", "approved")
+      .in("workflow_status", ["approved", "published"])
       .eq("visibility", "public")
       .or(orResidenceOrLegacyLocationMatches(locationIds));
 
