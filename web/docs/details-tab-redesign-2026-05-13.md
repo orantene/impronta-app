@@ -357,23 +357,27 @@ This work is accepted only when:
 
 ---
 
-## 14 · Status today (2026-05-13)
+## 14 · Status today (2026-05-13, end-of-marathon update)
 
-**Shipped in this commit:**
-- Rename `Event` → `Details` in tab labels everywhere
-- Plan v2 doc updated to reflect Details naming
-- This doc (v3) lands in repo as the binding spec for the redesign
+**Shipped in this v3 cycle (commits on `phase-1`):**
+- `4337fdfc2` — rename `Event` → `Details` everywhere; plan v3 doc lands as binding spec
+- `9057db51c` — field-level activity tracking schema: `inquiry_audit_log.field_group / field_key / old_value / new_value / visibility_scope` columns + `inquiry_audit_emit_field` RPC + `audit-field-emit.ts` helper
+- `8b9ddea1d` — canonical 9-section `<DetailsTab>` component (863 LOC, role-visibility-gated, mobile-first single column → 2-col at ≥1024px)
+- `178cf73eb` — 8 operational-logistics columns on `agency_bookings` + `engine_convert_to_booking` carry-forward
+- `7846594ba` — 5 message-card emit hooks at engine paths: `offer_event` (accepted / declined), `payment_paid`, `coordinator_request`, `call_sheet_update`
+- `0601fcbf2` — `loadDetailsTabData(inquiryId, pov)` server action: aggregates inquiry + booking + participants + audit-log into the `DetailsTabData` shape the component consumes; activity rows filtered by `visibility_scope` per pov
+- `861414b1e` — `<DetailsTabContainer>` wired into all three message shells (admin / talent / client) above the legacy panels, UUID-gated so mock convs fall through
+- `6249df9b0` — 7 logistics columns added to `inquiries`; convert RPC swapped from NULL placeholders to `inq.<col>` reads
+- `7e2e2b98c` — first real caller of `inquiry_audit_emit_field`: `updateInquiryRequestDetails` emits per-column rows with the §4 visibility scopes
+- `46c9897f3` — field-level audit emits extended to `updateInquiry` / `updateInquiryClientInfo` / `updateInquiryLocation`
 
-**Still pending (multi-session work):**
-- 9-section canonical component (build + role gating)
-- Field-level activity tracking schema
-- 16 structured message-card emit hooks
-- Edit-permission enforcement on every editable field
-- Inquiry → booking continuity engine wiring
+**Still pending (next session):**
+- Field-level audit emits on call-sheet + admin-bookings edit forms (agents working on these as of marathon close)
+- Remaining 6 message-card emit hooks (offer sent / countered, payment_request, talent_rate submitted / accepted, booking_status)
 - Browser QA matrix across 5 roles × 4 viewports
+- Removal of legacy `AdminBookingTab` / `DetailsPanel` once QA confirms DetailsTab covers them
+- Edit-from-DetailsTab UI: every editable field needs an inline-edit affordance that fires the audit emit (currently audit fires from external server actions; the UI wiring of the inline-edit affordance is the missing piece)
+- §11 step 13 deliverables: before/after screenshots + role-by-role audit report
 
-**Recommended kickoff:** fresh focused session, Opus-high, read this
-doc top to bottom + the existing plan v2 (`messages-consolidation-
-plan-2026-05-13.md`) + audit handoff (`messages-pending-handoff-
-2026-05-13.md`). Start at §11 step 4 (audit existing surfaces) and
-work the 13-step rollout sequence.
+**State of the surfaces (front-of-house):**
+DetailsTab renders above the legacy panels on every shell — operators see the new canonical view first, fall back to legacy controls for engine actions that haven't been migrated. This is a deliberate transitional state, not a finished state.
