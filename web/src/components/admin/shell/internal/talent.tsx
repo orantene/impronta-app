@@ -18,6 +18,7 @@
 
 import { useEffect, useRef, useState, useMemo, type CSSProperties, type ReactNode } from "react";
 import { actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { IconButton } from "@/lib/ui/a11y-icon-button";
 // Type-only import — `_data-bridge.ts` is server-only; `import type` is erased
 // at compile time and never reaches the client bundle (same pattern as _state.tsx).
 import type { TalentInquiryRow } from "./data-bridge";
@@ -6198,25 +6199,16 @@ function MessagesOverlaySheet({
             >
               Open full page →
             </button>
-            <button
-              type="button"
-              onClick={onClose}
+            {/* Adoption — IconButton primitive (size kept at 32px for the
+                tight info-panel header layout; see lib/ui/ADOPTION_NOTES.md). */}
+            <IconButton
               aria-label="Close"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                color: COLORS.inkMuted,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              onClick={onClose}
+              size={32}
+              style={{ borderRadius: 8, color: COLORS.inkMuted }}
             >
               <Icon name="x" size={14} />
-            </button>
+            </IconButton>
           </div>
         </div>
         {/* Content — reuse the Messages page two-pane */}
