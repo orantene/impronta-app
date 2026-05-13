@@ -120,7 +120,14 @@ export const metadata: Metadata = {
 
 // Theme color drives the iOS/Android browser chrome tint when the app is
 // added to home screen — forest accent matches the rest of the brand.
-export const viewport = {
+// viewportFit:'cover' supports iOS notch areas via env(safe-area-inset-*);
+// max scale 5 keeps zoom accessible without locking out users at 1.
+export const viewport: import("next").Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  minimumScale: 1,
+  maximumScale: 5,
   themeColor: "#0F4F3E",
 };
 
