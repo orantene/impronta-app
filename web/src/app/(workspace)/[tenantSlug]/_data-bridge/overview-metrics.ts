@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { guardedQuery } from "@/lib/server/guarded-query";
 
 /**
  * _data-bridge/overview-metrics.ts — workspace KPI loader.
@@ -236,17 +237,23 @@ export async function loadStorefrontViews7d(
  * Used by the admin layout to badge the Talent tab.
  */
 export async function loadPendingRosterCount(tenantId: string): Promise<number> {
-  try {
-    const supabase = await createSupabaseServerClient();
-    if (!supabase) return 0;
-    const { count } = await supabase
-      .from("agency_talent_roster")
-      .select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenantId)
-      .eq("status", "pending");
-    return count ?? 0;
-  } catch (err) {
-    logServerError("workspace.loadPendingRosterCount", err);
-    return 0;
-  }
+  // A.3 — wrap with guardedQuery so an unauthenticated bridge call
+  // (drawer importing this directly, future refactor) returns 0
+  // instead of leaking the count via a service-role-equivalent path.
+  const result = await guardedQuery("loadPendingRosterCount", "staff", async () => {
+    try {
+      const supabase = await createSupabaseServerClient();
+      if (!supabase) return 0;
+      const { count } = await supabase
+        .from("agency_talent_roster")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("status", "pending");
+      return count ?? 0;
+    } catch (err) {
+      logServerError("workspace.loadPendingRosterCount", err);
+      return 0;
+    }
+  });
+  return result ?? 0;
 }
