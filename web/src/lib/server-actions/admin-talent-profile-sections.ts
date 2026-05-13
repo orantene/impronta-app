@@ -759,14 +759,27 @@ function eventLabel(type: string, payload: Record<string, unknown>): string {
 
 // ─── Claim invite ─────────────────────────────────────────────────────────────
 
+/**
+ * F.2 — Send (or re-send) a claim invite to a roster talent.
+ *
+ * Inserts a row into talent_claim_invitations + revokes any prior pending
+ * invite to the same talent so the audit history reads cleanly.
+ *
+ * The actual email/SMS delivery is Phase 8 (Resend / Loops / Twilio).
+ * Until that lands, the action records the intent + returns the redeem
+ * URL the admin can copy and share manually. UI surfaces the URL inline
+ * so the admin always has a fallback.
+ */
 export async function sendTalentClaimInvite(input: {
   talent_profile_id: string;
   email?: string;
   phone?: string;
-}): Promise<Result> {
+  /** When true, this is a Resend operation — recorded in audit notes. */
+  resend?: boolean;
+}): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId, tenantSlug } = auth;
+  const { supabase, tenantId, user } = auth;
 
   if (!input.email?.trim() && !input.phone?.trim()) {
     return { ok: false, error: "Email or phone is required." };
@@ -775,14 +788,106 @@ export async function sendTalentClaimInvite(input: {
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
 
-  // Phase 8 TODO: wire transactional email via Resend/Loops with a signed
-  // claim token before this action returns ok:true. Until then, return an
-  // explicit error so the UI surfaces the limitation rather than telling the
-  // admin the invite was sent when no email has been dispatched.
+  const channel: "email" | "sms" = input.email?.trim() ? "email" : "sms";
+
+  // Revoke any pending older invites for this talent before sending the
+  // new one. The audit history keeps the revoked rows.
+  await supabase
+    .from("talent_claim_invitations")
+    .update({ revoked_at: new Date().toISOString(), revoked_by_user_id: user.id })
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", input.talent_profile_id)
+    .is("redeemed_at", null)
+    .is("revoked_at", null);
+
+  const { data: row, error: insertErr } = await supabase
+    .from("talent_claim_invitations")
+    .insert({
+      tenant_id: tenantId,
+      talent_profile_id: input.talent_profile_id,
+      invited_email: input.email?.trim() || null,
+      invited_phone: input.phone?.trim() || null,
+      channel,
+      sent_by_user_id: user.id,
+      notes: input.resend ? "Resent by admin" : "First send",
+    })
+    .select("id, expires_at")
+    .single();
+
+  if (insertErr || !row) {
+    return { ok: false, error: "Couldn't record the invite. Try again." };
+  }
+
+  const invitationId = (row as { id: string; expires_at: string }).id;
+  const expiresAt = (row as { id: string; expires_at: string }).expires_at;
+
+  // Phase 8: dispatch the actual email/SMS. The redeem URL pattern below
+  // matches the team-invite scheme so the auth callback flow can land
+  // the new user, look up the talent_profile by invited_email, and link
+  // user_id automatically on first sign-up.
+  const redeemUrl = `/register?invitation=${invitationId}${
+    input.email?.trim() ? `&email=${encodeURIComponent(input.email.trim())}` : ""
+  }`;
+
   return {
-    ok: false,
-    error: "Email delivery is not yet wired (Phase 8). The talent has not been notified. Record their contact and invite manually for now.",
+    ok: true,
+    redeem_url: redeemUrl,
+    expires_at: expiresAt,
+    invitation_id: invitationId,
   };
+}
+
+/**
+ * F.2 — Resend an outstanding claim invite. Convenience wrapper that
+ * looks up the talent's contact and replays sendTalentClaimInvite with
+ * resend:true. Used by the "Resend invite" button on the roster row
+ * when an outstanding pending invite already exists.
+ */
+export async function resendTalentClaimInvite(
+  talent_profile_id: string,
+): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  // Look up the most recent invite (active or revoked) so we have the
+  // canonical contact target. The admin can override by passing email/
+  // phone to sendTalentClaimInvite directly if they need to update.
+  const { data: previous } = await supabase
+    .from("talent_claim_invitations")
+    .select("invited_email, invited_phone")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talent_profile_id)
+    .order("sent_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // Fall back to talent_profiles.invitation_email when no previous invite exists.
+  let email = (previous as { invited_email?: string | null } | null)?.invited_email ?? null;
+  let phone = (previous as { invited_phone?: string | null } | null)?.invited_phone ?? null;
+
+  if (!email && !phone) {
+    const { data: talent } = await supabase
+      .from("talent_profiles")
+      .select("invitation_email")
+      .eq("id", talent_profile_id)
+      .maybeSingle();
+    email = (talent as { invitation_email?: string | null } | null)?.invitation_email ?? null;
+  }
+
+  if (!email && !phone) {
+    return {
+      ok: false,
+      error: "No email or phone on file. Add a contact to the talent first, then resend.",
+    };
+  }
+
+  return sendTalentClaimInvite({
+    talent_profile_id,
+    email: email ?? undefined,
+    phone: phone ?? undefined,
+    resend: true,
+  });
 }
 
 // ─── Taxonomy assignment (direct JSON, no FormData) ───────────────────────────
