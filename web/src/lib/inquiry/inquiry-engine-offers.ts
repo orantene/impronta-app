@@ -6,6 +6,7 @@ import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
+import { logServerError } from "@/lib/server/safe-error";
 
 // SaaS P1.B STEP A: tenant-scoped by construction on every inquiry + offers
 // read/write. RPC-backed helpers also pre-flight the inquiry's tenant ownership
@@ -176,6 +177,13 @@ export async function createOffer(
       data: { offerId: offer.id as string },
     });
 
+    // Audit emit — fire-and-forget after successful offer insert.
+    await supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: ctx.inquiryId,
+      p_kind: "offer_created",
+      p_payload: { offer_id: offer.id as string, currency: ctx.currencyCode ?? "MXN" },
+    }).then((r) => { if (r.error) logServerError("audit.emit.offer_created", r.error); });
+
     return { success: true, data: { offerId: offer.id as string } };
   });
 }
@@ -234,6 +242,15 @@ export async function sendOffer(
         eventType: "offer_sent",
       },
     });
+
+    // Audit emit — fire-and-forget after successful send.
+    // total_client_price is not available here without a DB lookup — payload
+    // carries offer_id and sent_by so staff can correlate with offer record.
+    await supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: ctx.inquiryId,
+      p_kind: "offer_sent",
+      p_payload: { offer_id: ctx.offerId, sent_by_user_id: ctx.actorUserId },
+    }).then((r) => { if (r.error) logServerError("audit.emit.offer_sent", r.error); });
 
     return { success: true };
   });
@@ -375,6 +392,18 @@ export async function updateOfferDraft(
       actorUserId: ctx.actorUserId,
       data: { offerId: ctx.offerId },
     });
+
+    // Audit emit — fire-and-forget after successful draft save.
+    await supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: ctx.inquiryId,
+      p_kind: "offer_edited",
+      p_payload: {
+        offer_id: ctx.offerId,
+        line_item_count: ctx.lineItems.length,
+        total_client_price_cents: Math.round(ctx.total_client_price * 100),
+        currency: ctx.currency_code,
+      },
+    }).then((r) => { if (r.error) logServerError("audit.emit.offer_edited", r.error); });
 
     return { success: true };
   });

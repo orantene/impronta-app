@@ -947,7 +947,7 @@ export async function removeInquiryLineupParticipant(
   try {
     const auth = await requireStaffTenantAction();
     if (!auth.ok) return { ok: false, error: auth.error };
-    const { supabase, tenantId } = auth;
+    const { supabase, user, tenantId } = auth;
 
     const { data: inq } = await supabase
       .from("inquiries")
@@ -965,6 +965,13 @@ export async function removeInquiryLineupParticipant(
     const { rosterRemoveParticipant } = await import("@/lib/server-actions/admin-inquiry-roster");
     const result = await rosterRemoveParticipant(fd);
     if (!result.ok) return { ok: false, error: result.message ?? "Could not remove." };
+
+    // Audit emit — fire-and-forget after successful removal.
+    await supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: inquiryId,
+      p_kind: "talent_removed",
+      p_payload: { participant_id: participantId, removed_by_user_id: user.id },
+    }).then((r) => { if (r.error) logServerError("audit.emit.talent_removed", r.error); });
 
     revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
@@ -986,7 +993,7 @@ export async function addInquiryLineupTalent(
   try {
     const auth = await requireStaffTenantAction();
     if (!auth.ok) return { ok: false, error: auth.error };
-    const { supabase, tenantId } = auth;
+    const { supabase, user, tenantId } = auth;
 
     const { data: inq } = await supabase
       .from("inquiries")
@@ -1004,6 +1011,15 @@ export async function addInquiryLineupTalent(
     const { rosterAddTalent } = await import("@/lib/server-actions/admin-inquiry-roster");
     const result = await rosterAddTalent(fd);
     if (!result.ok) return { ok: false, error: result.message ?? "Could not add talent." };
+
+    // Audit emit — fire-and-forget after successful add.
+    // participant_id is not returned by rosterAddTalent; talent_profile_id is
+    // sufficient to correlate with the inquiry_participants row.
+    await supabase.rpc("inquiry_audit_emit", {
+      p_inquiry_id: inquiryId,
+      p_kind: "talent_added",
+      p_payload: { talent_profile_id: talentProfileId, added_by_user_id: user.id },
+    }).then((r) => { if (r.error) logServerError("audit.emit.talent_added", r.error); });
 
     revalidatePath(`/${auth.tenantSlug}`, "layout");
     return { ok: true };
@@ -2178,7 +2194,7 @@ export async function cancelBookingAction(
 
     const { data: booking, error: lookupErr } = await supabase
       .from("agency_bookings")
-      .select("id, status")
+      .select("id, status, source_inquiry_id")
       .eq("id", bookingId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -2209,6 +2225,16 @@ export async function cancelBookingAction(
       eventType: BOOKING_AUDIT.STATUS_CHANGED,
       payload: { from: prevStatus, to: "cancelled", reason: reason?.trim() || null },
     });
+
+    // Audit emit — fire-and-forget.
+    const cancelInquiryId = (booking.source_inquiry_id as string | null) ?? null;
+    if (cancelInquiryId) {
+      await supabase.rpc("inquiry_audit_emit", {
+        p_inquiry_id: cancelInquiryId,
+        p_kind: "booking_cancelled",
+        p_payload: { booking_id: bookingId, by_user_id: user.id },
+      }).then((r) => { if (r.error) logServerError("audit.emit.booking_cancelled", r.error); });
+    }
 
     revalidatePath(`/${tenantSlug}`, "layout");
     return { ok: true };
@@ -2306,7 +2332,7 @@ export async function closeBookingAction(
 
     const { data: booking, error: lookupErr } = await supabase
       .from("agency_bookings")
-      .select("id, status")
+      .select("id, status, source_inquiry_id")
       .eq("id", bookingId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -2341,6 +2367,16 @@ export async function closeBookingAction(
       eventType: BOOKING_AUDIT.STATUS_CHANGED,
       payload: { from: prevStatus, to: "completed", note: completionNote?.trim() || null },
     });
+
+    // Audit emit — fire-and-forget.
+    const wrapInquiryId = (booking.source_inquiry_id as string | null) ?? null;
+    if (wrapInquiryId) {
+      await supabase.rpc("inquiry_audit_emit", {
+        p_inquiry_id: wrapInquiryId,
+        p_kind: "booking_wrapped",
+        p_payload: { booking_id: bookingId, by_user_id: user.id },
+      }).then((r) => { if (r.error) logServerError("audit.emit.booking_wrapped", r.error); });
+    }
 
     revalidatePath(`/${tenantSlug}`, "layout");
     return { ok: true };
