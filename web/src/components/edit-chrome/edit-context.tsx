@@ -3176,7 +3176,11 @@ export function EditProvider({
     async (nodeId, targetIndex) => {
       const location = findBuilderNodeLocation(builderTreeRef.current, nodeId);
       if (!location) {
-        return { ok: false, error: "Builder node not found." };
+        return {
+          ok: false,
+          error:
+            "That block was not found on the page — select it on the canvas and try again.",
+        };
       }
       if (targetIndex < 0 || targetIndex >= location.siblingCount) {
         return { ok: false, error: "Already at the edge of this group." };
@@ -3210,16 +3214,20 @@ export function EditProvider({
     async (nodeId, targetParentId, targetIndex) => {
       const location = findBuilderNodeLocation(builderTreeRef.current, nodeId);
       if (!location) {
-        return { ok: false, error: "Builder node not found." };
+        return {
+          ok: false,
+          error:
+            "That block was not found on the page — select it on the canvas and try again.",
+        };
       }
       if (targetIndex < 0) {
-        return { ok: false, error: "Invalid builder-node target index." };
+        return { ok: false, error: "Can't move the block to that position." };
       }
       if (
         location.parentId === targetParentId &&
         targetIndex >= location.siblingCount
       ) {
-        return { ok: false, error: "Invalid builder-node target index." };
+        return { ok: false, error: "Can't move the block to that position." };
       }
       const moved = await executeBuilderNodeOperation({
         operation: "move",
@@ -3403,7 +3411,11 @@ export function EditProvider({
     (nodeId) => {
       const location = findBuilderNodeLocation(builderTree, nodeId);
       if (!location) {
-        return { ok: false, error: "Builder node not found." };
+        return {
+          ok: false,
+          error:
+            "That block was not found on the page — select it on the canvas and try again.",
+        };
       }
       if (location.node.kind === "section") {
         return {
@@ -3618,7 +3630,11 @@ export function EditProvider({
     async (nodeId, direction) => {
       const location = findBuilderNodeLocation(builderTreeRef.current, nodeId);
       if (!location) {
-        return { ok: false, error: "Builder node not found." };
+        return {
+          ok: false,
+          error:
+            "That block was not found on the page — select it on the canvas and try again.",
+        };
       }
       if (direction === "up" && location.index <= 0) {
         return { ok: true };
