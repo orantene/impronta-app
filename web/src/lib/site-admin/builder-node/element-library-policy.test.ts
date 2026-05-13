@@ -6,6 +6,7 @@ import {
   filterKindsForAdvancedElementLibrary,
   gateNestedInsertKinds,
   isAdvancedElementLibraryEnabledForPlan,
+  resolveAdvancedElementLibraryEnabled,
 } from "./element-library-policy";
 
 test("free plan disables advanced element library", () => {
@@ -50,4 +51,24 @@ test("gateNestedInsertKinds applies shipped catalog then plan gate", () => {
     gateNestedInsertKinds(["heading", "paragraph"], true),
     ["heading", "paragraph"],
   );
+});
+
+// ─── P7A-5 tenant override resolver ────────────────────────────────────────
+
+test("resolveAdvancedElementLibraryEnabled: null override falls back to plan rule", () => {
+  assert.equal(resolveAdvancedElementLibraryEnabled("free", null), false);
+  assert.equal(resolveAdvancedElementLibraryEnabled("agency", null), true);
+  assert.equal(resolveAdvancedElementLibraryEnabled("studio", undefined), true);
+});
+
+test("resolveAdvancedElementLibraryEnabled: override=true force-enables (beta opt-in)", () => {
+  assert.equal(resolveAdvancedElementLibraryEnabled("free", true), true);
+  assert.equal(resolveAdvancedElementLibraryEnabled("studio", true), true);
+});
+
+test("resolveAdvancedElementLibraryEnabled: override=false force-disables (kill switch)", () => {
+  // The whole point — even on Agency tier we can disable for a tenant
+  // who hits a regression.
+  assert.equal(resolveAdvancedElementLibraryEnabled("agency", false), false);
+  assert.equal(resolveAdvancedElementLibraryEnabled("network", false), false);
 });

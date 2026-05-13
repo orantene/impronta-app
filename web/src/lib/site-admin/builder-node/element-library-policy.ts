@@ -8,14 +8,41 @@ import type { BuilderNodeKind } from "./types";
  * from the governed library (vs Simple Mode section templates).
  *
  * Rollout: paid workspace plans expose nested composition affordances; **free**
- * stays template-first until upgrade. Per-tenant DB kill-switch can layer on
- * later (`agencies` feature JSON) — call sites should always check this helper
- * rather than inlining plan checks.
+ * stays template-first until upgrade. Per-tenant DB kill-switch layered on
+ * top of the plan rule — call sites should always check this helper rather
+ * than inlining plan checks.
+ *
+ * Plan-only signature (no tenant override) — preserved for back-compat with
+ * existing call sites + tests. New call sites should prefer
+ * `resolveAdvancedElementLibraryEnabled` below to pick up the per-tenant
+ * override loaded from `agency_entitlements.element_library_override`.
  */
 export function isAdvancedElementLibraryEnabledForPlan(
   plan: BuilderWorkspacePlan,
 ): boolean {
   return plan !== "free";
+}
+
+/**
+ * P7A-5 — Resolve effective 7A enablement with tenant override.
+ *
+ * Tri-state resolution:
+ *   - override === true   → force-enable regardless of plan (beta opt-in)
+ *   - override === false  → force-disable regardless of plan (kill switch)
+ *   - override == null    → fall back to plan rule
+ *
+ * Loaders that fetch the tenant's entitlements row (server-side bridge)
+ * pass the override column through to this resolver. Client-side call
+ * sites read `advancedElementLibraryEnabled` from the EditContext, which
+ * is computed once at provider mount using this function.
+ */
+export function resolveAdvancedElementLibraryEnabled(
+  plan: BuilderWorkspacePlan,
+  override: boolean | null | undefined,
+): boolean {
+  if (override === true) return true;
+  if (override === false) return false;
+  return isAdvancedElementLibraryEnabledForPlan(plan);
 }
 
 /**
