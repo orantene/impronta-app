@@ -686,17 +686,31 @@ export function NavigatorPanel() {
   // operators see only the page's heading skeleton, not chrome rows.
   const outlineNodes = useMemo<HeadingNode[]>(() => {
     if (flat.length === 0) return [];
-    const propBased = flat.map((r) => ({
-      sectionId: r.ref.sectionId,
-      sectionTypeKey: r.ref.sectionTypeKey,
-      props: {
-        headline: headingProbe?.[r.ref.sectionId] ?? "",
-        eyebrow: headingProbe?.[r.ref.sectionId] ?? "",
-        title: headingProbe?.[r.ref.sectionId] ?? "",
-      },
-    }));
+    // QA 2026-05-13 — Outline used to render "No headings yet" on tenants
+    // whose Hero had a headline because `buildHeadingOutline` requires a
+    // non-empty `text`, and the headline-probe loader can be null
+    // (auth failure, in-flight on first paint, or the section stores
+    // headlines in field-overrides instead of `props_jsonb`). Now we
+    // fall back to the navigator's resolved display name (which uses
+    // the same probe but also folds in raw section names + section-type
+    // humanisation), so the operator at least sees the page's section
+    // skeleton in outline mode while the probe catches up or as a hard
+    // fallback when the probe never resolves.
+    const propBased = flat.map((r) => {
+      const probeText = headingProbe?.[r.ref.sectionId] ?? "";
+      const fallback = probeText || displayNameById.get(r.ref.sectionId) || "";
+      return {
+        sectionId: r.ref.sectionId,
+        sectionTypeKey: r.ref.sectionTypeKey,
+        props: {
+          headline: fallback,
+          eyebrow: fallback,
+          title: fallback,
+        },
+      };
+    });
     return buildHeadingOutline(propBased);
-  }, [flat, headingProbe]);
+  }, [flat, headingProbe, displayNameById]);
 
   const headingIssues = useMemo(() => {
     const flatLite = flat.map((r) => ({
