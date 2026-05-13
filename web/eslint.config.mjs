@@ -9,6 +9,18 @@ const eslintConfig = defineConfig([
     rules: {
       // Hydration patterns (localStorage / client-only UI) use effects; disabling until refactors.
       "react-hooks/set-state-in-effect": "off",
+      // Hardening — underscore-prefixed vars are intentional placeholders
+      // (e.g. unused FormData state in useFormState signatures, _id in
+      // mock callbacks). Treat them as explicit "I know this is unused".
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+        },
+      ],
     },
   },
   // Phase C — Lexical plugin allow-list. The convergence-plan §17 scope cap

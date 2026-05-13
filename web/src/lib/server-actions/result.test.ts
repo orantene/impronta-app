@@ -39,15 +39,20 @@ const failed: ServerActionResult<{ x: number }> = { ok: false, error: "nope" };
 if (!failed.ok) {
   expectType<string>(failed.error);
   // @ts-expect-error — `data` doesn't exist on the false branch
-  failed.data;
+  void failed.data;
 }
 
 // 4. fail/ok constructors return the discriminated union.
-const okFromHelper = ok({ count: 3 });
-type _OkOk = Equals<typeof okFromHelper.ok, true>; // true by inference
+const _okFromHelper = ok({ count: 3 });
+type _OkOk = Equals<typeof _okFromHelper.ok, true>; // true by inference
+void _okFromHelper;
 
-const failFromHelper = fail("nope", "validation_failed");
-type _FailOk = Equals<typeof failFromHelper.ok, false>;
+const _failFromHelper = fail("nope", "validation_failed");
+type _FailOk = Equals<typeof _failFromHelper.ok, false>;
+void _failFromHelper;
+// Reference the type aliases to satisfy "defined but never used".
+void (null as unknown as _OkOk);
+void (null as unknown as _FailOk);
 
 // ── Runtime tests (light — the type is the real contract) ──────────────────
 
