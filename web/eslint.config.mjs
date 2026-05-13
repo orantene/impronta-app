@@ -92,6 +92,32 @@ const eslintConfig = defineConfig([
     },
   },
 
+  // A.6 — Supabase .maybeSingle() / .single() must be destructured with
+  // both `data` AND `error`, so the call site is forced to handle the
+  // null-or-error case instead of trusting a bare `data`. Bare destructures
+  // shipped real bugs (talent inbox empty when the row was actually missing,
+  // not "no error"). Warns (not errors) to allow incremental adoption.
+  //
+  // Pattern caught:
+  //   const { data } = await x.maybeSingle();         ← FLAG
+  //   const { data, error } = await x.maybeSingle();   ← OK
+  //   const result = await x.maybeSingle();            ← OK (caller branches on result)
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.{ts,tsx}", "src/**/__tests__/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector:
+            "VariableDeclarator[init.type='AwaitExpression'][init.argument.type='CallExpression'][init.argument.callee.type='MemberExpression'][init.argument.callee.property.name=/^(maybeSingle|single)$/] > ObjectPattern.id:not(:has(Property[key.name='error']))",
+          message:
+            "A.6 — destructure `error` alongside `data` from .maybeSingle()/.single(), or branch on the full result. Bare { data } silently swallows missing-row / RLS errors.",
+        },
+      ],
+    },
+  },
+
   // Phase 5 — bare `tenant:...` cache tag strings are banned outside the
   // site-admin cache-tags helper. Callers must import `tagFor()`.
   {
