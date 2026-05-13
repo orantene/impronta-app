@@ -4485,6 +4485,13 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
   const [, startTalentInviteTransition] = useTransition();
   const yourRate = TALENT_RATE_FOR_CONV[conv.id] ?? "—";
 
+  /* Phase A PR 3 — talent re-skin onto the ReservationThread primitive,
+   * behind the same `?rt=1` flag as admin (PR 2). Decision is computed
+   * at the top with all the other hooks; conditional return happens
+   * AFTER the existing hook list so Rules of Hooks stays satisfied. */
+  const searchParams = useSearchParams();
+  const useReservationThread = searchParams?.get("rt") === "1";
+
   // Talent permission model:
   //   • Booking team = native — they're invited so they see it
   //   • Client thread = visible only when Marta IS the coordinator
@@ -4519,6 +4526,20 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
   const fileCount = (MOCK_FILES_FOR_CONV[conv.id] ?? []).length;
   const messages = MOCK_THREAD[conv.id] ?? [];
   const talentGroupUnread = messages.filter(m => m.kind === "text").length > 0 ? Math.min(3, conv.unreadCount) : 0;
+
+  // Phase A PR 3 — defer to new primitive when flag is on. Placed AFTER
+  // all hooks (above) so React Hooks order is stable across renders.
+  if (useReservationThread) {
+    return (
+      <TalentReservationView
+        conv={conv}
+        onBack={onBack}
+        isCoordinator={isCoordinator}
+        yourRate={yourRate}
+        fileCount={fileCount}
+      />
+    );
+  }
 
   return (
     <div style={{
@@ -4691,6 +4712,206 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
         povCanSeeCoordNote={true}
       />
     </div>
+  );
+}
+
+/* ─── TalentReservationView ─────────────────────────────────────────
+ * Phase A PR 3 — talent POV rendered through <ReservationThread>.
+ * Mirrors AdminReservationView's pattern but with the talent-flavored
+ * pills and the Accept / Decline action row when the talent is at
+ * invite stage and hasn't responded yet. Hold isn't surfaced (engine
+ * has no hold path today — talent can accept or decline only).
+ */
+function TalentReservationView({
+  conv, onBack, isCoordinator, yourRate, fileCount,
+}: {
+  conv: Conversation;
+  onBack: () => void;
+  isCoordinator: boolean;
+  yourRate: string;
+  fileCount: number;
+}) {
+  const { toast } = useAdminShell();
+  const router = useRouter();
+  const [, startInviteTxn] = useTransition();
+  void onBack;
+
+  const stage: ReservationStage =
+      conv.stage === "inquiry" ? "inquiry"
+    : conv.stage === "hold"    ? "offer"      // hold = the offer round is open
+    : conv.stage === "booked"  ? "booked"
+    : conv.stage === "past"    ? "wrapped"
+    : "inquiry";
+
+  const closedReason =
+      conv.stage === "cancelled" ? "This was cancelled."
+    : conv.stage === "past" && conv.outcome === "talent_declined" ? "You declined this job."
+    : conv.stage === "past" && conv.outcome === "client_rejected" ? "The client passed on this offer."
+    : conv.stage === "past" && conv.outcome === "completed" ? undefined
+    : undefined;
+
+  const offerSnap = MOCK_OFFER_FOR_CONV[conv.id] ?? null;
+  const offerStatus: { text: string; tone: PillDescriptor["tone"] } = (() => {
+    if (!offerSnap) {
+      return { text: yourRate === "—" ? "Pending" : `Your cut · ${yourRate}`, tone: "neutral" };
+    }
+    const total = conv.amountToYou ?? yourRate;
+    if (offerSnap.stage === "sent")      return { text: `${total} · awaiting client`, tone: "warn" };
+    if (offerSnap.stage === "accepted")  return { text: `${total} · approved`,        tone: "ok" };
+    if (offerSnap.stage === "rejected")  return { text: `${total} · declined`,        tone: "alert" };
+    if (offerSnap.stage === "countered") return { text: `${total} · countered`,       tone: "warn" };
+    return { text: total === "—" ? "In progress" : total, tone: "neutral" };
+  })();
+
+  const eventStatus = (() => {
+    const parts: string[] = [];
+    if (conv.date) parts.push(conv.date);
+    if (conv.location) parts.push(String(conv.location).split(",")[0]?.trim() ?? "");
+    return parts.filter(Boolean).join(" · ") || "TBC";
+  })();
+
+  // Booking-team pill = lineup status (whom you're working with).
+  // Conversation carries `participants` (the booking team) — talents don't
+  // see acceptance state on others, just the headcount.
+  const lineupTotal = (conv.participants ?? []).length;
+  const lineupStatus = lineupTotal === 0 ? "Just you" : `${lineupTotal} on the team`;
+
+  const pills: PillDescriptor[] = [
+    {
+      kind: "lineup",
+      label: "Booking team",
+      status: lineupStatus,
+      tone: "neutral",
+    },
+    {
+      kind: "offer",
+      label: "Offer",
+      status: offerStatus.text,
+      tone: offerStatus.tone,
+    },
+    {
+      kind: "event",
+      label: "Event",
+      status: eventStatus,
+      tone: "neutral",
+    },
+    {
+      kind: "files",
+      label: "Files",
+      status: fileCount === 0 ? "" : String(fileCount),
+      tone: "neutral",
+    },
+  ];
+
+  const sheets: Partial<Record<PillKind, SheetDescriptor>> = {
+    lineup: {
+      kind: "lineup",
+      title: "Who's on this job",
+      content: (
+        <div style={{ margin: -14 }}>
+          <TalentBookingTab
+            conv={conv}
+            inquiry={convToInquiry(conv)}
+            isCoordinator={isCoordinator}
+            onOpenLineup={() => { /* lineup drawer is rendered at parent level; sheet body handles its own */ }}
+          />
+        </div>
+      ),
+    },
+    offer: {
+      kind: "offer",
+      title: "Your offer",
+      content: (
+        <div style={{ margin: -14 }}>
+          <OfferTab conv={conv} pov={{ kind: "talent", talentId: currentTalentId(), isCoordinator }} />
+        </div>
+      ),
+    },
+    event: {
+      kind: "event",
+      title: "Event details",
+      content: (
+        <div style={{ margin: -14 }}>
+          <TalentLogisticsTab conv={conv} inquiry={convToInquiry(conv)} />
+        </div>
+      ),
+    },
+    files: {
+      kind: "files",
+      title: "Files",
+      content: (
+        <div style={{ margin: -14 }}>
+          <FilesTab conv={conv} povCanSeeTalentFiles={true} pov="talent" />
+        </div>
+      ),
+    },
+  };
+
+  // Action row — Accept / Decline when talent is at invite stage on a
+  // real DB-backed inquiry (mock convs stay disabled / no engine path).
+  const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
+  const inviteStage = !isCoordinator
+    && (conv.stage === "inquiry" || conv.stage === "hold")
+    && !offerSnap;
+  const actionRow = (isRealUuid && inviteStage) ? [
+    {
+      id: "accept",
+      label: "Accept",
+      emphasis: "primary" as const,
+      preamble: `Coordinator invited you. Take this job, or decline.`,
+      onClick: () => {
+        startInviteTxn(async () => {
+          const r = await acceptInquiryInvitation(conv.id);
+          if (!r.ok) toast(`Accept failed: ${r.error}`);
+          else { toast("Inquiry accepted"); router.refresh(); }
+        });
+      },
+    },
+    {
+      id: "decline",
+      label: "Decline",
+      emphasis: "danger" as const,
+      onClick: () => {
+        if (!confirm("Decline this invite?")) return;
+        startInviteTxn(async () => {
+          const r = await declineInquiryInvitation(conv.id);
+          if (!r.ok) toast(`Decline failed: ${r.error}`);
+          else { toast("Inquiry declined"); router.refresh(); }
+        });
+      },
+    },
+  ] : null;
+
+  // Stream = canonical talent group thread (the booking team channel).
+  // ConversationTab embeds its own composer.
+  const stream = (
+    <ConversationTab
+      conv={conv}
+      threadKey={`${conv.id}:talent`}
+      placeholder="Message booking team…"
+      crossThreadBridge={!isCoordinator ? { who: conv.leader.name, clientName: conv.client } : undefined}
+      povCanEditLineup={isCoordinator}
+      povCanSeeOffers={isCoordinator}
+      povCanSeeCoordNote={true}
+    />
+  );
+
+  return (
+    <ReservationThread
+      pov={isCoordinator ? "talent_coord" : "talent"}
+      header={{
+        title: conv.brief || conv.client,
+        subtitle: [conv.client, eventStatus].filter(Boolean).join(" · "),
+        stage,
+        closedReason,
+        // No move-to menu for talent — talent never drives stage transitions.
+      }}
+      pills={pills}
+      sheets={sheets}
+      stream={stream}
+      composer={<div style={{ display: "none" }} />}
+      actionRow={actionRow}
+    />
   );
 }
 
