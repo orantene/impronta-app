@@ -8642,13 +8642,56 @@ export function ShellNextActionBar({
 }) {
   // No-op when nothing is asked of the user — the bar should never feel
   // generic. Returning null keeps the shell quiet.
+  // Slice 2 (Messages consolidation): the sticky action bar was always
+  // on, even after the user had clearly noted the suggestion. It now
+  // auto-collapses once dismissed for that state-key and re-expands the
+  // moment the underlying nudge changes (different hint+label means new
+  // state). Re-shows on remount (per inquiry switch).
+  const stateKey = `${hint ?? ""}|${primary?.label ?? ""}|${secondary?.label ?? ""}`;
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+  // Reset dismissal when the underlying state changes (new key).
+  useEffect(() => { setDismissedKey(null); }, [stateKey]);
+
   if (!primary && !secondary && !hint) return null;
   const secondaryDisabled = !!secondary && (secondary.disabled || !secondary.onClick);
   const primaryDisabled = !!primary && (primary.disabled || !primary.onClick);
+  const isDismissed = dismissedKey === stateKey;
+
+  // Dismissed → tiny ephemeral chip in the corner instead of a full bar.
+  // Click to expand back. Disappears entirely on next state change.
+  if (isDismissed && primary) {
+    return (
+      <div style={{
+        position: "sticky", bottom: 0, zIndex: 6,
+        padding: "6px 10px",
+        background: "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6,
+        fontFamily: FONTS.body,
+      }}>
+        <button
+          type="button"
+          onClick={() => setDismissedKey(null)}
+          title={hint ?? primary.label}
+          aria-label={`Show next action: ${primary.label}`}
+          style={{
+            padding: "3px 9px", borderRadius: 999,
+            background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+            border: `1px solid ${COLORS.borderSoft}`,
+            fontSize: 11, fontWeight: 600, cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}
+        >
+          ↑ {primary.label}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       position: "sticky", bottom: 0, zIndex: 6,
-      padding: "10px 14px",
+      padding: "8px 14px",
       background: "rgba(255,255,255,0.96)", backdropFilter: "blur(6px)",
       borderTop: `1px solid ${COLORS.borderSoft}`,
       display: "flex", alignItems: "center", gap: 10,
@@ -8675,7 +8718,14 @@ export function ShellNextActionBar({
         <button
           type="button"
           disabled={primaryDisabled}
-          onClick={primary.onClick}
+          onClick={() => {
+            primary.onClick?.();
+            // After the user takes the action, auto-collapse the bar.
+            // The action navigates to the target tab; the persistent
+            // banner is no longer needed. State change will re-expand
+            // on next inquiry-state delta.
+            setDismissedKey(stateKey);
+          }}
           title={primary.title}
           style={primaryDisabled
             ? disabledBtn(primaryBtn(primary.tone === "success" ? COLORS.success : COLORS.accent))
@@ -8684,6 +8734,23 @@ export function ShellNextActionBar({
           {primary.label}
         </button>
       )}
+      {/* Manual dismiss — small unobtrusive × on the right. Keeps the
+          bar collapsible without forcing the user to click through to
+          take action they already plan to take via another route. */}
+      <button
+        type="button"
+        onClick={() => setDismissedKey(stateKey)}
+        title="Dismiss this nudge"
+        aria-label="Dismiss next-action nudge"
+        style={{
+          width: 22, height: 22, padding: 0,
+          borderRadius: "50%",
+          background: "transparent", border: "none",
+          color: COLORS.inkDim, cursor: "pointer",
+          fontSize: 14, lineHeight: 1,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        }}
+      >×</button>
     </div>
   );
 }
