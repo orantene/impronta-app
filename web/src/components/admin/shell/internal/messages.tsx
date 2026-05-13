@@ -1417,7 +1417,7 @@ export function MessagesShell({ pov }: { pov: MessagesPov }) {
 // need. The admin's job: flip between Client thread / Talent group /
 // Files (the existing tabs) and use the rail to drive the deal forward.
 
-type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past" | "archived";
+type AdminFilter = "all" | "needs-me" | "unread" | "coordinating" | "handoffs" | "inquiry" | "hold" | "booked" | "past" | "archived" | "triage";
 
 function AdminOperationsShell() {
   const { effectiveMessagesInquiries } = useAdminShell();
@@ -1476,7 +1476,23 @@ function AdminOperationsShell() {
     if (filter === "unread" && i.unreadGroup === 0 && i.unreadPrivate === 0) return false;
     if (filter === "coordinating" && !isCoordOnInquiry(i)) return false;
     if (filter === "handoffs" && !handoffIds.has(i.id)) return false;
-    if (filter !== "all" && filter !== "needs-me" && filter !== "unread" && filter !== "coordinating" && filter !== "handoffs" && filter !== "archived" && bucket !== filter) return false;
+    // A7 — triage queue: coordinator-action-needed AND still in the
+    // open part of the funnel (inquiry / hold). Past + booked + archived
+    // are excluded; this view is for "what do I owe right now."
+    if (filter === "triage") {
+      if (i.nextActionBy !== "coordinator") return false;
+      if (bucket !== "inquiry" && bucket !== "hold") return false;
+    }
+    if (
+      filter !== "all"
+      && filter !== "needs-me"
+      && filter !== "unread"
+      && filter !== "coordinating"
+      && filter !== "handoffs"
+      && filter !== "archived"
+      && filter !== "triage"
+      && bucket !== filter
+    ) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       // Search across all the things an admin would scan for: client
@@ -1496,7 +1512,14 @@ function AdminOperationsShell() {
     }
     return true;
   }).sort((a, b) => {
-    // Same chronological model as the talent + client inboxes:
+    // A7 — Triage view: SLA pressure first (oldest unanswered on top).
+    // Highest `lastActivityHrs` = "talked to client a long time ago" =
+    // most pressing to revisit. Reverses the default recency tier so
+    // the admin sees their backlog, not their freshest threads.
+    if (filter === "triage") {
+      return b.lastActivityHrs - a.lastActivityHrs;
+    }
+    // Default chronological model (same as talent + client inboxes):
     //   Tier 1 — unseen / brand-new inquiries first (most urgent)
     //   Tier 2 — needs-me first (admin owes a reply)
     //   Tier 3 — recency (lower ageHrs = more recent → top)
@@ -1898,9 +1921,28 @@ function AdminInboxList({
   // start of the chip row with a star pin so they read as
   // first-class user-curated entry points, not just filters.
   const archivedCount = inquiries.filter(i => !!__convFlags[i.id]?.archived).length;
+  // A7 — triage queue count: open-funnel inquiries owing coordinator action.
+  // Same predicate as the triage filter; precomputed here for the chip label.
+  // Inline the bucket helper since it's not in this function's scope.
+  const inquiryBucket = (s: string): "inquiry" | "hold" | "booked" | "past" => {
+    if (s === "draft" || s === "submitted" || s === "coordination") return "inquiry";
+    if (s === "offer_pending") return "hold";
+    if (s === "approved" || s === "booked") return "booked";
+    return "past";
+  };
+  const triageCount = inquiries.filter(i => {
+    const isArchived = !!__convFlags[i.id]?.archived;
+    if (isArchived) return false;
+    if (i.nextActionBy !== "coordinator") return false;
+    const bucket = inquiryBucket(i.stage);
+    return bucket === "inquiry" || bucket === "hold";
+  }).length;
   const chips: { id: AdminFilter; label: string; count?: number; pin?: boolean }[] = [
     { id: "all", label: "All" },
     { id: "needs-me", label: `Needs me${needsMe > 0 ? ` (${needsMe})` : ""}` },
+    // Triage chip — only appears when there's something to triage so it
+    // doesn't add visual noise on an empty backlog.
+    ...(triageCount > 0 ? [{ id: "triage" as const, label: `Triage${triageCount > 0 ? ` (${triageCount})` : ""}`, pin: true }] : []),
     { id: "unread", label: `Unread${totalUnread > 0 ? ` (${totalUnread})` : ""}` },
     ...(handoffCount > 0 ? [{ id: "handoffs" as const, label: "Handoffs", count: handoffCount, pin: true }] : []),
     ...(coordCount > 0 ? [{ id: "coordinating" as const, label: "Coordinating", count: coordCount, pin: true }] : []),
