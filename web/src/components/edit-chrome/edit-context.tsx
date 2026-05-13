@@ -2459,7 +2459,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Could not remove this section — try again.",
+            error: result.error ?? "Couldn't remove this section — try again.",
           };
         }
 
@@ -2481,7 +2481,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Could not save your changes — try again.",
+            error: result.error ?? "Couldn't save your changes — try again.",
           };
         }
 
@@ -2503,7 +2503,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Could not move this section — try again.",
+            error: result.error ?? "Couldn't move this section — try again.",
           };
         }
 
@@ -2521,7 +2521,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Could not add this section — try again.",
+            error: result.error ?? "Couldn't add this section — try again.",
           };
         }
 
@@ -2538,7 +2538,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Could not duplicate this section — try again.",
+            error: result.error ?? "Couldn't duplicate this section — try again.",
           };
         }
 
@@ -4059,7 +4059,7 @@ export function EditProvider({
         : {
             ok: false,
             error:
-              result.error ?? "Could not save your changes — try again.",
+              result.error ?? "Couldn't save your changes — try again.",
           };
     },
     [dispatch],

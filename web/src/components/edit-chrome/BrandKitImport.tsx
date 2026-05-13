@@ -102,7 +102,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
     }
     const count = Object.keys(result.tokens).length;
     if (count === 0) {
-      setError("Nothing parseable in that JSON.");
+      setError("We couldn't read anything useful from that JSON.");
       return;
     }
     onApply(result.tokens);

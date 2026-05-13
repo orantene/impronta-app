@@ -706,7 +706,7 @@ export function CompositionLibraryOverlay() {
   );
 
   const formatDropBlockedMessage = useCallback((target: TemplateDropTarget) => {
-    return target.reason ?? `Can't drop into ${target.targetSlotLabel}.`;
+    return target.reason ?? `Can't add to ${target.targetSlotLabel}.`;
   }, []);
 
   const visibleTemplateKits = useMemo(() => {
@@ -849,7 +849,7 @@ export function CompositionLibraryOverlay() {
       const starter = startersById.get(starterId);
       if (!starter) {
         setBusyTypeKey(null);
-        setError("Section kit is missing one of its starters.");
+        setError("This section kit is incomplete — reload the page or choose a different kit.");
         return;
       }
       const res = await insertSection(nextTarget, starter.sectionTypeKey, {
@@ -953,7 +953,7 @@ export function CompositionLibraryOverlay() {
         const starter = startersById.get(starterId);
         if (!starter) {
           setBusyTypeKey(null);
-          setError("Section kit is missing one of its starters.");
+          setError("This section kit is incomplete — reload the page or choose a different kit.");
           return;
         }
         const res = await insertSection(nextTarget, starter.sectionTypeKey, {
@@ -2690,7 +2690,7 @@ function TemplateDropOverlay({
             {dropTarget
               ? dropTarget.allowed
                 ? `${dropTarget.label}: ${activeLabel}`
-                : `Can't drop into ${dropTarget.targetSlotLabel}`
+                : `Can't add to ${dropTarget.targetSlotLabel}`
               : `Drop to add ${activeLabel}`}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-zinc-500">
