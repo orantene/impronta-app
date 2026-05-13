@@ -1652,11 +1652,28 @@ function AdminInquiryRow({
     !briefMentionsCity ? cityLabel : null,
   ].filter(Boolean);
 
-  // Status line — admin's voice. Action-needed cases pull a coral
-  // bullet (same affordance as ClientProjectRow's `isActionNeeded`).
+  // Slice Q (Messages consolidation v2 §10): inbox rows surface the
+  // NEXT REQUIRED ACTION of the viewer, not just the last message.
+  // When `surfaceNeedsMe` we prepend a clear operational verb that
+  // matches plan §10's "Awaiting your reply / Send offer / Talent rate
+  // expected" pattern. Falls back to stage-derived copy otherwise.
   const lastMsg = inquiry.messages[inquiry.messages.length - 1];
   const statusLine = (() => {
-    if (surfaceNeedsMe && lastMsg && !lastMsg.isYou) return `${(lastMsg.body || "").slice(0, 64)}`;
+    // Operational next-action verb prefix when this row needs me.
+    if (surfaceNeedsMe) {
+      if (inquiry.stage === "submitted" || inquiry.stage === "draft")
+        return `→ Add talent · ${lineupTotal === 0 ? "shortlist empty" : `${lineupAccepted}/${lineupTotal} accepted`}`;
+      if (inquiry.stage === "coordination" && lineupAccepted < lineupTotal)
+        return `→ Nudge talent · ${lineupTotal - lineupAccepted} not responded`;
+      if (inquiry.stage === "coordination")
+        return "→ Draft offer · lineup confirmed";
+      if (inquiry.stage === "offer_pending")
+        return inquiry.offer?.total
+          ? `→ Awaiting client · offer ${inquiry.offer.total}`
+          : "→ Awaiting client decision";
+      if (lastMsg && !lastMsg.isYou)
+        return `→ Reply to client · "${(lastMsg.body || "").slice(0, 48)}"`;
+    }
     if (inquiry.stage === "draft")          return "Draft · not yet sent to talent";
     if (inquiry.stage === "submitted")      return "Inviting talent to the shortlist";
     if (inquiry.stage === "coordination")   return lineupAccepted < lineupTotal ? `Coordinating · ${lineupAccepted}/${lineupTotal} confirmed` : "All talent confirmed · drafting offer";
