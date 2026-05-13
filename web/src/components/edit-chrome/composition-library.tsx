@@ -781,6 +781,26 @@ export function CompositionLibraryOverlay() {
       if (!showAdvanced && !entry.inDefault) continue;
       counts[entry.category] = (counts[entry.category] ?? 0) + 1;
     }
+    // QA 2026-05-13 — tab badges (e.g. "Hero 2") used to ignore template
+    // starters + kits, so the per-category badge undercounted what the
+    // operator actually saw when they clicked the tab ("5 items visible"
+    // when the badge said 2). The "All" tab badge already includes
+    // templates via `totalVisibleItems`; per-category badges should match.
+    //
+    // We count from the static catalogs directly because the per-tab
+    // filtered lists (`templateStarterFacetBase`, `visibleTemplateKits`)
+    // already pre-filter by `activeTab`, so summing them would only
+    // ever pad the currently-selected tab. The starter/kit category
+    // doesn't depend on slot context, so the count is stable across
+    // slot picks (templates that aren't slot-compatible still appear
+    // greyed-out in the picker — they're "visible items" from the
+    // operator's POV).
+    for (const starter of SECTION_TEMPLATE_STARTERS) {
+      counts[starter.category] = (counts[starter.category] ?? 0) + 1;
+    }
+    for (const kit of SECTION_TEMPLATE_KITS) {
+      counts[kit.category] = (counts[kit.category] ?? 0) + 1;
+    }
     return counts;
   }, [slotFiltered, showAdvanced]);
 

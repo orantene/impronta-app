@@ -471,6 +471,13 @@ export function PublishDrawer() {
   // Header meta line — schema for `lastPublishedAt` lands later; for now
   // surface the just-published timestamp from the in-flight success state
   // when available, otherwise the current row's `published_at` value.
+  //
+  // QA 2026-05-13 — during the rows loader's in-flight window
+  // (publishedRowsLoading=true), `lastPublishedAt` is still null, so
+  // `formatPublishedAt(null)` rendered "—" — which read as "never
+  // published" even though the topbar pill said "Live · <ts>". Show a
+  // neutral loading placeholder during the load instead of the
+  // never-published em-dash.
   const headerMeta: React.ReactNode = isSuccess ? (
     <span>
       Just published ·{" "}
@@ -478,7 +485,12 @@ export function PublishDrawer() {
     </span>
   ) : (
     <span>
-      Last published <span style={{ color: CHROME.muted2 }}>{formatPublishedAt(lastPublishedAt)}</span>
+      Last published{" "}
+      <span style={{ color: CHROME.muted2 }}>
+        {publishedRowsLoading && !lastPublishedAt
+          ? "loading…"
+          : formatPublishedAt(lastPublishedAt)}
+      </span>
     </span>
   );
 
