@@ -4,6 +4,9 @@ import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
+import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
+import { emitNotificationToUsers } from "@/lib/notifications/emit";
+import { logServerError } from "@/lib/server/safe-error";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Every read/write against
 // inquiries / inquiry_messages / inquiry_message_reads filters on tenant_id,
@@ -71,6 +74,73 @@ export async function sendMessage(
       actorUserId: ctx.actorUserId,
       data: { threadType: ctx.threadType, messageId: row.id as string },
     });
+
+    // Fire-and-forget notification fanout — best-effort, never blocks the
+    // send. Workspace recipients (staff) always get notified; talent/client
+    // only on the group thread (private thread is staff-internal).
+    resolveInquiryRecipients(supabase, ctx.inquiryId, ctx.tenantId)
+      .then(async (recipients) => {
+        const title = "New message";
+        const body = ctx.body.length > 120 ? `${ctx.body.slice(0, 117)}…` : ctx.body;
+
+        const workspaceTargets = recipients.workspaceUserIds.filter((id) => id !== ctx.actorUserId);
+        const promises: Array<Promise<void>> = [];
+        if (workspaceTargets.length > 0) {
+          promises.push(
+            emitNotificationToUsers(workspaceTargets, {
+              tenantId: ctx.tenantId,
+              kind: "message",
+              surface: "workspace",
+              title,
+              body,
+              actorUserId: ctx.actorUserId,
+              targetDrawer: "inquiry-workspace",
+              targetPayload: { inquiryId: ctx.inquiryId, threadType: ctx.threadType },
+              originKind: "message_sent",
+              originInquiryId: ctx.inquiryId,
+            }),
+          );
+        }
+
+        if (ctx.threadType === "group") {
+          const talentTargets = recipients.talentUserIds.filter((id) => id !== ctx.actorUserId);
+          if (talentTargets.length > 0) {
+            promises.push(
+              emitNotificationToUsers(talentTargets, {
+                tenantId: ctx.tenantId,
+                kind: "message",
+                surface: "talent",
+                title,
+                body,
+                actorUserId: ctx.actorUserId,
+                targetDrawer: "talent-inquiry",
+                targetPayload: { inquiryId: ctx.inquiryId },
+                originKind: "message_sent",
+                originInquiryId: ctx.inquiryId,
+              }),
+            );
+          }
+          if (recipients.clientUserId && recipients.clientUserId !== ctx.actorUserId) {
+            promises.push(
+              emitNotificationToUsers([recipients.clientUserId], {
+                tenantId: ctx.tenantId,
+                kind: "message",
+                surface: "client",
+                title,
+                body,
+                actorUserId: ctx.actorUserId,
+                targetDrawer: "client-inquiry",
+                targetPayload: { inquiryId: ctx.inquiryId },
+                originKind: "message_sent",
+                originInquiryId: ctx.inquiryId,
+              }),
+            );
+          }
+        }
+
+        await Promise.all(promises);
+      })
+      .catch((err) => logServerError("inquiry-engine-messages.notifyFanout", err));
 
     return { success: true, data: { messageId: row.id as string } };
   });
