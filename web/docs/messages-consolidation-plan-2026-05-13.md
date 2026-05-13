@@ -638,7 +638,7 @@ These are PO calls. They are NOT open for re-debate inside this plan.
 
 | # | Decision |
 |---|---|
-| 1 | Final tab naming: **Chat · Lineup · Offer · Event · Files**. Chat sub-toggle [Client \| Group \| DM] |
+| 1 | Final tab naming: **Chat · Lineup · Offer · Details · Files**. Chat sub-toggle [Client \| Group \| DM] |
 | 2 | Kill 4-dot status pill row; one chip on right edge opens Status sheet with 4 status families |
 | 3 | Header offer chip on all roles, role-appropriate amount + tone |
 | 4 | "Lineup" universal tab name across roles |

@@ -2934,7 +2934,7 @@ function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry; onBac
     },
     {
       kind: "event",
-      label: "Event",
+      label: "Details",
       status: eventStatus,
       tone: "neutral",
     },
@@ -3181,7 +3181,7 @@ function renderChatCardForMessage(
         <CallSheetUpdateCard
           changedField={get<string>("changed_field", "")}
           byName={get<string>("by_name", "")}
-          onOpen={() => toast("Open Event tab — wire to setActiveTab('event')")}
+          onOpen={() => toast("Open Details tab — wire to setActiveTab('event')")}
         />
       );
     case "booking_status":
@@ -5549,7 +5549,7 @@ function TalentReservationView({
     },
     {
       kind: "event",
-      label: "Event",
+      label: "Details",
       status: eventStatus,
       tone: "neutral",
     },
@@ -6680,7 +6680,7 @@ export function buildInquiryTabs(opts: {
     }
     adminTabs.push({
       id: "event",
-      label: "Event",
+      label: "Details",
       state: "active",
     });
     adminTabs.push({
@@ -6723,7 +6723,7 @@ export function buildInquiryTabs(opts: {
       },
       {
         id: "event",
-        label: "Event",
+        label: "Details",
         state: "active",
       },
       {
@@ -6756,7 +6756,7 @@ export function buildInquiryTabs(opts: {
       state: "active",
       badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? "€" : undefined),
     },
-    { id: "event", label: "Event", state: "active" },
+    { id: "event", label: "Details", state: "active" },
     {
       id: "files",
       label: "Files",

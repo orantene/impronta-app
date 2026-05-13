@@ -284,7 +284,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
       },
       {
         kind: "event",
-        label: "Event",
+        label: "Details",
         status: eventStatus,
         tone: "neutral",
       },
