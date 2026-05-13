@@ -48,6 +48,13 @@ import { StatusSheet, type StatusSheetData } from "@/components/messages-status-
 import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyles";
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
+import { PayoutNudgeCard } from "@/components/talent-payouts/PayoutNudgeCard";
+import {
+  MessageReactionMenu,
+  ReplyContextBar,
+  type ReplyTarget,
+  replyTargetFromMessage,
+} from "@/components/chat-interactions";
 import {
   ReservationThread,
   type PillDescriptor,
@@ -3148,6 +3155,9 @@ function AdminMessageStream({
 }) {
   const { toast, state, effectiveTenant } = useAdminShell();
   const [, startTransition] = useTransition();
+  // Items 1-3 wiring (Messages consolidation v2): reply target for the
+  // composer's quoted-reply context bar. Cleared on send or × dismiss.
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   // Subscribe so locally-sent messages re-render the stream.
   useMessageStashSubscription();
   const localMessages = readLocalMessages(threadKey);
@@ -3202,6 +3212,12 @@ function AdminMessageStream({
       flex: 1, minHeight: 0,
       fontFamily: FONTS.body,
     }}>
+      {/* Items 1-3 wiring: bubble hover-actions reveal rule. Desktop:
+          reveal on hover. Touch / coarse pointer: always visible. */}
+      <style dangerouslySetInnerHTML={{ __html:
+        "[data-msg-bubble-group]:hover [data-msg-actions]{opacity:1!important;pointer-events:auto!important}"
+        + "@media (pointer:coarse){[data-msg-actions]{opacity:1!important;pointer-events:auto!important}}"
+      }} />
       {firstTimeClientName && (
         <div style={{ paddingTop: 10 }}>
           <FirstConvBanner clientName={firstTimeClientName} audience="admin" />
@@ -3224,7 +3240,89 @@ function AdminMessageStream({
           return (
             <React.Fragment key={m.id}>
               {showDay && <DaySeparator label={thisDay} />}
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexDirection: mine ? "row-reverse" : "row" }}>
+              <div
+                data-msg-bubble-group
+                style={{
+                  position: "relative",
+                  display: "flex", gap: 8, alignItems: "flex-end",
+                  flexDirection: mine ? "row-reverse" : "row",
+                }}
+              >
+                {/* Items 1-3 wiring: hover actions row — reactions +
+                    reply + ⋯ menu. Reveals on hover (desktop) and is
+                    always-visible on touch via CSS in mobile-shell.css.
+                    Engine writes (reactions, reply persistence) are
+                    shipped server-side; UI primitive defaults to toast
+                    fallback when handlers aren't connected yet. */}
+                <div
+                  data-msg-actions
+                  style={{
+                    position: "absolute",
+                    top: -10,
+                    [mine ? "right" : "left"]: 36,
+                    display: "inline-flex", gap: 4,
+                    padding: 2,
+                    background: "rgba(255,255,255,0.96)",
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    borderRadius: 999,
+                    boxShadow: "0 4px 12px rgba(11,11,13,0.10)",
+                    zIndex: 2,
+                    // Hidden by default; revealed on group hover via the
+                    // [data-msg-bubble-group]:hover [data-msg-actions]
+                    // rule injected once at the top of this stream.
+                    opacity: 0,
+                    transition: "opacity 100ms",
+                    pointerEvents: "none",
+                  } as React.CSSProperties}
+                >
+                  <MessageReactionMenu
+                    toast={(s) => toast(s)}
+                    placement={mine ? "above" : "above"}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Reply to this message"
+                    title="Reply"
+                    onClick={() => setReplyTarget(replyTargetFromMessage({
+                      id: m.id,
+                      senderName: m.senderName,
+                      body: m.body,
+                    }))}
+                    style={{
+                      width: 28, height: 28, padding: 0,
+                      background: "transparent", border: "none",
+                      cursor: "pointer",
+                      color: COLORS.inkMuted,
+                      borderRadius: 999,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                      <path d="M5 4L2 7l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2 7h6c2 0 4 1 4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Message actions"
+                    title="More"
+                    onClick={() => toast("Per-message actions — coming soon")}
+                    style={{
+                      width: 28, height: 28, padding: 0,
+                      background: "transparent", border: "none",
+                      cursor: "pointer",
+                      color: COLORS.inkMuted,
+                      borderRadius: 999,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                      <circle cx="3" cy="7" r="1.2" fill="currentColor"/>
+                      <circle cx="7" cy="7" r="1.2" fill="currentColor"/>
+                      <circle cx="11" cy="7" r="1.2" fill="currentColor"/>
+                    </svg>
+                  </button>
+                </div>
                 {!mine && (
                   <Avatar
                     size={26}
@@ -3278,6 +3376,15 @@ function AdminMessageStream({
           );
         })}
       </div>
+      {/* Items 1-3 wiring: reply context bar sits above the composer
+          when the user has tapped Reply on a message. Cancel via × or
+          on successful send (caller clears via setReplyTarget(null)). */}
+      {replyTarget && (
+        <ReplyContextBar
+          target={replyTarget}
+          onCancel={() => setReplyTarget(null)}
+        />
+      )}
       <div style={{
         flexShrink: 0,
         padding: "10px 14px 14px",
@@ -4833,7 +4940,7 @@ function funnelIndexFor(stage: string): number {
 // ── Talent JOB DETAIL — the heart of the talent shell ──
 // Layout (top-down): unified header → tabs → conversation
 function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
-  const { toast } = useAdminShell();
+  const { toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   // C4 — capture pending to no-op duplicate clicks during in-flight
   // Accept / Decline. Double-tap was firing two engine calls + producing
@@ -4998,6 +5105,21 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
                   lockClient={!isCoordinator}
                   onLockedClick={() => setCoordRequestOpen(true)}
                 />
+              )}
+              {/* Item #12 wiring: pitch-origin context. Renders on the
+                  talent Chat tab when this conv came from a Pitch.
+                  Conversation type doesn't carry pitchId today —
+                  surface stays hidden until pitchId is plumbed onto
+                  conv (or a sibling field is added). */}
+              {activeTab === "chat" && (conv as Conversation & { pitchId?: string }).pitchId && (
+                <div style={{ padding: "44px 12px 4px" }}>
+                  <PitchOriginCard
+                    tenantSlug={effectiveTenant.slug}
+                    pitchId={(conv as Conversation & { pitchId?: string }).pitchId as string}
+                    pitchTitle={(conv as Conversation & { pitchTitle?: string }).pitchTitle ?? "Pitch"}
+                    compact
+                  />
+                </div>
               )}
               {showGroup && (
                 <ConversationTab
@@ -12669,7 +12791,7 @@ function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }
 }
 
 function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
-  const { toast } = useAdminShell();
+  const { toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [, startClientOfferTransition] = useTransition();
   const baseOffer = getOffer(conv.id);
@@ -12696,7 +12818,12 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   if (!offer) {
     if (isTalent) {
       return (
-        <div style={{ padding: 18, fontFamily: FONTS.body }}>
+        <div style={{ padding: 18, fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Item #7 wiring: payout nudge surfaces when the talent's
+              Stripe Connect Express account isn't enabled yet. Snapshot
+              status data is mock here; real talent OfferTab will pass
+              status from server-loaded talent_profiles snapshot. */}
+          <PayoutNudgeCard tenantSlug={effectiveTenant?.slug ?? "impronta"} status="none" />
           <div style={{
             background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
             borderRadius: RADIUS.md, padding: 16,

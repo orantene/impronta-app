@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { HybridModeSwitcher } from "@/components/hybrid-identity/HybridModeSwitcher";
 import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
 import {
   buildPostPublicPathname,
@@ -693,6 +694,19 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
         {/* Right side — search chip + settings + sidebar layout toggle.
             "+ New" + AI assistant unified into BottomActionFab (bottom-right). */}
         <div data-tulala-app-topbar-right style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Item #8 wiring: Talent ⇄ Workspace switcher for hybrid
+              identities. Renders nothing when the user isn't a hybrid
+              (canTalent && canWorkspace both required). Data plumbing:
+              the topbar's parent should consume resolveActorIdentity
+              and pass the props down. Placeholder defaults render
+              nothing — wire when hybrid identity data is in scope. */}
+          <HybridModeSwitcher
+            current="workspace"
+            canTalent={false}
+            canWorkspace={false}
+            talentHref="#"
+            workspaceHref="#"
+          />
           {/* #2 — Global search chip. Opens the existing CommandPalette
               (⌘K) so power-users can find anything instantly. */}
           {onOpenSearch && (
