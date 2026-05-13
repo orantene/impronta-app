@@ -40,14 +40,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  ReservationThread,
-  type PillDescriptor,
-  type PillKind,
-  type SheetDescriptor,
-  type ReservationStage,
-} from "@/components/reservation-thread";
+import { useRouter } from "next/navigation";
 import { createAgencyInquiry, quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { sendMessage as sendMessageAction, markThreadRead } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
 import {
@@ -2308,15 +2301,6 @@ function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: I
 function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
   const { toast, state, effectiveTenant } = useAdminShell();
   const [activeTab, setActiveTab] = useState<ThreadTabId>("client");
-
-  /* Phase A PR 2 — admin re-skin onto the ReservationThread primitive,
-   * behind a `?rt=1` search-param flag. Hook is called unconditionally
-   * here at the top; the conditional render decision happens AFTER all
-   * other hooks fire to satisfy Rules of Hooks (see end of derived-state
-   * block below). Audit: web/docs/messages-consolidation-audit-2026-05-13.md */
-  const searchParams = useSearchParams();
-  const useReservationThread = searchParams?.get("rt") === "1";
-
   // Plan tier drives admin-only affordances inside the booking tab
   // (e.g. Free hides Reassign coordinator). The state plan uses
   // "network" — map to AdminBookingTab's "hub-network" key.
@@ -2346,13 +2330,7 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
     } else if (activeTab === "talent") {
       void markThreadRead(effectiveTenant.slug, inquiry.id, "group");
     }
-  }, [activeTab, inquiry.id, inquiryIsUuid, effectiveTenant.slug]);
-
-  // Phase A PR 2 — defer to new primitive when the flag is on. Placed
-  // AFTER all hooks so React Hooks order is stable across renders.
-  if (useReservationThread) {
-    return <AdminReservationView inquiry={inquiry} onBack={onBack} />;
-  }
+  }, [activeTab, inquiry.id, inquiryIsUuid]);
 
   // Offer state
   const offer = inquiry.offer;
@@ -2574,266 +2552,6 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
       <ShellNextActionBar {...adminAction} />
     </div>
   );
-}
-
-/* ─── AdminReservationView ──────────────────────────────────────────
- * Phase A PR 2 — admin POV rendered through <ReservationThread>.
- * Behind `?rt=1` flag inside AdminInquiryDetail. The legacy detail UI
- * remains unchanged when the flag is off.
- *
- * Strategy: keep this lean. Pills carry status; sheets wrap the existing
- * tab components (OfferTab, FilesTab, LogisticsTab, AdminBookingTab,
- * LiveLineupPanel) so we don't fork rendering logic for v1. As each
- * sheet's content gets a proper redesign in follow-up PRs, we replace
- * its inner body, not the shell.
- */
-function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
-  const { effectiveTenant } = useAdminShell();
-  const planTier = usePlanTierFromShell();
-  void effectiveTenant; // reserved for future server-action calls inside sheets
-
-  const allTalents = inquiry.requirementGroups.flatMap(g => g.talents);
-  const lineupTotal = allTalents.length;
-  const lineupAccepted = allTalents.filter(t => t.status === "accepted").length;
-  const lineupPending = allTalents.filter(t => t.status === "pending").length;
-  const fileCount = (MOCK_FILES_FOR_CONV[resolveFileKey(inquiry.id)] ?? []).length;
-  const inquiryR = toInquiry(inquiry);
-
-  // Pipeline stage mapping (admin uses the same 5-step strip as client/talent).
-  const stage: ReservationStage =
-    inquiry.stage === "draft" || inquiry.stage === "submitted" ? "inquiry"
-    : inquiry.stage === "coordination" ? "review"
-    : inquiry.stage === "offer_pending" ? "offer"
-    : inquiry.stage === "approved" || inquiry.stage === "booked" ? "booked"
-    : inquiry.stage === "rejected" || inquiry.stage === "expired" ? "wrapped"
-    : "inquiry";
-
-  const closedReason =
-    inquiry.stage === "rejected" ? "This inquiry was declined."
-    : inquiry.stage === "expired" ? "This inquiry expired."
-    : undefined;
-
-  // Offer summary for pill status.
-  const offerStatus: { text: string; tone: PillDescriptor["tone"] } = (() => {
-    if (!inquiry.offer) return { text: "Not started", tone: "neutral" };
-    const o = inquiry.offer;
-    if (o.status === "draft")     return { text: `Draft · ${o.total}`,            tone: "neutral" };
-    if (o.status === "sent")      return { text: `${o.total} · awaiting client`,  tone: "warn" };
-    if (o.status === "accepted")  return { text: `${o.total} · approved`,         tone: "ok" };
-    if (o.status === "rejected")  return { text: `${o.total} · declined`,         tone: "alert" };
-    return { text: o.total, tone: "neutral" };
-  })();
-
-  const eventStatus = (() => {
-    const parts: string[] = [];
-    if (inquiry.date) parts.push(inquiry.date);
-    if (inquiry.location) parts.push(String(inquiry.location).split(",")[0]?.trim() ?? "");
-    return parts.filter(Boolean).join(" · ") || "TBC";
-  })();
-
-  const lineupStatus = lineupTotal === 0
-    ? "Empty"
-    : `${lineupAccepted}/${lineupTotal} accepted${lineupPending > 0 ? ` · ${lineupPending} pending` : ""}`;
-
-  const pills: PillDescriptor[] = [
-    {
-      kind: "lineup",
-      label: "Lineup",
-      status: lineupStatus,
-      tone: lineupTotal === 0 ? "neutral" : lineupAccepted === lineupTotal ? "ok" : "warn",
-    },
-    {
-      kind: "offer",
-      label: "Offer",
-      status: offerStatus.text,
-      tone: offerStatus.tone,
-    },
-    {
-      kind: "event",
-      label: "Event",
-      status: eventStatus,
-      tone: "neutral",
-    },
-    {
-      kind: "files",
-      label: "Files",
-      status: fileCount === 0 ? "" : String(fileCount),
-      tone: "neutral",
-    },
-    {
-      kind: "team",
-      label: "Team",
-      status: inquiry.coordinator?.name ?? "Unassigned",
-      tone: inquiry.coordinator ? "neutral" : "warn",
-    },
-  ];
-
-  const sheets: Partial<Record<PillKind, SheetDescriptor>> = {
-    lineup: {
-      kind: "lineup",
-      title: "Lineup",
-      content: <LiveLineupPanel inquiryId={inquiry.id} />,
-    },
-    offer: {
-      kind: "offer",
-      title: "Offer",
-      content: (
-        <div style={{ margin: -14 }}>
-          <OfferTab conv={{ id: inquiry.id } as Conversation} pov={{ kind: "admin" }} />
-        </div>
-      ),
-    },
-    event: {
-      kind: "event",
-      title: "Event details",
-      content: (
-        <div style={{ margin: -14 }}>
-          <LogisticsTab inquiry={inquiryR} pov="admin" />
-        </div>
-      ),
-    },
-    files: {
-      kind: "files",
-      title: "Files",
-      content: (
-        <div style={{ margin: -14 }}>
-          <FilesTab conv={{ id: inquiry.id } as Conversation} povCanSeeTalentFiles={true} />
-        </div>
-      ),
-    },
-    team: {
-      kind: "team",
-      title: "Team & coordination",
-      content: (
-        <div style={{ margin: -14 }}>
-          <AdminBookingTab inquiry={inquiryR} planTier={planTier} />
-          <LiveBookingActions inquiryId={inquiry.id} inquiryStage={inquiry.stage} />
-        </div>
-      ),
-    },
-  };
-
-  // Stage transition menu — keep the existing dropdown component
-  // by wrapping its handler into the new header's `moveToMenu`.
-  // For v1 we just link out to the legacy menu instance via a
-  // hidden span anchor.
-  const moveToMenu = useStageTransitionMenuForReservation(inquiry.id, inquiry.stage);
-
-  // Stream = client thread for v1. Talent group goes inside the Team
-  // sheet in a future PR; for now the existing AdminBookingTab handles
-  // most of that affordance.
-  const clientMessages = inquiry.messages.filter(m => m.threadType === "private");
-  const stageBucket: "inquiry" | "hold" | "booked" | "past" =
-      inquiry.stage === "draft" || inquiry.stage === "submitted" || inquiry.stage === "coordination" ? "inquiry"
-    : inquiry.stage === "offer_pending" ? "hold"
-    : inquiry.stage === "approved" || inquiry.stage === "booked" ? "booked"
-    : "past";
-  const smartCtx = stageBucket === "inquiry" ? "inquiry"
-    : stageBucket === "hold" ? "hold"
-    : stageBucket === "booked" ? "offer"
-    : "default";
-
-  const stream = (
-    <AdminMessageStream
-      messages={clientMessages}
-      placeholder={`Reply to ${inquiry.clientName}…`}
-      threadKey={`admin:${inquiry.id}:client`}
-      smartReplyContext={smartCtx}
-      firstTimeClientName={isFirstConvWith(inquiry.clientName) ? inquiry.clientName : undefined}
-      closed={inquiry.stage === "rejected" || inquiry.stage === "expired"}
-      closedNotice={inquiry.stage === "rejected"
-        ? "Closed · the client passed on this offer."
-        : "Closed · auto-expired (no client response in the window)."}
-      inquiryId={inquiry.id}
-      tenantSlug={effectiveTenant.slug}
-      threadType="private"
-    />
-  );
-
-  // AdminMessageStream embeds its own composer; the primitive's
-  // composer slot stays empty.
-  return (
-    <ReservationThread
-      pov="admin"
-      header={{
-        title: inquiry.brief || inquiry.clientName,
-        subtitle: [inquiry.clientName, eventStatus].filter(Boolean).join(" · "),
-        stage,
-        closedReason,
-        moveToMenu,
-      }}
-      pills={pills}
-      sheets={sheets}
-      stream={stream}
-      composer={
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="Back to inbox"
-          style={{
-            display: "none",
-          }}
-        >
-          Back
-        </button>
-      }
-    />
-  );
-}
-
-/** Tiny helper hook that re-exposes the admin shell plan tier in the
- *  form AdminBookingTab expects. Named `use*` per Rules of Hooks since
- *  it calls another hook (useAdminShell). Inline to keep AdminReservationView
- *  self-contained — when the re-skin lands fully we'll fold this. */
-function usePlanTierFromShell(): "free" | "studio" | "agency" | "hub-network" {
-  const { state } = useAdminShell();
-  return state.plan === "network" ? "hub-network" : state.plan;
-}
-
-/** Maps the legacy StageTransitionMenu's options into the new header's
- *  moveToMenu shape. Returns undefined when no transitions are legal
- *  (closed inquiries) — header hides the ⋯ button in that case.
- *  Defers to the same engine pipeline the legacy menu uses
- *  (quickPatchInquiryStatus / convertInquiryToBookingAction) so engine
- *  guards (version, RLS, audit log) fire identically. */
-function useStageTransitionMenuForReservation(
-  inquiryId: string,
-  stage: RichInquiry["stage"],
-): Array<{ id: string; label: string; onClick: () => void; danger?: boolean }> | undefined {
-  const router = useRouter();
-  const { effectiveTenant, toast } = useAdminShell();
-  const transitions = NEXT_STAGES[stage as string] ?? [];
-  if (transitions.length === 0) return undefined;
-  return transitions.map((t) => ({
-    id: t.value,
-    label: t.label,
-    danger: t.value === "rejected" || t.value === "expired" || t.value === "closed_lost",
-    onClick: () => {
-      void (async () => {
-        try {
-          if (t.value === "booked") {
-            const r = await convertInquiryToBookingAction(effectiveTenant.slug, inquiryId);
-            if (!r.ok) { toast(`Convert failed: ${r.error}`); return; }
-            toast("Inquiry booked");
-            router.refresh();
-            return;
-          }
-          const fd = new FormData();
-          fd.set("inquiry_id", inquiryId);
-          fd.set("status", t.value);
-          const r = await quickPatchInquiryStatus(fd);
-          if (r && "error" in r && r.error) {
-            toast(`Stage update failed: ${r.error}`);
-            return;
-          }
-          toast(`Moved to ${t.label.replace(/^Move to /, "").replace(/^Close /, "")}`);
-          router.refresh();
-        } catch (err) {
-          toast(`Stage change failed: ${err instanceof Error ? err.message : String(err)}`);
-        }
-      })();
-    },
-  }));
 }
 
 // Stream renderer for admin. Reads from RichInquiry.messages directly
@@ -4485,13 +4203,6 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
   const [, startTalentInviteTransition] = useTransition();
   const yourRate = TALENT_RATE_FOR_CONV[conv.id] ?? "—";
 
-  /* Phase A PR 3 — talent re-skin onto the ReservationThread primitive,
-   * behind the same `?rt=1` flag as admin (PR 2). Decision is computed
-   * at the top with all the other hooks; conditional return happens
-   * AFTER the existing hook list so Rules of Hooks stays satisfied. */
-  const searchParams = useSearchParams();
-  const useReservationThread = searchParams?.get("rt") === "1";
-
   // Talent permission model:
   //   • Booking team = native — they're invited so they see it
   //   • Client thread = visible only when Marta IS the coordinator
@@ -4526,20 +4237,6 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
   const fileCount = (MOCK_FILES_FOR_CONV[conv.id] ?? []).length;
   const messages = MOCK_THREAD[conv.id] ?? [];
   const talentGroupUnread = messages.filter(m => m.kind === "text").length > 0 ? Math.min(3, conv.unreadCount) : 0;
-
-  // Phase A PR 3 — defer to new primitive when flag is on. Placed AFTER
-  // all hooks (above) so React Hooks order is stable across renders.
-  if (useReservationThread) {
-    return (
-      <TalentReservationView
-        conv={conv}
-        onBack={onBack}
-        isCoordinator={isCoordinator}
-        yourRate={yourRate}
-        fileCount={fileCount}
-      />
-    );
-  }
 
   return (
     <div style={{
@@ -4712,206 +4409,6 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
         povCanSeeCoordNote={true}
       />
     </div>
-  );
-}
-
-/* ─── TalentReservationView ─────────────────────────────────────────
- * Phase A PR 3 — talent POV rendered through <ReservationThread>.
- * Mirrors AdminReservationView's pattern but with the talent-flavored
- * pills and the Accept / Decline action row when the talent is at
- * invite stage and hasn't responded yet. Hold isn't surfaced (engine
- * has no hold path today — talent can accept or decline only).
- */
-function TalentReservationView({
-  conv, onBack, isCoordinator, yourRate, fileCount,
-}: {
-  conv: Conversation;
-  onBack: () => void;
-  isCoordinator: boolean;
-  yourRate: string;
-  fileCount: number;
-}) {
-  const { toast } = useAdminShell();
-  const router = useRouter();
-  const [, startInviteTxn] = useTransition();
-  void onBack;
-
-  const stage: ReservationStage =
-      conv.stage === "inquiry" ? "inquiry"
-    : conv.stage === "hold"    ? "offer"      // hold = the offer round is open
-    : conv.stage === "booked"  ? "booked"
-    : conv.stage === "past"    ? "wrapped"
-    : "inquiry";
-
-  const closedReason =
-      conv.stage === "cancelled" ? "This was cancelled."
-    : conv.stage === "past" && conv.outcome === "talent_declined" ? "You declined this job."
-    : conv.stage === "past" && conv.outcome === "client_rejected" ? "The client passed on this offer."
-    : conv.stage === "past" && conv.outcome === "completed" ? undefined
-    : undefined;
-
-  const offerSnap = MOCK_OFFER_FOR_CONV[conv.id] ?? null;
-  const offerStatus: { text: string; tone: PillDescriptor["tone"] } = (() => {
-    if (!offerSnap) {
-      return { text: yourRate === "—" ? "Pending" : `Your cut · ${yourRate}`, tone: "neutral" };
-    }
-    const total = conv.amountToYou ?? yourRate;
-    if (offerSnap.stage === "sent")      return { text: `${total} · awaiting client`, tone: "warn" };
-    if (offerSnap.stage === "accepted")  return { text: `${total} · approved`,        tone: "ok" };
-    if (offerSnap.stage === "rejected")  return { text: `${total} · declined`,        tone: "alert" };
-    if (offerSnap.stage === "countered") return { text: `${total} · countered`,       tone: "warn" };
-    return { text: total === "—" ? "In progress" : total, tone: "neutral" };
-  })();
-
-  const eventStatus = (() => {
-    const parts: string[] = [];
-    if (conv.date) parts.push(conv.date);
-    if (conv.location) parts.push(String(conv.location).split(",")[0]?.trim() ?? "");
-    return parts.filter(Boolean).join(" · ") || "TBC";
-  })();
-
-  // Booking-team pill = lineup status (whom you're working with).
-  // Conversation carries `participants` (the booking team) — talents don't
-  // see acceptance state on others, just the headcount.
-  const lineupTotal = (conv.participants ?? []).length;
-  const lineupStatus = lineupTotal === 0 ? "Just you" : `${lineupTotal} on the team`;
-
-  const pills: PillDescriptor[] = [
-    {
-      kind: "lineup",
-      label: "Booking team",
-      status: lineupStatus,
-      tone: "neutral",
-    },
-    {
-      kind: "offer",
-      label: "Offer",
-      status: offerStatus.text,
-      tone: offerStatus.tone,
-    },
-    {
-      kind: "event",
-      label: "Event",
-      status: eventStatus,
-      tone: "neutral",
-    },
-    {
-      kind: "files",
-      label: "Files",
-      status: fileCount === 0 ? "" : String(fileCount),
-      tone: "neutral",
-    },
-  ];
-
-  const sheets: Partial<Record<PillKind, SheetDescriptor>> = {
-    lineup: {
-      kind: "lineup",
-      title: "Who's on this job",
-      content: (
-        <div style={{ margin: -14 }}>
-          <TalentBookingTab
-            conv={conv}
-            inquiry={convToInquiry(conv)}
-            isCoordinator={isCoordinator}
-            onOpenLineup={() => { /* lineup drawer is rendered at parent level; sheet body handles its own */ }}
-          />
-        </div>
-      ),
-    },
-    offer: {
-      kind: "offer",
-      title: "Your offer",
-      content: (
-        <div style={{ margin: -14 }}>
-          <OfferTab conv={conv} pov={{ kind: "talent", talentId: currentTalentId(), isCoordinator }} />
-        </div>
-      ),
-    },
-    event: {
-      kind: "event",
-      title: "Event details",
-      content: (
-        <div style={{ margin: -14 }}>
-          <TalentLogisticsTab conv={conv} inquiry={convToInquiry(conv)} />
-        </div>
-      ),
-    },
-    files: {
-      kind: "files",
-      title: "Files",
-      content: (
-        <div style={{ margin: -14 }}>
-          <FilesTab conv={conv} povCanSeeTalentFiles={true} pov="talent" />
-        </div>
-      ),
-    },
-  };
-
-  // Action row — Accept / Decline when talent is at invite stage on a
-  // real DB-backed inquiry (mock convs stay disabled / no engine path).
-  const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id);
-  const inviteStage = !isCoordinator
-    && (conv.stage === "inquiry" || conv.stage === "hold")
-    && !offerSnap;
-  const actionRow = (isRealUuid && inviteStage) ? [
-    {
-      id: "accept",
-      label: "Accept",
-      emphasis: "primary" as const,
-      preamble: `Coordinator invited you. Take this job, or decline.`,
-      onClick: () => {
-        startInviteTxn(async () => {
-          const r = await acceptInquiryInvitation(conv.id);
-          if (!r.ok) toast(`Accept failed: ${r.error}`);
-          else { toast("Inquiry accepted"); router.refresh(); }
-        });
-      },
-    },
-    {
-      id: "decline",
-      label: "Decline",
-      emphasis: "danger" as const,
-      onClick: () => {
-        if (!confirm("Decline this invite?")) return;
-        startInviteTxn(async () => {
-          const r = await declineInquiryInvitation(conv.id);
-          if (!r.ok) toast(`Decline failed: ${r.error}`);
-          else { toast("Inquiry declined"); router.refresh(); }
-        });
-      },
-    },
-  ] : null;
-
-  // Stream = canonical talent group thread (the booking team channel).
-  // ConversationTab embeds its own composer.
-  const stream = (
-    <ConversationTab
-      conv={conv}
-      threadKey={`${conv.id}:talent`}
-      placeholder="Message booking team…"
-      crossThreadBridge={!isCoordinator ? { who: conv.leader.name, clientName: conv.client } : undefined}
-      povCanEditLineup={isCoordinator}
-      povCanSeeOffers={isCoordinator}
-      povCanSeeCoordNote={true}
-    />
-  );
-
-  return (
-    <ReservationThread
-      pov={isCoordinator ? "talent_coord" : "talent"}
-      header={{
-        title: conv.brief || conv.client,
-        subtitle: [conv.client, eventStatus].filter(Boolean).join(" · "),
-        stage,
-        closedReason,
-        // No move-to menu for talent — talent never drives stage transitions.
-      }}
-      pills={pills}
-      sheets={sheets}
-      stream={stream}
-      composer={<div style={{ display: "none" }} />}
-      actionRow={actionRow}
-    />
   );
 }
 
@@ -8299,7 +7796,7 @@ function PayoutReceiverPicker({
   useEffect(() => {
     loadInquiryPayoutReceiverCandidates(effectiveTenant.slug, inquiryId)
       .then((r) => { if (r.ok) setCandidates(r.data ?? []); });
-  }, [inquiryId, effectiveTenant.slug]);
+  }, [inquiryId]);
 
   const apply = () => {
     if (!selected) { toast("Choose a payout receiver."); return; }
@@ -8397,7 +7894,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
     loadInquiryPaymentState(effectiveTenant.slug, inquiry.id)
       .then((r) => { if (r.ok) setState(r.data ?? null); })
       .finally(() => setLoading(false));
-  }, [inquiry.id, effectiveTenant.slug]);
+  }, [inquiry.id]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -11155,7 +10652,7 @@ function LiveLineupPanel({ inquiryId }: { inquiryId: string }) {
     loadInquiryLineup(effectiveTenant.slug, inquiryId)
       .then((r) => { if (r.ok) setLineup(r.data ?? []); })
       .finally(() => setLoading(false));
-  }, [inquiryId, isUuid, effectiveTenant.slug]);
+  }, [inquiryId, isUuid]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -11356,7 +10853,7 @@ function OfferDraftEditor({ inquiryId, offerId, isAdmin }: { inquiryId: string; 
     loadOfferDraft(effectiveTenant.slug, offerId)
       .then((r) => { if (r.ok && r.data) setSnapshot(r.data); })
       .finally(() => setLoading(false));
-  }, [offerId, effectiveTenant.slug]);
+  }, [offerId]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -12997,7 +12494,7 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
     loadInquiryAttachments(effectiveTenant.slug, inquiryId)
       .then((r) => { if (r.ok) setFiles(r.data ?? []); })
       .finally(() => setLoading(false));
-  }, [inquiryId, isUuid, effectiveTenant.slug]);
+  }, [inquiryId, isUuid]);
 
   useEffect(() => { reload(); }, [reload]);
 
