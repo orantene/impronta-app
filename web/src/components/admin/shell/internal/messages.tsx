@@ -41,6 +41,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CoordRequestSheet } from "@/components/coord-request/CoordRequestSheet";
 import {
   ReservationThread,
   type PillDescriptor,
@@ -2489,11 +2490,20 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
               >
                 <span style={{ display: "inline-flex" }}>
                   {allTalents.slice(0, 5).map((t, idx) => {
-                    const isDeclined = t.status === "rejected" || t.status === "removed";
                     const isAccepted = t.status === "accepted";
+                    const isSuperseded = t.status === "superseded";
+                    const isDeclined = isSuperseded;
+                    // Derive initials from name since the talent rows
+                    // on RichInquiry don't carry an initials field.
+                    const initials = t.name
+                      .trim()
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((s: string) => s[0]?.toUpperCase() ?? "")
+                      .join("") || "·";
                     return (
                       <span
-                        key={t.talentId}
+                        key={`${t.name}-${idx}`}
                         style={{
                           marginLeft: idx === 0 ? 0 : -6,
                           border: `1.5px solid #fff`,
@@ -2504,7 +2514,7 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
                         }}
                         title={`${t.name} · ${t.status}`}
                       >
-                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={t.initials} />
+                        <Avatar size={22} tone="auto" hashSeed={t.name} initials={initials} />
                         {isAccepted && (
                           <span aria-hidden style={{
                             position: "absolute", bottom: -1, right: -1,
@@ -4700,6 +4710,9 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
   const defaultSubThread: ChatSubThreadId = isCoordinator ? "client" : "group";
   const [activeTab, setActiveTab] = useState<ThreadTabId>(defaultTab);
   const [chatSubThread, setChatSubThread] = useState<ChatSubThreadId>(defaultSubThread);
+  // Slice G (Messages consolidation v2): coordinator-request sheet
+  // state. Opens when a plain talent taps the locked Client sub-toggle.
+  const [coordRequestOpen, setCoordRequestOpen] = useState(false);
   // Single shared lineup-drawer state — both the conversation team
   // strip AND the Details tab's "Who's on this job" trigger this same
   // drawer so we never have two divergent representations of the same
@@ -4793,10 +4806,12 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
                         type="button"
                         onClick={() => {
                           if (clientLocked) {
-                            // Slice G placeholder — full request-to-join
-                            // flow lands in that slice. For now: subtle
-                            // toast nudging the user.
-                            toast("Client thread requires coordinator status. Coming: request to join.");
+                            // Slice G (Messages consolidation v2):
+                            // open the coordinator-request sheet. The
+                            // talent can submit a short pitch; the
+                            // engine routes it through the approval
+                            // flow per plan §7.2.
+                            setCoordRequestOpen(true);
                             return;
                           }
                           setChatSubThread(sub);
@@ -4991,6 +5006,15 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
         povCanSeeOffers={isCoordinator}
         povCanSeeCoordNote={true}
       />
+      {/* Slice G (Messages consolidation v2): coordinator-request
+          sheet. Opens when a plain talent taps the locked Client
+          sub-toggle. Engine RPCs from Slice F do the work. */}
+      {coordRequestOpen && (
+        <CoordRequestSheet
+          inquiryId={conv.id}
+          onClose={() => setCoordRequestOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -6259,108 +6283,34 @@ export function buildInquiryTabs(opts: {
     return talentTabs;
   }
 
-  // ── Legacy path for client (will migrate in Slice D) ────────
-  const tabs: TabDef[] = [];
-
-  // Client thread — visible to admin/client/talent_coord. Hidden entirely
-  // for non-coord talent (was prior locked-tab — too much chrome for
-  // something they can't use).
-  if (pov !== "talent") {
-    tabs.push({
-      id: "client",
-      label: "Client thread",
+  // ── Fallback (client pov) ────────────────────────────────────
+  // The actual client surface uses ClientThreadAdapter + the
+  // <ReservationThread> primitive directly (no tab dispatch via this
+  // builder). This fallback emits the v2 vocabulary if a client-pov
+  // caller ever lands here so labels are consistent.
+  void planTier;
+  return [
+    {
+      id: "chat",
+      label: "Chat",
       state: "active",
       badge: unread.client && unread.client > 0 ? unread.client : undefined,
-    });
-  }
-  // Talent group — locked for client. For talent we use "Booking team"
-  // (industry term that names the participants — coordinator + booked
-  // talent) instead of the technical "Talent group". Coordinator-talents
-  // also get this label so they don't see two different names for the
-  // same channel.
-  //
-  // Free-tier exception: solo workspace has no team to coordinate with,
-  // so the Talent group tab adds zero value and clutters the bar. Hide.
-  const hideTalentGroupOnFree = pov === "admin" && planTier === "free";
-  if (!hideTalentGroupOnFree) {
-    tabs.push({
-      id: "talent",
-      label: (pov === "talent" || pov === "talent_coord") ? "Booking team" : "Talent group",
-      state: pov === "client" ? "locked" : "active",
-      lockedReason: pov === "client" ? "Internal coordination" : undefined,
-      badge: unread.talent && unread.talent > 0 ? unread.talent : undefined,
-    });
-  }
-  // Inquiry-stage commercial tab.
-  if (status === "inquiry") {
-    tabs.push({
+    },
+    { id: "lineup", label: "Lineup", state: "active" },
+    {
       id: "offer",
       label: "Offer",
       state: "active",
-      badge: offerNeedsAttention ? "!" : undefined,
-    });
-  }
-  // For talent / talent_coord we run a SINGLE merged info tab at every
-  // stage — same component (TalentBookingTab) renders the right cards
-  // for whatever data is on the conversation. Inquiry stage shows the
-  // job + lineup + coord; booked stage adds countdown + call sheet +
-  // transport + lodging. One tab, no stage-dependent label so the
-  // talent always knows where to find the details. Admin and client
-  // keep the legacy split (Logistics call-sheet editor + Details) since
-  // they need different controls per stage.
-  // Talent + client both get a single MERGED info tab — talent calls
-  // it "Details" (carries the full booking + project context), client
-  // calls it "Project" (project status + lineup + when/where + coord).
-  // Admin now uses the same merged tab pattern (AdminBookingTab); the
-  // dedicated Logistics call-sheet editor is still surfaced separately
-  // for admin only because they're orchestrating across both threads
-  // and need a focused editor surface for the call sheet.
-  const isTalentPov = pov === "talent" || pov === "talent_coord";
-  const isClientPov = pov === "client";
-  const isAdminPov = pov === "admin";
-  // All three povs now get a merged info tab (the polished card grid).
-  // Admin additionally keeps the dedicated Logistics editor at booked
-  // stage; talent's logistics info is folded into the merged tab.
-  const useMergedInfoTab = true;
-  if (status === "booked" && isAdminPov) {
-    tabs.push({ id: "logistics", label: "Logistics", state: "active" });
-  }
-  tabs.push({
-    id: "files",
-    label: "Files",
-    state: "active",
-    badge: unread.files && unread.files > 0 ? unread.files : undefined,
-  });
-  if (status === "booked") {
-    // Payment — used to be locked for talent. But booked talent care
-    // intensely about: when do I get paid, what method, what's the
-    // status. The talent-side view is intentionally narrow (their
-    // take-home only, not the full client invoice). Coordinators of a
-    // talent_coord can still see the full picture.
-    tabs.push({
-      id: "payment",
-      label: "Payment",
+      badge: offerNeedsAttention ? "!" : (status === "booked" && paymentDue ? "€" : undefined),
+    },
+    { id: "event", label: "Event", state: "active" },
+    {
+      id: "files",
+      label: "Files",
       state: "active",
-      badge: paymentDue ? "!" : undefined,
-    });
-  }
-  if (useMergedInfoTab) {
-    // Tab labels: client = "Project" (their language), admin =
-    // "Project" (mirrors client now that admin renders the same card-
-    // grid view), talent = "Details" (industry term — they're inside
-    // the booking, not commissioning a project).
-    const mergedLabel = isClientPov || isAdminPov ? "Project" : "Details";
-    tabs.push({
-      id: "booking",
-      label: mergedLabel,
-      state: "active",
-    });
-  } else {
-    tabs.push({ id: "details", label: "Details", state: "active" });
-  }
-  // Suppress unused warning — kept for future per-pov diverging logic.
-  void isTalentPov;
-  return tabs;
+      badge: unread.files && unread.files > 0 ? unread.files : undefined,
+    },
+  ];
 }
 
 // Conversation → InquiryRecord adapter. Talent/client shells consume
