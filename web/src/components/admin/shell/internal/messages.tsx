@@ -5321,6 +5321,18 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
             DetailsPanel (lighter info card). */}
         {(activeTab === "event" || activeTab === "details" || activeTab === "booking") && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            {/* Details v3 (plan §10): canonical DetailsTab renders when
+                we have a real inquiry UUID. Mock conversations fall
+                straight through to the legacy panels — DetailsTab's
+                data loader requires real DB rows. */}
+            {/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id) && (
+              <div style={{ padding: 14 }}>
+                <DetailsTabContainer
+                  inquiryId={conv.id}
+                  pov={isCoordinator ? "talent_coord" : "talent"}
+                />
+              </div>
+            )}
             {conv.stage === "booked" || conv.stage === "past" ? (
               <TalentBookingTab
                 conv={conv}
@@ -6446,6 +6458,14 @@ function ClientTabsBlock({
       )}
       {activeTab === "details" && (
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          {/* Details v3 (plan §10): canonical DetailsTab on top for
+              real inquiries; legacy DetailsPanel stays below until
+              the v3 surface fully replaces it. */}
+          {/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id) && (
+            <div style={{ padding: 14 }}>
+              <DetailsTabContainer inquiryId={conv.id} pov="client" />
+            </div>
+          )}
           <DetailsPanel inquiry={convToInquiry(conv)} pov="client" />
         </div>
       )}
