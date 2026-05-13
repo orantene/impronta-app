@@ -31,6 +31,7 @@ import { OverflowMenu } from "@/components/chat-interactions";
 import { PALETTES } from "@/components/reservation-thread/tokens";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
+import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
 import ParticipantThreadShell, {
   type ParticipantThreadMessage,
   type ParticipantThreadSendResult,
@@ -362,6 +363,11 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
       title: "Event details",
       content: (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Details v3 (plan §10): canonical client-pov DetailsTab.
+              The original 4-card summary stays below as a quick-glance
+              header until QA confirms the new surface fully covers it. */}
+          <DetailsTabContainer inquiryId={inquiry.id} pov="client" />
+          <div style={{ height: 8 }} />
           <DetailCard label="When" value={fmtDateLong(inquiry.eventDate) ?? "Not set yet"} />
           <DetailCard label="Where" value={inquiry.eventLocation ?? "Not set yet"} />
           {inquiry.quantity != null && inquiry.quantity > 0 && (
