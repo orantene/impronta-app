@@ -446,6 +446,33 @@ export function PublishDrawer() {
     preflightBlockingErrors > 0 ||
     summary.missing.length > 0 ||
     getCompositionCasVersion() === null;
+
+  // QA 2026-05-13 — `publishDisabled` was a 7-way `||` with no tooltip
+  // or banner explaining which condition was active. Operators clicked
+  // a greyed-out "Publish now" with no idea whether they were missing a
+  // save, hung on preflight, or had a real blocker. Now we surface the
+  // first-matching reason as a `title` tooltip + `aria-describedby` so
+  // screen readers also get it. Banners above the button already cover
+  // the deeper reasons (blocking checks, missing sections) — the
+  // tooltip is the at-a-glance hint.
+  const publishDisabledReason = (() => {
+    if (state.kind === "publishing") return "Publishing — please wait.";
+    if (saving) return "Saving draft — try again in a moment.";
+    if (dirty)
+      return "Unsaved changes — autosave is catching up; try again in a moment.";
+    if (preflightLoading) return "Running publish checks…";
+    if (preflightBlockingErrors > 0)
+      return `Fix ${preflightBlockingErrors} blocking publish check${
+        preflightBlockingErrors === 1 ? "" : "s"
+      } above before publishing.`;
+    if (summary.missing.length > 0)
+      return `${summary.missing.length} section${
+        summary.missing.length === 1 ? "" : "s"
+      } missing from the latest published version — reload composition to recover.`;
+    if (getCompositionCasVersion() === null)
+      return "Page version unavailable — reload and try again.";
+    return null;
+  })();
   /**
    * Hard blockers only — things that are wrong with *content or checks*, not
    * transient draft/preflight state (those have their own banners above).
@@ -1270,8 +1297,11 @@ export function PublishDrawer() {
                 aria-label={
                   state.kind === "publishing"
                     ? "Publishing to the live site, please wait"
-                    : undefined
+                    : publishDisabledReason
+                      ? `Publish now — ${publishDisabledReason}`
+                      : undefined
                 }
+                title={publishDisabled ? publishDisabledReason ?? undefined : undefined}
                 style={{
                   height: 30,
                   padding: "0 14px",

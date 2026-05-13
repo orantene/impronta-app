@@ -81,9 +81,30 @@ export async function loadHeadingProbeForLint(
   sectionIds?: ReadonlyArray<string>,
 ): Promise<HeadingProbeResult> {
   const auth = await requireStaff();
-  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!auth.ok) {
+    // QA 2026-05-13 — Outline view used to render "No headings yet"
+    // when this loader failed silently; navigator-panel.tsx falls back
+    // to display names now, but the underlying auth/scope failure is
+    // still worth surfacing in dev so the next operator who sees an
+    // empty Outline can root-cause from the server console rather
+    // than guessing.
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[heading-probe] auth gate failed — Outline view will fall back to display names:",
+        auth.error,
+      );
+    }
+    return { ok: false, error: auth.error };
+  }
   const scope = await requireTenantScope().catch(() => null);
-  if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+  if (!scope) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[heading-probe] tenant scope unresolved — Outline view will fall back to display names",
+      );
+    }
+    return { ok: false, error: "Pick an agency workspace first." };
+  }
 
   const requestedIds = Array.from(new Set((sectionIds ?? []).filter(Boolean)));
   const rows =
