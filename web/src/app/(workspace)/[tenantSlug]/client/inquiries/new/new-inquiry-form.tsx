@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useCallback } from "react";
 import {
   createClientWorkspaceInquiryAction,
   type ClientWorkspaceInquiryActionState,
@@ -75,6 +75,40 @@ export function NewInquiryForm({
   );
   const [selectedId, setSelectedId] = useState(state.values.talentProfileId);
   const selectedTalent = roster.find((item) => item.id === selectedId) ?? null;
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const clearFieldError = useCallback((name: string) => {
+    setFieldErrors((prev) => { const n = { ...prev }; delete n[name]; return n; });
+  }, []);
+
+  const validateField = useCallback((name: string, value: string) => {
+    if (name === "contactName" && !value.trim()) {
+      setFieldErrors((prev) => ({ ...prev, contactName: "Contact name is required" }));
+    } else if (name === "message" && !value.trim()) {
+      setFieldErrors((prev) => ({ ...prev, message: "Please describe your project" }));
+    } else if (name === "message" && value.trim().length < 20) {
+      setFieldErrors((prev) => ({ ...prev, message: "Please add a bit more detail (min 20 characters)" }));
+    } else {
+      clearFieldError(name);
+    }
+  }, [clearFieldError]);
+
+  const handlePreSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+    const form = e.currentTarget;
+    const contactName = (form.elements.namedItem("contactName") as HTMLInputElement)?.value ?? "";
+    const message = (form.elements.namedItem("message") as HTMLTextAreaElement)?.value ?? "";
+    const errors: Record<string, string> = {};
+    if (!contactName.trim()) errors.contactName = "Contact name is required";
+    if (!message.trim()) errors.message = "Please describe your project";
+    else if (message.trim().length < 20) errors.message = "Please add a bit more detail (min 20 characters)";
+    if (Object.keys(errors).length > 0) {
+      e.preventDefault();
+      setFieldErrors(errors);
+      const firstKey = Object.keys(errors)[0];
+      const firstEl = firstKey ? form.elements.namedItem(firstKey) : null;
+      if (firstEl instanceof Element) firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, []);
 
   return (
     <>
@@ -96,6 +130,7 @@ export function NewInquiryForm({
 
       <form
         action={formAction}
+        onSubmit={handlePreSubmit}
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
@@ -118,7 +153,21 @@ export function NewInquiryForm({
         >
           <label style={{ display: "grid", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink }}>
             Contact name
-            <input name="contactName" required defaultValue={state.values.contactName} style={FIELD_STYLE} />
+            <input
+              name="contactName"
+              required
+              defaultValue={state.values.contactName}
+              aria-invalid={!!fieldErrors.contactName}
+              aria-describedby={fieldErrors.contactName ? "err-contactName" : undefined}
+              style={{ ...FIELD_STYLE, ...(fieldErrors.contactName ? { borderColor: C.red } : {}) }}
+              onBlur={(e) => validateField("contactName", e.currentTarget.value)}
+              onChange={() => clearFieldError("contactName")}
+            />
+            {fieldErrors.contactName && (
+              <span id="err-contactName" role="alert" style={{ fontSize: 11.5, color: C.red, marginTop: -2 }}>
+                {fieldErrors.contactName}
+              </span>
+            )}
           </label>
 
           <label style={{ display: "grid", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.ink }}>
@@ -180,8 +229,17 @@ export function NewInquiryForm({
               rows={6}
               placeholder="Tell the agency what you are planning, date flexibility, usage, call time, styling, and anything already confirmed."
               defaultValue={state.values.message}
-              style={{ ...FIELD_STYLE, resize: "vertical", lineHeight: 1.5 }}
+              aria-invalid={!!fieldErrors.message}
+              aria-describedby={fieldErrors.message ? "err-message" : undefined}
+              style={{ ...FIELD_STYLE, resize: "vertical", lineHeight: 1.5, ...(fieldErrors.message ? { borderColor: C.red } : {}) }}
+              onBlur={(e) => validateField("message", e.currentTarget.value)}
+              onChange={() => clearFieldError("message")}
             />
+            {fieldErrors.message && (
+              <span id="err-message" role="alert" style={{ fontSize: 11.5, color: C.red, marginTop: -2 }}>
+                {fieldErrors.message}
+              </span>
+            )}
           </label>
 
           <button
