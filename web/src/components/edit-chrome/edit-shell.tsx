@@ -168,7 +168,9 @@ async function handleShareClick(
     return `${window.location.origin}${result.path}`;
   } catch (error) {
     setMutationError(
-      error instanceof Error ? error.message : "Failed to create share link.",
+      error instanceof Error
+        ? error.message
+        : "Couldn't create the share link — try again.",
     );
     return null;
   }

@@ -253,7 +253,10 @@ export function RevisionsDrawer(): ReactElement | null {
         setRevisions(res.revisions);
         setPublishedVersion(res.publishedVersion);
       } else {
-        setError(res.error ?? "Could not load revisions.");
+        setError(
+          res.error ??
+            "Couldn't load revision history — try closing and reopening Revisions.",
+        );
       }
     });
     return () => {

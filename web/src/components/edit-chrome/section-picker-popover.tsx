@@ -269,7 +269,7 @@ export function SectionPickerPopover() {
               color: CHROME.muted,
             }}
           >
-            No section types available for this slot.
+            No section types available for this area of the page.
           </div>
         ) : (
           <>

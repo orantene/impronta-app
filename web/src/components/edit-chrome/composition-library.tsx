@@ -381,7 +381,7 @@ export function CompositionLibraryOverlay() {
           ok: false,
           reason:
             compatibility.message ??
-            `${starter.label} is not compatible with this slot.`,
+            `${starter.label} isn't available for this part of the page.`,
         };
       }
       const planDeniedReason = sectionTemplateStarterPlanDeniedReason(
@@ -431,7 +431,7 @@ export function CompositionLibraryOverlay() {
           ok: false,
           reason:
             failedStarter.compatibility.reason ??
-            `${failedStarter.starter.label} is not compatible with this slot.`,
+            `${failedStarter.starter.label} isn't available for this part of the page.`,
         };
       }
       return { ok: true, reason: null };
@@ -680,7 +680,7 @@ export function CompositionLibraryOverlay() {
         if (failedCompatibility) {
           reason =
             failedCompatibility.compatibility.reason ??
-            `${failedCompatibility.starter.label} is not compatible with this slot.`;
+            `${failedCompatibility.starter.label} isn't available for this part of the page.`;
         } else {
           allowed = true;
         }
@@ -1167,7 +1167,7 @@ export function CompositionLibraryOverlay() {
               </>
             ) : (
               <>
-                Search or pick a category — all listed types work in this slot. Use{" "}
+                Search or pick a category — all listed types work in this area of the page. Use{" "}
                 <span className="font-medium text-zinc-600">More filters</span>{" "}
                 to narrow kits and starters.
               </>
@@ -1797,7 +1797,7 @@ function DrawerBodyInner({
         <p className="m-0">
           {isSearching
             ? `No kits, templates, or section types match "${query.trim()}".`
-            : "No section templates or types available for this slot."}
+            : "No section templates or types available for this area of the page."}
         </p>
         {recovery ? <p className="m-0 text-xs leading-relaxed text-zinc-400">{recovery}</p> : null}
       </div>
@@ -2698,7 +2698,7 @@ function TemplateDropOverlay({
               ? dropTarget.allowed
                 ? `${activeCount} will be inserted in ${dropTarget.targetSlotLabel}.`
                 : (dropTarget.reason ??
-                  `${activeCount} is not compatible with this slot.`)
+                  `${activeCount} can't be added in this part of the page.`)
               : `${activeCount} will be inserted at the selected position.`}
           </p>
         </div>
@@ -2936,7 +2936,7 @@ function TemplateKitCard({
       aria-label={
         compatibility.ok
           ? `${kit.label} kit, ${kit.starterIds.length} sections. Review or drag into the canvas.`
-          : `${kit.label} kit is not available for this slot. ${compatibility.reason ?? ""}`
+          : `${kit.label} kit isn't available for this part of the page. ${compatibility.reason ?? ""}`
       }
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "copy";
@@ -2990,7 +2990,7 @@ function TemplateKitCard({
         <span className="text-[10px] text-zinc-400">
           {compatibility.ok
             ? "Review or drag into the canvas"
-            : (compatibility.reason ?? "Not available for this slot")}
+            : (compatibility.reason ?? "Not available for this part of the page")}
         </span>
         <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[#3d4f7c]">
           {busy ? "Adding..." : compatibility.ok ? "Review" : "Blocked"}
@@ -3043,7 +3043,7 @@ function TemplateStarterCard({
           ? `${starter.label}, ${sourceKindLabel(starter.sourceKind)}, ${
               starter.readiness === "ready-now" ? "ready now" : "needs setup"
             }. Review or drag into the canvas.`
-          : `${starter.label} is not available for this slot. ${
+          : `${starter.label} isn't available for this part of the page. ${
               compatibility.reason ?? ""
             }`
       }
@@ -3109,7 +3109,7 @@ function TemplateStarterCard({
         <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400">
           {compatibility.ok
             ? `${editModelHeadline(starter.editModel)} · ${starter.editScope}`
-            : (compatibility.reason ?? "Not available for this slot")}
+            : (compatibility.reason ?? "Not available for this part of the page")}
         </span>
         <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[#3d4f7c]">
           {busy ? "Adding..." : compatibility.ok ? "Add" : "Blocked"}
