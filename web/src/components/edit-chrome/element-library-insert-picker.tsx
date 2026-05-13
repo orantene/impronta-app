@@ -177,9 +177,44 @@ export function ElementLibraryInsertPicker({
               fontSize: 11,
               fontWeight: 500,
               color: emptySearchColor,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
             }}
           >
-            No elements match this search.
+            <span>No elements match this search.</span>
+            {query.trim() ? (
+              <button
+                type="button"
+                data-element-library-clear-search=""
+                onClick={() => setQuery("")}
+                style={{
+                  alignSelf: "flex-start",
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  border: isNavigator
+                    ? `1px solid ${CHROME.line}`
+                    : isInspector
+                      ? "1px solid rgb(199 210 254)"
+                      : "1px solid rgba(255,255,255,0.22)",
+                  background: isNavigator
+                    ? CHROME.paper
+                    : isInspector
+                      ? "white"
+                      : "rgba(255,255,255,0.1)",
+                  color: isNavigator
+                    ? CHROME.text
+                    : isInspector
+                      ? "rgb(67 56 202)"
+                      : "white",
+                  cursor: "pointer",
+                }}
+              >
+                Clear search
+              </button>
+            ) : null}
           </div>
         ) : (
           grouped.map((group) => (

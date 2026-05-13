@@ -1248,7 +1248,7 @@ export function CompositionLibraryOverlay() {
                 className="flex w-full items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-left text-[12px] font-medium text-zinc-800 transition hover:border-[#3d4f7c]/25 hover:bg-white"
               >
                 <span className="min-w-0">
-                  More filters for kits & starters
+                  Refine templates (optional)
                   {starterFacetActiveCount > 0 ? (
                     <span className="ml-2 inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-900">
                       {starterFacetActiveCount} active

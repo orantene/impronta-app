@@ -231,6 +231,8 @@ Suggested fixes:
 - Separate "starter kits" from "single sections" more clearly.
 - Make the primary next action obvious: Add, Preview, or Review.
 
+**Mitigation (2026-05-14):** [`composition-library.tsx`](../src/components/edit-chrome/composition-library.tsx) — collapsed facet row label **Refine templates (optional)** (was “More filters…”). [`element-library-insert-picker.tsx`](../src/components/edit-chrome/element-library-insert-picker.tsx) — **Clear search** when the element catalog has no matches (recover from typos without clearing the field manually).
+
 ### BUG-008 - Some labels still feel technical
 
 Severity: Medium
