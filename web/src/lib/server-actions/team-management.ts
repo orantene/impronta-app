@@ -117,6 +117,37 @@ export async function inviteTeamMember(
     const expiresAt = (token as { id: string; expires_at: string }).expires_at;
     const redeemUrl = `/team-invite/${inviteId}`;
 
+    // Fire-and-forget email delivery — no-op when RESEND_API_KEY is unset
+    // so the admin-side flow still works in dev / preview. Failures are
+    // logged in sendEmail; we still return ok so the admin sees the URL.
+    void (async () => {
+      try {
+        const [{ sendEmail }, { teamInviteEmail }, { data: agencyRow }, { data: inviterProfile }] = await Promise.all([
+          import("@/lib/email"),
+          import("@/lib/email/templates"),
+          admin.from("agencies").select("display_name, slug").eq("id", tenantId).maybeSingle(),
+          admin.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
+        ]);
+        const agencyName = (agencyRow as { display_name?: string | null } | null)?.display_name?.trim() || "the workspace";
+        const inviterName = (inviterProfile as { display_name?: string | null } | null)?.display_name?.trim() || "A teammate";
+        const tenantSlug = (agencyRow as { slug?: string | null } | null)?.slug ?? "";
+        const { subject, html } = teamInviteEmail({
+          inviterName,
+          agencyName,
+          role,
+          redeemUrl,
+          expiresAtIso: expiresAt,
+          brand: tenantSlug
+            ? { wordmark: agencyName.toUpperCase(), accountName: agencyName }
+            : undefined,
+        });
+        await sendEmail({ to: trimmed, subject, html });
+      } catch (err) {
+        // Never let email failure break the action — the admin still has the URL.
+        console.warn("[team-management.inviteTeamMember] email send failed", err);
+      }
+    })();
+
     revalidatePath("/", "layout");
     return { ok: true, data: { inviteId, redeemUrl, expiresAt } };
   } catch (err) {

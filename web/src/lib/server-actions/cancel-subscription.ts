@@ -138,6 +138,33 @@ export async function cancelSubscription(
       return { ok: false, error: "Couldn't apply plan change. Try again.", reason: "unexpected" };
     }
 
+    // Fire-and-forget cancel-confirmation email. No-op when RESEND_API_KEY
+    // is unset; failures are logged but don't block the plan change.
+    void (async () => {
+      try {
+        const [{ sendEmail }, { subscriptionCancelEmail }, { data: agency }, { data: profile }] = await Promise.all([
+          import("@/lib/email"),
+          import("@/lib/email/templates"),
+          admin.from("agencies").select("display_name").eq("id", tenantId).maybeSingle(),
+          admin.from("profiles").select("email").eq("id", user.id).maybeSingle(),
+        ]);
+        const agencyName =
+          (agency as { display_name?: string | null } | null)?.display_name?.trim() || "Your workspace";
+        const ownerEmail = (profile as { email?: string | null } | null)?.email?.trim() || null;
+        if (!ownerEmail) return;
+        const { subject, html } = subscriptionCancelEmail({
+          agencyName,
+          fromPlan,
+          toPlan,
+          effectiveAtIso: effectiveAt,
+          brand: { wordmark: agencyName.toUpperCase(), accountName: agencyName },
+        });
+        await sendEmail({ to: ownerEmail, subject, html });
+      } catch (err) {
+        console.warn("[cancel-subscription] email send failed", err);
+      }
+    })();
+
     revalidatePath("/", "layout");
     return {
       ok: true,

@@ -821,13 +821,48 @@ export async function sendTalentClaimInvite(input: {
   const invitationId = (row as { id: string; expires_at: string }).id;
   const expiresAt = (row as { id: string; expires_at: string }).expires_at;
 
-  // Phase 8: dispatch the actual email/SMS. The redeem URL pattern below
-  // matches the team-invite scheme so the auth callback flow can land
-  // the new user, look up the talent_profile by invited_email, and link
-  // user_id automatically on first sign-up.
+  // The redeem URL pattern matches the team-invite scheme so the auth
+  // callback flow can land the new user, look up the talent_profile by
+  // invited_email, and link user_id automatically on first sign-up.
   const redeemUrl = `/register?invitation=${invitationId}${
     input.email?.trim() ? `&email=${encodeURIComponent(input.email.trim())}` : ""
   }`;
+
+  // Fire-and-forget email delivery (email channel only — SMS Phase 8+).
+  // No-op when RESEND_API_KEY unset; failures logged.
+  if (channel === "email" && input.email?.trim()) {
+    const targetEmail = input.email.trim();
+    void (async () => {
+      try {
+        const [{ sendEmail }, { talentClaimInviteEmail }, { data: agency }, { data: talent }] = await Promise.all([
+          import("@/lib/email"),
+          import("@/lib/email/templates"),
+          supabase.from("agencies").select("display_name").eq("id", tenantId).maybeSingle(),
+          supabase
+            .from("talent_profiles")
+            .select("display_name, first_name")
+            .eq("id", input.talent_profile_id)
+            .maybeSingle(),
+        ]);
+        const agencyName = (agency as { display_name?: string | null } | null)?.display_name?.trim() || "the agency";
+        const talentName =
+          (talent as { display_name?: string | null } | null)?.display_name?.trim() ||
+          (talent as { first_name?: string | null } | null)?.first_name?.trim() ||
+          null;
+        const { subject, html } = talentClaimInviteEmail({
+          agencyName,
+          talentDisplayName: talentName,
+          redeemUrl,
+          expiresAtIso: expiresAt,
+          isResend: input.resend === true,
+          brand: { wordmark: agencyName.toUpperCase(), accountName: agencyName },
+        });
+        await sendEmail({ to: targetEmail, subject, html });
+      } catch (err) {
+        console.warn("[sendTalentClaimInvite] email send failed", err);
+      }
+    })();
+  }
 
   return {
     ok: true,

@@ -160,6 +160,107 @@ export function bookingConfirmedEmail(data: {
   };
 }
 
+/** F.1 — Sent when an agency admin invites a new team member by email. */
+export function teamInviteEmail(data: {
+  inviterName: string;
+  agencyName: string;
+  role: "admin" | "coordinator" | "editor" | "viewer";
+  redeemUrl: string;
+  expiresAtIso: string;
+  brand?: EmailBrand;
+}): { subject: string; html: string } {
+  const roleLabel =
+    data.role === "admin" ? "Admin"
+    : data.role === "coordinator" ? "Coordinator"
+    : data.role === "editor" ? "Editor"
+    : "Viewer";
+  const expiresDate = new Date(data.expiresAtIso).toLocaleDateString(undefined, {
+    day: "numeric", month: "short", year: "numeric",
+  });
+  const href = data.redeemUrl.startsWith("http") ? data.redeemUrl : `${siteUrl()}${data.redeemUrl}`;
+  return {
+    subject: `${data.inviterName} invited you to ${data.agencyName} on Tulala`,
+    html: layout(
+      `
+      <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">Join ${data.agencyName} on Tulala</h2>
+      <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
+        ${data.inviterName} added you as <strong>${roleLabel}</strong>. Accept the invite to get into the workspace.
+      </p>
+      <p style="margin:0;font-size:13px;color:#777777;">Link expires ${expiresDate}.</p>
+      ${button(href, "Accept invite →")}
+    `,
+      data.brand,
+    ),
+  };
+}
+
+/** F.2 — Sent when an agency invites a talent to claim their profile. */
+export function talentClaimInviteEmail(data: {
+  agencyName: string;
+  talentDisplayName: string | null;
+  redeemUrl: string;
+  expiresAtIso: string;
+  isResend?: boolean;
+  brand?: EmailBrand;
+}): { subject: string; html: string } {
+  const subjectPrefix = data.isResend ? "Reminder · " : "";
+  const greeting = data.talentDisplayName?.trim()
+    ? `Hi ${data.talentDisplayName.split(" ")[0]}`
+    : "Hi";
+  const expiresDate = new Date(data.expiresAtIso).toLocaleDateString(undefined, {
+    day: "numeric", month: "short", year: "numeric",
+  });
+  const href = data.redeemUrl.startsWith("http") ? data.redeemUrl : `${siteUrl()}${data.redeemUrl}`;
+  return {
+    subject: `${subjectPrefix}${data.agencyName} invited you to join their roster on Tulala`,
+    html: layout(
+      `
+      <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">Claim your profile on ${data.agencyName}</h2>
+      <p style="margin:0 0 14px;font-size:15px;color:#444444;line-height:1.6;">${greeting},</p>
+      <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
+        ${data.agencyName} added you to their roster. Claim your profile to manage bookings, reply to inquiries, and edit your photos and bio.
+      </p>
+      <p style="margin:0;font-size:13px;color:#777777;">Link expires ${expiresDate}.</p>
+      ${button(href, "Claim profile →")}
+    `,
+      data.brand,
+    ),
+  };
+}
+
+/** F.6 — Sent after a workspace cancels or downgrades their subscription. */
+export function subscriptionCancelEmail(data: {
+  agencyName: string;
+  fromPlan: string;
+  toPlan: string;
+  effectiveAtIso: string;
+  brand?: EmailBrand;
+}): { subject: string; html: string } {
+  const effectiveDate = new Date(data.effectiveAtIso).toLocaleDateString(undefined, {
+    day: "numeric", month: "short", year: "numeric",
+  });
+  const isFullCancel = data.toPlan === "free";
+  const subject = isFullCancel
+    ? `${data.agencyName} — subscription canceled`
+    : `${data.agencyName} — plan changed to ${data.toPlan}`;
+  const body = isFullCancel
+    ? "Your roster, inquiries, and booking history stay intact. Public site pages stop publishing and any custom domain disconnects. Resubscribe any time at tulala.digital."
+    : "Entitlements for your new tier are active immediately. Anything that requires the higher tier (custom domain, advanced analytics) is paused; everything else continues.";
+  return {
+    subject,
+    html: layout(
+      `
+      <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">${isFullCancel ? "Your subscription is canceled" : "Plan change confirmed"}</h2>
+      <p style="margin:0 0 12px;font-size:15px;color:#444444;line-height:1.6;">
+        <strong>${data.agencyName}</strong> moved from <strong>${data.fromPlan}</strong> to <strong>${data.toPlan}</strong>, effective ${effectiveDate}.
+      </p>
+      <p style="margin:0;font-size:14px;color:#555555;line-height:1.6;">${body}</p>
+    `,
+      data.brand,
+    ),
+  };
+}
+
 /** Sent to talent when they are added to an inquiry roster. */
 export function talentInvitedEmail(data: {
   talentName: string | null;
