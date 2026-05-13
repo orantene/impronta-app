@@ -23,18 +23,51 @@ export type FeaturedTalentSectionCopy = {
   brandPlaceholder: string;
 };
 
+export type FeaturedTalentEmptyState = {
+  brandLabel: string;
+  inquiryHref: string;
+};
+
 export function FeaturedTalentSection({
   talent,
   locale,
   copy,
   publicPathPrefix = "",
+  emptyState,
 }: {
   talent: FeaturedTalentCard[];
   locale: Locale;
   copy: FeaturedTalentSectionCopy;
   publicPathPrefix?: string;
+  emptyState?: FeaturedTalentEmptyState;
 }) {
-  if (talent.length === 0) return null;
+  if (talent.length === 0) {
+    if (!emptyState) return null;
+    return (
+      <section className="w-full px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <div className="rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] p-10 text-center">
+            <div className="text-4xl" aria-hidden>
+              🎭
+            </div>
+            <h2 className="mt-4 font-display text-xl font-medium tracking-wide text-foreground sm:text-2xl">
+              Roster coming online
+            </h2>
+            <p className="mt-3 text-sm text-[var(--impronta-muted)] sm:text-base">
+              {emptyState.brandLabel} is finalizing their talent showcase. Send your project brief and we&apos;ll match the right fit.
+            </p>
+            <div className="mt-6">
+              <Button asChild>
+                <Link href={emptyState.inquiryHref}>
+                  Send an inquiry <ArrowRight className="ml-1 size-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="w-full px-4 py-10 sm:px-6 sm:py-16 lg:px-8">

@@ -48,6 +48,7 @@ import {
   shouldRenderSnapshotShell,
 } from "@/components/site-shell/PublishedShell";
 import { getPublicPathPrefix } from "@/lib/saas";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 
 const HOMEPAGE_SLOT_ORDER = new Map(
   homepageMeta.slots.map((slot, index) => [slot.key, index] as const),
@@ -366,6 +367,10 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                 locale={locale}
                 copy={featuredCopy}
                 publicPathPrefix={publicPathPrefix}
+                emptyState={{
+                  brandLabel,
+                  inquiryHref: prefixPublicHref("/client/inquiries/new?utm_source=storefront_empty", publicPathPrefix),
+                }}
               />
 
               <BestForSection
