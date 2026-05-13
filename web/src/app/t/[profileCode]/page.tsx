@@ -952,13 +952,13 @@ export default async function PublicTalentProfilePage({
     familyName: profile.last_name ?? null,
     jobTitle:
       primaryTalentType(locale === "es" ? "es" : "en", profile.talent_profile_taxonomy ?? []) ?? null,
-    description: about?.trim() || null,
+    description: aboutText.trim() || null,
     imageUrl: bannerUrl ?? null,
     addressLocality: residenceLabel(locale === "es" ? "es" : "en", profile as TalentProfile) ?? null,
     inLanguage: locale === "es" ? "es" : "en",
     createdAt: (profile as { created_at?: string | null }).created_at ?? null,
     updatedAt: (profile as { updated_at?: string | null }).updated_at ?? null,
-    affiliationName: hostCtx?.kind === "agency" ? agencyOverlay?.agencyName ?? null : null,
+    affiliationName: hostCtx.kind === "agency" ? tenantBrand : null,
   });
 
   return (
