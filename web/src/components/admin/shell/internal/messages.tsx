@@ -2637,52 +2637,18 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
           const showDmStream = isOnChat && chatSubThread === "dm";
           return (
             <>
-              {/* Chat sub-toggle (only on the new unified Chat tab) */}
+              {/* Chat sub-toggle — floating dropdown anchored to a tiny
+                  pill chip in the conversation pane. Replaces the prior
+                  32px-tall always-on row that ate real estate. Click
+                  the chip → drops the 3 options as an absolute panel.
+                  Auto-closes on selection or backdrop tap. */}
               {isOnChat && (
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  padding: "8px 10px",
-                  borderBottom: `1px solid ${COLORS.borderSoft}`,
-                  background: COLORS.surfaceAlt,
-                }}>
-                  {(["client", "group", "dm"] as const).map((sub) => {
-                    const active = chatSubThread === sub;
-                    const label = sub === "client" ? "Client" : sub === "group" ? "Group" : "DM";
-                    const subUnread = sub === "client" ? inquiry.unreadPrivate
-                      : sub === "group" ? inquiry.unreadGroup
-                      : 0;
-                    return (
-                      <button
-                        key={sub}
-                        type="button"
-                        onClick={() => setChatSubThread(sub)}
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: 5,
-                          padding: "5px 11px", borderRadius: 7,
-                          border: "none", cursor: "pointer",
-                          fontFamily: FONTS.body, fontSize: 12,
-                          fontWeight: active ? 700 : 500,
-                          color: active ? COLORS.ink : COLORS.inkMuted,
-                          background: active ? "#fff" : "transparent",
-                          boxShadow: active ? "0 1px 3px rgba(11,11,13,0.10)" : "none",
-                          transition: "all 100ms",
-                        }}
-                      >
-                        {label}
-                        {subUnread > 0 && (
-                          <span style={{
-                            minWidth: 16, height: 16,
-                            padding: "0 4px",
-                            borderRadius: 999,
-                            background: COLORS.indigoDeep, color: "#fff",
-                            fontSize: 10, fontWeight: 700,
-                            display: "inline-flex", alignItems: "center", justifyContent: "center",
-                          }}>{subUnread}</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                <ChatSubToggleDropdown
+                  current={chatSubThread}
+                  onSelect={(s) => setChatSubThread(s)}
+                  clientUnread={inquiry.unreadPrivate}
+                  groupUnread={inquiry.unreadGroup}
+                />
               )}
 
               {showClientStream && (
@@ -4807,57 +4773,13 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           return (
             <>
               {activeTab === "chat" && (
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  padding: "8px 10px",
-                  borderBottom: `1px solid ${COLORS.borderSoft}`,
-                  background: COLORS.surfaceAlt,
-                }}>
-                  {(["client", "group", "dm"] as const).map((sub) => {
-                    const active = chatSubThread === sub;
-                    const label = sub === "client" ? "Client" : sub === "group" ? "Group" : "DM";
-                    const clientLocked = sub === "client" && !isCoordinator;
-                    return (
-                      <button
-                        key={sub}
-                        type="button"
-                        onClick={() => {
-                          if (clientLocked) {
-                            // Slice G (Messages consolidation v2):
-                            // open the coordinator-request sheet. The
-                            // talent can submit a short pitch; the
-                            // engine routes it through the approval
-                            // flow per plan §7.2.
-                            setCoordRequestOpen(true);
-                            return;
-                          }
-                          setChatSubThread(sub);
-                        }}
-                        title={clientLocked ? "Locked — request to join as coordinator" : undefined}
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: 5,
-                          padding: "5px 11px", borderRadius: 7,
-                          border: "none", cursor: clientLocked ? "not-allowed" : "pointer",
-                          fontFamily: FONTS.body, fontSize: 12,
-                          fontWeight: active ? 700 : 500,
-                          color: clientLocked ? COLORS.inkDim : (active ? COLORS.ink : COLORS.inkMuted),
-                          background: active ? "#fff" : "transparent",
-                          boxShadow: active ? "0 1px 3px rgba(11,11,13,0.10)" : "none",
-                          opacity: clientLocked ? 0.6 : 1,
-                          transition: "all 100ms",
-                        }}
-                      >
-                        {clientLocked && (
-                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
-                            <rect x="2.5" y="5" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
-                            <path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" strokeWidth="1.4"/>
-                          </svg>
-                        )}
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
+                <ChatSubToggleDropdown
+                  current={chatSubThread}
+                  onSelect={(s) => setChatSubThread(s)}
+                  groupUnread={talentGroupUnread}
+                  lockClient={!isCoordinator}
+                  onLockedClick={() => setCoordRequestOpen(true)}
+                />
               )}
               {showGroup && (
                 <ConversationTab
@@ -10587,20 +10509,24 @@ function ThreadTabBar({
       overflowX: "auto",
       scrollbarWidth: "none",
     }}>
-      {/* Mobile: collapse tab labels and lean on icons. Keeps the
-          tab strip on a single line at narrow widths instead of
-          wrapping "Booking team" onto two lines. The label remains
-          available to screen readers via aria-label on the button. */}
+      {/* Mobile: tabs are pills with shrunk text + icon, ALL labels
+          visible. The v1 mobile rule hid all non-active labels and
+          left icon-only orphans — user feedback was that this loses
+          clarity (icons alone don't communicate "Lineup" vs "Event").
+          Now labels stay; padding + font-size tighten the strip to
+          a single line at 375 viewport. Horizontal scroll handles
+          overflow when needed. */}
       <style dangerouslySetInnerHTML={{ __html:
         "@media (max-width: 720px){"
         + "[data-tulala-thread-tabs]{padding-left:0}"
-        // Hide all tab labels at mobile by default — the icons carry
-        // the meaning. The active tab keeps its label next to the
-        // icon so users always know which surface they're on.
-        + "[data-tulala-thread-tabs] [data-tulala-tab-label]{display:none}"
-        + "[data-tulala-thread-tabs] button[aria-selected=\"true\"] [data-tulala-tab-label]{display:inline!important;margin-left:2px}"
-        + "[data-tulala-thread-tabs] button{padding:11px 10px 9px!important;gap:5px!important}"
-        + "[data-tulala-thread-tabs] button[aria-selected=\"true\"]{padding:11px 12px 9px!important}"
+        + "[data-tulala-thread-tabs] button{padding:10px 10px 8px!important;gap:5px!important;font-size:12px!important}"
+        + "[data-tulala-thread-tabs] button[aria-selected=\"true\"]{padding:10px 12px 8px!important}"
+        + "}"
+        + "@media (max-width: 380px){"
+        // At very narrow widths shrink the icon a touch so the strip
+        // still fits without wrapping.
+        + "[data-tulala-thread-tabs] button{font-size:11.5px!important;gap:4px!important}"
+        + "[data-tulala-thread-tabs] button svg{width:15px!important;height:15px!important}"
         + "}"
       }} />
       {ordered.map((t, idx) => {
@@ -10651,6 +10577,197 @@ function ThreadTabBar({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * ChatSubToggleDropdown — floating sub-thread switcher for the Chat
+ * tab. Renders as a small "Client ▾" pill that opens an absolute-
+ * positioned panel listing all 3 sub-threads. Auto-closes on selection
+ * + backdrop tap + Esc.
+ *
+ * Replaces the prior 32px-tall always-on segmented row. Reclaims the
+ * vertical space for the conversation pane.
+ */
+function ChatSubToggleDropdown({
+  current,
+  onSelect,
+  clientUnread,
+  groupUnread,
+  /** Plain talent shells can pass `lockClient` so the Client item
+   *  renders disabled + opens the coord-request sheet on tap. */
+  lockClient = false,
+  onLockedClick,
+}: {
+  current: ChatSubThreadId;
+  onSelect: (sub: ChatSubThreadId) => void;
+  clientUnread?: number;
+  groupUnread?: number;
+  lockClient?: boolean;
+  onLockedClick?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const labelOf = (s: ChatSubThreadId): string =>
+    s === "client" ? "Client" : s === "group" ? "Group" : "DM";
+
+  const subs: ChatSubThreadId[] = ["client", "group", "dm"];
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{
+        position: "relative",
+        display: "flex", alignItems: "center",
+        padding: "6px 10px",
+        background: COLORS.surfaceAlt,
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+      }}
+    >
+      <span style={{
+        fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
+        color: COLORS.inkMuted, textTransform: "uppercase",
+        marginRight: 8,
+      }}>
+        Thread
+      </span>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "4px 10px",
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 999,
+          cursor: "pointer",
+          fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
+          color: COLORS.ink,
+          boxShadow: "0 1px 2px rgba(11,11,13,0.04)",
+        }}
+      >
+        {labelOf(current)}
+        {((current === "client" && (clientUnread ?? 0) > 0)
+          || (current === "group" && (groupUnread ?? 0) > 0)) && (
+          <span style={{
+            minWidth: 16, height: 16, padding: "0 4px",
+            borderRadius: 999,
+            background: COLORS.indigoDeep, color: "#fff",
+            fontSize: 10, fontWeight: 700,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+          }}>
+            {current === "client" ? clientUnread : groupUnread}
+          </span>
+        )}
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden style={{
+          transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          transition: "transform 120ms",
+        }}>
+          <path d="M2 4l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 10 + 8 + 60, // align under the pill — pad + label + pill width approx
+            // On mobile the constant left positioning may be slightly off;
+            // since the dropdown is small (180px wide) it stays in view.
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            boxShadow: "0 12px 32px rgba(11,11,13,0.14)",
+            minWidth: 180,
+            zIndex: 50,
+            padding: 4,
+            display: "flex", flexDirection: "column",
+          }}
+        >
+          {subs.map((s) => {
+            const active = current === s;
+            const locked = s === "client" && lockClient;
+            const subUnread = s === "client" ? clientUnread
+              : s === "group" ? groupUnread
+              : 0;
+            return (
+              <button
+                key={s}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  if (locked) {
+                    onLockedClick?.();
+                    setOpen(false);
+                    return;
+                  }
+                  onSelect(s);
+                  setOpen(false);
+                }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "9px 10px",
+                  border: "none",
+                  background: active ? COLORS.surfaceAlt : "transparent",
+                  cursor: locked ? "not-allowed" : "pointer",
+                  borderRadius: 6,
+                  fontFamily: FONTS.body, fontSize: 13, fontWeight: active ? 700 : 500,
+                  color: locked ? COLORS.inkDim : (active ? COLORS.ink : COLORS.ink),
+                  textAlign: "left",
+                  minHeight: 36,
+                  opacity: locked ? 0.7 : 1,
+                }}
+              >
+                {locked && (
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+                    <rect x="2.5" y="5" width="7" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+                    <path d="M4 5V3.5a2 2 0 014 0V5" stroke="currentColor" strokeWidth="1.4"/>
+                  </svg>
+                )}
+                <span style={{ flex: 1 }}>{labelOf(s)}</span>
+                {(subUnread ?? 0) > 0 && (
+                  <span style={{
+                    minWidth: 18, height: 18, padding: "0 6px",
+                    borderRadius: 999,
+                    background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+                    fontSize: 10.5, fontWeight: 700,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {subUnread}
+                  </span>
+                )}
+                {active && (
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                    <path d="M2.5 6l2.5 2.5L10 3.5" stroke={COLORS.accent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
