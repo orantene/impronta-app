@@ -208,7 +208,7 @@ function adaptTalentInquiry(row: TalentInquiryRow, agencyName: string): Conversa
     id:            row.id,
     client:        clientName,
     clientInitials: initials || clientName.slice(0, 2).toUpperCase(),
-    clientTrust:   "basic" as ClientTrustLevel,
+    clientTrust:   (row.trustLevel ?? "basic") as ClientTrustLevel,
     brief:         row.company ? `${row.company} inquiry` : "Direct inquiry",
     stage,
     agency:        agencyName,

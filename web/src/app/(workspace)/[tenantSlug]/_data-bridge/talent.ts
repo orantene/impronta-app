@@ -200,6 +200,8 @@ export type TalentInquiryRow = {
   participantStatus: string;
   /** Unread count in the group thread for this talent user. */
   unreadCount: number;
+  /** Client trust tier snapshot at inquiry submission. Null on historical rows. */
+  trustLevel: "basic" | "verified" | "silver" | "gold" | null;
 };
 
 /**
@@ -273,7 +275,8 @@ export async function loadTalentInquiries(
           event_location,
           created_at,
           updated_at,
-          tenant_id
+          tenant_id,
+          trust_level_at_submission
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -299,6 +302,7 @@ export async function loadTalentInquiries(
         event_location: string | null;
         created_at: string;
         updated_at: string;
+        trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
       } | null;
     };
 
@@ -315,6 +319,7 @@ export async function loadTalentInquiries(
         updated_at: r.inquiries!.updated_at,
         participantStatus: r.status,
         unreadCount: 0,
+        trustLevel: r.inquiries!.trust_level_at_submission ?? null,
       }));
 
     if (!myUserId || rows.length === 0) return rows;
