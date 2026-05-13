@@ -21,7 +21,7 @@ import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-check
 import {
   getConnectedAccountSnapshotById,
   canRouteCheckoutsToAgency,
-  getApplicationFeeForAgency,
+  getApplicationFeeForBooking,
 } from "@/lib/payments/stripe-connect";
 import { headers } from "next/headers";
 
@@ -192,8 +192,11 @@ export async function startInquiryCheckout(
     const connectSnap = await getConnectedAccountSnapshotById(ctx.tenantId);
     const useConnect = connectSnap.ok && canRouteCheckoutsToAgency(connectSnap.data);
     const connectedAccountId = useConnect ? connectSnap.data.stripeAccountId : null;
+    // Phase B PR 3 — pull the actual platform fee from the persisted
+    // commission snapshot, not the legacy flat-0 helper. When the booking
+    // has no snapshot yet (rare), falls back to 0 so checkout still works.
     const applicationFeeCents = useConnect
-      ? getApplicationFeeForAgency(ctx.tenantId, txn.grossAmountCents)
+      ? await getApplicationFeeForBooking(booking.id as string)
       : 0;
 
     const result = await createCheckoutSessionForTransaction({

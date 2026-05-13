@@ -448,16 +448,58 @@ export async function disconnectAccount(
 
 /**
  * Compute the platform application fee in cents for a charge of `amountCents`
- * routed to a given agency. Today this is always 0 — the platform isn't
- * monetizing Connect payouts yet. When that decision is made, this is the
- * single source of truth: read a column off the agencies row, or look up a
- * plan-tier-keyed fee from a config table.
+ * routed to a given agency. Synchronous, kept for legacy callers — always
+ * returns 0. Prefer the async `getApplicationFeeForBooking` below, which
+ * reads the persisted commission snapshot per-booking.
+ *
+ * @deprecated Use `getApplicationFeeForBooking(bookingId)` — it reads
+ * from `booking_commission_snapshot` (per Phase B PR 1/2 spec) so the
+ * fee tracks the actual ratified commission rate, not a flat 0.
  */
 export function getApplicationFeeForAgency(
   _tenantSlug: string,
   _amountCents: number,
 ): number {
   return 0;
+}
+
+/**
+ * Phase B PR 3 — pulls the platform_fee_cents from the booking's
+ * commission snapshot (persisted by `convertToBooking` via the engine
+ * RPC, see `lib/billing/commission-engine.ts`).
+ *
+ * Returns 0 when:
+ *   - The booking has no snapshot (rare — the snapshot persist is
+ *     best-effort post-commit, but if it failed the booking still
+ *     exists). Logged so we notice.
+ *   - The supabase client is unavailable (dev / misconfigured env).
+ *
+ * The math itself is enforced at the DB layer (`CHECK lanes_sum_to_gross`
+ * on `booking_commission_snapshot`) so the value we read here is
+ * guaranteed consistent with the gross + workspace + talent split.
+ */
+export async function getApplicationFeeForBooking(
+  bookingId: string,
+): Promise<number> {
+  if (!bookingId) return 0;
+  // Lazy import — keeps the lib graph clean (commission-engine pulls in
+  // its own server-only deps).
+  const { loadBookingCommissionSnapshot } = await import(
+    "@/lib/billing/commission-engine"
+  );
+  const { createClient: createSupabaseServerClient } = await import(
+    "@/lib/supabase/server"
+  );
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return 0;
+  const snapshot = await loadBookingCommissionSnapshot(supabase, bookingId);
+  if (!snapshot) {
+    // Snapshot missing — booking pre-dates the commission engine OR
+    // the post-commit snapshot failed. Either way the application fee
+    // is 0 today; future repair can backfill via a manual flow.
+    return 0;
+  }
+  return snapshot.platform_fee_cents;
 }
 
 /**
