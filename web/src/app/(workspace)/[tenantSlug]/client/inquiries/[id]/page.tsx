@@ -233,14 +233,18 @@ export default async function ClientInquiryThreadPage({
   }
 
   // ── Action bindings (tenantSlug + inquiryId curried at the page layer) ──
+  //
+  // Use `.bind(null, …)` rather than arrow-wrapping. React Server
+  // Components only let you pass a function to a Client Component if
+  // it's a server-action reference (or a bind of one). Plain arrow
+  // closures over server actions are NOT server actions themselves
+  // and throw "Functions cannot be passed directly to Client
+  // Components" at render time.
   const sendMessageForThread = sendClientInquiryMessage.bind(null, tenantSlug, inquiryId);
   const markReadForThread = markClientInquiryThreadRead.bind(null, tenantSlug, inquiryId);
-  const approveOfferForThread = (offerId: string, expectedVersion: number) =>
-    clientApproveOfferAction(tenantSlug, inquiryId, offerId, expectedVersion);
-  const declineOfferForThread = (offerId: string, expectedVersion: number, reason: string | null) =>
-    clientDeclineOfferAction(tenantSlug, inquiryId, offerId, expectedVersion, reason);
-  const counterOfferForThread = (body: string) =>
-    clientCounterOfferAction(tenantSlug, inquiryId, body);
+  const approveOfferForThread = clientApproveOfferAction.bind(null, tenantSlug, inquiryId);
+  const declineOfferForThread = clientDeclineOfferAction.bind(null, tenantSlug, inquiryId);
+  const counterOfferForThread = clientCounterOfferAction.bind(null, tenantSlug, inquiryId);
 
   // ── Project title — company > agency name ──
   const title = (inquiry.company as string | null) ?? client.agencyName;
