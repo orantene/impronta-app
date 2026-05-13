@@ -57,7 +57,11 @@ export type PrivacyPrefs = {
   dataExportRequestedAt: string | null;
 };
 
-export const DEFAULT_PRIVACY_PREFS: PrivacyPrefs = {
+// Note: NOT exported — Next.js forbids non-async exports in "use server"
+// files. Used only by the loader below to fill in defaults for partial
+// rows. If a UI consumer needs the defaults, move this const to a
+// non-server-action module (e.g. ./user-prefs-types.ts).
+const DEFAULT_PRIVACY_PREFS: PrivacyPrefs = {
   marketingEmailOptOut: false,
   profileVisibility: "public",
   showPhone: "connections",

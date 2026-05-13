@@ -132,6 +132,9 @@ export async function deleteInquiryMessage(
   }
 }
 
-// Exported for UI consumers — drives "show Undo send / Edit affordance" gates.
-export const MESSAGE_UNDO_SEND_WINDOW_MS = UNDO_SEND_WINDOW_MS;
-export const MESSAGE_EDIT_WINDOW_MS = EDIT_WINDOW_MS;
+// Note: window constants are NOT re-exported — Next.js forbids non-async
+// exports in "use server" files. UI consumers should reference the
+// engine's source of truth in `@/lib/inquiry/inquiry-engine-messages`
+// or define their own UI-side constants. (The 30s/15min windows are
+// engine-enforced, so a duplicate UI const would only drive the
+// "show Undo send / Edit affordance" gate.)
