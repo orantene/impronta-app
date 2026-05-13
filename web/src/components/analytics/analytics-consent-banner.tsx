@@ -5,6 +5,9 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 const STORAGE_KEY = "impronta_analytics_consent";
+// Session-only dismiss flag — user wants to close the banner without
+// committing to accept/decline for now. Cleared by tab close.
+const DISMISS_SESSION_KEY = "impronta_analytics_consent_dismissed_at";
 
 type Consent = "granted" | "denied" | null;
 
@@ -36,6 +39,7 @@ function updateGtagConsent(next: "granted" | "denied") {
 export function AnalyticsConsentBanner() {
   const [consent, setConsent] = useState<Consent>(null);
   const [mounted, setMounted] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   // Prototype routes (e.g. /prototypes/drawer-preview) are designer/dev
   // sandboxes, not customer-facing — the consent banner overlaps drawers
   // and clutters screenshots. Suppress on those paths.
@@ -45,6 +49,24 @@ export function AnalyticsConsentBanner() {
   useEffect(() => {
     setMounted(true);
     setConsent(readConsent());
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage.getItem(DISMISS_SESSION_KEY)) {
+        setDismissed(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const dismiss = useCallback(() => {
+    try {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(DISMISS_SESSION_KEY, String(Date.now()));
+      }
+    } catch {
+      /* ignore */
+    }
+    setDismissed(true);
   }, []);
 
   const accept = useCallback(() => {
@@ -67,31 +89,42 @@ export function AnalyticsConsentBanner() {
     setConsent("denied");
   }, []);
 
-  if (!mounted || consent !== null || isPrototypeRoute) return null;
+  if (!mounted || consent !== null || isPrototypeRoute || dismissed) return null;
 
   return (
     <div
       role="dialog"
       aria-label="Analytics consent"
-      className="fixed inset-x-0 bottom-0 z-[100] border-t border-border bg-background/95 px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md md:px-6"
+      // G.11 — mobile: slim auto-height row (was full block), non-blocking
+      // close affordance, lower z so drawer modals win, safe-area padding.
+      className="fixed inset-x-2 bottom-2 z-40 rounded-2xl border border-border bg-background/95 px-3 py-2.5 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md sm:inset-x-4 sm:bottom-4 sm:px-4 md:px-6"
+      style={{ paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom))" }}
     >
-      <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          We use analytics to understand how the directory and inquiries are used. You can accept
-          optional analytics storage or continue without it.
+      <div className="mx-auto flex max-w-4xl items-start gap-2 sm:items-center">
+        <p className="flex-1 text-xs leading-snug text-muted-foreground sm:text-sm">
+          We use analytics to understand how the directory and inquiries are used.
         </p>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={decline}>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button type="button" variant="ghost" size="sm" className="h-7 rounded-lg px-2 text-xs" onClick={decline}>
             Decline
           </Button>
           <Button
             type="button"
             size="sm"
-            className="rounded-xl bg-foreground text-background hover:bg-foreground/90"
+            className="h-7 rounded-lg bg-foreground px-3 text-xs text-background hover:bg-foreground/90"
             onClick={accept}
           >
-            Accept analytics
+            Accept
           </Button>
+          <button
+            type="button"
+            onClick={dismiss}
+            aria-label="Close — decide later"
+            title="Close — decide later"
+            className="ml-0.5 grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+          >
+            <span aria-hidden style={{ fontSize: 16, lineHeight: 1, fontWeight: 400 }}>×</span>
+          </button>
         </div>
       </div>
     </div>
