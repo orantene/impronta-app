@@ -27,6 +27,7 @@ import {
   type ReservationStage,
   type SheetDescriptor,
 } from "@/components/reservation-thread";
+import { OverflowMenu } from "@/components/chat-interactions";
 import { PALETTES } from "@/components/reservation-thread/tokens";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
 import ParticipantThreadShell, {
@@ -532,6 +533,7 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
           stage,
           closedReason,
           // No move-to menu for client. Stage is read-only.
+          headerActions: <OverflowMenu size="sm" />,
         }}
         pills={pills}
         sheets={sheets}

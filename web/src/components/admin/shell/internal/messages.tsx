@@ -4207,7 +4207,7 @@ function TalentJobInbox({
 // row: slim 4-step funnel (Inquiry → Offer → Booked → Wrapped). Trust
 // badges relocate to the Details rail.
 function TalentJobShellHeader({
-  conv, yourRate, onBack, coordCommissionLabel,
+  conv, yourRate, onBack, coordCommissionLabel, onStatusClick, toast,
 }: {
   conv: Conversation;
   yourRate: string;
@@ -4217,6 +4217,10 @@ function TalentJobShellHeader({
    *  and passes it as a small "+€Y coord" badge to surface inline with
    *  the talent rate. Null/undefined hides the badge. */
   coordCommissionLabel?: string | null;
+  /** Opens the StatusSheet when the user taps the status pill. */
+  onStatusClick?: () => void;
+  /** Toast function for OverflowMenu actions. */
+  toast: (msg: string) => void;
 }) {
   const sc = stageStyle(conv.stage);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -4447,14 +4451,37 @@ function TalentJobShellHeader({
             )}
           </div>
         )}
-        <span data-tulala-status-pill style={{
-          flexShrink: 0,
-          fontSize: 10.5, fontWeight: 700,
-          padding: "3px 9px", borderRadius: 999,
-          background: sc.bg, color: sc.fg,
-          textTransform: "uppercase", letterSpacing: 0.4,
-          marginTop: 1,
-        }}>{stageLabel}</span>
+        {onStatusClick ? (
+          <button
+            type="button"
+            data-tulala-status-pill
+            onClick={onStatusClick}
+            aria-label={`Status: ${stageLabel}. Tap for details.`}
+            style={{
+              flexShrink: 0,
+              fontSize: 10.5, fontWeight: 700,
+              padding: "3px 9px", borderRadius: 999,
+              background: sc.bg, color: sc.fg,
+              textTransform: "uppercase", letterSpacing: 0.4,
+              marginTop: 1,
+              border: "none", cursor: "pointer",
+            }}
+          >{stageLabel}</button>
+        ) : (
+          <span data-tulala-status-pill style={{
+            flexShrink: 0,
+            fontSize: 10.5, fontWeight: 700,
+            padding: "3px 9px", borderRadius: 999,
+            background: sc.bg, color: sc.fg,
+            textTransform: "uppercase", letterSpacing: 0.4,
+            marginTop: 1,
+          }}>{stageLabel}</span>
+        )}
+        <ThreadSearchTrigger
+          inquiryId={conv.id}
+          messages={[]}
+        />
+        <OverflowMenu toast={toast} size="sm" />
         </div>
       </div>
       {/* Row 2: slim funnel — labels visible on desktop, hidden on
@@ -4925,6 +4952,8 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           const currency = yourRate.match(/[€£$]/)?.[0] ?? "€";
           return `+${currency}${Math.round(coordShare).toLocaleString()} coord`;
         })()}
+        onStatusClick={() => setStatusSheetOpen(true)}
+        toast={toast}
       />
 
       {/* TAB BAR — Conversation | Offer | Files | Details (no Client thread for talent) */}
@@ -5143,8 +5172,74 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           onClose={() => setCoordRequestOpen(false)}
         />
       )}
+      {/* Slice P wiring (talent): Status sheet — opens from the header
+          status pill. Derives a simplified 4-family status view from
+          the conversation's current state. */}
+      <StatusSheet
+        open={statusSheetOpen}
+        onClose={() => setStatusSheetOpen(false)}
+        data={deriveTalentStatusSheetData(conv, yourRate)}
+      />
     </div>
   );
+}
+
+/** Derive the 4-family status data for the talent Status sheet. Simpler
+ *  than the admin variant — no offer builder state, just the talent's own
+ *  participation and pay. */
+function deriveTalentStatusSheetData(
+  conv: Conversation,
+  yourRate: string,
+): StatusSheetData {
+  const stage: StatusSheetData["stage"] =
+      conv.stage === "inquiry" ? "Inquiry"
+    : conv.stage === "hold" ? "Offer sent"
+    : conv.stage === "booked" ? "Booked"
+    : conv.stage === "past" ? "Wrapped"
+    : "Inquiry";
+
+  const offerStatus: StatusSheetData["offer"]["status"] =
+      stage === "Inquiry" ? "No offer"
+    : stage === "Offer sent" ? "Sent"
+    : stage === "Booked" ? "Accepted"
+    : stage === "Wrapped" ? "Accepted"
+    : "No offer";
+
+  const paymentStatus: StatusSheetData["payment"]["status"] =
+      stage === "Wrapped" ? "Paid"
+    : stage === "Booked" ? "Requested"
+    : "Not requested";
+
+  const hasRate = yourRate && yourRate !== "—";
+
+  return {
+    stage,
+    offer: {
+      status: offerStatus,
+      totalLabel: hasRate ? yourRate : undefined,
+      nextAction:
+          offerStatus === "No offer" ? "Waiting for an offer from the coordinator."
+        : offerStatus === "Sent" ? "Review the offer details in the Offer tab."
+        : offerStatus === "Accepted" ? "Offer accepted — check the Event tab for details."
+        : undefined,
+    },
+    talents: [{ name: "You", status: "Accepted" }],
+    payment: {
+      status: paymentStatus,
+      amountLabel: hasRate ? yourRate : undefined,
+      nextAction:
+          paymentStatus === "Not requested" ? "Payment will be requested after booking is confirmed."
+        : paymentStatus === "Requested" ? "Payment is being processed."
+        : paymentStatus === "Paid" ? "Payment cleared."
+        : undefined,
+    },
+    nextStep:
+        stage === "Inquiry" ? "Wait for the coordinator to set the offer."
+      : stage === "Offer sent" ? "Review the offer and accept or decline."
+      : stage === "Booked" ? "Job is confirmed — check the Event tab."
+      : stage === "Wrapped" ? "Job complete. Payment settled."
+      : undefined,
+  };
 }
 
 /* ─── TalentReservationView ─────────────────────────────────────────

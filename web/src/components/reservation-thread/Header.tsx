@@ -126,6 +126,13 @@ export function Header({ pov, data, onBack }: HeaderProps) {
           {STAGE_LABELS[data.stage]}
         </span>
 
+        {/* Extra header actions — OverflowMenu, search, etc. */}
+        {data.headerActions && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            {data.headerActions}
+          </div>
+        )}
+
         {/* ⋯ menu (admin only — gated by moveToMenu presence) */}
         {data.moveToMenu && data.moveToMenu.length > 0 && (
           <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>

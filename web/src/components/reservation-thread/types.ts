@@ -136,4 +136,7 @@ export interface ReservationThreadHeader {
   /** Optional move-to menu items (admin only). Each item runs an action
    *  when tapped; the host shows them in a ⋯ dropdown. */
   moveToMenu?: Array<{ id: string; label: string; onClick: () => void; danger?: boolean }>;
+  /** Optional extra actions rendered to the right of the stage badge
+   *  (e.g. OverflowMenu for client/talent). ReactNode for flexibility. */
+  headerActions?: import("react").ReactNode;
 }
