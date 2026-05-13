@@ -13,7 +13,7 @@ import { formatRelativeTime, type RelativeTimeOptions } from "./relative-time";
  * Multiple instances share a single document-wide tick so a list of 50
  * rows costs one timer, not fifty.
  */
-let tickListeners = new Set<() => void>();
+const tickListeners = new Set<() => void>();
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 
 function ensureTicker() {
