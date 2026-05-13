@@ -151,5 +151,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   });
 
-  return [...staticEntries, ...cmsEntries, ...postEntries];
+  // Phase G PR 1 — include the agency's published roster in the sitemap.
+  // Without this, talent profile pages (`/t/<profileCode>`) are crawlable
+  // but undiscoverable through any manifest. We scope to talents whose
+  // provenance points at THIS tenant (created_by_agency_id) so the
+  // agency's sitemap doesn't accidentally advertise the entire platform.
+  // Both EN and ES paths are listed; the talent page emits hreflang
+  // alternates so duplicate-content signals consolidate on the canonical.
+  type TalentSitemapRow = { profile_code: string; updated_at: string | null };
+  const { data: talentRows } = await supabase
+    .from("talent_profiles")
+    .select("profile_code, updated_at")
+    .eq("created_by_agency_id", publicScope.tenantId)
+    .in("workflow_status", ["approved", "published"])
+    .eq("visibility", "public")
+    .is("deleted_at", null)
+    .order("updated_at", { ascending: false })
+    .limit(5000); // Sitemap spec allows 50k; 5k is plenty for a single agency.
+  const talents = (talentRows ?? []) as TalentSitemapRow[];
+
+  const talentEntries: MetadataRoute.Sitemap = talents.flatMap((row) => {
+    const code = encodeURIComponent(row.profile_code);
+    const lastModified = row.updated_at ? new Date(row.updated_at) : new Date();
+    return [
+      { url: new URL(`/t/${code}`, base).toString(), lastModified },
+      {
+        url: new URL(withLocalePath(`/t/${code}`, "es"), base).toString(),
+        lastModified,
+      },
+    ];
+  });
+
+  return [...staticEntries, ...cmsEntries, ...postEntries, ...talentEntries];
 }

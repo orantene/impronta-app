@@ -53,6 +53,7 @@ import {
   type EmbeddedMediaProvider,
 } from "./editorial-bridal-profile-blocks";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
+import { buildTalentProfileJsonLd, jsonLdToString } from "@/lib/seo/talent-json-ld";
 import {
   resolveTalentVisibility,
   type TalentSurface,
@@ -939,8 +940,36 @@ export default async function PublicTalentProfilePage({
   const langLine = languages.length > 0 ? languages.join(" · ") : null;
   const firstName = name.split(" ")[0] ?? name;
 
+  // Phase G PR 1 — schema.org ProfilePage + Person JSON-LD. Emitted as a
+  // <script type="application/ld+json"> inside the page tree so Google
+  // can build rich-result cards + knowledge-panel hints for talent
+  // profiles. Public data only — no contact info, no agency-private
+  // financials. See lib/seo/talent-json-ld.ts.
+  const jsonLd = buildTalentProfileJsonLd({
+    canonicalUrl: canonicalShareUrl,
+    name,
+    givenName: profile.first_name ?? null,
+    familyName: profile.last_name ?? null,
+    jobTitle:
+      primaryTalentType(locale === "es" ? "es" : "en", profile.talent_profile_taxonomy ?? []) ?? null,
+    description: about?.trim() || null,
+    imageUrl: bannerUrl ?? null,
+    addressLocality: residenceLabel(locale === "es" ? "es" : "en", profile as TalentProfile) ?? null,
+    inLanguage: locale === "es" ? "es" : "en",
+    createdAt: (profile as { created_at?: string | null }).created_at ?? null,
+    updatedAt: (profile as { updated_at?: string | null }).updated_at ?? null,
+    affiliationName: hostCtx?.kind === "agency" ? agencyOverlay?.agencyName ?? null : null,
+  });
+
   return (
     <PublicDiscoveryStateProvider>
+      {jsonLd ? (
+        <script
+          type="application/ld+json"
+          // Pre-stringified — React must NOT escape JSON-LD content.
+          dangerouslySetInnerHTML={{ __html: jsonLdToString(jsonLd) }}
+        />
+      ) : null}
       <PublicFlashHost dismissAria={ui.flash.dismissAria} />
       <ProfileViewAnalytics talentId={profile.id} locale={locale} />
 
