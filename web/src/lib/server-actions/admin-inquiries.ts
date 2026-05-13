@@ -18,6 +18,7 @@ import { resolveClientAccountContactForSave } from "@/lib/server/client-account-
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
+import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
 
 // Type-only import + re-export. Combined into one statement so Turbopack
 // doesn't emit a runtime reference for `AdminActionState` (it was throwing
@@ -1459,6 +1460,32 @@ export async function createManualInquiry(
   });
 
   // inquiry_talent was dropped 2026-05-22; talent is linked via inquiry_participants on v2 inquiries.
+
+  // A1 — admin-created inquiries now emit the canonical INQUIRY_SUBMITTED
+  // engine event so downstream consumers (notification fan-out, realtime
+  // subscribers, search indexer) fire for manual creates the same way
+  // they do for client-portal submissions. Without this, an admin
+  // creating an inquiry from the +New form was silently invisible to
+  // every event-driven side effect.
+  //
+  // Best-effort: a failure here is logged but doesn't roll back the
+  // insert. The inquiry already exists in the DB; engine-event misses
+  // can be backfilled by an admin tool if needed.
+  try {
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.INQUIRY_SUBMITTED,
+      inquiryId: created.id,
+      actorUserId: user.id,
+      data: {
+        coordinatorAssigned: false,
+        talentCount: 0,
+        sourceChannel: d.source_channel,
+        manualCreate: true,
+      },
+    });
+  } catch (eventErr) {
+    logServerError("admin/createManualInquiry.emitEvent", eventErr);
+  }
 
   revalidatePath("/admin/inquiries");
 
