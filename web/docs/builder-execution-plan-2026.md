@@ -713,6 +713,7 @@ Use this subsection for **session-to-session** sequencing. Canonical definitions
 
 | Date | Change |
 |------|--------|
+| 2026-05-14 | **BUG-005 (publish drawer SR):** [`publish-drawer.tsx`](../src/components/edit-chrome/publish-drawer.tsx) — when **changes since last publish = 0**, a polite **`sr-only`** status reminds that **canvas/preview can still disagree** with the diff; verify Preview / preflight before publishing. |
 | 2026-05-14 | **BUG-005 (trust copy slice):** [`topbar.tsx`](../src/components/edit-chrome/topbar.tsx) — **Unsaved draft** `title` / `aria-label` clarify preview lag vs saved draft; **viewport switcher** tooltips explain desktop vs iframe device previews and remount-on-save. |
 | 2026-05-14 | **BUG-007 (micro-UX):** [`element-library-insert-picker.tsx`](../src/components/edit-chrome/element-library-insert-picker.tsx) — **Clear search** when no catalog matches; [`composition-library.tsx`](../src/components/edit-chrome/composition-library.tsx) — optional filters disclosure renamed **Refine templates (optional)**. |
 | 2026-05-14 | **BUG-008 (composition library copy):** [`composition-library.tsx`](../src/components/edit-chrome/composition-library.tsx) — human-facing **starter kind** labels, **source kind** on kit meta line (not raw `dataSource`), **What’s included** instead of “Recipe”, kit rows show **How you’ll edit** via `editModelHeadline`; starter tile footer uses edit headline + scope. |

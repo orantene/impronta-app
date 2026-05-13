@@ -592,6 +592,14 @@ export function PublishDrawer() {
                         {publishDiff.summary.removed} removed
                       </div>
                     ) : null}
+                    {!publishDiff.loading && publishDiff.summary.total === 0 ? (
+                      <p className="sr-only" role="status" aria-live="polite">
+                        Publish diff shows zero changes versus the last published
+                        snapshot. If the canvas or mobile preview still looks wrong,
+                        scroll the page, try Preview mode, or wait for autosave before
+                        trusting Publish.
+                      </p>
+                    ) : null}
                     <div
                       style={{
                         fontSize: 11,

@@ -190,7 +190,7 @@ Suggested fixes:
 - Add a render health/preflight warning before publish.
 - Disable publish or show a blocking warning when selected/new section has no visible render output.
 
-**Mitigation (2026-05-14):** [`topbar.tsx`](../src/components/edit-chrome/topbar.tsx) — **Unsaved draft** chip adds an `aria-label` plus a longer `title` that names **canvas / device preview lag** while autosave catches up; **Tablet / Mobile** viewport buttons use tooltips explaining the **iframe preview remounts on draft saves** (desktop tooltip: full-width canvas).
+**Mitigation (2026-05-14):** [`topbar.tsx`](../src/components/edit-chrome/topbar.tsx) — **Unsaved draft** chip adds an `aria-label` plus a longer `title` that names **canvas / device preview lag** while autosave catches up; **Tablet / Mobile** viewport buttons use tooltips explaining the **iframe preview remounts on draft saves** (desktop tooltip: full-width canvas). [`publish-drawer.tsx`](../src/components/edit-chrome/publish-drawer.tsx) — when **changes since last publish = 0**, a polite **`sr-only`** line warns screen-reader users that the canvas can still disagree with the diff until they verify in Preview / preflight.
 
 ### BUG-006 - Brand/context clarity is mixed
 
