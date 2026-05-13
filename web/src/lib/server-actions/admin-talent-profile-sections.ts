@@ -191,7 +191,7 @@ export async function updateTalentAvailability(input: {
 }): Promise<Result> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId, tenantSlug } = auth;
+  const { supabase, tenantId } = auth;
 
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
@@ -360,7 +360,7 @@ export async function updateRosterMeta(input: {
 }): Promise<Result> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId, tenantSlug } = auth;
+  const { supabase, tenantId } = auth;
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.internal_notes !== undefined) patch.internal_notes = input.internal_notes?.trim() || null;
@@ -694,7 +694,7 @@ export async function getTalentProfileActivity(input: {
 }): Promise<{ ok: true; entries: ProfileActivityEntry[] } | ErrResult> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, tenantId, tenantSlug } = auth;
+  const { supabase, tenantId } = auth;
 
   // Verify roster membership (read access guard).
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
