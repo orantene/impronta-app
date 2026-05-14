@@ -8,7 +8,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
   loadClientInquiries,
-  loadWorkspaceRosterEnriched,
+  loadWorkspaceRosterLite,
 } from "../../_data-bridge";
 import { loadInquiryMessages } from "../../_data-bridge/inquiries-messages";
 import { ClientMessagesShell } from "./ClientMessagesShell";
@@ -36,18 +36,14 @@ export default async function ClientMessagesPage({
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const inquiries = await loadClientInquiries(session.user.id, scope.tenantId);
-
-  // Roster used by the drawer's NewInquiryForm. Include claimed talent so
-  // the picker isn't empty on a fresh workspace.
-  const roster = (await loadWorkspaceRosterEnriched(scope.tenantId))
-    .filter((item) => item.state === "published" || item.state === "claimed")
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      primaryTypeLabel: item.primaryTypeLabel,
-      city: item.city,
-    }));
+  // Parallel load: inquiries + roster (lite — only the four fields the
+  // drawer's NewInquiryForm needs). Previously called the enriched roster
+  // which fanned out to media + signed-URL + language-count queries; that
+  // made every client page wait on a heavy join.
+  const [inquiries, roster] = await Promise.all([
+    loadClientInquiries(session.user.id, scope.tenantId),
+    loadWorkspaceRosterLite(scope.tenantId),
+  ]);
 
   // Pick the active inquiry: ?inquiry= takes precedence, else first row
   const initialActiveId = pinnedInquiry

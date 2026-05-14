@@ -8,7 +8,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
   loadClientBookings,
-  loadWorkspaceRosterEnriched,
+  loadWorkspaceRosterLite,
   type ClientBookingRow,
 } from "../../_data-bridge";
 import {
@@ -185,13 +185,10 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const [bookings, rosterRaw] = await Promise.all([
+  const [bookings, roster] = await Promise.all([
     loadClientBookings(session.user.id, scope.tenantId),
-    loadWorkspaceRosterEnriched(scope.tenantId),
+    loadWorkspaceRosterLite(scope.tenantId),
   ]);
-  const roster = rosterRaw
-    .filter((r) => r.state === "published" || r.state === "claimed")
-    .map((r) => ({ id: r.id, name: r.name, primaryTypeLabel: r.primaryTypeLabel, city: r.city }));
 
   const upcoming = bookings.filter((b) => !isPast(b.event_date));
   const past     = bookings.filter((b) => isPast(b.event_date) || !b.event_date);

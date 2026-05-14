@@ -189,6 +189,106 @@ export async function loadWorkspaceRosterForTenant(
 }
 
 /**
+ * Lean roster loader for "+ New Inquiry" drawers across the client
+ * dashboard. Returns ONLY the four fields the picker needs (id, name,
+ * primaryTypeLabel, city). No media fetch, no signed URLs, no language
+ * counts — those happen in loadWorkspaceRosterEnriched for the Discover
+ * page.
+ *
+ * Audit finding 2026-05-14: loading the full enriched roster on every
+ * client page (Today / Inquiries / Bookings / Discover) just to power a
+ * drawer the user might never open caused the Today page to hang for
+ * 17 minutes on first load. This loader fixes that.
+ */
+export type RosterLiteItem = {
+  id: string;
+  name: string;
+  primaryTypeLabel?: string;
+  city?: string;
+};
+
+export async function loadWorkspaceRosterLite(
+  tenantId: string,
+): Promise<RosterLiteItem[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("agency_talent_roster")
+      .select(
+        `
+        status,
+        agency_visibility,
+        talent_profile_id,
+        talent_profiles!talent_profile_id (
+          id,
+          display_name,
+          first_name,
+          last_name,
+          home_city_text,
+          workflow_status,
+          user_id,
+          talent_profile_taxonomy!inner (
+            relationship_type,
+            taxonomy_terms ( term_type, name_en )
+          )
+        )
+        `,
+      )
+      .eq("tenant_id", tenantId)
+      .neq("status", "removed")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      logServerError("workspace.loadRosterLite", error);
+      return [];
+    }
+
+    type LiteRow = {
+      status: string;
+      agency_visibility: string;
+      talent_profiles: {
+        id: string;
+        display_name: string | null;
+        first_name: string | null;
+        last_name: string | null;
+        home_city_text: string | null;
+        workflow_status: string | null;
+        user_id: string | null;
+        talent_profile_taxonomy:
+          | Array<{
+              relationship_type: string | null;
+              taxonomy_terms: { term_type: string | null; name_en: string | null } | null;
+            }>
+          | null;
+      } | null;
+    };
+
+    const out: RosterLiteItem[] = [];
+    for (const row of ((data ?? []) as unknown as LiteRow[])) {
+      const p = row.talent_profiles;
+      if (!p) continue;
+      if (p.workflow_status === "rejected") continue;
+      const name =
+        p.display_name?.trim()
+        || `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()
+        || "Unnamed talent";
+      const primaryRel = p.talent_profile_taxonomy?.find(
+        (t) => t.relationship_type === "primary" && t.taxonomy_terms?.term_type === "category",
+      );
+      const primaryTypeLabel = primaryRel?.taxonomy_terms?.name_en ?? undefined;
+      const city = p.home_city_text?.trim() || undefined;
+      out.push({ id: p.id, name, primaryTypeLabel, city });
+    }
+    return out;
+  } catch (err) {
+    logServerError("workspace.loadRosterLite", err);
+    return [];
+  }
+}
+
+/**
  * Enriched roster for the canonical workspace roster page.
  * Same query as loadWorkspaceRosterForTenant but returns WorkspaceRosterItem[]
  * with primaryTypeLabel included (from taxonomy_terms.name_en).

@@ -47,8 +47,10 @@ export {
 // ─── Roster — moved to ./_data-bridge/roster.ts (rev 13)
 export {
   type WorkspaceRosterItem,
+  type RosterLiteItem,
   loadWorkspaceRosterForTenant,
   loadWorkspaceRosterEnriched,
+  loadWorkspaceRosterLite,
 } from "./_data-bridge/roster";
 
 

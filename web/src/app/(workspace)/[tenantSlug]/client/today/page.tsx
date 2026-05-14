@@ -8,7 +8,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
   loadClientInquiries,
-  loadWorkspaceRosterEnriched,
+  loadWorkspaceRosterLite,
 } from "../../_data-bridge";
 import { clientDateMs, formatClientDate } from "../date-format";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
@@ -93,13 +93,10 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const [allInquiries, rosterRaw] = await Promise.all([
+  const [allInquiries, roster] = await Promise.all([
     loadClientInquiries(session.user.id, scope.tenantId),
-    loadWorkspaceRosterEnriched(scope.tenantId),
+    loadWorkspaceRosterLite(scope.tenantId),
   ]);
-  const roster = rosterRaw
-    .filter((r) => r.state === "published" || r.state === "claimed")
-    .map((r) => ({ id: r.id, name: r.name, primaryTypeLabel: r.primaryTypeLabel, city: r.city }));
 
   const firstName = clientProfile.displayName.split(" ")[0] ?? clientProfile.displayName;
 

@@ -9,7 +9,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
   loadClientInquiries,
-  loadWorkspaceRosterEnriched,
+  loadWorkspaceRosterLite,
 } from "../../_data-bridge";
 import { clientDateMs, formatClientDate } from "../date-format";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
@@ -285,13 +285,10 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const [inquiries, rosterRaw] = await Promise.all([
+  const [inquiries, roster] = await Promise.all([
     loadClientInquiries(session.user.id, scope.tenantId),
-    loadWorkspaceRosterEnriched(scope.tenantId),
+    loadWorkspaceRosterLite(scope.tenantId),
   ]);
-  const roster = rosterRaw
-    .filter((r) => r.state === "published" || r.state === "claimed")
-    .map((r) => ({ id: r.id, name: r.name, primaryTypeLabel: r.primaryTypeLabel, city: r.city }));
 
   const open   = inquiries.filter((i) => !isTerminal(i.status));
   const closed = inquiries.filter((i) => isTerminal(i.status));
