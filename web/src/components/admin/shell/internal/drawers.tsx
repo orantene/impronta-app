@@ -6809,7 +6809,8 @@ function TalentProfileShellDrawer() {
               </FieldRow>
               <FieldRow
                 label={copy.t("Show me on Tulala Discover")}
-                hint={copy.t("Cross-tenant talent catalog for paying clients. You appear with your trust badge, agency tag, and 30-day availability. Off by default.")}
+                recommended
+                hint={copy.t("ⓘ Discover is where clients across Tulala find new talent. Appearing here multiplies your exposure to event planners, brands, and agencies. Your trust gates and contact controls still apply — clients reach you through coordinated inquiries, never direct DMs. Toggle off anytime.")}
               >
                 <ToggleControl
                   value={state.isDiscoverable}

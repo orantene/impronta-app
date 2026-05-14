@@ -4892,6 +4892,7 @@ export function FieldRow({
   children,
   hint,
   optional,
+  recommended,
   required,
   error,
   visibility,
@@ -4902,6 +4903,11 @@ export function FieldRow({
   children: ReactNode;
   hint?: string;
   optional?: boolean;
+  /** Marks the field as platform-recommended — renders a small green
+   *  "Recommended" pill in the top-right cluster. Mutually exclusive with
+   *  `optional` and `required` (recommended wins visually). Used to nudge
+   *  users toward an opt-in default-off setting we encourage them to enable. */
+  recommended?: boolean;
   /** Marks the field as required with a small red asterisk after the label. */
   required?: boolean;
   /** Inline error message — replaces hint and tints the row red. */
@@ -4971,7 +4977,25 @@ export function FieldRow({
               onChange={onVisibilityChange}
             />
           )}
-          {optional && (
+          {recommended && (
+            <span
+              aria-label="recommended"
+              style={{
+                fontFamily: FONTS.body,
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: 0.4,
+                textTransform: "uppercase",
+                padding: "2px 7px",
+                borderRadius: 4,
+                background: COLORS.successSoft ?? "rgba(15,79,62,0.10)",
+                color: COLORS.successDeep ?? COLORS.success ?? "#0f4f3e",
+              }}
+            >
+              Recommended
+            </span>
+          )}
+          {optional && !recommended && (
             <span
               style={{
                 fontFamily: FONTS.body,

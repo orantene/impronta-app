@@ -8,11 +8,11 @@
 
 ## 0. Why this document exists
 
-Three threads have been running in parallel: (a) the inquiry-funnel binding (foundation step 0 — converge 5 insert paths through `submitInquiry`), (b) the Messages v2 consolidation (18 slices shipped — thread governance, structured cards, cross-tenant RLS), and (c) the new direction set on 2026-05-14 for **Discover** as the buyer-side power tool and a **paid client subscription** as a new monetization lane.
+Three threads have been running in parallel: (a) the inquiry-funnel binding (foundation step 0 — converge 5 insert paths through `submitInquiry`), (b) the Messages v2 consolidation (18 slices shipped — thread governance, structured cards, cross-tenant RLS), and (c) the new direction set on 2026-05-14 for **Discover** as the client-side power tool and a **paid client subscription** as a new monetization lane.
 
 If we ship Discover without resolving the cross-tenant routing, the funnel converges to a dead end the moment a client picks talents from two different tenants. If we ship Discover as a free public catalog without thinking through the trust ladder, "never pay to DM" gets quietly violated. If we ship a paid client tier without orthogonalizing it from trust, we end up with two payment surfaces fighting each other.
 
-This doc fuses all three into one coherent system: **buyer-side surface → unified inquiry lifecycle → fanned settlement → analytics on every side**. No dead ends.
+This doc fuses all three into one coherent system: **client-side surface → unified inquiry lifecycle → fanned settlement → analytics on every side**. No dead ends.
 
 ---
 
@@ -29,15 +29,15 @@ Discover is the **front door** of every pillar in the [2026 Execution Plan](`~/.
 | **Network** (Pillar 5) | Agency vs independent ownership is a first-class card badge + filter. Hub is a queryable entity. |
 | **Discovery** (Pillar 6) | This *is* Pillar 6. |
 
-The buyer's mental model is: **find → shortlist → compare → submit one inquiry**. The system's mental model is: **N talents → resolve owning party per row → fan out to N tenants → unified payment → per-row settlement**.
+The client's mental model is: **find → shortlist → compare → submit one inquiry**. The system's mental model is: **N talents → resolve owning party per row → fan out to N tenants → unified payment → per-row settlement**.
 
 Two models. One surface.
 
 ---
 
-## 2. The buyer-side surface (Discover)
+## 2. The client-side surface (Discover)
 
-### 2.1 Buyer persona
+### 2.1 Client persona
 
 Sophisticated client — corporate event planner, brand activation lead, festival booker, agency producer, luxury private event concierge. They scan 20-50 profiles in a session. Their currency is *time*. They need:
 
@@ -213,7 +213,7 @@ Three layers of status, all derived:
 
 Browsing the catalog is **free** to all authenticated clients. Power tools are **paid**. Reasoning:
 
-- Discover-as-flywheel beats Discover-as-paywall. Buyers compare platforms; if they can't see the catalog they leave.
+- Discover-as-flywheel beats Discover-as-paywall. Clients compare platforms; if they can't see the catalog they leave.
 - Friction belongs at the *action* (save, compare, multi-inquiry-send), not at the *look*.
 - Composes cleanly with the existing trust ladder.
 
@@ -515,7 +515,7 @@ Public surface: `tulala.digital/t/<profileCode>` already exists.
 | # | Change | Surface | Effort |
 |---|---|---|---|
 | T1 | Add **"Discover enrollment"** toggle | Profile or Settings | Small — new boolean field + UI switch |
-| T2 | Add **Discover card preview** ("how my card looks to buyers") | Profile | Medium — render the Discover card component with this talent's data |
+| T2 | Add **Discover card preview** ("how my card looks to clients") | Profile | Medium — render the Discover card component with this talent's data |
 | T3 | Extend Calendar with **block / unblock UI** + recurring unavailable | Calendar | Small — UI on existing `talentCalendarEntries` model |
 | T4 | Add **travel radius** input (home base + km) | Profile | Small — leverage existing location-input + new int field |
 | T5 | Add **Discover analytics** widget on Today (impressions, saves, shortlist-adds, inquiries) | Today | Medium — new analytics surface, needs event-tracking pipeline |
@@ -526,7 +526,7 @@ Public surface: `tulala.digital/t/<profileCode>` already exists.
 ### 9.3 What we explicitly do NOT add
 
 - No "Discover earnings leaderboard" — feels gamey, conflicts with the premium positioning
-- No per-buyer profile views ("Acme Corp viewed your profile 3 times") — privacy violation for buyers, and pushes us toward LinkedIn-style creepiness
+- No per-client profile views ("Acme Corp viewed your profile 3 times") — privacy violation for clients, and pushes us toward LinkedIn-style creepiness
 - No public ratings on talent — ratings remain trust-signal inputs, not displayed numerically
 
 ---
@@ -586,7 +586,7 @@ Slotting into the [2026 Execution Plan](`~/.claude/.../memory/project_tulala_202
 | **D0** | **Funnel convergence** | Foundation: paths 3, 4, 5 converge through `submitInquiry`. Per-row routing logic + `owning_party_type/id` columns added. | None (existing work) |
 | **D1** | **Data layer** | New tables (`client_subscriptions`, `client_shortlists`, `client_favorites`), new columns on `agency_talent_roster`, materialized view `talent_discover_index`. | D0 |
 | **D2** | **Engine API (read)** | `/api/discover/talents`, `/api/discover/facets`, `/api/discover/talent/:id`, `/api/discover/talent/:id/availability`, `/api/discover/hubs` | D1 |
-| **D3** | **Buyer surface MVP** | Card grid (Roster-card visual parity), filter chips, geographic drill, list-view toggle. Standard tier. | D2 |
+| **D3** | **Client surface MVP** | Card grid (Roster-card visual parity), filter chips, geographic drill, list-view toggle. Standard tier. | D2 |
 | **D4** | **Shortlists + favorites + compare** | All shortlist/favorite endpoints; compare view; named shortlists. | D3 |
 | **D5** | **Submit fan-out** | Path 6 inserted: shortlist → `submitInquiry` with per-row routing. Cross-tenant thread fan-out (extends Messages v2 Slice N). Per-row lineup status. | D0, D4 |
 | **D6** | **Premium subscription** | Stripe product + checkout + portal for client tiers. Paywall placements (rate band, compare, multi-inquiry, advanced filters). | D5 |
@@ -625,13 +625,13 @@ Recommendation: **yes-but-throttled** (Free roster talents discoverable, basic p
 - **Yes**: catalog quality bar
 - **No**: faster catalog growth, but unverified talents may signal "low quality"
 
-Recommendation: **yes for premium card features (rate band, priority placement)**, **no for basic discoverability** (unverified still appears but with "Basic" trust badge, signals to buyer).
+Recommendation: **yes for premium card features (rate band, priority placement)**, **no for basic discoverability** (unverified still appears but with "Basic" trust badge, signals to client).
 
-### 12.6 "Recently viewed by buyer" — surfaced to talent or kept private?
-- **Surfaced**: useful for talent ("13 buyers viewed me this week"); aggregate only, never buyer identities
-- **Private**: respects buyer privacy fully
+### 12.6 "Recently viewed by client" — surfaced to talent or kept private?
+- **Surfaced**: useful for talent ("13 clients viewed me this week"); aggregate only, never client identities
+- **Private**: respects client privacy fully
 
-Recommendation: **aggregate counters surfaced to talent; never per-buyer attribution**.
+Recommendation: **aggregate counters surfaced to talent; never per-client attribution**.
 
 ### 12.7 Hubs as queryable entities — what's a "hub" exactly?
 - Every Studio/Agency workspace = a hub
