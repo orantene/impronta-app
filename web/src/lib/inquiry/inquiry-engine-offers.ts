@@ -132,13 +132,40 @@ export async function createOffer(
 
     const { data: inq } = await supabase
       .from("inquiries")
-      .select("version, uses_new_engine, is_frozen, status")
+      .select("version, uses_new_engine, is_frozen, status, current_offer_id")
       .eq("id", ctx.inquiryId)
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
     if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
     if (!inq.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
+
+    // 2026-05-14 idempotency: if an orphan draft already exists for this
+    // inquiry, reuse it instead of trying to INSERT another (the
+    // inquiry_offers_one_active_offer unique constraint would reject).
+    // Orphan rows come from earlier failed attempts where the offer
+    // INSERT succeeded but the inquiries UPDATE failed with
+    // version_conflict — engine is not transactional today; this guard
+    // closes the user-visible failure mode until a proper RPC wrap.
+    const { data: existingDraft } = await supabase
+      .from("inquiry_offers")
+      .select("id")
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("status", "draft")
+      .maybeSingle();
+    if (existingDraft?.id) {
+      // Wire the inquiry to point at this draft (no version bump needed
+      // — it was already this draft's intended slot).
+      if (!inq.current_offer_id) {
+        await supabase
+          .from("inquiries")
+          .update({ current_offer_id: existingDraft.id as string })
+          .eq("id", ctx.inquiryId)
+          .eq("tenant_id", ctx.tenantId);
+      }
+      return { success: true, data: { offerId: existingDraft.id as string } };
+    }
 
     const { data: offer, error } = await supabase
       .from("inquiry_offers")
