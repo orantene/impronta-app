@@ -599,53 +599,55 @@ Slotting into the [2026 Execution Plan](`~/.claude/.../memory/project_tulala_202
 
 ---
 
-## 12. Open product decisions (need user input before D0 starts)
+## 12. Ratified product decisions (2026-05-14)
 
-### 12.1 Pricing of client tiers
-Standard / Pro / Enterprise — what are the actual prices? Placeholder $0 / $49 / $500+. Market comparison needed (Bookagora, Cameo Pro, Toptal client-side).
+**STATUS:** PO ratified leans on 7 of 8 decisions in session 2026-05-14. Pricing (§12.1) remains TBD before D6 (subscription) can ship. All other slices (D0–D5, D7–D10) are unblocked.
 
-### 12.2 Default discoverable: opt-in or opt-out?
+### 12.1 Pricing of client tiers — ⏳ TBD before D6
+Standard / Pro / Enterprise — what are the actual prices? Placeholder $0 / $49 / $500+. Market comparison needed (Bookagora, Cameo Pro, Toptal client-side). **Not blocking until D6 (subscription) starts.**
+
+### 12.2 Default discoverable: opt-in or opt-out? — ✅ RATIFIED: opt-in (default off)
 - **Opt-in** (default `is_discoverable = false`) → respects talent agency, slower flywheel
 - **Opt-out** (default `is_discoverable = true` for approved profiles) → faster flywheel, may surprise talents
 
-Recommendation: **opt-in for v1**, revisit after we see talent adoption rate.
+**RATIFIED 2026-05-14: opt-in for v1.** Talent self-toggles via "Show me on Tulala Discover" with `recommended` framing in profile editor. Already shipped in commit `cb157db7a` + `ed729362c`. Revisit after we see talent adoption rate.
 
-### 12.3 Availability — required input or optional?
+### 12.3 Availability — required input or optional? — ✅ RATIFIED: optional with derived fallback
 - **Required**: forces talents to maintain calendar → richer Discover, but high friction
 - **Optional with derived fallback**: talents who don't block dates show "Availability unknown — ask to confirm" on card
 
-Recommendation: **optional with derived fallback** for v1.
+**RATIFIED 2026-05-14: optional with derived fallback** for v1. Calendar UI in talent dash gets enhanced (T3 audit fix) but isn't blocking.
 
-### 12.4 Free-plan workspaces — can their talents appear on Discover?
+### 12.4 Free-plan workspaces — can their talents appear on Discover? — ✅ RATIFIED: yes, throttled
 Yes / No / Yes-but-throttled. See matrix in §10.4. Trade: Free workspaces drive volume to flywheel; but if they hog Discover real estate, paying workspaces feel cheated.
 
-Recommendation: **yes-but-throttled** (Free roster talents discoverable, basic placement, no priority weighting, no admin bulk tools).
+**RATIFIED 2026-05-14: yes-but-throttled.** Talents on Free-plan workspaces appear on Discover if they personally opt in (their choice always wins). Workspace plan tier does NOT gate visibility — it only gates *admin-side* tools (no priority placement boost via `feature_in_directory`, no roster Discover analytics, no bulk-enroll for Free workspaces). The talent's `is_discoverable` is sovereign; the workspace's plan only affects what the workspace admin can do on top.
 
-### 12.5 Verification mandatory before talent appears on Discover?
+### 12.5 Verification mandatory before talent appears on Discover? — ✅ RATIFIED: tiered
 - **Yes**: catalog quality bar
 - **No**: faster catalog growth, but unverified talents may signal "low quality"
 
-Recommendation: **yes for premium card features (rate band, priority placement)**, **no for basic discoverability** (unverified still appears but with "Basic" trust badge, signals to client).
+**RATIFIED 2026-05-14: tiered approach.** No for basic discoverability (unverified talents appear with a "Basic" trust badge — the badge itself signals quality to the client). Yes for premium card features (rate band visibility, priority placement) — those gate on verification + trust tier.
 
-### 12.6 "Recently viewed by client" — surfaced to talent or kept private?
+### 12.6 "Recently viewed by client" — surfaced to talent or kept private? — ✅ RATIFIED: aggregate only
 - **Surfaced**: useful for talent ("13 clients viewed me this week"); aggregate only, never client identities
 - **Private**: respects client privacy fully
 
-Recommendation: **aggregate counters surfaced to talent; never per-client attribution**.
+**RATIFIED 2026-05-14: aggregate counters surfaced to talent; never per-client attribution.** Per-client view logging would breach client privacy and push us toward LinkedIn-style creepiness — not on-brand.
 
-### 12.7 Hubs as queryable entities — what's a "hub" exactly?
+### 12.7 Hubs as queryable entities — what's a "hub" exactly? — ✅ RATIFIED: workspaces only for v1
 - Every Studio/Agency workspace = a hub
 - Plus Network plan = a multi-workspace hub
 - Do we let talents tag themselves with informal "scenes" (e.g., "Milan electronic music scene") that aren't workspaces? That's a new entity.
 
-Recommendation: **v1: hub = Studio/Agency/Network workspaces only**. Informal scenes deferred.
+**RATIFIED 2026-05-14: v1 = hub is a Studio / Agency / Network workspace only.** Informal scenes ("Milan electronic music scene") deferred until we see demand. Avoids introducing a new entity type prematurely.
 
-### 12.8 Cross-tenant lineup — single timeline or per-tenant tabs?
+### 12.8 Cross-tenant lineup — single timeline or per-tenant tabs? — ✅ RATIFIED: single unified timeline
 Client picks 3 talents from 3 tenants. In their inquiry workspace, do they see:
 - **One unified timeline** of messages (sorted by time, each tagged with which tenant)
 - **Three tabs**, one per tenant
 
-Recommendation: **one unified timeline, per-message tenant tag**. Easier mental model.
+**RATIFIED 2026-05-14: one unified timeline, per-message tenant tag.** Easier mental model for the client. Server-side thread fan-out (Slice N) keeps per-tenant isolation invisible to client UX.
 
 ---
 
