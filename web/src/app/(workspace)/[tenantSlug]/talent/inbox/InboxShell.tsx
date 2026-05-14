@@ -87,7 +87,13 @@ function statusTone(status: string): { bg: string; color: string; label: string 
     archived:    { bg: "rgba(11,11,13,0.04)", color: C.inkDim, label: "Archived" },
     draft:       { bg: "rgba(11,11,13,0.04)", color: C.inkDim, label: "Draft" },
   };
-  return map[status] ?? { bg: "rgba(11,11,13,0.04)", color: C.inkDim, label: status.replace(/_/g, " ") };
+  return (
+    map[status] ?? {
+      bg: "rgba(11,11,13,0.04)",
+      color: C.inkDim,
+      label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    }
+  );
 }
 
 export function InboxShell({

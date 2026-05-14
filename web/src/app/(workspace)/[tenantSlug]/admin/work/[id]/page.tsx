@@ -85,7 +85,11 @@ function InquiryStatusChip({ status, t }: { status: string; t: (k: string) => st
   const entry = map[status];
   const s = entry
     ? { bg: entry.bg, color: entry.color, label: t(entry.labelKey) }
-    : { bg: "rgba(11,11,13,0.05)", color: "rgba(11,11,13,0.45)", label: status.replace(/_/g, " ") };
+    : {
+        bg: "rgba(11,11,13,0.05)",
+        color: "rgba(11,11,13,0.45)",
+        label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      };
   return (
     <span style={{
       display: "inline-flex",
