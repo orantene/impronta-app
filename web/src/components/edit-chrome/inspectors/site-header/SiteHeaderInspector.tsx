@@ -200,6 +200,20 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
     }, delay);
   }, []);
 
+  // QA 2026-05-13 — cancel any pending flush on unmount. Without this,
+  // an inspector close mid-debounce would fire the setTimeout after the
+  // component had torn down, calling `flushRef.current?.()` against a
+  // stale closure and (worse) firing a server action whose response
+  // would have nowhere to land. Now the timer is cleared cleanly.
+  useEffect(() => {
+    return () => {
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const flush = useCallback(async () => {
     if (inFlightRef.current) {
       // Already saving — let it finish, then drain.

@@ -84,8 +84,9 @@ function ToggleRow({
       </span>
       <span
         role="switch"
+        tabIndex={0}
         aria-checked={checked}
-        className={`relative inline-flex size-[22px] shrink-0 items-center justify-center rounded-md border transition ${
+        className={`relative inline-flex size-[22px] shrink-0 items-center justify-center rounded-md border outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 ${
           checked
             ? "border-indigo-400 bg-indigo-500 text-white"
             : "border-stone-300 bg-white text-stone-400"
@@ -93,6 +94,15 @@ function ToggleRow({
         onClick={(e) => {
           e.preventDefault();
           onChange(!checked);
+        }}
+        // QA 2026-05-13 — same fix as LayoutTab's CheckboxRow: this
+        // custom switch was not keyboard reachable. Now tabbable + toggles
+        // on Space/Enter.
+        onKeyDown={(e) => {
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            onChange(!checked);
+          }
         }}
       >
         {checked ? (

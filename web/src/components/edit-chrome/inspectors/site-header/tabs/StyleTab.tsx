@@ -21,7 +21,7 @@
  *   bring the picker inline.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useEditContext } from "../../../edit-context";
 import { InspectorGroup, KIT } from "../../kit";
@@ -193,9 +193,17 @@ function ColorRow({
   const isHex = /^#[0-9a-fA-F]{3,8}$/.test(value);
 
   // Keep input in sync if server-side value updates while we're idle.
-  if (draft !== value && document.activeElement?.tagName !== "INPUT") {
+  //
+  // QA 2026-05-13 — same fix as `shared/ColorRow.tsx`: the previous
+  // render-body `setDraft(value)` was a Strict-Mode-tripping side effect.
+  // Moved into a useEffect so the sync is post-commit.
+  useEffect(() => {
+    if (draft === value) return;
+    if (typeof document !== "undefined" && document.activeElement?.tagName === "INPUT") {
+      return;
+    }
     setDraft(value);
-  }
+  }, [value, draft]);
 
   return (
     <div className="flex flex-col gap-1.5">

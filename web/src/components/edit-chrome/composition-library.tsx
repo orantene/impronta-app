@@ -782,28 +782,49 @@ export function CompositionLibraryOverlay() {
       if (!showAdvanced && !entry.inDefault) continue;
       counts[entry.category] = (counts[entry.category] ?? 0) + 1;
     }
-    // QA 2026-05-13 — tab badges (e.g. "Hero 2") used to ignore template
-    // starters + kits, so the per-category badge undercounted what the
-    // operator actually saw when they clicked the tab ("5 items visible"
-    // when the badge said 2). The "All" tab badge already includes
-    // templates via `totalVisibleItems`; per-category badges should match.
+    // QA 2026-05-13 — tab badges include templates so the count matches
+    // what the operator sees when they click the tab. Apply the same
+    // facet filters that the visible-template lists use so the per-cat
+    // sum stays consistent with the "All" badge's `totalVisibleItems`
+    // — without this, the per-cat sum overshoots `All` whenever any
+    // refine filter is active (operator saw "Hero 5, Trust 8, …" sum
+    // to 32 but "All" said 28).
     //
-    // We count from the static catalogs directly because the per-tab
-    // filtered lists (`templateStarterFacetBase`, `visibleTemplateKits`)
-    // already pre-filter by `activeTab`, so summing them would only
-    // ever pad the currently-selected tab. The starter/kit category
-    // doesn't depend on slot context, so the count is stable across
-    // slot picks (templates that aren't slot-compatible still appear
-    // greyed-out in the picker — they're "visible items" from the
-    // operator's POV).
+    // Search is intentionally NOT applied here. The tab strip is a
+    // category map, not a search-results facet — when an operator
+    // types into the search bar, the result rows still partition into
+    // their existing tabs, and the badge should reflect "items
+    // available in this category", not "items matching the search".
     for (const starter of SECTION_TEMPLATE_STARTERS) {
+      if (
+        !starterMatchesFacetFilters(
+          starter,
+          starterKindFilter,
+          starterSourceFilter,
+          starterReadinessFilter,
+          starterDataBindingFilter,
+          starterCapabilityFilter,
+          starterPlanFilter,
+        )
+      ) {
+        continue;
+      }
       counts[starter.category] = (counts[starter.category] ?? 0) + 1;
     }
     for (const kit of SECTION_TEMPLATE_KITS) {
       counts[kit.category] = (counts[kit.category] ?? 0) + 1;
     }
     return counts;
-  }, [slotFiltered, showAdvanced]);
+  }, [
+    slotFiltered,
+    showAdvanced,
+    starterKindFilter,
+    starterSourceFilter,
+    starterReadinessFilter,
+    starterDataBindingFilter,
+    starterCapabilityFilter,
+    starterPlanFilter,
+  ]);
 
   // Group visible tiles by category; CATEGORY_ORDER drives section order.
   const grouped = useMemo(() => {

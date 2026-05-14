@@ -20,7 +20,7 @@
  *   - Clear button only appears when there's a value to clear.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // site-header/shared sits two levels under inspectors/, so the kit
 // (inspectors/kit) is two `..` up. Don't reach for the edit-chrome
@@ -39,9 +39,19 @@ export function ColorRow({ label, hint, value, onChange }: ColorRowProps) {
   const isHex = /^#[0-9a-fA-F]{3,8}$/.test(value);
 
   // Sync local draft if the server-side value updates while we're idle.
-  if (draft !== value && document.activeElement?.tagName !== "INPUT") {
+  //
+  // QA 2026-05-13 — previously called `setDraft(value)` directly in the
+  // render body, which triggers a second synchronous render and trips
+  // React 19 Strict Mode's double-invoke warnings. Moved into an effect
+  // so the sync is post-commit and the render stays pure. The
+  // active-element guard still applies (don't clobber a user mid-typing).
+  useEffect(() => {
+    if (draft === value) return;
+    if (typeof document !== "undefined" && document.activeElement?.tagName === "INPUT") {
+      return;
+    }
     setDraft(value);
-  }
+  }, [value, draft]);
 
   return (
     <div className="flex flex-col gap-1.5">

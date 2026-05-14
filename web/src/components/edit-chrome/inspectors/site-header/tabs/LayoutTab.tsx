@@ -450,8 +450,9 @@ function ToggleRow({
       </span>
       <span
         role="switch"
+        tabIndex={0}
         aria-checked={checked}
-        className={`relative inline-flex size-[22px] shrink-0 items-center justify-center rounded-md border transition ${
+        className={`relative inline-flex size-[22px] shrink-0 items-center justify-center rounded-md border outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 ${
           checked
             ? "border-indigo-400 bg-indigo-500 text-white"
             : "border-stone-300 bg-white text-stone-400"
@@ -459,6 +460,16 @@ function ToggleRow({
         onClick={(e) => {
           e.preventDefault();
           onChange(!checked);
+        }}
+        // QA 2026-05-13 — span with role="switch" wasn't keyboard
+        // reachable: no tabIndex, no key handler. Now tabbable (0) and
+        // toggles on Space/Enter — the canonical pattern for a custom
+        // switch. focus-visible ring keeps the focus state legible.
+        onKeyDown={(e) => {
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            onChange(!checked);
+          }
         }}
       >
         {checked ? (
