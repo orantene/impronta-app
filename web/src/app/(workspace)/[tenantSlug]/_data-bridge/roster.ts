@@ -28,6 +28,7 @@ type RosterRow = {
     workflow_status: string | null;
     height_cm: number | null;
     user_id: string | null;
+    is_discoverable: boolean | null;
     talent_profile_taxonomy:
       | {
           relationship_type: string | null;
@@ -68,6 +69,8 @@ export type WorkspaceRosterItem = {
    *  CompletenessDial.tsx in the edit page). Used for the per-card chip on
    *  the roster list so admins see at-a-glance which profiles need work. */
   completenessPercent?: number;
+  /** Talent's master switch for cross-tenant Tulala Discover catalog. */
+  isDiscoverable?: boolean;
 };
 
 function deriveProfileState(row: RosterRow): TalentProfile["state"] {
@@ -156,6 +159,7 @@ export async function loadWorkspaceRosterForTenant(
           workflow_status,
           height_cm,
           user_id,
+          is_discoverable,
           talent_profile_taxonomy (
             relationship_type,
             taxonomy_terms ( term_type, slug, name_en )
@@ -188,6 +192,7 @@ export async function loadWorkspaceRosterForTenant(
         height: deriveHeightLabel(profile),
         city: deriveCity(profile),
         primaryType: derivePrimaryType(profile),
+        isDiscoverable: profile.is_discoverable ?? false,
       });
     }
     return out;
@@ -527,6 +532,7 @@ export async function loadWorkspaceRosterEnriched(
         profileCode: (profile as { profile_code?: string | null }).profile_code ?? null,
         invitationEmail: p.invitation_email ?? null,
         completenessPercent,
+        isDiscoverable: profile.is_discoverable ?? false,
       });
     }
     return out;

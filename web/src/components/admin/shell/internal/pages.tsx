@@ -6293,6 +6293,39 @@ function RosterCard({
         )}
         {/* Modern verified-icon overlay — IG / Tulala / Agency. */}
         <RosterPhotoBadgeOverlay talentId={profile.id} />
+        {/* "On Discover" pill — surfaces talent_profiles.is_discoverable.
+            Shown top-right of the photo when the talent has opted in to
+            the cross-tenant Tulala Discover catalog. Admins can manage
+            placement boost separately via `feature_in_directory` (in
+            the profile editor's admin section). See
+            project_discover_unified.md §3 + audit A1. */}
+        {profile.isDiscoverable && (
+          <div
+            aria-label="On Tulala Discover"
+            title="This talent has enabled their Discover toggle"
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 9px",
+              borderRadius: 999,
+              background: "rgba(46,125,91,0.92)",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              backdropFilter: "blur(6px)",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+              pointerEvents: "none",
+            }}
+          >
+            Discover
+          </div>
+        )}
         {/* "You" badge — persistent marker when this is the signed-in talent's own profile */}
         {isSelf && (
           <div

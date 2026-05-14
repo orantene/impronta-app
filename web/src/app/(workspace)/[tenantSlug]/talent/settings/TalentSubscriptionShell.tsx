@@ -46,6 +46,7 @@ const PLAN_META = {
       "Public profile at tulala.digital/t/<slug>",
       "Photo gallery",
       "Agency roster participation",
+      "Eligible for Tulala Discover (toggle in profile)",
     ],
   },
   talent_pro: {
@@ -60,6 +61,7 @@ const PLAN_META = {
       "Enhanced media gallery",
       "Social links surfaced prominently",
       "Portfolio presentation mode",
+      "Priority placement on Tulala Discover",
     ],
   },
   talent_portfolio: {
@@ -74,6 +76,7 @@ const PLAN_META = {
       "Multi-template choice",
       "SEO controls",
       "One-page builder-lite",
+      "Top-tier placement on Tulala Discover",
     ],
   },
 } as const;

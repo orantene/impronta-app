@@ -2076,6 +2076,11 @@ export type TalentProfile = {
   availability?: "available" | "busy" | "offline";
   /** Short last-active string ("2h", "1d", "3d"). */
   lastActive?: string;
+  /** Talent's `is_discoverable` master switch — true = visible on
+   *  cross-tenant Tulala Discover catalog. Drives the "Discover" pill
+   *  shown on the roster card so admins can see at-a-glance which
+   *  talents are surfaced platform-wide. See project_discover_unified.md. */
+  isDiscoverable?: boolean;
   // ── WS-31.6 / WS-34.8 Minor protections ────────────────────────────
   // Talent under 18 carries a guardian + protection block. Surfaced on
   // every offer, inquiry workspace, and roster card via
