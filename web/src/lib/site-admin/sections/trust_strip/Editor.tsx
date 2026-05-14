@@ -9,7 +9,6 @@ const FIELD = "flex flex-col gap-1.5 text-sm";
 const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
 const INPUT =
   "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
-const HINT = "text-xs text-muted-foreground";
 
 const VARIANTS: ReadonlyArray<{
   value: TrustStripV1["variant"];
