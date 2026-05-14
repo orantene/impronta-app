@@ -457,17 +457,25 @@ function DiscoverCard({
             {initials || "?"}
           </div>
         )}
-        {/* Trust badge placeholder — real tier from trust_signals lands later */}
+        {/* Tulala-verified mark. Every discoverable talent has
+            workflow_status ∈ {approved, published} — that's our
+            review pass. Trust LADDER (Basic/Verified/Silver/Gold)
+            is a CLIENT property, not a talent property — see
+            project_client_trust_badges.md §3 — so we don't surface
+            a per-talent ladder badge. */}
         <div
           style={{
             position: "absolute", top: 8, left: 8,
-            padding: "2px 8px", borderRadius: 4,
-            background: "rgba(11,11,13,0.55)", color: "#fff",
-            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
-            textTransform: "uppercase", backdropFilter: "blur(4px)",
+            display: "inline-flex", alignItems: "center", gap: 4,
+            padding: "3px 8px", borderRadius: 999,
+            background: "rgba(15,79,62,0.92)", color: "#fff",
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+            backdropFilter: "blur(4px)",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
           }}
+          title="Profile reviewed and approved by Tulala"
         >
-          Basic
+          ✓ Tulala
         </div>
         {/* Ownership badge: agency vs independent */}
         {item.agencyName ? (
@@ -727,13 +735,16 @@ function DiscoverDetailDrawer({
               <div
                 style={{
                   position: "absolute", top: 12, left: 12,
-                  padding: "3px 9px", borderRadius: 4,
-                  background: "rgba(11,11,13,0.55)", color: "#fff",
-                  fontSize: 10, fontWeight: 700, letterSpacing: 0.4,
-                  textTransform: "uppercase", backdropFilter: "blur(4px)",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                  padding: "4px 10px", borderRadius: 999,
+                  background: "rgba(15,79,62,0.92)", color: "#fff",
+                  fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3,
+                  backdropFilter: "blur(4px)",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
                 }}
+                title="Profile reviewed and approved by Tulala"
               >
-                Basic
+                ✓ Tulala
               </div>
             </div>
 
