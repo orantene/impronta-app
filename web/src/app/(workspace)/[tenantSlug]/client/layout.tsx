@@ -103,23 +103,44 @@ export default async function ClientLayout({
           --muted-foreground:    ${C.inkMuted};
           --border:              rgba(24,24,27,0.10);
         }
+        .client-hd-row { overflow: hidden; }
+        .client-hd-main { padding: 0 16px; }
+        /* Narrow viewports: drop secondary utilities so the row fits. */
+        @media (max-width: 640px) {
+          .client-hd-role-chip,
+          .client-hd-divider,
+          .client-hd-slash,
+          .client-hd-help,
+          .client-hd-lang,
+          .client-hd-pill { display: none !important; }
+          .client-hd-company { display: none !important; }
+        }
+        @media (min-width: 641px) {
+          .client-hd-main { padding: 0 24px; }
+        }
+        /* Main content area: tighter padding on phones. */
+        .client-main { padding: 28px 28px 60px; }
+        @media (max-width: 640px) {
+          .client-main { padding: 16px 14px 56px; }
+        }
       `}</style>
 
       <div className="client-root" style={{ minHeight: "100dvh", background: C.surface, fontFamily: FONT_BODY }}>
 
         {/* ── Bar 1: Identity bar (56px) ── */}
         <header
+          className="client-hd-main"
           style={{
             background: "#fff",
             borderBottom: `1px solid ${C.borderSoft}`,
             position: "sticky",
             top: 0,
             zIndex: 50,
-            padding: "0 24px",
             height: 56,
           }}
         >
           <div
+            className="client-hd-row"
             style={{
               display: "flex",
               alignItems: "center",
@@ -144,7 +165,7 @@ export default async function ClientLayout({
               {clientProfile.agencyName}
             </div>
 
-            <div style={{ width: 1, height: 22, background: C.borderSoft, margin: "0 4px", flexShrink: 0 }} />
+            <div className="client-hd-divider" style={{ width: 1, height: 22, background: C.borderSoft, margin: "0 4px", flexShrink: 0 }} />
 
             {/* Client identity */}
             <div
@@ -194,6 +215,7 @@ export default async function ClientLayout({
                 </div>
                 {clientProfile.company && (
                   <div
+                    className="client-hd-company"
                     style={{
                       fontFamily: FONT_BODY,
                       fontSize: 11,
@@ -208,10 +230,11 @@ export default async function ClientLayout({
               </div>
             </div>
 
-            <span aria-hidden style={{ fontSize: 14, color: C.inkDim, flexShrink: 0 }}>/</span>
+            <span className="client-hd-slash" aria-hidden style={{ fontSize: 14, color: C.inkDim, flexShrink: 0 }}>/</span>
 
             {/* Role chip */}
             <div
+              className="client-hd-role-chip"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -249,6 +272,7 @@ export default async function ClientLayout({
 
               {/* Client pill — current surface indicator */}
               <div
+                className="client-hd-pill"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -280,12 +304,12 @@ export default async function ClientLayout({
               </div>
 
               {/* Help — D.4: 44x44 touch target. */}
-              <div role="button" tabIndex={0} aria-label="Help" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 10, cursor: "pointer", color: C.inkMuted, fontFamily: FONT_BODY, fontSize: 15, fontWeight: 600 }}>
+              <div role="button" tabIndex={0} aria-label="Help" className="client-hd-help" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 10, cursor: "pointer", color: C.inkMuted, fontFamily: FONT_BODY, fontSize: 15, fontWeight: 600 }}>
                 ?
               </div>
 
               {/* EN/ES language toggle stubs */}
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 0, height: 28, borderRadius: 7, border: `1px solid ${C.borderSoft}`, overflow: "hidden", flexShrink: 0 }}>
+              <div className="client-hd-lang" style={{ display: "inline-flex", alignItems: "center", gap: 0, height: 28, borderRadius: 7, border: `1px solid ${C.borderSoft}`, overflow: "hidden", flexShrink: 0 }}>
                 <button type="button" aria-pressed style={{ padding: "0 8px", height: "100%", background: C.ink, color: "#fff", border: "none", fontFamily: FONT_BODY, fontSize: 11, fontWeight: 700, letterSpacing: 0.3, cursor: "pointer" }}>EN</button>
                 <button type="button" style={{ padding: "0 8px", height: "100%", background: "transparent", color: C.inkMuted, border: "none", fontFamily: FONT_BODY, fontSize: 11, fontWeight: 600, letterSpacing: 0.3, cursor: "pointer" }}>ES</button>
               </div>
@@ -323,8 +347,8 @@ export default async function ClientLayout({
 
         {/* ── Content area ── */}
         <main
+          className="client-main"
           style={{
-            padding: "28px 28px 60px",
             maxWidth: 1320,
             margin: "0 auto",
           }}
