@@ -608,15 +608,20 @@ export async function loadInquiryMessages(
       profiles: { display_name: string | null } | { display_name: string | null }[] | null;
     };
 
-    return ((data ?? []) as unknown as MsgRow[]).map((row) => {
+    return ((data ?? []) as unknown as (MsgRow & { sender_user_id: string | null })[]).map((row) => {
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+      // System events have sender_user_id = null (e.g. auto-ack on submit).
+      // Fall back to "System" so we never crash on `.slice` of null.
+      const senderName =
+        profile?.display_name?.trim()
+        || (row.sender_user_id ? row.sender_user_id.slice(0, 8) : "System");
       return {
         id: row.id,
-        sender_user_id: row.sender_user_id,
-        sender_name: profile?.display_name?.trim() || row.sender_user_id.slice(0, 8),
+        sender_user_id: row.sender_user_id ?? "",
+        sender_name: senderName,
         body: row.body,
         created_at: row.created_at,
-        is_mine: row.sender_user_id === myUserId,
+        is_mine: !!row.sender_user_id && row.sender_user_id === myUserId,
       };
     });
   } catch (err) {
