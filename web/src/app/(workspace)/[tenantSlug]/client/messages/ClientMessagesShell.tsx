@@ -148,6 +148,28 @@ export function ClientMessagesShell({
     return () => window.removeEventListener("client-message-send-failed", onFail);
   }, []);
 
+  // Reconcile optimistic bubbles with server messages on send success.
+  // The optimistic tmp- bubble is replaced by the canonical row from the
+  // engine (real id, real sender_user_id, real timestamp).
+  useEffect(() => {
+    function onOk(e: Event) {
+      const detail = (e as CustomEvent<{ tempId: string; inquiryId: string }>).detail;
+      if (!detail?.inquiryId || detail.inquiryId !== activeId) return;
+      fetch(`/api/client/messages?inquiry=${encodeURIComponent(detail.inquiryId)}`)
+        .then((r) => (r.ok ? r.json() : { messages: null }))
+        .then((j: { messages: WorkspaceMessage[] | null }) => {
+          if (!j.messages) return;
+          // Replace the message list wholesale — canonical rows from the
+          // engine include any system events (e.g. coordinator auto-ack)
+          // that may have been emitted alongside our send.
+          setMessages(j.messages);
+        })
+        .catch(() => { /* leave optimistic bubble; user will see it reconcile on next switch */ });
+    }
+    window.addEventListener("client-message-send-ok", onOk);
+    return () => window.removeEventListener("client-message-send-ok", onOk);
+  }, [activeId]);
+
   // Toast for the just-submitted inquiry — fades after 4 seconds.
   const [showJustSubmittedToast, setShowJustSubmittedToast] = useState(!!justSubmittedInquiryId);
   useEffect(() => {
@@ -824,7 +846,15 @@ function ChatComposer({
         // bubble back out of the stream via a custom event (cheap signal).
         setBody(trimmed);
         window.dispatchEvent(new CustomEvent("client-message-send-failed", { detail: { tempId } }));
+        return;
       }
+      // Server accepted — refetch the thread to reconcile the optimistic
+      // bubble with the canonical row (real id, real sender_user_id, real
+      // created_at). Fire-and-forget; failure just leaves the optimistic
+      // bubble in place.
+      window.dispatchEvent(
+        new CustomEvent("client-message-send-ok", { detail: { tempId, inquiryId } }),
+      );
     });
   }
 
