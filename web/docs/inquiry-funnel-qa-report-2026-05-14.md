@@ -87,6 +87,88 @@ Looked at DB after Sofia's accept fired with engine `result: success`. `inquirie
 
 - [`b00f9b28f`](https://github.com/orantene/impronta-app/commit/b00f9b28f) — fix(createOffer): idempotent reuse of orphan draft
 - [`257db7f04`](https://github.com/orantene/impronta-app/commit/257db7f04) — fix(notifications): engine_emit_notification + caller — pass tenant_id
+- [`85729cbc7`](https://github.com/orantene/impronta-app/commit/85729cbc7) — fix(createOffer): transition submitted→coordination + service-role write + real error surface
+
+## Addendum 2026-05-14 #2 — engine fixes after deeper investigation
+
+Continuing the funnel walk past the QA report's "deferred RLS" finding, I
+diagnosed the real cause as three compounding bugs in `createOffer`:
+
+1. **Trigger rejection** — `enforce_inquiry_status_offer_pair` rejects
+   `current_offer_id != NULL` with `status='submitted'`. Engine now
+   transitions the inquiry to `coordination` in the same UPDATE.
+2. **RLS-blocked write** — user-session UPDATE on inquiries returns
+   zero rows for the agency admin even when `is_staff_of_tenant()`
+   evaluates true. Confirmed reproducible; service-role UPDATE on the
+   same row works immediately. Engine now self-elevates to service-role
+   for this UPDATE after `validateActorPermission("create_offer")`
+   passes. Same pattern as `inquiry-system-messages.ts`.
+3. **Error path collapses everything to "version_conflict"** — trigger
+   rejections, RLS blocks, and true version mismatches all surfaced as
+   the same misleading reason. Now: `uerr` set → real PG error; `uerr`
+   missing + no row matched → version_conflict (genuine case).
+
+After [`85729cbc7`](https://github.com/orantene/impronta-app/commit/85729cbc7) the engine path works end-to-end. Verified:
+- Engine result: `success`
+- Inquiry transitions submitted → coordination
+- `current_offer_id` set to new draft
+- Version bumped 4 → 5
+
+## Addendum #3 — admin Offer tab reads MOCK data, not DB (STRUCTURAL)
+
+Once the engine successfully created the offer, the admin shell's Offer
+tab continued to render "No offer yet for this inquiry. Start drafting
+offer." This is NOT a stale-cache issue — the admin shell's `OfferTab`
+reads offer state from `getOffer(conv.id)` which pulls from
+`MOCK_OFFER_FOR_CONV`, a hardcoded in-memory store.
+
+This means:
+- The "Start drafting offer" button correctly hits the engine and lands
+  a real offer in `inquiry_offers` (verified in DB).
+- The admin Offer tab does not display that offer — its render layer
+  was never wired to read from `inquiry_offers`.
+- The whole "build offer line items, set prices, send to client" UI is
+  prototype-stage running on mock data.
+
+**Impact:** the admin-side post-acceptance funnel UI is currently
+demoware. The engine paths exist (`createOffer`, `addOfferLineItem`,
+`sendOffer`, `acceptOffer`, `rejectOffer`, `counterOffer`) and the DB
+schema is real. But the admin shell Offer tab needs a substantial
+wiring pass to read from + write to the live `inquiry_offers` +
+`inquiry_offer_line_items` tables instead of the mock store.
+
+**Scope:** this is its own sprint. Not in scope for the inquiry-funnel
+sprint. Tracked as the natural follow-up to step 7 (admin chat card)
+and the upcoming "make admin shell live" pass.
+
+**Workaround for QA continuity:** to walk the funnel through to
+booking from here, the test needs to bypass the admin Offer UI and
+either:
+- Insert offer line items directly via DB
+- Use the client-facing approve/reject buttons against the existing
+  draft offer (the client UI may read from live DB even when the
+  admin UI doesn't — needs verification)
+
+This QA session stops here. Final state of the test inquiry
+(`6c1df02a-c69e-4ef2-be28-81f315aedd5c`):
+- Status: `coordination`
+- `current_offer_id`: `0108eb6c-549c-4c4a-869c-3646e71e7f60`
+- Offer status: `draft`, EUR
+- Sofia (TAL-92001): participant, status=`active`, `accepted_at` set
+- Auto-ack system message present in private thread
+
+## Final recommendation
+
+The inquiry-funnel sprint has shipped a solid foundation (steps 0, 2,
+5, 7, 10, 11, 12, 13, 14 verified end-to-end) but the post-acceptance
+admin UI is mocked. Before any further inquiry-funnel feature work,
+the immediate next sprint should be **"wire admin shell Offer tab to
+live `inquiry_offers` reads + writes"** — that unblocks the entire
+back-half of the funnel.
+
+If unscoped, the rest of the inquiry-funnel sprint (steps 1, 3, 4, 6,
+9, 15) can proceed since they touch the form / client side / hub
+routing, not the admin Offer tab.
 
 ## State of the QA worktree
 
