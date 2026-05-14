@@ -59,6 +59,7 @@ export async function GET(req: Request) {
   const country = url.searchParams.get("country");
   const q = url.searchParams.get("q");
   const category = url.searchParams.get("category");
+  const hub = url.searchParams.get("hub");
   const limitRaw = parseInt(url.searchParams.get("limit") ?? "24", 10);
   const offsetRaw = parseInt(url.searchParams.get("offset") ?? "0", 10);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 60) : 24;
@@ -67,6 +68,23 @@ export async function GET(req: Request) {
   const admin = createServiceRoleClient();
   if (!admin) {
     return NextResponse.json({ items: [], total: 0, limit, offset });
+  }
+
+  // Hub filter — resolve hub tenant_id to its set of primary-rostered
+  // talent_profile_ids first, then constrain the main query. Two-step
+  // because the filter targets a joined relation.
+  let hubFilterIds: string[] | null = null;
+  if (hub) {
+    const { data: hubRoster } = await admin
+      .from("agency_talent_roster")
+      .select("talent_profile_id")
+      .eq("tenant_id", hub)
+      .eq("is_primary", true)
+      .in("status", ["active", "pending"]);
+    hubFilterIds = (hubRoster ?? []).map((r) => r.talent_profile_id as string);
+    if (hubFilterIds.length === 0) {
+      return NextResponse.json({ items: [], total: 0, limit, offset });
+    }
   }
 
   let query = admin
@@ -94,6 +112,7 @@ export async function GET(req: Request) {
 
   if (country) query = query.eq("home_country_text", country);
   if (q) query = query.ilike("display_name", `%${q}%`);
+  if (hubFilterIds) query = query.in("id", hubFilterIds);
 
   const { data, error, count } = await query;
   if (error) {

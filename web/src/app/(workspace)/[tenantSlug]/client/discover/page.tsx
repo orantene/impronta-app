@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
-import { loadDiscoverTalents, loadDiscoverFacets } from "../../_data-bridge/discover";
+import { loadDiscoverTalents, loadDiscoverFacets, loadDiscoverHubs } from "../../_data-bridge/discover";
 import { DiscoverShell } from "./DiscoverShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { EmptyState } from "../_components/EmptyState";
@@ -24,6 +24,7 @@ type PageParams = Promise<{ tenantSlug: string }>;
 type PageSearchParams = Promise<{
   country?: string;
   category?: string;
+  hub?: string;
   q?: string;
 }>;
 
@@ -47,16 +48,18 @@ export default async function ClientDiscoverPage({
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  // Parallel SSR loads: paginated talents + filter facets.
-  const [{ items, total }, facets] = await Promise.all([
+  // Parallel SSR loads: paginated talents + filter facets + hubs.
+  const [{ items, total }, facets, hubs] = await Promise.all([
     loadDiscoverTalents({
       country: sp.country,
       category: sp.category,
+      hub: sp.hub,
       q: sp.q,
       limit: 24,
       offset: 0,
     }),
     loadDiscoverFacets(),
+    loadDiscoverHubs(),
   ]);
 
   return (
@@ -68,15 +71,17 @@ export default async function ClientDiscoverPage({
         badge={total > 0 ? <HeaderBadge>{total} on Discover</HeaderBadge> : undefined}
       />
 
-      {items.length > 0 || sp.country || sp.category || sp.q ? (
+      {items.length > 0 || sp.country || sp.category || sp.hub || sp.q ? (
         <DiscoverShell
           initialItems={items}
           initialTotal={total}
           facets={facets}
+          hubs={hubs}
           tenantSlug={tenantSlug}
           activeFilters={{
             country: sp.country ?? null,
             category: sp.category ?? null,
+            hub: sp.hub ?? null,
             q: sp.q ?? null,
           }}
         />

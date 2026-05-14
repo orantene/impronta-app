@@ -17,6 +17,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import type {
   DiscoverTalentListItem,
   DiscoverFacets,
+  DiscoverHub,
 } from "../../_data-bridge/discover";
 
 /** Local mirror of DiscoverAvailabilityDay (API response shape). */
@@ -65,6 +66,7 @@ const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui,
 type ActiveFilters = {
   country: string | null;
   category: string | null;
+  hub: string | null;
   q: string | null;
 };
 
@@ -72,12 +74,14 @@ export function DiscoverShell({
   initialItems,
   initialTotal,
   facets,
+  hubs,
   tenantSlug,
   activeFilters,
 }: {
   initialItems: DiscoverTalentListItem[];
   initialTotal: number;
   facets: DiscoverFacets;
+  hubs: DiscoverHub[];
   tenantSlug: string;
   activeFilters: ActiveFilters;
 }) {
@@ -134,6 +138,7 @@ export function DiscoverShell({
       };
       if (next.country !== undefined) apply("country", next.country);
       if (next.category !== undefined) apply("category", next.category);
+      if (next.hub !== undefined) apply("hub", next.hub);
       if (next.q !== undefined) apply("q", next.q);
       const url = `${pathname}${sp.toString() ? `?${sp.toString()}` : ""}`;
       startNavTransition(() => router.replace(url, { scroll: false }));
@@ -148,6 +153,7 @@ export function DiscoverShell({
       const sp = new URLSearchParams();
       if (activeFilters.country) sp.set("country", activeFilters.country);
       if (activeFilters.category) sp.set("category", activeFilters.category);
+      if (activeFilters.hub) sp.set("hub", activeFilters.hub);
       if (activeFilters.q) sp.set("q", activeFilters.q);
       sp.set("limit", "24");
       sp.set("offset", String(items.length));
@@ -162,7 +168,7 @@ export function DiscoverShell({
   }, [activeFilters, items.length, loadingMore]);
 
   const hasActiveFilters =
-    !!(activeFilters.country || activeFilters.category || activeFilters.q);
+    !!(activeFilters.country || activeFilters.category || activeFilters.hub || activeFilters.q);
 
   return (
     <div>
@@ -193,7 +199,7 @@ export function DiscoverShell({
               type="button"
               onClick={() => {
                 setSearchInput("");
-                pushFilters({ country: null, category: null, q: null });
+                pushFilters({ country: null, category: null, hub: null, q: null });
               }}
               style={{
                 height: 32, padding: "0 14px", borderRadius: 999,
@@ -214,6 +220,16 @@ export function DiscoverShell({
             value={activeFilters.country}
             options={facets.countries.map((c) => ({ value: c.value, label: c.value, count: c.count }))}
             onChange={(v) => pushFilters({ country: v })}
+          />
+        )}
+
+        {/* Hub chip row — agency Studio/Agency/Network workspaces only */}
+        {hubs.length > 0 && (
+          <FacetChipRow
+            label="Hub"
+            value={activeFilters.hub}
+            options={hubs.map((h) => ({ value: h.id, label: h.displayName, count: h.discoverableTalentCount }))}
+            onChange={(v) => pushFilters({ hub: v })}
           />
         )}
 

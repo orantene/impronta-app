@@ -35,10 +35,19 @@ export type DiscoverFacets = {
   categories: Array<{ value: string; label: string; count: number }>;
 };
 
+export type DiscoverHub = {
+  id: string;
+  displayName: string;
+  planTier: "studio" | "agency" | "network";
+  discoverableTalentCount: number;
+};
+
 export type LoadDiscoverTalentsOpts = {
   country?: string;
   category?: string;
   q?: string;
+  /** Filter to talents whose primary roster is on this tenant (= agency hub). */
+  hub?: string;
   limit?: number;
   offset?: number;
 };
@@ -57,6 +66,19 @@ export async function loadDiscoverTalents(
 
   const limit = Math.min(Math.max(opts.limit ?? 24, 1), 60);
   const offset = Math.max(opts.offset ?? 0, 0);
+
+  // Hub filter — two-step to keep the relation filter clean.
+  let hubFilterIds: string[] | null = null;
+  if (opts.hub) {
+    const { data: hubRoster } = await admin
+      .from("agency_talent_roster")
+      .select("talent_profile_id")
+      .eq("tenant_id", opts.hub)
+      .eq("is_primary", true)
+      .in("status", ["active", "pending"]);
+    hubFilterIds = (hubRoster ?? []).map((r) => r.talent_profile_id as string);
+    if (hubFilterIds.length === 0) return { items: [], total: 0 };
+  }
 
   let query = admin
     .from("talent_profiles")
@@ -83,6 +105,7 @@ export async function loadDiscoverTalents(
 
   if (opts.country) query = query.eq("home_country_text", opts.country);
   if (opts.q) query = query.ilike("display_name", `%${opts.q}%`);
+  if (hubFilterIds) query = query.in("id", hubFilterIds);
 
   const { data, error, count } = await query;
   if (error) {
@@ -244,4 +267,69 @@ export async function loadDiscoverFacets(): Promise<DiscoverFacets> {
       .map(([value, { label, count }]) => ({ value, label, count }))
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
   };
+}
+
+const HUB_PLAN_TIERS = ["studio", "agency", "network"] as const;
+
+/**
+ * Hubs list mirror — same logic as /api/discover/hubs. Studio/Agency/Network
+ * workspaces with at least one discoverable + approved talent on their roster.
+ */
+export async function loadDiscoverHubs(): Promise<DiscoverHub[]> {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+
+  const { data, error } = await admin
+    .from("agencies")
+    .select(
+      `
+      id, display_name, plan_tier,
+      agency_talent_roster!tenant_id (
+        status,
+        talent_profiles!talent_profile_id ( is_discoverable, workflow_status )
+      )
+      `,
+    )
+    .in("plan_tier", HUB_PLAN_TIERS as unknown as string[])
+    .order("display_name", { ascending: true });
+
+  if (error) {
+    logServerError("workspace.loadDiscoverHubs", error);
+    return [];
+  }
+
+  type Row = {
+    id: string;
+    display_name: string | null;
+    plan_tier: string | null;
+    agency_talent_roster: Array<{
+      status: string;
+      talent_profiles: { is_discoverable: boolean | null; workflow_status: string | null } | null;
+    }> | null;
+  };
+  const rows = (data ?? []) as unknown as Row[];
+
+  return rows
+    .map((row): DiscoverHub | null => {
+      const planTier = row.plan_tier;
+      if (planTier !== "studio" && planTier !== "agency" && planTier !== "network") return null;
+      const roster = row.agency_talent_roster ?? [];
+      const discoverableTalentCount = roster.filter((r) => {
+        if (r.status !== "active" && r.status !== "pending") return false;
+        const p = r.talent_profiles;
+        if (!p) return false;
+        if (!p.is_discoverable) return false;
+        return p.workflow_status === "approved" || p.workflow_status === "published";
+      }).length;
+      return {
+        id: row.id,
+        displayName: (row.display_name ?? "").trim() || "Unnamed hub",
+        planTier,
+        discoverableTalentCount,
+      };
+    })
+    .filter((h): h is DiscoverHub => h !== null)
+    .filter((h) => h.discoverableTalentCount > 0)
+    .sort((a, b) => b.discoverableTalentCount - a.discoverableTalentCount
+                 || a.displayName.localeCompare(b.displayName));
 }
