@@ -110,9 +110,7 @@ export default async function ClientLayout({
           .client-hd-role-chip,
           .client-hd-divider,
           .client-hd-slash,
-          .client-hd-help,
-          .client-hd-lang,
-          .client-hd-pill { display: none !important; }
+          .client-hd-pill,
           .client-hd-company { display: none !important; }
         }
         @media (min-width: 641px) {
@@ -288,30 +286,6 @@ export default async function ClientLayout({
                 }}
               >
                 Client
-              </div>
-
-              {/* Notification bell — D.4: 44x44 touch target (WCAG min). */}
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label="Notifications"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 10, cursor: "pointer" }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: C.inkMuted }}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-              </div>
-
-              {/* Help — D.4: 44x44 touch target. */}
-              <div role="button" tabIndex={0} aria-label="Help" className="client-hd-help" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 10, cursor: "pointer", color: C.inkMuted, fontFamily: FONT_BODY, fontSize: 15, fontWeight: 600 }}>
-                ?
-              </div>
-
-              {/* EN/ES language toggle stubs */}
-              <div className="client-hd-lang" style={{ display: "inline-flex", alignItems: "center", gap: 0, height: 28, borderRadius: 7, border: `1px solid ${C.borderSoft}`, overflow: "hidden", flexShrink: 0 }}>
-                <button type="button" aria-pressed style={{ padding: "0 8px", height: "100%", background: C.ink, color: "#fff", border: "none", fontFamily: FONT_BODY, fontSize: 11, fontWeight: 700, letterSpacing: 0.3, cursor: "pointer" }}>EN</button>
-                <button type="button" style={{ padding: "0 8px", height: "100%", background: "transparent", color: C.inkMuted, border: "none", fontFamily: FONT_BODY, fontSize: 11, fontWeight: 600, letterSpacing: 0.3, cursor: "pointer" }}>ES</button>
               </div>
 
               {/* Sign-out */}
