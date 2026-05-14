@@ -53,7 +53,13 @@ const STAGE_COLORS: Record<string, { bg: string; fg: string; label: string }> = 
 };
 
 function stageStyle(s: string) {
-  return STAGE_COLORS[s] ?? { bg: "rgba(11,11,13,0.06)", fg: "#52525B", label: s };
+  return (
+    STAGE_COLORS[s] ?? {
+      bg: "rgba(11,11,13,0.06)",
+      fg: "#52525B",
+      label: s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    }
+  );
 }
 
 type Filter = "all" | "needs-me" | "active" | "booked" | "past";

@@ -30,6 +30,46 @@ const C = {
   amberSoft: "rgba(146,64,14,0.08)",
 } as const;
 
+function humanize(s: string): string {
+  if (!s) return "";
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const OFFER_STATUS_LABELS: Record<string, string> = {
+  draft: "drafted",
+  sent: "sent",
+  withdrawn: "withdrawn",
+  superseded: "updated",
+  accepted: "accepted",
+  rejected: "declined",
+  expired: "expired",
+};
+
+function offerStatusLabel(status: string): string {
+  return OFFER_STATUS_LABELS[status] ?? humanize(status);
+}
+
+const INQUIRY_STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  submitted: "Submitted",
+  coordination: "In review",
+  offer_pending: "Offer pending",
+  offer_sent: "Offer sent",
+  approved: "Approved",
+  booked: "Booked",
+  converted: "Booked",
+  rejected: "Declined",
+  cancelled: "Cancelled",
+  expired: "Expired",
+  closed: "Closed",
+  closed_lost: "Closed",
+  archived: "Archived",
+};
+
+function inquiryStatusLabel(status: string): string {
+  return INQUIRY_STATUS_LABELS[status] ?? humanize(status);
+}
+
 export function DetailsTab({ details }: { details: ClientInquiryDetails | null }) {
   if (!details) {
     return (
@@ -313,11 +353,11 @@ function JobHeader({ details }: { details: ClientInquiryDetails }) {
       <div style={{ marginTop: 6, fontSize: 12, color: C.inkMuted, display: "flex", gap: 10, flexWrap: "wrap" }}>
         <span>Submitted {formatDate(details.created_at)}</span>
         <span>·</span>
-        <span style={{ textTransform: "capitalize" }}>{details.status.replace(/_/g, " ")}</span>
+        <span>{inquiryStatusLabel(details.status)}</span>
         {details.offer && (
           <>
             <span>·</span>
-            <span style={{ color: C.accent, fontWeight: 600 }}>Offer {details.offer.status}</span>
+            <span style={{ color: C.accent, fontWeight: 600 }}>Offer {offerStatusLabel(details.offer.status)}</span>
           </>
         )}
       </div>
@@ -471,7 +511,7 @@ function TalentStatusPill({ status }: { status: string }) {
       case "declined":
         return { bg: "rgba(239,68,68,0.08)", fg: "#991B1B", label: "Declined" };
       default:
-        return { bg: "rgba(11,11,13,0.06)", fg: C.inkMuted, label: status };
+        return { bg: "rgba(11,11,13,0.06)", fg: C.inkMuted, label: humanize(status) };
     }
   })();
   return (

@@ -54,7 +54,11 @@ function statusTone(status: string) {
     closed_lost:   { bg: C.surface,      color: C.inkDim,      label: "Closed" },
     archived:      { bg: C.surface,      color: C.inkDim,      label: "Archived" },
   };
-  return map[status] ?? { bg: C.surface, color: C.inkDim, label: status.replace(/_/g, " ") };
+  return map[status] ?? {
+    bg: C.surface,
+    color: C.inkDim,
+    label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  };
 }
 
 function fmtDate(iso: string | null): string {
