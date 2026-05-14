@@ -234,6 +234,10 @@ export type DirectoryUiCopy = {
     draftError: string;
     draftPolishNeedText: string;
     draftHint: string;
+    /** 2026-05-14 layout consolidation — section heading copy. */
+    sectionContactHeading?: string;
+    sectionProjectHeading?: string;
+    sectionBriefHeading?: string;
   };
 };
 

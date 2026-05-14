@@ -139,9 +139,15 @@ const DEFAULT_COPY: DirectoryUiCopy["inquiryForm"] = {
   placeholderEventLocation: "City, venue…",
   labelQuantity: "How many?",
   placeholderQuantity: "e.g. 3",
-  labelBrief: "Message",
+  labelBrief: "Tell us about the project",
   placeholderBrief:
-    "Tell the agency what you are planning, date flexibility, usage, call time, styling…",
+    "What are you planning, what kind of talent works for you, date flexibility, usage, call time, styling, anything already confirmed…",
+  // 2026-05-14 layout consolidation — section headings that the form
+  // uses to group contact / project / brief blocks. Fallback copy
+  // lives here; tenant-locale variants override via formCopy prop.
+  sectionContactHeading: "Your contact",
+  sectionProjectHeading: "Project details",
+  sectionBriefHeading: "Your brief",
   privacyNotice: "We will only use your information to respond to your inquiry.",
   submitInquiry: "Send inquiry",
   sending: "Sending…",
@@ -380,35 +386,41 @@ function FormBody({
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="contact_phone">{form.labelPhone}</Label>
-        <Input
-          id="contact_phone"
-          name="contact_phone"
-          type="tel"
-          defaultValue={defaultPhone}
-          autoComplete="tel"
-        />
+      {/* 2026-05-14 layout consolidation — phone + company share a row
+          (previously each consumed full width on desktop, sparse on
+          1100px+ viewports). Both stay optional for guest path. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="contact_phone">{form.labelPhone}</Label>
+          <Input
+            id="contact_phone"
+            name="contact_phone"
+            type="tel"
+            defaultValue={defaultPhone}
+            autoComplete="tel"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="company">{form.labelCompany}</Label>
+          <Input
+            id="company"
+            name="company"
+            defaultValue={defaultCompany}
+            autoComplete="organization"
+          />
+        </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="company">{form.labelCompany}</Label>
-        <Input
-          id="company"
-          name="company"
-          defaultValue={defaultCompany}
-          autoComplete="organization"
-        />
+
+      {/* Section divider — keeps "Project details" visually distinct
+          from the contact block above so the form reads as 3 chunks
+          (contact → project → brief) instead of an undifferentiated
+          stack. */}
+      <div className="pt-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {form.sectionProjectHeading ?? "Project details"}
+        </p>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="raw_query">{form.labelLookingFor}</Label>
-        <Textarea
-          id="raw_query"
-          name="raw_query"
-          defaultValue={searchContext?.q ?? ""}
-          rows={3}
-          placeholder={form.placeholderLookingFor}
-        />
-      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="event_type_id">{form.labelEventType}</Label>
@@ -451,6 +463,17 @@ function FormBody({
           />
         </div>
       </div>
+
+      {/* Brief section — merged raw_query + message. The previous form
+          had TWO confusingly-similar text fields ("What are you looking
+          for?" + "Brief"). Now: ONE Brief field, AI assistant on top
+          when enabled, raw_query stays as hidden input that snapshots
+          the brief text for engine-side AI parsing (no double-typing). */}
+      <div className="pt-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {form.sectionBriefHeading ?? "Your brief"}
+        </p>
+      </div>
       <div className="space-y-2">
         <Label htmlFor="message">{form.labelBrief}</Label>
         {inquiryDraftEnabled ? (
@@ -467,7 +490,16 @@ function FormBody({
           id="message"
           name="message"
           placeholder={form.placeholderBrief}
-          rows={4}
+          rows={5}
+          defaultValue={searchContext?.q ?? ""}
+        />
+        {/* raw_query mirrors the message body for engine-side AI parsing.
+            Hidden so the user doesn't see two textareas. */}
+        <input
+          type="hidden"
+          name="raw_query"
+          id="raw_query"
+          defaultValue={searchContext?.q ?? ""}
         />
       </div>
       {/* Step 14 — attachments hint. The uploader itself lives on the
@@ -589,7 +621,7 @@ function ClientForm({
   );
   const effFormId = formId ?? "inquiry-cart-form";
   return (
-    <form id={effFormId} action={formAction} className="space-y-4" onSubmit={() => { submittedRef.current = true; }}>
+    <form id={effFormId} action={formAction} className="space-y-4 max-w-2xl mx-auto" onSubmit={() => { submittedRef.current = true; }}>
       <FormBody
         agencyWhatsAppNumber={agencyWhatsAppNumber}
         talentIds={talentIds}
@@ -639,7 +671,7 @@ function GuestForm({
   );
   const effFormId = formId ?? "inquiry-cart-form";
   return (
-    <form id={effFormId} action={formAction} className="space-y-4" onSubmit={() => { submittedRef.current = true; }}>
+    <form id={effFormId} action={formAction} className="space-y-4 max-w-2xl mx-auto" onSubmit={() => { submittedRef.current = true; }}>
       <FormBody
         agencyWhatsAppNumber={agencyWhatsAppNumber}
         talentIds={talentIds}
