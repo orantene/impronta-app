@@ -369,14 +369,229 @@ inquiry funnel sprint.
 
 ---
 
-## 9 · Open questions for product owner
+## 9a · Product-owner decisions (locked 2026-05-13)
 
-1. **Cart capacity** — is there a max number of talent per inquiry? (engine accepts unlimited; UX should probably cap at ~10)
-2. **Cart abandonment** — how long do guest saved/cart entries persist? (TTL on `saved_talent` for guest sessions?)
-3. **Cross-tenant carts** — can a hub-site cart mix talent from agencies A + B in one inquiry, or does it force one agency per inquiry?
-4. **Pitch links** — when a client clicks a pitch link, does the cart get auto-populated with the pitched talent? (probably yes)
-5. **Budget hint** — should the inquiry form ask for a rough budget, or is that always agency-pulled-out-of-the-client later?
-6. **AI assist on the brief** — InquiryDraftAssistant already exists in directory. Should it appear on the dashboard form too?
-7. **"Available date range" vs single event date** — multi-date inquiries are real (talent on hold for multiple potential dates). Worth surfacing in the form?
+User signed off on the §3 principles and answered the open questions.
+Locking the decisions before §9 so the rest of the doc reads as final
+direction, not draft.
 
-These don't block sign-off on §3 principles but block step 4 execution.
+### Q1 — Cart capacity: **no hard max, soft throttle for spam**
+
+- Engine already rate-limits inquiry submissions at 5/hour per user — keep.
+- Soft UI cap of **15 talent per inquiry** with an "Add more?" confirmation step past 10. UX nudge, not a wall.
+- Inside one inquiry the engine is fine — talent count fans out into per-talent participant rows; no spam risk.
+
+### Q2 — Guest cart / favorites TTL: **30 days**
+
+- `saved_talent` rows for guest sessions auto-expire at 30 days.
+- Pending guest inquiries stay forever (they're a real lead) — only the cart/favorites pre-submit cleans up.
+- On guest → client merge, the 30-day window resets to forever.
+
+### Q3 — Cross-tenant carts at the hub: **force one agency per inquiry**
+
+- A hub cart MAY contain talent from multiple agencies (e.g. tulala.digital browse).
+- At submit time the form forces the client to pick ONE agency, OR auto-splits the cart into N inquiries (one per agency) — client confirms with a "we'll send this as 2 separate inquiries, one to Impronta and one to Nova Crew" step.
+- `tenant_id` of each resulting inquiry = the chosen / split-out agency.
+- `source_workspace_id` stays as the hub for all of them.
+
+### Q4 — Pitch flow (major expansion)
+
+A pitch is a "ready-to-go inquiry" the agency sends to a prospective
+client. The current implementation is too thin; new shape:
+
+- **Three pitch outcomes** (replacing today's binary accept/decline):
+  - `declined` — recipient says no, pitch closes
+  - `approved` — recipient accepts but hasn't converted to inquiry yet (e.g. they want to talk first)
+  - `converted` — pitch has produced an inquiry (current `converted_inquiry_id` semantic)
+- **Recipient identity options on pitch landing:**
+  - If recipient is not registered → "Continue as guest" OR "Register a client account" — registration is optional, never required
+  - If recipient IS registered → they see the pitch alongside their existing pitch history (`/client/pitches` index page, new surface)
+- **Pitch history page** (`/[tenantSlug]/client/pitches`): list of every pitch sent to this client (declined / approved / converted). Each row links back to the pitch landing where they can act.
+- **Approved → inquiry**: clicking "Submit as inquiry" on an approved pitch runs `convertPitchToInquiry` with the recipient as `client_user_id` and the pitched talent as `talent_profile_ids`. Engine convergence (Step 0) gets `convertPitchToInquiry` fixed for `origin_domain` + `source_workspace_id` for free.
+
+Schema additions:
+- `pitches.status`: add `'approved'` to the existing enum
+- `pitches.approved_at`: timestamptz nullable
+- No new table — pitch history is just `SELECT FROM pitches WHERE recipient_user_id = $self`
+
+### Q5 — Budget: **optional, structured, with "let agency decide" path**
+
+The user explicitly listed: per hour, per day, per contract — and
+that client can also leave it optional. We support all of those.
+
+New columns on `inquiries`:
+```sql
+budget_amount_cents bigint           -- nullable
+budget_currency text                 -- nullable, ISO 4217 (USD, EUR, MXN)
+budget_unit text                     -- nullable: 'per_hour' | 'per_day' | 'per_event' | 'per_project' | 'total' | 'agency_decides'
+budget_notes text                    -- nullable, free-form ("can flex 20% if it's the right talent")
+```
+
+`budget_unit = 'agency_decides'` is the "client doesn't want to set a
+number" path. Engine treats it as a signal to the admin to propose
+pricing, not a missing field.
+
+The form UI:
+- Top toggle: "I have a budget" / "Let the agency suggest"
+- If "I have a budget": amount field + unit dropdown + optional notes
+- If "Let agency suggest": just notes ("Any pricing context — exclusivity, usage, similar past bookings, …")
+- Talent profile-level rates (already shipped on `talent_profiles`) auto-fill as hints when the client picks a specific talent
+
+### Q6 — AI assist on dashboard: **yes, hoist InquiryDraftAssistant**
+
+Same component everywhere — the AI helps the client articulate the
+brief regardless of entry point.
+
+### Q7 — Multi-date inquiries: **single-date primary, optional flex window**
+
+New columns:
+```sql
+event_date_flex_start date          -- nullable
+event_date_flex_end date            -- nullable
+```
+
+UI: a "Flexible dates" toggle that opens a second date input. When set,
+`event_date` is the preferred date and the flex window is the range
+the agency can also work with. Most inquiries use single-date only.
+
+---
+
+## 9b · MAJOR EXPANSION — category-driven, admin-curated inquiry (new flow)
+
+Locked as a first-class flow alongside the "client picks specific
+talent" path. This is the foundation of how the business actually
+runs: client says **what** they need by category, admin curates **who**
+fits.
+
+### Two inquiry modes (binary, top-of-form toggle)
+
+| Mode | Client provides | Admin's job |
+|---|---|---|
+| **Pick specific** | Talent IDs (cart contents) + brief | Confirm fit, optionally swap |
+| **Request by category** | Category breakdown + brief + budget | Curate the lineup over chat |
+
+The two modes use the SAME `submitInquiry` engine call. The difference
+is only the form fields and what's pre-populated in `inquiry_participants`.
+
+### "Request by category" form
+
+Replaces a single-talent dropdown with a **role-quantity matrix**:
+
+```
+[ x ] 3 × Models
+[ x ] 2 × Chefs
+[ x ] 1 × Host / MC
+[ + ] Add another role
+```
+
+Each row maps to one `inquiry_requirement_groups` row at submit time.
+The schema already supports this — `role_key`, `quantity_required`,
+`sort_order` are real columns (see `inquiry-engine-submit.ts:147`).
+Today the engine creates ONE default group with `role_key='talent'`;
+the form just needs to send N groups.
+
+The form sends:
+```ts
+requirement_groups: [
+  { role_key: 'model', quantity_required: 3, notes: "Latin, mid-twenties" },
+  { role_key: 'chef',  quantity_required: 2, notes: "Mediterranean cuisine" },
+  { role_key: 'host',  quantity_required: 1, notes: "Bilingual ES/EN" },
+]
+talent_profile_ids: []   // explicit empty
+budget_amount_cents, budget_currency, budget_unit, budget_notes
+```
+
+Admin shell receives the inquiry with NO talent attached. The Lineup
+tab shows the requirement groups as "3 / 0 invited · 2 / 0 invited
+· 1 / 0 invited" rows. Admin opens the talent picker and fills each
+slot.
+
+### Chat-driven discovery (already wired, just needs polish)
+
+The Client thread is where the back-and-forth happens — client clarifies
+"actually need them to also speak Italian" → admin swaps talent. The
+existing engine functions cover the moves:
+
+- `addTalentToInquiry(inquiryId, talentId, requirementGroupId, addedBy)`
+- `removeTalentFromInquiry(inquiryId, talentId, removedBy, reason)`
+- `swapTalentInRequirementGroup(...)`
+
+What needs adding:
+- Each chat message in the Client thread can carry a "Suggested talent" chip the admin attaches — clicking it adds that talent to the inquiry's lineup in `status='invited'` and posts a notice into the thread. Engine path exists; the chat-card emit + UI affordance are the gap.
+- The Details tab Section 5 (People → Lineup) renders the requirement_groups breakdown ("3/3 models confirmed · 1/2 chefs invited · 0/1 host") not just the flat total.
+
+### Schema additions for this flow
+
+```sql
+-- inquiry_requirement_groups: already exists, columns already sufficient
+-- (role_key, quantity_required, sort_order, notes)
+
+-- inquiries: budget columns (see Q5 above)
+
+-- inquiry_messages.card_payload supports a new kind:
+ALTER TYPE inquiry_message_kind ADD VALUE 'admin_suggested_talent';
+-- card_payload shape: { talent_profile_id, talent_name, rate_label,
+--                       requirement_group_id, status: 'pending' | 'added' | 'dismissed' }
+```
+
+---
+
+## 9c · Updated migration order (supersedes §5)
+
+Steps re-ordered to land the category flow earlier — it's the bigger
+business unlock than multi-talent cart polish.
+
+| # | Step | User-visible? | Effort |
+|---|---|---|---|
+| 0 | Converge all 5 insert paths onto `submitInquiry` | no (consistency) | M |
+| 1 | Dashboard form pulls `saved_talent` for logged-in client (single-mode for now) | yes | S |
+| 2 | Hoist `<InquiryCartForm>` into shared component (replaces dashboard form) | yes | M |
+| 3 | **Add "Request by category" mode + requirement_groups multi-insert** (NEW — was Step 4) | yes | M |
+| 4 | **Add budget block (Q5 columns + form section)** (NEW) | yes | S |
+| 5 | `saved_talent.in_cart` column for save-vs-queue distinction | yes (subtle) | S |
+| 6 | Plan-tier-aware form shaping (free/studio/agency/hub) | yes | M |
+| 7 | **Admin "Suggested talent" chat card + click-to-add** (NEW) | yes | M |
+| 8 | **Pitch v2: approved status, history page, register-or-guest landing** (NEW) | yes | L |
+| 9 | Hub cart routing (multi-agency split or pick-one) | yes | L |
+| 10 | Free-tenant talent-page direct CTA + minimal form | yes | S |
+| 11 | Guest cart TTL (30-day cleanup job) + cart resume on signup | mostly invisible | S |
+
+Steps 0-4 are the "this becomes a real product" sprint. Steps 7-9 are
+the "this becomes the business" follow-up.
+
+---
+
+## 9d · Open questions (all resolved 2026-05-13)
+
+The original §9 questions were all answered in §9a. Keeping this
+section as a record of the original list + resolutions.
+
+| # | Question | Resolution |
+|---|---|---|
+| Q1 | Cart capacity | no max + soft UI cap @ 15 + existing 5/hour engine rate-limit |
+| Q2 | Guest cart TTL | 30 days for `saved_talent` (resets on signup); pending inquiries forever |
+| Q3 | Cross-tenant carts | force 1 agency per inquiry; auto-split if cart has multiple agencies' talent |
+| Q4 | Pitch links | EXPANDED — pitches turn into ready inquiries; recipient opts in via guest or registered account; pitch history surface; status enum gets `'approved'` |
+| Q5 | Budget | EXPANDED — optional structured budget (`budget_amount_cents` + `budget_unit` enum: per_hour/per_day/per_event/per_project/total/agency_decides) + `budget_notes` free-form |
+| Q6 | AI assist on dashboard | yes — hoist `InquiryDraftAssistant` |
+| Q7 | Multi-date | flex window optional (`event_date_flex_start` + `_end`); single date stays primary |
+
+Plus the unsolicited major expansion that became §9b: **category-
+driven, admin-curated inquiry mode** — client submits "I need 3 models
++ 2 chefs + 1 host with this budget", admin curates the lineup over
+chat. Schema already supports it via `inquiry_requirement_groups`;
+the form and the admin "Suggested talent" chat card are the gaps.
+
+---
+
+## 10 · Execution direction (post sign-off)
+
+Starting on §9c step 0 (engine convergence) on next focused session.
+That unlocks every subsequent step. Then 1 → 2 → 3 → 4 in order
+since each builds on the previous form scaffold. Step 7 (admin
+suggested-talent chat card) ships after step 3 because it depends on
+the requirement-groups UX being live.
+
+QA marathon (talent/coord add-remove + message flow) resumes after
+step 2 — that's when the form parity makes a real end-to-end QA
+sweep meaningful.
