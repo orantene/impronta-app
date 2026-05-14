@@ -18,6 +18,7 @@ import { resolveClientAccountContactForSave } from "@/lib/server/client-account-
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
+import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
 import { emitFieldChange } from "@/lib/inquiry/audit-field-emit";
 import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
 
@@ -83,9 +84,15 @@ export async function createAgencyInquiry(
   // upstream; for now require a parseable string or pass null.
   const eventDate = v.event_date.trim() ? v.event_date.trim() : null;
 
-  const insertPayload = {
+  // Universal-connector P0 (2026-05-13) — admin manual creation now
+  // flows through the same submitInquiry engine. Previously this was
+  // a direct INSERT that bypassed the rate limiter, event emit, and
+  // requirement-group creation. The admin is creating ON BEHALF of a
+  // client whose identity is name+email — that client may or may not
+  // have an existing auth row; client_user_id stays null and the
+  // merge layer links them later by email/phone on signup.
+  const inquirySubmission = await submitInquiry(supabase, {
     tenant_id: tenantId,
-    status: "new" as const,
     contact_name: v.contact_name.trim(),
     contact_email: v.contact_email.trim().toLowerCase(),
     contact_phone: v.contact_phone.trim() || null,
@@ -93,25 +100,35 @@ export async function createAgencyInquiry(
     event_date: eventDate,
     event_location: v.event_location.trim() || null,
     message: v.message.trim() || null,
+    source_channel: "admin_manual",
     source_page: "admin-workspace-new-inquiry",
-    assigned_staff_id: user.id,
-  };
+    client_user_id: null,
+    talent_profile_ids: [],
+    actorUserId: user.id,
+    initiator_role: "admin",
+    initiator_user_id: user.id,
+  });
 
-  const { data, error } = await supabase
-    .from("inquiries")
-    .insert(insertPayload)
-    .select("id")
-    .single();
-
-  if (error) {
-    logServerError("admin-inquiries.createAgencyInquiry.insert", error);
+  if (!inquirySubmission.success || !inquirySubmission.data?.inquiryId) {
+    logServerError("admin-inquiries.createAgencyInquiry.engine", new Error(JSON.stringify(inquirySubmission)));
     return { ok: false, error: CLIENT_ERROR.update };
   }
+  const inquiryId = inquirySubmission.data.inquiryId;
+
+  // Stamp assigned_staff_id post-insert. The engine doesn't set this
+  // because it uses auto-coordinator-assignment from settings; admin
+  // manual creation explicitly assigns the creating staff member.
+  const { error: stampErr } = await supabase
+    .from("inquiries")
+    .update({ assigned_staff_id: user.id })
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId);
+  if (stampErr) logServerError("admin-inquiries.createAgencyInquiry.assignStamp", stampErr);
 
   // Best-effort audit log entry. Wrapped to never throw into render path.
   try {
     await logInquiryActivity(supabase, {
-      inquiryId: data.id,
+      inquiryId,
       actorUserId: user.id,
       eventType: INQUIRY_AUDIT.CREATED_MANUAL,
       payload: { source: "admin_workspace", contact_email: v.contact_email },
@@ -123,7 +140,7 @@ export async function createAgencyInquiry(
   // Refresh the workspace so Messages + Calendar pick up the new inquiry.
   revalidatePath(`/${auth.tenantSlug}`, "layout");
 
-  return { ok: true, inquiry_id: data.id };
+  return { ok: true, inquiry_id: inquiryId };
 }
 
 const updateInquiryClientInfoSchema = z.object({

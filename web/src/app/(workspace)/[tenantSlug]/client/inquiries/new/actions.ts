@@ -143,6 +143,10 @@ export async function createClientWorkspaceInquiryAction(
     client_user_id: user.id,
     talent_profile_ids: talentIds,
     actorUserId: user.id,
+    // Universal-connector P0 — direction of initiation (client on a
+    // workspace dashboard form).
+    initiator_role: "client",
+    initiator_user_id: user.id,
   });
 
   if (!result.success || !result.data?.inquiryId) {

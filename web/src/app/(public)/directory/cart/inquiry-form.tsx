@@ -161,6 +161,21 @@ function FormFields({
         name="directory_context"
         value={directoryContext}
       />
+      {/* Universal-connector P0 (2026-05-13) — honeypot. Hidden from
+          humans (off-screen + tabIndex=-1 + autocomplete=off). Bots
+          tend to fill every input; submitGuestInquiry returns a fake
+          success redirect when this field comes back non-empty. */}
+      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: 0, height: 0, width: 0, overflow: "hidden" }}>
+        <label>Website (leave empty)
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            defaultValue=""
+          />
+        </label>
+      </div>
       {state?.error ? (
         <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-m text-destructive">
           {state.error}

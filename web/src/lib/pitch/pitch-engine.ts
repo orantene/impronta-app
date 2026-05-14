@@ -757,6 +757,15 @@ export async function convertPitchToInquiry(
     message,
     source_channel: "pitch",
     source_page: `pitch:${pitch.id}`,
+    // Universal-connector P0 — pitch flow attribution. The agency (admin)
+    // authored the pitch; the client approved it. Initiator = admin
+    // (the pitch creator), with the recipient surfacing as `client_user_id`.
+    // origin_domain + source_workspace_id were dropped on the floor by
+    // this caller until 2026-05-13; now they flow from the pitch's tenant.
+    initiator_role: "admin",
+    initiator_user_id: pitch.created_by_user_id ?? null,
+    origin_domain: null,  // pitch share-URL host is not consistently captured today; future work
+    source_workspace_id: pitch.tenant_id,
     client_user_id: clientUserId,
     talent_profile_ids: talentIds,
     actorUserId,

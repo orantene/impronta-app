@@ -25,6 +25,8 @@ async function inquiryInTenant(
   return !!data;
 }
 
+export type InquiryInitiatorRole = "client" | "admin" | "talent" | "hub" | "free_agent";
+
 export type SubmitInquiryInput = {
   contact_name: string;
   contact_email: string;
@@ -41,7 +43,43 @@ export type SubmitInquiryInput = {
   source_channel: string;
   client_user_id: string | null;
   talent_profile_ids: string[];
-  actorUserId: string;
+  /**
+   * Submitter identity. String for authenticated users. NULL for
+   * guests (unauthenticated public-storefront submissions). The engine
+   * branches:
+   *   • null  → permission check is skipped (public guest path);
+   *             rate-limit keyed off `guest_session_id` instead of user
+   *   • string → existing permission + per-user rate-limit flow
+   */
+  actorUserId: string | null;
+  /**
+   * Guest submissions only: the `guest_sessions.id` carrying the
+   * x-impronta-guest cookie session. Used by the engine as the
+   * rate-limit key when `actorUserId` is null. Ignored otherwise.
+   */
+  guest_session_id?: string | null;
+  /**
+   * Universal-connector P0 (2026-05-13). Direction of initiation,
+   * independent of `client_user_id` (which identifies the client
+   * party regardless of who initiated).
+   *
+   *   client     — client used a public storefront / dashboard / cart
+   *   admin      — admin used the manual-inquiry sheet, OR a pitch sent
+   *                by the agency was approved by the recipient
+   *   talent     — talent offered themselves for a gig (engine ready;
+   *                UI not yet built)
+   *   hub        — hub matchmaker connected client + agency (UI not
+   *                yet built; step 9)
+   *   free_agent — workspace owner who is also talent doing cold
+   *                outreach (UI not yet built)
+   */
+  initiator_role: InquiryInitiatorRole;
+  /**
+   * auth.users.id of the party who initiated. May differ from
+   * `client_user_id`. Defaults to `actorUserId` when not explicitly
+   * passed (most direct case).
+   */
+  initiator_user_id?: string | null;
   /**
    * F3 — origin_domain is the exact hostname where the inquiry form was
    * submitted (e.g. "improntamodels.com", "tulala.digital"). Read from the
@@ -77,18 +115,38 @@ export async function submitInquiry(
   supabase: SupabaseClient,
   input: SubmitInquiryInput,
 ): Promise<EngineResult<{ inquiryId: string }>> {
-  return runWithEngineLog("submitInquiry", undefined, input.actorUserId, async () => {
+  return runWithEngineLog("submitInquiry", undefined, input.actorUserId ?? "guest", async () => {
     if (!input.tenant_id) {
       return { success: false, error: "tenant_required" };
     }
 
-    const rl = await rateLimiter.check(engineRateKey("submitInquiry", input.actorUserId), 5, 60 * 60_000);
+    // Universal-connector P0 — rate-limit per actor identity.
+    //   • authenticated user: 5/hour per user (existing)
+    //   • guest:              3/hour per guest_session_id (tighter)
+    // Plus per-tenant cap of 50/hour across all submitters to one
+    // agency — prevents one bad actor across multiple guest sessions
+    // from hammering a single tenant.
+    const actorKey = input.actorUserId
+      ? engineRateKey("submitInquiry", input.actorUserId)
+      : `submitInquiry:guest:${input.guest_session_id ?? "anon"}`;
+    const actorLimit = input.actorUserId ? 5 : 3;
+    const rl = await rateLimiter.check(actorKey, actorLimit, 60 * 60_000);
     if (!rl.ok) {
       return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
     }
+    const tenantRl = await rateLimiter.check(`submitInquiry:tenant:${input.tenant_id}`, 50, 60 * 60_000);
+    if (!tenantRl.ok) {
+      return { success: false, rateLimited: true, retryAfterMs: tenantRl.retryAfterMs, reason: "rate_limited" };
+    }
 
-    const perm = await validateActorPermission(supabase, "", input.actorUserId, "submit_inquiry");
-    if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
+    // Permission gate. Guest path (null actorUserId) skips the user-
+    // based permission check by design — the public storefront IS
+    // by-design accessible to anyone. Spam protection lives in the
+    // rate-limit + honeypot layer above, not here.
+    if (input.actorUserId) {
+      const perm = await validateActorPermission(supabase, "", input.actorUserId, "submit_inquiry");
+      if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
+    }
 
     const assignment = await assignCoordinatorFromSettings(supabase, {
       source_type: "agency",
@@ -103,6 +161,9 @@ export async function submitInquiry(
       .insert({
         tenant_id: input.tenant_id,
         client_user_id: input.client_user_id,
+        // Guest path — `guest_sessions.id` carries the unauthenticated
+        // visitor's identity across requests. Nullable for non-guest.
+        guest_session_id: input.guest_session_id ?? null,
         contact_name: input.contact_name,
         contact_email: input.contact_email,
         contact_phone: input.contact_phone ?? null,
@@ -121,6 +182,12 @@ export async function submitInquiry(
         source_workspace_id: input.source_workspace_id ?? null,
         // Phase 3.7 — trust snapshot at submission time
         trust_level_at_submission: input.trust_level_at_submission ?? null,
+        // Universal-connector P0 (2026-05-13) — direction of initiation.
+        // Independent of client_user_id (which identifies the client party
+        // regardless of who initiated). Defaults initiator_user_id to
+        // actorUserId for the simple direct case.
+        initiator_role: input.initiator_role as never,
+        initiator_user_id: input.initiator_user_id ?? input.actorUserId ?? null,
         status: status as never,
         uses_new_engine: true,
         source_type: "agency",
@@ -191,7 +258,7 @@ export async function submitInquiry(
         role: "talent",
         status: "invited",
         sort_order: sort++,
-        added_by_user_id: input.actorUserId,
+        added_by_user_id: input.actorUserId ?? null,
         requirement_group_id: defaultGroupId ?? null,
       });
     }
@@ -201,11 +268,13 @@ export async function submitInquiry(
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.INQUIRY_SUBMITTED,
       inquiryId,
-      actorUserId: input.actorUserId,
+      actorUserId: input.actorUserId ?? null,
       data: {
         coordinatorAssigned: Boolean(assignment.coordinator_id),
         talentCount: input.talent_profile_ids.length,
         sourceChannel: input.source_channel,
+        initiatorRole: input.initiator_role,
+        isGuest: !input.actorUserId,
       },
     });
 

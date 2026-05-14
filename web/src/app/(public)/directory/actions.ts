@@ -458,6 +458,8 @@ export async function submitClientInquiry(
     client_user_id: user.id,
     talent_profile_ids: talentIds,
     actorUserId: user.id,
+    initiator_role: "client",
+    initiator_user_id: user.id,
   });
   if (!v2.success) {
     logServerError("directory/submitClientInquiry/v2", new Error(JSON.stringify(v2)));
@@ -507,6 +509,17 @@ export async function submitGuestInquiry(
   }
   if (!admin) {
     return { error: t("public.forms.inquiry.supabaseNotConfigured") };
+  }
+
+  // Universal-connector P0 (2026-05-13) — honeypot field. Bots tend to
+  // fill every input they find; humans never touch this hidden field.
+  // If the `website` field comes back populated, silently pretend the
+  // submission succeeded (return 'submitted' redirect) so the bot's
+  // automation doesn't learn to retry with a different shape.
+  const honeypot = String(formData.get("website") ?? "").trim();
+  if (honeypot) {
+    logServerError("directory/submitGuestInquiry/honeypot", new Error(`Honeypot tripped: ${honeypot.slice(0, 40)}`));
+    redirect("/directory?inquiry=submitted&activation=created&email=");
   }
 
   const rawIds = formData.get("talent_ids");
@@ -624,79 +637,44 @@ export async function submitGuestInquiry(
     phone: contact_phone,
   });
 
-  const { data: inquiry, error: inquiryErr } = await admin
-    .from("inquiries")
-    .insert({
-      tenant_id: publicScope.tenantId,
-      guest_session_id: guestSession.id,
-      client_user_id: guestClient.clientUserId,
-      contact_name,
-      contact_email: contact_email.toLowerCase(),
-      contact_phone: contact_phone || null,
-      company: company || null,
-      event_date,
-      event_location: event_location || null,
-      quantity,
-      message: message || null,
-      event_type_id,
-      raw_ai_query: raw_query || null,
-      interpreted_query,
-      source_page: source_page || "/directory",
-      source_channel: "directory_guest" as never,
-      origin_domain: guestOriginDomain,
-      source_workspace_id: guestSourceWorkspaceId,
-      // Phase 3.7 — guest submissions are always "basic" (no trust record).
-      trust_level_at_submission: "basic",
-      status: "new",
-      uses_new_engine: true,
-      version: 1,
-    })
-    .select("id")
-    .single();
+  // Universal-connector P0 (2026-05-13) — guest path now flows through
+  // the same submitInquiry engine call as the authenticated paths. The
+  // engine handles inquiry row insert + default requirement group +
+  // client + coordinator + talent participant inserts + standard event
+  // emit + rate-limiting (now guest-aware via guest_session_id key).
+  //
+  // The engine accepts a null actorUserId for guest submissions and
+  // skips the user-based permission check — the public storefront is
+  // by-design accessible to anyone, with spam protection enforced via
+  // rate-limit + honeypot at the form layer.
+  const guestSubmission = await submitInquiry(admin, {
+    tenant_id: publicScope.tenantId,
+    contact_name,
+    contact_email: contact_email.toLowerCase(),
+    contact_phone: contact_phone || null,
+    company: company || null,
+    event_date,
+    event_location: event_location || null,
+    quantity,
+    message: message || null,
+    event_type_id,
+    raw_ai_query: raw_query || null,
+    interpreted_query,
+    source_page: source_page || "/directory",
+    source_channel: "directory_guest",
+    origin_domain: guestOriginDomain,
+    source_workspace_id: guestSourceWorkspaceId,
+    trust_level_at_submission: "basic",
+    client_user_id: guestClient.clientUserId,
+    talent_profile_ids: talentIds,
+    actorUserId: null,  // guest path
+    guest_session_id: guestSession.id,
+    initiator_role: "client",
+    initiator_user_id: guestClient.clientUserId,
+  });
 
-  if (inquiryErr || !inquiry) {
-    logServerError("directory/submitGuestInquiry/insert", inquiryErr);
-    return { error: t("public.errors.inquiry") };
-  }
-
-  const { data: talentParticipantRows, error: talentParticipantLookupErr } = await admin
-    .from("talent_profiles")
-    .select("id, user_id")
-    .in("id", talentIds);
-  if (talentParticipantLookupErr) {
-    logServerError("directory/submitGuestInquiry/talentParticipantLookup", talentParticipantLookupErr);
-    return { error: t("public.errors.inquiry") };
-  }
-
-  const talentUserIdsByProfileId = new Map(
-    ((talentParticipantRows ?? []) as { id: string; user_id: string | null }[]).map((row) => [row.id, row.user_id] as const),
-  );
-
-  const participantRows = [
-    ...(guestClient.clientUserId
-      ? [
-          {
-            inquiry_id: inquiry.id,
-            user_id: guestClient.clientUserId,
-            role: "client" as const,
-            status: "active" as const,
-          },
-        ]
-      : []),
-    ...talentIds.map((talent_profile_id, index) => ({
-      inquiry_id: inquiry.id,
-      user_id: talentUserIdsByProfileId.get(talent_profile_id) ?? null,
-      talent_profile_id,
-      role: "talent" as const,
-      status: "invited" as const,
-      sort_order: index,
-      added_by_user_id: guestClient.clientUserId,
-    })),
-  ];
-
-  const { error: participantErr } = await admin.from("inquiry_participants").insert(participantRows);
-  if (participantErr) {
-    logServerError("directory/submitGuestInquiry/participants", participantErr);
+  if (!guestSubmission.success || !guestSubmission.data?.inquiryId) {
+    logServerError("directory/submitGuestInquiry/v2", new Error(JSON.stringify(guestSubmission)));
     return { error: t("public.errors.inquiry") };
   }
 
