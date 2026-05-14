@@ -261,6 +261,77 @@ export function subscriptionCancelEmail(data: {
   };
 }
 
+/** Step 13 — Sent to client when their inquiry is first received (on submit). */
+export function inquiryReceivedEmail(data: {
+  contactName: string | null;
+  agencyName: string;
+  inquiryId: string;
+  eventDate: string | null;
+  eventLocation: string | null;
+  brand?: EmailBrand;
+}): { subject: string; html: string } {
+  const name = data.contactName ?? "there";
+  const href = `${siteUrl()}/client/inquiries/${data.inquiryId}`;
+  const details = [data.eventDate, data.eventLocation].filter(Boolean);
+
+  return {
+    subject: `Your inquiry to ${data.agencyName} is received`,
+    html: layout(
+      `
+      <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">We've received your inquiry</h2>
+      <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
+        Hi ${name}, thanks for reaching out to <strong>${data.agencyName}</strong>. We'll get back to you as soon as possible.
+      </p>
+      ${
+        details.length > 0
+          ? `<table role="presentation" style="width:100%;border:1px solid #e5e5e5;border-radius:8px;margin-bottom:16px;">
+          ${data.eventDate ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;border-bottom:1px solid #f0f0f0;">Date</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${data.eventDate}</td></tr>` : ""}
+          ${data.eventLocation ? `<tr><td style="padding:10px 16px;font-size:13px;color:#666;">Location</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#1a1a1a;text-align:right;">${data.eventLocation}</td></tr>` : ""}
+        </table>`
+          : ""
+      }
+      <p style="margin:0;font-size:14px;color:#555555;">
+        You can track the status of your inquiry from your dashboard.
+      </p>
+      ${button(href, "View inquiry →")}
+    `,
+      data.brand,
+    ),
+  };
+}
+
+/** Step 13 — Sent to coordinator when auto-assigned to a new inquiry on submit. */
+export function coordinatorAssignedEmail(data: {
+  coordinatorName: string | null;
+  contactName: string | null;
+  inquiryId: string;
+  agencyName: string;
+  eventDate: string | null;
+  brand?: EmailBrand;
+}): { subject: string; html: string } {
+  const name = data.coordinatorName ?? "there";
+  const event = data.contactName ?? "a new inquiry";
+  const href = `${siteUrl()}/admin/work/${data.inquiryId}`;
+
+  return {
+    subject: `You've been assigned to ${event}`,
+    html: layout(
+      `
+      <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">New inquiry assigned to you</h2>
+      <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
+        Hi ${name}, you've been assigned as coordinator for <strong>${event}</strong> at ${data.agencyName}.
+        ${data.eventDate ? ` The event is on <strong>${data.eventDate}</strong>.` : ""}
+      </p>
+      <p style="margin:0;font-size:14px;color:#555555;">
+        Review the inquiry and reach out to the client.
+      </p>
+      ${button(href, "Open inquiry →")}
+    `,
+      data.brand,
+    ),
+  };
+}
+
 /** Sent to talent when they are added to an inquiry roster. */
 export function talentInvitedEmail(data: {
   talentName: string | null;

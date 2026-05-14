@@ -173,6 +173,8 @@ const MessagesShell = dynamic(() => import("./messages").then(m => m.MessagesShe
 import { bulkSetWorkflowStatus } from "@/app/(workspace)/[tenantSlug]/admin/roster/bulk-actions";
 import { PitchComposeDrawer } from "./pitch-compose";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
+// Step 13 — auto-ack settings
+import { updateAgencyAutoAck, loadAgencyAutoAck } from "@/lib/server-actions/admin-workspace-settings";
 
 // ════════════════════════════════════════════════════════════════════
 // Prototype control bar
@@ -7450,13 +7452,19 @@ const PITCH_STATUS_TONE: Record<PitchStatus, { tone: "ink" | "amber" | "green" |
   sent:      { tone: "ink",   label: "Sent" },
   viewed:    { tone: "ink",   label: "Viewed" },
   edited:    { tone: "amber", label: "Edited" },
+  // Step-8: `approved` is the new middle step between viewed/edited
+  // and converted — recipient said yes but hasn't submitted the inquiry
+  // form yet. Green-tone since it's a positive recipient signal.
+  approved:  { tone: "green", label: "Approved" },
   converted: { tone: "green", label: "Converted" },
   declined:  { tone: "dim",   label: "Declined" },
   cancelled: { tone: "dim",   label: "Cancelled" },
   expired:   { tone: "dim",   label: "Expired" },
 };
 
-const PITCH_ACTIVE: ReadonlyArray<PitchStatus> = ["draft", "sent", "viewed", "edited"];
+// `approved` counts as still-active for admin "in flight" filters —
+// the pitch hasn't terminated; recipient might still convert.
+const PITCH_ACTIVE: ReadonlyArray<PitchStatus> = ["draft", "sent", "viewed", "edited", "approved"];
 
 function fmtPitchDate(iso: string | null): string {
   if (!iso) return "—";
@@ -10341,6 +10349,148 @@ function BillingActivityTable() {
 // WS-3.5  Settings page redesign — anchor-link sub-nav
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Step 13: Auto-acknowledgement settings form ───────────────────────────────
+// Inline in the Email & communications accordion — toggle + textarea.
+// Loads current values on mount; saves on toggle-change or textarea blur.
+
+function AutoAckSettingsRow() {
+  const [enabled, setEnabled] = useState<boolean>(true);
+  const [message, setMessage] = useState<string>("Thanks — we'll get back to you within 4 hours.");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedOk, setSavedOk] = useState<boolean>(false);
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    let cancelled = false;
+    loadAgencyAutoAck().then((res: Awaited<ReturnType<typeof loadAgencyAutoAck>>) => {
+      if (cancelled) return;
+      if (res.ok) {
+        setEnabled(res.data.autoAckEnabled);
+        setMessage(res.data.autoAckMessage);
+      }
+      setLoading(false);
+    }).catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  function save(nextEnabled: boolean, nextMessage: string) {
+    setSaving(true);
+    setError(null);
+    setSavedOk(false);
+    startTransition(async () => {
+      const res = await updateAgencyAutoAck({
+        auto_ack_enabled: nextEnabled,
+        auto_ack_message: nextMessage.trim() || "Thanks — we'll get back to you within 4 hours.",
+      });
+      setSaving(false);
+      if (res.ok) {
+        setSavedOk(true);
+        setTimeout(() => setSavedOk(false), 2000);
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  if (loading) return null;
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: RADIUS.md,
+        padding: "14px 16px",
+        marginBottom: 8,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {/* Toggle row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enabled ? 10 : 0 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Auto-acknowledgement</div>
+          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+            Instant reply to clients when a new inquiry is submitted.
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          onClick={() => {
+            const next = !enabled;
+            setEnabled(next);
+            save(next, message);
+          }}
+          style={{
+            flexShrink: 0,
+            width: 36,
+            height: 20,
+            borderRadius: 999,
+            border: "none",
+            cursor: "pointer",
+            background: enabled ? COLORS.fill : COLORS.border,
+            position: "relative",
+            transition: `background ${TRANSITION.sm}`,
+          }}
+        >
+          <span style={{
+            display: "block",
+            width: 14,
+            height: 14,
+            borderRadius: "50%",
+            background: "#fff",
+            position: "absolute",
+            top: 3,
+            left: enabled ? 19 : 3,
+            transition: `left ${TRANSITION.sm}`,
+            boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
+          }} />
+        </button>
+      </div>
+
+      {/* Message textarea (only when enabled) */}
+      {enabled && (
+        <textarea
+          rows={2}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onBlur={() => save(enabled, message)}
+          disabled={saving}
+          maxLength={500}
+          placeholder="Thanks — we'll get back to you within 4 hours."
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            fontSize: 13,
+            color: COLORS.ink,
+            fontFamily: FONTS.body,
+            border: `1px solid ${error ? "#FCA5A5" : COLORS.border}`,
+            borderRadius: RADIUS.sm,
+            padding: "8px 10px",
+            resize: "vertical",
+            background: saving ? COLORS.surface : "#fff",
+            outline: "none",
+          }}
+        />
+      )}
+
+      {/* Status line */}
+      {saving && (
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>Saving…</div>
+      )}
+      {savedOk && !saving && (
+        <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4 }}>Saved</div>
+      )}
+      {error && (
+        <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4 }}>{error}</div>
+      )}
+    </div>
+  );
+}
+
 // Accordion sections — `supportLink` deep-links to the support docs/help
 // surface for that category, so backend can route help-requests by section.
 // ════════════════════════════════════════════════════════════════════
@@ -11060,6 +11210,8 @@ function WorkspacePageView() {
               </div>
               <Affordance label="Configure" />
             </SettingsRow>
+            {/* Step 13 — Auto-acknowledgement inline form */}
+            <AutoAckSettingsRow />
           </AccordionItem>
           )}
 

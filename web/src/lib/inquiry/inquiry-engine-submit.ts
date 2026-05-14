@@ -6,6 +6,12 @@ import { assignCoordinatorFromSettings } from "./coordinator-assignment";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
+import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+// Step 13 — post-submit notifications + auto-ack
+import { logServerError } from "@/lib/server/safe-error";
+import { sendInquirySubmittedNotifications } from "@/lib/email/inquiry-notifications";
+import { insertSystemMessage } from "./inquiry-system-messages";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. All reads/writes against
 // inquiries and inquiry_participants filter on tenant_id. Inserts include
@@ -276,6 +282,77 @@ export async function submitInquiry(
         initiatorRole: input.initiator_role,
         isGuest: !input.actorUserId,
       },
+    });
+
+    // Step 13 — post-submit side-effects: emails + workspace auto-ack.
+    // Fired as a void async IIFE so it doesn't block the return value.
+    // All wrapped in try/catch — failures must NEVER block the submission.
+    void (async () => {
+      try {
+        // Look up agency display_name + auto-ack settings in one query.
+        const { data: agencyRow } = await supabase
+          .from("agencies")
+          .select("display_name, auto_ack_enabled, auto_ack_message")
+          .eq("id", input.tenant_id)
+          .maybeSingle();
+
+        const agencyName: string =
+          typeof agencyRow?.display_name === "string" && agencyRow.display_name.trim()
+            ? agencyRow.display_name
+            : "The agency";
+
+        // a/b/c — client confirmation + coordinator assignment + talent invites.
+        await sendInquirySubmittedNotifications({
+          supabase,
+          inquiryId,
+          contactEmail: input.contact_email || null,
+          coordinatorId: assignment.coordinator_id ?? null,
+          talentProfileIds: input.talent_profile_ids,
+          agencyName,
+        });
+
+        // d — workspace auto-ack: system message into client (private) thread.
+        // Only fires when: auto_ack_enabled=true (default) AND there is a
+        // client identity (authenticated user_id or contact_email provided).
+        const autoAckEnabled =
+          agencyRow == null ? true : agencyRow.auto_ack_enabled !== false;
+        const autoAckMessage: string =
+          typeof agencyRow?.auto_ack_message === "string" && agencyRow.auto_ack_message.trim()
+            ? agencyRow.auto_ack_message
+            : "Thanks — we'll get back to you within 4 hours.";
+
+        if (autoAckEnabled && (input.client_user_id || input.contact_email)) {
+          await insertSystemMessage(supabase, {
+            inquiryId,
+            threadType: "private",
+            eventType: "inquiry_created",
+            body: autoAckMessage,
+            metadata: { system_event_type: "workspace_auto_ack" },
+          });
+        }
+      } catch (err) {
+        logServerError(
+          "submitInquiry/post-submit-notifications",
+          err instanceof Error ? err : new Error(String(err)),
+        );
+      }
+    })();
+
+    // Step 12: analytics — fires on EVERY successful submission regardless of
+    // entry point because all routes converge through submitInquiry after step 0.
+    void logAnalyticsEventServer({
+      name: PRODUCT_ANALYTICS_EVENTS.inquiry_submitted,
+      payload: {
+        inquiry_id: inquiryId,
+        mode: input.talent_profile_ids.length > 0 ? "pick" : "category",
+        talent_count: input.talent_profile_ids.length,
+        has_budget: false,
+        source_channel: input.source_channel,
+        initiator_role: input.initiator_role,
+        is_guest: !input.actorUserId,
+      },
+      userId: input.actorUserId ?? null,
+      path: input.source_page ?? null,
     });
 
     return { success: true, data: { inquiryId } };

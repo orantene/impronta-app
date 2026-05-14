@@ -332,6 +332,86 @@ export async function updateMediaWatermarkOverride(
   return { ok: true };
 }
 
+// ─── Auto-acknowledgement (Step 13) ─────────────────────────────────────────
+//
+// When enabled (default), the inquiry engine inserts a system message
+// into the Client thread on every new inquiry submission. Gives clients
+// an instant acknowledgement before the coordinator picks up the inquiry.
+
+const autoAckSchema = z
+  .object({
+    auto_ack_enabled: z.boolean(),
+    auto_ack_message: z.string().min(1).max(500),
+  })
+  .strict();
+
+export type UpdateAutoAckInput = z.infer<typeof autoAckSchema>;
+export type UpdateAutoAckResult = { ok: true } | { ok: false; error: string };
+
+export async function updateAgencyAutoAck(
+  input: UpdateAutoAckInput,
+): Promise<UpdateAutoAckResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const parsed = autoAckSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid auto-ack payload." };
+  }
+  const { auto_ack_enabled, auto_ack_message } = parsed.data;
+
+  const { error } = await supabase
+    .from("agencies")
+    .update({
+      auto_ack_enabled,
+      auto_ack_message: auto_ack_message.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tenantId);
+
+  if (error) {
+    logServerError("admin-workspace-settings.auto-ack.update", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  return { ok: true };
+}
+
+export type LoadAutoAckResult =
+  | { ok: true; data: { autoAckEnabled: boolean; autoAckMessage: string } }
+  | { ok: false; error: string };
+
+export async function loadAgencyAutoAck(): Promise<LoadAutoAckResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const { data: agency, error } = await supabase
+    .from("agencies")
+    .select("auto_ack_enabled, auto_ack_message")
+    .eq("id", tenantId)
+    .single();
+
+  if (error) {
+    logServerError("admin-workspace-settings.auto-ack.load", error);
+    return { ok: false, error: "Could not load auto-ack settings." };
+  }
+
+  return {
+    ok: true,
+    data: {
+      autoAckEnabled:
+        typeof agency?.auto_ack_enabled === "boolean" ? agency.auto_ack_enabled : true,
+      autoAckMessage:
+        typeof agency?.auto_ack_message === "string" && agency.auto_ack_message.trim()
+          ? agency.auto_ack_message
+          : "Thanks — we'll get back to you within 4 hours.",
+    },
+  };
+}
+
 // ─── Load workspace account + fields settings ────────────────────────────────
 
 export type AgencyAccountSettings = {
