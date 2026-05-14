@@ -347,6 +347,17 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
 
   flushRef.current = flush;
 
+  // Retry the failed save. The queueRef still holds the original failed
+  // entry (the catch block in flush() returns without deleting it), so
+  // calling flush() again re-attempts the exact same payload against the
+  // same expectedVersion — no resurrection, no double-charge. If the save
+  // succeeds this time, flush() deletes the entry and sets status to
+  // "saved" automatically. If it fails again the error banner re-renders
+  // with the updated message and the operator can click Retry once more.
+  const retryFailedSave = useCallback(() => {
+    void flush();
+  }, [flush]);
+
   const enqueueIdentity = useCallback(
     (payload: Record<string, unknown>) => {
       if (!config) return;
@@ -653,7 +664,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
         // wrapper lets flex children shrink properly inside.
         className="[&>*]:min-w-0 overflow-x-hidden"
       >
-        <SaveBanner status={status} />
+        <SaveBanner status={status} onRetry={retryFailedSave} />
         {tab === "brand" ? (
           <BrandTab config={config} patch={patch} tenantId={tenantId} />
         ) : tab === "navigation" ? (
@@ -744,14 +755,33 @@ function UndoButton({
   );
 }
 
-function SaveBanner({ status }: { status: SaveStatus }) {
+function SaveBanner({
+  status,
+  onRetry,
+}: {
+  status: SaveStatus;
+  /**
+   * Called when the operator clicks "Retry" in the error state.
+   * Re-fires flush() against the existing queueRef entries — the failed
+   * entry was left in place by the catch block, so this is a straight
+   * re-attempt of the same payload. No resurrection, no double-charge.
+   */
+  onRetry: () => void;
+}) {
   // Errors keep the bordered red treatment — they're the only state
   // worth "stopping the operator." Saving / draft-saved are inline status
   // dots, not banners.
   if (status.kind === "error") {
     return (
-      <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
-        {status.message}
+      <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+        <span>{status.message}</span>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="shrink-0 rounded px-2 py-0.5 text-[11px] font-medium text-red-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-400 active:opacity-70"
+        >
+          Retry
+        </button>
       </div>
     );
   }
