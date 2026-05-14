@@ -437,12 +437,21 @@ VALUES
 INSERT INTO public.talent_profile_taxonomy (
   talent_profile_id,
   taxonomy_term_id,
-  is_primary
+  is_primary,
+  relationship_type
 )
 SELECT
   tp.id,
   tt.id,
-  st.is_primary
+  st.is_primary,
+  -- 2026-08-01 schema: trigger validates relationship_type against term_type.
+  CASE st.taxonomy_kind
+    WHEN 'talent_type' THEN CASE WHEN st.is_primary THEN 'primary_role' ELSE 'secondary_role' END
+    WHEN 'skill'       THEN 'skill'
+    WHEN 'event_type'  THEN 'context'
+    WHEN 'industry'    THEN 'context'
+    ELSE 'attribute'
+  END
 FROM seed_taxonomy st
 JOIN public.talent_profiles tp
   ON tp.profile_code = st.profile_code
@@ -451,7 +460,8 @@ JOIN public.taxonomy_terms tt
  AND tt.slug = st.taxonomy_slug
  AND tt.archived_at IS NULL
 ON CONFLICT (talent_profile_id, taxonomy_term_id) DO UPDATE
-SET is_primary = EXCLUDED.is_primary;
+SET is_primary = EXCLUDED.is_primary,
+    relationship_type = EXCLUDED.relationship_type;
 
 WITH ref_paths AS (
   SELECT
@@ -543,6 +553,7 @@ VALUES
 )
 INSERT INTO public.media_assets (
   id,
+  tenant_id,
   owner_talent_profile_id,
   uploaded_by_user_id,
   bucket_id,
@@ -557,6 +568,8 @@ INSERT INTO public.media_assets (
 )
 SELECT
   sm.id,
+  -- 2026-09-18 schema change: media_assets.tenant_id is NOT NULL.
+  '00000000-0000-0000-0000-000000000001'::uuid,
   tp.id,
   sm.uploaded_by_user_id,
   sm.bucket_id,
