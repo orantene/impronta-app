@@ -154,6 +154,9 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
               displayName: clientProfile.displayName,
               company: clientProfile.company,
               agencyName: clientProfile.agencyName,
+              userId: session.user.id,
+              email: session.user.email,
+              trustLevel: "basic",
             }}
             roster={roster}
           />

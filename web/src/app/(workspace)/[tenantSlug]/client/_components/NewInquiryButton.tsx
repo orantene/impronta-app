@@ -1,30 +1,46 @@
 "use client";
 
 /**
- * NewInquiryButton — a primary CTA button + side drawer used in every
- * client page header. Wraps the canonical NewInquiryForm (same form
- * that powers /client/inquiries/new) so the user can start a new
- * inquiry from anywhere in the client dashboard.
+ * NewInquiryButton — primary CTA button + inquiry drawer used in every
+ * client page header.
+ *
+ * Phase B-4 (2026-05-14) rewrite: now wraps the new canonical
+ * <InquiryDrawer> (web/src/components/inquiry/InquiryDrawer.tsx) per
+ * spec web/docs/inquiry-engine-spec-2026-05-14.md. Source defaults to
+ * "direct_client_dashboard"; when `selectedTalentId` is passed (Discover
+ * card flow) source becomes "discover_single_talent" and the talent is
+ * pre-attached.
+ *
+ * The previous version wrapped the legacy NewInquiryForm; that component
+ * stays in the tree for /client/inquiries/new but the canonical entry
+ * point for the dashboard is now the new drawer.
  */
 
-import { useState, useEffect } from "react";
-import { NewInquiryForm } from "../inquiries/new/new-inquiry-form";
+import { useState } from "react";
+import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
+import type { InquirySource } from "@/lib/inquiry/inquiry-intent";
 
 const FONT = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
 const C = {
-  ink:        "#0B0B0D",
-  inkMuted:   "rgba(11,11,13,0.55)",
-  border:     "rgba(24,24,27,0.10)",
-  borderSoft: "rgba(24,24,27,0.06)",
-  surface:    "#FAFAF7",
+  ink: "#0B0B0D",
+  border: "rgba(24,24,27,0.10)",
 } as const;
 
 export type ClientSummary = {
   displayName: string;
   company?: string | null;
   agencyName: string;
+  /** Auth user id of the logged-in client. NULL for guest paths. */
+  userId?: string | null;
+  /** Optional email override. Falls back to session.user.email. */
+  email?: string;
+  /** Phone, trust, member metadata for the drawer's trust card. */
+  phone?: string | null;
+  photoUrl?: string | null;
+  trustLevel?: "basic" | "verified" | "silver" | "gold";
+  memberSince?: string;
+  previousBookingsCount?: number;
 };
 
 export type RosterItem = {
@@ -42,7 +58,12 @@ type Props = {
   roster: RosterItem[];
   variant?: Variant;
   label?: string;
+  /** When the entry point already picked a talent (e.g. Discover card). */
   selectedTalentId?: string;
+  /** Override the source value. Defaults are derived from selectedTalentId. */
+  source?: InquirySource;
+  /** Optional source-context payload for richer provenance. */
+  sourceContext?: Record<string, unknown>;
 };
 
 export function NewInquiryButton({
@@ -52,6 +73,8 @@ export function NewInquiryButton({
   variant = "primary",
   label = "New inquiry",
   selectedTalentId,
+  source,
+  sourceContext,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -59,23 +82,69 @@ export function NewInquiryButton({
     variant === "primary"
       ? primaryStyle
       : variant === "ghost"
-      ? ghostStyle
-      : iconStyle;
+        ? ghostStyle
+        : iconStyle;
+
+  // Derive source from caller hints if not explicitly set.
+  const resolvedSource: InquirySource =
+    source
+    ?? (selectedTalentId ? "discover_single_talent" : "direct_client_dashboard");
 
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} style={btn}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M12 5v14M5 12h14" />
         </svg>
         {variant !== "icon" && <span>{label}</span>}
       </button>
       {open && (
-        <NewInquiryDrawer
+        <InquiryDrawer
+          source={resolvedSource}
+          initialIntent={{
+            requester: {
+              name: client.displayName,
+              email: client.email,
+              phone: client.phone ?? undefined,
+              user_id: client.userId ?? null,
+              trust_level: client.trustLevel ?? "basic",
+            },
+            client: {
+              company: client.company ?? undefined,
+              same_as_requester: true,
+            },
+            talent: selectedTalentId
+              ? {
+                  selected_ids: [selectedTalentId],
+                  selection_mode: "i_know_who",
+                }
+              : { selection_mode: "agency_recommends" },
+            source_context: sourceContext,
+          }}
           tenantSlug={tenantSlug}
-          client={client}
+          agencyName={client.agencyName}
+          client={{
+            user_id: client.userId,
+            displayName: client.displayName,
+            email: client.email,
+            phone: client.phone,
+            company: client.company,
+            photo_url: client.photoUrl,
+            trust_level: client.trustLevel,
+            member_since: client.memberSince,
+            previous_bookings_count: client.previousBookingsCount,
+          }}
           roster={roster}
-          selectedTalentId={selectedTalentId}
+          enableDraftAutosave={!!client.userId}
           onClose={() => setOpen(false)}
         />
       )}
@@ -132,110 +201,3 @@ const iconStyle: React.CSSProperties = {
   justifyContent: "center",
   flexShrink: 0,
 };
-
-// ─── Drawer ────────────────────────────────────────────────────────────
-
-function NewInquiryDrawer({
-  tenantSlug,
-  client,
-  roster,
-  selectedTalentId,
-  onClose,
-}: {
-  tenantSlug: string;
-  client: ClientSummary;
-  roster: RosterItem[];
-  selectedTalentId?: string;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="New inquiry"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        display: "flex",
-        justifyContent: "flex-end",
-        background: "rgba(11,11,13,0.42)",
-        backdropFilter: "blur(2px)",
-      }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        style={{
-          width: "min(560px, 100vw)",
-          height: "100dvh",
-          background: C.surface,
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "-12px 0 40px rgba(0,0,0,0.18)",
-          fontFamily: FONT,
-          animation: "ni-drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <style dangerouslySetInnerHTML={{ __html:
-          "@keyframes ni-drawer-in{from{transform:translateX(100%);opacity:0.6;}to{transform:translateX(0);opacity:1;}}"
-        }} />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${C.borderSoft}`, background: "#fff", flexShrink: 0 }}>
-          <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-              New inquiry
-            </div>
-            <h2 style={{ margin: "3px 0 0", fontSize: 18, fontWeight: 600, color: C.ink, letterSpacing: -0.1, fontFamily: FONT_DISPLAY }}>
-              Start a new project
-            </h2>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: C.inkMuted, maxWidth: 460, lineHeight: 1.4 }}>
-              Send <strong>{client.agencyName}</strong> what you need. Pick a specific talent or leave it open for the workspace to suggest.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: `1px solid ${C.borderSoft}`,
-              background: "transparent",
-              color: C.ink,
-              fontSize: 16,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            ×
-          </button>
-        </div>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px" }}>
-          <NewInquiryForm
-            tenantSlug={tenantSlug}
-            client={client}
-            roster={roster}
-            selectedTalentId={selectedTalentId}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
