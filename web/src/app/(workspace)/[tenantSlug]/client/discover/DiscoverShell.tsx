@@ -26,6 +26,17 @@ type DiscoverAvailabilityDay = {
   status: "open" | "tentative" | "booked" | "blocked";
 };
 
+/** Local mirror of DiscoverShortlist (API response shape). */
+type DiscoverShortlist = {
+  id: string;
+  name: string;
+  eventDateHint: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  talentIds: string[];
+};
+
 /** Local mirror of DiscoverTalentDetail (API response shape). Inline
  *  rather than imported because the API route file is server-only. */
 type DiscoverTalentDetail = {
@@ -96,8 +107,9 @@ export function DiscoverShell({
   const [openTalentId, setOpenTalentId] = useState<string | null>(null);
   const [availabilityByTalent, setAvailabilityByTalent] = useState<Map<string, DiscoverAvailabilityDay[]>>(() => new Map());
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(() => new Set());
+  const [shortlists, setShortlists] = useState<DiscoverShortlist[]>([]);
 
-  // Hydrate favorites set once on mount. Optimistic toggles below merge in.
+  // Hydrate favorites + shortlists once on mount. Optimistic mutations below.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/discover/favorites")
@@ -108,7 +120,64 @@ export function DiscoverShell({
         setFavoritedIds(new Set(ids));
       })
       .catch(() => {});
+    fetch("/api/discover/shortlists")
+      .then((r) => (r.ok ? r.json() : { shortlists: [] }))
+      .then((j: { shortlists?: DiscoverShortlist[] }) => {
+        if (cancelled) return;
+        setShortlists(j.shortlists ?? []);
+      })
+      .catch(() => {});
     return () => { cancelled = true; };
+  }, []);
+
+  const addTalentToShortlist = useCallback(async (shortlistId: string, talentId: string): Promise<boolean> => {
+    setShortlists((prev) => prev.map((s) =>
+      s.id === shortlistId && !s.talentIds.includes(talentId)
+        ? { ...s, talentIds: [...s.talentIds, talentId] }
+        : s,
+    ));
+    try {
+      const res = await fetch(`/api/discover/shortlists/${shortlistId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ talentId }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const removeTalentFromShortlist = useCallback(async (shortlistId: string, talentId: string): Promise<boolean> => {
+    setShortlists((prev) => prev.map((s) =>
+      s.id === shortlistId
+        ? { ...s, talentIds: s.talentIds.filter((id) => id !== talentId) }
+        : s,
+    ));
+    try {
+      const res = await fetch(`/api/discover/shortlists/${shortlistId}/items/${talentId}`, {
+        method: "DELETE",
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const createShortlist = useCallback(async (name: string): Promise<DiscoverShortlist | null> => {
+    try {
+      const res = await fetch("/api/discover/shortlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) return null;
+      const j = (await res.json()) as { shortlist: DiscoverShortlist };
+      setShortlists((prev) => [j.shortlist, ...prev]);
+      return j.shortlist;
+    } catch {
+      return null;
+    }
   }, []);
 
   const handleToggleFavorite = useCallback(async (talentId: string) => {
@@ -357,6 +426,10 @@ export function DiscoverShell({
       <DiscoverDetailDrawer
         talentId={openTalentId}
         onClose={() => setOpenTalentId(null)}
+        shortlists={shortlists}
+        onAddToShortlist={addTalentToShortlist}
+        onRemoveFromShortlist={removeTalentFromShortlist}
+        onCreateShortlist={createShortlist}
       />
     </div>
   );
@@ -666,13 +739,24 @@ function AvailabilityStrip({ days }: { days: DiscoverAvailabilityDay[] | undefin
 function DiscoverDetailDrawer({
   talentId,
   onClose,
+  shortlists,
+  onAddToShortlist,
+  onRemoveFromShortlist,
+  onCreateShortlist,
 }: {
   talentId: string | null;
   onClose: () => void;
+  shortlists: DiscoverShortlist[];
+  onAddToShortlist: (shortlistId: string, talentId: string) => Promise<boolean>;
+  onRemoveFromShortlist: (shortlistId: string, talentId: string) => Promise<boolean>;
+  onCreateShortlist: (name: string) => Promise<DiscoverShortlist | null>;
 }) {
   const [detail, setDetail] = useState<DiscoverTalentDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (!talentId) {
@@ -936,17 +1020,120 @@ function DiscoverDetailDrawer({
                 )}
                 <button
                   type="button"
-                  disabled
-                  title="Multi-talent inquiry routing ships with D5 — not yet wired."
+                  onClick={() => setPickerOpen((v) => !v)}
                   style={{
                     height: 40, borderRadius: 10,
-                    background: "transparent", border: `1px solid ${C.borderSoft}`,
-                    color: C.inkDim, fontFamily: FONT, fontSize: 13, fontWeight: 600,
-                    cursor: "not-allowed",
+                    background: pickerOpen ? C.accentSoft : "transparent",
+                    border: `1px solid ${pickerOpen ? C.accent : C.borderSoft}`,
+                    color: pickerOpen ? C.accentDeep : C.ink,
+                    fontFamily: FONT, fontSize: 13, fontWeight: 600,
+                    cursor: "pointer",
                   }}
                 >
-                  ＋ Add to shortlist · coming soon
+                  ＋ Add to shortlist
                 </button>
+                {pickerOpen && detail && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      padding: 10,
+                      border: `1px solid ${C.borderSoft}`,
+                      borderRadius: 10,
+                      background: C.surface,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {shortlists.length > 0 ? (
+                      shortlists.map((s) => {
+                        const isOn = s.talentIds.includes(detail.id);
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              if (isOn) onRemoveFromShortlist(s.id, detail.id);
+                              else onAddToShortlist(s.id, detail.id);
+                            }}
+                            style={{
+                              display: "flex", alignItems: "center", justifyContent: "space-between",
+                              padding: "8px 12px", borderRadius: 8,
+                              background: isOn ? "rgba(15,79,62,0.06)" : "#fff",
+                              border: `1px solid ${isOn ? C.accent : C.borderSoft}`,
+                              color: C.ink, fontFamily: FONT,
+                              fontSize: 12.5, fontWeight: 500,
+                              cursor: "pointer", textAlign: "left",
+                            }}
+                          >
+                            <span>
+                              {isOn ? "✓ " : "+ "}
+                              {s.name}
+                            </span>
+                            <span style={{ fontSize: 11, color: C.inkDim }}>
+                              {s.talentIds.length} {s.talentIds.length === 1 ? "talent" : "talents"}
+                            </span>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div style={{ fontSize: 12, color: C.inkMuted, padding: "4px 4px 8px" }}>
+                        No shortlists yet — create your first below.
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                      <input
+                        type="text"
+                        placeholder="New shortlist name…"
+                        value={newListName}
+                        onChange={(e) => setNewListName(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === "Enter" && newListName.trim() && !creating) {
+                            setCreating(true);
+                            const created = await onCreateShortlist(newListName.trim());
+                            if (created) {
+                              await onAddToShortlist(created.id, detail.id);
+                              setNewListName("");
+                            }
+                            setCreating(false);
+                          }
+                        }}
+                        disabled={creating}
+                        style={{
+                          flex: 1, height: 32, padding: "0 10px",
+                          borderRadius: 8, border: `1px solid ${C.borderSoft}`,
+                          background: "#fff", color: C.ink,
+                          fontFamily: FONT, fontSize: 12.5, outline: "none",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        disabled={!newListName.trim() || creating}
+                        onClick={async () => {
+                          if (!newListName.trim() || creating) return;
+                          setCreating(true);
+                          const created = await onCreateShortlist(newListName.trim());
+                          if (created) {
+                            await onAddToShortlist(created.id, detail.id);
+                            setNewListName("");
+                          }
+                          setCreating(false);
+                        }}
+                        style={{
+                          height: 32, padding: "0 12px",
+                          borderRadius: 8, border: "none",
+                          background: !newListName.trim() || creating ? "rgba(11,11,13,0.18)" : C.accent,
+                          color: "#fff", fontFamily: FONT,
+                          fontSize: 12.5, fontWeight: 600,
+                          cursor: !newListName.trim() || creating ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {creating ? "…" : "Create"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>
