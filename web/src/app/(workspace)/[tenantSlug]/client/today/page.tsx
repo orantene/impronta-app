@@ -10,11 +10,13 @@ import {
   loadClientInquiries,
   loadWorkspaceRosterLite,
 } from "../../_data-bridge";
+import { loadClientUpcoming } from "../../_data-bridge/client-upcoming";
 import { clientDateMs, formatClientDate } from "../date-format";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { NewInquiryButton } from "../_components/NewInquiryButton";
 import { StatusChip } from "../_components/StatusChip";
 import { EmptyState } from "../_components/EmptyState";
+import { TodayPriorityCard, UpcomingEventsTile } from "./_components/TodayPriorityCard";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -93,10 +95,14 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const [allInquiries, roster] = await Promise.all([
+  const [allInquiries, roster, upcoming] = await Promise.all([
     loadClientInquiries(session.user.id, scope.tenantId),
     loadWorkspaceRosterLite(scope.tenantId),
+    loadClientUpcoming(session.user.id, scope.tenantId),
   ]);
+
+  const todayBooking = upcoming.find((u) => u.bucket === "today") ?? null;
+  const thisWeekBookings = upcoming.filter((u) => u.bucket === "this_week");
 
   const firstName = clientProfile.displayName.split(" ")[0] ?? clientProfile.displayName;
 
@@ -162,6 +168,19 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           />
         }
       />
+
+      {/* Phase F — Today priority card. Renders ONLY when there's a
+          confirmed/imminent event happening today. Calls + map + call
+          sheet are one tap away. */}
+      {todayBooking && (
+        <TodayPriorityCard booking={todayBooking} tenantSlug={tenantSlug} />
+      )}
+
+      {/* Phase F — Upcoming events this week (lower visual weight, same
+          drawer). Hidden when today's event already surfaces above. */}
+      {!todayBooking && thisWeekBookings.length > 0 && (
+        <UpcomingEventsTile bookings={thisWeekBookings} tenantSlug={tenantSlug} />
+      )}
 
       {/* Stat tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
