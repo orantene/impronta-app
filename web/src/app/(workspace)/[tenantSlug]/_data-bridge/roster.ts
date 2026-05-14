@@ -322,7 +322,25 @@ export async function loadWorkspaceRosterEnriched(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
 
-    const { data, error } = await supabase
+    // Phase G fix (2026-05-14) — self-elevate the agency_talent_roster
+    // read to service-role. RLS on this table only exposes rows with
+    // agency_visibility IN ('site_visible', 'featured') to non-staff
+    // actors via the public policy. But the vast majority of seeded
+    // roster rows are 'roster_only' — visible to staff but not to the
+    // public, EVEN for the agency's own clients. That meant the client
+    // Discover page showed "Roster coming soon" despite 27 active
+    // approved talents being on impronta's roster.
+    //
+    // Callers gate the actor (e.g. the Discover page requires a
+    // client_profiles row in this tenant via loadClientSelfProfile)
+    // before invoking this loader; service-role for the read is safe.
+    // Same pattern as createOffer (commit 85729cbc7) +
+    // createInquiryFromIntent (Phase B-3) + loadClientInquiryDetails
+    // (Phase C). RLS stays as the second gate; the engine is the first.
+    const admin = createServiceRoleClient();
+    const readClient = admin ?? supabase;
+
+    const { data, error } = await readClient
       .from("agency_talent_roster")
       .select(
         `
