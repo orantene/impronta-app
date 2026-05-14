@@ -44,7 +44,8 @@ export type DiscoverTalentDetail = {
   galleryUrls: string[];
 };
 
-const PHOTO_VARIANT_PRIORITY = ["card", "public_watermarked", "gallery", "portfolio", "original"];
+// Enum: original, card, gallery, banner, lightbox, public_watermarked, watermarked, hero.
+const PHOTO_VARIANT_PRIORITY = ["hero", "card", "public_watermarked", "watermarked", "gallery", "original"];
 const GALLERY_MAX = 8;
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -178,7 +179,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       .slice()
       .sort((a, b) => PHOTO_VARIANT_PRIORITY.indexOf(a.variant_kind) - PHOTO_VARIANT_PRIORITY.indexOf(b.variant_kind));
     for (const m of sorted) {
-      const url = admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
+      const url = m.storage_path.startsWith("http")
+        ? m.storage_path
+        : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
       if (!headshotUrl) headshotUrl = url;
       if (galleryUrls.length < GALLERY_MAX) galleryUrls.push(url);
     }

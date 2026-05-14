@@ -47,7 +47,10 @@ export type DiscoverTalentItem = {
   headshotUrl: string | null;
 };
 
-const PHOTO_VARIANT_PRIORITY = ["card", "public_watermarked", "gallery", "portfolio", "original"];
+// Order = best-first. Enum: original, card, gallery, banner, lightbox,
+// public_watermarked, watermarked, hero. Prefer hero (talent's 4:5
+// cover) → card → public/watermarked → gallery → original.
+const PHOTO_VARIANT_PRIORITY = ["hero", "card", "public_watermarked", "watermarked", "gallery", "original"];
 
 export async function GET(req: Request) {
   const session = await getCachedActorSession();
@@ -174,7 +177,9 @@ export async function GET(req: Request) {
       const current = bestRank.get(row.owner_talent_profile_id);
       if (current === undefined || rank < current) {
         bestRank.set(row.owner_talent_profile_id, rank);
-        const publicUrl = admin.storage.from("media-public").getPublicUrl(row.storage_path).data.publicUrl;
+        const publicUrl = row.storage_path.startsWith("http")
+          ? row.storage_path
+          : admin.storage.from("media-public").getPublicUrl(row.storage_path).data.publicUrl;
         photoByTalent.set(row.owner_talent_profile_id, publicUrl);
       }
     }

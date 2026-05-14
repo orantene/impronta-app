@@ -14,7 +14,11 @@ import { logServerError } from "@/lib/server/safe-error";
  * without remapping types.
  */
 
-const PHOTO_VARIANT_PRIORITY = ["card", "public_watermarked", "gallery", "portfolio", "original"];
+// Order = best-first. Enum values per media_variant_kind:
+//   original, card, gallery, banner, lightbox, public_watermarked, watermarked, hero
+// "hero" is the talent-side 4:5 cover (project_talent_surface_launch.md);
+// "card" is the curated thumbnail. Both work as primary; we prefer hero.
+const PHOTO_VARIANT_PRIORITY = ["hero", "card", "public_watermarked", "watermarked", "gallery", "original"];
 
 export type DiscoverTalentListItem = {
   id: string;
@@ -194,7 +198,12 @@ export async function loadDiscoverTalents(
       const current = bestRank.get(m.owner_talent_profile_id);
       if (current === undefined || rank < current) {
         bestRank.set(m.owner_talent_profile_id, rank);
-        const url = admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
+        // Pass-through for already-public URLs (test seed data + future
+        // CDN-fronted assets). Prevents wrapping http(s) URLs into a
+        // broken Supabase storage URL.
+        const url = m.storage_path.startsWith("http")
+          ? m.storage_path
+          : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
         photoByTalent.set(m.owner_talent_profile_id, url);
       }
     }
