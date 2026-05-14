@@ -115,6 +115,19 @@ export type SubmitInquiryInput = {
    * where trust is irrelevant.
    */
   trust_level_at_submission?: string | null;
+  /**
+   * Phase B-1 (inquiry engine, 2026-05-14). Provenance metadata that
+   * doesn't fit a flat column. Paired with `source_channel` (the coarse
+   * enum). See web/docs/inquiry-engine-spec-2026-05-14.md §11.
+   *
+   * Examples:
+   *   • { shortlist_id: "...", talent_ids: [...] }
+   *   • { pitch_token: "...", pitch_id: "..." }
+   *   • { rebook_of_inquiry_id: "...", original_booking_id: "..." }
+   *   • { referrer_page: "/discover", discovery_search: { q: "...", ... } }
+   *   • { public_profile_code: "TAL-92001" }
+   */
+  source_context?: Record<string, unknown> | null;
 };
 
 export async function submitInquiry(
@@ -186,6 +199,9 @@ export async function submitInquiry(
         // F3 — source attribution fields (nullable for older / staff submissions)
         origin_domain: input.origin_domain ?? null,
         source_workspace_id: input.source_workspace_id ?? null,
+        // Phase B-1 (2026-05-14) — rich provenance context paired with
+        // source_channel. Spec: web/docs/inquiry-engine-spec-2026-05-14.md §11
+        source_context: input.source_context ?? {},
         // Phase 3.7 — trust snapshot at submission time
         trust_level_at_submission: input.trust_level_at_submission ?? null,
         // Universal-connector P0 (2026-05-13) — direction of initiation.
