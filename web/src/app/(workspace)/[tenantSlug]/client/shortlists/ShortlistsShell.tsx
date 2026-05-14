@@ -1,0 +1,299 @@
+"use client";
+
+// ShortlistsShell — viewer + send-inquiry surface for /client/shortlists.
+//
+// Each shortlist card shows the talents on it (initials/photo · name ·
+// agency or "Independent") plus a "Send inquiry" button that opens an
+// inline form. Submitting POSTs /api/discover/inquiry with the full
+// talent array — the server groups by primary tenant and fans out, so
+// one shortlist with talents from 3 agencies → 3 inquiries.
+
+import { useState } from "react";
+import Link from "next/link";
+import type { DiscoverShortlistWithTalents } from "../../_data-bridge/discover";
+
+const C = {
+  ink:        "#0B0B0D",
+  inkMuted:   "rgba(11,11,13,0.55)",
+  inkDim:     "rgba(11,11,13,0.35)",
+  border:     "rgba(24,24,27,0.16)",
+  borderSoft: "rgba(24,24,27,0.08)",
+  cardBg:     "#ffffff",
+  surface:    "rgba(11,11,13,0.02)",
+  accent:     "#0F4F3E",
+  accentSoft: "rgba(15,79,62,0.08)",
+  accentDeep: "#0F4F3E",
+} as const;
+
+const FONT = '"Inter", system-ui, sans-serif';
+
+export function ShortlistsShell({
+  shortlists,
+  tenantSlug,
+}: {
+  shortlists: DiscoverShortlistWithTalents[];
+  tenantSlug: string;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONT }}>
+      {shortlists.map((s) => (
+        <ShortlistCard key={s.id} shortlist={s} tenantSlug={tenantSlug} />
+      ))}
+      <div style={{
+        padding: 16, borderRadius: 12,
+        background: C.surface, border: `1px dashed ${C.borderSoft}`,
+        textAlign: "center", color: C.inkMuted, fontSize: 12.5,
+      }}>
+        Need more shortlists? Open <Link href={`/${tenantSlug}/client/discover`} style={{ color: C.accent, fontWeight: 600 }}>Discover</Link>, save talent into a new list, and they&apos;ll show up here.
+      </div>
+    </div>
+  );
+}
+
+function ShortlistCard({
+  shortlist,
+  tenantSlug,
+}: {
+  shortlist: DiscoverShortlistWithTalents;
+  tenantSlug: string;
+}) {
+  const [inquireOpen, setInquireOpen] = useState(false);
+  const [eventDate, setEventDate] = useState("");
+  const [eventLocation, setEventLocation] = useState("");
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Per-tenant tally for the fan-out preview line.
+  const tenantBuckets = new Map<string, { name: string; count: number }>();
+  let independentCount = 0;
+  for (const t of shortlist.talents) {
+    if (t.agencyTenantId && t.agencyName) {
+      const existing = tenantBuckets.get(t.agencyTenantId);
+      tenantBuckets.set(t.agencyTenantId, {
+        name: t.agencyName,
+        count: (existing?.count ?? 0) + 1,
+      });
+    } else {
+      independentCount += 1;
+    }
+  }
+  const routableCount = shortlist.talents.length - independentCount;
+
+  return (
+    <div
+      style={{
+        background: C.cardBg,
+        border: `1px solid ${C.borderSoft}`,
+        borderRadius: 14,
+        padding: 16,
+        fontFamily: FONT,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 17, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+            {shortlist.name}
+          </div>
+          <div style={{ fontSize: 12, color: C.inkMuted }}>
+            {shortlist.talents.length} {shortlist.talents.length === 1 ? "talent" : "talents"}
+            {tenantBuckets.size > 0 && (
+              <span>
+                {" · "}
+                Routes to {tenantBuckets.size} {tenantBuckets.size === 1 ? "agency" : "agencies"}
+              </span>
+            )}
+            {independentCount > 0 && (
+              <span style={{ color: C.inkDim }}>
+                {" · "}
+                {independentCount} independent (need direct outreach)
+              </span>
+            )}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => { setInquireOpen((v) => !v); setResult(null); }}
+            disabled={routableCount === 0}
+            style={{
+              height: 36, padding: "0 14px", borderRadius: 8,
+              background: routableCount === 0 ? "rgba(11,11,13,0.10)" : (inquireOpen ? C.accentSoft : C.accent),
+              border: `1px solid ${inquireOpen ? C.accent : "transparent"}`,
+              color: routableCount === 0 ? C.inkDim : (inquireOpen ? C.accentDeep : "#fff"),
+              fontFamily: FONT, fontSize: 12.5, fontWeight: 600,
+              cursor: routableCount === 0 ? "not-allowed" : "pointer",
+            }}
+          >
+            {inquireOpen ? "Cancel" : `Send inquiry${routableCount > 0 ? "" : " (no agencies)"}`}
+          </button>
+        </div>
+      </div>
+
+      {shortlist.talents.length > 0 && (
+        <div style={{
+          marginTop: 14,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+          gap: 10,
+        }}>
+          {shortlist.talents.map((t) => (
+            <div
+              key={t.talentId}
+              style={{
+                display: "flex", flexDirection: "column", gap: 4,
+                padding: 8, borderRadius: 10,
+                border: `1px solid ${C.borderSoft}`,
+                background: C.surface,
+              }}
+            >
+              <div style={{
+                aspectRatio: "1/1", borderRadius: 8,
+                background: t.headshotUrl
+                  ? `url(${t.headshotUrl}) center/cover no-repeat`
+                  : C.accentSoft,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 16, fontWeight: 700, color: C.accent,
+                marginBottom: 4,
+              }}>
+                {!t.headshotUrl && t.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
+              </div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>
+                {t.displayName}
+              </div>
+              <div style={{ fontSize: 10, color: C.inkMuted }}>
+                {t.primaryTypeLabel ?? "—"}
+              </div>
+              <div style={{ fontSize: 9.5, color: C.inkDim, marginTop: 1 }}>
+                {t.agencyName ?? "Independent"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {inquireOpen && routableCount > 0 && (
+        <div style={{
+          marginTop: 14, padding: 12,
+          border: `1px solid ${C.borderSoft}`, borderRadius: 10,
+          background: C.surface,
+          display: "flex", flexDirection: "column", gap: 10,
+        }}>
+          <div style={{ fontSize: 11.5, color: C.inkMuted }}>
+            One inquiry per agency. {Array.from(tenantBuckets.values())
+              .map((b) => `${b.name} (${b.count})`)
+              .join(" · ")}
+            {independentCount > 0 && ` · ${independentCount} independent talent${independentCount === 1 ? "" : "s"} not included — reach them via their public profile.`}
+          </div>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
+            Event date (optional)
+            <input
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              style={{
+                height: 34, padding: "0 10px", borderRadius: 8,
+                border: `1px solid ${C.borderSoft}`, background: "#fff",
+                color: C.ink, fontFamily: FONT, fontSize: 13,
+              }}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
+            Event location (optional)
+            <input
+              type="text"
+              placeholder="e.g. Milan, Italy"
+              value={eventLocation}
+              onChange={(e) => setEventLocation(e.target.value)}
+              style={{
+                height: 34, padding: "0 10px", borderRadius: 8,
+                border: `1px solid ${C.borderSoft}`, background: "#fff",
+                color: C.ink, fontFamily: FONT, fontSize: 13,
+              }}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
+            Brief
+            <textarea
+              placeholder="Quick context: brand, role, scope, dates if known."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={3}
+              style={{
+                padding: "8px 10px", borderRadius: 8,
+                border: `1px solid ${C.borderSoft}`, background: "#fff",
+                color: C.ink, fontFamily: FONT, fontSize: 13,
+                resize: "vertical",
+              }}
+            />
+          </label>
+          {result && (
+            <div style={{
+              padding: "8px 10px", borderRadius: 8, fontSize: 12,
+              background: result.ok ? "rgba(46,125,91,0.10)" : "rgba(176,48,58,0.10)",
+              color: result.ok ? "#1B5C45" : "#B0303A",
+              border: `1px solid ${result.ok ? "rgba(46,125,91,0.30)" : "rgba(176,48,58,0.30)"}`,
+            }}>
+              {result.text}
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={async () => {
+              setSubmitting(true);
+              setResult(null);
+              try {
+                const res = await fetch("/api/discover/inquiry", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    talentIds: shortlist.talents.map((t) => t.talentId),
+                    eventDate: eventDate || undefined,
+                    eventLocation: eventLocation || undefined,
+                    message: message || undefined,
+                    sourceShortlistId: shortlist.id,
+                  }),
+                });
+                const j = await res.json();
+                if (res.ok && j.inquiries?.length > 0) {
+                  const created = j.inquiries.length;
+                  const skipped = j.skipped?.length ?? 0;
+                  setResult({
+                    ok: true,
+                    text: `Sent ${created} ${created === 1 ? "inquiry" : "inquiries"} to ${created === 1 ? "the agency" : `${created} agencies`}.${skipped > 0 ? ` ${skipped} independent talent${skipped === 1 ? "" : "s"} skipped — reach them directly.` : ""}`,
+                  });
+                  setEventDate("");
+                  setEventLocation("");
+                  setMessage("");
+                } else {
+                  setResult({
+                    ok: false,
+                    text: j.error === "no_routable_talents"
+                      ? "No agencies to route to — every talent on this shortlist is independent."
+                      : "Couldn't send — try again in a moment.",
+                  });
+                }
+              } catch {
+                setResult({ ok: false, text: "Network issue — try again." });
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            style={{
+              height: 38, borderRadius: 8,
+              background: submitting ? "rgba(11,11,13,0.4)" : C.accent,
+              color: "#fff", border: "none",
+              fontFamily: FONT, fontSize: 13, fontWeight: 600,
+              cursor: submitting ? "not-allowed" : "pointer",
+            }}
+          >
+            {submitting
+              ? "Sending…"
+              : `Send ${tenantBuckets.size} ${tenantBuckets.size === 1 ? "inquiry" : "inquiries"}`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

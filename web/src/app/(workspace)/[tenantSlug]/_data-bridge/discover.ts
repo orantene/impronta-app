@@ -42,6 +42,28 @@ export type DiscoverHub = {
   discoverableTalentCount: number;
 };
 
+export type DiscoverShortlistTalent = {
+  talentId: string;
+  displayName: string;
+  primaryTypeLabel: string | null;
+  homeCity: string | null;
+  homeCountry: string | null;
+  agencyName: string | null;
+  agencyTenantId: string | null;
+  isExclusive: boolean;
+  headshotUrl: string | null;
+};
+
+export type DiscoverShortlistWithTalents = {
+  id: string;
+  name: string;
+  eventDateHint: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  talents: DiscoverShortlistTalent[];
+};
+
 export type LoadDiscoverTalentsOpts = {
   country?: string;
   category?: string;
@@ -270,6 +292,160 @@ export async function loadDiscoverFacets(): Promise<DiscoverFacets> {
 }
 
 const HUB_PLAN_TIERS = ["studio", "agency", "network"] as const;
+
+/**
+ * Load the signed-in client's shortlists with each talent's card-level
+ * data embedded. Used by the /client/shortlists viewer page. Mirrors the
+ * shape of `GET /api/discover/shortlists` extended with talent info so
+ * the page renders without a per-talent roundtrip.
+ */
+export async function loadClientShortlistsForUser(
+  userId: string,
+): Promise<DiscoverShortlistWithTalents[]> {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+
+  const { data, error } = await admin
+    .from("client_shortlists")
+    .select(
+      `
+      id, name, event_date_hint, notes, created_at, updated_at,
+      client_shortlist_items!shortlist_id (
+        added_at,
+        talent_profile_id,
+        talent_profiles!talent_profile_id (
+          id, display_name, first_name, last_name,
+          home_country_text, home_city_text,
+          is_discoverable, workflow_status,
+          talent_profile_taxonomy (
+            relationship_type,
+            taxonomy_terms ( name_en )
+          ),
+          agency_talent_roster!talent_profile_id (
+            tenant_id, status, is_primary,
+            agencies!tenant_id ( display_name )
+          )
+        )
+      )
+      `,
+    )
+    .eq("client_user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    logServerError("workspace.loadClientShortlists", error);
+    return [];
+  }
+
+  type Row = {
+    id: string;
+    name: string;
+    event_date_hint: string | null;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+    client_shortlist_items: Array<{
+      added_at: string;
+      talent_profile_id: string;
+      talent_profiles: {
+        id: string;
+        display_name: string | null;
+        first_name: string | null;
+        last_name: string | null;
+        home_country_text: string | null;
+        home_city_text: string | null;
+        is_discoverable: boolean | null;
+        workflow_status: string | null;
+        talent_profile_taxonomy: Array<{
+          relationship_type: string | null;
+          taxonomy_terms: { name_en: string | null } | null;
+        }> | null;
+        agency_talent_roster: Array<{
+          tenant_id: string;
+          status: string;
+          is_primary: boolean;
+          agencies: { display_name: string | null } | { display_name: string | null }[] | null;
+        }> | null;
+      } | null;
+    }> | null;
+  };
+
+  const rows = (data ?? []) as unknown as Row[];
+
+  // Batch-fetch photos for all talents present across all shortlists.
+  const allTalentIds = new Set<string>();
+  for (const r of rows) {
+    for (const item of r.client_shortlist_items ?? []) {
+      if (item.talent_profiles) allTalentIds.add(item.talent_profile_id);
+    }
+  }
+
+  const photoByTalent = new Map<string, string>();
+  if (allTalentIds.size > 0) {
+    const { data: photos } = await admin
+      .from("media_assets")
+      .select("owner_talent_profile_id, storage_path, variant_kind")
+      .in("owner_talent_profile_id", Array.from(allTalentIds))
+      .in("variant_kind", PHOTO_VARIANT_PRIORITY)
+      .is("deleted_at", null);
+
+    const bestRank = new Map<string, number>();
+    for (const m of (photos ?? []) as Array<{
+      owner_talent_profile_id: string;
+      storage_path: string;
+      variant_kind: string;
+    }>) {
+      const rank = PHOTO_VARIANT_PRIORITY.indexOf(m.variant_kind);
+      if (rank < 0) continue;
+      const current = bestRank.get(m.owner_talent_profile_id);
+      if (current === undefined || rank < current) {
+        bestRank.set(m.owner_talent_profile_id, rank);
+        photoByTalent.set(
+          m.owner_talent_profile_id,
+          admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl,
+        );
+      }
+    }
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    eventDateHint: r.event_date_hint,
+    notes: r.notes,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    talents: (r.client_shortlist_items ?? [])
+      .map((item): DiscoverShortlistTalent | null => {
+        const p = item.talent_profiles;
+        if (!p) return null;
+        const displayName =
+          (p.display_name ?? "").trim()
+          || `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()
+          || "Unnamed";
+        const tax = p.talent_profile_taxonomy ?? [];
+        const primaryLabel = tax.find((t) => t.relationship_type === "primary_role")
+          ?.taxonomy_terms?.name_en ?? null;
+        const roster = p.agency_talent_roster ?? [];
+        const primary = roster
+          .filter((rr) => (rr.status === "active" || rr.status === "pending") && rr.is_primary)[0];
+        const agencyRowOrArr = primary?.agencies;
+        const agencyRow = Array.isArray(agencyRowOrArr) ? agencyRowOrArr[0] : agencyRowOrArr;
+        return {
+          talentId: p.id,
+          displayName,
+          primaryTypeLabel: primaryLabel,
+          homeCity: p.home_city_text,
+          homeCountry: p.home_country_text,
+          agencyName: agencyRow?.display_name ?? null,
+          agencyTenantId: primary?.tenant_id ?? null,
+          isExclusive: !!primary?.is_primary,
+          headshotUrl: photoByTalent.get(p.id) ?? null,
+        };
+      })
+      .filter((t): t is DiscoverShortlistTalent => t !== null),
+  }));
+}
 
 /**
  * Hubs list mirror — same logic as /api/discover/hubs. Studio/Agency/Network
