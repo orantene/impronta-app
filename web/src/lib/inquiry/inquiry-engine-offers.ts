@@ -527,7 +527,19 @@ export async function clientRejectOffer(
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "client_reject_offer");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
-    await supabase
+    // 2026-05-14 — self-elevate WRITES to service-role after the permission
+    // gate. RLS walk (`qa-walk-rls.mjs`) confirmed that the inquiry's own
+    // client (auth.uid() = inquiry.contact submitter) cannot UPDATE
+    // `public.inquiries` through their session — UPDATE returns 0 rows
+    // (silent RLS filter) even with the correct version. Same fix pattern
+    // as createOffer (commit 85729cbc7). The validateActorPermission gate
+    // above is the security boundary; service-role is only used for the
+    // mechanical write.
+    const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+    const adminClient = createServiceRoleClient();
+    const writeClient = adminClient ?? supabase;
+
+    const { error: offerErr } = await writeClient
       .from("inquiry_offers")
       .update({
         status: "rejected" as never,
@@ -536,8 +548,9 @@ export async function clientRejectOffer(
       })
       .eq("id", ctx.offerId)
       .eq("tenant_id", ctx.tenantId);
+    if (offerErr) return { success: false, error: offerErr.message };
 
-    await supabase
+    const { data: updated, error: inqErr } = await writeClient
       .from("inquiries")
       .update({
         status: "coordination" as never,
@@ -547,7 +560,11 @@ export async function clientRejectOffer(
       })
       .eq("id", ctx.inquiryId)
       .eq("tenant_id", ctx.tenantId)
-      .eq("version", ctx.expectedVersion);
+      .eq("version", ctx.expectedVersion)
+      .select("id")
+      .maybeSingle();
+    if (inqErr) return { success: false, error: inqErr.message };
+    if (!updated) return { success: false, conflict: true, reason: "version_conflict" };
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.OFFER_CLIENT_REJECTED,
