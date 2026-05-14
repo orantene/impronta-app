@@ -351,7 +351,20 @@ export async function acceptTalentInvitation(
     if (!row) return { success: false, error: "not_invited" };
     if (row.status === "active") return { success: true, already: true };
 
-    await supabase
+    // 2026-05-13 QA: the update was fire-and-forget — RLS-blocked
+    // writes returned success-with-no-effect, so the engine log
+    // reported `result:success` while the participant row stayed at
+    // status='invited'. Repro: Sofia's first Accept click.
+    //
+    // Root cause: no UPDATE policy on inquiry_participants exists for
+    // the participant themselves. Permission is already validated
+    // above via validateActorPermission("accept_talent_invite"), so
+    // the engine self-elevates to service-role for the write. The
+    // user-session read above stays — we only escalate the write.
+    const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+    const admin = createServiceRoleClient();
+    if (!admin) return { success: false, error: "service_role_unavailable" };
+    const { error: updateErr } = await admin
       .from("inquiry_participants")
       .update({
         status: "active",
@@ -359,6 +372,9 @@ export async function acceptTalentInvitation(
       })
       .eq("id", row.id as string)
       .eq("tenant_id", ctx.tenantId);
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
 
     const { data: inq } = await supabase
       .from("inquiries")
