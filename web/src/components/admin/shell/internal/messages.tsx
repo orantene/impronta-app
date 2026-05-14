@@ -73,6 +73,7 @@ import {
   acceptInquiryInvitation,
   declineInquiryInvitation,
   submitMyRateForInquiry,
+  submitMyCounterRate,
   sendInquiryMessageAsTalent,
   uploadInquiryAttachmentAsTalent,
 } from "@/lib/server-actions/talent-pipeline";
@@ -13076,6 +13077,23 @@ function LiveOfferPanel({ inquiryId, pov }: { inquiryId: string; pov: OfferPov }
 function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const { toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
+  // B7 — talent counter-rate handler. Sends a tagged [Counter request]
+  // message via the engine. Coordinator-side picks it up from the
+  // conversation thread and re-drafts the offer.
+  const [, startCounterTransition] = useTransition();
+  const realInquiryId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conv.id) ? conv.id : null;
+  const onCounterRateForOwnRow = (pov.kind === "talent" && realInquiryId) ? () => {
+    const raw = window.prompt("Proposed counter rate (what you'd want instead):");
+    if (raw == null) return;
+    const num = parseFloat(raw.replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(num) || num < 0) { toast("Invalid rate"); return; }
+    const note = window.prompt("Optional note for the coordinator:") ?? "";
+    startCounterTransition(async () => {
+      const r = await submitMyCounterRate(realInquiryId, num, note.trim() || null);
+      if (!r.ok) toast(`Counter failed: ${r.error}`);
+      else { toast("Counter sent to coordinator"); router.refresh(); }
+    });
+  } : undefined;
   // Item #7 wiring: live talent payout snapshot drives PayoutNudgeCard
   // visibility. Loads on mount for talent / talent-coord povs; admin /
   // client viewers don't need it. Snapshot.hasProfile=false hides the
@@ -13320,6 +13338,11 @@ function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               setRateSheetMode(mode);
               setRateSheetOpen(true);
             }}
+            onCounterRate={
+              pov.kind === "talent" && pov.talentId === r.talentId
+                ? onCounterRateForOwnRow
+                : undefined
+            }
           />
         ))}
         {isAdmin && (
@@ -13858,7 +13881,7 @@ function TotalCell({ label, value, accent, tone }: { label: string; value: strin
 }
 
 function LineupRowCard({
-  row, offer, pov, showCost, showRevenue, showMargin, onOpenRateSheet,
+  row, offer, pov, showCost, showRevenue, showMargin, onOpenRateSheet, onCounterRate,
 }: {
   row: LineupRow; offer: Offer; pov: OfferPov;
   showCost: boolean; showRevenue: boolean; showMargin: boolean;
@@ -13867,6 +13890,12 @@ function LineupRowCard({
    *  rate, "edit" for an already-submitted rate the talent wants to
    *  change before the offer reaches the client. */
   onOpenRateSheet?: (mode: "submit" | "edit") => void;
+  /** B7 — when the offer has been SENT and the talent wants to counter
+   *  their already-submitted rate (engine locks line-item edits at that
+   *  point). Sends a `[Counter request]` tagged message into the talent
+   *  group thread so the coordinator can re-draft. When undefined the
+   *  Counter button hides. */
+  onCounterRate?: () => void;
 }) {
   const subCost = rowSubtotal(row, "cost");
   const subRevenue = rowSubtotal(row, "client");
@@ -13983,14 +14012,16 @@ function LineupRowCard({
               >
                 Edit rate
               </button>
-              <button
-                type="button"
-                disabled
-                title="Withdraw needs a live coordinator workflow."
-                style={disabledBtn(tinyBtn("transparent", COLORS.coral, `${COLORS.coral}40`))}
-              >
-                Withdraw
-              </button>
+              {onCounterRate ? (
+                <button
+                  type="button"
+                  onClick={onCounterRate}
+                  title="Send a counter rate to the coordinator (used after the offer has been sent to the client)."
+                  style={tinyBtn(COLORS.amberSoft, COLORS.amberDeep, `${COLORS.amber}40`)}
+                >
+                  Counter rate
+                </button>
+              ) : null}
             </>
           )}
           {row.status === "countered" && (
