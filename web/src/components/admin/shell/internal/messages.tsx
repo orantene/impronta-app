@@ -5490,6 +5490,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
         canEdit={isCoordinator}
         povCanSeeOffers={isCoordinator}
         povCanSeeCoordNote={true}
+        onJumpToLineupTab={() => setActiveTab("lineup")}
       />
       {/* Slice G (Messages consolidation v2): coordinator-request
           sheet. Opens when a plain talent taps the locked Client
@@ -15121,7 +15122,7 @@ function TeamStrip({
 // notifications-bell popover pattern but as a fixed-overlay dialog. ──
 function LineupDrawer({
   open, onClose, conv, inquiry, canEdit, povCanSeeOffers, povCanSeeCoordNote,
-  pickerPov = "talent_coord", planTier,
+  pickerPov = "talent_coord", planTier, onJumpToLineupTab,
 }: {
   open: boolean;
   onClose: () => void;
@@ -15138,6 +15139,13 @@ function LineupDrawer({
    *  hide/show tier-specific tabs (Free hides Circle; Network adds
    *  Network roster). */
   planTier?: "free" | "studio" | "agency" | "network" | "hub-network";
+  /** A6 unblock — callers wire this to switch the parent shell to the
+   *  Lineup tab where LiveLineupPanel (the DB-backed real picker + add/
+   *  remove engine) lives. The drawer itself stays mock until full
+   *  retirement (S0.3 consolidation). When provided, the dead "Add
+   *  talent" footer button stops being disabled and instead bridges to
+   *  the working surface. */
+  onJumpToLineupTab?: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   // 2026-05-12 fix S0.2/S0.3: drawer was reading legacy `inquiry.talent`,
@@ -15249,23 +15257,45 @@ function LineupDrawer({
             borderTop: `1px solid ${COLORS.borderSoft}`,
             display: "flex", gap: 8,
           }}>
-            <button
-              type="button"
-              disabled
-              title="Lineup edits need the live DB-backed lineup workflow."
-              style={disabledBtn({
-              flex: 1,
-              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-              padding: "9px 14px", borderRadius: 999,
-              border: "none", background: COLORS.fill, color: "#fff",
-              fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-              fontFamily: FONTS.body,
-            })}>
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-              </svg>
-              Add talent
-            </button>
+            {onJumpToLineupTab ? (
+              <button
+                type="button"
+                onClick={() => { onJumpToLineupTab(); onClose(); }}
+                title="Open the Lineup tab to add talent via the live DB-backed picker."
+                style={{
+                  flex: 1,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  padding: "9px 14px", borderRadius: 999,
+                  border: "none", background: COLORS.fill, color: "#fff",
+                  fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                Add talent
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="Lineup edits need the live DB-backed lineup workflow."
+                style={disabledBtn({
+                  flex: 1,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  padding: "9px 14px", borderRadius: 999,
+                  border: "none", background: COLORS.fill, color: "#fff",
+                  fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                  fontFamily: FONTS.body,
+                })}
+              >
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                Add talent
+              </button>
+            )}
             <button type="button" onClick={onClose} style={{
               padding: "9px 16px", borderRadius: 999,
               border: `1px solid ${COLORS.border}`, background: "transparent",
