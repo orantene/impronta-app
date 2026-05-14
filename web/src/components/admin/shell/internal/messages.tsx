@@ -43,6 +43,7 @@ import React, { useEffect, useMemo, useRef, useState, useTransition, type CSSPro
 import { useRouter, useSearchParams } from "next/navigation";
 import { CoordRequestSheet } from "@/components/coord-request/CoordRequestSheet";
 import { OverflowMenu } from "@/components/chat-interactions";
+import { CallSheetEditorSheet } from "@/components/admin/call-sheet-editor/CallSheetEditorSheet";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData } from "@/components/messages-status-sheet/StatusSheet";
 import { DetailsTabContainer } from "@/components/details-tab/DetailsTabContainer";
@@ -9154,6 +9155,10 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
     cursor: "pointer",
     display: "inline-flex", alignItems: "center", gap: 6,
   };
+  // B2 — real call sheet editor (admin pov only).
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiry.id);
+  const [callSheetOpen, setCallSheetOpen] = useState(false);
+  const canEditCallSheet = !isClient && isUuid;
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       <DetailSection title="Call sheet">
@@ -9161,18 +9166,49 @@ export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
         {inquiry.schedule.callTime && <DetailField label="Call time" value={inquiry.schedule.callTime} />}
         {inquiry.schedule.wrapTime && <DetailField label="Wrap" value={inquiry.schedule.wrapTime} />}
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-          <button
-            type="button"
-            onClick={() => comingSoon(isClient ? "Call sheet viewer" : "Call sheet editor")}
-            title="Coming soon"
-            style={futureBtnStyle}
-          >
-            <span aria-hidden>✦</span>
-            {isClient ? "View call sheet" : "Edit call sheet"}
-            <span style={{ fontSize: 10.5, opacity: 0.7 }}>· soon</span>
-          </button>
+          {canEditCallSheet ? (
+            <button
+              type="button"
+              onClick={() => setCallSheetOpen(true)}
+              style={{
+                padding: "8px 14px", borderRadius: 10,
+                background: COLORS.accent, color: "#fff", border: "none",
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              Edit call sheet
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => comingSoon("Call sheet viewer")}
+              title="Coming soon"
+              style={futureBtnStyle}
+            >
+              <span aria-hidden>✦</span>
+              View call sheet
+              <span style={{ fontSize: 10.5, opacity: 0.7 }}>· soon</span>
+            </button>
+          )}
         </div>
       </DetailSection>
+      {canEditCallSheet && (
+        <CallSheetEditorSheet
+          open={callSheetOpen}
+          inquiryId={inquiry.id}
+          initial={{
+            eventDate: inquiry.schedule.start ?? null,
+            eventLocation: inquiry.location.address ?? null,
+            callTime: inquiry.schedule.callTime ?? null,
+            wrapTime: inquiry.schedule.wrapTime ?? null,
+            venueName: inquiry.location.venue ?? null,
+            googleMapsUrl: inquiry.location.mapUrl ?? null,
+            notes: null,
+          }}
+          onClose={() => setCallSheetOpen(false)}
+          onSaved={() => toast("Call sheet updated — sent to client + talent.")}
+        />
+      )}
       <DetailSection title="Location">
         {inquiry.location.venue && <DetailField label="Venue" value={inquiry.location.venue} />}
         {inquiry.location.address && <DetailField label="Address" value={inquiry.location.address} />}
