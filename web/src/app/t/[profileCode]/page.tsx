@@ -64,6 +64,7 @@ import {
   loadOverlayCoverMedia,
   type AgencyTalentOverlayRow,
 } from "@/lib/talent/agency-overlay";
+import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1101,6 +1102,14 @@ export default async function PublicTalentProfilePage({
 
               {/* CTA buttons */}
               <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:pb-1">
+                <TalentProfileInquireButton
+                  talentId={profile.id}
+                  talentProfileCode={profile.profile_code}
+                  displayName={name}
+                  tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+                  sourcePage={profileSourcePage}
+                  className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
+                />
                 <ProfileDiscoveryCta
                   talentId={profile.id}
                   profileCode={profile.profile_code}
@@ -1410,6 +1419,14 @@ export default async function PublicTalentProfilePage({
                   {t("public.profile.sidebarAgencyBody")}
                 </p>
                 <div className="mt-5 flex flex-col gap-2.5">
+                  <TalentProfileInquireButton
+                    talentId={profile.id}
+                    talentProfileCode={profile.profile_code}
+                    displayName={name}
+                    tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+                    sourcePage={profileSourcePage}
+                    className="w-full bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
+                  />
                   <ProfileDiscoveryCta
                     talentId={profile.id}
                     profileCode={profile.profile_code}
@@ -1460,6 +1477,14 @@ export default async function PublicTalentProfilePage({
               {t("public.profile.footerCtaBody")}
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
+              <TalentProfileInquireButton
+                talentId={profile.id}
+                talentProfileCode={profile.profile_code}
+                displayName={name}
+                tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+                sourcePage={profileSourcePage}
+                className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
+              />
               <ProfileDiscoveryCta
                 talentId={profile.id}
                 profileCode={profile.profile_code}
