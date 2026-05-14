@@ -19,6 +19,12 @@ import type {
   DiscoverFacets,
 } from "../../_data-bridge/discover";
 
+/** Local mirror of DiscoverAvailabilityDay (API response shape). */
+type DiscoverAvailabilityDay = {
+  date: string;
+  status: "open" | "tentative" | "booked" | "blocked";
+};
+
 /** Local mirror of DiscoverTalentDetail (API response shape). Inline
  *  rather than imported because the API route file is server-only. */
 type DiscoverTalentDetail = {
@@ -84,12 +90,39 @@ export function DiscoverShell({
   const [searchInput, setSearchInput] = useState<string>(activeFilters.q ?? "");
   const [, startNavTransition] = useTransition();
   const [openTalentId, setOpenTalentId] = useState<string | null>(null);
+  const [availabilityByTalent, setAvailabilityByTalent] = useState<Map<string, DiscoverAvailabilityDay[]>>(() => new Map());
 
   // Reset client list when SSR initial set changes (e.g. filter applied via URL).
   useEffect(() => {
     setItems(initialItems);
     setTotal(initialTotal);
   }, [initialItems, initialTotal]);
+
+  // Progressive enhancement — cards render immediately (no waiting on
+  // availability), then 14-day windows hydrate per visible talent.
+  // Browser concurrency limit (~6) keeps the network behaved with 24 cards.
+  useEffect(() => {
+    const missing = items.filter((t) => !availabilityByTalent.has(t.id)).map((t) => t.id);
+    if (missing.length === 0) return;
+    const controller = new AbortController();
+    Promise.all(
+      missing.map((id) =>
+        fetch(`/api/discover/talent/${id}/availability?days=14`, { signal: controller.signal })
+          .then((r) => (r.ok ? r.json() : { days: [] as DiscoverAvailabilityDay[] }))
+          .then((j: { days: DiscoverAvailabilityDay[] }) => [id, j.days] as const)
+          .catch(() => [id, [] as DiscoverAvailabilityDay[]] as const),
+      ),
+    ).then((results) => {
+      if (controller.signal.aborted) return;
+      setAvailabilityByTalent((prev) => {
+        const next = new Map(prev);
+        for (const [id, days] of results) next.set(id, days);
+        return next;
+      });
+    });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   // Update URL params and let SSR refetch the new initial list.
   const pushFilters = useCallback(
@@ -210,7 +243,12 @@ export function DiscoverShell({
           }}
         >
           {items.map((t) => (
-            <DiscoverCard key={t.id} item={t} onOpen={() => setOpenTalentId(t.id)} />
+            <DiscoverCard
+              key={t.id}
+              item={t}
+              availability={availabilityByTalent.get(t.id)}
+              onOpen={() => setOpenTalentId(t.id)}
+            />
           ))}
         </div>
       ) : (
@@ -349,9 +387,11 @@ function FacetChip({
 
 function DiscoverCard({
   item,
+  availability,
   onOpen,
 }: {
   item: DiscoverTalentListItem;
+  availability: DiscoverAvailabilityDay[] | undefined;
   onOpen: () => void;
 }) {
   const initials = item.displayName
@@ -459,8 +499,50 @@ function DiscoverCard({
             {[item.homeCity, item.homeCountry].filter(Boolean).join(" · ")}
           </div>
         )}
+        <AvailabilityStrip days={availability} />
       </div>
     </button>
+  );
+}
+
+function AvailabilityStrip({ days }: { days: DiscoverAvailabilityDay[] | undefined }) {
+  // Placeholder before hydration — neutral dots so the card height doesn't jump.
+  const dots: Array<DiscoverAvailabilityDay | null> = days ?? Array.from({ length: 14 }, () => null);
+  const colorFor = (s: DiscoverAvailabilityDay["status"] | null): string => {
+    if (s === null) return "rgba(11,11,13,0.10)";
+    if (s === "booked") return "#B0303A";
+    if (s === "blocked") return "rgba(11,11,13,0.32)";
+    if (s === "tentative") return "#D9A03A";
+    return "#2E7D5B"; // open
+  };
+  const openDays = days ? days.filter((d) => d.status === "open").length : null;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div
+        style={{ display: "flex", gap: 2, alignItems: "center" }}
+        aria-label={openDays !== null ? `${openDays} of next 14 days open` : "Availability loading"}
+      >
+        {dots.slice(0, 14).map((d, i) => (
+          <span
+            // eslint-disable-next-line react/no-array-index-key
+            key={i}
+            title={d ? `${d.date}: ${d.status}` : undefined}
+            style={{
+              width: 5, height: 5, borderRadius: 999,
+              background: colorFor(d ? d.status : null),
+              flexShrink: 0,
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 4, fontFamily: FONT }}>
+        {openDays === null
+          ? "Loading availability…"
+          : openDays === 0
+            ? "Fully booked next 14 days"
+            : `${openDays} of next 14 days open`}
+      </div>
+    </div>
   );
 }
 
