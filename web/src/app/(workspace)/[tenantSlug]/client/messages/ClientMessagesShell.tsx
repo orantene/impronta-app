@@ -724,6 +724,7 @@ function ThreadPaneWithTabs({
             messages={messages}
             loading={loadingMessages}
             tenantSlug={tenantSlug}
+            pitch={details?.pitch ?? null}
             onJumpToOffer={() => onTabChange("offer")}
             onPayNow={(amountLabel) => setPayNowSheet({ amountLabel })}
             onMessagesChange={onMessagesChange}
@@ -1173,12 +1174,13 @@ function ChatComposer({
 }
 
 function ChatThreadBody({
-  inq, messages, loading, tenantSlug, onJumpToOffer, onPayNow, onMessagesChange,
+  inq, messages, loading, tenantSlug, pitch, onJumpToOffer, onPayNow, onMessagesChange,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
   loading: boolean;
   tenantSlug: string;
+  pitch: ClientInquiryDetails["pitch"];
   onJumpToOffer?: () => void;
   onPayNow?: (amountLabel: string) => void;
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
@@ -1190,6 +1192,7 @@ function ChatThreadBody({
   void inq;
   return (
     <div ref={scrollRef} style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {pitch && <PitchOriginBlock pitch={pitch} />}
       {loading ? (
         <div style={{ color: C.inkDim, fontSize: 12, textAlign: "center", padding: 20 }}>Loading messages…</div>
       ) : messages.length === 0 ? (
@@ -1207,6 +1210,64 @@ function ChatThreadBody({
             onMessagesChange={onMessagesChange}
           />
         ))
+      )}
+    </div>
+  );
+}
+
+// ─── Pitch origin block ──────────────────────────────────────────────────
+
+function PitchOriginBlock({
+  pitch,
+}: {
+  pitch: NonNullable<ClientInquiryDetails["pitch"]>;
+}) {
+  const when = pitch.sent_at ? formatDate(pitch.sent_at) : null;
+  const author = pitch.author_name ?? "Your coordinator";
+  return (
+    <div
+      style={{
+        background: "rgba(29,78,216,0.05)",
+        border: `1px solid rgba(29,78,216,0.15)`,
+        borderRadius: 12,
+        padding: "12px 14px",
+        fontFamily: FONT,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: C.accent,
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+        }}
+      >
+        Pitch from {author}
+        {when && <span style={{ color: C.inkMuted, marginLeft: 6, fontWeight: 500 }}>· {when}</span>}
+      </div>
+      {pitch.brief && (
+        <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.5, fontWeight: 500 }}>
+          {pitch.brief}
+        </div>
+      )}
+      {pitch.personal_note && (
+        <div
+          style={{
+            fontSize: 12.5,
+            color: C.inkMuted,
+            lineHeight: 1.5,
+            fontStyle: "italic",
+            paddingTop: 4,
+            borderTop: `1px dashed rgba(29,78,216,0.20)`,
+            marginTop: 2,
+          }}
+        >
+          “{pitch.personal_note}”
+        </div>
       )}
     </div>
   );

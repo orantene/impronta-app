@@ -136,6 +136,16 @@ export type ClientInquiryDetails = {
     links: string[];
   };
 
+  /** Pitch context — non-null when the inquiry was generated from a Pitch
+   * share link. Drives the inline pitch-origin block at the top of Chat. */
+  pitch: {
+    id: string;
+    brief: string | null;
+    personal_note: string | null;
+    author_name: string | null;
+    sent_at: string | null;
+  } | null;
+
   // ─── Section: Offer summary (client-safe, NO private rates) ──────────
   offer: {
     /** Has any non-rejected offer been drafted/sent? */
@@ -223,7 +233,7 @@ export async function loadClientInquiryDetails(
         id, tenant_id, status, version, created_at, updated_at,
         contact_name, contact_email, contact_phone, company,
         event_date, event_location, quantity, message,
-        source_channel, source_context, interpreted_query,
+        source_channel, source_context, source_pitch_id, interpreted_query,
         coordinator_id, coordinator_assigned_at,
         current_offer_id
       `,
@@ -271,7 +281,7 @@ export async function loadClientInquiryDetails(
     // Parallel fan-out for the side data.
     const admin = createServiceRoleClient();
     const readClient = admin ?? supabase;
-    const [participantsRes, offerRes, coordRes, eventsRes, attachmentsRes] = await Promise.all([
+    const [participantsRes, offerRes, coordRes, eventsRes, attachmentsRes, pitchRes] = await Promise.all([
       // Talent lineup — visible-to-client subset
       readClient
         .from("inquiry_participants")
@@ -327,6 +337,16 @@ export async function loadClientInquiryDetails(
         .eq("inquiry_id", inquiryId)
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: true }),
+      // Pitch context — only when this inquiry was generated from a Pitch
+      // share link. Drives the inline pitch-origin block at the top of Chat.
+      inq.source_pitch_id
+        ? readClient
+            .from("pitches")
+            .select("id, brief, personal_note, sent_at, created_by_user_id")
+            .eq("id", inq.source_pitch_id)
+            .eq("tenant_id", tenantId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
     ]);
 
     // Filter activity to client-visible events. Resolve actor display names.
@@ -342,8 +362,19 @@ export async function loadClientInquiryDetails(
       .filter((e) => CLIENT_VISIBLE_EVENT_TYPES.has(e.event_type))
       .slice(0, 20);
 
+    const pitchRow = (pitchRes.data ?? null) as {
+      id: string;
+      brief: string | null;
+      personal_note: string | null;
+      sent_at: string | null;
+      created_by_user_id: string | null;
+    } | null;
+
     const actorIds = [
-      ...new Set(visibleEvents.map((e) => e.actor_user_id).filter(Boolean) as string[]),
+      ...new Set([
+        ...visibleEvents.map((e) => e.actor_user_id).filter(Boolean) as string[],
+        ...(pitchRow?.created_by_user_id ? [pitchRow.created_by_user_id] : []),
+      ]),
     ];
     const actorNameMap = new Map<string, string>();
     if (actorIds.length > 0) {
@@ -562,6 +593,18 @@ export async function loadClientInquiryDetails(
         files: mergedAttachmentFiles,
         links: iq.links ?? [],
       },
+
+      pitch: pitchRow
+        ? {
+            id: pitchRow.id,
+            brief: pitchRow.brief,
+            personal_note: pitchRow.personal_note,
+            author_name: pitchRow.created_by_user_id
+              ? (actorNameMap.get(pitchRow.created_by_user_id) ?? null)
+              : null,
+            sent_at: pitchRow.sent_at,
+          }
+        : null,
 
       offer,
 
