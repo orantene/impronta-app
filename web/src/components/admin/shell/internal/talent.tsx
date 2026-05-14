@@ -16,8 +16,10 @@
  *   plus ~15 talent drawer bodies dispatched from _drawers.tsx via talentDrawer()
  */
 
-import { useEffect, useRef, useState, useMemo, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, useMemo, useTransition, type CSSProperties, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { createTalentAvailabilityBlock } from "@/lib/talent-calendar/actions";
 import { IconButton } from "@/lib/ui/a11y-icon-button";
 // Type-only import — `_data-bridge.ts` is server-only; `import type` is erased
 // at compile time and never reaches the client bundle (same pattern as _state.tsx).
@@ -11083,6 +11085,60 @@ function CalendarPage() {
   // week view renders real events from the bridge.
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">(isBridgeMode ? "week" : "month");
 
+  // T3 — "Block dates" form state for talent_availability_blocks creation.
+  // Reason is required (server validates). Dates are HTML date-input format
+  // (YYYY-MM-DD) and converted to ISO at submit. router.refresh() pulls
+  // freshly inserted blocks back into bridgeTalentCalendarEntries.
+  const router = useRouter();
+  const [blockFormOpen, setBlockFormOpen] = useState(false);
+  const [blockSaving, startBlockTransition] = useTransition();
+  const [blockStart, setBlockStart] = useState("");
+  const [blockEnd, setBlockEnd] = useState("");
+  const [blockReason, setBlockReason] = useState("");
+  const [blockError, setBlockError] = useState<string | null>(null);
+  const handleSaveBlock = () => {
+    setBlockError(null);
+    const talentProfileId = bridgeTalentSelfProfile?.id;
+    if (!talentProfileId) {
+      setBlockError("Profile not loaded — refresh and try again.");
+      return;
+    }
+    if (!blockStart || !blockEnd) {
+      setBlockError("Pick a start and end date.");
+      return;
+    }
+    if (!blockReason.trim()) {
+      setBlockError("Add a short reason (e.g. Vacation, Personal).");
+      return;
+    }
+    const startIso = new Date(`${blockStart}T00:00:00`).toISOString();
+    const endIso = new Date(`${blockEnd}T23:59:59`).toISOString();
+    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
+      setBlockError("End must be after start.");
+      return;
+    }
+    startBlockTransition(async () => {
+      const res = await createTalentAvailabilityBlock({
+        talentProfileId,
+        reason: blockReason.trim(),
+        startsAt: startIso,
+        endsAt: endIso,
+        allDay: true,
+        visibility: "agency_visible",
+      });
+      if (!res.ok) {
+        setBlockError(res.error);
+        return;
+      }
+      toast("Block saved");
+      setBlockFormOpen(false);
+      setBlockStart("");
+      setBlockEnd("");
+      setBlockReason("");
+      router.refresh();
+    });
+  };
+
   // Real month navigation — starts on today's actual month in bridge mode,
   // May 2026 in prototype mode so existing mock fixtures align correctly.
   const _today = new Date();
@@ -11433,6 +11489,141 @@ function CalendarPage() {
           })}
         </div>
       </div>
+
+      {/* T3 — Block dates affordance. Talent-authored OOO/personal blocks
+          write to talent_availability_blocks via createTalentAvailabilityBlock.
+          Bridge-mode only — the prototype mock has no insert path. */}
+      {isBridgeMode && (
+        <div style={{
+          marginTop: 12, marginBottom: 12,
+          padding: blockFormOpen ? 14 : 0,
+          background: blockFormOpen ? "#fff" : "transparent",
+          border: blockFormOpen ? `1px solid ${COLORS.borderSoft}` : "none",
+          borderRadius: 12,
+          fontFamily: FONTS.body,
+        }}>
+          {!blockFormOpen ? (
+            <button
+              type="button"
+              onClick={() => { setBlockFormOpen(true); setBlockError(null); }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "8px 14px", borderRadius: 999,
+                background: "transparent", border: `1px dashed ${COLORS.border}`,
+                color: COLORS.inkMuted, fontFamily: FONTS.body,
+                fontSize: 12, fontWeight: 500, cursor: "pointer",
+                transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.ink; e.currentTarget.style.color = COLORS.ink; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.inkMuted; }}
+            >
+              <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>＋</span>
+              Block dates
+            </button>
+          ) : (
+            <div>
+              <div style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: 0.4,
+                textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 10,
+              }}>
+                Mark yourself unavailable
+              </div>
+              <div style={{
+                display: "grid", gap: 10,
+                gridTemplateColumns: "1fr 1fr", marginBottom: 10,
+              }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: COLORS.inkMuted }}>
+                  From
+                  <input
+                    type="date"
+                    value={blockStart}
+                    onChange={(e) => setBlockStart(e.target.value)}
+                    style={{
+                      padding: "8px 10px", borderRadius: 8,
+                      border: `1px solid ${COLORS.border}`,
+                      fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+                    }}
+                  />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: COLORS.inkMuted }}>
+                  To
+                  <input
+                    type="date"
+                    value={blockEnd}
+                    onChange={(e) => setBlockEnd(e.target.value)}
+                    style={{
+                      padding: "8px 10px", borderRadius: 8,
+                      border: `1px solid ${COLORS.border}`,
+                      fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+                    }}
+                  />
+                </label>
+              </div>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10 }}>
+                Reason
+                <input
+                  type="text"
+                  placeholder="e.g. Vacation, personal, travel"
+                  value={blockReason}
+                  onChange={(e) => setBlockReason(e.target.value)}
+                  maxLength={80}
+                  style={{
+                    padding: "8px 10px", borderRadius: 8,
+                    border: `1px solid ${COLORS.border}`,
+                    fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+                  }}
+                />
+              </label>
+              {blockError && (
+                <div style={{
+                  fontSize: 12, color: COLORS.coralDeep ?? "#b0303a",
+                  background: "rgba(176,48,58,0.06)", border: `1px solid rgba(176,48,58,0.18)`,
+                  padding: "6px 10px", borderRadius: 8, marginBottom: 10,
+                }}>
+                  {blockError}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBlockFormOpen(false);
+                    setBlockError(null);
+                  }}
+                  disabled={blockSaving}
+                  style={{
+                    padding: "8px 14px", borderRadius: 8,
+                    background: "transparent", border: `1px solid ${COLORS.border}`,
+                    color: COLORS.inkMuted, fontFamily: FONTS.body,
+                    fontSize: 12.5, fontWeight: 500, cursor: blockSaving ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveBlock}
+                  disabled={blockSaving}
+                  style={{
+                    padding: "8px 14px", borderRadius: 8,
+                    background: blockSaving ? "rgba(11,11,13,0.4)" : COLORS.fill,
+                    border: "none", color: "#fff", fontFamily: FONTS.body,
+                    fontSize: 12.5, fontWeight: 600, cursor: blockSaving ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {blockSaving ? "Saving…" : "Save block"}
+                </button>
+              </div>
+              <div style={{
+                marginTop: 10, fontSize: 11, color: COLORS.inkDim,
+                fontStyle: "italic", lineHeight: 1.45,
+              }}>
+                Blocks are visible to your agency but private to clients. They keep your calendar accurate so coordinators don&apos;t pitch you for dates you can&apos;t take.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Month grid — only in prototype mode; bridge mode uses week/day list views
           since CalendarMonthGrid is built from static May 2026 fixture data. */}
