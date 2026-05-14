@@ -9808,6 +9808,7 @@ export function DetailsPanel({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
 
 // ── CLIENT view — short, warm, reassurance-shaped ──
 function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
+  const { toast } = useAdminShell();
   const coord = inquiry.coordinators[0];
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
@@ -9864,25 +9865,35 @@ function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
               cancelled — no edits past that point. */}
           {inquiry.status !== "wrapped" && inquiry.status !== "cancelled" && (
             <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-              <button type="button" disabled title="Client talent requests need a live coordinator workflow." style={disabledBtn({
-                display: "inline-flex", alignItems: "center", gap: 5,
-                padding: "5px 10px", borderRadius: 999,
-                border: `1px dashed ${COLORS.border}`, background: "transparent",
-                color: COLORS.ink, cursor: "pointer",
-                fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
-              })}>
+              <button
+                type="button"
+                onClick={() => toast("Message your coordinator to request additional talent — they handle adds from their workspace.")}
+                title="Tap to learn how to request talent"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "5px 10px", borderRadius: 999,
+                  border: `1px dashed ${COLORS.border}`, background: "transparent",
+                  color: COLORS.ink, cursor: "pointer",
+                  fontSize: 11.5, fontWeight: 600, fontFamily: FONTS.body,
+                }}
+              >
                 <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                   <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
-                Add talent
+                Request talent
               </button>
-              <button type="button" disabled title="Swap requests need a live coordinator workflow." style={disabledBtn({
-                display: "inline-flex", alignItems: "center", gap: 5,
-                padding: "5px 10px", borderRadius: 999,
-                border: "none", background: "transparent",
-                color: COLORS.inkMuted, cursor: "pointer",
-                fontSize: 11.5, fontWeight: 500, fontFamily: FONTS.body,
-              })}>
+              <button
+                type="button"
+                onClick={() => toast("Message your coordinator to swap a talent — they handle replacements from their workspace.")}
+                title="Tap to learn how to swap a talent"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "5px 10px", borderRadius: 999,
+                  border: "none", background: "transparent",
+                  color: COLORS.inkMuted, cursor: "pointer",
+                  fontSize: 11.5, fontWeight: 500, fontFamily: FONTS.body,
+                }}
+              >
                 Request a swap
               </button>
             </div>
@@ -9956,13 +9967,9 @@ function ClientTalentCard({
           textTransform: "uppercase", letterSpacing: 0.4,
         }}>{stateMeta.label}</div>
       </div>
-      <button type="button" disabled title="Client-facing talent profile preview is not wired here yet." style={disabledBtn({
-        flexShrink: 0,
-        padding: "5px 10px", borderRadius: 999,
-        border: `1px solid ${COLORS.border}`, background: "transparent",
-        color: COLORS.ink, cursor: "pointer",
-        fontSize: 11, fontWeight: 600, fontFamily: FONTS.body,
-      })}>View</button>
+      {/* C1 dead-chrome sweep: removed disabled "View" button — public
+          talent profile linkout needs profile_code which isn't threaded
+          to this surface. Clients can find talent in Discover instead. */}
       {canEdit && !stagePast && (
         <button
           type="button"
