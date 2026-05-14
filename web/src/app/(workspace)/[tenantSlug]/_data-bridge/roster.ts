@@ -72,7 +72,16 @@ export type WorkspaceRosterItem = {
 
 function deriveProfileState(row: RosterRow): TalentProfile["state"] {
   if (row.status === "pending") return "awaiting-approval";
-  if (row.status === "active" && row.talent_profiles?.workflow_status === "published") {
+  // Phase G fix (2026-05-14) — workflow_status='approved' is the canonical
+  // production value; 'published' was the early-fixture literal. Both
+  // count as "published" for surface gating (audit §A.1 #2). Without
+  // this, Discover empty-stated despite 22+ approved+public talents
+  // because every one of them fell through to 'draft'.
+  if (
+    row.status === "active"
+    && (row.talent_profiles?.workflow_status === "approved"
+        || row.talent_profiles?.workflow_status === "published")
+  ) {
     return "published";
   }
   // "Claimed" = talent has linked a user account to this profile.
