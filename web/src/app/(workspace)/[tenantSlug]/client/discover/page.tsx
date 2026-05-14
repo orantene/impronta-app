@@ -3,11 +3,13 @@
 // an inquiry pre-filled with that talent.
 
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadWorkspaceRosterEnriched } from "../../_data-bridge";
 import { DiscoverShell } from "./DiscoverShell";
+import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
+import { NewInquiryButton } from "../_components/NewInquiryButton";
+import { EmptyState } from "../_components/EmptyState";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -35,73 +37,39 @@ export default async function ClientDiscoverPage({ params }: { params: PageParam
   if (!clientProfile) notFound();
 
   const roster = await loadWorkspaceRosterEnriched(scope.tenantId);
-  // Include "claimed" talent (has a user account, not yet fully published)
-  // alongside "published" so the discover page isn't empty on fresh workspaces.
-  // Mirrors the filter widened in `inquiries/new/page.tsx` in Wave 3 (2026-05-12).
   const visible = roster.filter((r) => r.state === "published" || r.state === "claimed");
+
+  const rosterForBtn = visible.map((r) => ({
+    id: r.id,
+    name: r.name,
+    primaryTypeLabel: r.primaryTypeLabel,
+    city: r.city,
+  }));
+  const clientForBtn = {
+    displayName: clientProfile.displayName,
+    company: clientProfile.company,
+    agencyName: clientProfile.agencyName,
+  };
 
   return (
     <div style={{ fontFamily: FONT }}>
-
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1
-          style={{
-            fontFamily: FONT_DISPLAY,
-            fontSize: 24,
-            fontWeight: 600,
-            color: C.ink,
-            margin: 0,
-            letterSpacing: -0.4,
-          }}
-        >
-          Discover talent
-        </h1>
-        <p style={{ fontSize: 13, color: C.inkMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
-          Browse {clientProfile.agencyName}&apos;s roster.
-          {visible.length > 0 && ` ${visible.length} talent available for bookings.`}
-        </p>
-      </div>
+      <ClientPageHeader
+        eyebrow="Discover"
+        title="Discover talent"
+        subtitle={`Browse ${clientProfile.agencyName}'s roster. Click any profile to start an inquiry pre-filled with that talent.`}
+        badge={visible.length > 0 ? <HeaderBadge>{visible.length} available</HeaderBadge> : undefined}
+        actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={rosterForBtn} />}
+      />
 
       {visible.length > 0 ? (
         <DiscoverShell roster={roster} tenantSlug={tenantSlug} />
       ) : (
-        <div
-          style={{
-            padding: "60px 20px",
-            textAlign: "center",
-            background: C.surface,
-            border: `1px dashed ${C.borderSoft}`,
-            borderRadius: 14,
-          }}
-        >
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🎭</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
-            Roster coming soon
-          </div>
-          <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 360, lineHeight: 1.5 }}>
-            {clientProfile.agencyName} is setting up their roster. You can still send a brief and let the agency recommend the right fit.
-          </p>
-          <Link
-            href={`/${tenantSlug}/client/inquiries/new`}
-            style={{
-              display: "inline-flex",
-              marginTop: 16,
-              height: 36,
-              padding: "0 16px",
-              borderRadius: 8,
-              background: C.accent,
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: "none",
-              alignItems: "center",
-              fontFamily: FONT,
-            }}
-          >
-            Start inquiry →
-          </Link>
-        </div>
+        <EmptyState
+          icon="🎭"
+          title="Roster coming soon"
+          body={`${clientProfile.agencyName} is setting up their roster. You can still send a brief and let the agency recommend the right fit.`}
+          actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={rosterForBtn} label="Start inquiry" />}
+        />
       )}
     </div>
   );

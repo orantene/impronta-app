@@ -6,8 +6,15 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSelfProfile, loadClientInquiries } from "../../_data-bridge";
+import {
+  loadClientSelfProfile,
+  loadClientInquiries,
+  loadWorkspaceRosterEnriched,
+} from "../../_data-bridge";
 import { clientDateMs, formatClientDate } from "../date-format";
+import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
+import { NewInquiryButton } from "../_components/NewInquiryButton";
+import { EmptyState } from "../_components/EmptyState";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -278,112 +285,68 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const inquiries = await loadClientInquiries(session.user.id, scope.tenantId);
+  const [inquiries, rosterRaw] = await Promise.all([
+    loadClientInquiries(session.user.id, scope.tenantId),
+    loadWorkspaceRosterEnriched(scope.tenantId),
+  ]);
+  const roster = rosterRaw
+    .filter((r) => r.state === "published" || r.state === "claimed")
+    .map((r) => ({ id: r.id, name: r.name, primaryTypeLabel: r.primaryTypeLabel, city: r.city }));
 
   const open   = inquiries.filter((i) => !isTerminal(i.status));
   const closed = inquiries.filter((i) => isTerminal(i.status));
+  const needsClient = inquiries.filter((i) => i.next_action_by === "client").length;
+
+  const clientForBtn = {
+    displayName: clientProfile.displayName,
+    company: clientProfile.company,
+    agencyName: clientProfile.agencyName,
+  };
 
   return (
     <div style={{ fontFamily: FONT }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-        <div>
-          <h1
-            style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 24,
-              fontWeight: 600,
-              color: C.ink,
-              margin: 0,
-              letterSpacing: -0.4,
-            }}
-          >
-            Your inquiries
-          </h1>
-          <p style={{ fontSize: 13, color: C.inkMuted, margin: "6px 0 0" }}>
-            {inquiries.length === 0
-              ? "No inquiries yet."
-              : `${inquiries.length} total · ${open.length} open`}
-          </p>
-        </div>
-        <Link
-          href={`/${tenantSlug}/client/inquiries/new`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            height: 34,
-            padding: "0 14px",
-            borderRadius: 8,
-            background: C.accent,
-            color: "#fff",
-            fontSize: 12.5,
-            fontWeight: 600,
-            textDecoration: "none",
-            flexShrink: 0,
-            fontFamily: FONT,
-          }}
-        >
-          + Send new inquiry
-        </Link>
-      </div>
+      <ClientPageHeader
+        eyebrow="Inquiries"
+        title="Your inquiries"
+        subtitle={
+          inquiries.length === 0
+            ? "Every brief you've sent the workspace will appear here."
+            : `${inquiries.length} total · ${open.length} open · ${closed.length} closed`
+        }
+        badge={needsClient > 0 ? <HeaderBadge tone="accent">{needsClient} need you</HeaderBadge> : undefined}
+        actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} />}
+      />
 
       {inquiries.length === 0 ? (
-        <div
-          style={{
-            padding: "60px 20px",
-            textAlign: "center",
-            background: C.surface,
-            border: `1px dashed ${C.borderSoft}`,
-            borderRadius: 14,
-          }}
-        >
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
-            No inquiries yet
-          </div>
-          <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 360, lineHeight: 1.5 }}>
-            Send a booking inquiry now, or browse Discover first if you want to pick a specific talent.
-          </p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 16 }}>
-            <Link
-              href={`/${tenantSlug}/client/inquiries/new`}
-              style={{
-                display: "inline-flex",
-                height: 36,
-                padding: "0 16px",
-                borderRadius: 8,
-                background: C.accent,
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: "none",
-                alignItems: "center",
-                fontFamily: FONT,
-              }}
-            >
-              Start inquiry →
-            </Link>
-            <Link
-              href={`/${tenantSlug}/client/discover`}
-              style={{
-                display: "inline-flex",
-                height: 36,
-                padding: "0 16px",
-                borderRadius: 8,
-                background: "#fff",
-                border: `1px solid ${C.borderSoft}`,
-                color: C.ink,
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: "none",
-                alignItems: "center",
-                fontFamily: FONT,
-              }}
-            >
-              Browse roster
-            </Link>
-          </div>
-        </div>
+        <EmptyState
+          icon="📋"
+          title="No inquiries yet"
+          body="Send a booking inquiry now, or browse Discover first if you want to pick a specific talent."
+          actions={
+            <>
+              <NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} label="Start inquiry" />
+              <Link
+                href={`/${tenantSlug}/client/discover`}
+                style={{
+                  display: "inline-flex",
+                  height: 38,
+                  padding: "0 14px",
+                  borderRadius: 9,
+                  background: "#fff",
+                  border: `1px solid ${C.borderSoft}`,
+                  color: C.ink,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  alignItems: "center",
+                  fontFamily: FONT,
+                }}
+              >
+                Browse roster
+              </Link>
+            </>
+          }
+        />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
           <InquiryTable rows={open} label="Open" tenantSlug={tenantSlug} />

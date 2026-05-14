@@ -8,6 +8,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
   loadClientBookings,
+  loadWorkspaceRosterEnriched,
   type ClientBookingRow,
 } from "../../_data-bridge";
 import {
@@ -15,6 +16,9 @@ import {
   getClientDateParts,
   isPastClientDate,
 } from "../date-format";
+import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
+import { NewInquiryButton } from "../_components/NewInquiryButton";
+import { EmptyState } from "../_components/EmptyState";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -181,71 +185,44 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const bookings = await loadClientBookings(session.user.id, scope.tenantId);
+  const [bookings, rosterRaw] = await Promise.all([
+    loadClientBookings(session.user.id, scope.tenantId),
+    loadWorkspaceRosterEnriched(scope.tenantId),
+  ]);
+  const roster = rosterRaw
+    .filter((r) => r.state === "published" || r.state === "claimed")
+    .map((r) => ({ id: r.id, name: r.name, primaryTypeLabel: r.primaryTypeLabel, city: r.city }));
 
   const upcoming = bookings.filter((b) => !isPast(b.event_date));
   const past     = bookings.filter((b) => isPast(b.event_date) || !b.event_date);
 
+  const clientForBtn = {
+    displayName: clientProfile.displayName,
+    company: clientProfile.company,
+    agencyName: clientProfile.agencyName,
+  };
+
   return (
     <div style={{ fontFamily: FONT }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1
-          style={{
-            fontFamily: FONT_DISPLAY,
-            fontSize: 24,
-            fontWeight: 600,
-            color: C.ink,
-            margin: 0,
-            letterSpacing: -0.4,
-          }}
-        >
-          Your bookings
-        </h1>
-        <p style={{ fontSize: 13, color: C.inkMuted, margin: "6px 0 0" }}>
-          {bookings.length === 0
-            ? "No confirmed bookings yet."
-            : `${bookings.length} confirmed · ${upcoming.length} upcoming`}
-        </p>
-      </div>
+      <ClientPageHeader
+        eyebrow="Bookings"
+        title="Your bookings"
+        subtitle={
+          bookings.length === 0
+            ? "Confirmed bookings will appear here once your offers are accepted."
+            : `${bookings.length} confirmed · ${upcoming.length} upcoming`
+        }
+        badge={upcoming.length > 0 ? <HeaderBadge tone="success">{upcoming.length} upcoming</HeaderBadge> : undefined}
+        actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} />}
+      />
 
       {bookings.length === 0 ? (
-        <div
-          style={{
-            padding: "60px 20px",
-            textAlign: "center",
-            background: C.surface,
-            border: `1px dashed ${C.borderSoft}`,
-            borderRadius: 14,
-          }}
-        >
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📅</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
-            No bookings yet
-          </div>
-          <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 360, lineHeight: 1.5 }}>
-            Once your inquiries are confirmed, they&apos;ll appear here as bookings.
-          </p>
-          <Link
-            href={`/${tenantSlug}/client/inquiries/new`}
-            style={{
-              display: "inline-flex",
-              marginTop: 16,
-              height: 36,
-              padding: "0 16px",
-              borderRadius: 8,
-              background: C.accent,
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: "none",
-              alignItems: "center",
-              fontFamily: FONT,
-            }}
-          >
-            Start inquiry →
-          </Link>
-        </div>
+        <EmptyState
+          icon="📅"
+          title="No bookings yet"
+          body="Once your inquiries are confirmed, they'll appear here as bookings."
+          actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} label="Start inquiry" />}
+        />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
           <BookingSection rows={upcoming} label="Upcoming" tenantSlug={tenantSlug} />

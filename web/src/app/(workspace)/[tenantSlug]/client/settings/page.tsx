@@ -7,6 +7,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadClientTrustBillingState } from "../../_data-bridge";
 import { ClientTrustShell } from "./ClientTrustShell";
 import { isStripeConfigured } from "@/lib/stripe/client";
+import { ClientPageHeader } from "../_components/ClientPageHeader";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -112,24 +113,11 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
 
   return (
     <div style={{ fontFamily: FONT }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1
-          style={{
-            fontFamily: FONT_DISPLAY,
-            fontSize: 24,
-            fontWeight: 600,
-            color: C.ink,
-            margin: 0,
-            letterSpacing: -0.4,
-          }}
-        >
-          Settings
-        </h1>
-        <p style={{ fontSize: 13, color: C.inkMuted, margin: "6px 0 0" }}>
-          Your account details and preferences.
-        </p>
-      </div>
+      <ClientPageHeader
+        eyebrow="Account"
+        title="Settings"
+        subtitle="Your account details, preferences, and trust verification."
+      />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 680 }}>
         {/* Profile */}

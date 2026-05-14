@@ -5,8 +5,16 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSelfProfile, loadClientInquiries } from "../../_data-bridge";
+import {
+  loadClientSelfProfile,
+  loadClientInquiries,
+  loadWorkspaceRosterEnriched,
+} from "../../_data-bridge";
 import { clientDateMs, formatClientDate } from "../date-format";
+import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
+import { NewInquiryButton } from "../_components/NewInquiryButton";
+import { StatusChip } from "../_components/StatusChip";
+import { EmptyState } from "../_components/EmptyState";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -33,45 +41,7 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-function statusTone(status: string): { bg: string; color: string; label: string } {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    booked:        { bg: C.successSoft,  color: C.successDeep, label: "Booked" },
-    converted:     { bg: C.successSoft,  color: C.successDeep, label: "Booked" },
-    approved:      { bg: C.accentSoft,   color: C.accent,      label: "Approved" },
-    offer_pending: { bg: C.amberSoft,    color: C.amberDeep,   label: "Offer pending" },
-    submitted:     { bg: C.blueSoft,     color: C.blueDeep,    label: "Submitted" },
-    coordination:  { bg: C.blueSoft,     color: C.blueDeep,    label: "In review" },
-    rejected:      { bg: C.surface,      color: C.inkDim,      label: "Declined" },
-    expired:       { bg: C.surface,      color: C.inkDim,      label: "Expired" },
-    draft:         { bg: C.surface,      color: C.inkDim,      label: "Draft" },
-  };
-  return map[status] ?? { bg: C.surface, color: C.inkDim, label: status.replace(/_/g, " ") };
-}
-
-function StatusChip({ status }: { status: string }) {
-  const s = statusTone(status);
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "2px 8px",
-        borderRadius: 999,
-        background: s.bg,
-        color: s.color,
-        fontSize: 10.5,
-        fontWeight: 700,
-        letterSpacing: 0.3,
-        textTransform: "uppercase" as const,
-        flexShrink: 0,
-        fontFamily: FONT,
-        textWrap: "nowrap",
-      }}
-    >
-      {s.label}
-    </span>
-  );
-}
+// StatusChip + statusTone now come from ../_components/StatusChip (unified).
 
 function fmtDate(iso: string | null): string {
   return formatClientDate(iso, "-");
@@ -123,7 +93,13 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const allInquiries = await loadClientInquiries(session.user.id, scope.tenantId);
+  const [allInquiries, rosterRaw] = await Promise.all([
+    loadClientInquiries(session.user.id, scope.tenantId),
+    loadWorkspaceRosterEnriched(scope.tenantId),
+  ]);
+  const roster = rosterRaw
+    .filter((r) => r.state === "published" || r.state === "claimed")
+    .map((r) => ({ id: r.id, name: r.name, primaryTypeLabel: r.primaryTypeLabel, city: r.city }));
 
   const firstName = clientProfile.displayName.split(" ")[0] ?? clientProfile.displayName;
 
@@ -169,39 +145,23 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
     <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: FONT, paddingBottom: "calc(72px + env(safe-area-inset-bottom))" }}>
       <style>{`.client-inq-row:hover { background: ${C.surfaceAlt}; }`}</style>
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.accent, marginBottom: 4 }}>
-            {clientProfile.agencyName}
-          </div>
-          <h1 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink, margin: 0, letterSpacing: -0.5, lineHeight: 1.1 }}>
-            {headline}
-          </h1>
-          <p style={{ fontFamily: FONT, fontSize: 13, color: C.inkMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
-            {subline}
-          </p>
-        </div>
-        <Link
-          href={`/${tenantSlug}/client/inquiries/new`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            height: 34,
-            padding: "0 14px",
-            borderRadius: 8,
-            background: C.accent,
-            color: "#fff",
-            fontSize: 12.5,
-            fontWeight: 600,
-            textDecoration: "none",
-            flexShrink: 0,
-            fontFamily: FONT,
-          }}
-        >
-          + New inquiry
-        </Link>
-      </div>
+      <ClientPageHeader
+        eyebrow={clientProfile.agencyName}
+        title={headline}
+        subtitle={subline}
+        badge={needsDecision.length > 0 ? <HeaderBadge tone="accent">{needsDecision.length} need you</HeaderBadge> : undefined}
+        actions={
+          <NewInquiryButton
+            tenantSlug={tenantSlug}
+            client={{
+              displayName: clientProfile.displayName,
+              company: clientProfile.company,
+              agencyName: clientProfile.agencyName,
+            }}
+            roster={roster}
+          />
+        }
+      />
 
       {/* Stat tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
@@ -217,61 +177,44 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
       </div>
 
       {allInquiries.length === 0 ? (
-        /* Empty state */
-        <div
-          style={{
-            padding: "40px 20px",
-            textAlign: "center",
-            background: C.surface,
-            border: `1px dashed ${C.border}`,
-            borderRadius: 14,
-          }}
-        >
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>No inquiries yet</div>
-          <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 360, lineHeight: 1.5 }}>
-            Send your first booking inquiry now, or browse the roster first if you want to pick a specific talent.
-          </p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 16 }}>
-            <Link
-              href={`/${tenantSlug}/client/inquiries/new`}
-              style={{
-                display: "inline-flex",
-                height: 36,
-                padding: "0 16px",
-                borderRadius: 8,
-                background: C.accent,
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: "none",
-                alignItems: "center",
-                fontFamily: FONT,
-              }}
-            >
-              Start inquiry →
-            </Link>
-            <Link
-              href={`/${tenantSlug}/client/discover`}
-              style={{
-                display: "inline-flex",
-                height: 36,
-                padding: "0 16px",
-                borderRadius: 8,
-                background: "#fff",
-                border: `1px solid ${C.borderSoft}`,
-                color: C.ink,
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: "none",
-                alignItems: "center",
-                fontFamily: FONT,
-              }}
-            >
-              Browse roster
-            </Link>
-          </div>
-        </div>
+        <EmptyState
+          icon="📋"
+          title="No inquiries yet"
+          body="Send your first booking inquiry now, or browse the roster first if you want to pick a specific talent."
+          actions={
+            <>
+              <NewInquiryButton
+                tenantSlug={tenantSlug}
+                client={{
+                  displayName: clientProfile.displayName,
+                  company: clientProfile.company,
+                  agencyName: clientProfile.agencyName,
+                }}
+                roster={roster}
+                label="Start inquiry"
+              />
+              <Link
+                href={`/${tenantSlug}/client/discover`}
+                style={{
+                  display: "inline-flex",
+                  height: 38,
+                  padding: "0 14px",
+                  borderRadius: 9,
+                  background: "#fff",
+                  border: `1px solid ${C.borderSoft}`,
+                  color: C.ink,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  alignItems: "center",
+                  fontFamily: FONT,
+                }}
+              >
+                Browse roster
+              </Link>
+            </>
+          }
+        />
       ) : (
         /* Three-bucket layout */
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
