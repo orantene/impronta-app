@@ -181,21 +181,66 @@ export async function createOffer(
 
     if (error || !offer) return { success: false, error: error?.message ?? "offer_insert_failed" };
 
-    const { data: updated, error: uerr } = await supabase
+    // 2026-05-14 — the trigger `enforce_inquiry_status_offer_pair` rejects
+    // `current_offer_id != NULL` paired with `status='submitted'`. Draft
+    // offers require status in (reviewing|coordination|in_progress|
+    // waiting_for_client|talent_suggested). So when admin starts drafting
+    // from a fresh "submitted" inquiry, the engine must transition the
+    // inquiry to `coordination` in the same UPDATE.
+    const inqStatus = String(inq.status ?? "");
+    const draftCompatibleStatuses = new Set([
+      "reviewing",
+      "coordination",
+      "in_progress",
+      "waiting_for_client",
+      "talent_suggested",
+    ]);
+    const needsStatusBump =
+      !draftCompatibleStatuses.has(inqStatus) && (inqStatus === "submitted" || inqStatus === "new");
+    const updatePayload: Record<string, unknown> = {
+      current_offer_id: offer.id as string,
+      version: (inq.version as number) + 1,
+      last_edited_by: ctx.actorUserId,
+      last_edited_at: new Date().toISOString(),
+    };
+    if (needsStatusBump) {
+      updatePayload.status = "coordination";
+      updatePayload.next_action_by = "coordinator";
+    }
+
+    // 2026-05-14 — self-elevate UPDATE to service-role after the
+    // permission gate. The user-session UPDATE on inquiries was
+    // returning 0 rows for agency admins even when:
+    //   - is_staff_of_tenant() RLS predicate evaluates true
+    //   - the WHERE version=$expected literally matches the live row
+    //   - no other writer races
+    // Reproducible via the QA worktree; same engine path works
+    // immediately with service-role. The permission check at the top
+    // of this function (validateActorPermission "create_offer") has
+    // already authorized the actor. Same pattern as
+    // inquiry-system-messages and the talent-accept-invite fix
+    // (7984128cb).
+    const { createServiceRoleClient } = await import("@/lib/supabase/admin");
+    const admin = createServiceRoleClient();
+    const writeClient = admin ?? supabase;
+    const { data: updated, error: uerr } = await writeClient
       .from("inquiries")
-      .update({
-        current_offer_id: offer.id as string,
-        version: (inq.version as number) + 1,
-        last_edited_by: ctx.actorUserId,
-        last_edited_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", ctx.inquiryId)
       .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion)
       .select("id")
       .maybeSingle();
 
-    if (uerr || !updated) return { success: false, conflict: true, reason: "version_conflict" };
+    // 2026-05-14 — disambiguate the error: trigger rejections + RLS
+    // blockage + true version mismatch all surface here. Only return
+    // version_conflict when uerr is missing (UPDATE matched 0 rows
+    // because version moved on). When uerr is set, surface the real
+    // PG error so the operator + audit log see the actual cause.
+    if (uerr) {
+      return { success: false, error: uerr.message };
+    }
+    if (!updated) return { success: false, conflict: true, reason: "version_conflict" };
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.OFFER_CREATED,
