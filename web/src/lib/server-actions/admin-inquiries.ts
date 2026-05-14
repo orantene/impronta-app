@@ -19,8 +19,8 @@ import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/l
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
+import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { emitFieldChange } from "@/lib/inquiry/audit-field-emit";
-import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
 
 // Type-only import + re-export. Combined into one statement so Turbopack
 // doesn't emit a runtime reference for `AdminActionState` (it was throwing
@@ -1560,90 +1560,117 @@ export async function createManualInquiry(
     ? proficiencyRaw
     : null;
 
-  const { data: created, error: insErr } = await supabase
-    .from("inquiries")
-    .insert({
-      tenant_id: tenantId,
-      guest_session_id: null,
-      client_user_id,
-      status: "new" as never,
-      contact_name: d.contact_name,
-      contact_email: d.contact_email,
-      contact_phone: d.contact_phone.length > 0 ? d.contact_phone : null,
-      company: d.company.length > 0 ? d.company : null,
-      event_type_id: null,
-      event_date: null,
-      event_location: d.event_location.length > 0 ? d.event_location : null,
-      quantity: null,
-      message: d.message.length > 0 ? d.message : null,
-      raw_ai_query: d.raw_ai_query.length > 0 ? d.raw_ai_query : null,
-      interpreted_query: null,
-      source_page: null,
-      assigned_staff_id: user.id,
-      staff_notes: d.staff_notes.length > 0 ? d.staff_notes : null,
-      client_account_id,
-      client_contact_id,
-      source_channel: d.source_channel as never,
-      closed_reason: null,
-      duplicate_of_inquiry_id: null,
-      requested_skill_term_id: skillTermId,
-      requested_proficiency_min: proficiencyMin as never,
-    })
-    .select("id")
-    .single();
+  // Phase B-3 (2026-05-14) — the previous implementation did a direct
+  // INSERT into public.inquiries, bypassing the submitInquiry engine.
+  // That meant no rate limiting, no roster validation, no coordinator
+  // auto-assignment, no engine events except a manually-emitted one,
+  // and `uses_new_engine` left unset so the row was invisible to v2
+  // engine paths (createOffer, sendOffer, etc.).
+  //
+  // Now routes through createInquiryFromIntent — the canonical engine
+  // entry point per spec §18. The intent carries the admin-specific
+  // metadata (assigned_staff_id, client_account_id, skill targeting)
+  // in source_context so we can still backfill it after the insert.
 
-  if (insErr || !created) {
-    logServerError("admin/createManualInquiry", insErr);
+  const intentResult = await createInquiryFromIntent(
+    supabase,
+    {
+      source: "admin_created",
+      source_context: {
+        admin_form: "createManualInquiry",
+        skill_term_id: skillTermId,
+        proficiency_min: proficiencyMin,
+        staff_notes: d.staff_notes.length > 0 ? d.staff_notes : null,
+        client_account_id,
+        client_contact_id,
+        legacy_source_channel: d.source_channel,
+      },
+      requester: {
+        name: d.contact_name,
+        email: d.contact_email,
+        phone: d.contact_phone.length > 0 ? d.contact_phone : undefined,
+        user_id: client_user_id,
+      },
+      client: {
+        company: d.company.length > 0 ? d.company : undefined,
+        booking_for: "another_client",
+      },
+      location: {
+        status: d.event_location.length > 0 ? "unconfirmed" : "not_sure",
+        city: d.event_location.length > 0 ? d.event_location : undefined,
+      },
+      date: { status: "not_sure" },
+      talent: { selection_mode: "agency_recommends" },
+      budget: { preference: "agency_recommends" },
+      brief: {
+        summary:
+          d.message.length > 0
+            ? d.message
+            : d.raw_ai_query.length > 0
+              ? d.raw_ai_query
+              : "Admin-created inquiry (manual)",
+      },
+    },
+    {
+      tenant_id: tenantId,
+      actor_user_id: user.id,
+      client_user_id,
+    },
+  );
+
+  if (!intentResult.ok) {
+    logServerError(
+      "admin/createManualInquiry.intent",
+      new Error(JSON.stringify(intentResult)),
+    );
     return { error: CLIENT_ERROR.update };
+  }
+  const inquiryId = intentResult.inquiryId;
+
+  // Backfill admin-specific columns that submitInquiry doesn't write
+  // (it focuses on the canonical client-facing fields). Stamping
+  // assigned_staff_id + staff_notes + skill targeting + client_account
+  // linkage keeps the legacy admin UI working unchanged.
+  const adminBackfill: Record<string, unknown> = {
+    assigned_staff_id: user.id,
+  };
+  if (d.staff_notes.length > 0) adminBackfill.staff_notes = d.staff_notes;
+  if (client_account_id) adminBackfill.client_account_id = client_account_id;
+  if (client_contact_id) adminBackfill.client_contact_id = client_contact_id;
+  if (skillTermId) adminBackfill.requested_skill_term_id = skillTermId;
+  if (proficiencyMin)
+    adminBackfill.requested_proficiency_min = proficiencyMin as never;
+  const { error: backfillErr } = await supabase
+    .from("inquiries")
+    .update(adminBackfill)
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId);
+  if (backfillErr) {
+    logServerError("admin/createManualInquiry.backfill", backfillErr);
+    // Non-fatal — inquiry exists, just missing some admin-side metadata.
   }
 
   await logInquiryActivity(supabase, {
-    inquiryId: created.id,
+    inquiryId,
     actorUserId: user.id,
     eventType: INQUIRY_AUDIT.CREATED_MANUAL,
     payload: { source_channel: d.source_channel },
   });
-
-  // inquiry_talent was dropped 2026-05-22; talent is linked via inquiry_participants on v2 inquiries.
-
-  // A1 — admin-created inquiries now emit the canonical INQUIRY_SUBMITTED
-  // engine event so downstream consumers (notification fan-out, realtime
-  // subscribers, search indexer) fire for manual creates the same way
-  // they do for client-portal submissions. Without this, an admin
-  // creating an inquiry from the +New form was silently invisible to
-  // every event-driven side effect.
-  //
-  // Best-effort: a failure here is logged but doesn't roll back the
-  // insert. The inquiry already exists in the DB; engine-event misses
-  // can be backfilled by an admin tool if needed.
-  try {
-    await emitStandardEngineEvent(supabase, {
-      type: ENGINE_EVENT_TYPES.INQUIRY_SUBMITTED,
-      inquiryId: created.id,
-      actorUserId: user.id,
-      data: {
-        coordinatorAssigned: false,
-        talentCount: 0,
-        sourceChannel: d.source_channel,
-        manualCreate: true,
-      },
-    });
-  } catch (eventErr) {
-    logServerError("admin/createManualInquiry.emitEvent", eventErr);
-  }
+  // INQUIRY_SUBMITTED engine event is emitted internally by
+  // submitInquiry → no need to re-emit here.
 
   revalidatePath("/admin/inquiries");
 
   const submitMode = trimmedString(formData, "submit_mode");
   if (submitMode === "sheet") {
     return {
-      createdInquiryId: created.id,
+      createdInquiryId: inquiryId,
       createdInquiryClientAccountId: client_account_id,
       createdInquiryClientAccountName,
     };
   }
 
-  redirect(`/admin/inquiries/${created.id}`);
+  redirect(`/admin/inquiries/${inquiryId}`);
 }
 
 export async function assignInquiryToCurrentStaffForm(formData: FormData): Promise<void> {
