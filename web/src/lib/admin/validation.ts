@@ -131,7 +131,16 @@ export function formatClientLocationAccountType(
   return accountType.replace(/_/g, " ");
 }
 
+// Inquiry source-channel enum. Mirrors public.inquiry_source_channel in
+// the database (17 values as of migration 20260514153544). Plan §7
+// sources are the 9 richer values added 2026-05-14; the original 8 stay
+// for legacy + operational channels.
+//
+// When you add a value here, add the matching ALTER TYPE … ADD VALUE in
+// a new migration so the DB enum stays aligned. Mismatches surface as
+// PG enum errors at insert time.
 export const INQUIRY_SOURCE_CHANNEL_VALUES = [
+  // Legacy / operational
   "directory_guest",
   "directory_client",
   "phone",
@@ -139,6 +148,17 @@ export const INQUIRY_SOURCE_CHANNEL_VALUES = [
   "email",
   "admin",
   "other",
+  "pitch",
+  // Plan §7 — richer provenance for the new InquiryIntent engine
+  "direct_client_dashboard",
+  "discover_single_talent",
+  "discover_shortlist",
+  "saved_talent",
+  "public_talent_profile",
+  "agency_site",
+  "hub_site",
+  "admin_created",
+  "book_again",
 ] as const;
 
 export const accountStatusSchema = z.enum(ACCOUNT_STATUS_VALUES);
