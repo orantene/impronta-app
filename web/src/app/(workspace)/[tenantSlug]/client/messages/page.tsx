@@ -15,7 +15,12 @@ import { ClientMessagesShell } from "./ClientMessagesShell";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
-type SearchParams = Promise<{ inquiry?: string }>;
+type SearchParams = Promise<{
+  inquiry?: string;
+  new?: string;
+  talent?: string;
+  just_submitted?: string;
+}>;
 
 export default async function ClientMessagesPage({
   params,
@@ -25,7 +30,11 @@ export default async function ClientMessagesPage({
   searchParams: SearchParams;
 }) {
   const { tenantSlug } = await params;
-  const { inquiry: pinnedInquiry } = await searchParams;
+  const sp = await searchParams;
+  const pinnedInquiry = sp.inquiry;
+  const autoOpenDrawer = sp.new === "1" || sp.new === "true";
+  const prefilledTalentId = sp.talent;
+  const justSubmittedInquiryId = sp.just_submitted === "1" ? pinnedInquiry : null;
 
   const session = await getCachedActorSession();
   if (!session.user) notFound();
@@ -68,6 +77,9 @@ export default async function ClientMessagesPage({
       roster={roster}
       initialMessages={initialMessages}
       initialActiveId={initialActiveId}
+      autoOpenDrawer={autoOpenDrawer}
+      prefilledTalentId={prefilledTalentId}
+      justSubmittedInquiryId={justSubmittedInquiryId ?? undefined}
     />
   );
 }

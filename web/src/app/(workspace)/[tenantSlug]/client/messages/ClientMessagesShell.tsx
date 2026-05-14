@@ -18,7 +18,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ClientInquiryRow } from "../../_data-bridge";
 import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
-import { NewInquiryDrawer } from "./NewInquiryDrawer";
+import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -75,6 +75,12 @@ type Props = {
   /** Pre-loaded messages for the initially-selected inquiry (first row). */
   initialMessages: WorkspaceMessage[];
   initialActiveId: string | null;
+  /** Auto-open the inquiry drawer on mount (?new=1). */
+  autoOpenDrawer?: boolean;
+  /** Talent to pre-attach when auto-opening (?talent=<id>). */
+  prefilledTalentId?: string;
+  /** Inquiry id from ?just_submitted=1 — pin its thread + show toast. */
+  justSubmittedInquiryId?: string;
 };
 
 export function ClientMessagesShell({
@@ -85,6 +91,9 @@ export function ClientMessagesShell({
   roster,
   initialMessages,
   initialActiveId,
+  autoOpenDrawer = false,
+  prefilledTalentId,
+  justSubmittedInquiryId,
 }: Props) {
   const router = useRouter();
   const [activeId, setActiveId] = useState<string | null>(initialActiveId);
@@ -92,8 +101,27 @@ export function ClientMessagesShell({
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(autoOpenDrawer);
   const [loadingThread, setLoadingThread] = useState(false);
+
+  // Toast for the just-submitted inquiry — fades after 4 seconds.
+  const [showJustSubmittedToast, setShowJustSubmittedToast] = useState(!!justSubmittedInquiryId);
+  useEffect(() => {
+    if (!showJustSubmittedToast) return;
+    const t = setTimeout(() => setShowJustSubmittedToast(false), 4000);
+    return () => clearTimeout(t);
+  }, [showJustSubmittedToast]);
+
+  // Clean the query params after auto-opening so reloads don't re-trigger.
+  useEffect(() => {
+    if (autoOpenDrawer || justSubmittedInquiryId) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("new");
+      url.searchParams.delete("talent");
+      url.searchParams.delete("just_submitted");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [autoOpenDrawer, justSubmittedInquiryId]);
 
   // When user picks a different inquiry, fetch its private-thread messages.
   // Uses the existing /api/admin/inspector route? Simpler: a tiny dedicated
@@ -309,16 +337,62 @@ export function ClientMessagesShell({
       </div>
 
       {drawerOpen && (
-        <NewInquiryDrawer
+        <InquiryDrawer
+          source={prefilledTalentId ? "discover_single_talent" : "direct_client_dashboard"}
+          initialIntent={{
+            requester: {
+              name: client.displayName,
+              // Email/phone resolved server-side from the session.
+            },
+            client: {
+              company: client.company ?? undefined,
+              same_as_requester: true,
+            },
+            talent: prefilledTalentId
+              ? { selected_ids: [prefilledTalentId], selection_mode: "i_know_who" }
+              : { selection_mode: "agency_recommends" },
+            source_context: prefilledTalentId
+              ? { entry_point: "messages_drawer", prefilled_talent_id: prefilledTalentId }
+              : { entry_point: "messages_drawer" },
+          }}
           tenantSlug={tenantSlug}
-          client={client}
+          agencyName={client.agencyName}
+          client={{
+            displayName: client.displayName,
+            company: client.company,
+            trust_level: "basic",
+          }}
           roster={roster}
-          onClose={() => setDrawerOpen(false)}
-          onSubmitted={() => {
+          enableDraftAutosave={true}
+          onClose={() => {
             setDrawerOpen(false);
             router.refresh();
           }}
         />
+      )}
+
+      {showJustSubmittedToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 110,
+            background: "#0F5132",
+            color: "#fff",
+            padding: "10px 18px",
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 600,
+            fontFamily: FONT,
+            boxShadow: "0 4px 18px rgba(15,81,50,0.32)",
+          }}
+        >
+          ✓ Inquiry sent — your coordinator will reply here shortly.
+        </div>
       )}
     </>
   );
