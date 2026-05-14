@@ -29,7 +29,7 @@ Final order: `0 → 2 → 1 → 3 → 4 → 7 → 6/9 → 8 → 10/11`.
 
 ## Step-by-step plan
 
-### Step 0 — Engine convergence + universal-connector schema (foundation)
+### Step 0 — Foundation: engine convergence + universal-connector schema + stage machine + spam protection (EXPANDED 2026-05-13)
 
 **Goal**: make `submitInquiry` the universal connect-two-parties primitive
 that EVERY initiation surface (client / admin / talent / hub / free
@@ -79,21 +79,60 @@ all paths are writing it).
 - `lib/server-actions/admin-inquiries.ts` (`createAgencyInquiry`)
 - `app/(workspace)/[tenantSlug]/client/inquiries/new/actions.ts` (pass `initiator_role: 'client'`)
 
-**Effort**: M+ (5–7h). Critical correctness — every initiation path
-gets re-routed through one engine call AND the schema gains the
-universal-connector fields the rest of the plan depends on.
+**Part C — Stage machine formalization** (PO-locked addition):
+
+```ts
+// lib/inquiry/inquiry-lifecycle.ts — make the table source-of-truth
+const STAGE_TRANSITIONS: Record<InquiryStage, InquiryStage[]> = {
+  submitted:    ['coordination', 'rejected', 'expired'],
+  coordination: ['offer_sent', 'rejected', 'expired'],
+  offer_sent:   ['approved', 'coordination' /* counter */, 'rejected', 'expired'],
+  approved:     ['booked', 'cancelled'],
+  booked:       ['wrapped', 'cancelled'],
+  wrapped:      ['archived'],
+  // etc.
+};
+```
+
+Today stage names are scattered across server actions; the lifecycle
+helper exists but is permissive. Tighten it: every state-change goes
+through `canTransition(currentStage, targetStage)` + a paired
+`onTransition` hook that emits the audit row + notification.
+
+**Part D — Spam protection on guest path** (PO-locked addition):
+
+- Add per-IP rate limit (`x-forwarded-for` header, fallback to `x-real-ip`) — 3 guest inquiries/hour/IP.
+- Honeypot field on the guest form (`<input name="website" tabindex="-1" autocomplete="off">`); reject if filled.
+- Per-tenant throttle (50 inquiries/hour/tenant) alongside the existing per-user (5/hour) — prevents one bad actor across multiple guest sessions hammering one agency.
+- Optional captcha placeholder (hCaptcha integration stub) — not enabled by default, settings-driven per tenant.
+
+**Files**:
+- New migration in `supabase/migrations/`
+- `lib/inquiry/inquiry-engine-submit.ts` (signature update + insert column)
+- `lib/inquiry/inquiry-lifecycle.ts` (stage machine)
+- `lib/inquiry/inquiry-rate-limiter.ts` (per-IP + per-tenant gates)
+- `(public)/directory/actions.ts` (`submitGuestInquiry` + honeypot check)
+- `lib/pitch/pitch-engine.ts` (`convertPitchToInquiry`)
+- `lib/server-actions/admin-inquiries.ts` (`createAgencyInquiry`)
+- `app/(workspace)/[tenantSlug]/client/inquiries/new/actions.ts` (pass `initiator_role: 'client'`)
+
+**Effort**: L (7–10h). Critical correctness across architecture + schema
++ stage machine + abuse protection — all the pieces every later step
+depends on. Worth the extra 3-4h vs M+ to pay the foundation tax once.
 
 **Model**: **Opus** (me, foreground). Multi-file architectural change,
 schema design, downstream effects on every later step.
 
 **Deliverable**: 5 paths → 1 engine call. Initiator role visible in
-every inquiry row. Test by submitting one inquiry through each surface
+every inquiry row. Stage machine source-of-truth. Guest path
+abuse-protected. Test by submitting one inquiry through each surface
 and verifying `initiator_role` + `initiator_user_id` are populated
-correctly.
+correctly, stage transitions are gated, and guest spam attempts are
+rate-limited.
 
-**Blocks**: 1, 2, 3, 4, 5, 7, 9. Unblocks the "any role can initiate"
-expansion (future talent-initiated + hub-matchmaker flows) without
-schema changes downstream.
+**Blocks**: 1, 2, 3, 4, 5, 7, 9, 12, 13, 14, 15. Unblocks the "any role
+can initiate" expansion (future talent-initiated + hub-matchmaker
+flows) without schema changes downstream.
 
 ---
 
@@ -267,15 +306,132 @@ schema changes downstream.
 
 ---
 
-## Parallelization graph
+### Step 12 — Analytics + funnel telemetry (PO-locked 2026-05-13)
+
+**Goal**: every step of the inquiry funnel emits a structured analytics
+event so we can measure conversion. Without this we cannot tell if the
+new form converts better than the old one.
+
+**Events to instrument**:
+- `inquiry_form_started` — page mount
+- `talent_added_to_cart` (with talent_profile_id + source surface)
+- `category_added` (with role_key + quantity)
+- `budget_set` (with unit)
+- `inquiry_submitted` (with mode: 'pick' | 'category', talent_count, has_budget, source_channel)
+- `inquiry_abandoned` (form unmount without submit)
+
+**Files**: hook into every form in `<InquiryCartForm>` + every server
+action's success path. Reuse existing `logAnalyticsEventServer` +
+`PRODUCT_ANALYTICS_EVENTS`.
+
+**Effort**: S (1-2h).
+**Model**: **Sonnet** (agent).
+**Depends on**: step 0 (single engine path → one place to instrument
+submit events).
+
+---
+
+### Step 13 — Notifications baseline + workspace auto-ack (PO-locked 2026-05-13)
+
+**Goal**: every inquiry event that should notify a human, does.
+
+**Email triggers (baseline)**:
+- Client submits → client receives confirmation ("we got your inquiry, expect a response within Xh")
+- Coordinator auto-assigned → coordinator receives "you've been assigned to inquiry X" with deep link
+- Talent invited → talent receives "you've been invited to inquire about X" with deep link
+
+**Workspace auto-ack** (folded in from tier-2):
+- Setting on each tenant: "Auto-reply with this message when an inquiry is submitted" (default: "Thanks — we'll get back to you within 4 hours")
+- On `INQUIRY_SUBMITTED` event, post the auto-ack message into the Client thread via `insertSystemMessage` with `system_event_type: 'workspace_auto_ack'`
+- Settings UI: agency Settings → Workspace → Auto-acknowledgement (toggle + textarea)
+
+**Files**:
+- New `lib/email/inquiry-notifications.ts` — transport wrappers around existing email provider (Resend/Postmark/whatever is already wired; check `lib/email/`)
+- New migration: `agencies.auto_ack_message text` + `agencies.auto_ack_enabled boolean default true`
+- New row in `inquiry_message_kind` enum: `'workspace_auto_ack'` (already exists as 'system_event'; reuse or extend)
+- Hook into `submitInquiry` engine on success: fire all 3 emails + auto-ack message insert
+
+**Effort**: M (4-6h) — most of the time is in email transport plumbing
+if it's not already wired; check first.
+**Model**: **Sonnet** (agent).
+**Depends on**: step 0 (single engine path; one place to fire from).
+
+---
+
+### Step 14 — Inquiry attachments (PO-locked 2026-05-13)
+
+**Goal**: client (or admin) can attach files to an inquiry — mood
+boards, contracts, reference shots. Without this the first message in
+every Client thread is "can you email me the brief."
+
+**Schema**:
+```sql
+CREATE TABLE public.inquiry_attachments (
+  id uuid primary key default gen_random_uuid(),
+  inquiry_id uuid not null references public.inquiries(id) on delete cascade,
+  tenant_id uuid not null references public.agencies(id) on delete cascade,
+  uploaded_by_user_id uuid references auth.users(id) on delete set null,
+  filename text not null,
+  bucket_id text not null,
+  storage_path text not null,
+  byte_size bigint not null,
+  content_type text,
+  created_at timestamptz not null default now()
+);
+
+-- RLS: inquiry participants + agency staff can read; uploader OR staff can delete.
+```
+
+**UI**:
+- Drag-drop zone in `<InquiryCartForm>` ("Attach mood board, contract, references")
+- File chips below the form with remove buttons
+- Admin shell Files tab already exists — just hook into `inquiry_attachments`
+
+**Files**:
+- New migration
+- New component `components/inquiry-cart/InquiryAttachmentsUploader.tsx`
+- Storage: reuse the existing `media-public` / `media-originals` buckets with `purpose: 'inquiry_attachment'`
+- Wire to admin shell Files tab (already exists)
+
+**Effort**: M (4-6h) — schema + RLS + upload UI + read surface.
+**Model**: **Opus** (agent). Cross-system (schema + storage + RLS + UI).
+**Depends on**: step 2 (shared form scaffold).
+
+---
+
+### Step 15 — i18n: form copy through translation keys (PO-locked 2026-05-13)
+
+**Goal**: every string in the inquiry form (placeholders, labels,
+errors, helper text, CTAs) goes through translation keys. Spanish
+translations baked in from day 1.
+
+**Files**:
+- Extract all hardcoded strings from `<InquiryCartForm>` and its
+  children into `public.forms.inquiry.*` translation keys (i18n
+  framework already exists; see `createTranslator` + `getRequestLocale`)
+- Add ES translations for all keys
+- Tenant locale OR user locale drives which strings render
+
+**Effort**: S (2-3h) — straightforward mechanical pass.
+**Model**: **Sonnet** (agent).
+**Depends on**: step 2 (string surfaces stabilized in the shared component).
+
+---
+
+## Parallelization graph (POST-EXPANSION 2026-05-13)
 
 ```
-                                                  ┌─→ [5] in_cart column
+                                                  ┌─→ [5]  in_cart column        (Haiku)
+                                                  ├─→ [11] TTL cleanup           (Haiku)
+                                                  ├─→ [12] analytics             (Sonnet)
+                                                  ├─→ [13] notifications + ack   (Sonnet)
+                                                  ├─→ [8]  pitch v2              (Opus marathon)
                                                   │
-                                                  ├─→ [10] free-tenant CTA  (after 2)
-                                                  │
-[0] engine convergence ──→ [2] hoist form ──┐    ├─→ [11] TTL cleanup
-                                            │    │
+[0] FOUNDATION (Opus, foreground) ──→ [2] hoist form ──┤
+  • engine convergence                            │    ├─→ [14] attachments      (Opus)
+  • universal-connector schema                    │    ├─→ [10] free-tenant CTA  (Sonnet)
+  • stage machine                                 │    └─→ [15] i18n             (Sonnet)
+  • spam protection                               │
                                             ├──→ [1] saved_talent ──→ [3] category ──→ [4] budget ──┐
                                             │                              │                          │
                                             │                              └──→ [7] suggested-talent ←┤
@@ -283,33 +439,55 @@ schema changes downstream.
                                             │                                                          ├─→ [6] plan-tier shaping
                                             │                                                          │
                                             │                                                          └─→ [9] hub routing
-                                            │
-                                            └──→ [8] pitch v2  (parallel marathon)
 ```
 
-## Recommended agent dispatch sequence
+Step 0 unblocks **8 parallel agents simultaneously** (5, 11, 12, 13, 8,
+14, 10, 15) — only 2 (10, 15) wait on step 2 landing, the rest fire
+immediately.
 
-**Foreground (me, Opus):**
-1. Step 0 first, alone, in foreground. ~M effort. Lands the foundation.
+## Recommended agent dispatch sequence (POST-EXPANSION)
 
-**Background wave 1** (fire after step 0 lands):
-- Sonnet agent: Step 2 — hoist `<InquiryCartForm>`
-- Opus agent: Step 8 — pitch v2 (marathon, kicks off early so it runs in parallel)
-- Haiku agent: Step 5 — `in_cart` column
-- Haiku agent: Step 11 — TTL cleanup
+**Foreground (me, Opus) — Wave 0**:
+1. **Step 0 — Foundation**. L effort. Lands engine convergence + universal-connector schema + stage machine + spam protection. Alone, in foreground.
 
-**Foreground (me, Opus)** after step 2 lands:
-- Step 1 — saved_talent into the shared form. ~S.
-- Step 3 — category mode + multi-group. ~M. This is the business-unlock step.
+**Background wave 1** — fire **6 agents** the moment step 0 lands:
+- **Opus marathon**: Step 8 — pitch v2 (status enum + landing + history page)
+- **Opus marathon**: Step 14 — attachments (schema + storage + RLS + form UI; waits on step 2 only for the UI hookup but can start the schema+RLS in parallel)
+- **Sonnet**: Step 2 — hoist `<InquiryCartForm>` (blocks 1, 10, 15)
+- **Sonnet**: Step 12 — analytics events on every form + every server action
+- **Sonnet**: Step 13 — notifications baseline + workspace auto-ack
+- **Haiku**: Step 5 — `saved_talent.in_cart` column
+- **Haiku**: Step 11 — guest TTL cleanup cron
 
-**Background wave 2** (fire after step 3 lands):
-- Opus agent: Step 7 — admin suggested-talent chat card
-- Sonnet agent: Step 10 — free-tenant CTA
+**Wave 1.5** — fire **2 more** the moment step 2 lands:
+- **Sonnet**: Step 10 — free-tenant talent-page CTA
+- **Sonnet**: Step 15 — i18n on inquiry form copy
 
-**Foreground or Sonnet agent** (after step 4 lands):
-- Step 4 — budget block
-- Step 6 — plan-tier shaping
-- Step 9 — hub routing (Opus agent, marathon)
+**Foreground (me, Opus)** — Critical path continues:
+- Step 1 — saved_talent into shared form. S effort.
+- Step 3 — category mode + multi-`requirement_groups`. M effort. **Biggest business unlock.**
+- Step 4 — budget block. S effort.
+
+**Background wave 2** — fire after step 3 lands:
+- **Opus**: Step 7 — admin suggested-talent chat card
+
+**Background wave 3** — fire after step 4 lands:
+- **Sonnet**: Step 6 — plan-tier shaping
+
+**Sprint 2** (separate marathon, after sprint 1 finishes):
+- **Opus**: Step 9 — hub cart routing
+
+### Agent count summary
+
+- Wave 0 (foreground): 1 (me)
+- Wave 1 (post step 0): **7 background agents simultaneously** + me on critical path
+- Wave 1.5 (post step 2): +2 background = up to 9 in flight at peak
+- Wave 2 (post step 3): +1
+- Wave 3 (post step 4): +1
+- Sprint 2: 1 marathon
+
+**Peak parallelism: ~9 background agents + foreground.** This is the
+"all agents ready" maximum the PO authorized.
 
 ## Why this ordering wins
 
@@ -319,23 +497,38 @@ schema changes downstream.
 4. **Pitch v2 parallel** → marathon work that doesn't touch the form runs alongside the form sprint.
 5. **Hub routing last** → it's the biggest cross-tenant lift and depends on everything else being stable.
 
-## Effort total
+## Effort total (POST-EXPANSION)
 
 | Wave | Steps | Effort sum | Time-to-ship (parallel agents) |
 |---|---|---|---|
-| Critical foundation | 0 | M (4–6h) | 4–6h |
-| Critical form sprint | 2, 1, 3, 4 | M+S+M+S = ~12–16h | 12–16h |
-| Wave 1 parallel | 5, 8, 10, 11 | S+L+S+S = ~12–18h | ~L = 8–12h (gated by step 8) |
+| Foundation | 0 (L) | 7–10h | 7–10h |
+| Critical form sprint | 2, 1, 3, 4 | M+S+M+S = ~12–16h | 12–16h sequential, but 2 runs in parallel with wave 1 agents |
+| Wave 1 parallel | 5, 8, 11, 12, 13, 14 | S+L+S+S+M+M = ~22–32h | ~L = 8–12h (gated by step 8) |
+| Wave 1.5 parallel | 10, 15 | S+S = ~4–6h | ~3h |
 | Wave 2 parallel | 7 | M (4–6h) | 4–6h |
-| Wave 3 parallel | 6, 9 | M+L = ~12–18h | ~L = 8–12h |
+| Wave 3 parallel | 6 | M (4–6h) | 4–6h |
+| Sprint 2 | 9 | L (8–12h) | 8–12h |
 
-**Total wall-clock if agents run in parallel**: ~30–45 hours of agent compute, **~20–28 hours of sequential time** (because of the critical path).
+**Total compute**: ~70–95h of agent work.
+**Sequential wall-clock with all agents firing**: **~25–35h** (because parallelization compresses everything except step 0 and the form sprint).
+**Time to "real product" baseline** (step 0–4 + 12/13/14/15): **~20–25h** of wall-clock.
 
-## What I need from you
+## Product-owner decisions (locked 2026-05-13)
 
-1. **Sign off on the reordering** (1↔2 swap).
-2. **Confirm I can spend Opus tokens on steps 0, 3, 7, 8, 9** (these are the high-judgment ones) and **Sonnet tokens on the rest**.
-3. **Permission to fire background agents** — wave 1 alone is 4 parallel agents post step-0.
-4. After step 4 ships, we resume the QA marathon on add/remove talent + coord + message flow. (Documented in §10 of the audit.)
+All four questions from the original draft were resolved by the PO:
 
-Once you sign off, I start step 0 in this turn.
+1. ✅ **Step 0 expanded** (M+ → L) — stage machine + spam protection folded in. Foundation pays once instead of three times.
+2. ✅ **Tier-1 additions all in** — steps 12 (analytics), 13 (notifications + auto-ack), 14 (attachments), 15 (i18n) are real numbered steps in this plan. Each is foundational (analytics so we can measure, notifications so users aren't pinging the app, attachments so briefs aren't broken, i18n so half the user base isn't locked out).
+3. ✅ **Tier-2: only auto-ack** — folded into step 13. Templates / clone / talent-init / free-agent / forwarding all PARK until v2 (engine-ready, UI on demand).
+4. ✅ **Max parallelism authorized** — up to ~9 background agents in flight at peak.
+
+## Execution starts now
+
+I start step 0 in foreground immediately after committing this plan
+update. Step 0 lands → 7 background agents fire simultaneously → I
+continue the critical path (1 → 3 → 4) while they run.
+
+QA marathon (talent/coord add-remove + message flow) resumes after
+step 4 + the form-touching wave 1 agents (12, 13, 14, 15) land — that's
+when the form is parity-complete and the funnel telemetry is live to
+actually measure things.
