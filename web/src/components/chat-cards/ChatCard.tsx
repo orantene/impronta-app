@@ -351,6 +351,57 @@ export function CallSheetUpdateCard(props: {
   );
 }
 
+/**
+ * SuggestedTalentCard — admin attaches a "you might like this talent"
+ * card to a message in the Client thread. Inquiry-funnel sprint Step 7.
+ *
+ * status = 'pending' → renders the [Add to lineup] CTA (admin only).
+ * status = 'added'   → button is replaced with a "Added" status label.
+ * status = 'dismissed' → button replaced with "Dismissed" label.
+ *
+ * TODO (composer-side, follow-up): build the picker UI that lets the
+ * admin pick a talent + rate from the composer and attach it as a
+ * card to a new message. This commit ships the render + action side
+ * only — payload is currently created via direct insert / a future
+ * composer slice.
+ */
+export function SuggestedTalentCard(props: {
+  talentName: string;
+  rateLabel?: string;
+  status: "pending" | "added" | "dismissed";
+  onAddToLineup?: () => void;
+}) {
+  const { talentName, rateLabel, status, onAddToLineup } = props;
+  const tone: CardTone =
+    status === "added" ? "success"
+    : status === "dismissed" ? "neutral"
+    : "info";
+  const actions: ChatCardShellProps["actions"] = [];
+  if (status === "pending" && onAddToLineup) {
+    actions.push({ label: "Add to lineup", onClick: onAddToLineup, tone: "primary" });
+  }
+  const statusLabel =
+    status === "added" ? "Added to lineup"
+    : status === "dismissed" ? "Dismissed"
+    : undefined;
+  return (
+    <ChatCardShell
+      tone={tone}
+      kind="Suggested talent"
+      title={talentName}
+      summary={statusLabel ?? (rateLabel ? "Tap to add to the lineup" : undefined)}
+      meta={rateLabel || undefined}
+      actions={actions.length > 0 ? actions : undefined}
+      icon={
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="5" r="2" stroke="currentColor" strokeWidth="1.3"/>
+          <path d="M3 12c0-2 2-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        </svg>
+      }
+    />
+  );
+}
+
 export function SystemEventCard(props: {
   text: string;
   ts?: string;
