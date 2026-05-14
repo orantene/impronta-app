@@ -8,6 +8,8 @@ import { loadClientSelfProfile, loadClientTrustBillingState } from "../../_data-
 import { ClientTrustShell } from "./ClientTrustShell";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { ClientPageHeader } from "../_components/ClientPageHeader";
+import { loadUserPrefs } from "@/lib/server-actions/user-prefs";
+import { NotificationPrefsPanel } from "./NotificationPrefsPanel";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -79,12 +81,14 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const [clientProfile, trustState] = await Promise.all([
+  const [clientProfile, trustState, userPrefs] = await Promise.all([
     loadClientSelfProfile(session.user.id, scope.tenantId),
     loadClientTrustBillingState(session.user.id, scope.tenantId),
+    loadUserPrefs(session.user.id),
   ]);
   if (!clientProfile) notFound();
   const stripeEnabled = isStripeConfigured();
+  const notificationPrefs = userPrefs?.notificationPrefs ?? {};
 
   const userEmail =
     (session.user.email as string | undefined) ?? "—";
@@ -174,19 +178,9 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         {/* Notifications — placeholder */}
         <Card
           title="Notifications"
-          subtitle="How you hear about inquiry updates."
+          subtitle="How you hear about inquiry updates. Changes auto-save."
         >
-          <div
-            style={{
-              padding: "20px 0",
-              textAlign: "center",
-              fontSize: 13,
-              color: C.inkMuted,
-              fontFamily: FONT,
-            }}
-          >
-            Email notification preferences will be configurable in a future update.
-          </div>
+          <NotificationPrefsPanel initialPrefs={notificationPrefs} />
         </Card>
 
         {/* Phase 8.3 — Trust badge + verification + balance top-up */}
