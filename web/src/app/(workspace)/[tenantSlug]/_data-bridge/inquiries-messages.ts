@@ -24,6 +24,13 @@ export type WorkspaceMessage = {
   body: string;
   created_at: string;
   is_mine: boolean;
+  /** Discriminator for structured cards — "text" or one of the enum
+   * values in `inquiry_messages.message_kind` (offer_event, payment_request,
+   * payment_paid, coordinator_request, call_sheet_update, system_event, etc.).
+   * Optional so existing callers don't break. */
+  message_kind?: string | null;
+  /** Per-kind JSON payload for the structured card. */
+  card_payload?: Record<string, unknown> | null;
 };
 
 /**
@@ -587,7 +594,7 @@ export async function loadInquiryMessages(
 
     const { data, error } = await supabase
       .from("inquiry_messages")
-      .select("id, sender_user_id, body, created_at, profiles:sender_user_id(display_name)")
+      .select("id, sender_user_id, body, created_at, message_kind, card_payload, profiles:sender_user_id(display_name)")
       .eq("inquiry_id", inquiryId)
       .eq("thread_type", threadType)
       .eq("tenant_id", tenantId)
@@ -605,6 +612,8 @@ export async function loadInquiryMessages(
       sender_user_id: string;
       body: string;
       created_at: string;
+      message_kind: string | null;
+      card_payload: Record<string, unknown> | null;
       profiles: { display_name: string | null } | { display_name: string | null }[] | null;
     };
 
@@ -622,6 +631,8 @@ export async function loadInquiryMessages(
         body: row.body,
         created_at: row.created_at,
         is_mine: !!row.sender_user_id && row.sender_user_id === myUserId,
+        message_kind: row.message_kind ?? "text",
+        card_payload: row.card_payload ?? null,
       };
     });
   } catch (err) {

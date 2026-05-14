@@ -632,7 +632,13 @@ function ThreadPaneWithTabs({
       {/* Tab body */}
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0, background: activeTab === "chat" ? C.surfaceAlt : "rgba(11,11,13,0.02)" }}>
         {activeTab === "chat" && (
-          <ChatThreadBody inq={inq} messages={messages} loading={loadingMessages} tenantSlug={tenantSlug} />
+          <ChatThreadBody
+            inq={inq}
+            messages={messages}
+            loading={loadingMessages}
+            tenantSlug={tenantSlug}
+            onJumpToOffer={() => onTabChange("offer")}
+          />
         )}
         {activeTab === "details" && (
           <DetailsTab details={loadingDetails ? null : details} />
@@ -832,12 +838,13 @@ function ChatComposer({
 }
 
 function ChatThreadBody({
-  inq, messages, loading,
+  inq, messages, loading, onJumpToOffer,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
   loading: boolean;
   tenantSlug: string;
+  onJumpToOffer?: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -853,7 +860,7 @@ function ChatThreadBody({
           No messages yet. Your coordinator will reply here once they pick up your inquiry.
         </div>
       ) : (
-        messages.map((m) => <Bubble key={m.id} m={m} />)
+        messages.map((m) => <Bubble key={m.id} m={m} onJumpToOffer={onJumpToOffer} />)
       )}
     </div>
   );
@@ -889,8 +896,29 @@ function TabStubPanel({
   );
 }
 
-function Bubble({ m }: { m: WorkspaceMessage }) {
+function Bubble({ m, onJumpToOffer }: { m: WorkspaceMessage; onJumpToOffer?: () => void }) {
   const mine = m.is_mine;
+  const kind = m.message_kind ?? "text";
+  const card = kind !== "text" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer }) : null;
+
+  // Structured card — full-width, no chat-bubble chrome.
+  if (card) {
+    return (
+      <div style={{ display: "flex", justifyContent: "stretch", flexDirection: "column", gap: 4, maxWidth: "92%", margin: mine ? "0 0 0 auto" : "0 auto 0 0" }}>
+        {!mine && (
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, letterSpacing: 0.3, paddingLeft: 2 }}>
+            {m.sender_name}
+          </div>
+        )}
+        {card}
+        <div style={{ fontSize: 10, color: C.inkDim, marginTop: 2, textAlign: mine ? "right" : "left", paddingRight: 2 }}>
+          {formatTime(m.created_at)}
+        </div>
+      </div>
+    );
+  }
+
+  // Plain text bubble.
   return (
     <div style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
       <div style={{ maxWidth: "78%" }}>
@@ -922,6 +950,137 @@ function Bubble({ m }: { m: WorkspaceMessage }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Client-side chat-card dispatcher — mirrors the admin shell's
+ * renderChatCardForMessage but with client-appropriate actions only.
+ * Returns null for kinds the client surface doesn't render (admin-only
+ * cards like admin_suggested_talent, coordinator_request).
+ */
+function renderClientChatCard(
+  kind: string,
+  payload: Record<string, unknown>,
+  ctx: { onJumpToOffer?: () => void },
+): React.ReactNode {
+  const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
+
+  switch (kind) {
+    case "offer_event": {
+      const status = get<"draft" | "sent" | "accepted" | "declined" | "countered">("status", "sent");
+      const totalLabel = get<string>("total_label", "—");
+      const hint = get<string>("hint", "Tap to review");
+      return (
+        <button
+          type="button"
+          onClick={ctx.onJumpToOffer}
+          style={{
+            textAlign: "left",
+            background: "#fff",
+            border: `1px solid ${C.border}`,
+            borderRadius: 12,
+            padding: "12px 14px",
+            cursor: ctx.onJumpToOffer ? "pointer" : "default",
+            fontFamily: FONT,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            width: "100%",
+          }}
+        >
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Offer · {status}
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
+            {totalLabel}
+          </div>
+          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
+            {hint}
+          </div>
+        </button>
+      );
+    }
+    case "payment_request":
+    case "payment_paid": {
+      const amountLabel = get<string>("amount_label", "—");
+      const paid = kind === "payment_paid";
+      return (
+        <div
+          style={{
+            background: paid ? "rgba(16,185,129,0.06)" : "#fff",
+            border: `1px solid ${paid ? "rgba(16,185,129,0.20)" : C.border}`,
+            borderRadius: 12,
+            padding: "12px 14px",
+            fontFamily: FONT,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          <div style={{ fontSize: 10, fontWeight: 700, color: paid ? "#047857" : C.accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Payment {paid ? "received" : "requested"}
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
+            {amountLabel}
+          </div>
+          {!paid && (
+            <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
+              {get<string>("hint", "Pay-Now button coming soon — message your coordinator for now.")}
+            </div>
+          )}
+        </div>
+      );
+    }
+    case "call_sheet_update": {
+      const changedField = get<string>("changed_field", "");
+      const byName = get<string>("by_name", "");
+      return (
+        <div
+          style={{
+            background: "rgba(15,81,50,0.05)",
+            border: `1px solid rgba(15,81,50,0.15)`,
+            borderRadius: 12,
+            padding: "10px 14px",
+            fontFamily: FONT,
+          }}
+        >
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#0F5132", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Call sheet updated
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, marginTop: 3 }}>
+            {byName ? `${byName} updated` : "Updated"} <strong>{changedField}</strong>.
+          </div>
+        </div>
+      );
+    }
+    case "booking_status":
+    case "system_event": {
+      const text = get<string>("text", "Status updated");
+      return (
+        <div
+          style={{
+            fontSize: 11.5,
+            color: C.inkMuted,
+            textAlign: "center",
+            padding: "6px 12px",
+            background: "rgba(11,11,13,0.03)",
+            borderRadius: 999,
+            display: "inline-block",
+            margin: "0 auto",
+            fontFamily: FONT,
+          }}
+        >
+          {text}
+        </div>
+      );
+    }
+    // Admin/staff-only cards — fall through to plain body render.
+    case "coordinator_request":
+    case "talent_rate":
+    case "admin_suggested_talent":
+    default:
+      return null;
+  }
 }
 
 function EmptyList({ onCreate }: { onCreate: () => void }) {
