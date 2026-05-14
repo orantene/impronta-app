@@ -91,7 +91,7 @@ export async function loadClientUpcoming(
       )
       .eq("tenant_id", tenantId)
       .eq("client_user_id", userId)
-      .in("status", ["booked", "converted", "approved", "offer_pending", "coordination"])
+      .in("status", ["submitted", "coordination", "offer_pending", "approved", "booked", "converted"])
       .gte("event_date", start)
       .lte("event_date", end)
       .order("event_date", { ascending: true });
