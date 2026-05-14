@@ -57,7 +57,22 @@ export function withLocalePath(
 }
 
 /**
- * Rewrites `/en` and `/en/...` (or any locale prefix) to `/` and `/...` for redirects and post-auth `next` URLs.
+ * Rewrites a leading default-locale prefix (e.g. `/en/...` when default is `en`)
+ * to the unprefixed form. Non-default locale prefixes are left intact — e.g.
+ * `/es/impronta` stays `/es/impronta` so the page can render in Spanish.
+ *
+ * QA 2026-05-13 — Previously this delegated to `pathnameWithoutAnyLocalePrefix`,
+ * which stripped ANY locale prefix in the chain. That meant `/es/impronta`
+ * became `/impronta` and the proxy 308-redirected the operator off the
+ * Spanish page back to the default locale before the per-tenant locale
+ * enforcement layer (proxy.ts §"Phase 5 / M1") even got a chance to run.
+ * Result: the editor's locale switcher offered ES, clicking ES looked broken.
+ *
+ * The fix is to ONLY strip when the leading segment IS the default — and to
+ * recurse for the stacked-default edge case (`/en/en/...` from a bad
+ * redirect). Stacked-non-default cases (`/es/en/...`) are now handled by
+ * the surrounding canonicalization layers, not by silent stripping here.
+ *
  * Preserves query string and hash.
  */
 export function stripDefaultLocalePrefixFromPath(
@@ -72,6 +87,13 @@ export function stripDefaultLocalePrefixFromPath(
   const pathname = qIdx === -1 ? beforeHash : beforeHash.slice(0, qIdx);
   const query = qIdx === -1 ? "" : beforeHash.slice(qIdx);
 
-  const rest = pathnameWithoutAnyLocalePrefix(pathname, settings);
-  return `${rest}${query}${hash}`;
+  // Strip ONLY leading default-locale segments (handles `/en/en/...`).
+  let p = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const def = settings.defaultLocale;
+  while (true) {
+    const seg = p.split("/")[1] ?? "";
+    if (!seg || seg !== def) break;
+    p = p.slice(`/${seg}`.length) || "/";
+  }
+  return `${p}${query}${hash}`;
 }

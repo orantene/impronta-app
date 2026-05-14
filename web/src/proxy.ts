@@ -420,7 +420,14 @@ export async function proxy(request: NextRequest) {
     return cmsRedirect;
   }
 
-  const locale = resolveLocaleForPathname(effectiveCanonicalPath, request, langSettings);
+  // QA 2026-05-13 — locale resolution must use the ORIGINAL pathname, not
+  // the canonicalized one. `effectiveCanonicalPath` has had the locale prefix
+  // stripped (line 266) for tenant-slug matching, so passing it here would
+  // turn `/es/impronta` into `/impronta` and `resolveLocaleForPathname` would
+  // return the default locale instead of `es`. Result: the page renders in
+  // EN even when the URL is `/es/...`, and the operator-facing locale
+  // switcher appears non-functional.
+  const locale = resolveLocaleForPathname(pathname, request, langSettings);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);
