@@ -145,6 +145,12 @@ const APP_API_PREFIXES = [
   // for the new InquiryDrawer + Messages tabs + Offer actions. RLS gates
   // tenant scope inside the route; middleware just lets the path through.
   "/api/client",
+  // D2 (2026-05-14) — Discover engine API. Cross-tenant talent browse for
+  // any authenticated client (Standard tier baseline). Tenant scope is
+  // deliberately bypassed inside the route via service-role since Discover
+  // surfaces is_discoverable=true talents platform-wide. See
+  // web/docs/discover-and-unified-inquiry-2026-05-14.md §7.
+  "/api/discover",
 ] as const;
 
 const APP_API_EXACT_PATHS = [
