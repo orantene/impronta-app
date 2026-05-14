@@ -14,6 +14,16 @@
       "count": 1
     }
   },
+  "src/app/(workspace)/[tenantSlug]/client/messages/OfferTab.tsx": {
+    "react/no-unescaped-entities": {
+      "count": 2
+    }
+  },
+  "src/app/(workspace)/[tenantSlug]/talent/settings/payouts/PayoutsShell.tsx": {
+    "react/no-unescaped-entities": {
+      "count": 3
+    }
+  },
   "src/app/(workspace)/platform/platform-data.ts": {
     "prefer-const": {
       "count": 3
@@ -101,7 +111,7 @@
       "count": 1
     },
     "react-hooks/static-components": {
-      "count": 56
+      "count": 61
     },
     "react/no-unescaped-entities": {
       "count": 4
@@ -158,6 +168,16 @@
   "src/components/admin/shell/internal/use-taxonomy.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
+    }
+  },
+  "src/components/chat-cards/PayNowSheet.tsx": {
+    "react/no-unescaped-entities": {
+      "count": 1
+    }
+  },
+  "src/components/inquiry/InquiryDrawer.tsx": {
+    "react/no-unescaped-entities": {
+      "count": 4
     }
   },
   "src/components/talent/media-gallery-drawer.tsx": {

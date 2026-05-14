@@ -10595,7 +10595,7 @@ function WorkspacePageView() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
   const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
     { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "domain", "branding", "media-watermark"] },
-    { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types"] },
+    { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types", "discover"] },
     { id: "team",      label: "Team & legal",  emoji: "👥", sections: ["team", "compliance"] },
     { id: "billing",   label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
     { id: "advanced",  label: "Advanced",      emoji: "⚙",  sections: ["features", "danger"] },
@@ -11132,6 +11132,49 @@ function WorkspacePageView() {
               </div>
               <Affordance label={pendingTalent.length === 0 ? "Open queue" : "Review"} />
             </SettingsRow>
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("discover") && (
+          <AccordionItem id="discover" label="Tulala Discover" desc="What your roster unlocks on the cross-tenant talent catalog." supportLink="/help/settings/discover">
+            <SettingsRow>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Talents on Discover</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                  Your roster talents can opt in individually via their profile editor. Standard placement on the Discover catalog.
+                </div>
+              </div>
+            </SettingsRow>
+            <SettingsRow>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Roster Discover analytics + bulk-enroll</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                  Per-talent impressions, saves, shortlist adds over 30 days. One-toggle bulk-enroll across your roster.
+                </div>
+              </div>
+              {state.plan === "free" && <LockedPill plan="studio" />}
+            </SettingsRow>
+            <SettingsRow>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Priority placement boost</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                  Pin individual talents near the top of Discover via the &ldquo;feature in directory&rdquo; toggle. 90-day analytics. Saved query cohorts.
+                </div>
+              </div>
+              {(state.plan === "free" || state.plan === "studio") && <LockedPill plan="agency" />}
+            </SettingsRow>
+            <SettingsRow>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Multi-workspace Discover rollup</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                  Aggregate Discover performance across every workspace in your network. Unlimited analytics history.
+                </div>
+              </div>
+              {state.plan !== "network" && <LockedPill plan="network" />}
+            </SettingsRow>
+            <div style={{ padding: "10px 14px 12px 14px", fontSize: 11.5, color: COLORS.inkMuted, fontStyle: "italic", lineHeight: 1.5 }}>
+              Each talent&apos;s own &ldquo;Show me on Discover&rdquo; toggle (in their profile) controls visibility. Your workspace plan unlocks placement + analytics tools — not visibility itself.
+            </div>
           </AccordionItem>
           )}
 
