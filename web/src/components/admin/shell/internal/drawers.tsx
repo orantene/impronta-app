@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { addTalentToRoster, bulkAddTalentToRoster } from "./actions";
 import { parseTalentCsv } from "./csv-parser";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
@@ -1425,7 +1426,7 @@ function SiteSetupDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function ThemeFoundationsDrawer() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [theme, setTheme] = useState<"editorial-noir" | "modern-mono" | "warm-light">("editorial-noir");
@@ -1458,7 +1459,7 @@ function ThemeFoundationsDrawer() {
         theme, headingFont, bodyFont, accent, density,
       });
       if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Theme saved"); router.refresh(); closeDrawer(); }
+      else { toast("Theme saved"); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -4887,7 +4888,7 @@ function makeInitialProfileState(
 function TalentProfileShellDrawer() {
   const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant } = useAdminShell();
   const copy = useDashboardText();
-  const shellRouter = useRouter();
+  const queueShellRouterRefresh = useQueuedRouterRefresh();
   const drawerId = protoState.drawer.drawerId;
   const drawerOpen = drawerId === "talent-profile-shell" || drawerId === "talent-profile-edit";
   const payload = (protoState.drawer.payload ?? {}) as ProfileShellPayload;
@@ -5579,7 +5580,7 @@ function TalentProfileShellDrawer() {
         savedStatusResetTimerRef.current = null;
       }, 2800);
       startTransition(() => {
-        shellRouter.refresh();
+        queueShellRouterRefresh();
       });
       return true;
     }
@@ -5664,7 +5665,7 @@ function TalentProfileShellDrawer() {
       savedStatusResetTimerRef.current = null;
     }, 2800);
     startTransition(() => {
-      shellRouter.refresh();
+      queueShellRouterRefresh();
     });
     return true;
     } catch (e) {
@@ -5674,7 +5675,7 @@ function TalentProfileShellDrawer() {
       console.error("[saveAll] error:", e);
       return false;
     }
-  }, [payload.talentId, mode, isSelf, adminVisible, shellRouter, copy, bridgeTenantIdentity?.tenantId]);
+  }, [payload.talentId, mode, isSelf, adminVisible, queueShellRouterRefresh, copy, bridgeTenantIdentity?.tenantId]);
 
   const toggleSet = (field: "secondaryTypes" | "specialties" | "contexts" | "aspirations") =>
     (value: string) => {
@@ -6581,7 +6582,7 @@ function TalentProfileShellDrawer() {
                     // action invalidates the cache; router.refresh fetches
                     // the fresh layout payload). Without this the UI lies
                     // for the rest of the session.
-                    shellRouter.refresh();
+                    queueShellRouterRefresh();
                   }
                 : undefined
             }
@@ -13761,7 +13762,7 @@ function WatermarkPreviewCard({ preset, logoUrl }: { preset: WatermarkPreset; lo
 
 function BrandingDrawer() {
   const { state, closeDrawer, openUpgrade, toast, tenantSlug, effectiveTenant } = useAdminShell();
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const isStudioPlus = meetsPlan(state.plan, "studio");
 
   const [tagline, setTagline]         = useState("");
@@ -13843,7 +13844,7 @@ function BrandingDrawer() {
       });
       if (!result.ok) { toast(result.error || "Couldn't save. Try again."); return; }
       toast("Branding saved");
-      router.refresh();
+      queueRouterRefresh();
       closeDrawer();
     } catch (err) {
       console.error("[BrandingDrawer.save]", err);
@@ -14123,7 +14124,7 @@ function WatermarkEditorDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function DomainDrawer() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { state, closeDrawer, toast, effectiveTenant } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const isLive = meetsPlan(state.plan, "studio");
@@ -14155,7 +14156,7 @@ function DomainDrawer() {
         redirectToWww,
       });
       if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Domain settings saved"); router.refresh(); closeDrawer(); }
+      else { toast("Domain settings saved"); queueRouterRefresh(); closeDrawer(); }
     });
   };
   const sslDaysLeft = domain.sslExpiresOn
@@ -14350,7 +14351,7 @@ function DomainDrawer() {
 
 function IdentityDrawer() {
   const { closeDrawer, toast, tenantSlug, effectiveTenant } = useAdminShell();
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [displayName, setDisplayName] = useState(effectiveTenant.name);
   const [contactEmail, setContactEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -14387,7 +14388,7 @@ function IdentityDrawer() {
         return;
       }
       toast("Identity saved");
-      router.refresh();
+      queueRouterRefresh();
       closeDrawer();
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -14448,7 +14449,7 @@ function IdentityDrawer() {
 
 function WorkspaceSettingsDrawer() {
   const { closeDrawer, toast, tenantSlug } = useAdminShell();
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [locale, setLocale] = useState<"en" | "es" | "pt" | "fr" | "it">("en");
   const [timezone, setTimezone] = useState("America/Cancun");
   const [currency, setCurrency] = useState("USD");
@@ -14518,7 +14519,7 @@ function WorkspaceSettingsDrawer() {
         return;
       }
       toast("Settings saved");
-      router.refresh();
+      queueRouterRefresh();
       closeDrawer();
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -14621,7 +14622,7 @@ function SelectInput({
 // ════════════════════════════════════════════════════════════════════
 
 function TalentProfileDrawer() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { state, closeDrawer, openDrawer, toast, effectiveRoster } = useAdminShell();
   const id = state.drawer.payload?.id as string | undefined;
   const profile = effectiveRoster.find((p) => p.id === id) ?? effectiveRoster[0];
@@ -14641,7 +14642,7 @@ function TalentProfileDrawer() {
         stage_name: stageName.trim() || profile.name,
       });
       if (!result.ok) toast(`Save failed: ${result.error}`);
-      else { toast("Profile published"); router.refresh(); closeDrawer(); }
+      else { toast("Profile published"); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -14926,6 +14927,7 @@ function ToggleRow({
 function NewTalentDrawer() {
   const { state, closeDrawer, openDrawer, toast, bulkAddTalent, tenantSlug, effectiveTenant } = useAdminShell();
   const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [isPending, startTransition] = useTransition();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   // Hold the actual File so we can upload it as a `card` variant after
@@ -15047,7 +15049,7 @@ function NewTalentDrawer() {
         result.warnings.forEach(w => toast(w, { tone: "error" }));
       }
       clearProfileDraft("default");
-      router.refresh();
+      queueRouterRefresh();
       afterOk(result.talentProfileId);
     });
   };
@@ -15263,7 +15265,7 @@ function NewTalentDrawer() {
                   toast(`Created ${res.created} talent profile${res.created === 1 ? "" : "s"}`);
                 }
                 if (res.created > 0) {
-                  router.refresh();
+                  queueRouterRefresh();
                   closeDrawer();
                 }
               });
@@ -17207,7 +17209,7 @@ function NewBookingDrawer() {
 }
 
 function ClientProfileDrawer() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { state, closeDrawer, toast, effectiveClients } = useAdminShell();
   const id = state.drawer.payload?.id as string | undefined;
   const isNew = id === "new" || !id;
@@ -17267,7 +17269,7 @@ function ClientProfileDrawer() {
           toast(`Save failed: ${result.error}`);
         } else {
           toast("Client created");
-          router.refresh();
+          queueRouterRefresh();
           closeDrawer();
         }
         return;
@@ -17292,7 +17294,7 @@ function ClientProfileDrawer() {
         toast(`Save failed: ${result.error}`);
       } else {
         toast("Client saved");
-        router.refresh();
+        queueRouterRefresh();
         closeDrawer();
       }
     });
@@ -18439,7 +18441,7 @@ function PostsDrawer() {
 }
 
 function NavigationDrawer() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [headerItems, setHeaderItems] = useState<string[]>([
@@ -18472,7 +18474,7 @@ function NavigationDrawer() {
         headerItems, col1, col2, col3,
       });
       if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Navigation saved"); router.refresh(); closeDrawer(); }
+      else { toast("Navigation saved"); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -18576,7 +18578,7 @@ function MediaDrawer() {
 }
 
 function TranslationsDrawer() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const ALL = [
@@ -18616,7 +18618,7 @@ function TranslationsDrawer() {
         enabled, primary,
       });
       if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Languages saved"); router.refresh(); closeDrawer(); }
+      else { toast("Languages saved"); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -18678,7 +18680,7 @@ function TranslationsDrawer() {
 }
 
 function SeoDrawer() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { closeDrawer, toast, effectiveTenant } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [siteTitle, setSiteTitle] = useState(`${effectiveTenant.name} · Talent agency`);
@@ -18705,7 +18707,7 @@ function SeoDrawer() {
     startTransition(async () => {
       const r = await patchAgencySettingsNamespace("", "seo", { siteTitle, description });
       if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("SEO saved"); router.refresh(); closeDrawer(); }
+      else { toast("SEO saved"); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -22435,7 +22437,7 @@ function SiteHealthDrawer() {
 }
 
 function StorefrontVisibilityDrawer() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { state, closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
 
@@ -22473,7 +22475,7 @@ function StorefrontVisibilityDrawer() {
     startTransition(async () => {
       const r = await patchAgencySettingsNamespace("", "visibility", flags as unknown as Record<string, unknown>);
       if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Visibility saved"); router.refresh(); closeDrawer(); }
+      else { toast("Visibility saved"); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -22554,7 +22556,7 @@ function HubDistributionDrawer() {
 }
 
 function FilterConfigDrawer() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { closeDrawer, toast } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [flags, setFlags] = useState({
@@ -22585,7 +22587,7 @@ function FilterConfigDrawer() {
     startTransition(async () => {
       const r = await patchAgencySettingsNamespace("", "filters", flags as unknown as Record<string, unknown>);
       if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Filters saved"); router.refresh(); closeDrawer(); }
+      else { toast("Filters saved"); queueRouterRefresh(); closeDrawer(); }
     });
   };
 

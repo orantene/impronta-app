@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { createManualInquiry } from "@/lib/server-actions/admin-inquiries";
 import { AdminNewClientSheet } from "@/components/admin/forms/admin-new-client-sheet";
 import type { AccountOption } from "@/components/admin/forms/add-contact-form";
@@ -56,7 +56,7 @@ function AdminNewInquirySheetBody({
   contacts: Contact[];
   talents: TalentOption[];
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createManualInquiry, undefined);
   const [accountId, setAccountId] = useState("");
@@ -153,9 +153,9 @@ function AdminNewInquirySheetBody({
 
   useEffect(() => {
     if (state?.createdInquiryId) {
-      router.refresh();
+      queueRouterRefresh();
     }
-  }, [router, state?.createdInquiryId]);
+  }, [queueRouterRefresh, state?.createdInquiryId]);
 
   if (state?.createdInquiryId) {
     return (

@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 
 import type { Plan } from "./capability-catalog";
 import { UpgradeModal } from "./upgrade-modal";
@@ -25,7 +25,7 @@ import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
  * truth for "this tenant is on tier X."
  */
 export function GlobalUpgradeModal() {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { open, setOpen } = useUpgradeModal();
   const workspace = useAdminWorkspace();
   const [pending, startTransition] = React.useTransition();
@@ -38,7 +38,7 @@ export function GlobalUpgradeModal() {
       const result = await changeWorkspacePlan(plan);
       if (result.ok) {
         toast.success(`Workspace plan set to ${plan}.`);
-        router.refresh();
+        queueRouterRefresh();
       } else {
         toast.error(result.error);
       }

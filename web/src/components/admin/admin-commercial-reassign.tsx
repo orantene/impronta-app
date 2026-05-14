@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { patchInquiryEntityLinks, type AdminActionState } from "@/lib/server-actions/admin-inquiries";
 import { patchBookingEntityLinks, type BookingActionState } from "@/lib/server-actions/admin-bookings";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
@@ -47,14 +47,14 @@ export function InquiryCommercialReassignBar({
   contacts: ContactOpt[];
   clientOptions: ClientOpt[];
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [open, setOpen] = useState<null | "client" | "account" | "contact">(null);
   const [inqState, inqAction] = useActionState(
     async (prev: AdminActionState | undefined, fd: FormData) => {
       const next = await patchInquiryEntityLinks(prev, fd);
       if (!next?.error) {
         setOpen(null);
-        router.refresh();
+        queueRouterRefresh();
       }
       return next;
     },
@@ -202,14 +202,14 @@ export function BookingCommercialReassignBar({
   clientOptions: ClientOpt[];
   inquiryOptions: InquiryOpt[];
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [open, setOpen] = useState<null | "client" | "account" | "contact" | "inquiry">(null);
   const [bkState, bkAction] = useActionState(
     async (prev: BookingActionState | undefined, fd: FormData) => {
       const next = await patchBookingEntityLinks(prev, fd);
       if (!next?.error) {
         setOpen(null);
-        router.refresh();
+        queueRouterRefresh();
       }
       return next;
     },
@@ -368,14 +368,14 @@ export function InquiryAccountContactReassignInline({
   accounts: AccountOpt[];
   contacts: ContactOpt[];
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [open, setOpen] = useState<null | "account" | "contact">(null);
   const [inqState, inqAction] = useActionState(
     async (prev: AdminActionState | undefined, fd: FormData) => {
       const next = await patchInquiryEntityLinks(prev, fd);
       if (!next?.error) {
         setOpen(null);
-        router.refresh();
+        queueRouterRefresh();
       }
       return next;
     },
@@ -494,14 +494,14 @@ export function BookingAccountContactReassignInline({
   accounts: AccountOpt[];
   contacts: ContactOpt[];
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [open, setOpen] = useState<null | "account" | "contact">(null);
   const [bkState, bkAction] = useActionState(
     async (prev: BookingActionState | undefined, fd: FormData) => {
       const next = await patchBookingEntityLinks(prev, fd);
       if (!next?.error) {
         setOpen(null);
-        router.refresh();
+        queueRouterRefresh();
       }
       return next;
     },

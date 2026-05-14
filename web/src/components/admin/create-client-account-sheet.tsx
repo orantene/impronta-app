@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { toast } from "sonner";
 import { NewAccountForm } from "@/components/admin/forms/new-account-form";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
@@ -39,6 +40,7 @@ export function CreateClientAccountSheet({
   linkBookingId?: string | null;
 }) {
   const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [formKey, setFormKey] = useState(0);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export function CreateClientAccountSheet({
               },
               duration: 10000,
             });
-            router.refresh();
+            queueRouterRefresh();
             onOpenChange(false);
           }}
         />
@@ -94,7 +96,7 @@ export function EditClientAccountSheet({
   onOpenChange: (open: boolean) => void;
   account: ClientLocationFormValues;
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [formKey, setFormKey] = useState(0);
 
   useEffect(() => {
@@ -117,7 +119,7 @@ export function EditClientAccountSheet({
           initialValues={account}
           onSheetSuccess={() => {
             toast.success("Work location updated");
-            router.refresh();
+            queueRouterRefresh();
             onOpenChange(false);
           }}
         />

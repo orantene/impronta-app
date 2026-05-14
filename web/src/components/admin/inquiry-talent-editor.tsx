@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useActionState, useMemo, useState, useTransition } from "react";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ExternalLink, Plus, Search, Trash2 } from "lucide-react";
 import { addInquiryTalent, type AdminActionState, moveInquiryTalent, removeInquiryTalent } from "@/lib/server-actions/admin-inquiries";
@@ -123,13 +123,13 @@ function RosterEngineV2RowControls({
   index: number;
   total: number;
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [pending, startTransition] = useTransition();
 
   const feedback = (result: ActionResult) => {
     handleActionResult(result, {
       onToast: (m) => toast.message(m),
-      onRefresh: () => router.refresh(),
+      onRefresh: () => queueRouterRefresh(),
       onInlineError: (m) => toast.error(m),
       onBlockerBanner: (m) => toast.error(m),
     });
@@ -294,7 +294,7 @@ export function InquiryTalentEditor({
   engineV2?: boolean;
   inquiryVersion?: number;
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [query, setQuery] = useState("");
   const [selectedTalentId, setSelectedTalentId] = useState("");
   const [state, addAction, addPending] = useActionState<AdminActionState, FormData>(addInquiryTalent, undefined);
@@ -329,7 +329,7 @@ export function InquiryTalentEditor({
             void rosterAddTalent(fd).then((result) =>
               handleActionResult(result, {
                 onToast: (m) => toast.message(m),
-                onRefresh: () => router.refresh(),
+                onRefresh: () => queueRouterRefresh(),
                 onInlineError: (m) => toast.error(m),
                 onBlockerBanner: (m) => toast.error(m),
               }),

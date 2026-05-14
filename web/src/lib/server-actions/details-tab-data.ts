@@ -128,6 +128,34 @@ function toTitle(s: string): string {
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/**
+ * Humanize `inquiries.next_action_by`. The column stores a role
+ * identifier ("coordinator" / "client" / "talent") — rendered as-is,
+ * the Details-tab Section 1 just says "coordinator" which reads as
+ * a label glitch. Translate into pov-appropriate call-to-action copy.
+ */
+function nextActionCopy(
+  rawNextActionBy: string | null | undefined,
+  pov: DetailsTabPov,
+): string | undefined {
+  if (!rawNextActionBy) return undefined;
+  const key = rawNextActionBy.toLowerCase().trim();
+  switch (key) {
+    case "coordinator":
+    case "admin":
+    case "staff":
+      return pov === "admin" || pov === "coord" || pov === "talent_coord"
+        ? "Your move — review and respond"
+        : "Coordinator is reviewing";
+    case "client":
+      return pov === "client" ? "Your move — review and respond" : "Waiting on client";
+    case "talent":
+      return pov === "talent" || pov === "talent_coord" ? "Your move — review and respond" : "Waiting on talent";
+    default:
+      return toTitle(key);
+  }
+}
+
 function describeAuditKind(kind: string, payload: Record<string, unknown> | null): string {
   // Kept terse — DetailsTab activity rows are one-liners. We never
   // expose internal stage identifiers; humanize to verbs.
@@ -347,7 +375,7 @@ export async function loadDetailsTabData(
 
     const data: DetailsTabData = {
       stage: stageLabel(inquiry.status),
-      nextAction: inquiry.next_action_by ?? undefined,
+      nextAction: nextActionCopy(inquiry.next_action_by, pov),
 
       title: booking?.title ?? inquiry.company ?? inquiry.contact_name ?? "Untitled inquiry",
       brief: undefined,

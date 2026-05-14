@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useActionState } from "react";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import {
   assignBookingToCurrentStaffForm,
   quickUpdateBookingPeek,
@@ -30,11 +30,11 @@ export function AdminBookingListRowQuickActions({
   currentUserId: string | null;
   sourceInquiryId: string | null;
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [state, action] = useActionState(
     async (_p: BookingActionState | undefined, fd: FormData) => {
       const next = await quickUpdateBookingPeek(fd);
-      if (!next?.error) router.refresh();
+      if (!next?.error) queueRouterRefresh();
       return next;
     },
     undefined as BookingActionState | undefined,

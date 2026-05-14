@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useActionState } from "react";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import {
   assignBookingToCurrentStaffForm,
   quickUpdateBookingPeek,
@@ -51,7 +51,7 @@ export function AdminBookingPeekTrigger({
   staffOptions: StaffOpt[];
   currentUserId: string | null;
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const { apanel, aid, openPanel, closePanel } = useAdminPanelState({
     pathname: "/admin/bookings",
   });
@@ -59,7 +59,7 @@ export function AdminBookingPeekTrigger({
   const [peekState, peekAction] = useActionState(
     async (_prev: BookingActionState | undefined, formData: FormData) => {
       const next = await quickUpdateBookingPeek(formData);
-      if (!next?.error) router.refresh();
+      if (!next?.error) queueRouterRefresh();
       return next;
     },
     undefined as BookingActionState | undefined,

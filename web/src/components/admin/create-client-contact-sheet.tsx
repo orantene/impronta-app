@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { toast } from "sonner";
 import {
   AddContactForm,
@@ -28,7 +28,7 @@ export function CreateClientContactSheet({
   linkInquiryId?: string | null;
   linkBookingId?: string | null;
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [formKey, setFormKey] = useState(0);
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export function CreateClientContactSheet({
             onSuccess={() => {
               toast.success("Contact added");
               setFormKey((k) => k + 1);
-              router.refresh();
+              queueRouterRefresh();
               onOpenChange(false);
             }}
           />

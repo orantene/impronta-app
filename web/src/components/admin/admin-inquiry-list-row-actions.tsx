@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useActionState } from "react";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import {
   assignInquiryToCurrentStaffForm,
   quickPatchInquiryStatus,
@@ -35,11 +35,11 @@ export function AdminInquiryListRowActions({
   buildFilterByAccountHref: string | null;
   clientAccountId: string | null;
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [state, action] = useActionState(
     async (_p: AdminActionState | undefined, fd: FormData) => {
       const next = await quickPatchInquiryStatus(fd);
-      if (!next?.error) router.refresh();
+      if (!next?.error) queueRouterRefresh();
       return next;
     },
     undefined as AdminActionState | undefined,

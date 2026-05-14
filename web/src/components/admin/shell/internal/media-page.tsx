@@ -3,7 +3,7 @@
 import {
   useCallback, useEffect, useMemo, useRef, useState, type CSSProperties,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import {
   COLORS, FONTS, meetsPlan, useAdminShell,
 } from "./state";
@@ -227,7 +227,7 @@ function PhotoDetailDrawer({
   onClose: () => void;
   onRefresh: () => void;
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [tags, setTags] = useState<string[]>(photo.tags);
   const [tagInput, setTagInput] = useState("");
   const [savingTags, setSavingTags] = useState(false);
@@ -274,7 +274,7 @@ function PhotoDetailDrawer({
       await actionAddAssetsToFolder(folderId, [photo.id]);
     }
     setFolderBusy(false);
-    router.refresh();
+    queueRouterRefresh();
     onRefresh();
   };
 
@@ -282,7 +282,7 @@ function PhotoDetailDrawer({
     setSavingTags(true);
     await actionSetAssetTags(photo.id, tags);
     setSavingTags(false);
-    router.refresh();
+    queueRouterRefresh();
   };
 
   const addTag = () => {
@@ -299,14 +299,14 @@ function PhotoDetailDrawer({
     setSavingNote(true);
     await actionSetAssetNote(photo.id, note);
     setSavingNote(false);
-    router.refresh();
+    queueRouterRefresh();
   };
 
   const setApproval = async (state: "approved" | "rejected") => {
     setApprovalBusy(true);
     await actionSetApprovalState([photo.id], state);
     setApprovalBusy(false);
-    router.refresh();
+    queueRouterRefresh();
     onRefresh();
   };
 
@@ -534,7 +534,7 @@ function FolderModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const [name, setName] = useState(folder?.name ?? "");
   const [color, setColor] = useState(folder?.color ?? FOLDER_PALETTE[0]!);
   const [busy, setBusy] = useState(false);
@@ -554,7 +554,7 @@ function FolderModal({
       if (!r.ok) { setErr(r.error); setBusy(false); return; }
     }
     setBusy(false);
-    router.refresh();
+    queueRouterRefresh();
     onSaved();
     onClose();
   };
@@ -573,7 +573,7 @@ function FolderModal({
     await actionRevokeFolderShareLink(folder.id);
     setShareLoading(false);
     setShareUrl(null);
-    router.refresh();
+    queueRouterRefresh();
   };
 
   const deleteFolder = async () => {
@@ -583,7 +583,7 @@ function FolderModal({
     const r = await actionDeleteMediaFolder(folder.id);
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    router.refresh();
+    queueRouterRefresh();
     onSaved();
     onClose();
   };
@@ -1217,7 +1217,7 @@ function PhotoCard({
 
 export function WorkspaceMediaPage() {
   const { state, openDrawer, openUpgrade, bridgeMediaPhotos, bridgeMediaFolders, tenantSlug, toast } = useAdminShell();
-  const router = useRouter();
+  const queueRouterRefresh = useQueuedRouterRefresh();
   const isAgency = meetsPlan(state.plan, "agency");
   const isStudio = meetsPlan(state.plan, "studio");
 
@@ -1377,8 +1377,8 @@ export function WorkspaceMediaPage() {
     if (!res.ok) { setDrivePanelStatus({ kind: "error", message: res.error ?? "Import failed." }); return; }
     setDrivePanelStatus({ kind: "ok", count: res.data.assets.length });
     setDrivePanelUrl("");
-    setTimeout(() => { setShowDrivePanel(false); setDrivePanelStatus({ kind: "idle" }); router.refresh(); }, 2500);
-  }, [drivePanelUrl, drivePanelTalentId, router]);
+    setTimeout(() => { setShowDrivePanel(false); setDrivePanelStatus({ kind: "idle" }); queueRouterRefresh(); }, 2500);
+  }, [drivePanelUrl, drivePanelTalentId, queueRouterRefresh]);
 
   // ── Folder modal ─────────────────────────────────────────────────
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -1481,14 +1481,14 @@ export function WorkspaceMediaPage() {
           e.preventDefault();
           void actionSetApprovalState([focusedPhoto.id], "approved").then(() => {
             setFocusedPendingIdx((i) => Math.max(0, i));
-            router.refresh();
+            queueRouterRefresh();
           });
         }
         if (e.key === "n" || e.key === "N") {
           e.preventDefault();
           void actionSetApprovalState([focusedPhoto.id], "rejected").then(() => {
             setFocusedPendingIdx((i) => Math.max(0, i));
-            router.refresh();
+            queueRouterRefresh();
           });
         }
         if (e.key === "ArrowRight" || e.key === "ArrowDown") {
@@ -1507,7 +1507,7 @@ export function WorkspaceMediaPage() {
   }, [selected, view, focusedPendingIdx, filtered, lightboxPhoto, showAssignModal]);
 
   // ── Live-sync detail drawer ──────────────────────────────────────
-  // After router.refresh() updates bridge data, derive the current photo
+  // After queueRouterRefresh() updates bridge data, derive the current photo
   // from the photos array so the drawer always shows fresh metadata.
   const detailPhotoLive = useMemo(
     () => detailPhoto ? (photos.find((p) => p.id === detailPhoto.id) ?? detailPhoto) : null,
@@ -1610,7 +1610,7 @@ export function WorkspaceMediaPage() {
     stagingItems.forEach((it) => URL.revokeObjectURL(it.blobUrl));
     setStagingItems([]);
     setShowAssignModal(false);
-    router.refresh();
+    queueRouterRefresh();
   };
 
   const cancelStaging = () => {
@@ -1627,7 +1627,7 @@ export function WorkspaceMediaPage() {
     setShowAssignModal(false);
     if (!res.ok) { setUploadError(res.error); return; }
     setSelected(new Set());
-    router.refresh();
+    queueRouterRefresh();
   };
 
   const openReassignModal = async () => {
@@ -1648,7 +1648,7 @@ export function WorkspaceMediaPage() {
     setIsDeleting(false);
     if (!res.ok) { setUploadError(res.error); return; }
     setSelected(new Set());
-    router.refresh();
+    queueRouterRefresh();
   };
 
   const handleApproveSelected = async () => {
@@ -1657,7 +1657,7 @@ export function WorkspaceMediaPage() {
     await actionSetApprovalState(Array.from(selected), "approved");
     setIsApproving(false);
     setSelected(new Set());
-    router.refresh();
+    queueRouterRefresh();
   };
 
   const handleRejectSelected = async () => {
@@ -1667,14 +1667,14 @@ export function WorkspaceMediaPage() {
     await actionSetApprovalState(Array.from(selected), "rejected");
     setIsApproving(false);
     setSelected(new Set());
-    router.refresh();
+    queueRouterRefresh();
   };
 
   const addSelectedToFolder = async (folderId: string) => {
     if (selected.size === 0) return;
     await actionAddAssetsToFolder(folderId, Array.from(selected));
     setSelected(new Set());
-    router.refresh();
+    queueRouterRefresh();
   };
 
   const selHasPending = selCount > 0 && Array.from(selected).some((id) => photos.find((p) => p.id === id)?.approvalState === "pending");
@@ -2244,7 +2244,7 @@ export function WorkspaceMediaPage() {
             wsLogoUrl={wsLogoUrl}
             wsWatermarkEnabled={wsWatermarkEnabled}
             onClose={() => setDetailPhoto(null)}
-            onRefresh={() => router.refresh()}
+            onRefresh={() => queueRouterRefresh()}
           />
         )}
       </div>
@@ -2257,7 +2257,7 @@ export function WorkspaceMediaPage() {
           wsLogoUrl={wsLogoUrl}
           wsWatermarkEnabled={wsWatermarkEnabled}
           onClose={() => setLightboxPhoto(null)}
-          onSetCard={(photoId, talentId) => { toast("Set as card photo"); router.refresh(); }}
+          onSetCard={(photoId, talentId) => { toast("Set as card photo"); queueRouterRefresh(); }}
         />
       )}
 
