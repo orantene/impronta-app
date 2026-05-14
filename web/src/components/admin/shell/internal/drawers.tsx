@@ -6818,6 +6818,84 @@ function TalentProfileShellDrawer() {
                   label={copy.t(state.isDiscoverable ? "On — appearing on Discover" : "Off — hidden from Discover")}
                 />
               </FieldRow>
+              {/* T2 — Discover card preview. Renders a schematic of what
+                  this talent's card looks like to clients browsing Discover.
+                  Live data from state: stage name, primary category slug,
+                  home city, photo from polaroids/albums. Trust tier renders
+                  as "BASIC" until verification lifts it (real tier resolves
+                  server-side on the Discover materialized view). */}
+              {state.isDiscoverable && (
+                <div
+                  style={{
+                    marginTop: 4,
+                    padding: 12,
+                    borderRadius: 12,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    background: COLORS.surfaceAlt ?? "rgba(11,11,13,0.03)",
+                  }}
+                >
+                  <div style={{
+                    fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
+                    textTransform: "uppercase", color: COLORS.inkDim,
+                    marginBottom: 10, fontFamily: FONTS.body,
+                  }}>
+                    Preview · your Discover card
+                  </div>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "84px 1fr",
+                    gap: 12,
+                    alignItems: "start",
+                  }}>
+                    <div
+                      style={{
+                        aspectRatio: "4 / 5",
+                        width: 84,
+                        borderRadius: 10,
+                        background: state.polaroids.find(p => p.url)?.url
+                          ? `url(${state.polaroids.find(p => p.url)!.url}) center/cover`
+                          : (state.albumsPro[0]?.items[0]?.url
+                              ? `url(${state.albumsPro[0].items[0].url}) center/cover`
+                              : COLORS.borderSoft),
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontFamily: FONTS.display,
+                        fontSize: 22,
+                        fontWeight: 500,
+                        color: COLORS.inkMuted,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {!state.polaroids.find(p => p.url)?.url
+                        && !state.albumsPro[0]?.items[0]?.url
+                        && (state.identity.stageName || state.stageName || "??")
+                            .split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ minWidth: 0, fontFamily: FONTS.body }}>
+                      <div style={{
+                        fontSize: 14, fontWeight: 600, color: COLORS.ink,
+                        marginBottom: 3, display: "flex", alignItems: "center",
+                        gap: 6, flexWrap: "wrap",
+                      }}>
+                        <span>{state.identity.stageName || state.stageName || copy.t("Your name")}</span>
+                        <span style={{
+                          fontSize: 9.5, fontWeight: 700, letterSpacing: 0.3,
+                          padding: "1px 6px", borderRadius: 4,
+                          background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+                        }}>BASIC</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 3 }}>
+                        {state.primaryType ?? copy.t("Add a primary category")}
+                        {state.serviceArea.homeBase ? ` · ${state.serviceArea.homeBase}` : ""}
+                      </div>
+                      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, fontStyle: "italic", lineHeight: 1.45 }}>
+                        {copy.t("Trust badge, 14-day availability strip, and rate band are derived live by Discover — they update as your verification, calendar, and rates change.")}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {adminVisible && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
                   <FieldLockToggle path="identity.legalName" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
