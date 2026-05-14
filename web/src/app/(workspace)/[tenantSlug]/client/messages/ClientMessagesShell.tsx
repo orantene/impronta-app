@@ -21,6 +21,7 @@ import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { DetailsTab } from "./DetailsTab";
+import { OfferTab } from "./OfferTab";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -361,6 +362,7 @@ export function ClientMessagesShell({
               onTabChange={setActiveTab}
               tenantSlug={tenantSlug}
               onBack={() => setMobilePane("list")}
+              onAfterOfferAction={() => router.refresh()}
             />
           ) : (
             <EmptyDetail onCreate={() => setDrawerOpen(true)} />
@@ -505,6 +507,7 @@ function ThreadPaneWithTabs({
   onTabChange,
   tenantSlug,
   onBack,
+  onAfterOfferAction,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
@@ -515,6 +518,7 @@ function ThreadPaneWithTabs({
   onTabChange: (tab: ThreadTab) => void;
   tenantSlug: string;
   onBack: () => void;
+  onAfterOfferAction?: () => void;
 }) {
   const stage = stageStyle(inq.status);
   return (
@@ -627,19 +631,10 @@ function ThreadPaneWithTabs({
           />
         )}
         {activeTab === "offer" && (
-          <TabStubPanel
-            title="Offer"
-            body={
-              details?.offer?.exists
-                ? `Offer ${details.offer.status} · ${details.offer.total_client_price ?? "—"} ${details.offer.currency ?? ""}`
-                : "No offer yet."
-            }
-            bullets={[]}
-            emptyHint={
-              details?.offer?.exists
-                ? "Approve, counter, or decline UI ships in Phase E."
-                : "Once your coordinator confirms talent, you'll receive an offer here."
-            }
+          <OfferTab
+            details={loadingDetails ? null : details}
+            tenantSlug={tenantSlug}
+            onAfterAction={onAfterOfferAction}
           />
         )}
         {activeTab === "files" && (

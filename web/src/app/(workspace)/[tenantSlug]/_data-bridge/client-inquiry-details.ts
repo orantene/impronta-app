@@ -140,14 +140,33 @@ export type ClientInquiryDetails = {
   offer: {
     /** Has any non-rejected offer been drafted/sent? */
     exists: boolean;
-    status: string | null;
+    id: string;
+    status: string;
     /** Total the client would pay (line-item private rates intentionally hidden). */
-    total_client_price: number | null;
-    currency: string | null;
+    total_client_price: number;
+    currency: string;
     /** Timestamp when the offer was sent to the client. */
     sent_at: string | null;
     /** Set on the offer row when it expires. */
     expires_at: string | null;
+    /** Coordinator's note attached to the offer. */
+    notes: string | null;
+    /** Phase E — version stamps used by the engine's optimistic-locking. */
+    offer_version: number;
+    inquiry_version: number;
+    /** Set when a client previously rejected an offer (history surface). */
+    rejection_reason: string | null;
+    rejection_reason_text: string | null;
+    /** Line items — client-safe shape (label + units + total). NO talent_cost. */
+    lines: Array<{
+      id: string;
+      label: string | null;
+      pricing_unit: string;
+      units: number;
+      unit_price: number;
+      total_price: number;
+      talent_name: string | null;
+    }>;
   } | null;
 
   // ─── Section: Recent activity (client-visible events only) ───────────
@@ -201,7 +220,7 @@ export async function loadClientInquiryDetails(
       .from("inquiries")
       .select(
         `
-        id, tenant_id, status, created_at, updated_at,
+        id, tenant_id, status, version, created_at, updated_at,
         contact_name, contact_email, contact_phone, company,
         event_date, event_location, quantity, message,
         source_channel, source_context, interpreted_query,
@@ -264,12 +283,21 @@ export async function loadClientInquiryDetails(
         .eq("role", "talent")
         .neq("status", "removed")
         .order("sort_order", { ascending: true }),
-      // Current offer (if any) — client-safe fields only
+      // Current offer (if any) — client-safe fields only.
+      // NOTE: explicitly NOT selecting talent_cost, coordinator_fee, or
+      // internal split — those stay on the staff side.
       inq.current_offer_id
         ? readClient
             .from("inquiry_offers")
             .select(
-              "id, status, total_client_price, currency_code, sent_at, expires_at",
+              `id, status, version, total_client_price, currency_code,
+               notes, valid_until, sent_at,
+               rejection_reason, rejection_reason_text,
+               inquiry_offer_line_items (
+                 id, label, pricing_unit, units, unit_price, total_price,
+                 sort_order,
+                 talent_profiles!talent_profile_id ( display_name, first_name, last_name )
+               )`,
             )
             .eq("id", inq.current_offer_id)
             .eq("tenant_id", tenantId)
@@ -350,15 +378,63 @@ export async function loadClientInquiryDetails(
       };
     });
 
-    const offer = offerRes.data
+    type OfferLineRow = {
+      id: string;
+      label: string | null;
+      pricing_unit: string;
+      units: number;
+      unit_price: number;
+      total_price: number;
+      sort_order: number | null;
+      talent_profiles: {
+        display_name: string | null;
+        first_name: string | null;
+        last_name: string | null;
+      } | null;
+    };
+    type OfferRow = {
+      id: string;
+      status: string;
+      version: number;
+      total_client_price: number;
+      currency_code: string;
+      notes: string | null;
+      valid_until: string | null;
+      sent_at: string | null;
+      rejection_reason: string | null;
+      rejection_reason_text: string | null;
+      inquiry_offer_line_items: OfferLineRow[] | null;
+    };
+    const offerRow = offerRes.data as OfferRow | null;
+    const offer = offerRow
       ? {
           exists: true,
-          status: (offerRes.data as { status: string }).status,
-          total_client_price:
-            (offerRes.data as { total_client_price: number | null }).total_client_price,
-          currency: (offerRes.data as { currency_code: string | null }).currency_code,
-          sent_at: (offerRes.data as { sent_at: string | null }).sent_at,
-          expires_at: (offerRes.data as { expires_at: string | null }).expires_at,
+          id: offerRow.id,
+          status: offerRow.status,
+          total_client_price: Number(offerRow.total_client_price) || 0,
+          currency: offerRow.currency_code,
+          sent_at: offerRow.sent_at,
+          expires_at: offerRow.valid_until,
+          notes: offerRow.notes,
+          offer_version: offerRow.version,
+          inquiry_version: Number(inq.version),
+          rejection_reason: offerRow.rejection_reason,
+          rejection_reason_text: offerRow.rejection_reason_text,
+          lines: (offerRow.inquiry_offer_line_items ?? [])
+            .slice()
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            .map((ln) => ({
+              id: ln.id,
+              label: ln.label,
+              pricing_unit: ln.pricing_unit,
+              units: Number(ln.units) || 0,
+              unit_price: Number(ln.unit_price) || 0,
+              total_price: Number(ln.total_price) || 0,
+              talent_name:
+                ln.talent_profiles?.display_name?.trim()
+                || `${ln.talent_profiles?.first_name ?? ""} ${ln.talent_profiles?.last_name ?? ""}`.trim()
+                || null,
+            })),
         }
       : null;
 
