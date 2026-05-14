@@ -263,7 +263,12 @@ export async function loadDetailsTabData(
     const talentRows = participants.filter((p) => p.role === "talent" && p.status !== "removed");
     const lineup = {
       invited: talentRows.filter((p) => p.status === "invited").length,
-      accepted: talentRows.filter((p) => p.status === "accepted").length,
+      // Engine flips inquiry_participants.status from 'invited' to 'active'
+      // on acceptTalentInvitation. The participant_status enum has no
+      // 'accepted' value — see migration 20260520101000. Counting 'active'
+      // here matches the live data model; 'accepted' kept as a fallback
+      // for any legacy/imported rows.
+      accepted: talentRows.filter((p) => p.status === "active" || p.status === "accepted").length,
       hold: talentRows.filter((p) => p.status === "hold").length,
       declined: talentRows.filter((p) => p.status === "declined").length,
       total: talentRows.length,
