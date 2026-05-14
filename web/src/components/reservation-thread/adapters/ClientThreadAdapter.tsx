@@ -362,21 +362,12 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
       kind: "event",
       title: "Event details",
       content: (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Details v3 (plan §10): canonical client-pov DetailsTab.
-              The original 4-card summary stays below as a quick-glance
-              header until QA confirms the new surface fully covers it. */}
-          <DetailsTabContainer inquiryId={inquiry.id} pov="client" />
-          <div style={{ height: 8 }} />
-          <DetailCard label="When" value={fmtDateLong(inquiry.eventDate) ?? "Not set yet"} />
-          <DetailCard label="Where" value={inquiry.eventLocation ?? "Not set yet"} />
-          {inquiry.quantity != null && inquiry.quantity > 0 && (
-            <DetailCard label="Talent requested" value={String(inquiry.quantity)} />
-          )}
-          {inquiry.company && (
-            <DetailCard label="Project name" value={inquiry.company} />
-          )}
-        </div>
+        // Details v3 (plan §10): canonical client-pov DetailsTab is
+        // the sole content surface. The earlier When/Where/Talent
+        // requested/Project name 4-card summary was a strict subset
+        // of DetailsTab's Schedule + Location + Job Brief sections
+        // and is removed to avoid the duplicate stack.
+        <DetailsTabContainer inquiryId={inquiry.id} pov="client" />
       ),
     },
     files: {

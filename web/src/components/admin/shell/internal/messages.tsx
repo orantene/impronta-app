@@ -2766,16 +2766,17 @@ function AdminInquiryDetail({ inquiry, onBack }: { inquiry: RichInquiry; onBack:
             <FilesTab conv={{ id: inquiry.id } as Conversation} povCanSeeTalentFiles={true} />
           </div>
         )}
-        {/* Details v3 (plan §10): canonical 9-section <DetailsTab>
-            renders first as the new front-of-house surface; legacy
-            AdminBookingTab + LiveBookingActions stay below for now
-            so admin operators don't lose access to engine actions
-            mid-migration. */}
+        {/* Details v3 (plan §10): canonical 9-section <DetailsTab> is
+            now the sole content surface. <LiveBookingActions> stays
+            because it owns engine-action entry points (request payment
+            / mark paid / wrap / etc.) that DetailsTab doesn't yet
+            expose — separate from informational rendering. The legacy
+            <AdminBookingTab> card grid was a duplicate of DetailsTab's
+            Sections 2–7 and is removed. */}
         {(activeTab === "event" || activeTab === "booking" || activeTab === "details") && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14 }}>
             <DetailsTabContainer inquiryId={inquiry.id} pov="admin" />
             <div style={{ height: 24 }} />
-            <AdminBookingTab inquiry={toInquiry(inquiry)} planTier={planTier} />
             <LiveBookingActions inquiryId={inquiry.id} inquiryStage={inquiry.stage} />
           </div>
         )}
@@ -6460,17 +6461,19 @@ function ClientTabsBlock({
       )}
       {activeTab === "details" && (
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-          {/* Details v3 (plan §10): canonical DetailsTab on top for
-              real inquiries; legacy DetailsPanel stays below until
-              the v3 surface fully replaces it. NOTE: the parens
-              around the regex literal are load-bearing — `{/^...`
-              in JSX collides with the `{/*` comment-opener token. */}
-          {(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).test(conv.id) && (
+          {/* Details v3 (plan §10): canonical DetailsTab is now the
+              sole content surface for client pov when the conversation
+              is backed by a real inquiry row. Mock convs fall back to
+              the legacy <DetailsPanel> render. NOTE: the parens around
+              the regex literal are load-bearing — `{/^...` in JSX
+              collides with the `{/*` comment-opener token. */}
+          {(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).test(conv.id) ? (
             <div style={{ padding: 14 }}>
               <DetailsTabContainer inquiryId={conv.id} pov="client" />
             </div>
+          ) : (
+            <DetailsPanel inquiry={convToInquiry(conv)} pov="client" />
           )}
-          <DetailsPanel inquiry={convToInquiry(conv)} pov="client" />
         </div>
       )}
       {/* Merged "Project" tab — replaces Details + Logistics for client.
