@@ -226,6 +226,7 @@ export function CompositionLibraryOverlay() {
     slotDefs,
     library,
     insertSection,
+    removeSection,
     openStarterTemplateGallery,
     workspacePlan,
     compositionLoaded,
@@ -876,24 +877,39 @@ export function CompositionLibraryOverlay() {
     setBusyTypeKey(busyKey);
     setError(null);
 
+    // Atomicity — Option B: client-side compensating deletes.
+    //
+    // Supabase JS does not expose a multi-statement transaction across the
+    // PostgREST API; running each section insert as a separate server action
+    // makes true DB-level atomicity impractical without a bespoke RPC.
+    // Instead we track the ids of sections we successfully inserted and, on
+    // any later failure, issue a removeSection for each of them in reverse
+    // order. This unwinds the partial kit from both the DB and the local
+    // React state.  A rollback failure is noted in the error message so the
+    // operator knows to reload the draft to clean up any leftovers.
+    const insertedSectionIds: string[] = [];
+
     let nextTarget = libraryTarget;
+    let failedError: string | null = null;
+
     for (const starterId of kit.starterIds) {
       const starter = startersById.get(starterId);
       if (!starter) {
-        setBusyTypeKey(null);
-        setError("This section kit is incomplete — reload the page or choose a different kit.");
-        return;
+        failedError =
+          "This section kit is incomplete — reload the page or choose a different kit.";
+        break;
       }
       const res = await insertSection(nextTarget, starter.sectionTypeKey, {
         sectionTemplateStarterId: starter.id,
         sectionTemplateStarterStylePresetId: stylePresetIds?.[starterId] ?? null,
       });
       if (!res.ok) {
-        setBusyTypeKey(null);
-        setError(res.error ?? "Couldn't add the section kit.");
-        return;
+        failedError = res.error ?? "Couldn't add the section kit.";
+        break;
       }
       if (res.section) {
+        // Track successfully inserted section so we can compensate on failure.
+        insertedSectionIds.push(res.section.id);
         nextTarget = {
           slotKey: nextTarget.slotKey,
           insertAfterSortOrder: res.section.sortOrder,
@@ -901,10 +917,50 @@ export function CompositionLibraryOverlay() {
       }
     }
 
+    if (failedError !== null) {
+      // Roll back any sections that were inserted before the failure by
+      // removing them in reverse insertion order. Reversing is a courtesy —
+      // the CAS chain means earlier inserts are at lower sort orders, but
+      // removeSection works by id so order is not functionally required.
+      if (insertedSectionIds.length > 0) {
+        let rollbackFailed = false;
+        for (const sectionId of [...insertedSectionIds].reverse()) {
+          try {
+            const undoRes = await removeSection(sectionId);
+            if (!undoRes.ok) {
+              rollbackFailed = true;
+              console.warn(
+                "[composition-library] kit rollback: removeSection failed",
+                { sectionId, error: undoRes.error },
+              );
+            }
+          } catch (err) {
+            rollbackFailed = true;
+            console.warn(
+              "[composition-library] kit rollback: removeSection threw",
+              { sectionId, err },
+            );
+          }
+        }
+        if (rollbackFailed) {
+          // At least one compensating delete failed — the draft may have
+          // orphaned sections. Tell the operator to reload.
+          setBusyTypeKey(null);
+          setError(
+            `${failedError} Some kit sections may have been added — reload the draft to check.`,
+          );
+          return;
+        }
+      }
+      setBusyTypeKey(null);
+      setError(failedError);
+      return;
+    }
+
     setBusyTypeKey(null);
     setReviewKit(null);
     closeLibrary();
-  }, [closeLibrary, getKitCompatibility, insertSection, libraryTarget, startersById]);
+  }, [closeLibrary, getKitCompatibility, insertSection, removeSection, libraryTarget, startersById]);
 
   const openKitReview = useCallback((kit: SectionTemplateKit) => {
     setReviewKit(kit);
