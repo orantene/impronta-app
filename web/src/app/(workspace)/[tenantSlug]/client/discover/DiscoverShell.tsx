@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import Image from "next/image";
 import type {
   DiscoverTalentListItem,
   DiscoverFacets,
@@ -573,12 +574,20 @@ function DiscoverCard({
       <div
         style={{
           aspectRatio: "4 / 5", position: "relative",
-          background: item.headshotUrl
-            ? `url(${item.headshotUrl}) center/cover no-repeat`
-            : C.surface,
+          background: C.surface,
           display: "flex", alignItems: "center", justifyContent: "center",
+          overflow: "hidden",
         }}
       >
+        {item.headshotUrl && (
+          <Image
+            src={item.headshotUrl}
+            alt={item.displayName ?? "Talent"}
+            fill
+            sizes="(max-width: 600px) 50vw, (max-width: 1100px) 25vw, 280px"
+            style={{ objectFit: "cover" }}
+          />
+        )}
         {!item.headshotUrl && (
           <div
             style={{
@@ -891,13 +900,22 @@ function DiscoverDetailDrawer({
             <div
               style={{
                 aspectRatio: "4 / 5",
-                background: detail.headshotUrl
-                  ? `url(${detail.headshotUrl}) center/cover no-repeat`
-                  : C.surface,
+                background: C.surface,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 position: "relative",
+                overflow: "hidden",
               }}
             >
+              {detail.headshotUrl && (
+                <Image
+                  src={detail.headshotUrl}
+                  alt={detail.displayName}
+                  fill
+                  sizes="(max-width: 600px) 100vw, 480px"
+                  priority
+                  style={{ objectFit: "cover" }}
+                />
+              )}
               {!detail.headshotUrl && (
                 <div
                   style={{
@@ -997,10 +1015,20 @@ function DiscoverDetailDrawer({
                         key={i}
                         style={{
                           aspectRatio: "1 / 1",
-                          background: `url(${url}) center/cover no-repeat`,
+                          position: "relative",
                           borderRadius: 8,
+                          overflow: "hidden",
+                          background: C.surface,
                         }}
-                      />
+                      >
+                        <Image
+                          src={url}
+                          alt={`${detail.displayName} gallery ${i + 1}`}
+                          fill
+                          sizes="(max-width: 600px) 33vw, 160px"
+                          style={{ objectFit: "cover" }}
+                        />
+                      </div>
                     ))}
                   </div>
                 </div>

@@ -9,6 +9,7 @@
  */
 
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -226,17 +227,27 @@ export default async function TalentSharePage({ params }: PageProps) {
         {/* Cover */}
         <div
           style={{
-            background: talent.heroUrl
-              ? `url(${talent.heroUrl}) center / cover no-repeat`
-              : "linear-gradient(135deg, #F2F2EE 0%, #E5E1D7 100%)",
+            position: "relative",
+            background: "linear-gradient(135deg, #F2F2EE 0%, #E5E1D7 100%)",
             height: 280,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontSize: 80,
             color: "#0F4F3E",
+            overflow: "hidden",
           }}
         >
+          {talent.heroUrl && (
+            <Image
+              src={talent.heroUrl}
+              alt={talent.profile.display_name ?? "Talent"}
+              fill
+              sizes="(max-width: 700px) 100vw, 640px"
+              priority
+              style={{ objectFit: "cover" }}
+            />
+          )}
           {!talent.heroUrl ? "✨" : null}
         </div>
 
@@ -309,11 +320,21 @@ export default async function TalentSharePage({ params }: PageProps) {
                 <div
                   key={url + i}
                   style={{
+                    position: "relative",
                     aspectRatio: "3 / 4",
-                    background: `url(${url}) center / cover no-repeat, #F2F2EE`,
+                    background: "#F2F2EE",
                     borderRadius: 8,
+                    overflow: "hidden",
                   }}
-                />
+                >
+                  <Image
+                    src={url}
+                    alt={`${talent.profile.display_name ?? "Talent"} portfolio ${i + 1}`}
+                    fill
+                    sizes="(max-width: 700px) 25vw, 160px"
+                    style={{ objectFit: "cover" }}
+                  />
+                </div>
               ))}
             </div>
           ) : (
