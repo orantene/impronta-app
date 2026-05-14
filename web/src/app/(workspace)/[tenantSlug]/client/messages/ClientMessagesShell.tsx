@@ -13,7 +13,8 @@
  * shell is purely presentational + drawer state.
  */
 
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState, useRef, useEffect, useMemo, useTransition } from "react";
+import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { useRouter } from "next/navigation";
 import type { ClientInquiryRow } from "../../_data-bridge";
 import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
@@ -609,6 +610,11 @@ function ThreadPaneWithTabs({
               {inq.event_location && <span>· {inq.event_location}</span>}
             </div>
           </div>
+          <ClientThreadSearchTrigger
+            messages={messages}
+            onJumpOffer={details?.offer?.exists ? () => onTabChange("offer") : undefined}
+            onJumpDetails={() => onTabChange("details")}
+          />
         </div>
 
         {/* Tab strip */}
@@ -695,6 +701,73 @@ function ThreadPaneWithTabs({
           onSent={(msg) => onMessagesChange((prev) => [...prev, msg])}
         />
       )}
+    </>
+  );
+}
+
+// ─── Thread search ───────────────────────────────────────────────────────
+
+function ClientThreadSearchTrigger({
+  messages,
+  onJumpOffer,
+  onJumpDetails,
+}: {
+  messages: WorkspaceMessage[];
+  onJumpOffer?: () => void;
+  onJumpDetails?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const adapted: ThreadSearchMessage[] = useMemo(
+    () => messages.map((m) => ({
+      id: m.id,
+      body: m.body || "",
+      createdAt: (m.created_at || "").slice(0, 16).replace("T", " "),
+      senderName: m.is_mine ? "You" : m.sender_name,
+      hasAttachment: false,
+    })),
+    [messages],
+  );
+  const jumpTargets: JumpTarget[] = useMemo(() => {
+    const out: JumpTarget[] = [];
+    if (onJumpOffer) out.push({ kind: "offer", label: "Offer", onJump: onJumpOffer });
+    if (onJumpDetails) out.push({ kind: "call-sheet", label: "Project details", onJump: onJumpDetails });
+    return out;
+  }, [onJumpOffer, onJumpDetails]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Search this conversation"
+        title="Search conversation"
+        style={{
+          width: 32,
+          height: 32,
+          padding: 0,
+          background: "transparent",
+          border: `1px solid ${C.borderSoft}`,
+          borderRadius: 8,
+          cursor: "pointer",
+          color: C.inkMuted,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="6" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M9 9l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      </button>
+      <ThreadSearch
+        open={open}
+        messages={adapted}
+        jumpTargets={jumpTargets}
+        onResultClick={() => setOpen(false)}
+        onClose={() => setOpen(false)}
+      />
     </>
   );
 }
