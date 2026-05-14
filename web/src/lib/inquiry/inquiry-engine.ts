@@ -48,6 +48,7 @@ export {
   freezeInquiry,
   unfreezeInquiry,
   archiveInquiry,
+  clientCancelInquiry,
   processCoordinatorTimeouts,
   processExpirations,
   retryFailedEngineEffects,

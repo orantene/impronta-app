@@ -15,6 +15,7 @@ export const ENGINE_EVENT_TYPES = {
   INQUIRY_UNFROZEN: "inquiry.unfrozen",
   INQUIRY_ARCHIVED: "inquiry.archived",
   INQUIRY_EXPIRED: "inquiry.expired",
+  INQUIRY_CANCELLED: "inquiry.cancelled",
   COORDINATOR_ASSIGNMENT_TIMED_OUT: "coordinator.assignment_timed_out",
 
   // Messaging
@@ -200,6 +201,7 @@ const DEFAULT_PRIORITY: Record<EngineEventType, EngineEventPriority> = {
   [ENGINE_EVENT_TYPES.INQUIRY_UNFROZEN]: "medium",
   [ENGINE_EVENT_TYPES.INQUIRY_ARCHIVED]: "low",
   [ENGINE_EVENT_TYPES.INQUIRY_EXPIRED]: "medium",
+  [ENGINE_EVENT_TYPES.INQUIRY_CANCELLED]: "high",
   [ENGINE_EVENT_TYPES.COORDINATOR_ASSIGNMENT_TIMED_OUT]: "high",
   [ENGINE_EVENT_TYPES.MESSAGE_SENT]: "low",
   [ENGINE_EVENT_TYPES.COORDINATOR_ASSIGNED]: "high",

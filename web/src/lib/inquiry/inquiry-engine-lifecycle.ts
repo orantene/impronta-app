@@ -168,6 +168,72 @@ export async function archiveInquiry(
   });
 }
 
+/**
+ * Client cancels their own inquiry. Maps to the canonical `rejected`
+ * status with close_reason='client_cancelled'. The engine doesn't have
+ * a separate "cancelled" status — by lifecycle convention, rejected +
+ * close_reason carries the cancellation semantics.
+ *
+ * Allowed from submitted / coordination / offer_pending / approved.
+ * Disallowed from booked (use a separate booking-cancellation flow,
+ * which isn't yet built and would need to refund / release talent etc).
+ */
+export async function clientCancelInquiry(
+  supabase: SupabaseClient,
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    actorUserId: string;
+    expectedVersion: number;
+    reason?: string | null;
+  },
+): Promise<EngineResult> {
+  return runWithEngineLog("clientCancelInquiry", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
+    const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "client_cancel");
+    if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("status, version, is_frozen")
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (!inq) return { success: false, error: "not_found" };
+    if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
+
+    const t = canTransition(inq.status as string, "rejected");
+    if (!t.ok) return { success: false, reason: t.reason };
+
+    const writeClient = await inquiryWriteClient(supabase);
+    const { error: updateErr } = await writeClient
+      .from("inquiries")
+      .update({
+        status: "rejected" as never,
+        close_reason: "client_cancelled",
+        closed_at: new Date().toISOString(),
+        next_action_by: null,
+        version: (inq.version as number) + 1,
+      })
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("version", ctx.expectedVersion);
+    if (updateErr) return { success: false, error: updateErr.message };
+
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.INQUIRY_CANCELLED,
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      data: { reason: ctx.reason ?? null, by: "client" },
+    });
+
+    return { success: true };
+  });
+}
+
 /** Cron: coordinator assignment timeout (Contract 13). Tenant-less by design. */
 export async function processCoordinatorTimeouts(supabase: SupabaseClient): Promise<{ processed: number }> {
   const hours = await getCoordinatorTimeoutHours(supabase);

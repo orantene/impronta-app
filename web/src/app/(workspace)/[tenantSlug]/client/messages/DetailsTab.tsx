@@ -9,7 +9,9 @@
  * land in a follow-up commit using the per-field server actions.
  */
 
+import { useState, useTransition } from "react";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
+import { cancelInquiryAsClient } from "../_actions/inquiry-cancel-actions";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -70,7 +72,13 @@ function inquiryStatusLabel(status: string): string {
   return INQUIRY_STATUS_LABELS[status] ?? humanize(status);
 }
 
-export function DetailsTab({ details }: { details: ClientInquiryDetails | null }) {
+export function DetailsTab({
+  details,
+  tenantSlug,
+}: {
+  details: ClientInquiryDetails | null;
+  tenantSlug?: string;
+}) {
   if (!details) {
     return (
       <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>
@@ -319,7 +327,73 @@ export function DetailsTab({ details }: { details: ClientInquiryDetails | null }
           </ul>
         )}
       </Section>
+
+      {/* B3 — Cancel inquiry. Hidden once the project is booked/converted
+          (separate cancellation flow needed at that point with refund +
+          talent release). Also hidden once already rejected/expired. */}
+      {tenantSlug && details &&
+        !["rejected", "expired", "archived", "booked", "converted", "cancelled"].includes(details.status) && (
+        <CancelInquiryRow tenantSlug={tenantSlug} inquiryId={details.id} />
+      )}
     </div>
+  );
+}
+
+function CancelInquiryRow({ tenantSlug, inquiryId }: { tenantSlug: string; inquiryId: string }) {
+  const [pending, startTransition] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  function go() {
+    if (!confirm("Cancel this inquiry? Your coordinator will be notified. This can't be undone — for booked projects, message your coordinator instead.")) return;
+    const reason = window.prompt("Optional: tell your coordinator why (helps them improve):") ?? "";
+    setErr(null);
+    startTransition(async () => {
+      const r = await cancelInquiryAsClient(tenantSlug, inquiryId, reason.trim() || null);
+      if (!r.ok) setErr(r.error);
+      else window.location.reload();
+    });
+  }
+  return (
+    <section
+      style={{
+        background: "rgba(239,68,68,0.04)",
+        border: "1px solid rgba(239,68,68,0.18)",
+        borderRadius: 12,
+        padding: "14px 16px",
+        marginTop: 8,
+        fontFamily: FONT,
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#991B1B", textTransform: "uppercase", letterSpacing: 0.6 }}>
+        Cancel inquiry
+      </div>
+      <div style={{ marginTop: 6, fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5 }}>
+        If your plans changed, cancel this inquiry. Your coordinator will be notified.
+      </div>
+      {err && (
+        <div style={{ marginTop: 8, fontSize: 12, color: "#991B1B" }}>
+          {err}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={go}
+        disabled={pending}
+        style={{
+          marginTop: 10,
+          padding: "8px 14px",
+          borderRadius: 8,
+          background: pending ? "rgba(239,68,68,0.4)" : "#991B1B",
+          color: "#fff",
+          border: "none",
+          fontFamily: FONT,
+          fontSize: 12.5,
+          fontWeight: 600,
+          cursor: pending ? "wait" : "pointer",
+        }}
+      >
+        {pending ? "Cancelling…" : "Cancel inquiry"}
+      </button>
+    </section>
   );
 }
 

@@ -734,7 +734,7 @@ function ThreadPaneWithTabs({
           />
         )}
         {activeTab === "details" && (
-          <DetailsTab details={loadingDetails ? null : details} />
+          <DetailsTab details={loadingDetails ? null : details} tenantSlug={tenantSlug} />
         )}
         {activeTab === "lineup" && (
           <LineupTab details={loadingDetails ? null : details} />
