@@ -27,6 +27,11 @@ import {
   clientDeclineOfferAction,
   clientCounterOfferAction,
 } from "./actions";
+import {
+  uploadInquiryAttachmentAsClient,
+  removeInquiryAttachmentAsClient,
+  listInquiryAttachmentsAsClient,
+} from "@/lib/server-actions/client-inquiry-attachments";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string; id: string }>;
@@ -73,6 +78,8 @@ type AttachmentRow = {
   filename: string;
   byte_size: number | string | null;
   created_at: string;
+  attachment_kind?: string | null;
+  uploaded_by?: string | null;
 };
 
 export default async function ClientInquiryThreadPage({
@@ -206,21 +213,27 @@ export default async function ClientInquiryThreadPage({
   }
 
   // ── Files / attachments ──
+  // Step 14 — the client now sees ALL non-deleted attachments on their
+  // inquiry (RLS policy `inquiry_attachments_client_select`). The
+  // previous `visibility = 'shared'` filter excluded staff-only files
+  // and is dropped — clients want to see briefs/contracts attached on
+  // their behalf too.
   const { data: attachmentRows } = await supabase
     .from("inquiry_attachments")
-    .select("id, filename, byte_size, created_at")
+    .select("id, filename, byte_size, created_at, attachment_kind, uploaded_by")
     .eq("inquiry_id", inquiryId)
     .eq("tenant_id", scope.tenantId)
-    .eq("visibility", "shared")
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(100);
 
   const files: ClientThreadFile[] = ((attachmentRows ?? []) as AttachmentRow[]).map((f) => ({
     id: f.id,
     fileName: f.filename,
     fileSize: Number(f.byte_size) || 0,
     uploadedAt: f.created_at,
+    attachmentKind: f.attachment_kind ?? null,
+    isMine: f.uploaded_by === session.user!.id,
   }));
 
   // ── Mark thread read for this user ──
@@ -278,6 +291,9 @@ export default async function ClientInquiryThreadPage({
         approveOffer={approveOfferForThread}
         declineOffer={declineOfferForThread}
         counterOffer={counterOfferForThread}
+        uploadAttachment={uploadInquiryAttachmentAsClient}
+        removeAttachment={removeInquiryAttachmentAsClient}
+        listAttachments={listInquiryAttachmentsAsClient}
       />
     </div>
   );

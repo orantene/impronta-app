@@ -58,7 +58,8 @@ import {
   replyTargetFromMessage,
 } from "@/components/chat-interactions";
 import { addReaction as addReactionAction, removeReaction as removeReactionAction } from "@/lib/server-actions/message-reactions";
-import { OfferCard, PaymentRequestCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard } from "@/components/chat-cards/ChatCard";
+import { OfferCard, PaymentRequestCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard } from "@/components/chat-cards/ChatCard";
+import { adminAddSuggestedTalent } from "@/lib/server-actions/admin-suggested-talent";
 import {
   ReservationThread,
   type PillDescriptor,
@@ -3142,6 +3143,7 @@ function renderChatCardForMessage(
   kind: string,
   payload: Record<string, unknown>,
   toast: (s: string) => void,
+  ctx?: { inquiryId?: string; messageId?: string },
 ): React.ReactNode {
   const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
   switch (kind) {
@@ -3193,6 +3195,42 @@ function renderChatCardForMessage(
     case "booking_status":
     case "system_event":
       return <SystemEventCard text={get<string>("text", "Status updated")} />;
+    case "admin_suggested_talent": {
+      // Inquiry-funnel sprint Step 7.
+      // TODO (composer-side, follow-up): the picker that lets admin
+      // attach a talent + rate to a new message is not yet built —
+      // this is the render + click side only.
+      const inquiryId = ctx?.inquiryId ?? "";
+      const messageId = ctx?.messageId ?? "";
+      const talentProfileId = get<string>("talent_profile_id", "");
+      const requirementGroupId = get<string>("requirement_group_id", "");
+      const status = get<"pending" | "added" | "dismissed">("status", "pending");
+      return (
+        <SuggestedTalentCard
+          talentName={get<string>("talent_name", "Talent")}
+          rateLabel={get<string>("rate_label", "")}
+          status={status}
+          onAddToLineup={
+            status === "pending" && inquiryId && talentProfileId
+              ? () => {
+                  void adminAddSuggestedTalent({
+                    inquiryId,
+                    talentProfileId,
+                    requirementGroupId: requirementGroupId || null,
+                    messageId: messageId || null,
+                  }).then((r) => {
+                    if (r.ok) {
+                      toast("Talent added to lineup.");
+                    } else {
+                      toast(r.error || "Could not add talent.");
+                    }
+                  });
+                }
+              : undefined
+          }
+        />
+      );
+    }
     default:
       return null;
   }
@@ -3434,7 +3472,7 @@ function AdminMessageStream({
                     Plain text rows fall through to the bubble below. */}
                 {m.messageKind && m.messageKind !== "text" ? (
                   <div data-msg-card-wrap style={{ maxWidth: "78%", flex: 1 }}>
-                    {renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast)}
+                    {renderChatCardForMessage(m.messageKind, m.cardPayload ?? {}, toast, { inquiryId, messageId: m.id })}
                   </div>
                 ) : (
                 <div style={{
@@ -14403,6 +14441,13 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   const [files, setFiles] = useState<InquiryAttachment[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
+  // Step 14 — kind selector for staff uploads so mood boards / contracts /
+  // references / other get a tag at upload time. Default "mood_board"
+  // matches the common case of a new inquiry landing with reference
+  // imagery from the client.
+  const [selectedKind, setSelectedKind] = useState<
+    "mood_board" | "contract" | "reference" | "other"
+  >("mood_board");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId);
 
@@ -14445,6 +14490,7 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
       const fd = new FormData();
       fd.set("inquiryId", inquiryId);
       fd.set("file", file);
+      fd.set("attachmentKind", selectedKind);
       const r = await uploadInquiryAttachment(fd);
       if (!r.ok) toast(`Upload failed: ${r.error}`);
       else { toast("File uploaded"); reload(); }
@@ -14465,6 +14511,34 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
           inquiry_attachments
         </span>
         <span style={{ flex: 1 }} />
+        {/* Step 14 — kind selector. Picks the role of the file BEFORE
+            the file picker opens so admins don't lose context. */}
+        <select
+          value={selectedKind}
+          onChange={(e) =>
+            setSelectedKind(
+              e.target.value as
+                | "mood_board"
+                | "contract"
+                | "reference"
+                | "other",
+            )
+          }
+          aria-label="Attachment kind"
+          style={{
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 6,
+            padding: "4px 6px",
+            fontSize: 11.5,
+            color: COLORS.ink,
+            background: "#fff",
+          }}
+        >
+          <option value="mood_board">Mood board</option>
+          <option value="reference">Reference</option>
+          <option value="contract">Contract</option>
+          <option value="other">Other</option>
+        </select>
         <input
           ref={fileInputRef}
           type="file"
@@ -14497,8 +14571,24 @@ function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
             border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8,
           }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {f.filename}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", overflow: "hidden" }}>
+                <span style={{ fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+                  {f.filename}
+                </span>
+                {/* Step 14 — attachment kind chip when the row has a tag. */}
+                {f.attachmentKind && (
+                  <span style={{
+                    flexShrink: 0,
+                    fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
+                    background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+                    letterSpacing: 0.3, textTransform: "uppercase",
+                  }}>
+                    {f.attachmentKind === "mood_board" ? "Mood" :
+                     f.attachmentKind === "reference" ? "Ref" :
+                     f.attachmentKind === "contract" ? "Contract" :
+                     "Other"}
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
                 {f.byteSize != null ? `${Math.round(f.byteSize / 1024)} KB · ` : ""}

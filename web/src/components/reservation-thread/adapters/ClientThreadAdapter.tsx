@@ -445,40 +445,53 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
           {!uploadAttachment && files.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {files.map((f) => (
-            <div
-              key={f.id}
-              style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 12px",
-                borderRadius: 10,
-                border: `1px solid ${palette.borderSoft}`,
-                background: palette.surfaceRaised,
-              }}
-            >
-              <div style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: palette.accentSoft, color: palette.accent,
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0,
-              }} aria-hidden>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M3 1.5h5l3 3v7.5a.5.5 0 0 1-.5.5h-7.5a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5z M8 1.5V4.5h3" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-                </svg>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: palette.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {f.fileName}
+                <div
+                  key={f.id}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 12px",
+                    borderRadius: 10,
+                    border: `1px solid ${palette.borderSoft}`,
+                    background: palette.surfaceRaised,
+                  }}
+                >
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: palette.accentSoft, color: palette.accent,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                  }} aria-hidden>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M3 1.5h5l3 3v7.5a.5.5 0 0 1-.5.5h-7.5a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5z M8 1.5V4.5h3" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: palette.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {f.fileName}
+                    </div>
+                    <div style={{ fontSize: 11, color: palette.inkMuted, marginTop: 1 }}>
+                      {fmtFileSize(f.fileSize)} · {fmtDateShort(f.uploadedAt)}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: palette.inkMuted, marginTop: 1 }}>
-                  {fmtFileSize(f.fileSize)} · {fmtDateShort(f.uploadedAt)}
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+          ) : null}
         </div>
       ),
     },
-  }), [lineup, activeOffer, files, inquiry, palette, tenantName]);
+  }), [
+    lineup,
+    activeOffer,
+    files,
+    inquiry,
+    palette,
+    tenantName,
+    uploadAttachment,
+    removeAttachment,
+    listAttachments,
+    uploaderInitial,
+  ]);
 
   /* Action row — Approve / Decline / Counter when offer is awaiting client.
    * Disappears when the offer is no longer sent (accepted/rejected). */

@@ -1040,6 +1040,8 @@ export type InquiryAttachment = {
   visibility: "staff" | "shared";
   uploadedBy: string | null;
   createdAt: string;
+  /** Step 14 — optional kind tag (mood_board | contract | reference | other). */
+  attachmentKind: string | null;
 };
 
 /**
@@ -1057,7 +1059,7 @@ export async function loadInquiryAttachments(
 
     const { data, error } = await supabase
       .from("inquiry_attachments")
-      .select("id, filename, mime_type, byte_size, description, visibility, uploaded_by, created_at")
+      .select("id, filename, mime_type, byte_size, description, visibility, uploaded_by, created_at, attachment_kind")
       .eq("tenant_id", tenantId)
       .eq("inquiry_id", inquiryId)
       .is("deleted_at", null)
@@ -1072,6 +1074,7 @@ export async function loadInquiryAttachments(
       id: string; filename: string; mime_type: string | null;
       byte_size: number | null; description: string | null;
       visibility: "staff" | "shared"; uploaded_by: string | null; created_at: string;
+      attachment_kind: string | null;
     };
     const rows = (data ?? []) as Row[];
     return {
@@ -1085,6 +1088,7 @@ export async function loadInquiryAttachments(
         visibility: r.visibility,
         uploadedBy: r.uploaded_by,
         createdAt: r.created_at,
+        attachmentKind: r.attachment_kind,
       })),
     };
   } catch (err) {
@@ -1110,6 +1114,15 @@ export async function uploadInquiryAttachment(
   try {
     const inquiryId = String(formData.get("inquiryId") ?? "");
     const description = String(formData.get("description") ?? "").trim() || null;
+    // Step 14 — staff can also tag uploads with attachment_kind. Default
+    // is NULL when the caller doesn't supply one so legacy uploads stay
+    // untagged.
+    const kindRaw = String(formData.get("attachmentKind") ?? "").trim();
+    const attachmentKind =
+      kindRaw === "mood_board" || kindRaw === "contract" ||
+      kindRaw === "reference" || kindRaw === "other"
+        ? kindRaw
+        : null;
     const file = formData.get("file");
     if (!inquiryId) return { ok: false, error: "Missing inquiryId." };
     if (!(file instanceof File)) return { ok: false, error: "No file uploaded." };
@@ -1157,6 +1170,7 @@ export async function uploadInquiryAttachment(
         byte_size: file.size,
         description,
         visibility: "staff",
+        attachment_kind: attachmentKind,
       })
       .select("id")
       .single();

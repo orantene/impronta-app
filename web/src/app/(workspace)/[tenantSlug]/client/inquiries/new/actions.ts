@@ -44,11 +44,11 @@ function valuesFromFormData(formData: FormData): ClientWorkspaceInquiryFormValue
   const talentProfileIdLegacy = get("talentProfileId", "talentProfileId");
   const talentProfileId =
     talentProfileIdLegacy ||
-    String(formData.get("talent_ids") ?? "")
+    (String(formData.get("talent_ids") ?? "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)[0] ??
-    "";
+      "");
   return {
     contactName: get("contactName", "contact_name"),
     company: get("company", "company"),
