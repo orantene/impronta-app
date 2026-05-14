@@ -757,6 +757,12 @@ function DiscoverDetailDrawer({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [inquireOpen, setInquireOpen] = useState(false);
+  const [inquireDate, setInquireDate] = useState("");
+  const [inquireLocation, setInquireLocation] = useState("");
+  const [inquireMessage, setInquireMessage] = useState("");
+  const [inquireSubmitting, setInquireSubmitting] = useState(false);
+  const [inquireResult, setInquireResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     if (!talentId) {
@@ -1000,8 +1006,148 @@ function DiscoverDetailDrawer({
                 </div>
               )}
 
-              {/* Footer actions — public profile + inquire (D5 placeholder) */}
+              {/* Footer actions — primary: inquire (D5). Secondary: view profile, shortlist. */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInquireOpen((v) => !v);
+                    setInquireResult(null);
+                  }}
+                  style={{
+                    height: 40, borderRadius: 10,
+                    background: inquireOpen ? C.accentSoft : C.accent,
+                    border: `1px solid ${inquireOpen ? C.accent : "transparent"}`,
+                    color: inquireOpen ? C.accentDeep : "#fff",
+                    fontFamily: FONT, fontSize: 13, fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {inquireOpen ? "Cancel inquiry" : `Inquire about ${detail.displayName}`}
+                </button>
+                {inquireOpen && (
+                  <div
+                    style={{
+                      padding: 12,
+                      border: `1px solid ${C.borderSoft}`,
+                      borderRadius: 10,
+                      background: C.surface,
+                      display: "flex", flexDirection: "column", gap: 10,
+                      fontFamily: FONT,
+                    }}
+                  >
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
+                      Event date (optional)
+                      <input
+                        type="date"
+                        value={inquireDate}
+                        onChange={(e) => setInquireDate(e.target.value)}
+                        style={{
+                          height: 34, padding: "0 10px",
+                          borderRadius: 8, border: `1px solid ${C.borderSoft}`,
+                          background: "#fff", color: C.ink, fontFamily: FONT, fontSize: 13,
+                        }}
+                      />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
+                      Event location (optional)
+                      <input
+                        type="text"
+                        placeholder="e.g. Milan, Italy"
+                        value={inquireLocation}
+                        onChange={(e) => setInquireLocation(e.target.value)}
+                        style={{
+                          height: 34, padding: "0 10px",
+                          borderRadius: 8, border: `1px solid ${C.borderSoft}`,
+                          background: "#fff", color: C.ink, fontFamily: FONT, fontSize: 13,
+                        }}
+                      />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
+                      Brief
+                      <textarea
+                        placeholder="Quick context: brand, role, scope, dates if known."
+                        value={inquireMessage}
+                        onChange={(e) => setInquireMessage(e.target.value)}
+                        rows={3}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 8, border: `1px solid ${C.borderSoft}`,
+                          background: "#fff", color: C.ink, fontFamily: FONT, fontSize: 13,
+                          resize: "vertical",
+                        }}
+                      />
+                    </label>
+                    {inquireResult && (
+                      <div
+                        style={{
+                          padding: "8px 10px", borderRadius: 8,
+                          fontSize: 12,
+                          background: inquireResult.ok ? "rgba(46,125,91,0.10)" : "rgba(176,48,58,0.10)",
+                          color: inquireResult.ok ? "#1B5C45" : "#B0303A",
+                          border: `1px solid ${inquireResult.ok ? "rgba(46,125,91,0.30)" : "rgba(176,48,58,0.30)"}`,
+                        }}
+                      >
+                        {inquireResult.text}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      disabled={inquireSubmitting}
+                      onClick={async () => {
+                        setInquireSubmitting(true);
+                        setInquireResult(null);
+                        try {
+                          const res = await fetch("/api/discover/inquiry", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              talentIds: [detail.id],
+                              eventDate: inquireDate || undefined,
+                              eventLocation: inquireLocation || undefined,
+                              message: inquireMessage || undefined,
+                            }),
+                          });
+                          const j = await res.json();
+                          if (res.ok && j.inquiries?.length > 0) {
+                            setInquireResult({
+                              ok: true,
+                              text: `Inquiry sent — ${detail.agencyName ?? "the talent's agency"} will get back to you within their stated SLA.`,
+                            });
+                            setInquireDate("");
+                            setInquireLocation("");
+                            setInquireMessage("");
+                          } else if (j.skipped?.length > 0 && j.skipped[0].reason === "no_primary_tenant") {
+                            setInquireResult({
+                              ok: false,
+                              text: "This talent doesn't have a primary agency yet. Use 'View full profile' to inquire directly.",
+                            });
+                          } else {
+                            setInquireResult({
+                              ok: false,
+                              text: j.error === "no_routable_talents"
+                                ? "No routable agency for this talent."
+                                : "Couldn't send — try again in a moment.",
+                            });
+                          }
+                        } catch {
+                          setInquireResult({ ok: false, text: "Network issue — try again." });
+                        } finally {
+                          setInquireSubmitting(false);
+                        }
+                      }}
+                      style={{
+                        height: 38, borderRadius: 8,
+                        background: inquireSubmitting ? "rgba(11,11,13,0.4)" : C.accent,
+                        color: "#fff", border: "none",
+                        fontFamily: FONT, fontSize: 13, fontWeight: 600,
+                        cursor: inquireSubmitting ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {inquireSubmitting ? "Sending…" : "Send inquiry"}
+                    </button>
+                  </div>
+                )}
                 {detail.profileCode && (
                   <a
                     href={`/t/${detail.profileCode}`}
@@ -1009,9 +1155,9 @@ function DiscoverDetailDrawer({
                     rel="noopener noreferrer"
                     style={{
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      height: 40, borderRadius: 10,
-                      background: C.accent, color: "#fff",
-                      fontFamily: FONT, fontSize: 13, fontWeight: 600,
+                      height: 36, borderRadius: 10,
+                      background: "transparent", border: `1px solid ${C.borderSoft}`,
+                      color: C.ink, fontFamily: FONT, fontSize: 12.5, fontWeight: 500,
                       textDecoration: "none",
                     }}
                   >
