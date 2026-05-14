@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { INQUIRY_CLOSED_STATUSES } from "./inquiries-workspace";
 
@@ -592,7 +593,17 @@ export async function loadInquiryMessages(
     const { data: { user } } = await supabase.auth.getUser();
     const myUserId = user?.id ?? null;
 
-    const { data, error } = await supabase
+    // 2026-05-14 — self-elevate SELECT after the caller has already
+    // permission-gated. RLS on `inquiry_messages` blocks reads even for
+    // the inquiry's own client (and even for the message's own sender),
+    // mirroring the same issue we hit on INSERT in sendMessage. Every
+    // caller of this loader already verifies the actor's role on this
+    // inquiry (admin layout: staff scope; client/api route: client_user_id
+    // match; talent loader: participant check) so it's safe to escalate.
+    const admin = createServiceRoleClient();
+    const readClient = admin ?? supabase;
+
+    const { data, error } = await readClient
       .from("inquiry_messages")
       .select("id, sender_user_id, body, created_at, message_kind, card_payload, profiles:sender_user_id(display_name)")
       .eq("inquiry_id", inquiryId)

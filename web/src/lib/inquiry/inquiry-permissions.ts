@@ -106,6 +106,8 @@ export async function validateActorPermission(
   const clientActions: EngineAction[] = [
     "submit_inquiry",
     "send_message",
+    "edit_message",
+    "delete_message",
     "mark_thread_read",
     "client_accept_offer",
     "client_reject_offer",
@@ -114,6 +116,8 @@ export async function validateActorPermission(
   ];
   const talentActions: EngineAction[] = [
     "send_message",
+    "edit_message",
+    "delete_message",
     "mark_thread_read",
     "accept_talent_invite",
     "decline_talent_invite",
