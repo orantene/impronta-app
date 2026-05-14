@@ -28,6 +28,7 @@ import {
   editClientMessageAction,
   deleteClientMessageAction,
 } from "../_actions/inquiry-message-actions";
+import { uploadInquiryAttachmentAsClient } from "@/lib/server-actions/client-inquiry-attachments";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -154,13 +155,15 @@ export function ClientMessagesShell({
   }, []);
 
   // Reconcile optimistic bubbles with server messages on send success.
-  // The optimistic tmp- bubble is replaced by the canonical row from the
-  // engine (real id, real sender_user_id, real timestamp).
   //
-  // SAFETY: never clobber local state with a SHORTER server list — if
-  // the server returns fewer messages than we have locally, something
-  // upstream (RLS, auth, transient error) is filtering reads. Keep the
-  // optimistic bubble visible; user will reconcile on inquiry switch.
+  // MERGE, don't replace. Three guarantees:
+  //   1. Optimistic tmp- bubble whose body matches a server message gets
+  //      replaced by the canonical row (real id, real sender_user_id).
+  //   2. Optimistic tmp- bubble with no server match stays visible —
+  //      protects against the user-reported "1-second vanish" if the
+  //      server returns 0 (RLS misconfig, transient error, auth blip).
+  //   3. New server messages we didn't have locally (e.g. coordinator
+  //      auto-ack) get added in chronological order.
   useEffect(() => {
     function onOk(e: Event) {
       const detail = (e as CustomEvent<{ tempId: string; inquiryId: string }>).detail;
@@ -169,12 +172,19 @@ export function ClientMessagesShell({
         .then((r) => (r.ok ? r.json() : { messages: null }))
         .then((j: { messages: WorkspaceMessage[] | null }) => {
           if (!j.messages) return;
+          const serverMsgs = j.messages;
           setMessages((prev) => {
-            // Don't downgrade the local list — protects against the
-            // optimistic bubble disappearing if the loader silently
-            // returns 0 (e.g. RLS misconfig).
-            if (j.messages!.length < prev.length) return prev;
-            return j.messages!;
+            const prevIds = new Set(prev.map((m) => m.id));
+            // Server rows we don't already have locally.
+            const incoming = serverMsgs.filter((m) => !prevIds.has(m.id));
+            // Drop tmp- bubbles whose body matches an incoming server row.
+            const cleaned = prev.filter((m) => {
+              if (!m.id.startsWith("tmp-")) return true;
+              return !incoming.some((s) => s.body === m.body);
+            });
+            return [...cleaned, ...incoming].sort((a, b) =>
+              a.created_at.localeCompare(b.created_at),
+            );
           });
         })
         .catch(() => { /* leave optimistic bubble; user will see it reconcile on next switch */ });
@@ -824,7 +834,9 @@ function ChatComposer({
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-grow textarea up to ~6 lines.
   useEffect(() => {
@@ -872,6 +884,72 @@ function ChatComposer({
     });
   }
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || uploading || pending) return;
+    e.target.value = ""; // reset so re-selecting the same file fires onChange
+    if (file.size > 100 * 1024 * 1024) {
+      setError("File too large (100 MB max).");
+      return;
+    }
+    setError(null);
+    setUploading(true);
+
+    // Optimistic bubble showing the upload is in flight.
+    const tempId = `tmp-up-${Date.now()}`;
+    onSent({
+      id: tempId,
+      sender_user_id: "",
+      sender_name: senderName,
+      body: `📎 Uploading ${file.name}…`,
+      created_at: new Date().toISOString(),
+      is_mine: true,
+    });
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("inquiryId", inquiryId);
+      formData.set("attachmentKind", "reference");
+      formData.set("file", file);
+      const upRes = await uploadInquiryAttachmentAsClient(formData);
+
+      if (!upRes.ok) {
+        setError(upRes.error || "Upload failed.");
+        setUploading(false);
+        window.dispatchEvent(new CustomEvent("client-message-send-failed", { detail: { tempId } }));
+        return;
+      }
+
+      // Replace the in-flight bubble's body via a quick send of a real
+      // chat message announcing the file. The coordinator's Files tab
+      // already picks up the row from inquiry_attachments — this message
+      // makes the upload visible in the conversation stream too.
+      const sizeKB = Math.round(upRes.data.byteSize / 1024);
+      const announceBody = `📎 Shared a file: ${upRes.data.filename} (${sizeKB.toLocaleString()} KB)`;
+      window.dispatchEvent(new CustomEvent("client-message-send-failed", { detail: { tempId } }));
+
+      const sendRes = await sendClientMessageAction(tenantSlug, inquiryId, announceBody);
+      setUploading(false);
+      if (!sendRes.ok) {
+        setError(`Uploaded, but message failed: ${sendRes.error}`);
+        return;
+      }
+      // Add the canonical announce bubble.
+      const announceTempId = `tmp-up-msg-${Date.now()}`;
+      onSent({
+        id: announceTempId,
+        sender_user_id: "",
+        sender_name: senderName,
+        body: announceBody,
+        created_at: new Date().toISOString(),
+        is_mine: true,
+      });
+      window.dispatchEvent(
+        new CustomEvent("client-message-send-ok", { detail: { tempId: announceTempId, inquiryId } }),
+      );
+    });
+  }
+
   return (
     <div
       style={{
@@ -888,7 +966,42 @@ function ChatComposer({
           {error}
         </div>
       )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        onChange={handleFileChange}
+        style={{ display: "none" }}
+        aria-hidden
+      />
       <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || pending}
+          aria-label="Attach file"
+          title="Attach file"
+          style={{
+            height: 38,
+            width: 38,
+            borderRadius: 10,
+            background: "transparent",
+            color: C.inkMuted,
+            border: `1px solid ${C.borderSoft}`,
+            cursor: uploading || pending ? "not-allowed" : "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {uploading ? (
+            <span style={{ fontSize: 11, fontWeight: 600 }}>…</span>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          )}
+        </button>
         <textarea
           ref={textareaRef}
           value={body}
