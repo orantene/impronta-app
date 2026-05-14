@@ -215,6 +215,7 @@ function resolveSectionDropTarget(
 
 export function NavigatorPanel() {
   const {
+    tenantId,
     selectedSectionId,
     selectedBuilderNodeId,
     setSelectedSectionId,
@@ -505,7 +506,7 @@ export function NavigatorPanel() {
     if (headingProbeRequestKeyRef.current === requestKey) return;
     headingProbeRequestKeyRef.current = requestKey;
     void (async () => {
-      const result = await loadHeadingProbeForLint(flatSectionIds);
+      const result = await loadHeadingProbeForLint(flatSectionIds, tenantId);
       if (!result.ok) {
         if (!cancelled) headingProbeRequestKeyRef.current = null;
         return;
@@ -518,7 +519,7 @@ export function NavigatorPanel() {
     return () => {
       cancelled = true;
     };
-  }, [navigatorOpen, flatIdsKey, flatSectionIds, pageVersion]);
+  }, [navigatorOpen, flatIdsKey, flatSectionIds, pageVersion, tenantId]);
 
   // QA-4 fix — when two sections share the same display name (e.g. homepage
   // with two `cta_banner` sections both seeded as "Final CTA — new"), the

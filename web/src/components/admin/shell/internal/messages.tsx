@@ -5324,28 +5324,37 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
             <TalentPaymentTab conv={conv} yourRate={yourRate} />
           </div>
         )}
-        {/* Slice C (Messages consolidation v2): Event tab — same merged
-            view for both stages. Legacy "details" + "booking" IDs alias
-            to the new "event" ID. Booked stage uses TalentBookingTab
-            (countdown + schedule + lineup + coord); inquiry stage uses
-            DetailsPanel (lighter info card). */}
+        {/* Details v3 (plan §10): canonical 9-section <DetailsTab> is
+            the sole content surface for real-UUID inquiries on the
+            talent shell. The legacy DetailsPanel was a strict subset
+            of DetailsTab's sections (Job Brief + Schedule + Location
+            + People). For mock convs (no DB row), fall back to the
+            legacy panels. For booked stage we still render
+            TalentBookingTab below — it adds a live countdown + lineup
+            snapshot that DetailsTab doesn't replicate.
+
+            JSX-regex parens are load-bearing (`{/^...` collides with
+            the `{/*` comment-opener token). */}
         {(activeTab === "event" || activeTab === "details" || activeTab === "booking") && (
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            {/* Details v3 (plan §10): canonical DetailsTab renders when
-                we have a real inquiry UUID. Mock conversations fall
-                straight through to the legacy panels — DetailsTab's
-                data loader requires real DB rows. NOTE: the parens
-                around the regex literal are load-bearing — `{/^...`
-                in JSX collides with the `{/*` comment-opener token. */}
-            {(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).test(conv.id) && (
-              <div style={{ padding: 14 }}>
-                <DetailsTabContainer
-                  inquiryId={conv.id}
-                  pov={isCoordinator ? "talent_coord" : "talent"}
-                />
-              </div>
-            )}
-            {conv.stage === "booked" || conv.stage === "past" ? (
+            {(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).test(conv.id) ? (
+              <>
+                <div style={{ padding: 14 }}>
+                  <DetailsTabContainer
+                    inquiryId={conv.id}
+                    pov={isCoordinator ? "talent_coord" : "talent"}
+                  />
+                </div>
+                {(conv.stage === "booked" || conv.stage === "past") && (
+                  <TalentBookingTab
+                    conv={conv}
+                    inquiry={convToInquiry(conv)}
+                    isCoordinator={isCoordinator}
+                    onOpenLineup={() => setLineupOpen(true)}
+                  />
+                )}
+              </>
+            ) : conv.stage === "booked" || conv.stage === "past" ? (
               <TalentBookingTab
                 conv={conv}
                 inquiry={convToInquiry(conv)}
