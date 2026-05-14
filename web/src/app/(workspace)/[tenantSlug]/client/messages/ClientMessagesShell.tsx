@@ -13,8 +13,7 @@
  * shell is purely presentational + drawer state.
  */
 
-import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
+import { useState, useRef, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ClientInquiryRow } from "../../_data-bridge";
 import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
@@ -22,6 +21,7 @@ import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-det
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
+import { sendClientMessageAction } from "../_actions/inquiry-message-actions";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -123,6 +123,17 @@ export function ClientMessagesShell({
   const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
   const [drawerOpen, setDrawerOpen] = useState(autoOpenDrawer);
   const [loadingThread, setLoadingThread] = useState(false);
+
+  // Rollback optimistic message bubbles when send fails.
+  useEffect(() => {
+    function onFail(e: Event) {
+      const detail = (e as CustomEvent<{ tempId: string }>).detail;
+      if (!detail?.tempId) return;
+      setMessages((prev) => prev.filter((m) => m.id !== detail.tempId));
+    }
+    window.addEventListener("client-message-send-failed", onFail);
+    return () => window.removeEventListener("client-message-send-failed", onFail);
+  }, []);
 
   // Toast for the just-submitted inquiry — fades after 4 seconds.
   const [showJustSubmittedToast, setShowJustSubmittedToast] = useState(!!justSubmittedInquiryId);
@@ -361,12 +372,14 @@ export function ClientMessagesShell({
             <ThreadPaneWithTabs
               inq={active}
               messages={messages}
+              onMessagesChange={setMessages}
               loadingMessages={loadingThread}
               details={details}
               loadingDetails={loadingDetails}
               activeTab={activeTab}
               onTabChange={setActiveTab}
               tenantSlug={tenantSlug}
+              client={client}
               onBack={() => setMobilePane("list")}
               onAfterOfferAction={() => router.refresh()}
             />
@@ -506,23 +519,27 @@ const TAB_CONFIG: Array<{ id: ThreadTab; label: string }> = [
 function ThreadPaneWithTabs({
   inq,
   messages,
+  onMessagesChange,
   loadingMessages,
   details,
   loadingDetails,
   activeTab,
   onTabChange,
   tenantSlug,
+  client,
   onBack,
   onAfterOfferAction,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
+  onMessagesChange: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
   loadingMessages: boolean;
   details: ClientInquiryDetails | null;
   loadingDetails: boolean;
   activeTab: ThreadTab;
   onTabChange: (tab: ThreadTab) => void;
   tenantSlug: string;
+  client: { displayName: string };
   onBack: () => void;
   onAfterOfferAction?: () => void;
 }) {
@@ -660,19 +677,157 @@ function ThreadPaneWithTabs({
         )}
       </div>
 
-      {/* Compose hint — only on Chat tab */}
+      {/* Inline composer — only on Chat tab */}
       {activeTab === "chat" && (
-        <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.borderSoft}`, background: "#fff", fontSize: 12, color: C.inkMuted, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <span>In-page composer coming next sprint.</span>
-          <Link
-            href={`/${tenantSlug}/client/inquiries/${inq.id}`}
-            style={{ color: C.accent, textDecoration: "none", fontWeight: 600 }}
-          >
-            Open full thread →
-          </Link>
-        </div>
+        <ChatComposer
+          inquiryId={inq.id}
+          tenantSlug={tenantSlug}
+          senderName={client.displayName}
+          onSent={(msg) => onMessagesChange((prev) => [...prev, msg])}
+        />
       )}
     </>
+  );
+}
+
+// ─── Inline composer ─────────────────────────────────────────────────────
+
+function ChatComposer({
+  inquiryId,
+  tenantSlug,
+  senderName,
+  onSent,
+}: {
+  inquiryId: string;
+  tenantSlug: string;
+  senderName: string;
+  onSent: (msg: WorkspaceMessage) => void;
+}) {
+  const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow textarea up to ~6 lines.
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
+  }, [body]);
+
+  function submit() {
+    const trimmed = body.trim();
+    if (!trimmed || pending) return;
+    setError(null);
+
+    // Optimistic bubble — replaced/reconciled on server response.
+    const tempId = `tmp-${Date.now()}`;
+    const optimistic: WorkspaceMessage = {
+      id: tempId,
+      sender_user_id: "",
+      sender_name: senderName,
+      body: trimmed,
+      created_at: new Date().toISOString(),
+      is_mine: true,
+    };
+    onSent(optimistic);
+    setBody("");
+
+    startTransition(async () => {
+      const res = await sendClientMessageAction(tenantSlug, inquiryId, trimmed);
+      if (!res.ok) {
+        setError(res.error);
+        // Restore the draft so the user can retry — and pull the optimistic
+        // bubble back out of the stream via a custom event (cheap signal).
+        setBody(trimmed);
+        window.dispatchEvent(new CustomEvent("client-message-send-failed", { detail: { tempId } }));
+      }
+    });
+  }
+
+  return (
+    <div
+      style={{
+        padding: "10px 14px 14px",
+        borderTop: `1px solid ${C.borderSoft}`,
+        background: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      {error && (
+        <div style={{ fontSize: 11.5, color: "#991B1B", padding: "4px 8px", background: "rgba(239,68,68,0.06)", borderRadius: 6 }}>
+          {error}
+        </div>
+      )}
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+        <textarea
+          ref={textareaRef}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => {
+            // Cmd/Ctrl+Enter sends; plain Enter inserts newline on mobile.
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder="Reply to your coordinator…"
+          rows={1}
+          disabled={pending}
+          style={{
+            flex: 1,
+            minHeight: 38,
+            maxHeight: 140,
+            padding: "9px 12px",
+            borderRadius: 10,
+            border: `1px solid ${C.borderSoft}`,
+            background: C.surface,
+            fontFamily: FONT,
+            fontSize: 13.5,
+            lineHeight: 1.45,
+            color: C.ink,
+            resize: "none",
+            outline: "none",
+            boxSizing: "border-box",
+          }}
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!body.trim() || pending}
+          aria-label="Send message"
+          style={{
+            height: 38,
+            width: 44,
+            borderRadius: 10,
+            background: body.trim() && !pending ? C.ink : "rgba(11,11,13,0.20)",
+            color: "#fff",
+            border: "none",
+            cursor: body.trim() && !pending ? "pointer" : "not-allowed",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "background 120ms",
+            flexShrink: 0,
+          }}
+        >
+          {pending ? (
+            <span style={{ fontSize: 11, fontWeight: 600 }}>…</span>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          )}
+        </button>
+      </div>
+      <div style={{ fontSize: 10.5, color: C.inkDim, paddingLeft: 4 }}>
+        ⌘ + Enter to send
+      </div>
+    </div>
   );
 }
 
@@ -731,111 +886,6 @@ function TabStubPanel({
         {emptyHint}
       </div>
     </div>
-  );
-}
-
-// ─── Legacy ThreadPane (kept for reference; no longer used) ──────────────
-
-function ThreadPane({
-  inq,
-  messages,
-  loading,
-  tenantSlug,
-  onBack,
-}: {
-  inq: ClientInquiryRow;
-  messages: WorkspaceMessage[];
-  loading: boolean;
-  tenantSlug: string;
-  onBack: () => void;
-}) {
-  const stage = stageStyle(inq.status);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
-
-  return (
-    <>
-      {/* Thread header */}
-      <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.borderSoft}`, background: "#fff", display: "flex", alignItems: "center", gap: 10 }}>
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="Back to list"
-          style={{
-            display: "none",
-            width: 30,
-            height: 30,
-            borderRadius: 7,
-            border: `1px solid ${C.borderSoft}`,
-            background: "transparent",
-            cursor: "pointer",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          className="thread-back-btn"
-        >
-          ←
-        </button>
-        <style dangerouslySetInnerHTML={{ __html: "@media (max-width:720px){.thread-back-btn{display:inline-flex!important;}}" }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {inq.company || "Inquiry"}
-          </div>
-          <div style={{ fontSize: 11, color: C.inkMuted, display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
-            <span style={{ padding: "1px 6px", borderRadius: 999, background: stage.bg, color: stage.fg, fontWeight: 700, fontSize: 9.5 }}>
-              {stage.label}
-            </span>
-            {inq.event_date && <span>· {formatDate(inq.event_date)}</span>}
-            {inq.event_location && <span>· {inq.event_location}</span>}
-          </div>
-        </div>
-        <Link
-          href={`/${tenantSlug}/client/inquiries/${inq.id}`}
-          style={{
-            height: 30,
-            padding: "0 12px",
-            borderRadius: 7,
-            border: `1px solid ${C.borderSoft}`,
-            display: "inline-flex",
-            alignItems: "center",
-            textDecoration: "none",
-            color: C.ink,
-            fontSize: 11.5,
-            fontWeight: 600,
-            fontFamily: FONT,
-            background: "#fff",
-          }}
-        >
-          Open details →
-        </Link>
-      </div>
-
-      {/* Messages */}
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 10, background: C.surfaceAlt }}>
-        {loading ? (
-          <div style={{ color: C.inkDim, fontSize: 12, textAlign: "center", padding: 20 }}>Loading messages…</div>
-        ) : messages.length === 0 ? (
-          <div style={{ color: C.inkDim, fontSize: 12.5, textAlign: "center", padding: 30, fontStyle: "italic" }}>
-            No messages yet. Your coordinator will reply here once they pick up your inquiry.
-          </div>
-        ) : (
-          messages.map((m) => <Bubble key={m.id} m={m} />)
-        )}
-      </div>
-
-      {/* Compose hint — actual send still happens on the detail page */}
-      <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.borderSoft}`, background: "#fff", fontSize: 12, color: C.inkMuted, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <span>Open the inquiry to reply with the full composer.</span>
-        <Link
-          href={`/${tenantSlug}/client/inquiries/${inq.id}`}
-          style={{ color: C.accent, textDecoration: "none", fontWeight: 600 }}
-        >
-          Open thread →
-        </Link>
-      </div>
-    </>
   );
 }
 
