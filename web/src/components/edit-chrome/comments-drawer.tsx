@@ -558,6 +558,25 @@ export function CommentsDrawer() {
               ))}
             </select>
           ) : null}
+          {!loading && !pageId ? (
+            // QA 2026-05-14 — When `listCommentsAction` returns NOT_FOUND
+            // (the page row hasn't been created yet for this locale), the
+            // textarea below stays disabled. Previously there was no copy
+            // explaining why; the operator saw a greyed-out input with no
+            // hint of what to do. Surface a small inline note instead.
+            <p
+              role="status"
+              style={{
+                margin: 0,
+                fontSize: 11.5,
+                lineHeight: 1.4,
+                color: CHROME.muted,
+              }}
+            >
+              Save the page once before threading comments — this locale
+              doesn&rsquo;t have a draft yet.
+            </p>
+          ) : null}
           <textarea
             value={composerBody}
             onChange={(e) => setComposerBody(e.target.value)}
