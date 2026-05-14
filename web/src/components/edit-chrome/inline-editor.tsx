@@ -272,21 +272,29 @@ export function InlineEditor() {
     };
   }, [selectBuilderNode]);
 
-  function endActiveEdit(commit: boolean, next?: string) {
-    if (!activeEdit) return;
-    if (commit && next !== undefined) {
-      if (activeEdit.builderNode) {
-        void commitBuilderNodeText(
-          activeEdit.builderNode,
-          activeEdit.original,
-          next,
-        );
-      } else {
-        commitText(activeEdit.original, next);
+  // QA 2026-05-13 — wrapped in useCallback so child surfaces that
+  // memoize `onCommit` / `onCancel` props don't capture a stale
+  // closure between double-click and blur. Deps include `activeEdit`
+  // since the body reads it; both commit fns are stable across
+  // renders (they're not re-created on each parent render).
+  const endActiveEdit = useCallback(
+    (commit: boolean, next?: string) => {
+      if (!activeEdit) return;
+      if (commit && next !== undefined) {
+        if (activeEdit.builderNode) {
+          void commitBuilderNodeText(
+            activeEdit.builderNode,
+            activeEdit.original,
+            next,
+          );
+        } else {
+          commitText(activeEdit.original, next);
+        }
       }
-    }
-    setActiveEdit(null);
-  }
+      setActiveEdit(null);
+    },
+    [activeEdit, commitBuilderNodeText, commitText],
+  );
 
   // ── image hover + replace driver ─────────────────────────────────────
   useEffect(() => {

@@ -1690,7 +1690,7 @@ export function LayoutPanel({
   onPatch,
   onDeepPatch,
 }: LayoutPanelProps) {
-const {
+  const {
     builderTree,
     selectedBuilderNodeId,
     patchBuilderNodeProps,

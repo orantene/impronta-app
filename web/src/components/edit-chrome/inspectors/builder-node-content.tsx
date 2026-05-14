@@ -76,11 +76,21 @@ export function BuilderNodeContentInspector({
       await commitPatch({ [key]: normalized });
     };
 
+  // QA 2026-05-13 — `commit` used to be `() => {}` at every call site,
+  // relying on the subsequent `event.currentTarget.blur()` to trigger
+  // the field's `onBlur` save handler. That works on desktop browsers
+  // but is fragile on mobile virtual keyboards where Enter doesn't
+  // always dispatch a synchronous blur, and on iOS where the blur can
+  // be skipped if focus is being moved programmatically elsewhere.
+  // Callers now pass a `commit(value)` that fires the save directly;
+  // the blur still fires as a belt-and-suspenders. Idempotency lives
+  // in `commitTextInput` (no-op when value === currentValue).
   const handleCommitKey =
-    (commit: () => void) => (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (commit: (value: string) => void) =>
+    (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (event.key !== "Enter" || event.shiftKey) return;
       event.preventDefault();
-      commit();
+      commit(event.currentTarget.value);
       event.currentTarget.blur();
     };
 
@@ -195,9 +205,11 @@ export function BuilderNodeContentInspector({
                   defaultValue={node.props.text}
                   className={KIT.inputLg}
                   onBlur={(event) => {
-                    void commitTextInput("text", node.props.text)(event.currentTarget.value);
-                  }}
-                  onKeyDown={handleCommitKey(() => {})}
+                  void commitTextInput("text", node.props.text)(event.currentTarget.value);
+                }}
+                onKeyDown={handleCommitKey((value) => {
+                  void commitTextInput("text", node.props.text)(value);
+                })}
                 />
                 <Helper>Single heading line for this selected node.</Helper>
               </Field>
@@ -264,9 +276,11 @@ export function BuilderNodeContentInspector({
                   defaultValue={node.props.label}
                   className={KIT.input}
                   onBlur={(event) => {
-                    void commitTextInput("label", node.props.label)(event.currentTarget.value);
-                  }}
-                  onKeyDown={handleCommitKey(() => {})}
+                  void commitTextInput("label", node.props.label)(event.currentTarget.value);
+                }}
+                onKeyDown={handleCommitKey((value) => {
+                  void commitTextInput("label", node.props.label)(value);
+                })}
                 />
               </Field>
               <Field flush>
@@ -277,9 +291,11 @@ export function BuilderNodeContentInspector({
                   className={KIT.input}
                   placeholder="/contact or https://..."
                   onBlur={(event) => {
-                    void commitTextInput("href", node.props.href)(event.currentTarget.value);
-                  }}
-                  onKeyDown={handleCommitKey(() => {})}
+                  void commitTextInput("href", node.props.href)(event.currentTarget.value);
+                }}
+                onKeyDown={handleCommitKey((value) => {
+                  void commitTextInput("href", node.props.href)(value);
+                })}
                 />
                 <Helper>Internal paths, mailto, or full URLs all work here.</Helper>
               </Field>
@@ -334,7 +350,9 @@ export function BuilderNodeContentInspector({
                       event.currentTarget.value,
                     );
                   }}
-                  onKeyDown={handleCommitKey(() => {})}
+                  onKeyDown={handleCommitKey((value) => {
+                    void commitTextInput("alt", node.props.alt ?? "", true)(value);
+                  })}
                 />
                 <Helper>Optional, but recommended for accessibility and SEO.</Helper>
               </Field>
@@ -360,7 +378,9 @@ export function BuilderNodeContentInspector({
                 onBlur={(event) => {
                   void commitTextInput("title", node.props.title)(event.currentTarget.value);
                 }}
-                onKeyDown={handleCommitKey(() => {})}
+                onKeyDown={handleCommitKey((value) => {
+                  void commitTextInput("title", node.props.title)(value);
+                })}
               />
               <Helper>Use Structure to edit the answer blocks nested inside this item.</Helper>
             </Field>
@@ -407,7 +427,9 @@ export function BuilderNodeContentInspector({
                 onBlur={(event) => {
                   void commitTextInput("title", node.props.title)(event.currentTarget.value);
                 }}
-                onKeyDown={handleCommitKey(() => {})}
+                onKeyDown={handleCommitKey((value) => {
+                  void commitTextInput("title", node.props.title)(value);
+                })}
               />
               <Helper>Use Structure to edit the content blocks inside this tab.</Helper>
             </Field>
@@ -802,17 +824,48 @@ function NestedBlocksCard({
   const clearSelectedChildren = () => {
     setSelectedChildIds(new Set());
   };
+  // QA 2026-05-13 — these loops used to `await` each mutation
+  // serially and abort silently on the first throw, leaving a partial
+  // operation (some items applied, the rest skipped, selection still
+  // pointing at items that may or may not exist). Each downstream
+  // `onDuplicate` / `onRemove` already reports its own errors via the
+  // parent's `reportMutationError`, so we just need to stop aborting
+  // the loop. `Promise.allSettled` attempts every item; we then clear
+  // selection only for ids that succeeded, so failed ones stay
+  // highlighted for a retry pass.
   const duplicateSelectedChildren = async () => {
-    for (const child of selectedChildren) {
-      await onDuplicate(child.id);
-    }
-    clearSelectedChildren();
+    const targets = [...selectedChildren];
+    const results = await Promise.allSettled(
+      targets.map((child) => onDuplicate(child.id)),
+    );
+    const failedIds = new Set(
+      results
+        .map((r, i) => ({ r, id: targets[i]!.id }))
+        .filter((p) => p.r.status === "rejected")
+        .map((p) => p.id),
+    );
+    setSelectedChildIds((current) => {
+      const next = new Set<string>();
+      for (const id of current) if (failedIds.has(id)) next.add(id);
+      return next;
+    });
   };
   const removeSelectedChildren = async () => {
-    for (const child of [...selectedChildren].reverse()) {
-      await onRemove(child.id);
-    }
-    clearSelectedChildren();
+    const targets = [...selectedChildren].reverse();
+    const results = await Promise.allSettled(
+      targets.map((child) => onRemove(child.id)),
+    );
+    const failedIds = new Set(
+      results
+        .map((r, i) => ({ r, id: targets[i]!.id }))
+        .filter((p) => p.r.status === "rejected")
+        .map((p) => p.id),
+    );
+    setSelectedChildIds((current) => {
+      const next = new Set<string>();
+      for (const id of current) if (failedIds.has(id)) next.add(id);
+      return next;
+    });
   };
   const closeInsertPicker = () => setInsertAt(null);
   const clearDragState = () => {
@@ -953,6 +1006,11 @@ function NestedBlocksCard({
                 type="button"
                 className={KIT.subtleButton}
                 disabled={pastePreview.mode === "blocked"}
+                title={
+                  pastePreview.mode === "blocked"
+                    ? pastePreview.message
+                    : "Paste the copied block into this group"
+                }
                 onClick={() => {
                   void onPaste(parentNodeId);
                 }}
@@ -1277,6 +1335,12 @@ function NestedBlocksCard({
                             void onMove(child.id, "up");
                           }}
                           disabled={index === 0}
+                          title={
+                            index === 0
+                              ? "Already first — can't move up"
+                              : "Move block up one position"
+                          }
+                          aria-label="Move block up"
                         >
                           Up
                         </button>
@@ -1287,6 +1351,12 @@ function NestedBlocksCard({
                             void onMove(child.id, "down");
                           }}
                           disabled={index === nodes.length - 1}
+                          title={
+                            index === nodes.length - 1
+                              ? "Already last — can't move down"
+                              : "Move block down one position"
+                          }
+                          aria-label="Move block down"
                         >
                           Down
                         </button>
@@ -1297,6 +1367,12 @@ function NestedBlocksCard({
                             void onRemove(child.id);
                           }}
                           disabled={canRemove ? !canRemove(child, index) : false}
+                          title={
+                            canRemove && !canRemove(child, index)
+                              ? "This block can't be removed (required for this section)"
+                              : "Remove block"
+                          }
+                          aria-label="Remove block"
                         >
                           Remove
                         </button>
