@@ -826,6 +826,18 @@ export function CompositionLibraryOverlay() {
     starterPlanFilter,
   ]);
 
+  // QA 2026-05-14 — the "All" tab badge previously displayed
+  // `totalVisibleItems`, which is the count AFTER applying the current
+  // `activeTab` filter. When Hero was selected, "All" showed 5 (matching
+  // Hero) — yet clicking "All" reset the list back to 28 items, so the
+  // badge contradicted itself. Use the sum of categoryCounts instead so
+  // the "All" badge always reflects what clicking it would reveal,
+  // regardless of which tab is currently active.
+  const allTabCount = useMemo(
+    () => Object.values(categoryCounts).reduce((sum, n) => sum + n, 0),
+    [categoryCounts],
+  );
+
   // Group visible tiles by category; CATEGORY_ORDER drives section order.
   const grouped = useMemo(() => {
     const by: Record<string, typeof visible> = {};
@@ -1299,7 +1311,7 @@ export function CompositionLibraryOverlay() {
             active={activeTab === "all"}
             onClick={() => setActiveTab("all")}
             label="All"
-            count={totalVisibleItems}
+            count={allTabCount}
             mobile={isMobile}
           />
           {CATEGORY_ORDER.map((cat) => {
