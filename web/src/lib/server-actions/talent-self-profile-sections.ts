@@ -336,6 +336,8 @@ export async function updateSelfIdentity(input: {
   /** Maps to `talent_profiles.home_country_text`. */
   home_country?: string;
   response_time?: "1h" | "4h" | "24h" | "48h" | null;
+  /** Talent master switch — appear on cross-tenant Discover catalog. Default false. */
+  is_discoverable?: boolean;
   contact_email?: string;
   contact_phone?: string;
   contact_phone_prefix?: string;
@@ -358,6 +360,7 @@ export async function updateSelfIdentity(input: {
   if (input.nationality !== undefined) patch.nationality = nullIfEmpty(input.nationality);
   if (input.home_country !== undefined) patch.home_country_text = nullIfEmpty(input.home_country);
   if (input.response_time !== undefined) patch.response_time = input.response_time || null;
+  if (input.is_discoverable !== undefined) patch.is_discoverable = input.is_discoverable;
   if (input.contact_email !== undefined) patch.invitation_email = nullIfEmpty(input.contact_email);
   if (input.contact_phone !== undefined || input.contact_phone_prefix !== undefined) {
     const combined = [input.contact_phone_prefix, input.contact_phone]

@@ -39,6 +39,8 @@ export const updateTalentIdentitySchema = z.object({
   /** Country of residence label — `talent_profiles.home_country_text`. */
   home_country: z.string().optional(),
   response_time: z.enum(["1h", "4h", "24h", "48h"]).nullable().optional(),
+  /** Talent master switch — appear on cross-tenant Discover catalog. Default false. */
+  is_discoverable: z.boolean().optional(),
   field_visibility: fieldVisibilityObjectSchema.optional(),
   /** Agency-visible contact; stored as `talent_profiles.invitation_email` (roster invite + direct contact). */
   contact_email: z.string().optional(),
@@ -90,6 +92,7 @@ export function buildTalentIdentityProfilePatch(
   const homeCountry = nullifyEmpty(v.home_country);
   if (homeCountry !== undefined) patch.home_country_text = homeCountry;
   if (v.response_time !== undefined) patch.response_time = v.response_time;
+  if (v.is_discoverable !== undefined) patch.is_discoverable = v.is_discoverable;
   if (v.field_visibility !== undefined) patch.field_visibility = v.field_visibility;
 
   if (v.contact_email !== undefined) {

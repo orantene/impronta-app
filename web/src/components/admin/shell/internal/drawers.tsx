@@ -4570,6 +4570,10 @@ type ProfileState = {
   // Admin
   profileStatus: "draft" | "pending" | "published" | "hidden";
   featureInDirectory: boolean;
+  /** Talent master switch for cross-tenant Discover catalog. Distinct from
+   *  `featureInDirectory` which is the per-roster admin "boost on Discover"
+   *  flag. See web/docs/discover-and-unified-inquiry-2026-05-14.md. */
+  isDiscoverable: boolean;
   internalNotes: string;
   /** Emergency contact — masked on public, visible during active
    *  bookings only. Stored on the profile because it's tied to the
@@ -4867,6 +4871,7 @@ function makeInitialProfileState(
         ? "draft"
         : (isSelf ? "published" : "draft"),
     featureInDirectory: false,
+    isDiscoverable: false,
     internalNotes: "",
     // Bridge from canonical profile's emergencyContact when known.
     // Empty defaults for new profiles. No more name-matching.
@@ -5238,6 +5243,9 @@ function TalentProfileShellDrawer() {
           if (fl.reasons) patchPayload.fieldLockReasons = fl.reasons;
         }
         patchPayload.featureInDirectory = d.feature_in_directory;
+        if (typeof d.is_discoverable === "boolean") {
+          patchPayload.isDiscoverable = d.is_discoverable;
+        }
 
         if (Array.isArray(d.media_albums_data) && d.media_albums_data.length > 0) {
           const saved = (d.media_albums_data as { id: string; name: string; sortOrder?: number }[])
@@ -5391,6 +5399,7 @@ function TalentProfileShellDrawer() {
         id.responseTime === "1h" || id.responseTime === "4h" || id.responseTime === "24h" || id.responseTime === "48h"
           ? id.responseTime
           : null,
+      is_discoverable: s.isDiscoverable,
       field_visibility: visibilityPatch,
       contact_email: id.contactEmail ?? "",
       contact_phone: id.contactPhone ?? "",
@@ -6797,6 +6806,16 @@ function TalentProfileShellDrawer() {
               />
               <FieldRow label={copy.t("Tagline")} optional hint={copy.t("One line clients see at a glance.")} catalogId="identity.tagline">
                 <TextInput placeholder={copy.t("e.g. Editorial fashion model · Madrid")} value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
+              </FieldRow>
+              <FieldRow
+                label={copy.t("Show me on Tulala Discover")}
+                hint={copy.t("Cross-tenant talent catalog for paying clients. You appear with your trust badge, agency tag, and 30-day availability. Off by default.")}
+              >
+                <ToggleControl
+                  value={state.isDiscoverable}
+                  onChange={(v) => patch({ isDiscoverable: v })}
+                  label={copy.t(state.isDiscoverable ? "On — appearing on Discover" : "Off — hidden from Discover")}
+                />
               </FieldRow>
               {adminVisible && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>

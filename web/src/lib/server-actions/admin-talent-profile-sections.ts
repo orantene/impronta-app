@@ -1068,6 +1068,8 @@ export type ProfileEditorData = {
   social_proof_data: unknown;
   media_albums_data: MediaAlbumEntry[];
   documents_data: TalentDocumentEntry[];
+  // Discover enrollment (per project_discover_unified.md)
+  is_discoverable: boolean;
   // Roster meta
   internal_notes: string | null;
   emergency_contact: unknown;
@@ -1100,6 +1102,7 @@ export async function getTalentProfileEditorData(input: {
         updated_at,
         display_name, first_name, last_name, legal_name, field_visibility, pronouns, pronouns_custom,
         gender, date_of_birth, age_display_mode, nationality, home_country_text, response_time,
+        is_discoverable,
         invitation_email, phone,
         bios, bio_tone, personality_traits, tagline,
         home_city_text, home_place_id, travel_radius_km, travel_fee_required, remote_only,
@@ -1160,6 +1163,7 @@ export async function getTalentProfileEditorData(input: {
       nationality: (p.nationality as string | null) ?? null,
       home_country_text: (p.home_country_text as string | null) ?? null,
       response_time: (p.response_time as string | null) ?? null,
+      is_discoverable: Boolean(p.is_discoverable),
       field_visibility: p.field_visibility ?? null,
       invitation_email: (p.invitation_email as string | null) ?? null,
       phone: (p.phone as string | null) ?? null,
