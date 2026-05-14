@@ -1107,6 +1107,8 @@ export default async function PublicTalentProfilePage({
                   talentProfileCode={profile.profile_code}
                   displayName={name}
                   tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+                  tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+                  agencyName={tenantBrand ?? "the agency"}
                   sourcePage={profileSourcePage}
                   className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
                 />
@@ -1424,6 +1426,8 @@ export default async function PublicTalentProfilePage({
                     talentProfileCode={profile.profile_code}
                     displayName={name}
                     tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+                    tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+                    agencyName={tenantBrand ?? "the agency"}
                     sourcePage={profileSourcePage}
                     className="w-full bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
                   />
@@ -1482,6 +1486,8 @@ export default async function PublicTalentProfilePage({
                 talentProfileCode={profile.profile_code}
                 displayName={name}
                 tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
+                tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
+                agencyName={tenantBrand ?? "the agency"}
                 sourcePage={profileSourcePage}
                 className="bg-[var(--impronta-gold)] text-black hover:bg-[var(--impronta-gold-bright)]"
               />

@@ -1,31 +1,26 @@
 "use client";
 
 /**
- * TalentProfileInquireButton — self-contained "Inquire about <Name>" CTA
- * for the public talent profile page (/t/[profileCode]).
+ * TalentProfileInquireButton — public-talent-profile "Inquire about X" CTA.
  *
- * Opens a right-side Drawer containing the shared <InquiryCartForm> pre-
- * populated with just this talent. Does NOT depend on the directory's
- * DirectoryInquiryModalContext; it owns its own open/closed state so it
- * works on the /t/* route tree which has PublicDiscoveryStateProvider but
- * not DirectoryInquiryModalProvider.
+ * Phase B-4 (2026-05-14) rewrite: now wraps the canonical InquiryDrawer
+ * (web/src/components/inquiry/InquiryDrawer.tsx) per spec
+ * web/docs/inquiry-engine-spec-2026-05-14.md. Source =
+ * "public_talent_profile". Talent is pre-attached via initialIntent.
  *
- * Step 10 of the inquiry-funnel sprint (2026-05-13).
+ * Guest path: the drawer renders with name/email/phone fields visible and
+ * autosave disabled (no draft for guests — they submit immediately and
+ * receive a magic link after the inquiry lands).
+ *
+ * Logged-in path: prefilled requester info + trust card showing
+ * verification + member info.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Mail, X } from "lucide-react";
 
-import { InquiryCartForm } from "@/components/inquiry-cart/InquiryCartForm";
+import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { Button } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-  DrawerClose,
-} from "@/components/ui/drawer";
 import { getTalentProfileInquireData } from "./talent-profile-inquire-data";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
@@ -35,13 +30,15 @@ import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 // ---------------------------------------------------------------------------
 
 type TalentProfileInquireButtonProps = {
-  /** The talent_profiles.id — becomes prefilledTalentIds[0] in the form. */
   talentId: string;
   talentProfileCode: string;
-  /** Display name used in button label and sheet title. */
   displayName: string;
   /** tenantId for analytics events (from getPublicHostContext). */
   tenantId: string;
+  /** tenantSlug for routing the submit through createInquiryFromIntent. */
+  tenantSlug: string;
+  /** Agency display name shown in the drawer header copy. */
+  agencyName?: string;
   /** Source page for analytics + source attribution (e.g. /t/TA-12345). */
   sourcePage: string;
   /** Button className override — caller controls placement context. */
@@ -50,9 +47,6 @@ type TalentProfileInquireButtonProps = {
 
 type InquireData = {
   pov: "client" | "guest";
-  eventTypes: Array<{ id: string; name_en: string }>;
-  agencyWhatsAppNumber?: string;
-  aiInquiryDraftEnabled: boolean;
   defaultEmail?: string;
   defaultName?: string;
   defaultPhone?: string;
@@ -68,31 +62,36 @@ export function TalentProfileInquireButton({
   talentProfileCode,
   displayName,
   tenantId,
+  tenantSlug,
+  agencyName,
   sourcePage,
   className,
 }: TalentProfileInquireButtonProps) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<InquireData | null>(null);
-  const [_isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const loadData = useCallback(() => {
     startTransition(async () => {
       const result = await getTalentProfileInquireData();
-      setData(result);
+      setData({
+        pov: result.pov,
+        defaultEmail: result.defaultEmail,
+        defaultName: result.defaultName,
+        defaultPhone: result.defaultPhone,
+        defaultCompany: result.defaultCompany,
+      });
     });
   }, []);
 
-  // Pre-load on first render so the drawer opens instantly.
+  // Pre-load on mount so the drawer opens instantly when clicked.
   useEffect(() => {
     loadData();
-    // Run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleOpen = () => {
-    if (!data) {
-      loadData();
-    }
+    if (!data) loadData();
     trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
       talent_id: talentId,
       source_page: sourcePage,
@@ -100,86 +99,89 @@ export function TalentProfileInquireButton({
     setOpen(true);
   };
 
-  const selectedTalent = [
+  const firstName = displayName.split(" ")[0] ?? displayName;
+  const isLoggedIn = data?.pov === "client";
+
+  // Roster passed to the drawer's talent picker. For the public profile
+  // path we only ship the one talent the visitor is inquiring about —
+  // they can browse the agency's other talent on Discover before deciding
+  // to inquire.
+  const oneTalentRoster = [
     {
       id: talentId,
-      profile_code: talentProfileCode,
-      display_name: displayName,
+      name: displayName,
     },
   ];
 
-  const firstName = displayName.split(" ")[0] ?? displayName;
-
   return (
     <>
-      <Button
-        type="button"
-        onClick={handleOpen}
-        className={className}
-      >
+      <Button type="button" onClick={handleOpen} className={className}>
         <Mail className="size-4" />
         Inquire about {firstName}
       </Button>
 
-      <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerContent
-          side="right"
-          className="flex w-full max-w-lg flex-col border-l border-border/80 bg-background p-0 sm:max-w-xl"
-        >
-          <div className="border-b border-border/60 px-6 pb-4 pt-6 pr-14">
-            <DrawerHeader className="space-y-1 p-0 text-left">
-              <DrawerTitle className="font-display text-xl tracking-wide">
-                Inquire about {displayName}
-              </DrawerTitle>
-              <DrawerDescription className="text-m text-muted-foreground">
-                Fill in the form below and we&apos;ll get back to you shortly.
-              </DrawerDescription>
-            </DrawerHeader>
-            <DrawerClose asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-4 top-4 text-muted-foreground hover:text-foreground"
-                aria-label="Close"
-              >
-                <X className="size-4" />
-              </Button>
-            </DrawerClose>
-          </div>
-
-          <div className="flex flex-1 flex-col overflow-y-auto px-6 py-6">
-            {!data ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
-            ) : (
-              <InquiryCartForm
-                pov={data.pov}
-                tenantId={tenantId}
-                sourceWorkspaceId={null}
-                originDomain={null}
-                prefilledTalentIds={[talentId]}
-                selectedTalent={selectedTalent}
-                eventTypes={data.eventTypes}
-                agencyWhatsAppNumber={data.agencyWhatsAppNumber}
-                inquiryDraftEnabled={data.aiInquiryDraftEnabled}
-                prefilledClient={
-                  data.pov === "client"
-                    ? {
-                        contactEmail: data.defaultEmail,
-                        contactName: data.defaultName,
-                        contactPhone: data.defaultPhone,
-                        company: data.defaultCompany,
-                      }
-                    : undefined
+      {open && data && (
+        <InquiryDrawer
+          source="public_talent_profile"
+          initialIntent={{
+            requester: {
+              name: data.defaultName ?? "",
+              email: data.defaultEmail ?? "",
+              phone: data.defaultPhone ?? "",
+              trust_level: isLoggedIn ? "verified" : "basic",
+            },
+            client: {
+              company: data.defaultCompany ?? "",
+              same_as_requester: true,
+            },
+            talent: {
+              selected_ids: [talentId],
+              selection_mode: "i_know_who",
+            },
+            source_context: {
+              referrer_page: sourcePage,
+              public_profile_code: talentProfileCode,
+              tenant_id: tenantId,
+            },
+          }}
+          tenantSlug={tenantSlug}
+          agencyName={agencyName ?? "the agency"}
+          client={
+            isLoggedIn
+              ? {
+                  user_id: undefined, // server-resolved at submit time
+                  displayName: data.defaultName,
+                  email: data.defaultEmail,
+                  phone: data.defaultPhone,
+                  company: data.defaultCompany,
+                  trust_level: "verified",
                 }
-                formId="talent-profile-inquiry-form"
-                searchContext={{
-                  sourcePage,
-                }}
-              />
-            )}
+              : null
+          }
+          roster={oneTalentRoster}
+          // Guests submit immediately; logged-in clients can draft.
+          enableDraftAutosave={isLoggedIn}
+          onClose={() => setOpen(false)}
+        />
+      )}
+
+      {/* When data is still loading and the user clicks fast, we show a
+          minimal fallback so the click isn't lost. Hidden under the
+          backdrop the drawer renders. */}
+      {open && !data && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Loading inquiry form"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40"
+          onClick={() => setOpen(false)}
+        >
+          <div className="rounded-lg bg-white px-6 py-4 text-sm text-foreground shadow-lg">
+            Loading inquiry form…
+            <X className="ml-3 inline size-4 cursor-pointer text-muted-foreground" />
           </div>
-        </DrawerContent>
-      </Drawer>
+        </div>
+      )}
     </>
   );
 }
