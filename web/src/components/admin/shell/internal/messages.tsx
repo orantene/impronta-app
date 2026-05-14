@@ -5060,6 +5060,38 @@ function funnelIndexFor(stage: string): number {
   return 0;
 }
 
+/**
+ * Lineup tab body — auto-opens the LineupDrawer as soon as the user
+ * lands on the tab, so there's no "tap to see who's here" indirection.
+ * Renders a minimal placeholder behind the drawer in case auto-open
+ * is blocked (e.g. test environment without window timers).
+ */
+function LineupTabPanel({ onOpen }: { onOpen: () => void }) {
+  useEffect(() => {
+    // Defer one tick so the tab paints before the drawer overlays it
+    // — avoids a flash of empty body on the user's first click.
+    const t = setTimeout(onOpen, 16);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 24, fontFamily: FONTS.body, color: COLORS.inkMuted, fontSize: 12.5, textAlign: "center" }}>
+      Opening the lineup —
+      <button
+        type="button"
+        onClick={onOpen}
+        style={{
+          padding: 0, marginLeft: 4,
+          background: "transparent", color: COLORS.accent,
+          border: "none", cursor: "pointer",
+          fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+          textDecoration: "underline",
+        }}
+      >tap here if it didn&apos;t open</button>.
+    </div>
+  );
+}
+
 // ── Talent JOB DETAIL — the heart of the talent shell ──
 // Layout (top-down): unified header → tabs → conversation
 function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
@@ -5278,25 +5310,15 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
             </>
           );
         })()}
-        {/* Slice C: new universal Lineup tab — opens the same drawer
-            the old "Who's on this job" trigger used so the data path is
-            unchanged. */}
+        {/* Slice C: universal Lineup tab. The original implementation
+            rendered a misleading "Tap a teammate below" copy with a
+            standalone "Open lineup drawer" button — the teammates
+            lived in a separate modal, not "below". Now the tab auto-
+            opens the lineup surface as the user lands on it, and the
+            tab body is a thin fallback in case the drawer didn't open
+            (e.g. legacy mock conv where the drawer effect is gated). */}
         {activeTab === "lineup" && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 14, fontFamily: FONTS.body }}>
-            <div style={{ fontSize: 12.5, color: COLORS.ink, marginBottom: 10 }}>
-              Tap a teammate below to view their role and contact.
-            </div>
-            <button
-              type="button"
-              onClick={() => setLineupOpen(true)}
-              style={{
-                padding: "8px 14px", borderRadius: 8,
-                background: COLORS.accent, color: "#fff",
-                border: "none", cursor: "pointer",
-                fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
-              }}
-            >Open lineup drawer</button>
-          </div>
+          <LineupTabPanel onOpen={() => setLineupOpen(true)} />
         )}
         {/* Non-conversation tabs — each gets its own scrollable
             wrapper so the parent shell stays fixed (header + tab bar
