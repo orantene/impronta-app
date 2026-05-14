@@ -32,14 +32,31 @@ export type ClientWorkspaceInquiryActionState = {
 };
 
 function valuesFromFormData(formData: FormData): ClientWorkspaceInquiryFormValues {
+  // Accept both camelCase (legacy direct form) and snake_case (shared
+  // InquiryCartFormFields component) field names.  The helper prefers the
+  // camelCase key and falls back to the snake_case variant so both surfaces
+  // route through this action without separate adapters.
+  function get(camel: string, snake: string): string {
+    const v = formData.get(camel) ?? formData.get(snake);
+    return String(v ?? "").trim();
+  }
+  // talent: legacy sends talentProfileId; shared fields send talent_ids (CSV)
+  const talentProfileIdLegacy = get("talentProfileId", "talentProfileId");
+  const talentProfileId =
+    talentProfileIdLegacy ||
+    String(formData.get("talent_ids") ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)[0] ??
+    "";
   return {
-    contactName: String(formData.get("contactName") ?? "").trim(),
-    company: String(formData.get("company") ?? "").trim(),
-    talentProfileId: String(formData.get("talentProfileId") ?? "").trim(),
-    eventDate: String(formData.get("eventDate") ?? "").trim(),
-    quantity: String(formData.get("quantity") ?? "").trim(),
-    eventLocation: String(formData.get("eventLocation") ?? "").trim(),
-    message: String(formData.get("message") ?? "").trim(),
+    contactName: get("contactName", "contact_name"),
+    company: get("company", "company"),
+    talentProfileId,
+    eventDate: get("eventDate", "event_date"),
+    quantity: get("quantity", "quantity"),
+    eventLocation: get("eventLocation", "event_location"),
+    message: get("message", "message"),
   };
 }
 

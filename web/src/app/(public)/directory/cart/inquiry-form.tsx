@@ -1,311 +1,60 @@
 "use client";
 
-import { useActionState, useMemo, useRef } from "react";
+/**
+ * inquiry-form.tsx — thin wrappers around the canonical InquiryCartForm.
+ *
+ * Preserves named exports (InquiryForm, ClientInquiryForm, GuestInquiryForm)
+ * so existing callers keep working without changes.  These wrappers live in
+ * the public directory route segment and are always rendered inside
+ * PublicDiscoveryStateProvider, so usePublicDiscoveryState() is safe to call.
+ *
+ * Step 2 of the inquiry-funnel sprint (2026-05-13).
+ */
 
-import { InquiryDraftAssistant } from "@/components/directory/inquiry-draft-assistant";
-import { useFormStatus } from "react-dom";
 import {
-  submitClientInquiry,
-  submitGuestInquiry,
-  type InquiryFormState,
-} from "@/app/(public)/directory/actions";
+  InquiryCartForm,
+  type InquiryCartFormProps,
+} from "@/components/inquiry-cart/InquiryCartForm";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  buildInquiryWhatsAppMessage,
-  buildWhatsAppHref,
-} from "@/lib/inquiries";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
-function SubmitButton({
-  label,
-  sendingLabel,
-}: {
-  label: string;
-  sendingLabel: string;
-}) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? sendingLabel : label}
-    </Button>
-  );
-}
+// ---------------------------------------------------------------------------
+// Shared props that all three variants accept
+// ---------------------------------------------------------------------------
 
-function WhatsAppButton({
-  agencyWhatsAppNumber,
-  selectedTalent,
-  form,
-}: {
+type SharedProps = {
   agencyWhatsAppNumber?: string;
-  selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
-  form: DirectoryUiCopy["inquiryForm"];
-}) {
-  const formRef = useRef<HTMLButtonElement | null>(null);
-  const enabled = Boolean(agencyWhatsAppNumber && agencyWhatsAppNumber.trim().length > 0);
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      className="w-full"
-      disabled={!enabled}
-      title={enabled ? form.whatsAppTitleOn : form.whatsAppTitleOff}
-      onClick={() => {
-        if (!enabled) return;
-        const form = formRef.current?.form;
-        if (!form) return;
-
-        const data = new FormData(form);
-        const eventTypeSelect = form.querySelector<HTMLSelectElement>("#event_type_id");
-        const eventTypeNameRaw =
-          eventTypeSelect?.selectedOptions[0]?.textContent?.trim() || "";
-        const eventTypeName =
-          eventTypeNameRaw && eventTypeNameRaw !== form.eventTypeNone
-            ? eventTypeNameRaw
-            : "";
-
-        const text = buildInquiryWhatsAppMessage({
-          company: String(data.get("company") ?? ""),
-          contactEmail: String(data.get("contact_email") ?? ""),
-          contactName: String(data.get("contact_name") ?? ""),
-          contactPhone: String(data.get("contact_phone") ?? ""),
-          eventDate: String(data.get("event_date") ?? ""),
-          eventLocation: String(data.get("event_location") ?? ""),
-          eventTypeName: eventTypeName || undefined,
-          message: String(data.get("message") ?? ""),
-          quantity: Number.parseInt(String(data.get("quantity") ?? ""), 10) || undefined,
-          rawQuery: String(data.get("raw_query") ?? ""),
-          talents: selectedTalent.map((talent) => ({
-            id: talent.id,
-            profileCode: talent.profile_code,
-            displayName: talent.display_name,
-          })),
-        });
-
-        window.open(buildWhatsAppHref(text, agencyWhatsAppNumber), "_blank", "noopener,noreferrer");
-      }}
-      ref={formRef}
-    >
-      {form.whatsAppCompose}
-    </Button>
-  );
-}
-
-function FormFields({
-  agencyWhatsAppNumber,
-  defaultEmail,
-  defaultName,
-  defaultPhone,
-  defaultCompany,
-  eventTypes,
-  selectedTalent,
-  talentIds,
-  state,
-  form,
-  inquiryDraftEnabled,
-  locale,
-  formId,
-}: {
-  agencyWhatsAppNumber?: string;
-  defaultEmail?: string;
-  defaultName?: string;
-  defaultPhone?: string;
-  defaultCompany?: string;
-  eventTypes: { id: string; name_en: string }[];
-  selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
   talentIds: string[];
-  state: InquiryFormState;
-  form: DirectoryUiCopy["inquiryForm"];
+  eventTypes: { id: string; name_en: string }[];
+  selectedTalent: {
+    id: string;
+    profile_code: string;
+    display_name: string | null;
+  }[];
+  formCopy: DirectoryUiCopy["inquiryForm"];
   inquiryDraftEnabled?: boolean;
   locale?: string;
-  formId?: string;
-}) {
-  const messageRef = useRef<HTMLTextAreaElement>(null);
+};
+
+// ---------------------------------------------------------------------------
+// Helper: map DiscoverySearchContext → InquiryCartFormProps["searchContext"]
+// ---------------------------------------------------------------------------
+
+function useCartSearchContext(): InquiryCartFormProps["searchContext"] {
   const { searchContext } = usePublicDiscoveryState();
-  const directoryContext = useMemo(
-    () =>
-      JSON.stringify({
-        q: searchContext?.q ?? null,
-        locationSlug: searchContext?.locationSlug ?? null,
-        sort: searchContext?.sort ?? null,
-        taxonomyTermIds: searchContext?.taxonomyTermIds ?? [],
-      }),
-    [searchContext],
-  );
-
-  const draftTalentNames = useMemo(
-    () =>
-      selectedTalent
-        .map((t) => (t.display_name?.trim() ? t.display_name.trim() : t.profile_code))
-        .filter(Boolean),
-    [selectedTalent],
-  );
-
-  const effFormId = formId ?? "inquiry-cart-form";
-  const effLocale = locale ?? "en";
-
-  return (
-    <>
-      <input type="hidden" name="talent_ids" value={talentIds.join(",")} />
-      <input
-        type="hidden"
-        name="source_page"
-        value={searchContext?.sourcePage ?? "/directory"}
-      />
-      <input
-        type="hidden"
-        name="directory_context"
-        value={directoryContext}
-      />
-      {/* Universal-connector P0 (2026-05-13) — honeypot. Hidden from
-          humans (off-screen + tabIndex=-1 + autocomplete=off). Bots
-          tend to fill every input; submitGuestInquiry returns a fake
-          success redirect when this field comes back non-empty. */}
-      <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: 0, height: 0, width: 0, overflow: "hidden" }}>
-        <label>Website (leave empty)
-          <input
-            type="text"
-            name="website"
-            tabIndex={-1}
-            autoComplete="off"
-            defaultValue=""
-          />
-        </label>
-      </div>
-      {state?.error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-m text-destructive">
-          {state.error}
-        </p>
-      ) : null}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="contact_name">{form.labelYourName}</Label>
-          <Input
-            id="contact_name"
-            name="contact_name"
-            required
-            defaultValue={defaultName}
-            autoComplete="name"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="contact_email">{form.labelEmail}</Label>
-          <Input
-            id="contact_email"
-            name="contact_email"
-            type="email"
-            required
-            defaultValue={defaultEmail}
-            autoComplete="email"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="contact_phone">{form.labelPhone}</Label>
-        <Input
-          id="contact_phone"
-          name="contact_phone"
-          type="tel"
-          defaultValue={defaultPhone}
-          autoComplete="tel"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="company">{form.labelCompany}</Label>
-        <Input
-          id="company"
-          name="company"
-          defaultValue={defaultCompany}
-          autoComplete="organization"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="raw_query">{form.labelLookingFor}</Label>
-        <Textarea
-          id="raw_query"
-          name="raw_query"
-          defaultValue={searchContext?.q ?? ""}
-          rows={3}
-          placeholder={form.placeholderLookingFor}
-        />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="event_type_id">{form.labelEventType}</Label>
-          <select
-            id="event_type_id"
-            name="event_type_id"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-m shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">{form.eventTypeNone}</option>
-            {eventTypes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name_en}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="event_date">{form.labelEventDate}</Label>
-          <Input id="event_date" name="event_date" type="date" />
-        </div>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="event_location">{form.labelEventLocation}</Label>
-          <Input
-            id="event_location"
-            name="event_location"
-            placeholder={form.placeholderEventLocation}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="quantity">{form.labelQuantity}</Label>
-          <Input
-            id="quantity"
-            name="quantity"
-            type="number"
-            min={1}
-            inputMode="numeric"
-            placeholder={form.placeholderQuantity}
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="message">{form.labelBrief}</Label>
-        {inquiryDraftEnabled ? (
-          <InquiryDraftAssistant
-            formId={effFormId}
-            locale={effLocale}
-            talentNames={draftTalentNames}
-            formCopy={form}
-            messageTextareaRef={messageRef}
-          />
-        ) : null}
-        <Textarea
-          ref={messageRef}
-          id="message"
-          name="message"
-          placeholder={form.placeholderBrief}
-          rows={4}
-        />
-      </div>
-      <p className="text-sm text-muted-foreground">{form.privacyNotice}</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <SubmitButton label={form.submitInquiry} sendingLabel={form.sending} />
-        <WhatsAppButton
-          agencyWhatsAppNumber={agencyWhatsAppNumber}
-          selectedTalent={selectedTalent}
-          form={form}
-        />
-      </div>
-    </>
-  );
+  if (!searchContext) return null;
+  return {
+    q: searchContext.q,
+    locationSlug: searchContext.locationSlug,
+    sort: searchContext.sort,
+    taxonomyTermIds: searchContext.taxonomyTermIds,
+    sourcePage: searchContext.sourcePage,
+  };
 }
+
+// ---------------------------------------------------------------------------
+// ClientInquiryForm — authenticated visitor
+// ---------------------------------------------------------------------------
 
 export function ClientInquiryForm({
   agencyWhatsAppNumber,
@@ -319,40 +68,42 @@ export function ClientInquiryForm({
   formCopy,
   inquiryDraftEnabled,
   locale,
-}: {
-  agencyWhatsAppNumber?: string;
+}: SharedProps & {
   defaultCompany?: string;
-  talentIds: string[];
   defaultEmail?: string;
   defaultName?: string;
   defaultPhone?: string;
-  eventTypes: { id: string; name_en: string }[];
-  selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
-  formCopy: DirectoryUiCopy["inquiryForm"];
-  inquiryDraftEnabled?: boolean;
-  locale?: string;
 }) {
-  const [state, formAction] = useActionState(submitClientInquiry, undefined);
+  const searchContext = useCartSearchContext();
+
   return (
-    <form id="inquiry-cart-form" action={formAction} className="space-y-4">
-      <FormFields
-        agencyWhatsAppNumber={agencyWhatsAppNumber}
-        talentIds={talentIds}
-        defaultEmail={defaultEmail}
-        defaultName={defaultName}
-        defaultPhone={defaultPhone}
-        defaultCompany={defaultCompany}
-        eventTypes={eventTypes}
-        selectedTalent={selectedTalent}
-        state={state}
-        form={formCopy}
-        inquiryDraftEnabled={inquiryDraftEnabled}
-        locale={locale}
-        formId="inquiry-cart-form"
-      />
-    </form>
+    <InquiryCartForm
+      pov="client"
+      tenantId=""
+      sourceWorkspaceId={null}
+      originDomain={null}
+      prefilledTalentIds={talentIds}
+      prefilledClient={{
+        contactName: defaultName,
+        company: defaultCompany,
+        contactEmail: defaultEmail,
+        contactPhone: defaultPhone,
+      }}
+      selectedTalent={selectedTalent}
+      eventTypes={eventTypes}
+      agencyWhatsAppNumber={agencyWhatsAppNumber}
+      formCopy={formCopy}
+      inquiryDraftEnabled={inquiryDraftEnabled}
+      locale={locale}
+      formId="inquiry-cart-form"
+      searchContext={searchContext}
+    />
   );
 }
+
+// ---------------------------------------------------------------------------
+// GuestInquiryForm — unauthenticated visitor
+// ---------------------------------------------------------------------------
 
 export function GuestInquiryForm({
   agencyWhatsAppNumber,
@@ -362,32 +113,31 @@ export function GuestInquiryForm({
   formCopy,
   inquiryDraftEnabled,
   locale,
-}: {
-  agencyWhatsAppNumber?: string;
-  talentIds: string[];
-  eventTypes: { id: string; name_en: string }[];
-  selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
-  formCopy: DirectoryUiCopy["inquiryForm"];
-  inquiryDraftEnabled?: boolean;
-  locale?: string;
-}) {
-  const [state, formAction] = useActionState(submitGuestInquiry, undefined);
+}: SharedProps) {
+  const searchContext = useCartSearchContext();
+
   return (
-    <form id="inquiry-cart-form" action={formAction} className="space-y-4">
-      <FormFields
-        agencyWhatsAppNumber={agencyWhatsAppNumber}
-        talentIds={talentIds}
-        eventTypes={eventTypes}
-        selectedTalent={selectedTalent}
-        state={state}
-        form={formCopy}
-        inquiryDraftEnabled={inquiryDraftEnabled}
-        locale={locale}
-        formId="inquiry-cart-form"
-      />
-    </form>
+    <InquiryCartForm
+      pov="guest"
+      tenantId=""
+      sourceWorkspaceId={null}
+      originDomain={null}
+      prefilledTalentIds={talentIds}
+      selectedTalent={selectedTalent}
+      eventTypes={eventTypes}
+      agencyWhatsAppNumber={agencyWhatsAppNumber}
+      formCopy={formCopy}
+      inquiryDraftEnabled={inquiryDraftEnabled}
+      locale={locale}
+      formId="inquiry-cart-form"
+      searchContext={searchContext}
+    />
   );
 }
+
+// ---------------------------------------------------------------------------
+// InquiryForm — mode-switched dispatcher (existing callers)
+// ---------------------------------------------------------------------------
 
 export function InquiryForm({
   agencyWhatsAppNumber,
@@ -402,19 +152,12 @@ export function InquiryForm({
   formCopy,
   inquiryDraftEnabled,
   locale,
-}: {
-  agencyWhatsAppNumber?: string;
-  defaultCompany?: string;
-  talentIds: string[];
+}: SharedProps & {
   mode: "client" | "guest";
+  defaultCompany?: string;
   defaultEmail?: string;
   defaultName?: string;
   defaultPhone?: string;
-  eventTypes: { id: string; name_en: string }[];
-  selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
-  formCopy: DirectoryUiCopy["inquiryForm"];
-  inquiryDraftEnabled?: boolean;
-  locale?: string;
 }) {
   if (mode === "client") {
     return (
