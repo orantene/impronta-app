@@ -586,9 +586,25 @@ function ThreadPaneWithTabs({
               {inq.company || details?.job.title || "Inquiry"}
             </div>
             <div style={{ fontSize: 11, color: C.inkMuted, display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
-              <span style={{ padding: "1px 6px", borderRadius: 999, background: stage.bg, color: stage.fg, fontWeight: 700, fontSize: 9.5 }}>
+              <button
+                type="button"
+                onClick={() => onTabChange("details")}
+                aria-label={`Status: ${stage.label}. Tap for project details.`}
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: stage.bg,
+                  color: stage.fg,
+                  fontWeight: 700,
+                  fontSize: 9.5,
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: FONT,
+                  letterSpacing: 0.2,
+                }}
+              >
                 {stage.label}
-              </span>
+              </button>
               {inq.event_date && <span>· {formatDate(inq.event_date)}</span>}
               {inq.event_location && <span>· {inq.event_location}</span>}
             </div>
