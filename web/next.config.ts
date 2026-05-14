@@ -27,11 +27,18 @@ let remotePatterns: NonNullable<
 if (supabaseUrl) {
   try {
     const host = new URL(supabaseUrl).hostname;
+    // Allow both public objects and short-lived signed URLs (private docs, gated
+     // media). Without the sign pattern, next/image silently 400s on signed URLs.
     remotePatterns = [
       {
         protocol: "https",
         hostname: host,
         pathname: "/storage/v1/object/public/**",
+      },
+      {
+        protocol: "https",
+        hostname: host,
+        pathname: "/storage/v1/object/sign/**",
       },
     ];
   } catch {
@@ -88,15 +95,20 @@ const googleMapsCsp = {
 
 function contentSecurityPolicy(): string {
   const googleTag = "https://www.googletagmanager.com https://www.google-analytics.com";
+  // @vercel/analytics + @vercel/speed-insights load scripts from va.vercel-scripts.com
+  // and beacon to vitals.vercel-insights.com. Without these directives the
+  // packages are silently blocked by CSP and never report — the Vercel dashboard
+  // shows "Not Enabled" even though the React components are mounted.
+  const vercelInsights = "https://va.vercel-scripts.com https://vitals.vercel-insights.com";
   const directives = [
     "default-src 'self'",
     isProd
-      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${googleTag}`
-      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${googleTag}`,
+      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${googleTag} ${vercelInsights}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${googleTag} ${vercelInsights}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
-    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights}`,
     `frame-src ${googleMapsCsp.frameSrc}`,
     /** Maps workers use blob: URLs */
     "worker-src blob:",
@@ -136,6 +148,13 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns,
+    // Talent photos are content-addressed (storage key changes on re-upload), so
+    // hold optimized variants at the edge for 60 days. Cuts repeated billable
+    // transforms on the Vercel Image Optimization meter ~95%.
+    minimumCacheTTL: 60 * 60 * 24 * 60,
+    // Prefer AVIF (smaller) with WebP fallback. Default order is reversed; AVIF
+    // first gives mobile clients the smaller asset when supported.
+    formats: ["image/avif", "image/webp"],
   },
   allowedDevOrigins: [
     "marketing.local",

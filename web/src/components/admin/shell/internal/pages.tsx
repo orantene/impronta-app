@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { HybridModeSwitcher } from "@/components/hybrid-identity/HybridModeSwitcher";
 import { loadHybridSwitcherProps, type HybridSwitcherProps } from "@/lib/server-actions/hybrid-identity-self";
@@ -6199,6 +6200,9 @@ function RosterCard({
   onOpen: (p: TalentProfile) => void;
 }) {
   const [hover, setHover] = useState(false);
+  // Mirror the old CSS background-image silent-fallback: on 400/404 from
+  // Supabase, hide the image and let the initials placeholder show through.
+  const [photoFailed, setPhotoFailed] = useState(false);
   const { bridgeTalentSelfProfile, t } = useAdminShell();
   const isSelf = !!bridgeTalentSelfProfile?.id && profile.id === bridgeTalentSelfProfile.id;
 
@@ -6267,16 +6271,27 @@ function RosterCard({
         style={{
           position: "relative",
           aspectRatio: "4 / 5",
-          background: profile.thumb
-            ? `url(${profile.thumb}) center/cover`
-            : COLORS.surfaceAlt,
+          background: COLORS.surfaceAlt,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          overflow: "hidden",
         }}
       >
-        {/* Initials fallback when no photo. Hash-tinted for variation. */}
-        {!profile.thumb && (
+        {profile.thumb && !photoFailed && (
+          <Image
+            src={profile.thumb}
+            alt={profile.name}
+            fill
+            sizes="(max-width: 600px) 50vw, (max-width: 1500px) 22vw, 220px"
+            style={{ objectFit: "cover" }}
+            unoptimized={!/^https?:\/\//.test(profile.thumb) || profile.thumb.includes("pravatar.cc")}
+            onError={() => setPhotoFailed(true)}
+          />
+        )}
+        {/* Initials fallback — shown when no photo OR photo URL failed to load.
+            Mirrors the pre-migration CSS background-image silent-fallback. */}
+        {(!profile.thumb || photoFailed) && (
           <div
             aria-hidden
             style={{
