@@ -1,32 +1,43 @@
-// Phase 3.10 — Client Discover page.
-// Browse the agency's active roster. Client context: every profile links to
-// an inquiry pre-filled with that talent.
+// Discover — cross-tenant talent catalog for paying clients.
+//
+// Evolution of the original tenant-scoped roster browse (was:
+// loadWorkspaceRosterEnriched). Now reads from loadDiscoverTalents
+// which surfaces is_discoverable=true talents across ALL tenants — the
+// canonical Tulala Discover catalog. Spec:
+//   web/docs/discover-and-unified-inquiry-2026-05-14.md
+//
+// Client tier (Standard/Pro/Enterprise) gates power tools (compare,
+// shortlists, multi-inquiry, rate band visibility). Browsing the
+// catalog itself is free for any authenticated client.
 
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSelfProfile, loadWorkspaceRosterEnriched } from "../../_data-bridge";
+import { loadClientSelfProfile } from "../../_data-bridge";
+import { loadDiscoverTalents, loadDiscoverFacets } from "../../_data-bridge/discover";
 import { DiscoverShell } from "./DiscoverShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
-import { NewInquiryButton } from "../_components/NewInquiryButton";
 import { EmptyState } from "../_components/EmptyState";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
-
-const C = {
-  ink:        "#0B0B0D",
-  inkMuted:   "rgba(11,11,13,0.55)",
-  borderSoft: "rgba(24,24,27,0.08)",
-  surface:    "rgba(11,11,13,0.02)",
-  accent:     "#1D4ED8",
-} as const;
+type PageSearchParams = Promise<{
+  country?: string;
+  category?: string;
+  q?: string;
+}>;
 
 const FONT = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
-export default async function ClientDiscoverPage({ params }: { params: PageParams }) {
+export default async function ClientDiscoverPage({
+  params,
+  searchParams,
+}: {
+  params: PageParams;
+  searchParams: PageSearchParams;
+}) {
   const { tenantSlug } = await params;
+  const sp = await searchParams;
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -36,39 +47,44 @@ export default async function ClientDiscoverPage({ params }: { params: PageParam
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const roster = await loadWorkspaceRosterEnriched(scope.tenantId);
-  const visible = roster.filter((r) => r.state === "published" || r.state === "claimed");
-
-  const rosterForBtn = visible.map((r) => ({
-    id: r.id,
-    name: r.name,
-    primaryTypeLabel: r.primaryTypeLabel,
-    city: r.city,
-  }));
-  const clientForBtn = {
-    displayName: clientProfile.displayName,
-    company: clientProfile.company,
-    agencyName: clientProfile.agencyName,
-  };
+  // Parallel SSR loads: paginated talents + filter facets.
+  const [{ items, total }, facets] = await Promise.all([
+    loadDiscoverTalents({
+      country: sp.country,
+      category: sp.category,
+      q: sp.q,
+      limit: 24,
+      offset: 0,
+    }),
+    loadDiscoverFacets(),
+  ]);
 
   return (
     <div style={{ fontFamily: FONT }}>
       <ClientPageHeader
         eyebrow="Discover"
         title="Discover talent"
-        subtitle={`Browse ${clientProfile.agencyName}'s roster. Click any profile to start an inquiry pre-filled with that talent.`}
-        badge={visible.length > 0 ? <HeaderBadge>{visible.length} available</HeaderBadge> : undefined}
-        actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={rosterForBtn} />}
+        subtitle="Find talent across every Tulala hub and independent profile. Save favorites, build shortlists, send one inquiry that routes to the right agency for each talent."
+        badge={total > 0 ? <HeaderBadge>{total} on Discover</HeaderBadge> : undefined}
       />
 
-      {visible.length > 0 ? (
-        <DiscoverShell roster={roster} tenantSlug={tenantSlug} />
+      {items.length > 0 || sp.country || sp.category || sp.q ? (
+        <DiscoverShell
+          initialItems={items}
+          initialTotal={total}
+          facets={facets}
+          tenantSlug={tenantSlug}
+          activeFilters={{
+            country: sp.country ?? null,
+            category: sp.category ?? null,
+            q: sp.q ?? null,
+          }}
+        />
       ) : (
         <EmptyState
-          icon="🎭"
-          title="Roster coming soon"
-          body={`${clientProfile.agencyName} is setting up their roster. You can still send a brief and let the agency recommend the right fit.`}
-          actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={rosterForBtn} label="Start inquiry" />}
+          icon="🪐"
+          title="Discover is warming up"
+          body="No talents have enabled Discover yet. Talents control their own visibility — once they toggle on, they'll appear here. Check back soon, or browse your agency's roster directly."
         />
       )}
     </div>
