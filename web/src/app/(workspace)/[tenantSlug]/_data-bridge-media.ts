@@ -62,7 +62,10 @@ type MediaRow = {
   sort_order: number | null;
   width: number | null;
   height: number | null;
-  file_size: number | null;
+  file_size_bytes: number | null;
+  mime_type: string | null;
+  original_filename: string | null;
+  tags: string[] | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
   talent_profiles: {
@@ -88,6 +91,10 @@ type FolderRow = {
 export type WorkspaceMediaBridge = {
   photos: WorkspaceMediaPhoto[];
   folders: WorkspaceMediaFolder[];
+  /** True if the underlying query failed. UI can distinguish "empty" from "broken". */
+  errored: boolean;
+  /** Total matching rows in the DB. May exceed `photos.length` when capped. */
+  totalCount: number | null;
 };
 
 export async function loadWorkspaceMediaPhotos(
@@ -102,10 +109,16 @@ export async function loadWorkspaceMediaBridge(
 ): Promise<WorkspaceMediaBridge> {
   try {
     const supabase = await createSupabaseServerClient();
-    if (!supabase) return { photos: [], folders: [] };
+    if (!supabase) return { photos: [], folders: [], errored: true, totalCount: null };
 
-    // Load photos and folders in parallel
-    const [photosResult, foldersResult] = await Promise.all([
+    // Load photos, a true filtered count, and folders in parallel.
+    //
+    // The count is a separate `head: true` query because Supabase's
+    // `select(..., { count: "exact" })` on a query with an `!inner` join
+    // returns the *unfiltered* root-table count, not the post-join count.
+    // The dedicated count query reproduces the exact filter set so the
+    // page can show "Showing N of M" reliably.
+    const [photosResult, totalCountResult, foldersResult] = await Promise.all([
       supabase
         .from("media_assets")
         .select(`
@@ -119,7 +132,10 @@ export async function loadWorkspaceMediaBridge(
           sort_order,
           width,
           height,
-          file_size,
+          file_size_bytes,
+          mime_type,
+          original_filename,
+          tags,
           metadata,
           created_at,
           talent_profiles!owner_talent_profile_id (
@@ -136,8 +152,23 @@ export async function loadWorkspaceMediaBridge(
         .in("variant_kind", ["card", "gallery", "hero"])
         .is("deleted_at", null)
         .eq("talent_profiles.agency_talent_roster.tenant_id", tenantId)
+        // Exclude photos owned by talent who've been removed from the roster.
+        // Without this, ex-roster talents' media still pads the workspace
+        // gallery, inflating counts and exposing rows the page shouldn't show.
+        .neq("talent_profiles.agency_talent_roster.status", "removed")
         .order("sort_order", { ascending: true, nullsFirst: false })
-        .limit(500),
+        .limit(5000),
+
+      supabase
+        .from("media_assets")
+        .select(
+          "id, talent_profiles!owner_talent_profile_id!inner(agency_talent_roster!inner(tenant_id, status))",
+          { count: "exact", head: true },
+        )
+        .in("variant_kind", ["card", "gallery", "hero"])
+        .is("deleted_at", null)
+        .eq("talent_profiles.agency_talent_roster.tenant_id", tenantId)
+        .neq("talent_profiles.agency_talent_roster.status", "removed"),
 
       supabase
         .from("media_folders")
@@ -158,11 +189,12 @@ export async function loadWorkspaceMediaBridge(
 
     if (photosResult.error) {
       logServerError("data-bridge.media.list", photosResult.error);
-      return { photos: [], folders: [] };
+      return { photos: [], folders: [], errored: true, totalCount: null };
     }
 
     const rows = (photosResult.data ?? []) as unknown as MediaRow[];
     const folderRows = (foldersResult.data ?? []) as unknown as FolderRow[];
+    const totalCount = typeof totalCountResult.count === "number" ? totalCountResult.count : null;
 
     // Build a map of assetId → folderIds for O(1) lookup
     const assetFolderMap = new Map<string, string[]>();
@@ -199,13 +231,13 @@ export async function loadWorkspaceMediaBridge(
           approvalState: r.approval_state as WorkspaceMediaPhoto["approvalState"],
           hasOverride: r.watermark_override_json !== null,
           watermarkOverride: r.watermark_override_json,
-          tags: [],
+          tags: Array.isArray(r.tags) ? r.tags : [],
           folderIds: assetFolderMap.get(r.id) ?? [],
           width: r.width,
           height: r.height,
-          fileSizeBytes: r.file_size,
-          mimeType: null,
-          originalFilename: null,
+          fileSizeBytes: r.file_size_bytes,
+          mimeType: r.mime_type,
+          originalFilename: r.original_filename,
           note: (meta.note as string | null) ?? null,
           metadata: meta,
           createdAt: r.created_at,
@@ -224,9 +256,9 @@ export async function loadWorkspaceMediaBridge(
       createdAt: f.created_at,
     }));
 
-    return { photos, folders };
+    return { photos, folders, errored: false, totalCount };
   } catch (err) {
     logServerError("data-bridge.media.unknown", err);
-    return { photos: [], folders: [] };
+    return { photos: [], folders: [], errored: true, totalCount: null };
   }
 }

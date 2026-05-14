@@ -265,6 +265,10 @@ export type BridgeData = {
   mediaPhotos?: WorkspaceMediaPhoto[] | null;
   /** Workspace virtual folders. Empty array = live mode, no folders yet. */
   mediaFolders?: WorkspaceMediaFolder[];
+  /** True when the underlying media bridge query failed. */
+  mediaBridgeErrored?: boolean;
+  /** Total rows in the DB (may exceed mediaPhotos.length when capped). */
+  mediaTotalCount?: number | null;
 
   /**
    * Live CMS / domain snapshot for the Website workspace surface.

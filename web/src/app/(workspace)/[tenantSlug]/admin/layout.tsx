@@ -190,6 +190,8 @@ export default async function WorkspaceAdminLayout({
           sessionIdentity,
           mediaPhotos: mediaBridge.photos,
           mediaFolders: mediaBridge.folders,
+          mediaBridgeErrored: mediaBridge.errored,
+          mediaTotalCount: mediaBridge.totalCount,
           talentSelfProfile,
           talentInquiries,
           isHybrid,

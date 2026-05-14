@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  extractImageMetadata,
+  isSafeImageMime,
+} from "@/lib/server/media-metadata";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -32,6 +36,9 @@ export async function actionUploadAndAssignMedia(
   const isImage = file.type.startsWith("image/");
   const isVideo = file.type.startsWith("video/");
   if (!isImage && !isVideo) return { ok: false, error: "Image or video file only." };
+  if (isImage && !isSafeImageMime(file.type)) {
+    return { ok: false, error: "SVG and unknown image types are not supported." };
+  }
   const maxBytes = isVideo ? 200 * 1024 * 1024 : 25 * 1024 * 1024;
   if (file.size > maxBytes) return { ok: false, error: `File must be under ${Math.round(maxBytes / 1024 / 1024)} MB.` };
 
@@ -48,6 +55,15 @@ export async function actionUploadAndAssignMedia(
   const storagePath = `${talentProfileId}/${variantKind}/${randomUUID()}.${ext}`;
 
   const bytes = await file.arrayBuffer();
+  const meta = isImage
+    ? await extractImageMetadata(file, bytes)
+    : {
+        width: null,
+        height: null,
+        fileSizeBytes: file.size,
+        mimeType: file.type || "application/octet-stream",
+        originalFilename: file.name || "upload",
+      };
   const { error: upErr } = await admin.storage
     .from("media-public")
     .upload(storagePath, bytes, { contentType: file.type, upsert: false });
@@ -92,6 +108,11 @@ export async function actionUploadAndAssignMedia(
       variant_kind: variantKind,
       approval_state: "approved",
       sort_order: nextOrder,
+      width: meta.width,
+      height: meta.height,
+      file_size_bytes: meta.fileSizeBytes,
+      mime_type: meta.mimeType,
+      original_filename: meta.originalFilename,
       metadata,
     })
     .select("id")
@@ -414,7 +435,19 @@ export async function actionReorderMediaAssets(
 // admin can see thumbnails while deciding which talent each photo belongs to.
 // Step 2 is actionBulkAssignStagedMedia which creates all DB rows at once.
 
-export type StagingUploadResult = ActionResult<{ storagePath: string; publicUrl: string }>;
+export type StagedMediaMeta = {
+  width: number | null;
+  height: number | null;
+  fileSizeBytes: number;
+  mimeType: string;
+  originalFilename: string;
+};
+
+export type StagingUploadResult = ActionResult<{
+  storagePath: string;
+  publicUrl: string;
+  meta: StagedMediaMeta;
+}>;
 
 export async function actionUploadToStagingStorage(
   formData: FormData,
@@ -429,6 +462,9 @@ export async function actionUploadToStagingStorage(
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) return { ok: false, error: "No file provided." };
   if (!file.type.startsWith("image/")) return { ok: false, error: "Images only." };
+  if (!isSafeImageMime(file.type)) {
+    return { ok: false, error: "SVG and unknown image types are not supported." };
+  }
   if (file.size > 25 * 1024 * 1024) return { ok: false, error: "File must be under 25 MB." };
 
   const ext =
@@ -436,6 +472,7 @@ export async function actionUploadToStagingStorage(
   const storagePath = `${tenantId}/staging/${randomUUID()}.${ext}`;
 
   const bytes = await file.arrayBuffer();
+  const meta = await extractImageMetadata(file, bytes);
   const { error: upErr } = await admin.storage
     .from("media-public")
     .upload(storagePath, bytes, { contentType: file.type, upsert: false });
@@ -446,7 +483,47 @@ export async function actionUploadToStagingStorage(
   }
 
   const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
-  return { ok: true, data: { storagePath, publicUrl: urlData.publicUrl } };
+  return {
+    ok: true,
+    data: {
+      storagePath,
+      publicUrl: urlData.publicUrl,
+      meta: {
+        width: meta.width,
+        height: meta.height,
+        fileSizeBytes: meta.fileSizeBytes,
+        mimeType: meta.mimeType,
+        originalFilename: meta.originalFilename,
+      },
+    },
+  };
+}
+
+// ─── Cleanup orphaned staging objects (cancel path) ──────────────────────────
+
+export async function actionCleanupStagedObjects(
+  storagePaths: string[],
+): Promise<ActionResult<{ count: number }>> {
+  if (storagePaths.length === 0) return { ok: true, data: { count: 0 } };
+
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // Only allow paths within this tenant's staging prefix — never let a caller
+  // request deletion of arbitrary storage paths.
+  const safePaths = storagePaths.filter((sp) => sp.startsWith(`${tenantId}/staging/`));
+  if (safePaths.length === 0) return { ok: true, data: { count: 0 } };
+
+  const { error } = await admin.storage.from("media-public").remove(safePaths);
+  if (error) {
+    logServerError("media.actions.cleanupStaged", error);
+    return { ok: false, error: "Could not clean up." };
+  }
+  return { ok: true, data: { count: safePaths.length } };
 }
 
 // ─── Bulk-assign staged storage paths to talents ─────────────────────────────
@@ -455,8 +532,14 @@ export async function actionUploadToStagingStorage(
 // validates roster membership for every unique talent, then inserts all DB
 // rows in one shot (grouped sort_order per talent).
 
+export type BulkAssignAssignment = {
+  storagePath: string;
+  talentProfileId: string;
+  meta?: StagedMediaMeta;
+};
+
 export async function actionBulkAssignStagedMedia(
-  assignments: Array<{ storagePath: string; talentProfileId: string }>,
+  assignments: BulkAssignAssignment[],
 ): Promise<ActionResult<{ count: number }>> {
   if (assignments.length === 0) return { ok: true, data: { count: 0 } };
 
@@ -481,32 +564,54 @@ export async function actionBulkAssignStagedMedia(
     return { ok: false, error: "One or more talents not on this roster." };
   }
 
-  // Compute starting sort_order for each talent in parallel
+  // Allocate sort_order via an atomic RPC so concurrent batches can't collide.
+  // Falls back to a best-effort max-select pattern if the RPC isn't available.
   const sortOrders: Record<string, number> = {};
   await Promise.all(
     uniqueTalentIds.map(async (talentId) => {
-      const { data: maxRow } = await admin
-        .from("media_assets")
-        .select("sort_order")
-        .eq("owner_talent_profile_id", talentId)
-        .eq("variant_kind", "gallery")
-        .is("deleted_at", null)
-        .order("sort_order", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      sortOrders[talentId] = ((maxRow as { sort_order: number } | null)?.sort_order ?? 0) + 1;
+      const countForTalent = assignments.filter(
+        (a) => a.talentProfileId === talentId,
+      ).length;
+      const rpc = await admin.rpc("allocate_media_gallery_sort_order", {
+        p_talent_profile_id: talentId,
+        p_count: countForTalent,
+      });
+      if (rpc.error || typeof rpc.data !== "number") {
+        // Fallback: read current max and start there. Note this is not
+        // race-free without the RPC, but it's better than nothing.
+        const { data: maxRow } = await admin
+          .from("media_assets")
+          .select("sort_order")
+          .eq("owner_talent_profile_id", talentId)
+          .eq("variant_kind", "gallery")
+          .is("deleted_at", null)
+          .order("sort_order", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        sortOrders[talentId] = ((maxRow as { sort_order: number } | null)?.sort_order ?? 0) + 1;
+      } else {
+        sortOrders[talentId] = rpc.data;
+      }
     }),
   );
 
-  const rows = assignments.map((a) => ({
-    tenant_id: tenantId,
-    owner_talent_profile_id: a.talentProfileId,
-    bucket_id: "media-public",
-    storage_path: a.storagePath,
-    variant_kind: "gallery" as const,
-    approval_state: "approved" as const,
-    sort_order: sortOrders[a.talentProfileId]++,
-  }));
+  const rows = assignments.map((a) => {
+    const meta = a.meta;
+    return {
+      tenant_id: tenantId,
+      owner_talent_profile_id: a.talentProfileId,
+      bucket_id: "media-public",
+      storage_path: a.storagePath,
+      variant_kind: "gallery" as const,
+      approval_state: "approved" as const,
+      sort_order: sortOrders[a.talentProfileId]++,
+      width: meta?.width ?? null,
+      height: meta?.height ?? null,
+      file_size_bytes: meta?.fileSizeBytes ?? null,
+      mime_type: meta?.mimeType ?? null,
+      original_filename: meta?.originalFilename ?? null,
+    };
+  });
 
   const { error } = await admin.from("media_assets").insert(rows);
   if (error) {
@@ -849,10 +954,11 @@ export async function actionGetMediaCount(): Promise<ActionResult<{ count: numbe
 
 export type DriveImportResult = ActionResult<{ assets: Array<{ id: string; publicUrl: string }> }>;
 
-/** Phase 1 — list files without downloading. Returns file IDs and count. */
+/** Phase 1 — list files without downloading. Returns file IDs and count.
+ *  Walks Drive pagination so we never silently truncate at pageSize. */
 export async function actionListDriveFolder(
   driveUrl: string,
-): Promise<ActionResult<{ fileIds: string[]; count: number }>> {
+): Promise<ActionResult<{ fileIds: string[]; count: number; truncated: boolean }>> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -860,28 +966,44 @@ export async function actionListDriveFolder(
   if (!parsed) return { ok: false, error: "Paste a Google Drive file or folder share link." };
 
   if (parsed.kind === "file") {
-    return { ok: true, data: { fileIds: [parsed.fileId], count: 1 } };
+    return { ok: true, data: { fileIds: [parsed.fileId], count: 1, truncated: false } };
   }
 
   const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
   if (!apiKey) return { ok: false, error: "Google Drive API key not configured." };
 
-  const q = encodeURIComponent(`'${parsed.folderId}' in parents and mimeType contains 'image/'`);
-  const listUrl = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=200&key=${encodeURIComponent(apiKey)}`;
-  let listRes: Response;
-  try {
-    listRes = await fetch(listUrl);
-  } catch {
-    return { ok: false, error: "Could not reach Google Drive API." };
+  const fileIds: string[] = [];
+  let pageToken: string | undefined;
+  const MAX_PAGES = 10; // hard cap so a hostile folder can't run us forever
+  let pages = 0;
+  while (pages < MAX_PAGES) {
+    pages += 1;
+    const q = encodeURIComponent(`'${parsed.folderId}' in parents and mimeType contains 'image/'`);
+    const tokenParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+    const listUrl = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType),nextPageToken&pageSize=200${tokenParam}&key=${encodeURIComponent(apiKey)}`;
+    let listRes: Response;
+    try {
+      listRes = await fetch(listUrl);
+    } catch {
+      return { ok: false, error: "Could not reach Google Drive API." };
+    }
+    if (!listRes.ok) {
+      return { ok: false, error: "Could not list folder — make sure it is shared as 'Anyone with the link'." };
+    }
+    const listData = (await listRes.json()) as {
+      files?: Array<{ id: string; mimeType: string }>;
+      nextPageToken?: string;
+    };
+    for (const f of listData.files ?? []) {
+      if (f.mimeType.startsWith("image/")) fileIds.push(f.id);
+    }
+    pageToken = listData.nextPageToken;
+    if (!pageToken) break;
   }
-  if (!listRes.ok) {
-    return { ok: false, error: "Could not list folder — make sure it is shared as 'Anyone with the link'." };
-  }
-  const listData = await listRes.json() as { files?: Array<{ id: string; mimeType: string }> };
-  const images = (listData.files ?? []).filter((f) => f.mimeType.startsWith("image/"));
-  if (images.length === 0) return { ok: false, error: "No images found in this folder." };
+  if (fileIds.length === 0) return { ok: false, error: "No images found in this folder." };
 
-  return { ok: true, data: { fileIds: images.map((f) => f.id), count: images.length } };
+  const truncated = pages >= MAX_PAGES && Boolean(pageToken);
+  return { ok: true, data: { fileIds, count: fileIds.length, truncated } };
 }
 
 function parseDriveUrl(url: string): { kind: "file"; fileId: string } | { kind: "folder"; folderId: string } | null {
@@ -948,6 +1070,17 @@ export async function actionImportSingleDriveFile(
     .upload(storagePath, downloaded.buffer, { contentType: downloaded.contentType, upsert: false });
   if (upErr) return { ok: false, error: "Upload failed." };
 
+  let singleMetaWidth: number | null = null;
+  let singleMetaHeight: number | null = null;
+  try {
+    const sharpMod = (await import("sharp")).default;
+    const m = await sharpMod(Buffer.from(downloaded.buffer)).metadata();
+    singleMetaWidth = typeof m.width === "number" ? m.width : null;
+    singleMetaHeight = typeof m.height === "number" ? m.height : null;
+  } catch {
+    // best-effort
+  }
+
   const { data: inserted, error: insErr } = await admin
     .from("media_assets")
     .insert({
@@ -958,6 +1091,11 @@ export async function actionImportSingleDriveFile(
       variant_kind: "gallery",
       approval_state: "approved",
       sort_order: sortOrder,
+      width: singleMetaWidth,
+      height: singleMetaHeight,
+      file_size_bytes: downloaded.buffer.byteLength,
+      mime_type: downloaded.contentType,
+      original_filename: `drive-${fileId}`,
       metadata: { source: "google_drive", drive_file_id: fileId },
     })
     .select("id")
@@ -978,6 +1116,10 @@ export async function actionImportSingleDriveFile(
 export async function actionImportFromGoogleDrive(
   driveUrl: string,
   talentProfileId: string,
+  /** When provided, skip re-listing the folder and use these IDs directly.
+   *  This is the canonical path from the UI — Check returns fileIds, Import
+   *  threads them straight through so the two never disagree on count. */
+  preResolvedFileIds?: string[],
 ): Promise<DriveImportResult> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -985,9 +1127,6 @@ export async function actionImportFromGoogleDrive(
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
-
-  const parsed = parseDriveUrl(driveUrl);
-  if (!parsed) return { ok: false, error: "Paste a Google Drive file or folder share link." };
 
   const { data: rosterRow } = await admin
     .from("agency_talent_roster")
@@ -998,31 +1137,15 @@ export async function actionImportFromGoogleDrive(
     .maybeSingle();
   if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
-  const fileIds: string[] = [];
-
-  if (parsed.kind === "file") {
-    fileIds.push(parsed.fileId);
+  let fileIds: string[];
+  if (preResolvedFileIds && preResolvedFileIds.length > 0) {
+    fileIds = preResolvedFileIds;
   } else {
-    const apiKey = process.env.GOOGLE_DRIVE_API_KEY;
-    if (!apiKey) {
-      return { ok: false, error: "Folder import requires a Google Drive API key — set GOOGLE_DRIVE_API_KEY in your environment, or paste individual file links instead." };
-    }
-    const q = encodeURIComponent(`'${parsed.folderId}' in parents and mimeType contains 'image/'`);
-    const listUrl = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=50&key=${encodeURIComponent(apiKey)}`;
-    let listRes: Response;
-    try {
-      listRes = await fetch(listUrl);
-    } catch {
-      return { ok: false, error: "Could not reach Google Drive API." };
-    }
-    if (!listRes.ok) {
-      return { ok: false, error: "Could not list folder — make sure it is shared as 'Anyone with the link'." };
-    }
-    const listData = await listRes.json() as { files?: Array<{ id: string; name: string; mimeType: string }> };
-    const images = (listData.files ?? []).filter((f) => f.mimeType.startsWith("image/"));
-    if (images.length === 0) return { ok: false, error: "No images found in this folder." };
-    for (const f of images) fileIds.push(f.id);
+    const list = await actionListDriveFolder(driveUrl);
+    if (!list.ok) return { ok: false, error: list.error };
+    fileIds = list.data.fileIds;
   }
+  if (fileIds.length === 0) return { ok: false, error: "Nothing to import." };
 
   const { data: maxRow } = await admin
     .from("media_assets")
@@ -1057,6 +1180,17 @@ export async function actionImportFromGoogleDrive(
       continue;
     }
 
+    let driveMetaWidth: number | null = null;
+    let driveMetaHeight: number | null = null;
+    try {
+      const sharpMod = (await import("sharp")).default;
+      const m = await sharpMod(Buffer.from(downloaded.buffer)).metadata();
+      driveMetaWidth = typeof m.width === "number" ? m.width : null;
+      driveMetaHeight = typeof m.height === "number" ? m.height : null;
+    } catch {
+      // metadata is best-effort
+    }
+
     const { data: inserted, error: insErr } = await admin
       .from("media_assets")
       .insert({
@@ -1067,6 +1201,11 @@ export async function actionImportFromGoogleDrive(
         variant_kind: "gallery",
         approval_state: "approved",
         sort_order: nextOrder++,
+        width: driveMetaWidth,
+        height: driveMetaHeight,
+        file_size_bytes: downloaded.buffer.byteLength,
+        mime_type: downloaded.contentType,
+        original_filename: `drive-${fileId}`,
         metadata: { source: "google_drive", drive_file_id: fileId },
       })
       .select("id")

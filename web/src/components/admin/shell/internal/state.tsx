@@ -6776,6 +6776,11 @@ type Ctx = {
   bridgeMediaPhotos: BridgeMediaPhoto[] | null;
   /** Virtual folders — always an array (empty when none or mock mode). */
   bridgeMediaFolders: BridgeMediaFolder[];
+  /** True when the underlying media query failed. Lets the page show a
+   *  real error state instead of looking like an empty tenant. */
+  bridgeMediaErrored: boolean;
+  /** Total matching rows in the DB. Exceeds photos.length when capped. */
+  bridgeMediaTotalCount: number | null;
 
   // ── Phase 1 (master plan) — chrome identity bridge ────────────────────────
   /**
@@ -8312,6 +8317,8 @@ export function AdminShellProvider({
   // empty array means "live mode, no photos yet" → renders empty state.
   const bridgeMediaPhotos = initialBridgeData?.mediaPhotos ?? null;
   const bridgeMediaFolders: BridgeMediaFolder[] = initialBridgeData?.mediaFolders ?? [];
+  const bridgeMediaErrored = initialBridgeData?.mediaBridgeErrored ?? false;
+  const bridgeMediaTotalCount = initialBridgeData?.mediaTotalCount ?? null;
 
   const bridgeWebsite = initialBridgeData?.website;
   const websiteUsesLiveCms = bridgeWebsite != null;
@@ -8432,6 +8439,8 @@ export function AdminShellProvider({
       bridgeTalentCalendarEntries,
       bridgeMediaPhotos,
       bridgeMediaFolders,
+      bridgeMediaErrored,
+      bridgeMediaTotalCount,
       bridgeTenantIdentity,
       bridgeSessionIdentity,
       effectiveTenant,
@@ -8531,6 +8540,8 @@ export function AdminShellProvider({
       bridgeTalentCalendarEntries,
       bridgeMediaPhotos,
       bridgeMediaFolders,
+      bridgeMediaErrored,
+      bridgeMediaTotalCount,
       bridgeTenantIdentity,
       bridgeSessionIdentity,
       effectiveTenant,

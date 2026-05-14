@@ -12,6 +12,7 @@ import {
   actionDeleteMediaAssets,
   actionUploadToStagingStorage,
   actionBulkAssignStagedMedia,
+  actionCleanupStagedObjects,
   actionLoadRosterTalents,
   actionSetApprovalState,
   actionReassignMediaToTalent,
@@ -20,6 +21,7 @@ import {
   actionListDriveFolder,
   actionGetMediaCount,
   type RosterTalentOption,
+  type StagedMediaMeta,
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import {
   actionCreateMediaFolder,
@@ -40,29 +42,12 @@ import type {
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+//
+// MediaPhoto is the bridge type so the page and server can't drift apart
+// silently (this drift is exactly what was causing tags / filename /
+// dimensions to vanish before — page added fields the bridge didn't return).
 
-type MediaPhoto = {
-  id: string;
-  talentProfileId: string;
-  talentName: string;
-  url: string;
-  thumbUrl: string;
-  variantKind: string;
-  approvalState: "approved" | "pending" | "rejected";
-  hasOverride: boolean;
-  watermarkOverride: unknown | null;
-  tags: string[];
-  folderIds: string[];
-  width: number | null;
-  height: number | null;
-  fileSizeBytes: number | null;
-  mimeType: string | null;
-  originalFilename: string | null;
-  note: string | null;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-};
-
+type MediaPhoto = BridgeMediaPhoto;
 type MediaFolder = BridgeMediaFolder;
 
 type ActiveView =
@@ -80,6 +65,7 @@ type StagingItem = {
   status: "queued" | "uploading" | "ready" | "error";
   storagePath?: string;
   publicUrl?: string;
+  meta?: StagedMediaMeta;
   errorMsg?: string;
   talentId: string;
 };
@@ -234,7 +220,6 @@ function PhotoDetailDrawer({
   const [note, setNote] = useState(photo.note ?? "");
   const [savingNote, setSavingNote] = useState(false);
   const [folderBusy, setFolderBusy] = useState(false);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copyDone, setCopyDone] = useState(false);
   const [activity, setActivity] = useState<Array<{ id: string; kind: string; payload: unknown; createdAt: string }>>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
@@ -539,7 +524,7 @@ function FolderModal({
   const [color, setColor] = useState(folder?.color ?? FOLDER_PALETTE[0]!);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [shareUrl, setShareUrl] = useState<string | null>(folder?.shareToken ? `${typeof window !== "undefined" ? window.location.origin : ""}/share/${folder.shareToken}` : null);
+  const [shareUrl, setShareUrl] = useState<string | null>(folder?.shareToken ? `${typeof window !== "undefined" ? window.location.origin : ""}/share/folder/${folder.shareToken}` : null);
   const [shareLoading, setShareLoading] = useState(false);
 
   const save = async () => {
@@ -564,7 +549,17 @@ function FolderModal({
     setShareLoading(true);
     const r = await actionCreateFolderShareLink(folder.id, 30);
     setShareLoading(false);
-    if (r.ok) setShareUrl(r.data.shareUrl);
+    if (r.ok) {
+      // Prefer the absolute URL when the server could build one; otherwise
+      // build it from the current origin so the clipboard gets a real URL.
+      const isAbsolute = r.data.shareUrl.startsWith("http");
+      const absolute = isAbsolute
+        ? r.data.shareUrl
+        : typeof window !== "undefined"
+          ? `${window.location.origin}${r.data.sharePath}`
+          : r.data.shareUrl;
+      setShareUrl(absolute);
+    }
   };
 
   const revokeShareLink = async () => {
@@ -1215,41 +1210,78 @@ function PhotoCard({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+const MEDIA_SETTINGS_DEFAULT = {
+  showFolders: true,
+  showWatermark: true,
+  showPending: true,
+  showAnalytics: true,
+  showByTalent: true,
+  showByKind: true,
+  showDriveImport: true,
+} as const;
+type MediaSettingsShape = { -readonly [K in keyof typeof MEDIA_SETTINGS_DEFAULT]: boolean };
+const MEDIA_SETTINGS_STORAGE_KEY = "media-page.settings.v1";
+
 export function WorkspaceMediaPage() {
-  const { state, openDrawer, openUpgrade, bridgeMediaPhotos, bridgeMediaFolders, tenantSlug, toast } = useAdminShell();
+  const {
+    state, openDrawer, openUpgrade,
+    bridgeMediaPhotos, bridgeMediaFolders,
+    bridgeMediaErrored, bridgeMediaTotalCount,
+    tenantSlug, toast,
+  } = useAdminShell();
   const queueRouterRefresh = useQueuedRouterRefresh();
   const isAgency = meetsPlan(state.plan, "agency");
-  const isStudio = meetsPlan(state.plan, "studio");
 
   // ── Branding settings ────────────────────────────────────────────
-  const [_wsWatermarkEnabled, setWsWatermarkEnabled] = useState(false);
+  // Page is Agency-gated below, so we can load branding unconditionally
+  // once a tenant slug is available.
+  const [_wsWatermarkConfigured, setWsWatermarkConfigured] = useState(false);
   const [wsLogoUrl, setWsLogoUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!tenantSlug || !isStudio) return;
+    if (!tenantSlug) return;
     void loadAgencyBrandingSettings().then((r) => {
       if (r.ok) {
-        setWsWatermarkEnabled(r.data.watermarkPreset?.enabled ?? false);
+        setWsWatermarkConfigured(r.data.watermarkPreset?.enabled ?? false);
         setWsLogoUrl(r.data.logoUrl);
       }
     });
-  }, [tenantSlug, isStudio]);
+  }, [tenantSlug]);
 
   // ── Media settings popup + upload menu ───────────────────────────
   const [showSettings, setShowSettings] = useState(false);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
-  const [mediaSettings, setMediaSettings] = useState({
-    showFolders: true,
-    showWatermark: true,
-    showPending: true,
-    showAnalytics: true,
-    showByTalent: true,
-    showByKind: true,
-    showDriveImport: true,
-  });
-  const toggleSetting = (key: keyof typeof mediaSettings) =>
-    setMediaSettings((prev) => ({ ...prev, [key]: !prev[key] }));
-  // Gate watermark on settings toggle — disables overlay + Apply WM everywhere.
-  const wsWatermarkEnabled = _wsWatermarkEnabled && mediaSettings.showWatermark;
+  const [mediaSettings, setMediaSettings] = useState<MediaSettingsShape>(MEDIA_SETTINGS_DEFAULT);
+  // Hydrate once from localStorage on mount. SSR-safe.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(MEDIA_SETTINGS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<MediaSettingsShape>;
+      setMediaSettings({ ...MEDIA_SETTINGS_DEFAULT, ...parsed });
+    } catch {
+      // Ignore — fall back to defaults.
+    }
+  }, []);
+  const toggleSetting = (key: keyof MediaSettingsShape) => {
+    setMediaSettings((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (typeof window !== "undefined") {
+        try { window.localStorage.setItem(MEDIA_SETTINGS_STORAGE_KEY, JSON.stringify(next)); } catch { /* quota */ }
+      }
+      return next;
+    });
+  };
+  // Two separate signals:
+  // - wsWatermarkConfigured = workspace has a watermark preset enabled
+  //   (drives whether "Apply WM" and override badges can be used at all).
+  // - wsWatermarkPreviewVisible = whether to render the preview overlay on
+  //   this page (the user's settings toggle for visual noise).
+  const wsWatermarkConfigured = _wsWatermarkConfigured;
+  const wsWatermarkPreviewVisible = wsWatermarkConfigured && mediaSettings.showWatermark;
+  // Legacy alias preserved for the existing render paths — points at the
+  // preview signal, which is what every existing call site means today.
+  const wsWatermarkEnabled = wsWatermarkPreviewVisible;
 
   // ── View / filter state ──────────────────────────────────────────
   const [view, setView] = useState<ActiveView>({ kind: "all" });
@@ -1262,22 +1294,27 @@ export function WorkspaceMediaPage() {
   // ── Pagination / lazy-load state ─────────────────────────────────
   const [expandedTalentGroups, setExpandedTalentGroups] = useState<Set<string>>(new Set());
   const [allViewLimit, setAllViewLimit] = useState(18);
-  const allViewSentinelRef = useRef<HTMLDivElement | null>(null);
 
   // Reset pagination when view changes
   useEffect(() => { setAllViewLimit(18); setExpandedTalentGroups(new Set()); }, [view.kind]);
 
-  // IntersectionObserver: auto-load more in "all" flat view
-  useEffect(() => {
-    const sentinel = allViewSentinelRef.current;
-    if (!sentinel) return;
+  // IntersectionObserver via callback ref — attaches as soon as the sentinel
+  // mounts and detaches when it unmounts. Ref-in-deps doesn't react in
+  // React; this does.
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const allViewSentinelRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    if (!node) return;
     const obs = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setAllViewLimit((n) => n + 18); },
       { rootMargin: "200px" },
     );
-    obs.observe(sentinel);
-    return () => obs.disconnect();
-  }, [allViewSentinelRef.current]); // eslint-disable-line react-hooks/exhaustive-deps
+    obs.observe(node);
+    observerRef.current = obs;
+  }, []);
 
   // ── Lightbox + detail drawer ─────────────────────────────────────
   const [lightboxPhoto, setLightboxPhoto] = useState<MediaPhoto | null>(null);
@@ -1309,7 +1346,7 @@ export function WorkspaceMediaPage() {
     | { kind: "idle" }
     | { kind: "loading-talents" }
     | { kind: "listing" }
-    | { kind: "confirmed"; fileIds: string[]; total: number }
+    | { kind: "confirmed"; fileIds: string[]; total: number; truncated: boolean }
     | { kind: "importing"; total: number; done: number }
     | { kind: "ok"; count: number }
     | { kind: "error"; message: string }
@@ -1346,19 +1383,24 @@ export function WorkspaceMediaPage() {
     setDrivePanelStatus({ kind: "listing" });
     const res = await actionListDriveFolder(drivePanelUrl.trim());
     if (!res.ok) { setDrivePanelStatus({ kind: "error", message: res.error ?? "Could not read folder." }); return; }
-    setDrivePanelStatus({ kind: "confirmed", fileIds: res.data.fileIds, total: res.data.count });
+    setDrivePanelStatus({ kind: "confirmed", fileIds: res.data.fileIds, total: res.data.count, truncated: res.data.truncated });
   }, [drivePanelUrl, drivePanelTalentId]);
 
-  // Phase 2 — download + upload with live polling
+  // Phase 2 — download + upload with live polling. Threads the fileIds
+  // resolved at Check straight into Import so the two never disagree.
   const handleDriveImport = useCallback(async (fileIds: string[], total: number) => {
     if (!drivePanelTalentId) return;
     setDrivePanelStatus({ kind: "importing", total, done: 0 });
 
-    // Kick off the actual import (fire-and-forget the server action result;
-    // we track progress via polling so the UI stays live)
-    const importPromise = actionImportFromGoogleDrive(drivePanelUrl.trim(), drivePanelTalentId);
+    const importPromise = actionImportFromGoogleDrive(
+      drivePanelUrl.trim(),
+      drivePanelTalentId,
+      fileIds,
+    );
 
-    // Poll media count every 2 s to show live progress
+    // Best-effort progress: poll the tenant media count and report deltas.
+    // Concurrent uploads from elsewhere will overshoot — we clamp to total
+    // to keep the bar honest.
     const baseline = await actionGetMediaCount();
     const baseCount = baseline.ok ? (baseline.data?.count ?? 0) : 0;
     const interval = setInterval(async () => {
@@ -1392,30 +1434,12 @@ export function WorkspaceMediaPage() {
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
   // ── Data mapping ─────────────────────────────────────────────────
-  const photos: MediaPhoto[] = useMemo(() => {
-    if (!bridgeMediaPhotos) return [];
-    return bridgeMediaPhotos.map((p) => ({
-      id: p.id,
-      talentProfileId: p.talentProfileId,
-      talentName: p.talentName,
-      url: p.url,
-      thumbUrl: p.thumbUrl,
-      variantKind: p.variantKind,
-      approvalState: p.approvalState,
-      hasOverride: p.hasOverride,
-      watermarkOverride: p.watermarkOverride,
-      tags: p.tags,
-      folderIds: p.folderIds,
-      width: p.width,
-      height: p.height,
-      fileSizeBytes: p.fileSizeBytes,
-      mimeType: p.mimeType,
-      originalFilename: p.originalFilename,
-      note: p.note,
-      metadata: p.metadata,
-      createdAt: p.createdAt,
-    }));
-  }, [bridgeMediaPhotos]);
+  // The page type is the bridge type now (MediaPhoto = BridgeMediaPhoto) so
+  // we just pass the array through. No per-field mapping = no drift.
+  const photos: MediaPhoto[] = useMemo(
+    () => bridgeMediaPhotos ?? [],
+    [bridgeMediaPhotos],
+  );
 
   const folders: MediaFolder[] = useMemo(() => bridgeMediaFolders ?? [], [bridgeMediaFolders]);
 
@@ -1477,17 +1501,24 @@ export function WorkspaceMediaPage() {
         const focusedPhoto = filtered[focusedPendingIdx];
         if (!focusedPhoto) return;
 
+        // After approve/reject the photo leaves the pending list. The row
+        // at the old index is now what *was* the next photo, so we keep the
+        // index but clamp it to the post-mutation list length.
+        const advance = () => {
+          setFocusedPendingIdx((i) => Math.max(0, Math.min(filtered.length - 2, i)));
+        };
+
         if (e.key === "y" || e.key === "Y") {
           e.preventDefault();
           void actionSetApprovalState([focusedPhoto.id], "approved").then(() => {
-            setFocusedPendingIdx((i) => Math.max(0, i));
+            advance();
             queueRouterRefresh();
           });
         }
         if (e.key === "n" || e.key === "N") {
           e.preventDefault();
           void actionSetApprovalState([focusedPhoto.id], "rejected").then(() => {
-            setFocusedPendingIdx((i) => Math.max(0, i));
+            advance();
             queueRouterRefresh();
           });
         }
@@ -1517,7 +1548,7 @@ export function WorkspaceMediaPage() {
   // Selection helpers
   const toggleOne = (id: string) => setSelected((prev) => {
     const n = new Set(prev);
-    n.has(id) ? n.delete(id) : n.add(id);
+    if (n.has(id)) n.delete(id); else n.add(id);
     return n;
   });
   const allSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
@@ -1529,24 +1560,46 @@ export function WorkspaceMediaPage() {
     setUploadError(null);
     const rawFiles = Array.from(files);
     const zips = rawFiles.filter((f) => f.name.toLowerCase().endsWith(".zip"));
-    let imageFiles = rawFiles.filter((f) => f.type.startsWith("image/") && !f.name.toLowerCase().endsWith(".zip"));
+    // Reject SVG client-side too — server rejects, but failing here means
+    // the user gets one clear "not supported" message instead of N upload errors.
+    const isAllowedImage = (f: File) =>
+      f.type.startsWith("image/") &&
+      f.type !== "image/svg+xml" &&
+      !f.name.toLowerCase().endsWith(".svg");
+    let imageFiles = rawFiles.filter((f) => isAllowedImage(f) && !f.name.toLowerCase().endsWith(".zip"));
+    const blocked = rawFiles.filter((f) =>
+      !f.name.toLowerCase().endsWith(".zip")
+      && (f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg")),
+    );
+    if (blocked.length > 0) {
+      setUploadError(`SVG files aren’t supported for security reasons. Skipping ${blocked.length} file${blocked.length === 1 ? "" : "s"}.`);
+    }
 
     if (zips.length > 0) {
+      const ZIP_IMAGE_CAP = 100;
       try {
         const JSZip = (await import("jszip")).default;
+        let anyTruncated = false;
         for (const zip of zips) {
           if (zip.size > 500 * 1024 * 1024) { setUploadError("ZIP must be under 500 MB."); return; }
           const z = await JSZip.loadAsync(zip);
+          // Allow common raster formats only. SVG deliberately excluded.
           const IMAGE_EXTS = /\.(jpe?g|png|webp|gif|heic|avif)$/i;
           const extracted: File[] = [];
+          let totalEligible = 0;
           for (const [name, entry] of Object.entries(z.files)) {
             if (entry.dir || !IMAGE_EXTS.test(name)) continue;
+            totalEligible += 1;
+            if (extracted.length >= ZIP_IMAGE_CAP) continue;
             const blob = await entry.async("blob");
             const mime = name.match(/\.png$/i) ? "image/png" : name.match(/\.webp$/i) ? "image/webp" : "image/jpeg";
             extracted.push(new File([blob], name.split("/").pop() ?? name, { type: mime }));
-            if (extracted.length >= 100) break;
           }
+          if (totalEligible > ZIP_IMAGE_CAP) anyTruncated = true;
           imageFiles = [...imageFiles, ...extracted];
+        }
+        if (anyTruncated) {
+          setUploadError(`ZIPs contained more than ${ZIP_IMAGE_CAP} images — only the first ${ZIP_IMAGE_CAP} were extracted. Split into multiple ZIPs and upload again for the rest.`);
         }
       } catch { setUploadError("Could not read ZIP file."); return; }
     }
@@ -1586,7 +1639,7 @@ export function WorkspaceMediaPage() {
           fd.append("file", item.file);
           actionUploadToStagingStorage(fd).then((res) => {
             setStagingItems((prev) => prev.map((it) => it.id === item.id
-              ? res.ok ? { ...it, status: "ready", storagePath: res.data.storagePath, publicUrl: res.data.publicUrl } : { ...it, status: "error", errorMsg: res.error }
+              ? res.ok ? { ...it, status: "ready", storagePath: res.data.storagePath, publicUrl: res.data.publicUrl, meta: res.data.meta } : { ...it, status: "error", errorMsg: res.error }
               : it));
             active--; tryNext();
           }).catch(() => {
@@ -1603,7 +1656,11 @@ export function WorkspaceMediaPage() {
     const ready = stagingItems.filter((it) => it.status === "ready" && it.storagePath);
     if (ready.length === 0) return;
     setAssignBusy(true);
-    const assignments = ready.map((it) => ({ storagePath: it.storagePath!, talentProfileId: it.talentId }));
+    const assignments = ready.map((it) => ({
+      storagePath: it.storagePath!,
+      talentProfileId: it.talentId,
+      meta: it.meta,
+    }));
     const res = await actionBulkAssignStagedMedia(assignments);
     setAssignBusy(false);
     if (!res.ok) { setUploadError(res.error); return; }
@@ -1614,7 +1671,15 @@ export function WorkspaceMediaPage() {
   };
 
   const cancelStaging = () => {
+    // Free the local blob URLs first so the dialog tears down immediately.
     stagingItems.forEach((it) => URL.revokeObjectURL(it.blobUrl));
+    // Fire-and-forget storage cleanup so the user isn't kept waiting.
+    const orphaned = stagingItems
+      .filter((it) => it.status === "ready" && it.storagePath)
+      .map((it) => it.storagePath!);
+    if (orphaned.length > 0) {
+      void actionCleanupStagedObjects(orphaned);
+    }
     setStagingItems([]);
     setShowAssignModal(false);
   };
@@ -1673,6 +1738,14 @@ export function WorkspaceMediaPage() {
   const addSelectedToFolder = async (folderId: string) => {
     if (selected.size === 0) return;
     await actionAddAssetsToFolder(folderId, Array.from(selected));
+    setSelected(new Set());
+    queueRouterRefresh();
+  };
+
+  const setSelectedAsCardPhoto = async (photo: MediaPhoto) => {
+    const res = await actionSetAsCardPhoto(photo.id, photo.talentProfileId);
+    if (!res.ok) { setUploadError(res.error); return; }
+    toast(`Set as ${photo.talentName}’s card photo`);
     setSelected(new Set());
     queueRouterRefresh();
   };
@@ -1837,14 +1910,18 @@ export function WorkspaceMediaPage() {
 
               {/* View / edit */}
               <BulkBtn icon="🔍" label="Preview" disabled={!isSingle} onClick={() => { if (firstSelected) setLightboxPhoto(firstSelected); }} />
-              <BulkBtn icon="✂️" label="Crop & rotate" disabled={!isSingle} onClick={() => toast("Crop & rotate — coming soon")} />
-              <BulkBtn icon="🎨" label="Edit" disabled={!isSingle} onClick={() => toast("Basic editing — coming soon")} />
+              <BulkBtn
+                icon="⭐"
+                label="Set as card"
+                disabled={!isSingle || !firstSelected || firstSelected.variantKind === "card"}
+                onClick={() => { if (firstSelected) void setSelectedAsCardPhoto(firstSelected); }}
+              />
               <Sep />
 
-              {/* Organise */}
-              <BulkBtn icon="📋" label="Duplicate" onClick={() => toast(`Duplicating ${selCount} photo${selCount > 1 ? "s" : ""}…`)} />
-              <BulkBtn icon="↩️" label="Revert to original" onClick={() => toast(`Reverting ${selCount} photo${selCount > 1 ? "s" : ""} to original…`)} />
-              {wsWatermarkEnabled && <BulkBtn icon="🔖" label="Apply WM" onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })} />}
+              {/* Organise — Apply WM is gated on configuration, not on the
+                  preview-visibility toggle, so the user can still apply WM
+                  when they've hidden the on-page overlay. */}
+              {wsWatermarkConfigured && <BulkBtn icon="🔖" label="Apply WM" onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })} />}
               <BulkBtn icon="📂" label="Move to…" onClick={() => void openReassignModal()} />
               {folders.length > 0 && (
                 <select
@@ -1996,6 +2073,18 @@ export function WorkspaceMediaPage() {
 
       {/* Page header */}
       <div style={{ padding: "20px 20px 0 20px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+        {bridgeMediaErrored && (
+          <div style={{ marginBottom: 10, padding: "8px 13px", borderRadius: 8, background: "rgba(192,57,43,0.06)", border: "1px solid rgba(192,57,43,0.18)", fontFamily: FONTS.body, fontSize: 12.5, color: "#c0392b" }}>
+            We couldn’t load your media library. Try refreshing — if it keeps failing the bridge query is broken.
+          </div>
+        )}
+        {/* Bridge cap banner — totalCount now comes from a dedicated post-
+            join count query, so this comparison is finally honest. */}
+        {bridgeMediaTotalCount != null && bridgeMediaTotalCount > photos.length && (
+          <div style={{ marginBottom: 10, padding: "8px 13px", borderRadius: 8, background: "rgba(255,193,7,0.08)", border: "1px solid rgba(255,193,7,0.22)", fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+            Showing <strong>{photos.length.toLocaleString()}</strong> of <strong>{bridgeMediaTotalCount.toLocaleString()}</strong> photos. Use filters or folders to narrow what you see.
+          </div>
+        )}
         {uploadError && (
           <div style={{ marginBottom: 10, padding: "8px 13px", borderRadius: 8, background: "rgba(192,57,43,0.06)", border: "1px solid rgba(192,57,43,0.18)", fontFamily: FONTS.body, fontSize: 12.5, color: "#c0392b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{uploadError}</span>
@@ -2170,17 +2259,24 @@ export function WorkspaceMediaPage() {
 
             {/* Phase 2 row: confirm count + Import button */}
             {drivePanelStatus.kind === "confirmed" && (
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
-                  Found <strong>{drivePanelStatus.total}</strong> photo{drivePanelStatus.total !== 1 ? "s" : ""} in that folder
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+                    Found <strong>{drivePanelStatus.total}</strong> photo{drivePanelStatus.total !== 1 ? "s" : ""} in that folder
+                  </div>
+                  <button type="button"
+                    onClick={() => void handleDriveImport(drivePanelStatus.fileIds, drivePanelStatus.total)}
+                    style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 7, background: COLORS.fill, color: "#fff", border: "none", cursor: "pointer" }}>
+                    Import {drivePanelStatus.total} photo{drivePanelStatus.total !== 1 ? "s" : ""}
+                  </button>
+                  <button type="button" onClick={() => setDrivePanelStatus({ kind: "idle" })}
+                    style={{ background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>Cancel</button>
                 </div>
-                <button type="button"
-                  onClick={() => void handleDriveImport(drivePanelStatus.fileIds, drivePanelStatus.total)}
-                  style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 7, background: COLORS.fill, color: "#fff", border: "none", cursor: "pointer" }}>
-                  Import {drivePanelStatus.total} photo{drivePanelStatus.total !== 1 ? "s" : ""}
-                </button>
-                <button type="button" onClick={() => setDrivePanelStatus({ kind: "idle" })}
-                  style={{ background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>Cancel</button>
+                {drivePanelStatus.truncated && (
+                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.amber }}>
+                    Folder is very large — only the first {drivePanelStatus.total} images are listed. Move excess into a sub-folder and re-run.
+                  </div>
+                )}
               </div>
             )}
 
@@ -2257,7 +2353,7 @@ export function WorkspaceMediaPage() {
           wsLogoUrl={wsLogoUrl}
           wsWatermarkEnabled={wsWatermarkEnabled}
           onClose={() => setLightboxPhoto(null)}
-          onSetCard={(photoId, talentId) => { toast("Set as card photo"); queueRouterRefresh(); }}
+          onSetCard={() => { toast("Set as card photo"); queueRouterRefresh(); }}
         />
       )}
 
@@ -2274,7 +2370,7 @@ export function WorkspaceMediaPage() {
           selCount={selCount}
           onSelectAll={() => setStagingSelected(new Set(stagingItems.map((it) => it.id)))}
           onClearSel={() => setStagingSelected(new Set())}
-          onToggleItem={(id) => setStagingSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; })}
+          onToggleItem={(id) => setStagingSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
           onBulkTalentChange={(id) => setStagingBulkTalentId(id)}
           onBulkAssign={() => setStagingItems((prev) => prev.map((it) => stagingSelected.has(it.id) ? { ...it, talentId: stagingBulkTalentId } : it))}
           onItemTalentChange={(itemId, talentId) => setStagingItems((prev) => prev.map((it) => it.id === itemId ? { ...it, talentId } : it))}

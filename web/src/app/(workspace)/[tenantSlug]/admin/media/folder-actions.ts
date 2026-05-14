@@ -272,7 +272,7 @@ export async function actionListFolderAssets(
 export async function actionCreateFolderShareLink(
   folderId: string,
   expiryDays?: number,
-): Promise<ActionResult<{ shareUrl: string; token: string }>> {
+): Promise<ActionResult<{ shareUrl: string; sharePath: string; token: string }>> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -295,8 +295,12 @@ export async function actionCreateFolderShareLink(
     return { ok: false, error: "Could not create share link." };
   }
 
-  const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/share/folder/${token}`;
-  return { ok: true, data: { shareUrl, token } };
+  const sharePath = `/share/folder/${token}`;
+  const origin = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
+  // Always return a relative `sharePath` so the client can prefix with
+  // window.location.origin when the env var isn't set in production.
+  const shareUrl = origin ? `${origin}${sharePath}` : sharePath;
+  return { ok: true, data: { shareUrl, sharePath, token } };
 }
 
 export async function actionRevokeFolderShareLink(folderId: string): Promise<ActionResult<null>> {
