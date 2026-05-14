@@ -15,6 +15,7 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
 import { loadDiscoverTalents, loadDiscoverFacets, loadDiscoverHubs } from "../../_data-bridge/discover";
+import { loadClientSubscription, canUsePro } from "@/lib/discover/client-subscription";
 import { DiscoverShell } from "./DiscoverShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { EmptyState } from "../_components/EmptyState";
@@ -48,8 +49,8 @@ export default async function ClientDiscoverPage({
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  // Parallel SSR loads: paginated talents + filter facets + hubs.
-  const [{ items, total }, facets, hubs] = await Promise.all([
+  // Parallel SSR loads: paginated talents + filter facets + hubs + tier.
+  const [{ items, total }, facets, hubs, subscription] = await Promise.all([
     loadDiscoverTalents({
       country: sp.country,
       category: sp.category,
@@ -60,7 +61,9 @@ export default async function ClientDiscoverPage({
     }),
     loadDiscoverFacets(),
     loadDiscoverHubs(),
+    loadClientSubscription(session.user.id),
   ]);
+  const hasPro = canUsePro(subscription);
 
   return (
     <div style={{ fontFamily: FONT }}>
@@ -70,6 +73,23 @@ export default async function ClientDiscoverPage({
         subtitle="Find talent across every Tulala hub and independent profile. Save favorites, build shortlists, send one inquiry that routes to the right agency for each talent."
         badge={total > 0 ? <HeaderBadge>{total} on Discover</HeaderBadge> : undefined}
       />
+
+      {!hasPro && (
+        <div
+          style={{
+            margin: "0 0 16px 0", padding: "12px 16px",
+            background: "linear-gradient(135deg, rgba(15,79,62,0.08), rgba(15,79,62,0.02))",
+            border: "1px solid rgba(15,79,62,0.20)",
+            borderRadius: 12,
+            fontSize: 12.5, color: "#0B0B0D",
+            fontFamily: '"Inter", system-ui, sans-serif',
+          }}
+        >
+          <strong style={{ color: "#0F4F3E", fontWeight: 700, letterSpacing: 0.3, fontSize: 10.5, textTransform: "uppercase" }}>Standard tier</strong>
+          {" — Browse + heart + 1 shortlist + single-talent inquiry are free. "}
+          <strong>Compare</strong>, <strong>multi-talent fan-out</strong>, and rate visibility unlock with Pro.
+        </div>
+      )}
 
       {items.length > 0 || sp.country || sp.category || sp.hub || sp.q ? (
         <DiscoverShell
