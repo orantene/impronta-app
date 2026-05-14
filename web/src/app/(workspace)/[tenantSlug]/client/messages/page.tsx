@@ -11,6 +11,7 @@ import {
   loadWorkspaceRosterLite,
 } from "../../_data-bridge";
 import { loadInquiryMessages } from "../../_data-bridge/inquiries-messages";
+import { loadClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { ClientMessagesShell } from "./ClientMessagesShell";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,8 @@ type SearchParams = Promise<{
   new?: string;
   talent?: string;
   just_submitted?: string;
+  /** Phase C — which thread-pane tab to open: chat / lineup / offer / details / files. Default = chat. */
+  tab?: string;
 }>;
 
 export default async function ClientMessagesPage({
@@ -59,10 +62,21 @@ export default async function ClientMessagesPage({
     ? inquiries.find((i) => i.id === pinnedInquiry)?.id ?? inquiries[0]?.id ?? null
     : inquiries[0]?.id ?? null;
 
-  // Pre-load messages for the initial active inquiry (private thread)
-  const initialMessages = initialActiveId
-    ? await loadInquiryMessages(scope.tenantId, initialActiveId, "private")
-    : [];
+  // Phase C — load Details payload + private-thread messages in parallel for
+  // the initial active inquiry. The shell mounts Details tab content from
+  // server data so the first paint is rich (no spinner-and-fetch).
+  const [initialMessages, initialDetails] = await Promise.all([
+    initialActiveId
+      ? loadInquiryMessages(scope.tenantId, initialActiveId, "private")
+      : Promise.resolve([]),
+    initialActiveId
+      ? loadClientInquiryDetails(scope.tenantId, initialActiveId)
+      : Promise.resolve(null),
+  ]);
+
+  // Validate ?tab= against the allow-list. Any unknown value falls back to chat.
+  const allowedTabs = new Set(["chat", "lineup", "offer", "details", "files"]);
+  const initialTab = sp.tab && allowedTabs.has(sp.tab) ? sp.tab : "chat";
 
   return (
     <ClientMessagesShell
@@ -76,7 +90,9 @@ export default async function ClientMessagesPage({
       }}
       roster={roster}
       initialMessages={initialMessages}
+      initialDetails={initialDetails}
       initialActiveId={initialActiveId}
+      initialTab={initialTab as "chat" | "lineup" | "offer" | "details" | "files"}
       autoOpenDrawer={autoOpenDrawer}
       prefilledTalentId={prefilledTalentId}
       justSubmittedInquiryId={justSubmittedInquiryId ?? undefined}

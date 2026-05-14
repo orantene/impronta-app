@@ -18,7 +18,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ClientInquiryRow } from "../../_data-bridge";
 import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
+import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
+import { DetailsTab } from "./DetailsTab";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -62,6 +64,8 @@ export type TalentOption = {
   city?: string;
 };
 
+export type ThreadTab = "chat" | "lineup" | "offer" | "details" | "files";
+
 type Props = {
   tenantSlug: string;
   tenantName: string;
@@ -74,7 +78,11 @@ type Props = {
   roster: TalentOption[];
   /** Pre-loaded messages for the initially-selected inquiry (first row). */
   initialMessages: WorkspaceMessage[];
+  /** Phase C — pre-loaded Details payload for the initial active inquiry. */
+  initialDetails: ClientInquiryDetails | null;
   initialActiveId: string | null;
+  /** Phase C — which tab to open (chat / lineup / offer / details / files). */
+  initialTab: ThreadTab;
   /** Auto-open the inquiry drawer on mount (?new=1). */
   autoOpenDrawer?: boolean;
   /** Talent to pre-attach when auto-opening (?talent=<id>). */
@@ -90,14 +98,19 @@ export function ClientMessagesShell({
   client,
   roster,
   initialMessages,
+  initialDetails,
   initialActiveId,
+  initialTab,
   autoOpenDrawer = false,
   prefilledTalentId,
   justSubmittedInquiryId,
 }: Props) {
   const router = useRouter();
   const [activeId, setActiveId] = useState<string | null>(initialActiveId);
+  const [activeTab, setActiveTab] = useState<ThreadTab>(initialTab);
   const [messages, setMessages] = useState<WorkspaceMessage[]>(initialMessages);
+  const [details, setDetails] = useState<ClientInquiryDetails | null>(initialDetails);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
@@ -144,6 +157,21 @@ export function ClientMessagesShell({
       .finally(() => {
         if (!cancelled) setLoadingThread(false);
       });
+    return () => { cancelled = true; };
+  }, [activeId, initialActiveId]);
+
+  // Phase C — lazy-fetch Details payload on inquiry switch.
+  useEffect(() => {
+    if (!activeId || activeId === initialActiveId) return;
+    let cancelled = false;
+    setLoadingDetails(true);
+    fetch(`/api/client/inquiry-details?inquiry=${encodeURIComponent(activeId)}`)
+      .then((r) => (r.ok ? r.json() : { details: null }))
+      .then((j: { details: ClientInquiryDetails | null }) => {
+        if (!cancelled) setDetails(j.details ?? null);
+      })
+      .catch(() => { if (!cancelled) setDetails(null); })
+      .finally(() => { if (!cancelled) setLoadingDetails(false); });
     return () => { cancelled = true; };
   }, [activeId, initialActiveId]);
 
@@ -323,10 +351,14 @@ export function ClientMessagesShell({
         {/* Thread pane */}
         <div data-pane="thread" style={{ display: "flex", flexDirection: "column", minHeight: 0, background: C.surfaceAlt, overflow: "hidden" }}>
           {active ? (
-            <ThreadPane
+            <ThreadPaneWithTabs
               inq={active}
               messages={messages}
-              loading={loadingThread}
+              loadingMessages={loadingThread}
+              details={details}
+              loadingDetails={loadingDetails}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
               tenantSlug={tenantSlug}
               onBack={() => setMobilePane("list")}
             />
@@ -453,7 +485,255 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
   );
 }
 
-// ─── Thread pane ─────────────────────────────────────────────────────────
+// ─── Thread pane with Phase C tabs ───────────────────────────────────────
+
+const TAB_CONFIG: Array<{ id: ThreadTab; label: string }> = [
+  { id: "chat", label: "Chat" },
+  { id: "lineup", label: "Lineup" },
+  { id: "offer", label: "Offer" },
+  { id: "details", label: "Details" },
+  { id: "files", label: "Files" },
+];
+
+function ThreadPaneWithTabs({
+  inq,
+  messages,
+  loadingMessages,
+  details,
+  loadingDetails,
+  activeTab,
+  onTabChange,
+  tenantSlug,
+  onBack,
+}: {
+  inq: ClientInquiryRow;
+  messages: WorkspaceMessage[];
+  loadingMessages: boolean;
+  details: ClientInquiryDetails | null;
+  loadingDetails: boolean;
+  activeTab: ThreadTab;
+  onTabChange: (tab: ThreadTab) => void;
+  tenantSlug: string;
+  onBack: () => void;
+}) {
+  const stage = stageStyle(inq.status);
+  return (
+    <>
+      {/* Thread header — same as before, but tab strip appended below */}
+      <div style={{ padding: "12px 16px 0", borderBottom: `1px solid ${C.borderSoft}`, background: "#fff" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to list"
+            style={{
+              display: "none",
+              width: 30,
+              height: 30,
+              borderRadius: 7,
+              border: `1px solid ${C.borderSoft}`,
+              background: "transparent",
+              cursor: "pointer",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            className="thread-back-btn"
+          >
+            ←
+          </button>
+          <style dangerouslySetInnerHTML={{ __html: "@media (max-width:720px){.thread-back-btn{display:inline-flex!important;}}" }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {inq.company || details?.job.title || "Inquiry"}
+            </div>
+            <div style={{ fontSize: 11, color: C.inkMuted, display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
+              <span style={{ padding: "1px 6px", borderRadius: 999, background: stage.bg, color: stage.fg, fontWeight: 700, fontSize: 9.5 }}>
+                {stage.label}
+              </span>
+              {inq.event_date && <span>· {formatDate(inq.event_date)}</span>}
+              {inq.event_location && <span>· {inq.event_location}</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Tab strip */}
+        <div role="tablist" style={{ display: "flex", gap: 0, marginTop: 12, overflowX: "auto" }}>
+          {TAB_CONFIG.map((t) => {
+            const isActive = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => onTabChange(t.id)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "8px 14px",
+                  fontFamily: FONT,
+                  fontSize: 12.5,
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? C.ink : C.inkMuted,
+                  cursor: "pointer",
+                  position: "relative",
+                  whiteSpace: "nowrap",
+                  letterSpacing: 0.1,
+                }}
+              >
+                {t.label}
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    bottom: -1,
+                    left: 8,
+                    right: 8,
+                    height: 2,
+                    background: C.ink,
+                    borderRadius: 2,
+                    opacity: isActive ? 1 : 0,
+                    transition: "opacity 180ms",
+                  }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tab body */}
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0, background: activeTab === "chat" ? C.surfaceAlt : "rgba(11,11,13,0.02)" }}>
+        {activeTab === "chat" && (
+          <ChatThreadBody inq={inq} messages={messages} loading={loadingMessages} tenantSlug={tenantSlug} />
+        )}
+        {activeTab === "details" && (
+          <DetailsTab details={loadingDetails ? null : details} />
+        )}
+        {activeTab === "lineup" && (
+          <TabStubPanel
+            title="Lineup"
+            body="Proposed + confirmed talent for this project."
+            bullets={
+              details?.talent.selected.length
+                ? details.talent.selected.map((t) => `${t.name} · ${t.status}`)
+                : []
+            }
+            emptyHint={
+              details?.talent.selection_mode === "agency_recommends"
+                ? "Agency to recommend — the coordinator will propose talent shortly."
+                : "No talent selected yet."
+            }
+          />
+        )}
+        {activeTab === "offer" && (
+          <TabStubPanel
+            title="Offer"
+            body={
+              details?.offer?.exists
+                ? `Offer ${details.offer.status} · ${details.offer.total_client_price ?? "—"} ${details.offer.currency ?? ""}`
+                : "No offer yet."
+            }
+            bullets={[]}
+            emptyHint={
+              details?.offer?.exists
+                ? "Approve, counter, or decline UI ships in Phase E."
+                : "Once your coordinator confirms talent, you'll receive an offer here."
+            }
+          />
+        )}
+        {activeTab === "files" && (
+          <TabStubPanel
+            title="Files & references"
+            body={
+              (details?.attachments.files.length ?? 0) + (details?.attachments.links.length ?? 0) > 0
+                ? `${details!.attachments.files.length} files · ${details!.attachments.links.length} links`
+                : "No files yet."
+            }
+            bullets={[
+              ...(details?.attachments.files.map((f) => f.name) ?? []),
+              ...(details?.attachments.links ?? []),
+            ]}
+            emptyHint="Upload comes in Phase F. For now, share references via Chat."
+          />
+        )}
+      </div>
+
+      {/* Compose hint — only on Chat tab */}
+      {activeTab === "chat" && (
+        <div style={{ padding: "10px 16px", borderTop: `1px solid ${C.borderSoft}`, background: "#fff", fontSize: 12, color: C.inkMuted, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <span>In-page composer coming next sprint.</span>
+          <Link
+            href={`/${tenantSlug}/client/inquiries/${inq.id}`}
+            style={{ color: C.accent, textDecoration: "none", fontWeight: 600 }}
+          >
+            Open full thread →
+          </Link>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ChatThreadBody({
+  inq, messages, loading,
+}: {
+  inq: ClientInquiryRow;
+  messages: WorkspaceMessage[];
+  loading: boolean;
+  tenantSlug: string;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+  void inq;
+  return (
+    <div ref={scrollRef} style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {loading ? (
+        <div style={{ color: C.inkDim, fontSize: 12, textAlign: "center", padding: 20 }}>Loading messages…</div>
+      ) : messages.length === 0 ? (
+        <div style={{ color: C.inkDim, fontSize: 12.5, textAlign: "center", padding: 30, fontStyle: "italic" }}>
+          No messages yet. Your coordinator will reply here once they pick up your inquiry.
+        </div>
+      ) : (
+        messages.map((m) => <Bubble key={m.id} m={m} />)
+      )}
+    </div>
+  );
+}
+
+function TabStubPanel({
+  title, body, bullets, emptyHint,
+}: {
+  title: string;
+  body: string;
+  bullets: string[];
+  emptyHint: string;
+}) {
+  return (
+    <div style={{ padding: "20px 22px", fontFamily: FONT }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
+        {title}
+      </div>
+      <div style={{ marginTop: 6, fontSize: 14, color: C.ink, lineHeight: 1.5 }}>{body}</div>
+      {bullets.length > 0 && (
+        <ul style={{ margin: "10px 0 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
+          {bullets.map((b, i) => (
+            <li key={i} style={{ fontSize: 12.5, color: C.inkMuted, padding: "4px 8px", background: "rgba(11,11,13,0.03)", borderRadius: 6 }}>
+              {b}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 8, background: "rgba(11,11,13,0.02)", border: `1px dashed ${C.borderSoft}`, fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
+        {emptyHint}
+      </div>
+    </div>
+  );
+}
+
+// ─── Legacy ThreadPane (kept for reference; no longer used) ──────────────
 
 function ThreadPane({
   inq,
