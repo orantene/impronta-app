@@ -21,7 +21,7 @@ import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-det
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
-import { sendClientMessageAction } from "../_actions/inquiry-message-actions";
+import { sendClientMessageAction, markClientThreadReadAction } from "../_actions/inquiry-message-actions";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -123,6 +123,18 @@ export function ClientMessagesShell({
   const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
   const [drawerOpen, setDrawerOpen] = useState(autoOpenDrawer);
   const [loadingThread, setLoadingThread] = useState(false);
+
+  // Mark the active thread read whenever the user views it (Chat tab) AND
+  // there are messages loaded. Fire-and-forget — the unread badge on the
+  // list row + the parent inbox refresh on the next router.refresh() reflect
+  // the result. We re-fire when `activeId`, `messages.length`, or `activeTab`
+  // changes so flipping between threads + tabs keeps the marker fresh.
+  useEffect(() => {
+    if (!activeId || activeTab !== "chat" || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.id.startsWith("tmp-")) return; // skip optimistic
+    void markClientThreadReadAction(tenantSlug, activeId, last.id);
+  }, [activeId, activeTab, messages.length, tenantSlug]);
 
   // Rollback optimistic message bubbles when send fails.
   useEffect(() => {
@@ -644,20 +656,7 @@ function ThreadPaneWithTabs({
           <DetailsTab details={loadingDetails ? null : details} />
         )}
         {activeTab === "lineup" && (
-          <TabStubPanel
-            title="Lineup"
-            body="Proposed + confirmed talent for this project."
-            bullets={
-              details?.talent.selected.length
-                ? details.talent.selected.map((t) => `${t.name} · ${t.status}`)
-                : []
-            }
-            emptyHint={
-              details?.talent.selection_mode === "agency_recommends"
-                ? "Agency to recommend — the coordinator will propose talent shortly."
-                : "No talent selected yet."
-            }
-          />
+          <LineupTab details={loadingDetails ? null : details} />
         )}
         {activeTab === "offer" && (
           <OfferTab
@@ -667,19 +666,7 @@ function ThreadPaneWithTabs({
           />
         )}
         {activeTab === "files" && (
-          <TabStubPanel
-            title="Files & references"
-            body={
-              (details?.attachments.files.length ?? 0) + (details?.attachments.links.length ?? 0) > 0
-                ? `${details!.attachments.files.length} files · ${details!.attachments.links.length} links`
-                : "No files yet."
-            }
-            bullets={[
-              ...(details?.attachments.files.map((f) => f.name) ?? []),
-              ...(details?.attachments.links ?? []),
-            ]}
-            emptyHint="Upload comes in Phase F. For now, share references via Chat."
-          />
+          <FilesTab details={loadingDetails ? null : details} />
         )}
       </div>
 
@@ -866,35 +853,229 @@ function ChatThreadBody({
   );
 }
 
-function TabStubPanel({
-  title, body, bullets, emptyHint,
-}: {
-  title: string;
-  body: string;
-  bullets: string[];
-  emptyHint: string;
-}) {
+// ─── Lineup tab ──────────────────────────────────────────────────────────
+
+function LineupTab({ details }: { details: ClientInquiryDetails | null }) {
+  if (!details) {
+    return <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>Loading lineup…</div>;
+  }
+  const list = details.talent.selected;
+  const mode = details.talent.selection_mode;
+
   return (
-    <div style={{ padding: "20px 22px", fontFamily: FONT }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-        {title}
+    <div style={{ padding: "16px 20px 28px", fontFamily: FONT, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
+          Lineup
+        </div>
+        <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
+          {mode === "agency_recommends"
+            ? "Your coordinator will propose talent based on the brief. You'll see them appear here as they're added."
+            : "Talent on this project. Status updates as coordinators confirm them."}
+        </div>
       </div>
-      <div style={{ marginTop: 6, fontSize: 14, color: C.ink, lineHeight: 1.5 }}>{body}</div>
-      {bullets.length > 0 && (
-        <ul style={{ margin: "10px 0 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 4 }}>
-          {bullets.map((b, i) => (
-            <li key={i} style={{ fontSize: 12.5, color: C.inkMuted, padding: "4px 8px", background: "rgba(11,11,13,0.03)", borderRadius: 6 }}>
-              {b}
-            </li>
+
+      {list.length === 0 ? (
+        <div
+          style={{
+            padding: "14px 16px",
+            borderRadius: 10,
+            background: "rgba(11,11,13,0.02)",
+            border: `1px dashed ${C.border}`,
+            fontSize: 12.5,
+            color: C.inkMuted,
+            lineHeight: 1.5,
+          }}
+        >
+          {mode === "agency_recommends"
+            ? "No proposals yet — your coordinator typically responds within a business day."
+            : "No talent selected yet."}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {list.map((t) => (
+            <div
+              key={t.participant_id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "#fff",
+                border: `1px solid ${C.borderSoft}`,
+              }}
+            >
+              {t.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={t.photo_url}
+                  alt={t.name}
+                  style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    background: "rgba(11,11,13,0.05)",
+                    color: C.inkMuted,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  {talentInitials(t.name)}
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {t.name}
+                </div>
+                {t.profile_code && (
+                  <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
+                    {t.profile_code}
+                  </div>
+                )}
+              </div>
+              <LineupStatusPill status={t.status} />
+            </div>
           ))}
-        </ul>
+        </div>
       )}
-      <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 8, background: "rgba(11,11,13,0.02)", border: `1px dashed ${C.borderSoft}`, fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
-        {emptyHint}
-      </div>
     </div>
   );
 }
+
+function talentInitials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+}
+
+function LineupStatusPill({ status }: { status: string }) {
+  const palette = (() => {
+    if (status === "active") return { bg: "rgba(15,81,50,0.10)", fg: "#0F5132", label: "Confirmed" };
+    if (status === "invited") return { bg: C.accentSoft, fg: C.accent, label: "Invited" };
+    if (status === "declined") return { bg: "rgba(239,68,68,0.08)", fg: "#991B1B", label: "Declined" };
+    if (status === "replacement_sourcing") return { bg: "rgba(245,158,11,0.10)", fg: "#92400E", label: "Sourcing replacement" };
+    return { bg: "rgba(11,11,13,0.06)", fg: C.inkMuted, label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) };
+  })();
+  return (
+    <span
+      style={{
+        padding: "3px 9px",
+        borderRadius: 999,
+        background: palette.bg,
+        color: palette.fg,
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: 0.3,
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {palette.label}
+    </span>
+  );
+}
+
+// ─── Files tab ───────────────────────────────────────────────────────────
+
+function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
+  if (!details) {
+    return <div style={{ padding: 24, color: C.inkMuted, fontFamily: FONT, fontSize: 13 }}>Loading files…</div>;
+  }
+  const files = details.attachments.files;
+  const links = details.attachments.links;
+  const isEmpty = files.length === 0 && links.length === 0;
+
+  return (
+    <div style={{ padding: "16px 20px 28px", fontFamily: FONT, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
+          Files & references
+        </div>
+        <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 4 }}>
+          Materials shared on this project — mood-boards, decks, contracts.
+        </div>
+      </div>
+
+      {isEmpty ? (
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: 10,
+            background: "rgba(11,11,13,0.02)",
+            border: `1px dashed ${C.border}`,
+            fontSize: 12.5,
+            color: C.inkMuted,
+            lineHeight: 1.5,
+          }}
+        >
+          No files yet. Share references in the chat — your coordinator will collect them here.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {files.map((f, i) => (
+            <a
+              key={`f-${i}`}
+              href={f.url}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                borderRadius: 9,
+                background: "#fff",
+                border: `1px solid ${C.borderSoft}`,
+                textDecoration: "none",
+                color: C.ink,
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              <span style={{ fontSize: 16 }}>📎</span>
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+              <span style={{ fontSize: 11, color: C.inkMuted }}>Open ↗</span>
+            </a>
+          ))}
+          {links.map((l, i) => (
+            <a
+              key={`l-${i}`}
+              href={l}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                borderRadius: 9,
+                background: "#fff",
+                border: `1px solid ${C.borderSoft}`,
+                textDecoration: "none",
+                color: C.accent,
+                fontSize: 13,
+                fontWeight: 500,
+                wordBreak: "break-all",
+              }}
+            >
+              <span style={{ fontSize: 16 }}>🔗</span>
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l}</span>
+              <span style={{ fontSize: 11, color: C.inkMuted, flexShrink: 0 }}>Open ↗</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function Bubble({ m, onJumpToOffer }: { m: WorkspaceMessage; onJumpToOffer?: () => void }) {
   const mine = m.is_mine;

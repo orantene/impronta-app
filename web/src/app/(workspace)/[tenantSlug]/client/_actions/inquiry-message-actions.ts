@@ -13,7 +13,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
+import { sendMessage as engineSendMessage, markThreadRead as engineMarkThreadRead } from "@/lib/inquiry/inquiry-engine-messages";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type ClientSendMessageResult =
@@ -74,5 +74,46 @@ export async function sendClientMessageAction(
   } catch (err) {
     logServerError("client.sendInquiryMessage", err);
     return { ok: false, error: "Unexpected error. Try again." };
+  }
+}
+
+/**
+ * Mark the group thread on this inquiry read up to lastMessageId.
+ * Called when the client opens the Chat tab (or selects a thread row).
+ * Fire-and-forget — UI never blocks on this; errors are silent.
+ */
+export async function markClientThreadReadAction(
+  tenantSlug: string,
+  inquiryId: string,
+  lastMessageId: string | null,
+): Promise<{ ok: boolean }> {
+  try {
+    const session = await getCachedActorSession();
+    if (!session.supabase || !session.user) return { ok: false };
+    const scope = await getTenantPortalScopeBySlug(tenantSlug);
+    if (!scope) return { ok: false };
+
+    // Confirm ownership before touching the read-marker table.
+    const { data: inq } = await session.supabase
+      .from("inquiries")
+      .select("id, client_user_id")
+      .eq("id", inquiryId)
+      .eq("tenant_id", scope.tenantId)
+      .maybeSingle();
+    if (!inq || inq.client_user_id !== session.user.id) return { ok: false };
+
+    const admin = createServiceRoleClient();
+    const write = admin ?? session.supabase;
+    const res = await engineMarkThreadRead(write, {
+      inquiryId,
+      tenantId: scope.tenantId,
+      actorUserId: session.user.id,
+      threadType: "group",
+      lastMessageId,
+    });
+    return { ok: res.success };
+  } catch (err) {
+    logServerError("client.markThreadRead", err);
+    return { ok: false };
   }
 }
