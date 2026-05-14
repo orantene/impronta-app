@@ -19,7 +19,7 @@
  * Step 2 of the inquiry-funnel sprint (2026-05-13).
  */
 
-import { useActionState, useMemo, useRef } from "react";
+import { useActionState, useEffect, useMemo, useRef } from "react";
 import { useFormStatus } from "react-dom";
 
 import { InquiryDraftAssistant } from "@/components/directory/inquiry-draft-assistant";
@@ -37,6 +37,8 @@ import {
   buildWhatsAppHref,
 } from "@/lib/inquiries";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
+import { trackProductEvent } from "@/lib/analytics/track-client";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 
 // ---------------------------------------------------------------------------
 // Public prop types
@@ -146,6 +148,12 @@ const DEFAULT_COPY: DirectoryUiCopy["inquiryForm"] = {
   whatsAppCompose: "Open in WhatsApp",
   whatsAppTitleOn: "Continue in WhatsApp",
   whatsAppTitleOff: "WhatsApp not configured for this workspace",
+  draftGenerate: "Draft with AI",
+  draftPolish: "Polish",
+  draftWorking: "Writing…",
+  draftError: "Could not generate draft",
+  draftPolishNeedText: "Add some text first",
+  draftHint: "AI draft — review before sending",
 };
 
 // ---------------------------------------------------------------------------
@@ -462,6 +470,37 @@ function FormBody({
           rows={4}
         />
       </div>
+      {/* Step 14 — attachments hint. The uploader itself lives on the
+          inquiry detail page (post-create) because File objects can't
+          survive the form-action redirect. Once the inquiry exists the
+          client can attach mood boards, contracts, references from the
+          Files sheet. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 10px",
+          background: "rgba(29,78,216,0.06)",
+          border: "1px solid rgba(29,78,216,0.15)",
+          borderRadius: 8,
+          fontSize: 12,
+          color: "#1D4ED8",
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+          <path
+            d="M3 1.5h5l3 3v7.5a.5.5 0 0 1-.5.5h-7.5a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5z M8 1.5V4.5h3"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            fill="none"
+          />
+        </svg>
+        <span>
+          You&rsquo;ll be able to attach mood boards, briefs, and references
+          right after sending — no need to email them separately.
+        </span>
+      </div>
       <p className="text-sm text-muted-foreground">{form.privacyNotice}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <SubmitButton label={form.submitInquiry} sendingLabel={form.sending} />
@@ -530,6 +569,7 @@ function ClientForm({
   locale,
   formId,
   searchContext,
+  submittedRef,
 }: {
   talentIds: string[];
   selectedTalent: Array<{ id: string; profile_code: string; display_name: string | null }>;
@@ -541,6 +581,7 @@ function ClientForm({
   locale?: string;
   formId?: string;
   searchContext?: InquirySearchContext | null;
+  submittedRef: React.MutableRefObject<boolean>;
 }) {
   const [state, formAction] = useActionState<InquiryFormState, FormData>(
     submitClientInquiry,
@@ -548,7 +589,7 @@ function ClientForm({
   );
   const effFormId = formId ?? "inquiry-cart-form";
   return (
-    <form id={effFormId} action={formAction} className="space-y-4">
+    <form id={effFormId} action={formAction} className="space-y-4" onSubmit={() => { submittedRef.current = true; }}>
       <FormBody
         agencyWhatsAppNumber={agencyWhatsAppNumber}
         talentIds={talentIds}
@@ -579,6 +620,7 @@ function GuestForm({
   locale,
   formId,
   searchContext,
+  submittedRef,
 }: {
   talentIds: string[];
   selectedTalent: Array<{ id: string; profile_code: string; display_name: string | null }>;
@@ -589,6 +631,7 @@ function GuestForm({
   locale?: string;
   formId?: string;
   searchContext?: InquirySearchContext | null;
+  submittedRef: React.MutableRefObject<boolean>;
 }) {
   const [state, formAction] = useActionState<InquiryFormState, FormData>(
     submitGuestInquiry,
@@ -596,7 +639,7 @@ function GuestForm({
   );
   const effFormId = formId ?? "inquiry-cart-form";
   return (
-    <form id={effFormId} action={formAction} className="space-y-4">
+    <form id={effFormId} action={formAction} className="space-y-4" onSubmit={() => { submittedRef.current = true; }}>
       <FormBody
         agencyWhatsAppNumber={agencyWhatsAppNumber}
         talentIds={talentIds}
@@ -620,15 +663,47 @@ function GuestForm({
 export function InquiryCartForm(props: InquiryCartFormProps) {
   const {
     pov,
+    tenantId,
     prefilledTalentIds = [],
     selectedTalent = [],
     eventTypes = [],
+    searchContext,
   } = props;
 
   const talentIds =
     prefilledTalentIds.length > 0
       ? prefilledTalentIds
       : selectedTalent.map((t) => t.id);
+
+  // Step 12: track form_started on mount and abandoned on unmount.
+  // submittedRef is set to true in the form's onSubmit so the cleanup
+  // knows NOT to fire inquiry_abandoned when the submit causes a redirect.
+  const submittedRef = useRef(false);
+
+  const surface: string = searchContext?.sourcePage?.includes("talent")
+    ? "talent_page_cta"
+    : "directory_cart";
+  const sourcePage = searchContext?.sourcePage ?? "/directory";
+
+  useEffect(() => {
+    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.inquiry_form_started, {
+      surface,
+      tenant_id: tenantId,
+      source_page: sourcePage,
+    });
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (!submittedRef.current) {
+        trackProductEvent(PRODUCT_ANALYTICS_EVENTS.inquiry_abandoned, {
+          surface,
+          tenant_id: tenantId,
+          source_page: sourcePage,
+        });
+      }
+    };
+    // Mount-only — surface/sourcePage are stable for the lifetime of this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sharedProps = {
     talentIds,
@@ -639,7 +714,8 @@ export function InquiryCartForm(props: InquiryCartFormProps) {
     inquiryDraftEnabled: props.inquiryDraftEnabled,
     locale: props.locale,
     formId: props.formId,
-    searchContext: props.searchContext,
+    searchContext,
+    submittedRef,
   };
 
   if (pov === "client") {

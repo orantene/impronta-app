@@ -23,6 +23,8 @@ import {
   useFormPersistence,
 } from "@/lib/ui/use-form-persistence";
 import { InquiryCartFormFields } from "@/components/inquiry-cart/InquiryCartForm";
+import { trackProductEvent } from "@/lib/analytics/track-client";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 
 type TalentOption = {
   id: string;
@@ -82,6 +84,25 @@ export function NewInquiryForm({
     }
   }, [state, pending, tenantSlug]);
 
+  // Step 12: track form_started on mount and abandoned on unmount.
+  const submittedRef = useRef(false);
+  useEffect(() => {
+    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.inquiry_form_started, {
+      surface: "dashboard_new",
+      source_page: `/${tenantSlug}/client/inquiries/new`,
+    });
+    return () => {
+      if (!submittedRef.current) {
+        trackProductEvent(PRODUCT_ANALYTICS_EVENTS.inquiry_abandoned, {
+          surface: "dashboard_new",
+          source_page: `/${tenantSlug}/client/inquiries/new`,
+        });
+      }
+    };
+    // Mount-only — tenantSlug is stable per page render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Map roster to the shape InquiryCartFormFields expects.
   const selectedTalent = roster.map((item) => ({
     id: item.id,
@@ -98,6 +119,7 @@ export function NewInquiryForm({
       id="new-inquiry-form"
       action={formAction}
       className="space-y-4"
+      onSubmit={() => { submittedRef.current = true; }}
     >
       {/* tenantSlug is read by createClientWorkspaceInquiryAction for the
           workspace lookup — this hidden input must be preserved. */}

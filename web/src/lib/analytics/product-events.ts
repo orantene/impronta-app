@@ -28,6 +28,28 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   marketing_section_viewed: "marketing_section_viewed",
   marketing_faq_opened: "marketing_faq_opened",
   marketing_audience_selected: "marketing_audience_selected",
+
+  // ---------------------------------------------------------------------------
+  // Inquiry funnel (step 12 — 2026-05-13)
+  // ---------------------------------------------------------------------------
+
+  /** Fired client-side when the inquiry form mounts. Payload: { surface, tenant_id, source_page } */
+  inquiry_form_started: "inquiry_form_started",
+
+  /** Fired client-side when a talent is added to the inquiry cart. Payload: { talent_profile_id, source } */
+  inquiry_talent_added: "inquiry_talent_added",
+
+  /** Fired client-side on form unmount without submit (best-effort). Payload: { surface, tenant_id, source_page } */
+  inquiry_abandoned: "inquiry_abandoned",
+
+  /** Fired server-side on submitInquiry engine success. Payload: { inquiry_id, mode, talent_count, has_budget, source_channel, initiator_role, is_guest } */
+  inquiry_submitted: "inquiry_submitted",
+
+  /** Stub for step 3 (category mode UI) — fired when a role+quantity row is added. */
+  inquiry_category_added: "inquiry_category_added",
+
+  /** Stub for step 4 (budget UI) — fired when budget unit/amount is set. */
+  inquiry_budget_set: "inquiry_budget_set",
 } as const;
 
 export type ProductAnalyticsEventName =
