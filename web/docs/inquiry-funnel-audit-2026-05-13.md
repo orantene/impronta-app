@@ -106,6 +106,48 @@ On insert the engine also:
 
 These bind every future inquiry-funnel decision.
 
+### P0 — Inquiry is THE universal connection object on Tulala (locked 2026-05-13)
+
+**This supersedes the narrower "client requests talent" framing.** An
+inquiry is the moment any two parties on the platform decide to start
+a conversation about a potential booking. It is the only primitive that
+connects the platform's roles together.
+
+What hangs off an inquiry:
+- **Participants** by role (client / talent / coordinator / admin / hub-matchmaker / free-agent), in any direction
+- **Chat threads** — both private (client-side) and group (talent-side). No chat exists without an inquiry. Every "should we work together" message is by definition a step in some inquiry.
+- **Lineup** (`inquiry_participants` + `inquiry_requirement_groups`)
+- **Offers** (`inquiry_offers` + line items)
+- **Files** (shared artifacts during coordination)
+- **Pitch** — a pitch is an inquiry-in-draft authored by the agency on behalf of a prospect-client, awaiting client approval. Approve = it becomes an active inquiry. The "pitch" surface is a pre-inquiry funnel; the data lands in the same engine.
+- **Booking** — the terminal active stage of an inquiry, not a separate object. `agency_bookings.source_inquiry_id` carries the trail.
+- **Audit log** (`inquiry_audit_log` + `inquiry_events`)
+- **Transactions** (`booking_transactions` linked to the booking, which is linked to the inquiry)
+
+**Direction of initiation is a first-class data field**, not implicit:
+- `initiator_role` — `client` | `admin` | `talent` | `hub` | `free_agent`
+- `initiator_user_id` — auth.users
+
+This is separate from `client_user_id` (which identifies the client
+party regardless of who initiated). Today's schema conflates the two —
+it works for the client→agency case but breaks when admin / talent /
+hub initiates. Locking the schema fix into Step 0 of the execution
+plan.
+
+### Initiation surfaces (today + future)
+
+| Initiator role | Surface | Status |
+|---|---|---|
+| client | Dashboard `/new`, public directory cart, public talent page CTA, hub cart | A, B, C built; talent-page direct CTA = step 10 |
+| admin | Admin "new inquiry" sheet (createAgencyInquiry) — creates on behalf of a client | E built but bypasses engine; step 0 fixes |
+| admin | Pitch — drafts an inquiry-in-pitch state, sends for client approval | partially built; step 8 (v2) extends |
+| talent | "I'm available for this gig" / cold outreach to a client | NOT BUILT — engine supports it via participant role |
+| free agent | (workspace owner who's also talent) cold outreach | NOT BUILT — same engine, initiator_role='free_agent' |
+| hub | Matchmaker — connects a client with an agency about an existing or new inquiry | NOT BUILT — step 9 ships hub flows |
+
+All of these end at the same `submitInquiry` engine call. The form /
+trigger surface is what differs.
+
 ### P1 — Inquiry is the universal "I want to book talent" object
 
 Every inquiry, no matter the entry point or tenant tier, lands in the same

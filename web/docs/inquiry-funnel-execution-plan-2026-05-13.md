@@ -29,20 +29,71 @@ Final order: `0 → 2 → 1 → 3 → 4 → 7 → 6/9 → 8 → 10/11`.
 
 ## Step-by-step plan
 
-### Step 0 — Engine convergence (foundation)
+### Step 0 — Engine convergence + universal-connector schema (foundation)
 
-**Goal**: collapse all 5 paths inserting into `inquiries` onto one
-`submitInquiry` call. Same data shape, same event emit, same rate limit.
+**Goal**: make `submitInquiry` the universal connect-two-parties primitive
+that EVERY initiation surface (client / admin / talent / hub / free
+agent) flows through. Today 5 server actions insert into `inquiries`;
+3 of them bypass the engine. Plus the schema conflates "the client"
+with "who initiated" — both need fixing in the same step.
 
-**Files**: `(public)/directory/actions.ts` (`submitGuestInquiry`), `lib/pitch/pitch-engine.ts` (`convertPitchToInquiry`), `lib/server-actions/admin-inquiries.ts` (`createAgencyInquiry`).
+**Scope (two parts):**
 
-**Effort**: M (4–6h). Critical correctness — engine reads existing fields, all 5 paths must end at the same insert.
+**Part A — Schema additions** (one migration):
 
-**Model**: **Opus** (me, foreground). This is architectural plumbing across 3 files, with downstream effects on every other step. Worth doing directly.
+```sql
+ALTER TABLE public.inquiries
+  ADD COLUMN initiator_role text
+    CHECK (initiator_role IN ('client', 'admin', 'talent', 'hub', 'free_agent')),
+  ADD COLUMN initiator_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
 
-**Deliverable**: 5 paths → 1 engine call. Test by submitting one inquiry through each surface and verifying every required column landed.
+-- Backfill existing rows: rows where client_user_id IS NOT NULL get
+-- initiator_role='client' + initiator_user_id=client_user_id. Rows from
+-- the admin manual path get initiator_role='admin' + initiator_user_id
+-- pulled from the audit log if present, NULL otherwise.
+UPDATE public.inquiries
+  SET initiator_role = CASE
+    WHEN client_user_id IS NOT NULL THEN 'client'
+    WHEN source_channel = 'pitch' THEN 'admin'
+    WHEN source_page LIKE 'admin-workspace%' THEN 'admin'
+    ELSE 'client'  -- conservative default for legacy rows
+  END,
+  initiator_user_id = COALESCE(client_user_id, NULL);
+```
 
-**Blocks**: 1, 2, 3, 4, 5, 7, 9 (steps that touch the insert path or assume engine consistency).
+After backfill, make `initiator_role` NOT NULL (separate migration once
+all paths are writing it).
+
+**Part B — Engine + path convergence:**
+
+- Extend `SubmitInquiryInput` with `initiator_role` (required) + `initiator_user_id` (defaults to `actorUserId`).
+- `submitGuestInquiry` — keep guest-session resolution + `ensureGuestClientByEmail`, but call `submitInquiry` with `initiator_role: 'client'` + `client_user_id: <guest's provisioned id>` instead of doing a direct insert.
+- `convertPitchToInquiry` — add `origin_domain` + `source_workspace_id` to the submitInquiry call (from the pitch's tenant + share URL host). Set `initiator_role: 'admin'` (pitch is admin-initiated) + `initiator_user_id: <pitch creator>`.
+- `createAgencyInquiry` (admin manual) — rewrite to call `submitInquiry` with `source_channel: 'admin_manual'`, `initiator_role: 'admin'`, `actorUserId: <staff user>`, `client_user_id: null` (admin can create on behalf of unregistered clients; the merge layer links them later by email/phone).
+
+**Files**:
+- New migration in `supabase/migrations/`
+- `lib/inquiry/inquiry-engine-submit.ts` (signature update + insert column)
+- `(public)/directory/actions.ts` (`submitGuestInquiry`)
+- `lib/pitch/pitch-engine.ts` (`convertPitchToInquiry`)
+- `lib/server-actions/admin-inquiries.ts` (`createAgencyInquiry`)
+- `app/(workspace)/[tenantSlug]/client/inquiries/new/actions.ts` (pass `initiator_role: 'client'`)
+
+**Effort**: M+ (5–7h). Critical correctness — every initiation path
+gets re-routed through one engine call AND the schema gains the
+universal-connector fields the rest of the plan depends on.
+
+**Model**: **Opus** (me, foreground). Multi-file architectural change,
+schema design, downstream effects on every later step.
+
+**Deliverable**: 5 paths → 1 engine call. Initiator role visible in
+every inquiry row. Test by submitting one inquiry through each surface
+and verifying `initiator_role` + `initiator_user_id` are populated
+correctly.
+
+**Blocks**: 1, 2, 3, 4, 5, 7, 9. Unblocks the "any role can initiate"
+expansion (future talent-initiated + hub-matchmaker flows) without
+schema changes downstream.
 
 ---
 
