@@ -3,7 +3,7 @@ import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { getCoordinatorTimeoutHours, getInquiryExpiryHours } from "./inquiry-settings";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { runWithEngineLog } from "./inquiry-engine.helpers";
+import { inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Staff lifecycle actions
@@ -53,7 +53,8 @@ export async function freezeInquiry(
       .maybeSingle();
     if (!inq) return { success: false, error: "not_found" };
 
-    await supabase
+    const writeFreeze = await inquiryWriteClient(supabase);
+    await writeFreeze
       .from("inquiries")
       .update({
         is_frozen: true,
@@ -96,7 +97,8 @@ export async function unfreezeInquiry(
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
 
-    await supabase
+    const writeUnfreeze = await inquiryWriteClient(supabase);
+    await writeUnfreeze
       .from("inquiries")
       .update({
         is_frozen: false,
@@ -143,7 +145,8 @@ export async function archiveInquiry(
     const t = canTransition(inq.status as string, "archived");
     if (!t.ok) return { success: false, reason: t.reason };
 
-    await supabase
+    const writeArchive = await inquiryWriteClient(supabase);
+    await writeArchive
       .from("inquiries")
       .update({
         status: "archived" as never,

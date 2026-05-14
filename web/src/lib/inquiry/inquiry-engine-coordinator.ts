@@ -4,7 +4,7 @@ import { validateActorPermission } from "./inquiry-permissions";
 import { assignCoordinatorFromSettings } from "./coordinator-assignment";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { logInquiryAction } from "./inquiry-action-log";
-import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
+import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
 // SaaS P1.B STEP A: every inquiry-scoped engine helper takes `tenantId` and
@@ -33,7 +33,8 @@ export async function assignCoordinator(
 
     const v = inq.version as number;
 
-    const { data: updated, error } = await supabase
+    const writeAssign = await inquiryWriteClient(supabase);
+    const { data: updated, error } = await writeAssign
       .from("inquiries")
       .update({
         coordinator_id: ctx.coordinatorUserId,
@@ -119,7 +120,8 @@ export async function acceptCoordinatorAssignment(
 
     const next = resolveNextActionBy("coordination");
 
-    const { data: updated, error } = await supabase
+    const writeAcceptCoord = await inquiryWriteClient(supabase);
+    const { data: updated, error } = await writeAcceptCoord
       .from("inquiries")
       .update({
         status: "coordination" as never,
@@ -138,7 +140,7 @@ export async function acceptCoordinatorAssignment(
 
     if (error || !updated) return { success: false, conflict: true, reason: "version_conflict" };
 
-    await supabase
+    await writeAcceptCoord
       .from("inquiry_participants")
       .update({
         status: "active",
@@ -185,7 +187,8 @@ export async function declineCoordinatorAssignment(
     if (!inq.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
 
-    const { data: updated, error } = await supabase
+    const writeDeclineCoord = await inquiryWriteClient(supabase);
+    const { data: updated, error } = await writeDeclineCoord
       .from("inquiries")
       .update({
         coordinator_id: null,
@@ -203,7 +206,7 @@ export async function declineCoordinatorAssignment(
 
     if (error || !updated) return { success: false, conflict: true, reason: "version_conflict" };
 
-    await supabase
+    await writeDeclineCoord
       .from("inquiry_participants")
       .update({ status: "declined", decline_reason: "other" })
       .eq("inquiry_id", ctx.inquiryId)

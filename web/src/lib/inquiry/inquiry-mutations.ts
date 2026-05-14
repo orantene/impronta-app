@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { inquiryWriteClient } from "./inquiry-engine.helpers";
 
 /** Optimistic lock patch — returns conflict when 0 rows updated. */
 export async function patchInquiryWithVersion(
@@ -9,7 +10,8 @@ export async function patchInquiryWithVersion(
   patch: Record<string, unknown>,
 ): Promise<{ ok: true; newVersion: number } | { ok: false; conflict: true }> {
   const newVersion = expectedVersion + 1;
-  const { data, error } = await supabase
+  const writeClient = await inquiryWriteClient(supabase);
+  const { data, error } = await writeClient
     .from("inquiries")
     .update({ ...patch, version: newVersion, updated_at: new Date().toISOString() })
     .eq("id", inquiryId)
@@ -29,7 +31,8 @@ export async function touchInquiryEdit(
   inquiryId: string,
   actorUserId: string,
 ): Promise<void> {
-  await supabase
+  const writeClient = await inquiryWriteClient(supabase);
+  await writeClient
     .from("inquiries")
     .update({
       last_edited_by: actorUserId,

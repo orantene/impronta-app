@@ -4,7 +4,7 @@ import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { assignCoordinatorFromSettings } from "./coordinator-assignment";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
+import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
@@ -385,7 +385,8 @@ export async function moveToCoordination(
 
     const next = resolveNextActionBy("coordination");
 
-    const { data: updated, error } = await supabase
+    const writeMove = await inquiryWriteClient(supabase);
+    const { data: updated, error } = await writeMove
       .from("inquiries")
       .update({
         status: "coordination" as never,
@@ -443,7 +444,8 @@ export async function setPriority(
     if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
 
-    const { data: updated, error } = await supabase
+    const writePriority = await inquiryWriteClient(supabase);
+    const { data: updated, error } = await writePriority
       .from("inquiries")
       .update({
         priority: ctx.priority,

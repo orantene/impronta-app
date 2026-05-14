@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
+import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
 
@@ -173,7 +173,8 @@ export async function addTalentToRoster(
 
     const nextSort = (maxSort?.sort_order ?? -1) + 1;
 
-    const { error } = await supabase.from("inquiry_participants").insert({
+    const writeAddTalent = await inquiryWriteClient(supabase);
+    const { error } = await writeAddTalent.from("inquiry_participants").insert({
       inquiry_id: ctx.inquiryId,
       tenant_id: ctx.tenantId,
       user_id: tp?.user_id ?? null,
@@ -187,7 +188,7 @@ export async function addTalentToRoster(
 
     if (error) return { success: false, error: error.message };
 
-    const { error: verr } = await supabase
+    const { error: verr } = await writeAddTalent
       .from("inquiries")
       .update({
         version: (inq.version as number) + 1,
@@ -234,7 +235,8 @@ export async function removeTalentFromRoster(
     if (!inq.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
     if (!isMutablePhase(inq.status as string, !!inq.is_frozen)) return { success: false, reason: "post_booking_immutable" };
 
-    await supabase
+    const writeRemove = await inquiryWriteClient(supabase);
+    await writeRemove
       .from("inquiry_participants")
       .update({
         status: "removed",
@@ -245,7 +247,7 @@ export async function removeTalentFromRoster(
       .eq("tenant_id", ctx.tenantId)
       .eq("role", "talent");
 
-    const { error: verr } = await supabase
+    const { error: verr } = await writeRemove
       .from("inquiries")
       .update({
         version: (inq.version as number) + 1,
@@ -289,9 +291,10 @@ export async function reorderRoster(
     if (!inq.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
     if (!isMutablePhase(inq.status as string, !!inq.is_frozen)) return { success: false, reason: "post_booking_immutable" };
 
+    const writeReorder = await inquiryWriteClient(supabase);
     let order = 0;
     for (const id of ctx.orderedParticipantIds) {
-      await supabase
+      await writeReorder
         .from("inquiry_participants")
         .update({ sort_order: order++ })
         .eq("id", id)
@@ -299,7 +302,7 @@ export async function reorderRoster(
         .eq("tenant_id", ctx.tenantId);
     }
 
-    const { error: verr } = await supabase
+    const { error: verr } = await writeReorder
       .from("inquiries")
       .update({
         version: (inq.version as number) + 1,
@@ -383,7 +386,12 @@ export async function acceptTalentInvitation(
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
 
-    await supabase
+    // 2026-05-14 — v1 #5 fix: the user-session UPDATE silently failed for
+    // talent (no RLS UPDATE policy on inquiries for talent participants),
+    // leaving `last_edited_by` pointing at the admin who invited Sofia,
+    // not Sofia. Self-elevate the write — actor is already gated by
+    // validateActorPermission("accept_talent_invite") above.
+    await admin
       .from("inquiries")
       .update({
         version: (inq?.version as number) ?? 1,
@@ -431,7 +439,11 @@ export async function declineTalentInvitation(
       .maybeSingle();
     if (!tp) return { success: false, error: "not_talent" };
 
-    await supabase
+    // 2026-05-14 — same RLS escape as acceptTalentInvitation. Talent
+    // cannot UPDATE their own participant row through their session;
+    // engine self-elevates after the permission gate above.
+    const writeDecline = await inquiryWriteClient(supabase);
+    await writeDecline
       .from("inquiry_participants")
       .update({
         status: "declined",

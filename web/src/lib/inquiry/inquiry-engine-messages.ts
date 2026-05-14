@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { runWithEngineLog } from "./inquiry-engine.helpers";
+import { inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitNotificationToUsers } from "@/lib/notifications/emit";
@@ -53,7 +53,13 @@ export async function sendMessage(
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "send_message");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
-    const { data: row, error } = await supabase
+    // 2026-05-14 — self-elevate INSERT to service-role after permission
+    // gate. RLS walk confirmed pure clients (the inquiry's own submitter)
+    // get "new row violates row-level security policy" on inquiry_messages
+    // even when they're a participant. validateActorPermission above is
+    // the security gate. See qa-evidence/2026-05-14/step-06.
+    const writeMsg = await inquiryWriteClient(supabase);
+    const { data: row, error } = await writeMsg
       .from("inquiry_messages")
       .insert({
         inquiry_id: ctx.inquiryId,

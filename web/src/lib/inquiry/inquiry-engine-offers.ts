@@ -3,7 +3,7 @@ import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
-import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
+import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logServerError } from "@/lib/server/safe-error";
@@ -452,7 +452,8 @@ export async function updateOfferDraft(
       if (liErr) return { success: false, error: liErr.message };
     }
 
-    const { data: offerUp, error: oerr } = await supabase
+    const writeDraft = await inquiryWriteClient(supabase);
+    const { data: offerUp, error: oerr } = await writeDraft
       .from("inquiry_offers")
       .update({
         total_client_price: ctx.total_client_price,
@@ -470,7 +471,7 @@ export async function updateOfferDraft(
 
     if (oerr || !offerUp) return { success: false, conflict: true, reason: "version_conflict" };
 
-    const { data: inqUp, error: ierr } = await supabase
+    const { data: inqUp, error: ierr } = await writeDraft
       .from("inquiries")
       .update({
         version: (inq.version as number) + 1,
