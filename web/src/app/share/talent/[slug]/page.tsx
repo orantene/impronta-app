@@ -75,7 +75,11 @@ async function loadTalent(slug: string): Promise<LoadedTalent | null> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) return null;
 
-  const normalized = slug.trim().toLowerCase();
+  // `profile_code` is stored uppercase in the DB (canonical `TAL-NNNNN`). The
+  // public URL is case-insensitive for friendliness — anyone sharing or hand-
+  // typing the link gets the same result. Normalize to uppercase before the
+  // exact-match query so the `(profile_code)` btree index is still used.
+  const normalized = slug.trim().toUpperCase();
   if (!normalized) return null;
 
   const { data: profile, error: profileErr } = await supabase

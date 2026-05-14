@@ -3,12 +3,22 @@
 This project deploys to **Vercel** (project `tulala`, team `oran-tenes-projects`). GitHub auto-deploys are live as of 2026-04-23.
 
 - Pushes to any branch auto-build a **preview** on Vercel (SSO-gated 401).
-- Push to `phase-1` builds a **preview, not production** — Vercel's internal `link.productionBranch` is stale at `"main"` (Hobby plan won't let us edit). Promote releases with `vercel promote <preview-url> --yes`.
-- Post-deploy GitHub Action (`.github/workflows/vercel-post-deploy-alias.yml`) re-aliases the two ghost-locked domains only when triggered by a **GitHub Deployment** event. `vercel promote` does NOT trigger this action — run alias manually after every promote:
+- Push to `phase-1` builds a **preview, not production** — Vercel's internal `link.productionBranch` is stale at `"main"` (Hobby plan won't let us edit). Promote releases with `npm run deploy:promote` (preferred) or `vercel promote <preview-url> --yes`.
+- **Always alias custom domains after promoting.** Vercel's Promote action updates the project's "production" pointer but does **not** reliably reassign `tulala.digital` + `app.tulala.digital`; they stay aliased to whichever earlier deploy they were on. `npm run deploy:promote` handles both steps in one command. Manual fallback:
   ```
   vercel alias set <preview-url> app.tulala.digital --scope oran-tenes-projects
   vercel alias set <preview-url> tulala.digital --scope oran-tenes-projects
   ```
+- **After any deploy, run the smoke test**: `npm run deploy:smoke`. Catches alias drift, missing CSP directives, broken image optimizer, dead Places key, Supabase region drift. Exit code 1 means at least one signal is wrong — re-promote or investigate before walking away.
+
+## Deploy commands cheat-sheet
+
+| Command | What it does |
+|---|---|
+| `npm run deploy:check` | Read-only — shows which deployment each custom domain currently points to. |
+| `npm run deploy:promote` | Promotes the latest preview to production AND re-aliases both custom domains. Idempotent. |
+| `npm run deploy:promote -- https://tulala-xxx.vercel.app` | Promote a specific preview URL (rolls back, ships a hotfix, etc.). |
+| `npm run deploy:smoke` | HTTP-only health probe of the live site. Run after every promote and before declaring success. |
 
 ## QA caveat (important for any feature dev)
 
