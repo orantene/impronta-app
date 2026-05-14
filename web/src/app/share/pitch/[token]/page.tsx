@@ -19,6 +19,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPitchByToken } from "@/lib/pitch/pitch-engine";
 import type { PitchRow } from "@/lib/pitch/pitch-types";
 import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import { PitchLanding } from "./_pitch-landing";
 
@@ -51,6 +52,14 @@ export type PitchLandingData = {
   talents: PitchTalentCard[];
   agencyName: string;
   brandMarkSvg: string | null;
+  /**
+   * Step 8 — whether the viewer is signed in. Drives the identity opt-in
+   * surface on the inquiry-submission CTA: signed-in users skip the
+   * guest-or-register prompt; anonymous viewers see both options.
+   */
+  viewerSignedIn: boolean;
+  /** Path the registration CTA should navigate back to (?next=). */
+  registerNextPath: string;
 };
 
 export default async function PitchTokenPage({ params }: PageProps) {
@@ -175,12 +184,21 @@ export default async function PitchTokenPage({ params }: PageProps) {
     (brandingRow as { public_name?: string | null } | null)?.public_name?.trim() ||
     agencyName;
 
+  // Step 8 — detect viewer auth so the landing can offer the right
+  // identity opt-in (guest vs. register vs. nothing). We never redirect
+  // or gate access on auth; the pitch is always reachable via the token.
+  const viewerSession = await getCachedActorSession();
+  const viewerSignedIn = !!viewerSession.user;
+  const registerNextPath = `/share/pitch/${encodeURIComponent(token)}`;
+
   const landingData: PitchLandingData = {
     token,
     pitch,
     talents,
     agencyName: publicName,
     brandMarkSvg,
+    viewerSignedIn,
+    registerNextPath,
   };
 
   return <PitchLanding data={landingData} />;

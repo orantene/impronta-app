@@ -610,8 +610,64 @@ export async function removeTalentFromPitch(
 }
 
 /**
+ * Recipient approves the pitch — signals intent without committing to
+ * inquiry creation yet. Step 8 (inquiry-funnel v2) splits the previously
+ * binary accept/decline into a 3-outcome lifecycle:
+ *
+ *     sent | viewed | edited  ──▶  approved   (NEW middle step)
+ *     approved                ──▶  converted  (when recipient submits inquiry)
+ *     any non-terminal        ──▶  declined
+ *
+ * After approval the recipient can call convertPitchToInquiry, or
+ * change their mind and decline. Idempotent on already-approved.
+ */
+export async function approvePitch(
+  supabase: SupabaseClient,
+  args: { token: string; viewerUserId?: string | null },
+): Promise<PitchResult<void>> {
+  const loaded = await loadPitchByToken(supabase, args.token);
+  if (!loaded.ok) return loaded;
+  const pitch = loaded.data;
+
+  if (pitch.status === "approved") return { ok: true, data: undefined };
+  if (pitch.status === "converted") {
+    // Already past this step — treat as success-already.
+    return { ok: true, data: undefined };
+  }
+  if (
+    pitch.status === "declined" ||
+    pitch.status === "cancelled" ||
+    pitch.status === "expired"
+  ) {
+    return { ok: false, reason: "invalid_status_transition" };
+  }
+
+  const { error: upErr } = await supabase
+    .from("pitches")
+    .update({
+      status: "approved",
+      approved_at: new Date().toISOString(),
+    })
+    .eq("id", pitch.id)
+    .eq("tenant_id", pitch.tenant_id);
+  if (upErr) return { ok: false, reason: "internal_error", message: upErr.message };
+
+  await emitPitchEvent(supabase, {
+    tenantId: pitch.tenant_id,
+    pitchId: pitch.id,
+    eventType: PITCH_EVENT_TYPES.APPROVED,
+    actorUserId: args.viewerUserId ?? null,
+    actorRole: args.viewerUserId ? "recipient" : "guest",
+  });
+
+  return { ok: true, data: undefined };
+}
+
+/**
  * Recipient explicitly declines the pitch. Terminal status — no further
- * actions allowed. Admin can re-pitch with a new row.
+ * actions allowed. Admin can re-pitch with a new row. Step 8: allowed
+ * from `approved` too (recipient may approve and then change their mind
+ * before converting to an inquiry).
  */
 export async function declinePitch(
   supabase: SupabaseClient,
@@ -679,9 +735,20 @@ export async function convertPitchToInquiry(
       data: { inquiryId: pitch.converted_inquiry_id, pitchId: pitch.id },
     };
   }
-  if (pitch.status === "declined" || pitch.status === "cancelled") {
+  if (
+    pitch.status === "declined" ||
+    pitch.status === "cancelled" ||
+    pitch.status === "expired"
+  ) {
     return { ok: false, reason: "invalid_status_transition" };
   }
+  // Step-8 lifecycle: the recipient-facing public landing only exposes
+  // the "Submit as inquiry" button once status='approved' (the new
+  // explicit middle step). Legacy callers (admin server actions or
+  // direct token paths that predate the approval step) may still
+  // convert from `sent | viewed | edited` — we keep that path open
+  // to avoid breaking in-flight pitches and to allow admin fast-path
+  // conversion on behalf of the client.
 
   // Resolve the talent list — only those NOT removed by the client.
   const { data: talentRows } = await supabase

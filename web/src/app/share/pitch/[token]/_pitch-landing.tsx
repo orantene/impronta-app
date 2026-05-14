@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import {
   recordPitchViewAction,
   removeTalentFromPitchAction,
+  approvePitchAction,
   declinePitchAction,
   convertPitchToInquiryAction,
 } from "@/lib/pitch/pitch-public-actions";
@@ -40,10 +42,28 @@ type ConvertFormState =
 
 type DeclineState = "idle" | "confirming" | "submitting" | "done";
 
+type ApproveState = "idle" | "submitting" | "error";
+
+/**
+ * Step-8 effective status drives the 4-button action ribbon. We track
+ * this on the client so the UI flips immediately on approve/decline
+ * without waiting for a refetch.
+ *   sent      → [Decline] [Approve]
+ *   approved  → [Decline] [Submit as inquiry]
+ *   declined / converted / expired / cancelled → terminal banner
+ */
+type EffectiveStatus =
+  | "sent"
+  | "approved"
+  | "declined"
+  | "converted"
+  | "expired"
+  | "cancelled";
+
 // ── Root component ───────────────────────────────────────────────────────────
 
 export function PitchLanding({ data }: { data: PitchLandingData }) {
-  const { token, pitch, talents, agencyName, brandMarkSvg } = data;
+  const { token, pitch, talents, agencyName, brandMarkSvg, viewerSignedIn, registerNextPath } = data;
   const viewFired = useRef(false);
 
   // Build initial removed-set from server-resolved state.
@@ -57,6 +77,19 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
 
   const [convertState, setConvertState] = useState<ConvertFormState>({ phase: "idle" });
   const [declineState, setDeclineState] = useState<DeclineState>("idle");
+  const [approveState, setApproveState] = useState<ApproveState>("idle");
+
+  // Local effective status — flips on approve / decline so the action
+  // ribbon re-paints without a server round-trip.
+  const initialEffective: EffectiveStatus = (() => {
+    if (pitch.status === "approved") return "approved";
+    if (pitch.status === "declined") return "declined";
+    if (pitch.status === "converted") return "converted";
+    if (pitch.status === "expired") return "expired";
+    if (pitch.status === "cancelled") return "cancelled";
+    return "sent";
+  })();
+  const [effectiveStatus, setEffectiveStatus] = useState<EffectiveStatus>(initialEffective);
 
   useEffect(() => {
     if (viewFired.current) return;
@@ -66,9 +99,10 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
 
   const activeTalents = talents.filter((t) => !removedIds.has(t.talentProfileId));
   const isTerminal =
-    pitch.status === "converted" ||
-    pitch.status === "declined" ||
-    pitch.status === "expired" ||
+    effectiveStatus === "converted" ||
+    effectiveStatus === "declined" ||
+    effectiveStatus === "expired" ||
+    effectiveStatus === "cancelled" ||
     declineState === "done";
 
   async function handleRemoveTalent(talentProfileId: string) {
@@ -78,8 +112,22 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
 
   async function handleDecline() {
     setDeclineState("submitting");
-    await declinePitchAction(token, null);
+    const result = await declinePitchAction(token, null);
+    if (result.ok) {
+      setEffectiveStatus("declined");
+    }
     setDeclineState("done");
+  }
+
+  async function handleApprove() {
+    setApproveState("submitting");
+    const result = await approvePitchAction(token);
+    if (result.ok) {
+      setEffectiveStatus("approved");
+      setApproveState("idle");
+    } else {
+      setApproveState("error");
+    }
   }
 
   const recipient = pitch.recipient_contact ?? {};
@@ -139,22 +187,21 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
 
       <main className="mx-auto max-w-3xl px-6 pt-10 pb-20 space-y-10 sm:pt-12">
         {/* Terminal state overlays */}
-        {pitch.status === "converted" && (
+        {effectiveStatus === "converted" && (
           <TerminalBanner
             icon="check"
             title="You've already opened an inquiry from this pitch."
             body="The team will be in touch. No further action needed."
           />
         )}
-        {(pitch.status === "declined" || declineState === "done") &&
-          pitch.status !== "converted" && (
-            <TerminalBanner
-              icon="x"
-              title="You've declined this pitch."
-              body={`Reach out to ${agencyName} directly if you change your mind.`}
-            />
-          )}
-        {pitch.status === "expired" && (
+        {effectiveStatus === "declined" && (
+          <TerminalBanner
+            icon="x"
+            title="You've declined this pitch."
+            body={`Reach out to ${agencyName} directly if you change your mind.`}
+          />
+        )}
+        {effectiveStatus === "expired" && (
           <TerminalBanner
             icon="clock"
             title="This pitch has expired."

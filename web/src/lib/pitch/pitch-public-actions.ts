@@ -20,6 +20,7 @@
  */
 
 import {
+  approvePitch as approvePitchEngine,
   convertPitchToInquiry as convertPitchEngine,
   declinePitch as declinePitchEngine,
   recordPitchView as recordPitchViewEngine,
@@ -71,6 +72,20 @@ export async function removeTalentFromPitchAction(
     });
   } catch (e) {
     logServerError("pitches.removeTalentFromPitchAction", e);
+    return { ok: false, reason: "internal_error" };
+  }
+}
+
+export async function approvePitchAction(token: string): Promise<PitchResult<void>> {
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "internal_error" };
+  try {
+    return await approvePitchEngine(admin, {
+      token,
+      viewerUserId: await viewerUserId(),
+    });
+  } catch (e) {
+    logServerError("pitches.approvePitchAction", e);
     return { ok: false, reason: "internal_error" };
   }
 }

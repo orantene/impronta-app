@@ -14,6 +14,7 @@ export const PITCH_STATUSES = [
   "sent",
   "viewed",
   "edited",
+  "approved",
   "converted",
   "declined",
   "cancelled",
@@ -43,6 +44,7 @@ export const VIEWABLE_PITCH_STATUSES: ReadonlyArray<PitchStatus> = [
   "sent",
   "viewed",
   "edited",
+  "approved",
 ];
 
 /** Statuses where the pitch is final — cannot be modified by anyone. */
@@ -89,6 +91,7 @@ export type PitchRow = {
   declined_at: string | null;
   cancelled_at: string | null;
   sent_at: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -213,6 +216,7 @@ export const PITCH_EVENT_TYPES = {
   SENT: "sent",
   VIEWED: "viewed",
   TALENT_REMOVED: "talent_removed",
+  APPROVED: "approved",
   DECLINED: "declined",
   CONVERTED: "converted",
   CANCELLED: "cancelled",

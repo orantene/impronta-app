@@ -36,6 +36,15 @@ import ParticipantThreadShell, {
   type ParticipantThreadMessage,
   type ParticipantThreadSendResult,
 } from "@/app/(workspace)/[tenantSlug]/_ParticipantThreadShell";
+import {
+  InquiryAttachmentsUploader,
+  type ExistingAttachment,
+} from "@/components/inquiry-cart/InquiryAttachmentsUploader";
+import type {
+  ClientAttachmentActionResult,
+  ClientAttachmentListResult,
+  ClientAttachmentRemoveResult,
+} from "@/lib/server-actions/client-inquiry-attachments";
 
 /* ─── Server-loaded data shapes — parent page hydrates these ──────── */
 
@@ -102,6 +111,10 @@ export interface ClientThreadFile {
   /** Bytes. */
   fileSize: number;
   uploadedAt: string;
+  /** Step 14 — optional file role tag (mood_board | contract | reference | other). */
+  attachmentKind?: string | null;
+  /** Step 14 — whether the current user uploaded this file (controls Remove visibility). */
+  isMine?: boolean;
 }
 
 export interface ClientThreadAdapterProps {
@@ -121,6 +134,21 @@ export interface ClientThreadAdapterProps {
   approveOffer: (offerId: string, expectedVersion: number) => Promise<{ ok: true } | { ok: false; error: string }>;
   declineOffer: (offerId: string, expectedVersion: number, reason: string | null) => Promise<{ ok: true } | { ok: false; error: string }>;
   counterOffer: (body: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /**
+   * Step 14 attachment actions — optional for backwards compat. When all
+   * three are provided, the Files sheet renders the
+   * `<InquiryAttachmentsUploader>` so the client can attach briefs,
+   * mood boards, contracts, references.
+   */
+  uploadAttachment?: (
+    formData: FormData,
+  ) => Promise<ClientAttachmentActionResult>;
+  removeAttachment?: (
+    attachmentId: string,
+  ) => Promise<ClientAttachmentRemoveResult>;
+  listAttachments?: (
+    inquiryId: string,
+  ) => Promise<ClientAttachmentListResult>;
 }
 
 /* ─── Status → stage mapping ───────────────────────────────────────── */
@@ -181,7 +209,25 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
     approveOffer,
     declineOffer,
     counterOffer,
+    uploadAttachment,
+    removeAttachment,
+    listAttachments,
   } = props;
+
+  // Step 14 — wire `<InquiryAttachmentsUploader>` into the Files sheet
+  // when the parent supplies the action trio. Adapter is rendered
+  // server-prop-bound so the inquiry id is stable here.
+  const uploaderInitial = useMemo<ExistingAttachment[]>(
+    () =>
+      files.map((f) => ({
+        id: f.id,
+        filename: f.fileName,
+        byteSize: f.fileSize,
+        attachmentKind: f.attachmentKind ?? null,
+        isMine: Boolean(f.isMine),
+      })),
+    [files],
+  );
 
   const stage = mapStage(inquiry.status);
   const closedReason = statusToClosedReason(inquiry.status);
@@ -373,11 +419,32 @@ export function ClientThreadAdapter(props: ClientThreadAdapterProps) {
     files: {
       kind: "files",
       title: "Shared files",
-      content: files.length === 0 ? (
-        <EmptyHint text="No files have been shared yet. Briefs, mood boards, and contracts will appear here." />
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {files.map((f) => (
+      content: (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Step 14 — client-side uploader. Renders when the parent
+              page passes the action trio; the uploader handles its own
+              optimistic list so we don't double-render the `files` prop
+              when an upload finishes. */}
+          {uploadAttachment && removeAttachment ? (
+            <InquiryAttachmentsUploader
+              mode="live"
+              inquiryId={inquiry.id}
+              initialAttachments={uploaderInitial}
+              uploadAction={uploadAttachment}
+              removeAction={removeAttachment}
+              listAction={listAttachments}
+              label="Your attachments"
+              hint="Briefs, mood boards, contracts, references. Max 100 MB per file."
+            />
+          ) : files.length === 0 ? (
+            <EmptyHint text="No files have been shared yet. Briefs, mood boards, and contracts will appear here." />
+          ) : null}
+
+          {/* Legacy read-only listing — when the uploader isn't wired
+              we fall back to the original chip stack. */}
+          {!uploadAttachment && files.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {files.map((f) => (
             <div
               key={f.id}
               style={{
