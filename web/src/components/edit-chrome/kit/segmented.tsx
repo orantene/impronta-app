@@ -54,9 +54,17 @@ export function Segmented<T extends string>({
         border: `1px solid ${CHROME.line}`,
         borderRadius: 7,
         display: fullWidth ? "grid" : "inline-flex",
+        // QA 2026-05-13 — Page background field has 11 chips; the old
+        // `minmax(0, 1fr)` grid forced them all into one row and clipped
+        // labels mid-word ("NoirChampagneNoise"). `auto-fit` + a 76px
+        // minimum lets the grid wrap to multiple rows on narrow inspector
+        // panels while still distributing space evenly when the row has
+        // room. Existing call sites with ≤4 options are unaffected — they
+        // still fit one row at any inspector width.
         gridTemplateColumns: fullWidth
-          ? `repeat(${options.length}, minmax(0, 1fr))`
+          ? `repeat(auto-fit, minmax(76px, 1fr))`
           : undefined,
+        gap: fullWidth ? 2 : undefined,
         ...style,
       }}
     >
@@ -69,8 +77,14 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(opt.value)}
+            title={typeof opt.label === "string" ? opt.label : undefined}
             className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md transition-all"
             style={{
+              // `min-width: 0` lets the button shrink below its content's
+              // natural width inside a grid cell; combined with the
+              // truncating inner span this prevents long labels (e.g.
+              // "Noise (animated)") from blowing out the row.
+              minWidth: 0,
               padding: compact ? "5px 9px" : "5px 11px",
               fontSize: 11.5,
               fontWeight: 600,
@@ -84,7 +98,16 @@ export function Segmented<T extends string>({
             }}
           >
             {opt.icon ? <span aria-hidden>{opt.icon}</span> : null}
-            {opt.label}
+            <span
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+              }}
+            >
+              {opt.label}
+            </span>
           </button>
         );
       })}
