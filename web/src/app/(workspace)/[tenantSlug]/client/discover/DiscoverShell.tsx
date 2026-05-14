@@ -7,16 +7,38 @@
 // country / category / search. Filter state syncs to URL so combinations
 // are shareable. "Load more" paginates via /api/discover/talents.
 //
-// v1 scope: filter + grid + pagination + card-link to public profile.
-// Detail drawer, compare view, shortlists land in subsequent slices.
+// Card click → in-app detail drawer (fetches /api/discover/talent/:id).
+// Public profile link is now inside the drawer footer — same destination,
+// keeps the client on the Discover surface for the swipe-through compare
+// flow that's coming in D4.
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import Link from "next/link";
 import type {
   DiscoverTalentListItem,
   DiscoverFacets,
 } from "../../_data-bridge/discover";
+
+/** Local mirror of DiscoverTalentDetail (API response shape). Inline
+ *  rather than imported because the API route file is server-only. */
+type DiscoverTalentDetail = {
+  id: string;
+  displayName: string;
+  profileCode: string | null;
+  primaryTypeLabel: string | null;
+  primaryTypeSlug: string | null;
+  secondaryTypeLabels: string[];
+  homeCity: string | null;
+  homeCountry: string | null;
+  agencyName: string | null;
+  agencyTenantId: string | null;
+  isExclusive: boolean;
+  bio: string | null;
+  responseTime: "1h" | "4h" | "24h" | "48h" | null;
+  languages: string[];
+  headshotUrl: string | null;
+  galleryUrls: string[];
+};
 
 const C = {
   ink:        "#0B0B0D",
@@ -61,6 +83,7 @@ export function DiscoverShell({
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchInput, setSearchInput] = useState<string>(activeFilters.q ?? "");
   const [, startNavTransition] = useTransition();
+  const [openTalentId, setOpenTalentId] = useState<string | null>(null);
 
   // Reset client list when SSR initial set changes (e.g. filter applied via URL).
   useEffect(() => {
@@ -187,7 +210,7 @@ export function DiscoverShell({
           }}
         >
           {items.map((t) => (
-            <DiscoverCard key={t.id} item={t} tenantSlug={tenantSlug} />
+            <DiscoverCard key={t.id} item={t} onOpen={() => setOpenTalentId(t.id)} />
           ))}
         </div>
       ) : (
@@ -227,6 +250,13 @@ export function DiscoverShell({
           </button>
         </div>
       )}
+
+      {/* Detail drawer — slides in when a card is clicked. Fetches the
+          full DiscoverTalentDetail from /api/discover/talent/:id. */}
+      <DiscoverDetailDrawer
+        talentId={openTalentId}
+        onClose={() => setOpenTalentId(null)}
+      />
     </div>
   );
 }
@@ -319,31 +349,34 @@ function FacetChip({
 
 function DiscoverCard({
   item,
-  tenantSlug,
+  onOpen,
 }: {
   item: DiscoverTalentListItem;
-  tenantSlug: string;
+  onOpen: () => void;
 }) {
   const initials = item.displayName
     .split(/\s+/).filter(Boolean).slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "").join("");
 
-  const profileHref = item.profileCode
-    ? `/t/${item.profileCode}`
-    : `/${tenantSlug}/client/discover#${item.id}`;
-  const isExternalProfile = !!item.profileCode;
-
   return (
-    <Link
-      href={profileHref}
-      target={isExternalProfile ? "_blank" : undefined}
-      rel={isExternalProfile ? "noopener noreferrer" : undefined}
+    <button
+      type="button"
+      onClick={onOpen}
       style={{
         display: "flex", flexDirection: "column",
         background: C.cardBg, border: `1px solid ${C.borderSoft}`,
         borderRadius: 14, overflow: "hidden",
-        textDecoration: "none", color: "inherit", fontFamily: FONT,
+        textAlign: "left", color: "inherit", fontFamily: FONT,
+        cursor: "pointer", padding: 0,
         transition: "border-color 150ms, box-shadow 150ms",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = C.border;
+        e.currentTarget.style.boxShadow = "0 4px 14px -8px rgba(11,11,13,0.18)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = C.borderSoft;
+        e.currentTarget.style.boxShadow = "none";
       }}
     >
       {/* Photo */}
@@ -427,6 +460,315 @@ function DiscoverCard({
           </div>
         )}
       </div>
-    </Link>
+    </button>
+  );
+}
+
+/**
+ * Slide-in detail drawer. Mounted always; renders content only when
+ * `talentId` is non-null. Fetches /api/discover/talent/:id on id change.
+ * Esc + backdrop close.
+ */
+function DiscoverDetailDrawer({
+  talentId,
+  onClose,
+}: {
+  talentId: string | null;
+  onClose: () => void;
+}) {
+  const [detail, setDetail] = useState<DiscoverTalentDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!talentId) {
+      setDetail(null);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setDetail(null);
+    fetch(`/api/discover/talent/${talentId}`)
+      .then(async (r) => {
+        if (cancelled) return;
+        if (r.status === 404) {
+          setError("Talent is no longer on Discover.");
+          return;
+        }
+        if (!r.ok) {
+          setError("Couldn't load this talent — try again.");
+          return;
+        }
+        const j = (await r.json()) as { talent: DiscoverTalentDetail };
+        if (!cancelled) setDetail(j.talent);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Network issue — try again.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [talentId]);
+
+  useEffect(() => {
+    if (!talentId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [talentId, onClose]);
+
+  if (!talentId) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal
+      aria-label="Talent detail"
+      style={{
+        position: "fixed", inset: 0, zIndex: 50,
+        display: "flex", justifyContent: "flex-end",
+        fontFamily: FONT,
+      }}
+    >
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "absolute", inset: 0,
+          background: "rgba(11,11,13,0.42)",
+          backdropFilter: "blur(2px)",
+        }}
+      />
+
+      {/* Drawer panel */}
+      <aside
+        style={{
+          position: "relative",
+          width: "min(480px, 100vw)",
+          height: "100%",
+          background: C.cardBg,
+          boxShadow: "-12px 0 32px -16px rgba(11,11,13,0.32)",
+          display: "flex", flexDirection: "column",
+          overflowY: "auto",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close detail drawer"
+          style={{
+            position: "absolute", top: 12, right: 12, zIndex: 2,
+            width: 32, height: 32, borderRadius: "50%",
+            background: "rgba(255,255,255,0.85)",
+            border: `1px solid ${C.borderSoft}`,
+            color: C.ink, fontSize: 16, lineHeight: 1,
+            cursor: "pointer", backdropFilter: "blur(4px)",
+          }}
+        >
+          ✕
+        </button>
+
+        {loading && !detail && (
+          <div style={{ padding: 32, color: C.inkMuted, fontSize: 13 }}>
+            Loading talent…
+          </div>
+        )}
+
+        {error && (
+          <div style={{ padding: 32 }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🌫️</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+              {error}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                marginTop: 12, padding: "8px 14px", borderRadius: 8,
+                background: "transparent", border: `1px solid ${C.borderSoft}`,
+                color: C.ink, fontFamily: FONT, fontSize: 12.5, cursor: "pointer",
+              }}
+            >
+              Close
+            </button>
+          </div>
+        )}
+
+        {detail && (
+          <>
+            {/* Hero photo */}
+            <div
+              style={{
+                aspectRatio: "4 / 5",
+                background: detail.headshotUrl
+                  ? `url(${detail.headshotUrl}) center/cover no-repeat`
+                  : C.surface,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                position: "relative",
+              }}
+            >
+              {!detail.headshotUrl && (
+                <div
+                  style={{
+                    width: 84, height: 84, borderRadius: "50%",
+                    background: C.accentSoft, color: C.accent,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 30, fontWeight: 700, letterSpacing: 0.5,
+                  }}
+                >
+                  {detail.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?"}
+                </div>
+              )}
+              <div
+                style={{
+                  position: "absolute", top: 12, left: 12,
+                  padding: "3px 9px", borderRadius: 4,
+                  background: "rgba(11,11,13,0.55)", color: "#fff",
+                  fontSize: 10, fontWeight: 700, letterSpacing: 0.4,
+                  textTransform: "uppercase", backdropFilter: "blur(4px)",
+                }}
+              >
+                Basic
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 600, color: C.ink, marginBottom: 2 }}>
+                  {detail.displayName}
+                </div>
+                {detail.primaryTypeLabel && (
+                  <div style={{ fontSize: 13, color: C.inkMuted }}>
+                    {detail.primaryTypeLabel}
+                    {detail.secondaryTypeLabels.length > 0 && (
+                      <span style={{ color: C.inkDim }}>
+                        {" · "}
+                        {detail.secondaryTypeLabels.join(" · ")}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {(detail.homeCity || detail.homeCountry) && (
+                  <div style={{ fontSize: 12, color: C.inkDim, marginTop: 4 }}>
+                    📍 {[detail.homeCity, detail.homeCountry].filter(Boolean).join(" · ")}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {detail.agencyName ? (
+                  <Pill bg={C.accentSoft} color={C.accentDeep}>
+                    🏛 {detail.agencyName}{detail.isExclusive ? " · exclusive" : ""}
+                  </Pill>
+                ) : (
+                  <Pill bg="rgba(11,11,13,0.05)" color={C.inkMuted}>
+                    Independent
+                  </Pill>
+                )}
+                {detail.responseTime && (
+                  <Pill bg="rgba(11,11,13,0.05)" color={C.inkMuted}>
+                    ⏱ Replies within {detail.responseTime}
+                  </Pill>
+                )}
+                {detail.languages.slice(0, 4).map((l) => (
+                  <Pill key={l} bg="rgba(11,11,13,0.05)" color={C.inkMuted}>
+                    {l}
+                  </Pill>
+                ))}
+              </div>
+
+              {detail.bio && (
+                <div style={{ fontSize: 13, color: C.ink, lineHeight: 1.55 }}>
+                  {detail.bio}
+                </div>
+              )}
+
+              {detail.galleryUrls.length > 1 && (
+                <div>
+                  <div style={{
+                    fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
+                    textTransform: "uppercase", color: C.inkDim, marginBottom: 8,
+                  }}>
+                    Gallery
+                  </div>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 6,
+                  }}>
+                    {detail.galleryUrls.slice(0, 6).map((url, i) => (
+                      <div
+                        // eslint-disable-next-line react/no-array-index-key
+                        key={i}
+                        style={{
+                          aspectRatio: "1 / 1",
+                          background: `url(${url}) center/cover no-repeat`,
+                          borderRadius: 8,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer actions — public profile + inquire (D5 placeholder) */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                {detail.profileCode && (
+                  <a
+                    href={`/t/${detail.profileCode}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      height: 40, borderRadius: 10,
+                      background: C.accent, color: "#fff",
+                      fontFamily: FONT, fontSize: 13, fontWeight: 600,
+                      textDecoration: "none",
+                    }}
+                  >
+                    View full profile ↗
+                  </a>
+                )}
+                <button
+                  type="button"
+                  disabled
+                  title="Multi-talent inquiry routing ships with D5 — not yet wired."
+                  style={{
+                    height: 40, borderRadius: 10,
+                    background: "transparent", border: `1px solid ${C.borderSoft}`,
+                    color: C.inkDim, fontFamily: FONT, fontSize: 13, fontWeight: 600,
+                    cursor: "not-allowed",
+                  }}
+                >
+                  ＋ Add to shortlist · coming soon
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function Pill({ children, bg, color }: { children: React.ReactNode; bg: string; color: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        padding: "3px 9px", borderRadius: 999,
+        background: bg, color, fontSize: 11.5, fontWeight: 500,
+      }}
+    >
+      {children}
+    </span>
   );
 }
