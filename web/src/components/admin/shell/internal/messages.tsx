@@ -3346,6 +3346,36 @@ function AdminMessageStream({
           <FirstConvBanner clientName={firstTimeClientName} audience="admin" />
         </div>
       )}
+      {/* S0.11 — Message visibility label. Tells the admin what audience
+          will see messages they send into this stream. private =
+          staff-internal; group = everyone on the thread (client +
+          coordinator + talent). */}
+      <div
+        data-msg-visibility-banner
+        style={{
+          margin: "8px 14px 0",
+          padding: "5px 10px",
+          borderRadius: 999,
+          background: threadType === "private" ? "rgba(245,158,11,0.10)" : "rgba(15,79,62,0.08)",
+          color: threadType === "private" ? "#92400E" : "#0F4F3E",
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          alignSelf: "flex-start",
+          fontFamily: FONTS.body,
+        }}
+        title={
+          threadType === "private"
+            ? "Private thread — only your workspace staff can read or post here."
+            : "Group thread — visible to client, coordinator, and any invited talent."
+        }
+      >
+        {threadType === "private" ? "🔒 Internal — staff only" : "👥 Group — client + talent"}
+      </div>
       <div style={{
         flex: 1, minHeight: 0, overflowY: "auto",
         padding: "14px 14px 4px",
