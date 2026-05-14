@@ -22,7 +22,12 @@ import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-det
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
-import { sendClientMessageAction, markClientThreadReadAction } from "../_actions/inquiry-message-actions";
+import {
+  sendClientMessageAction,
+  markClientThreadReadAction,
+  editClientMessageAction,
+  deleteClientMessageAction,
+} from "../_actions/inquiry-message-actions";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
@@ -694,6 +699,7 @@ function ThreadPaneWithTabs({
             loading={loadingMessages}
             tenantSlug={tenantSlug}
             onJumpToOffer={() => onTabChange("offer")}
+            onMessagesChange={onMessagesChange}
           />
         )}
         {activeTab === "details" && (
@@ -944,13 +950,14 @@ function ChatComposer({
 }
 
 function ChatThreadBody({
-  inq, messages, loading, onJumpToOffer,
+  inq, messages, loading, tenantSlug, onJumpToOffer, onMessagesChange,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
   loading: boolean;
   tenantSlug: string;
   onJumpToOffer?: () => void;
+  onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -966,7 +973,15 @@ function ChatThreadBody({
           No messages yet. Your coordinator will reply here once they pick up your inquiry.
         </div>
       ) : (
-        messages.map((m) => <Bubble key={m.id} m={m} onJumpToOffer={onJumpToOffer} />)
+        messages.map((m) => (
+          <Bubble
+            key={m.id}
+            m={m}
+            tenantSlug={tenantSlug}
+            onJumpToOffer={onJumpToOffer}
+            onMessagesChange={onMessagesChange}
+          />
+        ))
       )}
     </div>
   );
@@ -1196,12 +1211,78 @@ function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
 }
 
 
-function Bubble({ m, onJumpToOffer }: { m: WorkspaceMessage; onJumpToOffer?: () => void }) {
+function Bubble({
+  m,
+  tenantSlug,
+  onJumpToOffer,
+  onMessagesChange,
+}: {
+  m: WorkspaceMessage;
+  tenantSlug?: string;
+  onJumpToOffer?: () => void;
+  onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
+}) {
   const mine = m.is_mine;
   const kind = m.message_kind ?? "text";
   const card = kind !== "text" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer }) : null;
 
-  // Structured card — full-width, no chat-bubble chrome.
+  const isOptimistic = m.id.startsWith("tmp-");
+  const canEditOrDelete = mine && !isOptimistic && kind === "text" && tenantSlug && onMessagesChange;
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(m.body);
+  const [pending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
+
+  function commitEdit() {
+    const trimmed = editValue.trim();
+    if (!trimmed || !tenantSlug || !onMessagesChange) return;
+    if (trimmed === m.body) { setEditing(false); return; }
+    setActionError(null);
+    const optimisticBody = trimmed;
+    // Optimistic update
+    onMessagesChange((prev) => prev.map((mm) => (mm.id === m.id ? { ...mm, body: optimisticBody } : mm)));
+    setEditing(false);
+    startTransition(async () => {
+      const res = await editClientMessageAction(tenantSlug, m.id, optimisticBody);
+      if (!res.ok) {
+        setActionError(res.error);
+        // Revert
+        onMessagesChange((prev) => prev.map((mm) => (mm.id === m.id ? { ...mm, body: m.body } : mm)));
+      }
+    });
+  }
+
+  function commitDelete() {
+    if (!tenantSlug || !onMessagesChange) return;
+    if (!confirm("Delete this message? It will be removed for everyone on the thread.")) return;
+    setActionError(null);
+    setMenuOpen(false);
+    // Optimistic
+    onMessagesChange((prev) => prev.filter((mm) => mm.id !== m.id));
+    startTransition(async () => {
+      const res = await deleteClientMessageAction(tenantSlug, m.id);
+      if (!res.ok) {
+        setActionError(res.error);
+        // Put it back
+        onMessagesChange((prev) => [...prev, m].sort((a, b) => a.created_at.localeCompare(b.created_at)));
+      }
+    });
+  }
+
+  // Structured card — full-width, no chat-bubble chrome. No edit/delete for cards.
   if (card) {
     return (
       <div style={{ display: "flex", justifyContent: "stretch", flexDirection: "column", gap: 4, maxWidth: "92%", margin: mine ? "0 0 0 auto" : "0 auto 0 0" }}>
@@ -1221,31 +1302,147 @@ function Bubble({ m, onJumpToOffer }: { m: WorkspaceMessage; onJumpToOffer?: () 
   // Plain text bubble.
   return (
     <div style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start" }}>
-      <div style={{ maxWidth: "78%" }}>
+      <div style={{ maxWidth: "78%", position: "relative" }}>
         {!mine && (
           <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, marginBottom: 3, letterSpacing: 0.3 }}>
             {m.sender_name}
           </div>
         )}
-        <div
-          style={{
-            padding: "9px 12px",
-            borderRadius: 14,
-            borderBottomRightRadius: mine ? 4 : 14,
-            borderBottomLeftRadius: mine ? 14 : 4,
-            background: mine ? C.ink : "#fff",
-            color: mine ? "#fff" : C.ink,
-            fontSize: 13,
-            lineHeight: 1.45,
-            border: mine ? "none" : `1px solid ${C.borderSoft}`,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
-          {m.body}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, justifyContent: mine ? "flex-end" : "flex-start" }}>
+          {editing ? (
+            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
+              <textarea
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") { setEditing(false); setEditValue(m.body); }
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commitEdit(); }
+                }}
+                autoFocus
+                rows={2}
+                disabled={pending}
+                style={{
+                  width: "100%",
+                  minWidth: 220,
+                  padding: "9px 12px",
+                  borderRadius: 12,
+                  border: `1px solid ${C.accent}`,
+                  background: "#fff",
+                  fontFamily: FONT,
+                  fontSize: 13,
+                  lineHeight: 1.45,
+                  resize: "vertical",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+              <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => { setEditing(false); setEditValue(m.body); }}
+                  disabled={pending}
+                  style={{ padding: "5px 10px", borderRadius: 7, background: "transparent", border: `1px solid ${C.borderSoft}`, color: C.inkMuted, fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={commitEdit}
+                  disabled={pending || !editValue.trim()}
+                  style={{ padding: "5px 12px", borderRadius: 7, background: C.ink, border: "none", color: "#fff", fontSize: 11.5, fontWeight: 600, cursor: pending ? "not-allowed" : "pointer", fontFamily: FONT }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                padding: "9px 12px",
+                borderRadius: 14,
+                borderBottomRightRadius: mine ? 4 : 14,
+                borderBottomLeftRadius: mine ? 14 : 4,
+                background: mine ? C.ink : "#fff",
+                color: mine ? "#fff" : C.ink,
+                fontSize: 13,
+                lineHeight: 1.45,
+                border: mine ? "none" : `1px solid ${C.borderSoft}`,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {m.body}
+            </div>
+          )}
+          {canEditOrDelete && !editing && (
+            <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="Message actions"
+                style={{
+                  width: 24,
+                  height: 24,
+                  padding: 0,
+                  borderRadius: 6,
+                  background: "transparent",
+                  border: "none",
+                  color: C.inkMuted,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                  lineHeight: 1,
+                }}
+              >
+                ⋯
+              </button>
+              {menuOpen && (
+                <div
+                  role="menu"
+                  style={{
+                    position: "absolute",
+                    bottom: "calc(100% + 4px)",
+                    right: 0,
+                    minWidth: 130,
+                    background: "#fff",
+                    border: `1px solid ${C.borderSoft}`,
+                    borderRadius: 8,
+                    boxShadow: "0 6px 18px rgba(0,0,0,0.10)",
+                    padding: 4,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                    zIndex: 60,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setMenuOpen(false); setEditing(true); }}
+                    role="menuitem"
+                    style={{ textAlign: "left", padding: "7px 10px", borderRadius: 6, background: "transparent", border: "none", color: C.ink, fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={commitDelete}
+                    role="menuitem"
+                    style={{ textAlign: "left", padding: "7px 10px", borderRadius: 6, background: "transparent", border: "none", color: "#991B1B", fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div style={{ fontSize: 10, color: C.inkDim, marginTop: 3, textAlign: mine ? "right" : "left" }}>
           {formatTime(m.created_at)}
+          {actionError && (
+            <span style={{ color: "#991B1B", marginLeft: 6, fontWeight: 600 }}>· {actionError}</span>
+          )}
         </div>
       </div>
     </div>
