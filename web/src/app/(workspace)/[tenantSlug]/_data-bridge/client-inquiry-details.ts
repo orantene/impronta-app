@@ -271,7 +271,7 @@ export async function loadClientInquiryDetails(
     // Parallel fan-out for the side data.
     const admin = createServiceRoleClient();
     const readClient = admin ?? supabase;
-    const [participantsRes, offerRes, coordRes, eventsRes] = await Promise.all([
+    const [participantsRes, offerRes, coordRes, eventsRes, attachmentsRes] = await Promise.all([
       // Talent lineup — visible-to-client subset
       readClient
         .from("inquiry_participants")
@@ -318,6 +318,15 @@ export async function loadClientInquiryDetails(
         .eq("inquiry_id", inquiryId)
         .order("created_at", { ascending: false })
         .limit(50),
+      // Files uploaded after submission (coordinator-side or client-side
+      // via the composer paperclip). Distinct from iq.files which only
+      // carries the original submission attachments.
+      readClient
+        .from("inquiry_attachments")
+        .select("id, filename, mime_type, storage_path, byte_size, created_at")
+        .eq("inquiry_id", inquiryId)
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: true }),
     ]);
 
     // Filter activity to client-visible events. Resolve actor display names.
@@ -440,6 +449,40 @@ export async function loadClientInquiryDetails(
 
     const coord = coordRes.data as { id: string; display_name: string | null; avatar_url: string | null } | null;
 
+    // Merge submission-time files (iq.files) with post-submission uploads
+    // (inquiry_attachments). Generate 1-hour signed URLs for the storage
+    // rows — bucket is private so we can't link to raw URLs.
+    type AttachmentRow = {
+      id: string;
+      filename: string;
+      mime_type: string | null;
+      storage_path: string;
+      byte_size: number | null;
+      created_at: string;
+    };
+    const attachmentRows = (attachmentsRes.data ?? []) as AttachmentRow[];
+    const signedFiles: Array<{ name: string; url: string; type?: string }> = [];
+    if (attachmentRows.length > 0 && admin) {
+      const paths = attachmentRows.map((a) => a.storage_path);
+      const { data: signedList } = await admin.storage
+        .from("inquiry-files")
+        .createSignedUrls(paths, 60 * 60); // 1 hour
+      if (signedList) {
+        for (const row of attachmentRows) {
+          const sig = signedList.find((s) => s.path === row.storage_path);
+          if (sig?.signedUrl) {
+            signedFiles.push({
+              name: row.filename,
+              url: sig.signedUrl,
+              type: row.mime_type ?? undefined,
+            });
+          }
+        }
+      }
+    }
+    const submissionFiles = (iq.files ?? []) as Array<{ name: string; url: string; type?: string }>;
+    const mergedAttachmentFiles = [...submissionFiles, ...signedFiles];
+
     return {
       id: inq.id as string,
       tenant_id: inq.tenant_id as string,
@@ -516,7 +559,7 @@ export async function loadClientInquiryDetails(
       },
 
       attachments: {
-        files: iq.files ?? [],
+        files: mergedAttachmentFiles,
         links: iq.links ?? [],
       },
 
