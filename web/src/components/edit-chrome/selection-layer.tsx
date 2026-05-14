@@ -525,14 +525,50 @@ export function SelectionLayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [device]);
 
+  // QA 2026-05-13 — the document-level event listener effect at this
+  // useEffect intentionally omits the EditContext callbacks
+  // (`extendSelection`, `toggleSelection`, `selectBuilderNode`,
+  // `focusSectionForEdit`, `setSelectedSectionId`,
+  // `setHoveredSectionId`) from its deps array to avoid re-registering
+  // listeners on every selection change. But that swallowed a real
+  // bug: if EditContext re-rendered for any other reason, the handlers
+  // captured stale callback references. Mirror each callback in a ref
+  // so the handler always calls the freshest version without
+  // re-registering.
+  const callbacksRef = useRef({
+    setSelectedSectionId,
+    focusSectionForEdit,
+    selectBuilderNode,
+    extendSelection,
+    toggleSelection,
+    setHoveredSectionId,
+  });
+  useEffect(() => {
+    callbacksRef.current = {
+      setSelectedSectionId,
+      focusSectionForEdit,
+      selectBuilderNode,
+      extendSelection,
+      toggleSelection,
+      setHoveredSectionId,
+    };
+  }, [
+    setSelectedSectionId,
+    focusSectionForEdit,
+    selectBuilderNode,
+    extendSelection,
+    toggleSelection,
+    setHoveredSectionId,
+  ]);
+
   useEffect(() => {
     function onPointerMove(e: PointerEvent) {
       const el = findSectionEl(e.target);
       const id = el?.getAttribute("data-section-id") ?? null;
-      if (id !== hoveredSectionId) setHoveredSectionId(id);
+      if (id !== hoveredSectionId) callbacksRef.current.setHoveredSectionId(id);
     }
     function onPointerLeave() {
-      setHoveredSectionId(null);
+      callbacksRef.current.setHoveredSectionId(null);
     }
     function onClickCapture(e: MouseEvent) {
       // Ignore clicks originating inside the edit chrome (top bar, inspector,
@@ -562,14 +598,14 @@ export function SelectionLayer() {
       // navigator's row click handler. Shift extends, Cmd/Ctrl toggles,
       // plain click sets primary and clears multi.
       if (e.shiftKey) {
-        extendSelection(id);
+        callbacksRef.current.extendSelection(id);
       } else if (e.metaKey || e.ctrlKey) {
-        toggleSelection(id);
+        callbacksRef.current.toggleSelection(id);
       } else {
         if (builderNodeId) {
-          selectBuilderNode(builderNodeId);
+          callbacksRef.current.selectBuilderNode(builderNodeId);
         } else {
-          focusSectionForEdit(id);
+          callbacksRef.current.focusSectionForEdit(id);
         }
       }
       setContextMenu(null);
@@ -594,9 +630,9 @@ export function SelectionLayer() {
       e.preventDefault();
       e.stopPropagation();
       if (builderNodeId) {
-        selectBuilderNode(builderNodeId);
+        callbacksRef.current.selectBuilderNode(builderNodeId);
       } else {
-        focusSectionForEdit(id);
+        callbacksRef.current.focusSectionForEdit(id);
       }
       setContextMenu({
         x: e.clientX,
@@ -621,7 +657,7 @@ export function SelectionLayer() {
         setContextMenu(null);
         return;
       }
-      setSelectedSectionId(null);
+      callbacksRef.current.setSelectedSectionId(null);
     }
 
     document.addEventListener("pointermove", onPointerMove);

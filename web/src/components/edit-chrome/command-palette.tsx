@@ -679,11 +679,18 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   );
 
   // Clamp activeIdx whenever the row count changes.
+  // QA 2026-05-13 — previously included `activeIdx` in deps, which
+  // caused an extra render whenever rows shrank: render once with
+  // activeIdx out-of-range, then a second render after the clamp. Now
+  // only re-runs when row count changes; uses functional `setActiveIdx`
+  // so we don't need `activeIdx` in deps.
   useEffect(() => {
-    if (activeIdx >= flatRows.length) {
-      setActiveIdx(Math.max(0, flatRows.length - 1));
-    }
-  }, [activeIdx, flatRows.length]);
+    setActiveIdx((current) =>
+      current >= flatRows.length
+        ? Math.max(0, flatRows.length - 1)
+        : current,
+    );
+  }, [flatRows.length]);
 
   // Reset selection to the first row whenever the query changes.
   useEffect(() => {

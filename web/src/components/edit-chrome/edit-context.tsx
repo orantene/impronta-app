@@ -2108,9 +2108,15 @@ export function EditProvider({
   // dispatch IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT so we open the shell modal here.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // QA 2026-05-13 — unmount guard. The IIFE could resolve AFTER the
+    // EditProvider unmounted (operator navigated away mid-starter-apply),
+    // firing `queueRouterRefresh` against a detached router and
+    // dispatching `impronta:starter-sync-complete` into a dead tree.
+    let unmounted = false;
     const onStarterApplied = () => {
       void (async () => {
         await refreshComposition();
+        if (unmounted) return;
         void queueRouterRefresh();
         window.dispatchEvent(new CustomEvent("impronta:starter-sync-complete"));
       })();
@@ -2121,6 +2127,7 @@ export function EditProvider({
     window.addEventListener("impronta:starter-applied", onStarterApplied);
     window.addEventListener(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT, onOpenTemplateGallery);
     return () => {
+      unmounted = true;
       window.removeEventListener("impronta:starter-applied", onStarterApplied);
       window.removeEventListener(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT, onOpenTemplateGallery);
     };
@@ -3731,10 +3738,30 @@ export function EditProvider({
   );
 
   // ── undo / redo ────────────────────────────────────────────────────
+  // QA 2026-05-13 — two issues fixed in this pass:
+  //
+  // 1. Bypassed `safeAction`. Every other save path wraps the action
+  //    in `safeAction` for a 45s timeout + network-error fallback,
+  //    but undo/redo called `saveHomepageCompositionAction` directly.
+  //    A network timeout silently returned `!save.ok` with no
+  //    user-visible feedback — the canvas applied the snapshot but no
+  //    server confirmation ever arrived. Now wrapped to match.
+  //
+  // 2. Optimistic apply with no rollback on non-VERSION_CONFLICT
+  //    failure. The function sets slots + metadata BEFORE saving,
+  //    then returns false on failure. The caller (undo / redo) pushes
+  //    the entry back onto `past` / `future`, but the canvas was
+  //    already showing the "restored" state. Operator saw a UI that
+  //    contradicted the history stack. Now captures the pre-apply
+  //    state and reverts when save fails outside the VERSION_CONFLICT
+  //    branch (refreshComposition handles that branch by replacing
+  //    state with server-authoritative values).
   const restoreSnapshot = useCallback(
     async (target: CompositionSnapshot): Promise<boolean> => {
       if (pageVersionRef.current === null) return false;
       setSaving(true);
+      const preSlots = slotsRef.current;
+      const preMetadata = pageMetadataRef.current;
       const normalizedSlots = normalizeCompositionSlots(target.slots);
       const normalizedTarget: CompositionSnapshot = {
         ...target,
@@ -3746,17 +3773,37 @@ export function EditProvider({
         builderTreeRef.current,
         normalizedTarget.slots,
       );
-      const save = await saveHomepageCompositionAction({
-        locale,
-        pageId,
-        expectedVersion: pageVersionRef.current,
-        ...stripSnapshotForSave(normalizedTarget),
-        builderTree: builderTreeForSave,
-      });
+      const save = await safeAction(
+        () =>
+          saveHomepageCompositionAction({
+            locale,
+            pageId,
+            expectedVersion: pageVersionRef.current!,
+            ...stripSnapshotForSave(normalizedTarget),
+            builderTree: builderTreeForSave,
+          }),
+        {
+          name: "saveHomepageCompositionAction(restoreSnapshot)",
+          timeoutMs: 45_000,
+          fallback: {
+            ok: false as const,
+            error:
+              "Network error — undo/redo couldn't reach the server. Refresh and try again.",
+            code: "network" as const,
+          },
+        },
+      );
       setSaving(false);
       if (!save.ok) {
         if (save.code === "VERSION_CONFLICT") {
+          // Server-driven recovery: refreshComposition replaces local
+          // state with authoritative server state.
           await refreshComposition();
+        } else {
+          // Network / unexpected — revert the optimistic apply so the
+          // canvas matches the server's state.
+          setSlotsAndBuilderTree(preSlots);
+          setPageMetadata(preMetadata);
         }
         return false;
       }

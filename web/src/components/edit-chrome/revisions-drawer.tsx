@@ -265,6 +265,13 @@ export function RevisionsDrawer(): ReactElement | null {
   }, [homepageRevisionUiOnly, revisionsOpen, locale]);
 
   async function handleRestore(rev: RevisionListRow): Promise<void> {
+    // QA 2026-05-13 — double-click race guard. The button's
+    // `disabled={pendingId === rev.id}` prevents single-button
+    // double-fires, but a rapid click between two revision rows could
+    // start a second restore while the first was still in flight
+    // (different rev.id → no disabled guard). Now we hard-block any
+    // second entry while any restore is in flight.
+    if (pendingId !== null) return;
     setPendingId(rev.id);
     const res = await restoreRevision(rev.id);
     setPendingId(null);
