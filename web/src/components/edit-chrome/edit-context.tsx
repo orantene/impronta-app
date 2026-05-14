@@ -2014,11 +2014,36 @@ export function EditProvider({
 
   const focusSectionForEdit = useCallback(
     (sectionId: string) => {
+      // QA 2026-05-14 — Publish-drawer advisories (and other preflight
+      // surfaces) can carry sectionIds that aren't on the current page
+      // — e.g. a stale check pointing at a section the operator deleted
+      // since the preflight ran. Previously `setSelectedSectionId` would
+      // succeed silently against a non-existent id and the selection-layer
+      // scroll-into-view loop would burn 30 retries × 100ms looking for a
+      // DOM node that will never appear. The operator saw a button that
+      // did nothing. Surface an explicit toast instead so the click has
+      // a visible outcome — and skip the no-op selection that the cleanup
+      // effect (liveSectionIds sync) would just clear anyway.
+      if (
+        sectionId !== SITE_HEADER_SELECTION_ID &&
+        !liveSectionIds.has(sectionId)
+      ) {
+        reportMutationError(
+          "Couldn't find that section on the page. It may have been deleted since the check last ran.",
+        );
+        return;
+      }
       const rootId = builderNodeIdBySectionId.get(sectionId);
       if (rootId) selectBuilderNode(rootId);
       else setSelectedSectionId(sectionId);
     },
-    [builderNodeIdBySectionId, selectBuilderNode, setSelectedSectionId],
+    [
+      builderNodeIdBySectionId,
+      liveSectionIds,
+      reportMutationError,
+      selectBuilderNode,
+      setSelectedSectionId,
+    ],
   );
 
   const applyComposition = useCallback((data: CompositionData) => {
