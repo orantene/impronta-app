@@ -64,21 +64,25 @@ function ShortlistCard({
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // Per-tenant tally for the fan-out preview line.
+  // Per-tenant tally for the fan-out preview line. Uses routesToTenantId
+  // (= the actual fallback ladder used by /api/discover/inquiry) so the
+  // preview matches what happens on submit. Talents on a Free workspace
+  // roster route to that workspace; only talents with NO active roster
+  // anywhere are truly "not routable."
   const tenantBuckets = new Map<string, { name: string; count: number }>();
-  let independentCount = 0;
+  let noRosterCount = 0;
   for (const t of shortlist.talents) {
-    if (t.agencyTenantId && t.agencyName) {
-      const existing = tenantBuckets.get(t.agencyTenantId);
-      tenantBuckets.set(t.agencyTenantId, {
-        name: t.agencyName,
+    if (t.routesToTenantId && t.routesToTenantName) {
+      const existing = tenantBuckets.get(t.routesToTenantId);
+      tenantBuckets.set(t.routesToTenantId, {
+        name: t.routesToTenantName,
         count: (existing?.count ?? 0) + 1,
       });
     } else {
-      independentCount += 1;
+      noRosterCount += 1;
     }
   }
-  const routableCount = shortlist.talents.length - independentCount;
+  const routableCount = shortlist.talents.length - noRosterCount;
 
   return (
     <div
@@ -100,13 +104,13 @@ function ShortlistCard({
             {tenantBuckets.size > 0 && (
               <span>
                 {" · "}
-                Routes to {tenantBuckets.size} {tenantBuckets.size === 1 ? "agency" : "agencies"}
+                Routes to {tenantBuckets.size} {tenantBuckets.size === 1 ? "workspace" : "workspaces"}
               </span>
             )}
-            {independentCount > 0 && (
+            {noRosterCount > 0 && (
               <span style={{ color: C.inkDim }}>
                 {" · "}
-                {independentCount} independent (need direct outreach)
+                {noRosterCount} need direct outreach
               </span>
             )}
           </div>
@@ -180,10 +184,10 @@ function ShortlistCard({
           display: "flex", flexDirection: "column", gap: 10,
         }}>
           <div style={{ fontSize: 11.5, color: C.inkMuted }}>
-            One inquiry per agency. {Array.from(tenantBuckets.values())
+            One inquiry per workspace. {Array.from(tenantBuckets.values())
               .map((b) => `${b.name} (${b.count})`)
               .join(" · ")}
-            {independentCount > 0 && ` · ${independentCount} independent talent${independentCount === 1 ? "" : "s"} not included — reach them via their public profile.`}
+            {noRosterCount > 0 && ` · ${noRosterCount} talent${noRosterCount === 1 ? "" : "s"} not on any roster — reach via public profile.`}
           </div>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
             Event date (optional)
@@ -261,7 +265,7 @@ function ShortlistCard({
                   const skipped = j.skipped?.length ?? 0;
                   setResult({
                     ok: true,
-                    text: `Sent ${created} ${created === 1 ? "inquiry" : "inquiries"} to ${created === 1 ? "the agency" : `${created} agencies`}.${skipped > 0 ? ` ${skipped} independent talent${skipped === 1 ? "" : "s"} skipped — reach them directly.` : ""}`,
+                    text: `Sent ${created} ${created === 1 ? "inquiry" : "inquiries"} to ${created === 1 ? "the workspace" : `${created} workspaces`}.${skipped > 0 ? ` ${skipped} talent${skipped === 1 ? " was" : "s were"} skipped (not on any roster) — reach them directly.` : ""}`,
                   });
                   setEventDate("");
                   setEventLocation("");

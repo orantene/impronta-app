@@ -52,8 +52,10 @@ export type DiscoverInquiryResult = {
 
 export type DiscoverInquirySkip = {
   talentId: string;
-  reason: "not_discoverable" | "no_primary_tenant";
+  reason: "not_discoverable" | "no_roster";
 };
+
+export type DiscoverInquiryRouting = "primary_agency" | "any_active_roster";
 
 export async function POST(req: Request) {
   const session = await getCachedActorSession();
@@ -114,15 +116,22 @@ export async function POST(req: Request) {
       skipped.push({ talentId: tid, reason: "not_discoverable" });
       continue;
     }
-    const roster = (p.agency_talent_roster ?? []).filter(
-      (r) => (r.status === "active" || r.status === "pending") && r.is_primary,
+    // D5 slice 3 — fallback ladder for routing:
+    //   1. primary roster on a paid-plan workspace → that tenant (commission lane)
+    //   2. else: any active/pending roster → that tenant (no commission, FYI route)
+    //   3. else: skip with reason="no_roster"
+    // Talents on Free workspaces fall to (2) — the inquiry still routes,
+    // commission resolves at 0% per the exclusivity model.
+    const activeRoster = (p.agency_talent_roster ?? []).filter(
+      (r) => r.status === "active" || r.status === "pending",
     );
-    if (roster.length === 0) {
-      // Independent — needs talent-direct inbox routing, deferred to D5 slice 2.
-      skipped.push({ talentId: tid, reason: "no_primary_tenant" });
+    const primary = activeRoster.find((r) => r.is_primary);
+    const chosen = primary ?? activeRoster[0];
+    if (!chosen) {
+      skipped.push({ talentId: tid, reason: "no_roster" });
       continue;
     }
-    const tenantId = roster[0]!.tenant_id;
+    const tenantId = chosen.tenant_id;
     const bucket = groupByTenant.get(tenantId) ?? [];
     bucket.push(tid);
     groupByTenant.set(tenantId, bucket);

@@ -48,9 +48,17 @@ export type DiscoverShortlistTalent = {
   primaryTypeLabel: string | null;
   homeCity: string | null;
   homeCountry: string | null;
+  /** Primary (exclusive) agency display name when one exists. Null otherwise. */
   agencyName: string | null;
+  /** Primary agency tenant_id when one exists. Null otherwise. */
   agencyTenantId: string | null;
+  /** True when the primary roster has is_primary=true (= exclusive). */
   isExclusive: boolean;
+  /** Where /api/discover/inquiry would route this talent (primary if present, else
+   *  first active roster tenant — distinct from agencyTenantId because the
+   *  fallback may be a Free-plan workspace that doesn't get the exclusive badge). */
+  routesToTenantId: string | null;
+  routesToTenantName: string | null;
   headshotUrl: string | null;
 };
 
@@ -427,19 +435,29 @@ export async function loadClientShortlistsForUser(
         const primaryLabel = tax.find((t) => t.relationship_type === "primary_role")
           ?.taxonomy_terms?.name_en ?? null;
         const roster = p.agency_talent_roster ?? [];
-        const primary = roster
-          .filter((rr) => (rr.status === "active" || rr.status === "pending") && rr.is_primary)[0];
-        const agencyRowOrArr = primary?.agencies;
-        const agencyRow = Array.isArray(agencyRowOrArr) ? agencyRowOrArr[0] : agencyRowOrArr;
+        const activeRoster = roster
+          .filter((rr) => rr.status === "active" || rr.status === "pending");
+        const primary = activeRoster.find((rr) => rr.is_primary) ?? null;
+        const fallback = primary ?? activeRoster[0] ?? null;
+
+        const pickAgencyName = (rr: typeof primary): string | null => {
+          if (!rr) return null;
+          const arr = rr.agencies;
+          const row = Array.isArray(arr) ? arr[0] : arr;
+          return row?.display_name ?? null;
+        };
+
         return {
           talentId: p.id,
           displayName,
           primaryTypeLabel: primaryLabel,
           homeCity: p.home_city_text,
           homeCountry: p.home_country_text,
-          agencyName: agencyRow?.display_name ?? null,
+          agencyName: pickAgencyName(primary),
           agencyTenantId: primary?.tenant_id ?? null,
           isExclusive: !!primary?.is_primary,
+          routesToTenantId: fallback?.tenant_id ?? null,
+          routesToTenantName: pickAgencyName(fallback),
           headshotUrl: photoByTalent.get(p.id) ?? null,
         };
       })

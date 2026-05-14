@@ -1145,16 +1145,16 @@ function DiscoverDetailDrawer({
                             setInquireDate("");
                             setInquireLocation("");
                             setInquireMessage("");
-                          } else if (j.skipped?.length > 0 && j.skipped[0].reason === "no_primary_tenant") {
+                          } else if (j.skipped?.length > 0 && j.skipped[0].reason === "no_roster") {
                             setInquireResult({
                               ok: false,
-                              text: "This talent doesn't have a primary agency yet. Use 'View full profile' to inquire directly.",
+                              text: "This talent isn't on any agency roster yet. Use 'View full profile' to reach them directly.",
                             });
                           } else {
                             setInquireResult({
                               ok: false,
                               text: j.error === "no_routable_talents"
-                                ? "No routable agency for this talent."
+                                ? "No routable workspace for this talent — try 'View full profile' instead."
                                 : "Couldn't send — try again in a moment.",
                             });
                           }
