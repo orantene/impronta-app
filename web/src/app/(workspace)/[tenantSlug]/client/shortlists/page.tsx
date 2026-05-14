@@ -11,6 +11,7 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
 import { loadClientShortlistsForUser } from "../../_data-bridge/discover";
+import { loadClientSubscription, canUsePro } from "@/lib/discover/client-subscription";
 import { ShortlistsShell } from "./ShortlistsShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { EmptyState } from "../_components/EmptyState";
@@ -31,7 +32,11 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const shortlists = await loadClientShortlistsForUser(session.user.id);
+  const [shortlists, subscription] = await Promise.all([
+    loadClientShortlistsForUser(session.user.id),
+    loadClientSubscription(session.user.id),
+  ]);
+  const hasPro = canUsePro(subscription);
 
   return (
     <div style={{ fontFamily: FONT }}>
@@ -43,7 +48,12 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
       />
 
       {shortlists.length > 0 ? (
-        <ShortlistsShell shortlists={shortlists} tenantSlug={tenantSlug} />
+        <ShortlistsShell
+          shortlists={shortlists}
+          tenantSlug={tenantSlug}
+          tier={subscription.tier}
+          hasPro={hasPro}
+        />
       ) : (
         <EmptyState
           icon="📑"

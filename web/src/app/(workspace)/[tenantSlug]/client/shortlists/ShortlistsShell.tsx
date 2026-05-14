@@ -30,14 +30,24 @@ const FONT = '"Inter", system-ui, sans-serif';
 export function ShortlistsShell({
   shortlists,
   tenantSlug,
+  tier,
+  hasPro,
 }: {
   shortlists: DiscoverShortlistWithTalents[];
   tenantSlug: string;
+  tier: "standard" | "pro" | "enterprise";
+  hasPro: boolean;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONT }}>
+      {!hasPro && <ProUpsellBanner tier={tier} />}
       {shortlists.map((s) => (
-        <ShortlistCard key={s.id} shortlist={s} tenantSlug={tenantSlug} />
+        <ShortlistCard
+          key={s.id}
+          shortlist={s}
+          tenantSlug={tenantSlug}
+          hasPro={hasPro}
+        />
       ))}
       <div style={{
         padding: 16, borderRadius: 12,
@@ -50,13 +60,66 @@ export function ShortlistsShell({
   );
 }
 
+/** Inline upsell shown to standard-tier clients on the shortlists page.
+ *  Static placeholder — no Stripe checkout wired yet. */
+function ProUpsellBanner({ tier }: { tier: "standard" | "pro" | "enterprise" }) {
+  if (tier !== "standard") return null;
+  return (
+    <div
+      style={{
+        padding: "14px 16px",
+        background: "linear-gradient(135deg, rgba(15,79,62,0.08), rgba(15,79,62,0.02))",
+        border: `1px solid rgba(15,79,62,0.20)`,
+        borderRadius: 12,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 12, flexWrap: "wrap",
+        fontFamily: FONT,
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
+          textTransform: "uppercase", color: C.accent, marginBottom: 4,
+        }}>
+          Upgrade to Pro
+        </div>
+        <div style={{ fontSize: 13, color: C.ink, fontWeight: 500 }}>
+          Compare talent side-by-side and send one inquiry that fans out to every agency in your shortlist.
+        </div>
+        <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 4 }}>
+          Trust gates and contact controls still apply — Pro unlocks tools, not access.
+        </div>
+      </div>
+      <button
+        type="button"
+        title="Stripe checkout lands with D6 polish — sales-led upgrade in the meantime."
+        style={{
+          padding: "8px 14px", borderRadius: 8,
+          background: C.accent, color: "#fff", border: "none",
+          fontFamily: FONT, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+          flexShrink: 0,
+        }}
+        onClick={() => {
+          // Placeholder until Stripe Checkout wires up.
+          alert("Pro tier coming soon — contact sales@tulala.digital to enable.");
+        }}
+      >
+        Talk to sales →
+      </button>
+    </div>
+  );
+}
+
 function ShortlistCard({
   shortlist,
   tenantSlug,
+  hasPro,
 }: {
   shortlist: DiscoverShortlistWithTalents;
   tenantSlug: string;
+  hasPro: boolean;
 }) {
+  void tenantSlug;
   const [inquireOpen, setInquireOpen] = useState(false);
   const [eventDate, setEventDate] = useState("");
   const [eventLocation, setEventLocation] = useState("");
@@ -119,23 +182,45 @@ function ShortlistCard({
         <div style={{ display: "flex", gap: 8 }}>
           <button
             type="button"
-            onClick={() => setCompareOpen(true)}
+            onClick={() => {
+              if (!hasPro) {
+                alert("Compare is a Pro feature. Upgrade to compare talent side-by-side.");
+                return;
+              }
+              setCompareOpen(true);
+            }}
             disabled={shortlist.talents.length < 2}
-            title={shortlist.talents.length < 2 ? "Need at least 2 talents to compare" : "Open side-by-side comparison"}
+            title={
+              !hasPro
+                ? "Pro tier unlocks side-by-side compare"
+                : shortlist.talents.length < 2
+                  ? "Need at least 2 talents to compare"
+                  : "Open side-by-side comparison"
+            }
             style={{
-              height: 36, padding: "0 14px", borderRadius: 8,
+              height: 36, padding: "0 12px", borderRadius: 8,
               background: "transparent",
               border: `1px solid ${shortlist.talents.length < 2 ? C.borderSoft : C.border}`,
               color: shortlist.talents.length < 2 ? C.inkDim : C.ink,
               fontFamily: FONT, fontSize: 12.5, fontWeight: 600,
               cursor: shortlist.talents.length < 2 ? "not-allowed" : "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6,
             }}
           >
             ⇄ Compare
+            {!hasPro && <ProTierPill />}
           </button>
           <button
             type="button"
-            onClick={() => { setInquireOpen((v) => !v); setResult(null); }}
+            onClick={() => {
+              const isMultiTalent = shortlist.talents.length > 1 || routableCount > 1;
+              if (!hasPro && isMultiTalent) {
+                alert("Multi-talent inquiry send is a Pro feature. Send a single-talent inquiry from the Discover detail drawer instead.");
+                return;
+              }
+              setInquireOpen((v) => !v);
+              setResult(null);
+            }}
             disabled={routableCount === 0}
             style={{
               height: 36, padding: "0 14px", borderRadius: 8,
@@ -146,7 +231,10 @@ function ShortlistCard({
               cursor: routableCount === 0 ? "not-allowed" : "pointer",
             }}
           >
-            {inquireOpen ? "Cancel" : `Send inquiry${routableCount > 0 ? "" : " (no agencies)"}`}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {inquireOpen ? "Cancel" : `Send inquiry${routableCount > 0 ? "" : " (no agencies)"}`}
+              {!hasPro && (shortlist.talents.length > 1 || routableCount > 1) && <ProTierPill />}
+            </span>
           </button>
         </div>
       </div>
@@ -324,6 +412,22 @@ function ShortlistCard({
         />
       )}
     </div>
+  );
+}
+
+/** Inline "PRO" pill shown next to gated CTAs for standard-tier clients. */
+function ProTierPill() {
+  return (
+    <span
+      style={{
+        fontSize: 9, fontWeight: 700, letterSpacing: 0.3,
+        textTransform: "uppercase",
+        padding: "1px 5px", borderRadius: 3,
+        background: "rgba(125,92,255,0.12)", color: "#5C3FCC",
+      }}
+    >
+      Pro
+    </span>
   );
 }
 
