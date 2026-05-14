@@ -16,6 +16,7 @@
 import { useState, useRef, useEffect, useMemo, useTransition } from "react";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData, type StageStatus, type OfferStatus, type PaymentStatus, type TalentParticipationRow } from "@/components/messages-status-sheet/StatusSheet";
+import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
 import { useRouter } from "next/navigation";
 import type { ClientInquiryRow } from "../../_data-bridge";
 import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
@@ -604,6 +605,7 @@ function ThreadPaneWithTabs({
 }) {
   const stage = stageStyle(inq.status);
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
+  const [payNowSheet, setPayNowSheet] = useState<{ amountLabel: string } | null>(null);
   const statusSheetData = useMemo<StatusSheetData>(
     () => buildClientStatusSheetData(inq, details),
     [inq, details],
@@ -723,6 +725,7 @@ function ThreadPaneWithTabs({
             loading={loadingMessages}
             tenantSlug={tenantSlug}
             onJumpToOffer={() => onTabChange("offer")}
+            onPayNow={(amountLabel) => setPayNowSheet({ amountLabel })}
             onMessagesChange={onMessagesChange}
           />
         )}
@@ -749,6 +752,14 @@ function ThreadPaneWithTabs({
         data={statusSheetData}
         onClose={() => setStatusSheetOpen(false)}
       />
+
+      {payNowSheet && (
+        <PayNowSheet
+          inquiryId={inq.id}
+          amountLabel={payNowSheet.amountLabel}
+          onClose={() => setPayNowSheet(null)}
+        />
+      )}
 
       {/* Inline composer — only on Chat tab */}
       {activeTab === "chat" && (
@@ -1162,13 +1173,14 @@ function ChatComposer({
 }
 
 function ChatThreadBody({
-  inq, messages, loading, tenantSlug, onJumpToOffer, onMessagesChange,
+  inq, messages, loading, tenantSlug, onJumpToOffer, onPayNow, onMessagesChange,
 }: {
   inq: ClientInquiryRow;
   messages: WorkspaceMessage[];
   loading: boolean;
   tenantSlug: string;
   onJumpToOffer?: () => void;
+  onPayNow?: (amountLabel: string) => void;
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1191,6 +1203,7 @@ function ChatThreadBody({
             m={m}
             tenantSlug={tenantSlug}
             onJumpToOffer={onJumpToOffer}
+            onPayNow={onPayNow}
             onMessagesChange={onMessagesChange}
           />
         ))
@@ -1427,16 +1440,18 @@ function Bubble({
   m,
   tenantSlug,
   onJumpToOffer,
+  onPayNow,
   onMessagesChange,
 }: {
   m: WorkspaceMessage;
   tenantSlug?: string;
   onJumpToOffer?: () => void;
+  onPayNow?: (amountLabel: string) => void;
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
 }) {
   const mine = m.is_mine;
   const kind = m.message_kind ?? "text";
-  const card = kind !== "text" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer }) : null;
+  const card = kind !== "text" ? renderClientChatCard(kind, m.card_payload ?? {}, { onJumpToOffer, onPayNow }) : null;
 
   const isOptimistic = m.id.startsWith("tmp-");
   const canEditOrDelete = mine && !isOptimistic && kind === "text" && tenantSlug && onMessagesChange;
@@ -1670,7 +1685,7 @@ function Bubble({
 function renderClientChatCard(
   kind: string,
   payload: Record<string, unknown>,
-  ctx: { onJumpToOffer?: () => void },
+  ctx: { onJumpToOffer?: () => void; onPayNow?: (amountLabel: string) => void },
 ): React.ReactNode {
   const get = <T,>(k: string, fallback: T): T => (payload[k] as T) ?? fallback;
 
@@ -1723,7 +1738,7 @@ function renderClientChatCard(
             fontFamily: FONT,
             display: "flex",
             flexDirection: "column",
-            gap: 4,
+            gap: 6,
           }}
         >
           <div style={{ fontSize: 10, fontWeight: 700, color: paid ? "#047857" : C.accent, textTransform: "uppercase", letterSpacing: 0.5 }}>
@@ -1733,9 +1748,34 @@ function renderClientChatCard(
             {amountLabel}
           </div>
           {!paid && (
-            <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
-              {get<string>("hint", "Pay-Now button coming soon — message your coordinator for now.")}
-            </div>
+            <>
+              {get<string>("hint", "") && (
+                <div style={{ fontSize: 12, color: C.inkMuted }}>
+                  {get<string>("hint", "")}
+                </div>
+              )}
+              {ctx.onPayNow && (
+                <button
+                  type="button"
+                  onClick={() => ctx.onPayNow!(amountLabel)}
+                  style={{
+                    marginTop: 6,
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    background: "#0F4F3E",
+                    color: "#fff",
+                    border: "none",
+                    fontFamily: FONT,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  Pay {amountLabel}
+                </button>
+              )}
+            </>
           )}
         </div>
       );
