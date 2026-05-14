@@ -1867,17 +1867,23 @@ export function EditProvider({
             prev: Record<string, CompositionSectionRef[]>,
           ) => Record<string, CompositionSectionRef[]>),
     ) => {
-      setSlots((prev) => {
-        const next = typeof updater === "function" ? updater(prev) : updater;
-        const normalized = normalizeCompositionSlots(next);
-        slotsRef.current = normalized;
-        setBuilderTree((prevTree) => {
-          const nextTree = reconcileBuilderTreeFromSlots(prevTree, normalized);
-          builderTreeRef.current = nextTree;
-          return nextTree;
-        });
-        return normalized;
-      });
+      // QA 2026-05-13 — previously called `setBuilderTree(...)` from
+      // INSIDE the `setSlots(prev => …)` updater. React state updaters
+      // must be pure; nested setState can double-apply under Strict
+      // Mode / concurrent rendering and silently corrupt the slots ↔
+      // builderTree consistency. Compute both next states up-front
+      // from ref values, then dispatch them sequentially. Refs are
+      // still updated synchronously so ref-based readers (CAS guards)
+      // see the new value before React commits.
+      const prevSlots = slotsRef.current;
+      const nextRaw = typeof updater === "function" ? updater(prevSlots) : updater;
+      const normalized = normalizeCompositionSlots(nextRaw);
+      slotsRef.current = normalized;
+      const prevTree = builderTreeRef.current;
+      const nextTree = reconcileBuilderTreeFromSlots(prevTree, normalized);
+      builderTreeRef.current = nextTree;
+      setSlots(normalized);
+      setBuilderTree(nextTree);
     },
     [],
   );

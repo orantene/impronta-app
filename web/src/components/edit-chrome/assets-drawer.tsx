@@ -342,6 +342,40 @@ export function AssetsDrawer(): ReactElement | null {
     async (file: File) => {
       setUploading(true);
       setUploadError(null);
+      const uploadKind = tab === "videos" ? "video" : tab === "documents" ? "document" : "image";
+      // QA 2026-05-13 — client-side size + MIME validation. Server
+      // also validates, but a pre-check saves a round-trip and gives
+      // the operator an instant error. The `accept` attribute on the
+      // hidden file input only filters the OS dialog; drag-and-drop
+      // or programmatic uploads bypass it.
+      const MAX_BYTES_BY_KIND: Record<string, number> = {
+        image: 10 * 1024 * 1024,
+        video: 100 * 1024 * 1024,
+        document: 25 * 1024 * 1024,
+      };
+      const MIME_PREFIX_BY_KIND: Record<string, string[]> = {
+        image: ["image/"],
+        video: ["video/"],
+        document: ["application/pdf", "application/msword", "application/vnd."],
+      };
+      const maxBytes = MAX_BYTES_BY_KIND[uploadKind] ?? 10 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        setUploadError(
+          `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max for ${uploadKind} is ${maxBytes / 1024 / 1024} MB.`,
+        );
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+      const allowedPrefixes = MIME_PREFIX_BY_KIND[uploadKind] ?? ["image/"];
+      if (!allowedPrefixes.some((prefix) => file.type.startsWith(prefix))) {
+        setUploadError(
+          `File type ${file.type || "(unknown)"} isn't supported for ${uploadKind}.`,
+        );
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
       try {
         const form = new FormData();
         form.set("tenantId", tenantId);
@@ -349,7 +383,6 @@ export function AssetsDrawer(): ReactElement | null {
         // Tab discriminator drives MIME whitelist + bucket subdirectory
         // + media_assets.purpose on the server side (Phase 8 — videos +
         // documents now share the upload route).
-        const uploadKind = tab === "videos" ? "video" : tab === "documents" ? "document" : "image";
         form.set("kind", uploadKind);
         const res = await fetch("/api/admin/media/upload", {
           method: "POST",

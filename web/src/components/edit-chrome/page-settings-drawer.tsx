@@ -306,6 +306,14 @@ export function PageSettingsDrawer() {
    * explicit Save & close button still works for users who'd rather hit
    * commit and dismiss in one motion.
    */
+  // QA 2026-05-13 — debounced autosave race. `submitting` was read
+  // from closure state inside the timer; setting it true happens
+  // asynchronously inside `.then()`, so a timer that fires between
+  // the dispatch and the next render saw `submitting === false` and
+  // could kick off a concurrent save with the same draft. `savingRef`
+  // is set synchronously before dispatch and checked synchronously
+  // inside the timer body — concurrent dispatches can no longer slip.
+  const savingRef = useRef(false);
   useEffect(() => {
     if (!pageSettingsOpen) return;
     if (!draft || !pageMetadata) return;
@@ -313,9 +321,12 @@ export function PageSettingsDrawer() {
     if (submitting || saving) return;
     if (titleOver || descOver || ogTitleOver || ogDescOver) return;
     const timer = window.setTimeout(() => {
+      if (savingRef.current) return;
+      savingRef.current = true;
       setSubmitting(true);
       setErrorMsg(null);
       void savePageMetadata(draft).then((res) => {
+        savingRef.current = false;
         setSubmitting(false);
         if (!res.ok) {
           setErrorMsg(res.error ?? "Couldn't save page settings — try again.");

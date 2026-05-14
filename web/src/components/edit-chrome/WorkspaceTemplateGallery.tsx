@@ -185,17 +185,30 @@ export function WorkspaceTemplateGallery({
 
   async function refresh(targetScope: "private" | "all" = scope) {
     setError(null);
-    const r = await listWorkspaceTemplates({ scope: targetScope });
-    if (!r.ok) {
-      setError(r.error);
-      return;
+    // QA 2026-05-13 — `void refresh()` swallows any thrown exception.
+    // Only the `!r.ok` branch ever surfaced. A real throw (network
+    // failure, action crash) left the gallery showing the loading
+    // skeleton forever with no recovery. Now unhandled exceptions
+    // also become a visible error so the operator can retry.
+    try {
+      const r = await listWorkspaceTemplates({ scope: targetScope });
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      setTemplates(r.templates);
+      setSelectedTemplateId((current) =>
+        current && r.templates.some((template) => template.id === current)
+          ? current
+          : r.templates[0]?.id ?? null,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Couldn't load workspace templates — try again.",
+      );
     }
-    setTemplates(r.templates);
-    setSelectedTemplateId((current) =>
-      current && r.templates.some((template) => template.id === current)
-        ? current
-        : r.templates[0]?.id ?? null,
-    );
   }
 
   useEffect(() => {
