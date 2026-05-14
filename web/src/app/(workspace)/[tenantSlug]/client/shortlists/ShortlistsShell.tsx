@@ -8,7 +8,7 @@
 // talent array — the server groups by primary tenant and fans out, so
 // one shortlist with talents from 3 agencies → 3 inquiries.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { DiscoverShortlistWithTalents } from "../../_data-bridge/discover";
 
@@ -63,6 +63,7 @@ function ShortlistCard({
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   // Per-tenant tally for the fan-out preview line. Uses routesToTenantId
   // (= the actual fallback ladder used by /api/discover/inquiry) so the
@@ -116,6 +117,22 @@ function ShortlistCard({
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setCompareOpen(true)}
+            disabled={shortlist.talents.length < 2}
+            title={shortlist.talents.length < 2 ? "Need at least 2 talents to compare" : "Open side-by-side comparison"}
+            style={{
+              height: 36, padding: "0 14px", borderRadius: 8,
+              background: "transparent",
+              border: `1px solid ${shortlist.talents.length < 2 ? C.borderSoft : C.border}`,
+              color: shortlist.talents.length < 2 ? C.inkDim : C.ink,
+              fontFamily: FONT, fontSize: 12.5, fontWeight: 600,
+              cursor: shortlist.talents.length < 2 ? "not-allowed" : "pointer",
+            }}
+          >
+            ⇄ Compare
+          </button>
           <button
             type="button"
             onClick={() => { setInquireOpen((v) => !v); setResult(null); }}
@@ -298,6 +315,270 @@ function ShortlistCard({
           </button>
         </div>
       )}
+
+      {compareOpen && (
+        <CompareDrawer
+          shortlistName={shortlist.name}
+          talents={shortlist.talents.slice(0, 6)}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Local mirror of DiscoverTalentDetail (API response shape). */
+type CompareDetail = {
+  id: string;
+  displayName: string;
+  primaryTypeLabel: string | null;
+  secondaryTypeLabels: string[];
+  homeCity: string | null;
+  homeCountry: string | null;
+  agencyName: string | null;
+  isExclusive: boolean;
+  bio: string | null;
+  responseTime: "1h" | "4h" | "24h" | "48h" | null;
+  languages: string[];
+  headshotUrl: string | null;
+};
+
+function CompareDrawer({
+  shortlistName,
+  talents,
+  onClose,
+}: {
+  shortlistName: string;
+  talents: import("../../_data-bridge/discover").DiscoverShortlistTalent[];
+  onClose: () => void;
+}) {
+  const [details, setDetails] = useState<Map<string, CompareDetail>>(() => new Map());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all(
+      talents.map((t) =>
+        fetch(`/api/discover/talent/${t.talentId}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j: { talent?: CompareDetail } | null) => j?.talent ?? null)
+          .catch(() => null),
+      ),
+    ).then((rows) => {
+      if (cancelled) return;
+      const map = new Map<string, CompareDetail>();
+      rows.forEach((row, i) => {
+        const id = talents[i]?.talentId;
+        if (row && id) map.set(id, row);
+      });
+      setDetails(map);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [talents]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const ROWS: Array<{ label: string; render: (d: CompareDetail | undefined, t: import("../../_data-bridge/discover").DiscoverShortlistTalent) => React.ReactNode }> = [
+    {
+      label: "",
+      render: (d, t) => {
+        const url = d?.headshotUrl ?? t.headshotUrl;
+        if (url) {
+          return (
+            <div style={{
+              width: "100%", aspectRatio: "4 / 5", borderRadius: 10,
+              background: `url(${url}) center/cover no-repeat`,
+            }} />
+          );
+        }
+        return (
+          <div style={{
+            width: "100%", aspectRatio: "4 / 5", borderRadius: 10,
+            background: C.accentSoft, color: C.accent,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 28, fontWeight: 700,
+          }}>
+            {t.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
+          </div>
+        );
+      },
+    },
+    { label: "Name", render: (_d, t) => <strong>{t.displayName}</strong> },
+    {
+      label: "Category",
+      render: (d, t) => {
+        const primary = d?.primaryTypeLabel ?? t.primaryTypeLabel ?? "—";
+        const secondary = d?.secondaryTypeLabels ?? [];
+        return (
+          <span>
+            {primary}
+            {secondary.length > 0 && (
+              <span style={{ color: C.inkDim, fontSize: 11 }}>
+                <br />+ {secondary.join(" · ")}
+              </span>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      label: "Location",
+      render: (_d, t) =>
+        t.homeCity || t.homeCountry
+          ? [t.homeCity, t.homeCountry].filter(Boolean).join(" · ")
+          : <span style={{ color: C.inkDim }}>—</span>,
+    },
+    {
+      label: "Agency",
+      render: (_d, t) => t.agencyName
+        ? <span>{t.agencyName}{t.isExclusive && <span style={{ color: C.inkDim, fontSize: 11 }}> · exclusive</span>}</span>
+        : <span style={{ color: C.inkDim }}>Independent</span>,
+    },
+    {
+      label: "Languages",
+      render: (d) =>
+        (d?.languages?.length ?? 0) > 0
+          ? d!.languages.join(" · ")
+          : <span style={{ color: C.inkDim }}>—</span>,
+    },
+    {
+      label: "Response",
+      render: (d) => d?.responseTime
+        ? `within ${d.responseTime}`
+        : <span style={{ color: C.inkDim }}>—</span>,
+    },
+    {
+      label: "Bio",
+      render: (d) => d?.bio
+        ? <span style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>{d.bio}</span>
+        : <span style={{ color: C.inkDim }}>—</span>,
+    },
+  ];
+
+  return (
+    <div
+      role="dialog"
+      aria-modal
+      aria-label={`Compare talents on ${shortlistName}`}
+      style={{
+        position: "fixed", inset: 0, zIndex: 60,
+        background: "rgba(11,11,13,0.55)",
+        backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+        fontFamily: FONT,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{
+          background: C.cardBg,
+          borderRadius: 14,
+          maxWidth: 1200, width: "100%", maxHeight: "90vh",
+          display: "flex", flexDirection: "column",
+          overflow: "hidden",
+          boxShadow: "0 24px 80px -16px rgba(11,11,13,0.4)",
+        }}
+      >
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 18px",
+          borderBottom: `1px solid ${C.borderSoft}`,
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>
+            ⇄ Compare · {shortlistName} · {talents.length} talents
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close compare"
+            style={{
+              width: 32, height: 32, borderRadius: "50%",
+              border: `1px solid ${C.borderSoft}`,
+              background: "transparent", color: C.ink,
+              fontSize: 16, lineHeight: 1, cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={{
+          overflow: "auto", flex: 1,
+          padding: 18,
+        }}>
+          {loading ? (
+            <div style={{ padding: 24, color: C.inkMuted }}>Loading talent details…</div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: `120px repeat(${talents.length}, minmax(180px, 1fr))`,
+                gap: 0,
+              }}
+            >
+              {ROWS.map((row, ri) => (
+                <CompareRowFragment
+                  key={row.label || `row-${ri}`}
+                  label={row.label}
+                  values={talents.map((t) => row.render(details.get(t.talentId), t))}
+                  borderBottom={ri < ROWS.length - 1}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompareRowFragment({
+  label,
+  values,
+  borderBottom,
+}: {
+  label: string;
+  values: React.ReactNode[];
+  borderBottom: boolean;
+}) {
+  const borderStyle = borderBottom ? `1px solid ${C.borderSoft}` : "none";
+  return (
+    <>
+      <div
+        style={{
+          padding: "10px 12px",
+          fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
+          textTransform: "uppercase", color: C.inkDim,
+          borderBottom: borderStyle,
+          display: "flex", alignItems: "center",
+        }}
+      >
+        {label}
+      </div>
+      {values.map((v, i) => (
+        <div
+          // eslint-disable-next-line react/no-array-index-key
+          key={i}
+          style={{
+            padding: "10px 12px",
+            fontSize: 13, color: C.ink,
+            borderBottom: borderStyle,
+            borderLeft: `1px solid ${C.borderSoft}`,
+            verticalAlign: "top",
+          }}
+        >
+          {v}
+        </div>
+      ))}
+    </>
   );
 }
