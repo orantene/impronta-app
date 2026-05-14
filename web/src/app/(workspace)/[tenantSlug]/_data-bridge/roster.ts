@@ -214,6 +214,12 @@ export async function loadWorkspaceRosterLite(
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
 
+    // Note: taxonomy join is LEFT (no !inner). Some talents are catalogued
+    // via relationship_type='primary_role' + term_type='talent_type'
+    // (production data) while older fixtures used 'primary' + 'category';
+    // inner-joining on either pattern silently dropped talents that didn't
+    // match. The picker chip shows the name regardless of category, so
+    // missing label is acceptable but missing talent is not.
     const { data, error } = await supabase
       .from("agency_talent_roster")
       .select(
@@ -229,7 +235,7 @@ export async function loadWorkspaceRosterLite(
           home_city_text,
           workflow_status,
           user_id,
-          talent_profile_taxonomy!inner (
+          talent_profile_taxonomy (
             relationship_type,
             taxonomy_terms ( term_type, name_en )
           )
@@ -274,8 +280,15 @@ export async function loadWorkspaceRosterLite(
         p.display_name?.trim()
         || `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()
         || "Unnamed talent";
+      // Accept both schemas: the canonical 'primary_role' + 'talent_type'
+      // pattern from production seeding, and the older 'primary' + 'category'
+      // pattern from earlier fixtures. First match wins.
       const primaryRel = p.talent_profile_taxonomy?.find(
-        (t) => t.relationship_type === "primary" && t.taxonomy_terms?.term_type === "category",
+        (t) =>
+          (t.relationship_type === "primary_role"
+            && t.taxonomy_terms?.term_type === "talent_type")
+          || (t.relationship_type === "primary"
+            && t.taxonomy_terms?.term_type === "category"),
       );
       const primaryTypeLabel = primaryRel?.taxonomy_terms?.name_en ?? undefined;
       const city = p.home_city_text?.trim() || undefined;
