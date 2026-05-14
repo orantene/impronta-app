@@ -3531,7 +3531,16 @@ function AdminMessageStream({
               });
             }}
             workspaceName={wsName}
-            canSendAsWorkspace={canSendAsWs}
+            // SEND AS toggle gating (2026-05-13 product fix): only
+            // show the workspace-identity option in the Group (talent)
+            // thread — where staff post internally and "Impronta
+            // Models" reads as the team voice. In the Client (private)
+            // thread the user wants the admin to always appear as a
+            // person (Name + photo + "Coordinator" label) — never as
+            // the raw workspace identity. Clients shouldn't see the
+            // workspace abstraction; they're meant to know the
+            // person handling their booking.
+            canSendAsWorkspace={canSendAsWs && threadType !== "private"}
             onSendAsWorkspace={(text) => {
               const replyId = replyTarget?.messageId ?? null;
               appendLocalMessage(threadKey, text, "workspace");
