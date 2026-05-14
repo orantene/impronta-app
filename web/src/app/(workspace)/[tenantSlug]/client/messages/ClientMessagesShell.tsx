@@ -17,6 +17,9 @@ import { useState, useRef, useEffect, useMemo, useTransition } from "react";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData, type StageStatus, type OfferStatus, type PaymentStatus, type TalentParticipationRow } from "@/components/messages-status-sheet/StatusSheet";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
+import { addReaction, removeReaction } from "@/lib/server-actions/message-reactions";
+
+const DEFAULT_REACTION_SET = ["👍", "❤️", "🎉", "😂", "😮", "🙏"] as const;
 import { useRouter } from "next/navigation";
 import type { ClientInquiryRow } from "../../_data-bridge";
 import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
@@ -1516,8 +1519,11 @@ function Bubble({
 
   const isOptimistic = m.id.startsWith("tmp-");
   const canEditOrDelete = mine && !isOptimistic && kind === "text" && tenantSlug && onMessagesChange;
+  // Reactions are allowed on any non-optimistic real message — own or others'.
+  const canReact = !isOptimistic && tenantSlug && onMessagesChange;
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(m.body);
   const [pending, startTransition] = useTransition();
@@ -1533,6 +1539,13 @@ function Bubble({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [menuOpen]);
+  // Close reaction picker on Escape
+  useEffect(() => {
+    if (!reactionPickerOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setReactionPickerOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [reactionPickerOpen]);
 
   function commitEdit() {
     const trimmed = editValue.trim();
@@ -1566,6 +1579,49 @@ function Bubble({
         setActionError(res.error);
         // Put it back
         onMessagesChange((prev) => [...prev, m].sort((a, b) => a.created_at.localeCompare(b.created_at)));
+      }
+    });
+  }
+
+  function toggleReaction(emoji: string) {
+    if (!tenantSlug || !onMessagesChange) return;
+    const cur = m.reactions ?? [];
+    const existing = cur.find((r) => r.emoji === emoji);
+    const removing = existing?.mine === true;
+    setActionError(null);
+    setReactionPickerOpen(false);
+
+    // Optimistic
+    onMessagesChange((prev) =>
+      prev.map((mm) => {
+        if (mm.id !== m.id) return mm;
+        const list = (mm.reactions ?? []).slice();
+        const idx = list.findIndex((r) => r.emoji === emoji);
+        if (removing) {
+          if (idx >= 0) {
+            const newCount = list[idx].count - 1;
+            if (newCount <= 0) list.splice(idx, 1);
+            else list[idx] = { ...list[idx], count: newCount, mine: false };
+          }
+        } else if (idx >= 0) {
+          list[idx] = { ...list[idx], count: list[idx].count + 1, mine: true };
+        } else {
+          list.push({ emoji, count: 1, mine: true });
+        }
+        return { ...mm, reactions: list };
+      }),
+    );
+
+    startTransition(async () => {
+      const res = removing
+        ? await removeReaction(m.id, emoji)
+        : await addReaction(m.id, emoji);
+      if (!res.ok) {
+        setActionError(res.error);
+        // Rollback by reverting to original `cur`
+        onMessagesChange((prev) =>
+          prev.map((mm) => (mm.id === m.id ? { ...mm, reactions: cur } : mm)),
+        );
       }
     });
   }
@@ -1662,6 +1718,73 @@ function Bubble({
               {m.body}
             </div>
           )}
+          {canReact && !editing && (
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setReactionPickerOpen((v) => !v)}
+                aria-label="Add reaction"
+                style={{
+                  width: 24,
+                  height: 24,
+                  padding: 0,
+                  borderRadius: 6,
+                  background: "transparent",
+                  border: "none",
+                  color: C.inkMuted,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 13,
+                  lineHeight: 1,
+                }}
+              >
+                ☺
+              </button>
+              {reactionPickerOpen && (
+                <div
+                  role="menu"
+                  style={{
+                    position: "absolute",
+                    bottom: "calc(100% + 4px)",
+                    right: 0,
+                    background: "#fff",
+                    border: `1px solid ${C.borderSoft}`,
+                    borderRadius: 999,
+                    boxShadow: "0 6px 18px rgba(0,0,0,0.10)",
+                    padding: "4px 6px",
+                    display: "flex",
+                    gap: 2,
+                    zIndex: 60,
+                  }}
+                >
+                  {DEFAULT_REACTION_SET.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => toggleReaction(emoji)}
+                      role="menuitem"
+                      aria-label={`React with ${emoji}`}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        padding: 0,
+                        borderRadius: 999,
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: 16,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {canEditOrDelete && !editing && (
             <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
               <button
@@ -1726,6 +1849,36 @@ function Bubble({
             </div>
           )}
         </div>
+        {/* Reaction chips */}
+        {m.reactions && m.reactions.length > 0 && (
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4, justifyContent: mine ? "flex-end" : "flex-start" }}>
+            {m.reactions.map((r) => (
+              <button
+                key={r.emoji}
+                type="button"
+                onClick={() => canReact && toggleReaction(r.emoji)}
+                aria-label={`${r.count} reacted with ${r.emoji}${r.mine ? " (you)" : ""}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: r.mine ? C.accentSoft : "rgba(11,11,13,0.04)",
+                  border: r.mine ? `1px solid ${C.accent}` : `1px solid ${C.borderSoft}`,
+                  color: r.mine ? C.accent : C.ink,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: canReact ? "pointer" : "default",
+                  fontFamily: FONT,
+                }}
+              >
+                <span>{r.emoji}</span>
+                <span>{r.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div style={{ fontSize: 10, color: C.inkDim, marginTop: 3, textAlign: mine ? "right" : "left" }}>
           {formatTime(m.created_at)}
           {actionError && (

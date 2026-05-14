@@ -32,6 +32,8 @@ export type WorkspaceMessage = {
   message_kind?: string | null;
   /** Per-kind JSON payload for the structured card. */
   card_payload?: Record<string, unknown> | null;
+  /** Aggregated emoji reactions on this message. */
+  reactions?: Array<{ emoji: string; count: number; mine: boolean }>;
 };
 
 /**
@@ -628,13 +630,42 @@ export async function loadInquiryMessages(
       profiles: { display_name: string | null } | { display_name: string | null }[] | null;
     };
 
-    return ((data ?? []) as unknown as (MsgRow & { sender_user_id: string | null })[]).map((row) => {
+    const rows = (data ?? []) as unknown as (MsgRow & { sender_user_id: string | null })[];
+
+    // Fetch reactions for these messages in one shot. RLS allows
+    // participants of an inquiry to read reactions on that inquiry's
+    // messages (per message_reactions migration policy).
+    const messageIds = rows.map((r) => r.id);
+    const reactionsByMessage = new Map<string, Map<string, { count: number; mine: boolean }>>();
+    if (messageIds.length > 0) {
+      const { data: reactionRows } = await readClient
+        .from("message_reactions")
+        .select("message_id, emoji, user_id")
+        .in("message_id", messageIds);
+      for (const r of ((reactionRows ?? []) as Array<{ message_id: string; emoji: string; user_id: string }>)) {
+        let perMsg = reactionsByMessage.get(r.message_id);
+        if (!perMsg) {
+          perMsg = new Map();
+          reactionsByMessage.set(r.message_id, perMsg);
+        }
+        const entry = perMsg.get(r.emoji) ?? { count: 0, mine: false };
+        entry.count += 1;
+        if (myUserId && r.user_id === myUserId) entry.mine = true;
+        perMsg.set(r.emoji, entry);
+      }
+    }
+
+    return rows.map((row) => {
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
       // System events have sender_user_id = null (e.g. auto-ack on submit).
       // Fall back to "System" so we never crash on `.slice` of null.
       const senderName =
         profile?.display_name?.trim()
         || (row.sender_user_id ? row.sender_user_id.slice(0, 8) : "System");
+      const reactionAgg = reactionsByMessage.get(row.id);
+      const reactions = reactionAgg
+        ? [...reactionAgg.entries()].map(([emoji, v]) => ({ emoji, count: v.count, mine: v.mine }))
+        : [];
       return {
         id: row.id,
         sender_user_id: row.sender_user_id ?? "",
@@ -644,6 +675,7 @@ export async function loadInquiryMessages(
         is_mine: !!row.sender_user_id && row.sender_user_id === myUserId,
         message_kind: row.message_kind ?? "text",
         card_payload: row.card_payload ?? null,
+        reactions,
       };
     });
   } catch (err) {
