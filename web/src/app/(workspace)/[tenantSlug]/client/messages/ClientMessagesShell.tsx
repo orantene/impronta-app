@@ -15,6 +15,7 @@
 
 import { useState, useRef, useEffect, useMemo, useTransition } from "react";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
+import { StatusSheet, type StatusSheetData, type StageStatus, type OfferStatus, type PaymentStatus, type TalentParticipationRow } from "@/components/messages-status-sheet/StatusSheet";
 import { useRouter } from "next/navigation";
 import type { ClientInquiryRow } from "../../_data-bridge";
 import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
@@ -602,6 +603,11 @@ function ThreadPaneWithTabs({
   onAfterOfferAction?: () => void;
 }) {
   const stage = stageStyle(inq.status);
+  const [statusSheetOpen, setStatusSheetOpen] = useState(false);
+  const statusSheetData = useMemo<StatusSheetData>(
+    () => buildClientStatusSheetData(inq, details),
+    [inq, details],
+  );
   return (
     <>
       {/* Thread header — same as before, but tab strip appended below */}
@@ -634,8 +640,8 @@ function ThreadPaneWithTabs({
             <div style={{ fontSize: 11, color: C.inkMuted, display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
               <button
                 type="button"
-                onClick={() => onTabChange("details")}
-                aria-label={`Status: ${stage.label}. Tap for project details.`}
+                onClick={() => setStatusSheetOpen(true)}
+                aria-label={`Status: ${stage.label}. Tap for full status breakdown.`}
                 style={{
                   padding: "2px 8px",
                   borderRadius: 999,
@@ -738,6 +744,12 @@ function ThreadPaneWithTabs({
         )}
       </div>
 
+      <StatusSheet
+        open={statusSheetOpen}
+        data={statusSheetData}
+        onClose={() => setStatusSheetOpen(false)}
+      />
+
       {/* Inline composer — only on Chat tab */}
       {activeTab === "chat" && (
         <ChatComposer
@@ -749,6 +761,85 @@ function ThreadPaneWithTabs({
       )}
     </>
   );
+}
+
+// ─── StatusSheet data adapter ────────────────────────────────────────────
+
+const STAGE_FROM_INQUIRY: Record<string, StageStatus> = {
+  submitted: "Inquiry",
+  coordination: "Inquiry",
+  offer_pending: "Offer sent",
+  offer_sent: "Offer sent",
+  approved: "Booked",
+  booked: "Booked",
+  converted: "Booked",
+  cancelled: "Cancelled",
+  expired: "Cancelled",
+};
+
+const OFFER_FROM_ENGINE: Record<string, OfferStatus> = {
+  draft: "Draft",
+  sent: "Sent",
+  countered: "Countered",
+  accepted: "Accepted",
+  rejected: "Declined",
+  expired: "Expired",
+  superseded: "Sent",
+  withdrawn: "Declined",
+};
+
+const TALENT_FROM_ENGINE: Record<string, TalentParticipationRow["status"]> = {
+  invited: "Invited",
+  active: "Confirmed",
+  declined: "Declined",
+  removed: "Removed",
+  replacement_sourcing: "Invited",
+};
+
+const NEXT_STEP_FROM_STATUS: Record<string, string> = {
+  submitted: "Your coordinator is reviewing the request — typical response within 1 business day.",
+  coordination: "Coordinator is sourcing talent. You'll see proposals appear on the Lineup tab.",
+  offer_pending: "An offer is being drafted. You'll receive a notification when it's ready to review.",
+  offer_sent: "Review the offer in the Offer tab. Approve to confirm, decline to ask for changes.",
+  approved: "Booking confirmed. The call sheet appears on event day in your Today tab.",
+  booked: "Booking confirmed. Open the Today tab on event day for call sheet + coordinator contact.",
+  converted: "Booking confirmed.",
+  cancelled: "This project has been cancelled.",
+};
+
+function buildClientStatusSheetData(
+  inq: ClientInquiryRow,
+  details: ClientInquiryDetails | null,
+): StatusSheetData {
+  const stage = STAGE_FROM_INQUIRY[inq.status] ?? "Inquiry";
+  const offerStatus: OfferStatus = details?.offer?.exists
+    ? (OFFER_FROM_ENGINE[details.offer.status] ?? "Sent")
+    : "No offer";
+  const offerTotal =
+    details?.offer?.exists && details.offer.total_client_price != null
+      ? `${details.offer.currency ?? "USD"} ${Number(details.offer.total_client_price).toLocaleString()}`
+      : undefined;
+
+  const talents: TalentParticipationRow[] = (details?.talent.selected ?? []).map((t) => ({
+    name: t.name,
+    status: TALENT_FROM_ENGINE[t.status] ?? "Invited",
+  }));
+
+  // Payment status not yet wired into client details loader — show
+  // "Not requested" until offer is accepted, then "Requested" as a
+  // reasonable approximation. Real status comes when Stripe wiring lands.
+  const payment: { status: PaymentStatus; amountLabel?: string; nextAction?: string } =
+    inq.status === "booked" || inq.status === "approved" || inq.status === "converted"
+      ? { status: "Requested", amountLabel: offerTotal }
+      : { status: "Not requested" };
+
+  return {
+    stage,
+    offer: { status: offerStatus, totalLabel: offerTotal },
+    talents,
+    payment,
+    nextStep: NEXT_STEP_FROM_STATUS[inq.status],
+  };
 }
 
 // ─── Thread search ───────────────────────────────────────────────────────
