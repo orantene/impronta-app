@@ -475,6 +475,143 @@ export async function loadClientShortlistsForUser(
 }
 
 /**
+ * Load the signed-in client's favorited talents with card-level data
+ * embedded. Used by the /client/favorites page. Mirror of GET
+ * /api/discover/favorites — talent details denormalized so the page
+ * renders without per-row roundtrips.
+ */
+export async function loadClientFavoritesForUser(
+  userId: string,
+): Promise<DiscoverShortlistTalent[]> {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+
+  const { data, error } = await admin
+    .from("client_favorites")
+    .select(
+      `
+      added_at,
+      talent_profile_id,
+      talent_profiles!talent_profile_id (
+        id, display_name, first_name, last_name,
+        home_country_text, home_city_text,
+        is_discoverable, workflow_status,
+        talent_profile_taxonomy (
+          relationship_type,
+          taxonomy_terms ( name_en )
+        ),
+        agency_talent_roster!talent_profile_id (
+          tenant_id, status, is_primary,
+          agencies!tenant_id ( display_name )
+        )
+      )
+      `,
+    )
+    .eq("client_user_id", userId)
+    .order("added_at", { ascending: false });
+
+  if (error) {
+    logServerError("workspace.loadClientFavorites", error);
+    return [];
+  }
+
+  type Row = {
+    added_at: string;
+    talent_profile_id: string;
+    talent_profiles: {
+      id: string;
+      display_name: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      home_country_text: string | null;
+      home_city_text: string | null;
+      is_discoverable: boolean | null;
+      workflow_status: string | null;
+      talent_profile_taxonomy: Array<{
+        relationship_type: string | null;
+        taxonomy_terms: { name_en: string | null } | null;
+      }> | null;
+      agency_talent_roster: Array<{
+        tenant_id: string;
+        status: string;
+        is_primary: boolean;
+        agencies: { display_name: string | null } | { display_name: string | null }[] | null;
+      }> | null;
+    } | null;
+  };
+
+  const rows = (data ?? []) as unknown as Row[];
+
+  // Batch-fetch photos.
+  const ids = rows.map((r) => r.talent_profile_id);
+  const photoByTalent = new Map<string, string>();
+  if (ids.length > 0) {
+    const { data: photos } = await admin
+      .from("media_assets")
+      .select("owner_talent_profile_id, storage_path, variant_kind")
+      .in("owner_talent_profile_id", ids)
+      .in("variant_kind", PHOTO_VARIANT_PRIORITY)
+      .is("deleted_at", null);
+
+    const bestRank = new Map<string, number>();
+    for (const m of (photos ?? []) as Array<{
+      owner_talent_profile_id: string;
+      storage_path: string;
+      variant_kind: string;
+    }>) {
+      const rank = PHOTO_VARIANT_PRIORITY.indexOf(m.variant_kind);
+      if (rank < 0) continue;
+      const current = bestRank.get(m.owner_talent_profile_id);
+      if (current === undefined || rank < current) {
+        bestRank.set(m.owner_talent_profile_id, rank);
+        const url = m.storage_path.startsWith("http")
+          ? m.storage_path
+          : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
+        photoByTalent.set(m.owner_talent_profile_id, url);
+      }
+    }
+  }
+
+  return rows
+    .map((row): DiscoverShortlistTalent | null => {
+      const p = row.talent_profiles;
+      if (!p) return null;
+      const displayName =
+        (p.display_name ?? "").trim()
+        || `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim()
+        || "Unnamed";
+      const tax = p.talent_profile_taxonomy ?? [];
+      const primaryLabel = tax.find((t) => t.relationship_type === "primary_role")
+        ?.taxonomy_terms?.name_en ?? null;
+      const roster = (p.agency_talent_roster ?? []).filter(
+        (r) => r.status === "active" || r.status === "pending",
+      );
+      const primary = roster.find((r) => r.is_primary) ?? null;
+      const fallback = primary ?? roster[0] ?? null;
+      const pickAgencyName = (rr: typeof primary): string | null => {
+        if (!rr) return null;
+        const arr = rr.agencies;
+        const r = Array.isArray(arr) ? arr[0] : arr;
+        return r?.display_name ?? null;
+      };
+      return {
+        talentId: p.id,
+        displayName,
+        primaryTypeLabel: primaryLabel,
+        homeCity: p.home_city_text,
+        homeCountry: p.home_country_text,
+        agencyName: pickAgencyName(primary),
+        agencyTenantId: primary?.tenant_id ?? null,
+        isExclusive: !!primary?.is_primary,
+        routesToTenantId: fallback?.tenant_id ?? null,
+        routesToTenantName: pickAgencyName(fallback),
+        headshotUrl: photoByTalent.get(p.id) ?? null,
+      };
+    })
+    .filter((t): t is DiscoverShortlistTalent => t !== null);
+}
+
+/**
  * Hubs list mirror — same logic as /api/discover/hubs. Studio/Agency/Network
  * workspaces with at least one discoverable + approved talent on their roster.
  */
