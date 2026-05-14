@@ -111,10 +111,21 @@ const listeners: Listener[] = [
       | Array<{ userId: string; title: string; body?: string | null }>
       | undefined;
     if (notes?.length) {
-      await notifyUsers(
-        supabase,
-        notes.map((n) => ({ userId: n.userId, title: n.title, body: n.body })),
-      );
+      // 2026-05-14 — engine_emit_notification now requires p_tenant_id
+      // (notifications.tenant_id NOT NULL). Resolve from the inquiry.
+      const { data: inq } = await supabase
+        .from("inquiries")
+        .select("tenant_id")
+        .eq("id", event.inquiryId)
+        .maybeSingle();
+      const tenantId = (inq as { tenant_id?: string } | null)?.tenant_id;
+      if (tenantId) {
+        await notifyUsers(
+          supabase,
+          tenantId,
+          notes.map((n) => ({ userId: n.userId, title: n.title, body: n.body })),
+        );
+      }
     }
   },
   async (supabase, event) => {
