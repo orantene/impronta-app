@@ -36,7 +36,7 @@ import {
   ANIMATION_OPTIONS,
 } from "@/lib/site-admin/sections/shared/presentation";
 
-import type { ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { CHROME } from "../kit/tokens";
@@ -46,6 +46,76 @@ const SECTION_TITLE =
 const FIELD_LABEL =
   "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
 const HINT = "text-[10.5px] leading-snug text-zinc-500";
+
+/**
+ * Debounced range slider.
+ *
+ * QA 2026-05-13 — the bare `<input type="range">` used to fire
+ * `onCommit` on every tick (every step), which hit the server's
+ * presentation-patch action per-step — dragging the slider hammered
+ * the API with dozens of calls per second. Now we hold the value in
+ * local state for smooth visual feedback and only commit after the
+ * operator settles (200ms timer that resets on each tick + commits on
+ * `pointerup` / `keyup` / `blur` as a belt-and-suspenders).
+ */
+function DebouncedRangeInput({
+  min,
+  max,
+  step,
+  value,
+  onCommit,
+  ariaLabel,
+}: {
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onCommit: (next: number) => void;
+  ariaLabel?: string;
+}) {
+  const [local, setLocal] = useState(value);
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep local mirror in sync when the server value changes from outside
+  // (undo, reset, sibling field). Doesn't fight ongoing drags because
+  // the parent doesn't re-render mid-drag unless onCommit fires.
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+  useEffect(() => {
+    return () => {
+      if (commitTimer.current) clearTimeout(commitTimer.current);
+    };
+  }, []);
+  function scheduleCommit(next: number) {
+    if (commitTimer.current) clearTimeout(commitTimer.current);
+    commitTimer.current = setTimeout(() => onCommit(next), 200);
+  }
+  function commitNow(next: number) {
+    if (commitTimer.current) {
+      clearTimeout(commitTimer.current);
+      commitTimer.current = null;
+    }
+    onCommit(next);
+  }
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={local}
+      aria-label={ariaLabel}
+      onChange={(e) => {
+        const next = Number(e.target.value);
+        setLocal(next);
+        scheduleCommit(next);
+      }}
+      onPointerUp={() => commitNow(local)}
+      onKeyUp={() => commitNow(local)}
+      onBlur={() => commitNow(local)}
+    />
+  );
+}
 const INHERIT_HINT = "text-[10.5px] text-zinc-400";
 
 type AnimationKey = "entry" | "scroll" | "hover" | "reducedMotion";
@@ -417,17 +487,17 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
               Reveal delay (
               {(presentation.scrollRevealDelay as number | undefined) ?? 0}ms)
             </span>
-            <input
-              type="range"
+            <DebouncedRangeInput
               min={0}
               max={1500}
               step={50}
               value={
                 (presentation.scrollRevealDelay as number | undefined) ?? 0
               }
-              onChange={(e) =>
+              ariaLabel="Reveal delay in milliseconds"
+              onCommit={(next) =>
                 onDeepPatch({
-                  scrollRevealDelay: Number(e.target.value) || undefined,
+                  scrollRevealDelay: next || undefined,
                 })
               }
             />
@@ -451,15 +521,15 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
             )}
             %)
           </span>
-          <input
-            type="range"
+          <DebouncedRangeInput
             min={0}
             max={1}
             step={0.05}
             value={(presentation.parallaxIntensity as number | undefined) ?? 0}
-            onChange={(e) =>
+            ariaLabel="Parallax intensity"
+            onCommit={(next) =>
               onDeepPatch({
-                parallaxIntensity: Number(e.target.value) || undefined,
+                parallaxIntensity: next || undefined,
               })
             }
           />

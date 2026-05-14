@@ -224,6 +224,19 @@ const LOADED = new Set<string>();
 function ensureFontLoaded(font: GoogleFont): void {
   if (typeof document === "undefined") return;
   if (LOADED.has(font.family)) return;
+  // QA 2026-05-13 — defense-in-depth: even when our in-memory Set says
+  // "not loaded" we still check the DOM. The Set resets on full page
+  // reload (module re-init), but bfcache restores can keep the
+  // injected <link> alive — re-injecting would create a duplicate
+  // node that browsers tolerate but is wasteful. Cheap query + early
+  // return keeps the DOM clean.
+  const existing = document.querySelector(
+    `link[data-google-font="${CSS.escape(font.family)}"]`,
+  );
+  if (existing) {
+    LOADED.add(font.family);
+    return;
+  }
   LOADED.add(font.family);
   const family = font.family.replace(/ /g, "+");
   const href = `https://fonts.googleapis.com/css2?family=${family}:wght@${font.weights}&display=swap`;

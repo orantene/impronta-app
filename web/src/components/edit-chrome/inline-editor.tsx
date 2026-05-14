@@ -482,14 +482,25 @@ export function InlineEditor() {
 
 function resolveOriginalImageSrc(src: string): string {
   if (!src) return src;
+  // QA 2026-05-13 — the second branch used to `new URL(src)` with no
+  // base, which throws TypeError on a relative `/_next/image?...`
+  // path. The throw was silently caught and the cleaned URL fell
+  // back to the raw `src` for ALL relative paths — operators saw
+  // "Couldn't match this image" on every Next.js-optimized image.
+  // Use a base URL for both branches so relative + absolute paths
+  // both parse.
+  const base =
+    typeof window !== "undefined"
+      ? window.location.href
+      : "http://localhost/";
   try {
     if (src.startsWith("/_next/image")) {
-      const u = new URL(src, "http://x");
+      const u = new URL(src, base);
       const url = u.searchParams.get("url");
       if (url) return decodeURIComponent(url);
     }
     if (src.includes("/_next/image?")) {
-      const u = new URL(src);
+      const u = new URL(src, base);
       const url = u.searchParams.get("url");
       if (url) return decodeURIComponent(url);
     }

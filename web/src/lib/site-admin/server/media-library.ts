@@ -36,15 +36,49 @@ function inferSourceHint(metadata: unknown): string | null {
   return null;
 }
 
+const MEDIA_ASSET_COLUMNS =
+  "id, tenant_id, owner_talent_profile_id, variant_kind, storage_path, bucket_id, width, height, file_size, created_at, metadata";
+
+type MediaAssetRow = {
+  id: string;
+  tenant_id: string;
+  owner_talent_profile_id: string | null;
+  variant_kind: string;
+  storage_path: string;
+  bucket_id: string;
+  width: number | null;
+  height: number | null;
+  file_size: number | null;
+  created_at: string;
+  metadata: unknown;
+};
+
+function rowToItem(supabase: SupabaseClient, row: MediaAssetRow): MediaLibraryItem {
+  const { data: urlData } = supabase.storage
+    .from(row.bucket_id)
+    .getPublicUrl(row.storage_path);
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    ownerTalentProfileId: row.owner_talent_profile_id,
+    variantKind: row.variant_kind,
+    storagePath: row.storage_path,
+    publicUrl: urlData?.publicUrl ?? "",
+    width: row.width,
+    height: row.height,
+    fileSize: row.file_size,
+    createdAt: row.created_at,
+    sourceHint: inferSourceHint(row.metadata),
+  };
+}
+
 export async function listTenantMediaLibrary(
   supabase: SupabaseClient,
   tenantId: string,
 ): Promise<MediaLibraryItem[]> {
   const { data, error } = await supabase
     .from("media_assets")
-    .select(
-      "id, tenant_id, owner_talent_profile_id, variant_kind, storage_path, bucket_id, width, height, file_size, created_at, metadata",
-    )
+    .select(MEDIA_ASSET_COLUMNS)
     .eq("tenant_id", tenantId)
     .eq("approval_state", "approved")
     .is("deleted_at", null)
@@ -53,23 +87,29 @@ export async function listTenantMediaLibrary(
 
   if (error || !data) return [];
 
-  return data.map((row) => {
-    const bucket = (row as { bucket_id: string }).bucket_id;
-    const storagePath = (row as { storage_path: string }).storage_path;
-    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(storagePath);
-    return {
-      id: (row as { id: string }).id,
-      tenantId: (row as { tenant_id: string }).tenant_id,
-      ownerTalentProfileId:
-        (row as { owner_talent_profile_id: string | null }).owner_talent_profile_id,
-      variantKind: (row as { variant_kind: string }).variant_kind,
-      storagePath,
-      publicUrl: urlData?.publicUrl ?? "",
-      width: (row as { width: number | null }).width,
-      height: (row as { height: number | null }).height,
-      fileSize: (row as { file_size: number | null }).file_size,
-      createdAt: (row as { created_at: string }).created_at,
-      sourceHint: inferSourceHint((row as { metadata: unknown }).metadata),
-    };
-  });
+  return data.map((row) => rowToItem(supabase, row as unknown as MediaAssetRow));
+}
+
+/**
+ * Single-asset lookup for callers that already know the id (e.g. resolving
+ * a stored token like `shell.brand-logo-media-asset-id` to a publicUrl).
+ * Server-side `.eq("id", ...)` avoids the 60-item over-fetch + client scan
+ * that the old code did via `listTenantMediaLibrary`.
+ */
+export async function getTenantMediaAsset(
+  supabase: SupabaseClient,
+  tenantId: string,
+  assetId: string,
+): Promise<MediaLibraryItem | null> {
+  const { data, error } = await supabase
+    .from("media_assets")
+    .select(MEDIA_ASSET_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .eq("id", assetId)
+    .eq("approval_state", "approved")
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return rowToItem(supabase, data as unknown as MediaAssetRow);
 }

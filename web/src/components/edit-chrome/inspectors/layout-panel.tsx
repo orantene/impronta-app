@@ -52,7 +52,7 @@ import {
   type BuilderNodeLayoutFinding,
 } from "@/lib/site-admin/builder-node/layout-health";
 
-import { useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 
 import { useEditContext } from "../edit-context";
 import { NumberUnit, type LengthUnit } from "../kit/number-unit";
@@ -333,6 +333,15 @@ function LengthRow({
   const [customOpen, setCustomOpen] = useState<boolean>(
     Boolean(customValue),
   );
+  // QA 2026-05-13 — useState initializer only runs on mount, so when
+  // the parent section changed (different section selected, different
+  // `customValue` prop) the local `customOpen` stayed at the previous
+  // section's value. Operators saw stale Custom/Token mode on every
+  // new selection. Sync via effect so the open-state tracks the
+  // incoming customValue prop.
+  useEffect(() => {
+    setCustomOpen(Boolean(customValue));
+  }, [customValue]);
   const isCustom = customOpen || Boolean(customValue);
 
   return (

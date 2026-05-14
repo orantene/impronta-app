@@ -738,12 +738,21 @@ function ChipRowWithDesktopDot({
           );
         })}
       </div>
-      <div style={{ pointerEvents: disabled ? "none" : "auto" }}>
+      {/* QA 2026-05-13 — wrapping with `pointerEvents: none` blocks
+          mouse clicks but lets keyboard focus + Space/Enter still
+          activate chips. Guard the onChange itself so chips fired via
+          keyboard are also blocked when this row is locked. Also set
+          `aria-disabled` on the wrapper so screen readers announce
+          the locked state. */}
+      <div
+        style={{ pointerEvents: disabled ? "none" : "auto" }}
+        aria-disabled={disabled || undefined}
+      >
         <Segmented
           fullWidth={fullWidth}
           compact
           value={value}
-          onChange={onChange}
+          onChange={disabled ? () => undefined : onChange}
           options={options}
         />
       </div>

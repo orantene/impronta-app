@@ -295,8 +295,15 @@ function LogoField({
     setResolving(true);
     (async () => {
       try {
+        // QA 2026-05-13 — previously fetched the full media library (up
+        // to 60 items) and scanned client-side to resolve one asset.
+        // The route now honors `?id=` for server-side single-asset
+        // lookup; switch to it so opening the BrandTab doesn't
+        // over-fetch.
         const res = await fetch(
-          `/api/admin/media/library?tenantId=${encodeURIComponent(tenantId)}`,
+          `/api/admin/media/library?tenantId=${encodeURIComponent(
+            tenantId,
+          )}&id=${encodeURIComponent(currentAssetId)}`,
           { cache: "no-store" },
         );
         const body = await res.json();
