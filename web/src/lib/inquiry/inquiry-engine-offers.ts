@@ -242,6 +242,57 @@ export async function createOffer(
     }
     if (!updated) return { success: false, conflict: true, reason: "version_conflict" };
 
+    // S0.15 — auto-seed line items per accepted/invited talent. Saves
+    // the coordinator from manually adding a row per talent — they get
+    // a pre-populated draft with the right roster, then fill in rates.
+    // Best-effort: failure here doesn't roll back the offer (admin can
+    // still add line items manually in the editor).
+    try {
+      const { data: participants } = await writeClient
+        .from("inquiry_participants")
+        .select("talent_profile_id, talent_profiles!talent_profile_id ( display_name, first_name, last_name )")
+        .eq("inquiry_id", ctx.inquiryId)
+        .eq("tenant_id", ctx.tenantId)
+        .eq("role", "talent")
+        .in("status", ["invited", "active"])
+        .not("talent_profile_id", "is", null);
+      type PartRow = {
+        talent_profile_id: string;
+        talent_profiles: { display_name: string | null; first_name: string | null; last_name: string | null }
+                       | Array<{ display_name: string | null; first_name: string | null; last_name: string | null }>
+                       | null;
+      };
+      const rows = (participants ?? []) as unknown as PartRow[];
+      if (rows.length > 0) {
+        const seedItems = rows.map((p, idx) => {
+          const tp = Array.isArray(p.talent_profiles) ? p.talent_profiles[0] : p.talent_profiles;
+          const name =
+            tp?.display_name?.trim()
+            || `${tp?.first_name ?? ""} ${tp?.last_name ?? ""}`.trim()
+            || "Talent";
+          return {
+            offer_id: offer.id as string,
+            talent_profile_id: p.talent_profile_id,
+            label: name,
+            pricing_unit: "event" as const,
+            units: 1,
+            unit_price: 0,
+            total_price: 0,
+            sort_order: idx,
+          };
+        });
+        const { error: seedErr } = await writeClient
+          .from("inquiry_offer_line_items")
+          .insert(seedItems);
+        if (seedErr) {
+          // Log but don't fail — admin can still add lines manually.
+          logServerError("createOffer.autoSeed", seedErr);
+        }
+      }
+    } catch (seedErr) {
+      logServerError("createOffer.autoSeed", seedErr);
+    }
+
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.OFFER_CREATED,
       inquiryId: ctx.inquiryId,
