@@ -217,6 +217,12 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   (s) => s[0] === "admin" && s[1] === "discover-inquiries",
   // /<tenant>/admin/triage — focused queue (separate from Messages shell).
   (s) => s[0] === "admin" && s[1] === "triage",
+  // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
+  // The mega Messages shell still owns the LIST (no path segment after
+  // "messages") + the legacy ?inquiry=<id> query-param flow. The new
+  // /messages/<id> path is read-only inspect with "Open in Messages" CTA
+  // back to the shell for composing.
+  (s) => s[0] === "admin" && s[1] === "messages" && typeof s[2] === "string" && s[2].length > 0,
 ];
 
 function pathIsCanonical(pathname: string | null): boolean {
