@@ -85,6 +85,8 @@ export {
 export {
   type WorkspacePitchRow,
   loadWorkspacePitches,
+  type ClientPitchRow,
+  loadClientPitches,
 } from "./_data-bridge/pitches";
 
 // ─── Agency / Domain / Plan — moved to ./_data-bridge/workspace-config.ts (rev 13)
