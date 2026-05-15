@@ -27,6 +27,7 @@ import {
   type StagedMediaMeta,
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { PhotoCropperDialog } from "@/components/talent/photo-cropper-dialog";
+import { PhotoLightbox } from "@/components/media/photo-lightbox";
 import {
   actionCreateMediaFolder,
   actionRenameMediaFolder,
@@ -685,351 +686,244 @@ function MediaLightbox({
     </div>
   );
 
-  return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 9990,
-        background: "rgba(9,9,11,0.94)", backdropFilter: "blur(10px)",
-        display: "flex", flexDirection: isNarrow ? "column" : "row",
-      }}
-      onClick={onClose}
-    >
-      {/* Image area */}
+  // Admin-only header content: talent name + variant label + approval marker.
+  // Replaces the default pill + previewLabel that the shared component
+  // would otherwise render.
+  const adminHeaderContent = (
+    <div style={{ minWidth: 0, flex: 1 }}>
       <div style={{
-        flex: 1, minWidth: 0, display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", position: "relative",
-        padding: isNarrow ? "44px 12px 12px" : "20px 60px",
-        minHeight: isNarrow ? "50vh" : undefined,
-      }} onClick={(e) => e.stopPropagation()}>
-        {/* Top counter + close (mobile-friendly) */}
-        <div style={{
-          position: "absolute", top: 14, left: 18, right: 18,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          fontFamily: FONTS.body, fontSize: 12, color: "rgba(255,255,255,0.55)",
-          pointerEvents: "none",
-        }}>
-          <span>{safeIdx + 1} / {allPhotos.length}</span>
-          <span style={{ opacity: 0.5 }}>← → navigate · Esc close</span>
-        </div>
-
-        {/* Prev */}
-        {safeIdx > 0 && (
-          <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }}
-            aria-label="Previous photo"
-            style={{
-              position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
-              width: 44, height: 44, borderRadius: "50%",
-              border: "1px solid rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.07)", color: "#fff",
-              fontSize: 22, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>‹</button>
-        )}
-
-        {/* Image */}
-        <div style={{ position: "relative", maxWidth: "100%", maxHeight: "calc(100vh - 64px)" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={current.url} alt={current.talentName}
-            style={{ maxWidth: "100%", maxHeight: "calc(100vh - 64px)", objectFit: "contain", borderRadius: 10, display: "block" }} />
-          {wmActive && (
-            <div style={{ position: "absolute", bottom: "4%", right: "4%", width: "13%", opacity: 0.72, pointerEvents: "none" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={wsLogoUrl!} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }} />
-            </div>
-          )}
-        </div>
-
-        {/* Next */}
-        {safeIdx < allPhotos.length - 1 && (
-          <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }}
-            aria-label="Next photo"
-            style={{
-              position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)",
-              width: 44, height: 44, borderRadius: "50%",
-              border: "1px solid rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.07)", color: "#fff",
-              fontSize: 22, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>›</button>
-        )}
+        fontFamily: FONTS.body, fontSize: 14, fontWeight: 700, color: "#fff",
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      }}>
+        {current.talentName}
       </div>
+      <div style={{
+        fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 2,
+      }}>
+        {VARIANT_LABELS[current.variantKind] ?? current.variantKind}
+        {current.approvalState === "pending" && <span style={{ marginLeft: 6, color: "#f0b350" }}>· Review</span>}
+        {current.approvalState === "rejected" && <span style={{ marginLeft: 6, color: "#e07566" }}>· Rejected</span>}
+      </div>
+    </div>
+  );
 
-      {/* Rail — side panel on desktop, bottom sheet on narrow viewports */}
-      <div
+  // Workspace watermark logo overlay on the image. Talent surfaces don't
+  // have this; it's a workspace-branding preview.
+  const adminImageOverlay = wmActive ? (
+    <div style={{ position: "absolute", bottom: "4%", right: "4%", width: "13%", opacity: 0.72, pointerEvents: "none" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={wsLogoUrl!} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+    </div>
+  ) : null;
+
+  // Admin-only PRIORITY sections — surfaces above the built-in
+  // promote/crop chrome. Reserved for the highest-priority workflow:
+  // pending-review approval shouldn't be buried.
+  const adminTopSections = current.approvalState === "pending" ? (
+    <div style={{ display: "flex", gap: 7 }}>
+      <button type="button" disabled={approvalBusy} onClick={() => void setApproval("approved")}
         style={{
-          width: isNarrow ? "100%" : 360,
-          height: isNarrow ? "auto" : "100%",
-          flexShrink: 0,
-          background: "rgba(20,20,24,0.96)",
-          borderLeft: isNarrow ? "none" : "1px solid rgba(255,255,255,0.08)",
-          borderTop:  isNarrow ? "1px solid rgba(255,255,255,0.08)" : "none",
-          display: "flex", flexDirection: "column",
-          color: "#fff",
-          maxHeight: isNarrow ? "50vh" : undefined,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{
-          padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.08)",
-          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+          flex: 1, padding: "9px 0", borderRadius: 7, border: "1px solid rgba(46,160,67,0.45)",
+          background: "rgba(46,160,67,0.16)", color: "rgba(140,220,150,1)",
+          fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+          opacity: approvalBusy ? 0.6 : 1,
         }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{
-              fontFamily: FONTS.body, fontSize: 14, fontWeight: 700, color: "#fff",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {current.talentName}
-            </div>
-            <div style={{
-              fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 2,
-            }}>
-              {VARIANT_LABELS[current.variantKind] ?? current.variantKind}
-              {current.approvalState === "pending" && <span style={{ marginLeft: 6, color: "#f0b350" }}>· Review</span>}
-              {current.approvalState === "rejected" && <span style={{ marginLeft: 6, color: "#e07566" }}>· Rejected</span>}
-            </div>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" style={{
-            width: 30, height: 30, borderRadius: 7, border: "1px solid rgba(255,255,255,0.14)",
-            background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.75)",
-            cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0,
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-          }}>×</button>
+        ✓  Approve <span style={{ opacity: 0.5, fontWeight: 500 }}>Y</span>
+      </button>
+      <button type="button" disabled={approvalBusy} onClick={() => void setApproval("rejected")}
+        style={{
+          flex: 1, padding: "9px 0", borderRadius: 7, border: "1px solid rgba(192,57,43,0.45)",
+          background: "rgba(192,57,43,0.14)", color: "rgba(255,140,125,1)",
+          fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+          opacity: approvalBusy ? 0.6 : 1,
+        }}>
+        ✕  Reject <span style={{ opacity: 0.5, fontWeight: 500 }}>N</span>
+      </button>
+    </div>
+  ) : null;
+
+  // Admin-only rail sections — watermark toggle, metadata, tags, folders,
+  // note, activity. Injected between Open/Copy URL and the Delete row at
+  // the bottom of the rail.
+  const adminExtraSections = (
+    <>
+      {/* Crop saving spinner — surfaces only while a crop upload is in
+          flight (the cropper dialog itself shows progress, but the
+          parent surface confirms the save here too). */}
+      {cropBusy && (
+        <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.55)", textAlign: "center" }}>
+          Saving crop…
         </div>
+      )}
 
-        {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Lineage label — surfaces "this is a derivative" so the Revert
-              button below has context. Subtle so it doesn't compete with
-              the action chrome. */}
-          {current.sourceMediaAssetId && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 7,
-              padding: "7px 10px", borderRadius: 7,
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.7)",
-            }}>
-              <span style={{ fontSize: 12 }}>✂</span>
-              <span>Crop of an earlier original</span>
-            </div>
-          )}
-
-          {/* Role assignment: Profile (1:1) and Cover (16:9 banner) */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {current.variantKind !== "card" && (
-              <button type="button" disabled={setCardBusy} onClick={() => void setAsProfile()}
-                style={{ ...railBtnPrimary, width: "100%", padding: "9px 12px", fontSize: 12.5, opacity: setCardBusy ? 0.7 : 1 }}>
-                {setCardBusy ? "Setting…" : "⭐  Use as profile (1:1)"}
-              </button>
-            )}
-            {current.variantKind !== "hero" && (
-              <button type="button" disabled={setHeroBusy} onClick={() => void setAsCover()}
-                style={{ ...railBtn, width: "100%", padding: "8px 12px", fontSize: 12.5, opacity: setHeroBusy ? 0.7 : 1 }}>
-                {setHeroBusy ? "Setting…" : "🖼  Use as cover (16:9 banner)"}
-              </button>
-            )}
-
-            {/* Recrop entry points — open the cropper at the right aspect.
-                On confirm, we upload the crop and promote it to the chosen role. */}
-            <div style={{ display: "flex", gap: 6 }}>
-              <button type="button" disabled={cropBusy} onClick={() => setCropMode("profile")}
-                style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
-                ✂ Crop · Profile
-              </button>
-              <button type="button" disabled={cropBusy} onClick={() => setCropMode("cover")}
-                style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
-                ✂ Crop · Cover
-              </button>
-              <button type="button" disabled={cropBusy} onClick={() => setCropMode("free")}
-                style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
-                ✂ Free
-              </button>
-            </div>
-            {cropBusy && (
-              <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.55)", textAlign: "center" }}>
-                Saving crop…
-              </div>
-            )}
-
-            {/* Revert to original — only when this photo is a crop derivative */}
-            {current.sourceMediaAssetId && (
-              <button type="button" disabled={revertBusy} onClick={() => void revertToOriginal()}
-                style={{ ...railBtn, width: "100%", padding: "7px 12px", fontSize: 11.5, opacity: revertBusy ? 0.6 : 1 }}>
-                {revertBusy ? "Reverting…" : "↺  Revert to original"}
-              </button>
-            )}
+      {/* Watermark preview toggle */}
+      {wsWatermarkEnabled && wsLogoUrl && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={sectionLabel as CSSProperties}>Watermark preview</div>
+          <div style={{ display: "flex", borderRadius: 7, overflow: "hidden", border: "1px solid rgba(255,255,255,0.16)" }}>
+            {(["Off", "On"] as const).map((label) => {
+              const active = label === "On" ? showWm : !showWm;
+              return (
+                <button key={label} type="button" onClick={() => setShowWm(label === "On")}
+                  style={{
+                    padding: "4px 10px", border: "none", fontFamily: FONTS.body,
+                    fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    background: active ? "rgba(255,255,255,0.18)" : "transparent",
+                    color: active ? "#fff" : "rgba(255,255,255,0.45)",
+                  }}>{label}</button>
+              );
+            })}
           </div>
+        </div>
+      )}
 
-          {/* Approve / Reject */}
-          {current.approvalState === "pending" && (
-            <div style={{ display: "flex", gap: 7 }}>
-              <button type="button" disabled={approvalBusy} onClick={() => void setApproval("approved")}
-                style={{
-                  flex: 1, padding: "9px 0", borderRadius: 7, border: "1px solid rgba(46,160,67,0.45)",
-                  background: "rgba(46,160,67,0.16)", color: "rgba(140,220,150,1)",
-                  fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-                  opacity: approvalBusy ? 0.6 : 1,
-                }}>
-                ✓  Approve <span style={{ opacity: 0.5, fontWeight: 500 }}>Y</span>
-              </button>
-              <button type="button" disabled={approvalBusy} onClick={() => void setApproval("rejected")}
-                style={{
-                  flex: 1, padding: "9px 0", borderRadius: 7, border: "1px solid rgba(192,57,43,0.45)",
-                  background: "rgba(192,57,43,0.14)", color: "rgba(255,140,125,1)",
-                  fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-                  opacity: approvalBusy ? 0.6 : 1,
-                }}>
-                ✕  Reject <span style={{ opacity: 0.5, fontWeight: 500 }}>N</span>
-              </button>
-            </div>
-          )}
-
-          {/* Quick actions row */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <a href={current.url} target="_blank" rel="noopener noreferrer" style={{ ...railBtn, flex: 1 }}>
-              Open ↗
-            </a>
-            <button type="button" onClick={() => {
-              void navigator.clipboard.writeText(current.url).then(() => {
-                setCopied(true); setTimeout(() => setCopied(false), 1600);
-              });
-            }} style={{ ...railBtn, flex: 1 }}>
-              {copied ? "Copied!" : "Copy URL"}
-            </button>
-          </div>
-
-          {/* Watermark preview toggle */}
-          {wsWatermarkEnabled && wsLogoUrl && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={sectionLabel as CSSProperties}>Watermark preview</div>
-              <div style={{ display: "flex", borderRadius: 7, overflow: "hidden", border: "1px solid rgba(255,255,255,0.16)" }}>
-                {(["Off", "On"] as const).map((label) => {
-                  const active = label === "On" ? showWm : !showWm;
-                  return (
-                    <button key={label} type="button" onClick={() => setShowWm(label === "On")}
-                      style={{
-                        padding: "4px 10px", border: "none", fontFamily: FONTS.body,
-                        fontSize: 11, fontWeight: 600, cursor: "pointer",
-                        background: active ? "rgba(255,255,255,0.18)" : "transparent",
-                        color: active ? "#fff" : "rgba(255,255,255,0.45)",
-                      }}>{label}</button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Metadata */}
-          <div>
-            <div style={sectionLabel as CSSProperties}>Details</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              <MetaRow label="Status" value={current.approvalState} />
-              <MetaRow label="Uploaded" value={fmtDate(current.createdAt)} />
-              <MetaRow label="Dimensions" value={formatDim(current.width, current.height)} />
-              <MetaRow label="Size" value={formatBytes(current.fileSizeBytes)} />
-              {current.originalFilename && <MetaRow label="Filename" value={current.originalFilename} />}
-              {current.mimeType && <MetaRow label="Type" value={current.mimeType} />}
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <div style={sectionLabel as CSSProperties}>Tags</div>
-            {tags.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-                {tags.map((t) => (
-                  <span key={t} style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    padding: "3px 9px", borderRadius: 999,
-                    background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.12)",
-                    fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.9)",
-                  }}>
-                    {t}
-                    <button type="button" onClick={() => removeTag(t)} aria-label={`Remove ${t}`} style={{
-                      background: "none", border: "none", color: "rgba(255,255,255,0.55)",
-                      cursor: "pointer", fontSize: 12, lineHeight: 1, padding: 0,
-                    }}>×</button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <input value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-              placeholder="Add tag and press Enter…"
-              style={railInput} />
-            {savingTags && <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>Saving…</div>}
-          </div>
-
-          {/* Folders */}
-          {folders.length > 0 && (
-            <div>
-              <div style={sectionLabel as CSSProperties}>Folders</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {folders.map((f) => {
-                  const checked = inFolder(f.id);
-                  return (
-                    <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
-                      <input type="checkbox" checked={checked} disabled={folderBusy}
-                        onChange={() => void toggleFolder(f.id)}
-                        style={{ accentColor: COLORS.fill, cursor: "pointer" }} />
-                      <DotSwatch color={f.color ?? FOLDER_PALETTE[0]!} />
-                      <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: "rgba(255,255,255,0.9)" }}>{f.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Note */}
-          <div>
-            <div style={sectionLabel as CSSProperties}>Note</div>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="Add a note about this photo…" rows={3}
-              style={{ ...railInput, resize: "vertical", lineHeight: 1.5 }} />
-            <button type="button" onClick={() => void saveNote()} disabled={savingNote || note === (current.note ?? "")}
-              style={{
-                ...railBtn, marginTop: 6,
-                opacity: (savingNote || note === (current.note ?? "")) ? 0.5 : 1,
-              }}>
-              {savingNote ? "Saving…" : "Save note"}
-            </button>
-          </div>
-
-          {/* Activity */}
-          {activityLoaded && activity.length > 0 && (
-            <div>
-              <div style={sectionLabel as CSSProperties}>Activity</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {activity.slice(0, 8).map((a) => (
-                  <div key={a.id} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.25)", marginTop: 6, flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.88)" }}>{a.kind.replace(/_/g, " ")}</div>
-                      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>{fmtDate(a.createdAt)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Danger zone */}
-          <div style={{ marginTop: 8, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-            <button type="button" disabled={deleteBusy} onClick={() => void deletePhoto()}
-              style={{ ...railBtnDanger, width: "100%", padding: "8px 12px", opacity: deleteBusy ? 0.5 : 1 }}>
-              {deleteBusy ? "Deleting…" : "Delete photo"}
-            </button>
-          </div>
+      {/* Metadata */}
+      <div>
+        <div style={sectionLabel as CSSProperties}>Details</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          <MetaRow label="Status" value={current.approvalState} />
+          <MetaRow label="Uploaded" value={fmtDate(current.createdAt)} />
+          <MetaRow label="Dimensions" value={formatDim(current.width, current.height)} />
+          <MetaRow label="Size" value={formatBytes(current.fileSizeBytes)} />
+          {current.originalFilename && <MetaRow label="Filename" value={current.originalFilename} />}
+          {current.mimeType && <MetaRow label="Type" value={current.mimeType} />}
         </div>
       </div>
+
+      {/* Tags */}
+      <div>
+        <div style={sectionLabel as CSSProperties}>Tags</div>
+        {tags.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+            {tags.map((tag) => (
+              <span key={tag} style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "3px 9px", borderRadius: 999,
+                background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.12)",
+                fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.9)",
+              }}>
+                {tag}
+                <button type="button" onClick={() => removeTag(tag)} aria-label={`Remove ${tag}`} style={{
+                  background: "none", border: "none", color: "rgba(255,255,255,0.55)",
+                  cursor: "pointer", fontSize: 12, lineHeight: 1, padding: 0,
+                }}>×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <input value={tagInput}
+          onChange={(e) => setTagInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+          placeholder="Add tag and press Enter…"
+          style={railInput} />
+        {savingTags && <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>Saving…</div>}
+      </div>
+
+      {/* Folders */}
+      {folders.length > 0 && (
+        <div>
+          <div style={sectionLabel as CSSProperties}>Folders</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {folders.map((f) => {
+              const checked = inFolder(f.id);
+              return (
+                <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
+                  <input type="checkbox" checked={checked} disabled={folderBusy}
+                    onChange={() => void toggleFolder(f.id)}
+                    style={{ accentColor: COLORS.fill, cursor: "pointer" }} />
+                  <DotSwatch color={f.color ?? FOLDER_PALETTE[0]!} />
+                  <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: "rgba(255,255,255,0.9)" }}>{f.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Note */}
+      <div>
+        <div style={sectionLabel as CSSProperties}>Note</div>
+        <textarea value={note} onChange={(e) => setNote(e.target.value)}
+          placeholder="Add a note about this photo…" rows={3}
+          style={{ ...railInput, resize: "vertical", lineHeight: 1.5 }} />
+        <button type="button" onClick={() => void saveNote()} disabled={savingNote || note === (current.note ?? "")}
+          style={{
+            ...railBtn, marginTop: 6,
+            opacity: (savingNote || note === (current.note ?? "")) ? 0.5 : 1,
+          }}>
+          {savingNote ? "Saving…" : "Save note"}
+        </button>
+      </div>
+
+      {/* Activity */}
+      {activityLoaded && activity.length > 0 && (
+        <div>
+          <div style={sectionLabel as CSSProperties}>Activity</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {activity.slice(0, 8).map((a) => (
+              <div key={a.id} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.25)", marginTop: 6, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.88)" }}>{a.kind.replace(/_/g, " ")}</div>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>{fmtDate(a.createdAt)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      <PhotoLightbox
+        asset={{
+          id: current.id,
+          url: current.url,
+          variantKind: current.variantKind,
+          approvalState: current.approvalState,
+          sourceMediaAssetId: current.sourceMediaAssetId,
+        }}
+        allAssets={allPhotos.map((p) => ({
+          id: p.id,
+          url: p.url,
+          variantKind: p.variantKind,
+          approvalState: p.approvalState,
+          sourceMediaAssetId: p.sourceMediaAssetId,
+        }))}
+        isAvatar={current.variantKind === "card"}
+        isHero={current.variantKind === "hero"}
+        onClose={onClose}
+        onNavigate={(next) => {
+          const i = allPhotos.findIndex((p) => p.id === next.id);
+          if (i >= 0) setCurrentIdx(i);
+        }}
+        onSetAvatar={current.variantKind !== "card" ? setAsProfile : undefined}
+        onSetHero={current.variantKind !== "hero" ? setAsCover : undefined}
+        onCropAt={(aspect) => {
+          if (cropBusy) return;
+          setCropMode(aspect === 1 ? "profile" : aspect === "free" ? "free" : "cover");
+        }}
+        onDelete={deletePhoto}
+        onRevertCrop={current.sourceMediaAssetId ? revertToOriginal : undefined}
+        labels={{
+          setAsProfile: "Use as profile",
+          setAsCover: "Use as cover",
+        }}
+        headerContent={adminHeaderContent}
+        imageOverlay={adminImageOverlay}
+        topSections={adminTopSections}
+        extraSections={adminExtraSections}
+        // Admin has its own keyboard handler (adds Y/N approval shortcuts
+        // and respects the cropMode guard). Tell PhotoLightbox to stand
+        // down so Esc / ← → don't double-fire.
+        disableKeyboard
+      />
 
       {/* Cropper — opens on top of the lightbox when a Crop button is pressed.
-          Aspect mirrors the chosen target role (profile = 1:1, cover = 4:5,
-          free = unconstrained). On confirm we upload+register the crop. */}
+          Aspect mirrors the chosen target role. On confirm we upload+register
+          the crop. */}
       <PhotoCropperDialog
         open={cropMode !== null}
         onOpenChange={(o) => { if (!o) setCropMode(null); }}
@@ -1037,7 +931,7 @@ function MediaLightbox({
         aspect={cropMode === "profile" ? 1 : cropMode === "cover" ? 16 / 9 : "free"}
         onCropConfirm={handleCropConfirm}
       />
-    </div>
+    </>
   );
 }
 

@@ -75,6 +75,27 @@ export interface PhotoLightboxProps {
   t?: (key: string) => string;
   /** Optional explicit label overrides — useful for surfaces with no i18n hook. */
   labels?: Partial<Record<keyof typeof DEFAULT_LABELS, string>>;
+  /** Render surface-specific JSX BELOW Open/Copy URL but above the Delete
+   *  row. Used by the admin Media page to inject metadata / tags / folders
+   *  / notes — admin-only stuff the talent surfaces never need. */
+  extraSections?: React.ReactNode;
+  /** Render surface-specific JSX ABOVE the built-in promote/crop sections.
+   *  Reserved for high-priority workflow shortcuts (e.g. Approve/Reject
+   *  when a photo is pending review — that flow shouldn't be buried). */
+  topSections?: React.ReactNode;
+  /** Render arbitrary surface-specific JSX over the image (bottom-left corner
+   *  area). Used by the admin Media page for the workspace watermark
+   *  preview overlay. */
+  imageOverlay?: React.ReactNode;
+  /** Override the rail header content. When omitted, renders the default
+   *  pill + previewLabel. */
+  headerContent?: React.ReactNode;
+  /** When true, PhotoLightbox skips registering its own keyboard handler.
+   *  Used by surfaces that have additional shortcuts (Y/N approval, etc.)
+   *  and want one handler to own all keys to avoid double-firing of
+   *  Esc / ← →. The surface is then responsible for syncing the displayed
+   *  asset via the `asset` prop (PhotoLightbox follows it). */
+  disableKeyboard?: boolean;
 }
 
 const DEFAULT_LABELS = {
@@ -110,7 +131,7 @@ export function PhotoLightbox({
   asset, allAssets, isAvatar = false, isHero = false,
   onClose, onNavigate,
   onCropAt, onSetAvatar, onSetHero, onDelete, onRevertCrop,
-  t, labels,
+  t, labels, extraSections, topSections, imageOverlay, headerContent, disableKeyboard,
 }: PhotoLightboxProps) {
   // Resolve copy: caller's `labels` override > translator > English default.
   // `t` lookups that match a known key in the talent-side translations get
@@ -127,6 +148,14 @@ export function PhotoLightbox({
 
   const initialIdx = Math.max(0, allAssets.findIndex((a) => a.id === asset.id));
   const [currentIdx, setCurrentIdx] = useState(initialIdx);
+  // Sync our internal currentIdx when the parent passes a different asset
+  // (used by surfaces that own navigation externally — admin Media drives
+  // Y/N approval shortcuts and wants its own keyboard handler).
+  useEffect(() => {
+    const idx = allAssets.findIndex((a) => a.id === asset.id);
+    if (idx >= 0 && idx !== currentIdx) setCurrentIdx(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asset.id]);
   // Keep current index safe across allAssets shrinking (e.g. after delete).
   const safeIdx = Math.max(0, Math.min(allAssets.length - 1, currentIdx));
   const current = allAssets[safeIdx] ?? asset;
@@ -173,13 +202,14 @@ export function PhotoLightbox({
   useEffect(() => {
     // Push our handler onto the singleton stack — only the topmost
     // (most-recently-mounted) PhotoLightbox processes keys.
+    if (disableKeyboard) return;
     return pushKbdHandler((e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") go(-1);
       if (e.key === "ArrowRight") go(1);
     });
-  }, [onClose, go]);
+  }, [onClose, go, disableKeyboard]);
 
   const railBtn: React.CSSProperties = {
     padding: "6px 10px", borderRadius: 7,
@@ -309,6 +339,7 @@ export function PhotoLightbox({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={current.url} alt=""
             style={{ maxWidth: "100%", maxHeight: "calc(100vh - 64px)", objectFit: "contain", borderRadius: 10, display: "block" }} />
+          {imageOverlay}
         </div>
 
         {/* Next */}
@@ -346,17 +377,21 @@ export function PhotoLightbox({
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
         }}>
           <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
-            {pill && (
-              <span style={{
-                background: pill.bg, color: "#fff",
-                fontFamily: F, fontSize: 10, fontWeight: 700,
-                padding: "2px 8px", borderRadius: 5, letterSpacing: 0.3,
-              }}>{pill.label}</span>
+            {headerContent ?? (
+              <>
+                {pill && (
+                  <span style={{
+                    background: pill.bg, color: "#fff",
+                    fontFamily: F, fontSize: 10, fontWeight: 700,
+                    padding: "2px 8px", borderRadius: 5, letterSpacing: 0.3,
+                  }}>{pill.label}</span>
+                )}
+                <div style={{
+                  fontFamily: F, fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>{L("previewLabel", "admin.talent.edit.mediaGallery.previewLabel")}</div>
+              </>
             )}
-            <div style={{
-              fontFamily: F, fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>{L("previewLabel", "admin.talent.edit.mediaGallery.previewLabel")}</div>
           </div>
           <button type="button" onClick={onClose} aria-label={L("closeAria", "admin.talent.edit.mediaGallery.closeAria")}
             style={{
@@ -369,6 +404,11 @@ export function PhotoLightbox({
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Caller-injected priority sections (e.g. Approve/Reject for
+              pending review — surfaces above the promote/crop chrome so
+              the most important action is the first thing the user sees. */}
+          {topSections}
 
           {/* Lineage label — when this asset is a crop derivative */}
           {current.sourceMediaAssetId && (
@@ -459,6 +499,11 @@ export function PhotoLightbox({
                 : L("copyUrl", "admin.talent.edit.mediaGallery.copyUrl")}
             </button>
           </div>
+
+          {/* Caller-injected sections (admin uses this for metadata, tags,
+              folders, notes, approval — admin-only concepts that don't
+              belong in the shared component's API surface). */}
+          {extraSections}
 
           {/* Danger zone — only when caller wired delete */}
           {onDelete && (
