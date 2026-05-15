@@ -36,6 +36,9 @@ export type WorkspaceMediaPhoto = {
   /** Free-text note stored in metadata.note. */
   note: string | null;
   metadata: Record<string, unknown>;
+  /** When this photo is a derivative (crop, baked watermark), the parent
+   *  asset's id. Used to enable "Revert to original" in the lightbox. */
+  sourceMediaAssetId: string | null;
   createdAt: string;
 };
 
@@ -67,6 +70,7 @@ type MediaRow = {
   original_filename: string | null;
   tags: string[] | null;
   metadata: Record<string, unknown> | null;
+  source_media_asset_id: string | null;
   created_at: string;
   talent_profiles: {
     id: string;
@@ -137,6 +141,7 @@ export async function loadWorkspaceMediaBridge(
           original_filename,
           tags,
           metadata,
+          source_media_asset_id,
           created_at,
           talent_profiles!owner_talent_profile_id (
             id,
@@ -240,6 +245,7 @@ export async function loadWorkspaceMediaBridge(
           originalFilename: r.original_filename,
           note: (meta.note as string | null) ?? null,
           metadata: meta,
+          sourceMediaAssetId: r.source_media_asset_id,
           createdAt: r.created_at,
         };
       });

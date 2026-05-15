@@ -11,18 +11,22 @@ import { PrimaryButton, SecondaryButton } from "./primitives";
 import {
   actionDeleteMediaAssets,
   actionUploadToStagingStorage,
+  actionUploadAndAssignMedia,
   actionBulkAssignStagedMedia,
   actionCleanupStagedObjects,
   actionLoadRosterTalents,
   actionSetApprovalState,
   actionReassignMediaToTalent,
   actionSetAsCardPhoto,
+  actionSetAsHeroPhoto,
+  actionRevertCropToSource,
   actionImportFromGoogleDrive,
   actionListDriveFolder,
   actionGetMediaCount,
   type RosterTalentOption,
   type StagedMediaMeta,
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { PhotoCropperDialog } from "@/components/talent/photo-cropper-dialog";
 import {
   actionCreateMediaFolder,
   actionRenameMediaFolder,
@@ -89,10 +93,20 @@ function fmtDate(iso: string) {
 }
 
 const VARIANT_LABELS: Record<string, string> = {
-  card: "Profile card", hero: "Hero", gallery: "Gallery",
+  card: "Profile", hero: "Cover", gallery: "Gallery",
   lightbox: "Lightbox", polaroid: "Polaroid", reel: "Reel",
   public_watermarked: "Public WM", watermarked: "Watermarked",
 };
+
+// Card pill colors per variant/status — single slot, priority order.
+// "Profile" = 1:1 headshot (variantKind=card)
+// "Cover"   = 4:5 banner   (variantKind=hero)
+const PILL_STYLES = {
+  rejected: { bg: "rgba(192,57,43,0.94)", fg: "#fff", label: "Rejected" },
+  pending:  { bg: "rgba(212,151,12,0.94)", fg: "#fff", label: "Review" },
+  profile:  { bg: "rgba(15,79,62,0.94)",  fg: "#fff", label: "Profile" },
+  cover:    { bg: "rgba(78,52,114,0.94)", fg: "#fff", label: "Cover" },
+} as const;
 
 const FOLDER_PALETTE = [
   "#EF5350", "#EC407A", "#AB47BC", "#7E57C2",
@@ -195,316 +209,6 @@ function MediaSidebar({
           <SectionLabel text="More" />
           <NavRow label="Analytics" v={{ kind: "analytics" }} />
         </>
-      )}
-    </div>
-  );
-}
-
-// ─── Detail Drawer ────────────────────────────────────────────────────────────
-
-function PhotoDetailDrawer({
-  photo, folders, wsLogoUrl, wsWatermarkEnabled,
-  onClose, onRefresh,
-}: {
-  photo: MediaPhoto;
-  folders: MediaFolder[];
-  wsLogoUrl: string | null;
-  wsWatermarkEnabled: boolean;
-  onClose: () => void;
-  onRefresh: () => void;
-}) {
-  const queueRouterRefresh = useQueuedRouterRefresh();
-  const [tags, setTags] = useState<string[]>(photo.tags);
-  const [tagInput, setTagInput] = useState("");
-  const [savingTags, setSavingTags] = useState(false);
-  const [note, setNote] = useState(photo.note ?? "");
-  const [savingNote, setSavingNote] = useState(false);
-  const [folderBusy, setFolderBusy] = useState(false);
-  const [copyDone, setCopyDone] = useState(false);
-  const [activity, setActivity] = useState<Array<{ id: string; kind: string; payload: unknown; createdAt: string }>>([]);
-  const [activityLoaded, setActivityLoaded] = useState(false);
-
-  // Re-sync local edit state when bridge data refreshes (after mutations)
-  useEffect(() => {
-    if (!savingTags) setTags(photo.tags);
-  }, [photo.tags]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!savingNote) setNote(photo.note ?? "");
-  }, [photo.note]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [approvalBusy, setApprovalBusy] = useState(false);
-  const [showWm, setShowWm] = useState(false);
-
-  // Reset activity when switching to a different photo
-  useEffect(() => {
-    setActivity([]);
-    setActivityLoaded(false);
-  }, [photo.id]);
-
-  useEffect(() => {
-    if (!activityLoaded) {
-      void actionGetAssetActivity(photo.id).then((r) => {
-        if (r.ok) setActivity(r.data);
-        setActivityLoaded(true);
-      });
-    }
-  }, [photo.id, activityLoaded]);
-
-  const inFolder = (folderId: string) => photo.folderIds.includes(folderId);
-
-  const toggleFolder = async (folderId: string) => {
-    setFolderBusy(true);
-    if (inFolder(folderId)) {
-      await actionRemoveAssetsFromFolder(folderId, [photo.id]);
-    } else {
-      await actionAddAssetsToFolder(folderId, [photo.id]);
-    }
-    setFolderBusy(false);
-    queueRouterRefresh();
-    onRefresh();
-  };
-
-  const saveTags = async () => {
-    setSavingTags(true);
-    await actionSetAssetTags(photo.id, tags);
-    setSavingTags(false);
-    queueRouterRefresh();
-  };
-
-  const addTag = () => {
-    const clean = tagInput.trim().toLowerCase();
-    if (!clean || tags.includes(clean)) { setTagInput(""); return; }
-    const next = [...tags, clean];
-    setTags(next);
-    setTagInput("");
-  };
-
-  const removeTag = (t: string) => setTags((prev) => prev.filter((x) => x !== t));
-
-  const saveNote = async () => {
-    setSavingNote(true);
-    await actionSetAssetNote(photo.id, note);
-    setSavingNote(false);
-    queueRouterRefresh();
-  };
-
-  const setApproval = async (state: "approved" | "rejected") => {
-    setApprovalBusy(true);
-    await actionSetApprovalState([photo.id], state);
-    setApprovalBusy(false);
-    queueRouterRefresh();
-    onRefresh();
-  };
-
-  const MetaRow = ({ label, value }: { label: string; value: string }) => (
-    <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-      <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, width: 80, flexShrink: 0 }}>{label}</div>
-      <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, flex: 1, wordBreak: "break-all" }}>{value}</div>
-    </div>
-  );
-
-  const inputBase: CSSProperties = {
-    fontFamily: FONTS.body, fontSize: 12.5, padding: "6px 10px",
-    borderRadius: 7, border: `1px solid ${COLORS.border}`, color: COLORS.ink,
-    background: "#fff", width: "100%", boxSizing: "border-box",
-  };
-
-  return (
-    <div style={{
-      width: 320, borderLeft: `1px solid ${COLORS.borderSoft}`,
-      display: "flex", flexDirection: "column", background: "#fff",
-      overflowY: "auto",
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: "14px 16px 10px", borderBottom: `1px solid ${COLORS.borderSoft}`,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
-        <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, color: COLORS.ink }}>
-          Photo detail
-        </div>
-        <button type="button" onClick={onClose} style={{
-          background: "none", border: "none", color: COLORS.inkMuted,
-          cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "2px 4px",
-        }}>×</button>
-      </div>
-
-      {/* Photo preview */}
-      <div style={{ position: "relative", background: COLORS.surfaceAlt }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photo.url} alt={photo.talentName} style={{
-          width: "100%", aspectRatio: "4/3", objectFit: "cover", display: "block",
-        }} />
-        {showWm && wsWatermarkEnabled && wsLogoUrl && (
-          <div style={{ position: "absolute", bottom: "5%", right: "5%", width: "20%", opacity: 0.75, pointerEvents: "none" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={wsLogoUrl} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }} />
-          </div>
-        )}
-        {/* WM toggle */}
-        {wsWatermarkEnabled && wsLogoUrl && (
-          <button type="button" onClick={() => setShowWm((v) => !v)} style={{
-            position: "absolute", bottom: 8, left: 8,
-            padding: "3px 8px", borderRadius: 5, border: "none",
-            background: showWm ? "rgba(46,107,82,0.9)" : "rgba(0,0,0,0.45)",
-            color: "#fff", fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, cursor: "pointer",
-          }}>
-            {showWm ? "WM on" : "WM off"}
-          </button>
-        )}
-      </div>
-
-      {/* Actions row */}
-      <div style={{ padding: "10px 12px", display: "flex", gap: 6, borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-        <a href={photo.url} target="_blank" rel="noopener noreferrer" style={{
-          flex: 1, padding: "6px 0", borderRadius: 7, border: `1px solid ${COLORS.border}`,
-          color: COLORS.ink, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600,
-          textAlign: "center", textDecoration: "none",
-        }}>Open ↗</a>
-        <button type="button" onClick={() => {
-          void navigator.clipboard.writeText(photo.url).then(() => {
-            setCopyDone(true); setTimeout(() => setCopyDone(false), 1600);
-          });
-        }} style={{
-          flex: 1, padding: "6px 0", borderRadius: 7, border: `1px solid ${COLORS.border}`,
-          background: "none", color: COLORS.ink, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-        }}>
-          {copyDone ? "Copied!" : "Copy URL"}
-        </button>
-        {/* Approve / reject */}
-        {photo.approvalState === "pending" && (
-          <>
-            <button type="button" disabled={approvalBusy} onClick={() => void setApproval("approved")} style={{
-              padding: "6px 10px", borderRadius: 7, border: "none",
-              background: "rgba(46,160,67,0.12)", color: "rgba(46,160,67,1)",
-              fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 700, cursor: "pointer",
-            }}>✓</button>
-            <button type="button" disabled={approvalBusy} onClick={() => void setApproval("rejected")} style={{
-              padding: "6px 10px", borderRadius: 7, border: "none",
-              background: "rgba(192,57,43,0.1)", color: "#c0392b",
-              fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 700, cursor: "pointer",
-            }}>✕</button>
-          </>
-        )}
-      </div>
-
-      {/* Metadata */}
-      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8, borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-        <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 2 }}>
-          Metadata
-        </div>
-        <MetaRow label="Talent" value={photo.talentName} />
-        <MetaRow label="Kind" value={VARIANT_LABELS[photo.variantKind] ?? photo.variantKind} />
-        <MetaRow label="Status" value={photo.approvalState} />
-        <MetaRow label="Uploaded" value={fmtDate(photo.createdAt)} />
-        <MetaRow label="Dimensions" value={formatDim(photo.width, photo.height)} />
-        <MetaRow label="Size" value={formatBytes(photo.fileSizeBytes)} />
-        {photo.originalFilename && <MetaRow label="Filename" value={photo.originalFilename} />}
-        {photo.mimeType && <MetaRow label="Type" value={photo.mimeType} />}
-      </div>
-
-      {/* Tags */}
-      <div style={{ padding: "14px 16px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-        <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-          Tags
-        </div>
-        {tags.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-            {tags.map((t) => (
-              <span key={t} style={{
-                display: "inline-flex", alignItems: "center", gap: 4,
-                padding: "2px 8px", borderRadius: 999, background: COLORS.surfaceAlt,
-                border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 11, color: COLORS.ink,
-              }}>
-                {t}
-                <button type="button" onClick={() => removeTag(t)} style={{
-                  background: "none", border: "none", color: COLORS.inkMuted, cursor: "pointer",
-                  fontSize: 12, lineHeight: 1, padding: 0,
-                }}>×</button>
-              </span>
-            ))}
-          </div>
-        )}
-        <div style={{ display: "flex", gap: 6 }}>
-          <input
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-            placeholder="Add tag…"
-            style={{ ...inputBase, flex: 1 }}
-          />
-          <button type="button" onClick={() => { addTag(); void saveTags(); }} disabled={savingTags} style={{
-            padding: "6px 12px", borderRadius: 7, border: "none", background: COLORS.fill,
-            color: "#fff", fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-          }}>
-            {savingTags ? "…" : "Save"}
-          </button>
-        </div>
-      </div>
-
-      {/* Folders */}
-      {folders.length > 0 && (
-        <div style={{ padding: "14px 16px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-          <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-            Folders
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {folders.map((f) => {
-              const checked = inFolder(f.id);
-              return (
-                <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                  <input type="checkbox" checked={checked} disabled={folderBusy}
-                    onChange={() => void toggleFolder(f.id)}
-                    style={{ accentColor: COLORS.fill, cursor: "pointer" }} />
-                  <DotSwatch color={f.color ?? FOLDER_PALETTE[0]} />
-                  <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>{f.name}</span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Note */}
-      <div style={{ padding: "14px 16px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
-        <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-          Note
-        </div>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Add a note about this photo…"
-          rows={3}
-          style={{
-            ...inputBase, resize: "vertical", lineHeight: 1.5,
-          }}
-        />
-        <button type="button" onClick={() => void saveNote()} disabled={savingNote}
-          style={{
-            marginTop: 6, padding: "5px 12px", borderRadius: 7, border: `1px solid ${COLORS.border}`,
-            background: "#fff", color: COLORS.ink, fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-          }}>
-          {savingNote ? "Saving…" : "Save note"}
-        </button>
-      </div>
-
-      {/* Activity */}
-      {activityLoaded && activity.length > 0 && (
-        <div style={{ padding: "14px 16px" }}>
-          <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
-            Activity
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {activity.slice(0, 8).map((a) => (
-              <div key={a.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.border, marginTop: 5, flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.ink }}>{a.kind.replace(/_/g, " ")}</div>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkMuted }}>{fmtDate(a.createdAt)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
     </div>
   );
@@ -701,155 +405,622 @@ function FolderModal({
   );
 }
 
-// ─── Lightbox ─────────────────────────────────────────────────────────────────
+// ─── Unified Lightbox + Detail rail ──────────────────────────────────────────
+//
+// One surface for viewing AND editing a photo. Image left, scrollable rail
+// right with all the actions the old PhotoDetailDrawer + Lightbox had,
+// merged into a single experience. ← → navigates, Esc closes, Y/N approves.
 
 function MediaLightbox({
-  photo, allPhotos, wsLogoUrl, wsWatermarkEnabled,
-  onClose, onSetCard,
+  photo, allPhotos, folders, wsLogoUrl, wsWatermarkEnabled,
+  onClose, onRefresh, toast,
 }: {
   photo: MediaPhoto;
   allPhotos: MediaPhoto[];
+  folders: MediaFolder[];
   wsLogoUrl: string | null;
   wsWatermarkEnabled: boolean;
   onClose: () => void;
-  onSetCard: (photoId: string, talentId: string) => void;
+  onRefresh: () => void;
+  toast: (msg: string) => void;
 }) {
-  const idx = allPhotos.findIndex((p) => p.id === photo.id);
-  const [currentIdx, setCurrentIdx] = useState(idx);
-  const current = allPhotos[currentIdx] ?? photo;
+  const queueRouterRefresh = useQueuedRouterRefresh();
+  const initialIdx = allPhotos.findIndex((p) => p.id === photo.id);
+  const [currentIdx, setCurrentIdx] = useState(Math.max(0, initialIdx));
+
+  // Keep currentIdx safe across allPhotos shrinking (e.g. after a delete).
+  const safeIdx = Math.max(0, Math.min(allPhotos.length - 1, currentIdx));
+  const current = allPhotos[safeIdx] ?? photo;
+
   const [showWm, setShowWm] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [settingCard, setSettingCard] = useState(false);
 
-  const wmActive = showWm && wsWatermarkEnabled && wsLogoUrl;
+  // Track viewport — on narrow screens, stack the rail BELOW the image
+  // instead of beside it. matchMedia + a resize listener keeps it live.
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 820px)");
+    const sync = () => setIsNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  // Per-photo edit/busy state — resets when navigating to a new photo
+  const [tags, setTags] = useState<string[]>(current.tags);
+  const [tagInput, setTagInput] = useState("");
+  const [note, setNote] = useState(current.note ?? "");
+  const [savingTags, setSavingTags] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
+  const [folderBusy, setFolderBusy] = useState(false);
+  const [approvalBusy, setApprovalBusy] = useState(false);
+  const [setCardBusy, setSetCardBusy] = useState(false);
+  const [setHeroBusy, setSetHeroBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [cropMode, setCropMode] = useState<"profile" | "cover" | "free" | null>(null);
+  const [cropBusy, setCropBusy] = useState(false);
+  const [revertBusy, setRevertBusy] = useState(false);
+  const [activity, setActivity] = useState<Array<{ id: string; kind: string; payload: unknown; createdAt: string }>>([]);
+  const [activityLoaded, setActivityLoaded] = useState(false);
+
+  // Reset local edit state on photo change
+  useEffect(() => {
+    setTags(current.tags);
+    setTagInput("");
+    setNote(current.note ?? "");
+    setActivity([]);
+    setActivityLoaded(false);
+    setCropMode(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current.id]);
+
+  // Re-sync local state when bridge data refreshes after a mutation
+  useEffect(() => {
+    if (!savingTags) setTags(current.tags);
+  }, [current.tags]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!savingNote) setNote(current.note ?? "");
+  }, [current.note]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lazy-load activity feed for current photo
+  useEffect(() => {
+    if (!activityLoaded) {
+      void actionGetAssetActivity(current.id).then((r) => {
+        if (r.ok) setActivity(r.data);
+        setActivityLoaded(true);
+      });
+    }
+  }, [current.id, activityLoaded]);
 
   const go = useCallback((delta: number) => {
     setCurrentIdx((i) => Math.max(0, Math.min(allPhotos.length - 1, i + delta)));
   }, [allPhotos.length]);
 
+  const setApproval = useCallback(async (state: "approved" | "rejected") => {
+    setApprovalBusy(true);
+    await actionSetApprovalState([current.id], state);
+    setApprovalBusy(false);
+    queueRouterRefresh();
+    onRefresh();
+  }, [current.id, queueRouterRefresh, onRefresh]);
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      // Don't capture shortcuts while typing or while the cropper owns the screen
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (cropMode !== null) return;
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") go(-1);
       if (e.key === "ArrowRight") go(1);
+      if (current.approvalState === "pending") {
+        if (e.key === "y" || e.key === "Y") { e.preventDefault(); void setApproval("approved"); }
+        if (e.key === "n" || e.key === "N") { e.preventDefault(); void setApproval("rejected"); }
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [onClose, go]);
+  }, [onClose, go, current.approvalState, setApproval, cropMode]);
 
-  const btnStyle: CSSProperties = {
-    padding: "5px 12px", borderRadius: 7,
-    border: "1px solid rgba(255,255,255,0.22)",
-    background: "rgba(255,255,255,0.1)", color: "#fff",
-    fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
+  const wmActive = showWm && wsWatermarkEnabled && wsLogoUrl;
+  const inFolder = (folderId: string) => current.folderIds.includes(folderId);
+
+  const toggleFolder = async (folderId: string) => {
+    setFolderBusy(true);
+    if (inFolder(folderId)) {
+      await actionRemoveAssetsFromFolder(folderId, [current.id]);
+    } else {
+      await actionAddAssetsToFolder(folderId, [current.id]);
+    }
+    setFolderBusy(false);
+    queueRouterRefresh();
+    onRefresh();
   };
+
+  const saveTags = async (nextTags: string[]) => {
+    setSavingTags(true);
+    await actionSetAssetTags(current.id, nextTags);
+    setSavingTags(false);
+    queueRouterRefresh();
+  };
+
+  const addTag = () => {
+    const clean = tagInput.trim().toLowerCase();
+    if (!clean || tags.includes(clean)) { setTagInput(""); return; }
+    const next = [...tags, clean];
+    setTags(next);
+    setTagInput("");
+    void saveTags(next);
+  };
+
+  const removeTag = (t: string) => {
+    const next = tags.filter((x) => x !== t);
+    setTags(next);
+    void saveTags(next);
+  };
+
+  const saveNote = async () => {
+    setSavingNote(true);
+    await actionSetAssetNote(current.id, note);
+    setSavingNote(false);
+    queueRouterRefresh();
+  };
+
+  // "Set as profile" = promote to variantKind=card (1:1 headshot)
+  const setAsProfile = async () => {
+    setSetCardBusy(true);
+    const r = await actionSetAsCardPhoto(current.id, current.talentProfileId);
+    setSetCardBusy(false);
+    if (!r.ok) { toast(r.error || "Could not set as profile."); return; }
+    toast(`Set as ${current.talentName}'s profile photo`);
+    queueRouterRefresh();
+    onRefresh();
+  };
+
+  // "Set as cover" = promote to variantKind=hero (16:9 banner)
+  const setAsCover = async () => {
+    setSetHeroBusy(true);
+    const r = await actionSetAsHeroPhoto(current.id, current.talentProfileId);
+    setSetHeroBusy(false);
+    if (!r.ok) { toast(r.error || "Could not set as cover."); return; }
+    toast(`Set as ${current.talentName}'s cover photo`);
+    queueRouterRefresh();
+    onRefresh();
+  };
+
+  // Cropper confirm handler — uploads the cropped blob as a new media asset
+  // for this talent, sets variantKind based on which crop mode was chosen,
+  // and links it to the source via source_media_asset_id (enables Revert).
+  const handleCropConfirm = async (blob: Blob) => {
+    if (!cropMode) return;
+    setCropBusy(true);
+    setCropMode(null); // close dialog immediately
+
+    const variantKind: "card" | "hero" | "gallery" =
+      cropMode === "profile" ? "card" :
+      cropMode === "cover"   ? "hero" :
+      "gallery";
+
+    const filename = `crop-${cropMode}-${Date.now()}.webp`;
+    const file = new File([blob], filename, { type: "image/webp" });
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const res = await actionUploadAndAssignMedia(
+      fd,
+      current.talentProfileId,
+      variantKind,
+      { cropOf: current.id, cropMode },
+      current.id,
+    );
+    setCropBusy(false);
+    if (!res.ok) { toast(res.error || "Crop upload failed."); return; }
+    const label = cropMode === "profile" ? "profile photo" : cropMode === "cover" ? "cover photo" : "cropped photo";
+    toast(`New ${label} saved`);
+    queueRouterRefresh();
+    onRefresh();
+  };
+
+  // Revert: delete this crop, leave source intact. The lightbox's safeIdx
+  // clamp will land us on the next photo automatically.
+  const revertToOriginal = async () => {
+    if (!current.sourceMediaAssetId) return;
+    if (!confirm("Revert to original? The cropped version will be removed.")) return;
+    setRevertBusy(true);
+    const r = await actionRevertCropToSource(current.id);
+    setRevertBusy(false);
+    if (!r.ok) { toast(r.error || "Revert failed."); return; }
+    toast("Reverted to original");
+    queueRouterRefresh();
+    onRefresh();
+  };
+
+  const deletePhoto = async () => {
+    if (!confirm("Delete this photo? This cannot be undone.")) return;
+    setDeleteBusy(true);
+    const r = await actionDeleteMediaAssets([current.id]);
+    setDeleteBusy(false);
+    if (!r.ok) return;
+    queueRouterRefresh();
+    onRefresh();
+    if (allPhotos.length <= 1) onClose();
+  };
+
+  // ── Styled primitives ──────────────────────────────────────────────────────
+  const railBtn: CSSProperties = {
+    padding: "6px 10px", borderRadius: 7,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.06)", color: "#fff",
+    fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+    cursor: "pointer", textDecoration: "none",
+    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+  };
+  const railBtnPrimary: CSSProperties = {
+    ...railBtn,
+    background: "rgba(255,255,255,0.94)",
+    color: "#0f0f12",
+    border: "1px solid rgba(255,255,255,0.94)",
+  };
+  const railBtnDanger: CSSProperties = {
+    ...railBtn,
+    background: "rgba(192,57,43,0.16)",
+    color: "rgba(255,135,120,0.95)",
+    border: "1px solid rgba(192,57,43,0.4)",
+  };
+  const railInput: CSSProperties = {
+    fontFamily: FONTS.body, fontSize: 12.5, padding: "7px 10px",
+    borderRadius: 7, border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.05)", color: "#fff",
+    width: "100%", boxSizing: "border-box", outline: "none",
+  };
+  const sectionLabel: CSSProperties = {
+    fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700,
+    color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.7,
+    marginBottom: 8,
+  };
+  const MetaRow = ({ label, value }: { label: string; value: string }) => (
+    <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+      <div style={{ fontFamily: FONTS.body, fontSize: 11, color: "rgba(255,255,255,0.5)", width: 78, flexShrink: 0 }}>{label}</div>
+      <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "rgba(255,255,255,0.92)", flex: 1, wordBreak: "break-all" }}>{value}</div>
+    </div>
+  );
 
   return (
     <div
       style={{
         position: "fixed", inset: 0, zIndex: 9990,
-        background: "rgba(9,9,11,0.93)", backdropFilter: "blur(10px)",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        background: "rgba(9,9,11,0.94)", backdropFilter: "blur(10px)",
+        display: "flex", flexDirection: isNarrow ? "column" : "row",
       }}
       onClick={onClose}
     >
-      {/* Top bar */}
+      {/* Image area */}
       <div style={{
-        position: "absolute", top: 0, left: 0, right: 0,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "12px 18px", gap: 8,
+        flex: 1, minWidth: 0, display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", position: "relative",
+        padding: isNarrow ? "44px 12px 12px" : "20px 60px",
+        minHeight: isNarrow ? "50vh" : undefined,
       }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ fontFamily: FONTS.body, fontSize: 13, color: "rgba(255,255,255,0.65)" }}>
-          {current.talentName}
-          {current.approvalState === "pending" && <span style={{ marginLeft: 8, color: COLORS.amber }}>· Pending</span>}
-          <span style={{ marginLeft: 8, opacity: 0.4 }}>{currentIdx + 1} / {allPhotos.length}</span>
+        {/* Top counter + close (mobile-friendly) */}
+        <div style={{
+          position: "absolute", top: 14, left: 18, right: 18,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          fontFamily: FONTS.body, fontSize: 12, color: "rgba(255,255,255,0.55)",
+          pointerEvents: "none",
+        }}>
+          <span>{safeIdx + 1} / {allPhotos.length}</span>
+          <span style={{ opacity: 0.5 }}>← → navigate · Esc close</span>
         </div>
-        <div style={{ display: "flex", gap: 5, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {wsWatermarkEnabled && wsLogoUrl && (
-            <div style={{ display: "flex", borderRadius: 7, overflow: "hidden", border: "1px solid rgba(255,255,255,0.2)" }}>
-              {(["Off", "On"] as const).map((label) => {
-                const active = label === "On" ? showWm : !showWm;
-                return (
-                  <button key={label} type="button" onClick={() => setShowWm(label === "On")}
-                    style={{ padding: "4px 10px", border: "none", fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer", background: active ? "rgba(255,255,255,0.2)" : "transparent", color: active ? "#fff" : "rgba(255,255,255,0.5)" }}>
-                    WM {label}
-                  </button>
-                );
-              })}
+
+        {/* Prev */}
+        {safeIdx > 0 && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }}
+            aria-label="Previous photo"
+            style={{
+              position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
+              width: 44, height: 44, borderRadius: "50%",
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.07)", color: "#fff",
+              fontSize: 22, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>‹</button>
+        )}
+
+        {/* Image */}
+        <div style={{ position: "relative", maxWidth: "100%", maxHeight: "calc(100vh - 64px)" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={current.url} alt={current.talentName}
+            style={{ maxWidth: "100%", maxHeight: "calc(100vh - 64px)", objectFit: "contain", borderRadius: 10, display: "block" }} />
+          {wmActive && (
+            <div style={{ position: "absolute", bottom: "4%", right: "4%", width: "13%", opacity: 0.72, pointerEvents: "none" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={wsLogoUrl!} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }} />
             </div>
           )}
-          <button type="button" onClick={() => { void navigator.clipboard.writeText(current.url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600); }); }} style={btnStyle}>
-            {copied ? "Copied!" : "Copy URL"}
-          </button>
-          <a href={current.url} target="_blank" rel="noopener noreferrer"
-            style={{ ...btnStyle, textDecoration: "none" }}
-            onClick={(e) => e.stopPropagation()}>
-            Open ↗
-          </a>
-          <button type="button" disabled={settingCard} onClick={async (e) => {
-            e.stopPropagation();
-            setSettingCard(true);
-            await actionSetAsCardPhoto(current.id, current.talentProfileId);
-            setSettingCard(false);
-            onSetCard(current.id, current.talentProfileId);
-          }} style={{ ...btnStyle, opacity: settingCard ? 0.6 : 1 }}>
-            {settingCard ? "Setting…" : "Set as card"}
-          </button>
-          <button type="button" onClick={onClose} style={btnStyle}>Esc</button>
         </div>
-      </div>
 
-      {/* Prev */}
-      {currentIdx > 0 && (
-        <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }}
-          style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", width: 42, height: 42, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.07)", color: "#fff", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          ‹
-        </button>
-      )}
-
-      {/* Photo */}
-      <div style={{ position: "relative", maxWidth: "88vw", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={current.url} alt={current.talentName}
-          style={{ maxWidth: "88vw", maxHeight: "80vh", objectFit: "contain", borderRadius: 10, display: "block" }} />
-        {wmActive && (
-          <div style={{ position: "absolute", bottom: "4%", right: "4%", width: "13%", opacity: 0.72, pointerEvents: "none" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={wsLogoUrl!} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", filter: "brightness(0) invert(1)" }} />
-          </div>
+        {/* Next */}
+        {safeIdx < allPhotos.length - 1 && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }}
+            aria-label="Next photo"
+            style={{
+              position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)",
+              width: 44, height: 44, borderRadius: "50%",
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.07)", color: "#fff",
+              fontSize: 22, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>›</button>
         )}
       </div>
 
-      {/* Tags + note strip */}
-      {(current.tags.length > 0 || current.note) && (
+      {/* Rail — side panel on desktop, bottom sheet on narrow viewports */}
+      <div
+        style={{
+          width: isNarrow ? "100%" : 360,
+          height: isNarrow ? "auto" : "100%",
+          flexShrink: 0,
+          background: "rgba(20,20,24,0.96)",
+          borderLeft: isNarrow ? "none" : "1px solid rgba(255,255,255,0.08)",
+          borderTop:  isNarrow ? "1px solid rgba(255,255,255,0.08)" : "none",
+          display: "flex", flexDirection: "column",
+          color: "#fff",
+          maxHeight: isNarrow ? "50vh" : undefined,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
         <div style={{
-          position: "absolute", bottom: 36, left: "50%", transform: "translateX(-50%)",
-          display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "center",
-        }} onClick={(e) => e.stopPropagation()}>
-          {current.tags.map((t) => (
-            <span key={t} style={{
-              padding: "2px 8px", borderRadius: 999, background: "rgba(255,255,255,0.14)",
-              fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.8)",
-            }}>{t}</span>
-          ))}
-          {current.note && (
-            <span style={{ padding: "2px 8px", borderRadius: 999, background: "rgba(255,255,255,0.10)", fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.65)", maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {current.note}
-            </span>
-          )}
+          padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.08)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+        }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{
+              fontFamily: FONTS.body, fontSize: 14, fontWeight: 700, color: "#fff",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {current.talentName}
+            </div>
+            <div style={{
+              fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 2,
+            }}>
+              {VARIANT_LABELS[current.variantKind] ?? current.variantKind}
+              {current.approvalState === "pending" && <span style={{ marginLeft: 6, color: "#f0b350" }}>· Review</span>}
+              {current.approvalState === "rejected" && <span style={{ marginLeft: 6, color: "#e07566" }}>· Rejected</span>}
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            width: 30, height: 30, borderRadius: 7, border: "1px solid rgba(255,255,255,0.14)",
+            background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.75)",
+            cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+          }}>×</button>
         </div>
-      )}
 
-      {/* Next */}
-      {currentIdx < allPhotos.length - 1 && (
-        <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }}
-          style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", width: 42, height: 42, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.07)", color: "#fff", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          ›
-        </button>
-      )}
-      <div style={{ position: "absolute", bottom: 12, fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.28)" }}>
-        ← → navigate · Esc close
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Role assignment: Profile (1:1) and Cover (4:5) */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {current.variantKind !== "card" && (
+              <button type="button" disabled={setCardBusy} onClick={() => void setAsProfile()}
+                style={{ ...railBtnPrimary, width: "100%", padding: "9px 12px", fontSize: 12.5, opacity: setCardBusy ? 0.7 : 1 }}>
+                {setCardBusy ? "Setting…" : "⭐  Use as profile (1:1)"}
+              </button>
+            )}
+            {current.variantKind !== "hero" && (
+              <button type="button" disabled={setHeroBusy} onClick={() => void setAsCover()}
+                style={{ ...railBtn, width: "100%", padding: "8px 12px", fontSize: 12.5, opacity: setHeroBusy ? 0.7 : 1 }}>
+                {setHeroBusy ? "Setting…" : "🖼  Use as cover (4:5)"}
+              </button>
+            )}
+
+            {/* Recrop entry points — open the cropper at the right aspect.
+                On confirm, we upload the crop and promote it to the chosen role. */}
+            <div style={{ display: "flex", gap: 6 }}>
+              <button type="button" disabled={cropBusy} onClick={() => setCropMode("profile")}
+                style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
+                ✂ Crop · Profile
+              </button>
+              <button type="button" disabled={cropBusy} onClick={() => setCropMode("cover")}
+                style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
+                ✂ Crop · Cover
+              </button>
+              <button type="button" disabled={cropBusy} onClick={() => setCropMode("free")}
+                style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
+                ✂ Free
+              </button>
+            </div>
+            {cropBusy && (
+              <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.55)", textAlign: "center" }}>
+                Saving crop…
+              </div>
+            )}
+
+            {/* Revert to original — only when this photo is a crop derivative */}
+            {current.sourceMediaAssetId && (
+              <button type="button" disabled={revertBusy} onClick={() => void revertToOriginal()}
+                style={{ ...railBtn, width: "100%", padding: "7px 12px", fontSize: 11.5, opacity: revertBusy ? 0.6 : 1 }}>
+                {revertBusy ? "Reverting…" : "↺  Revert to original"}
+              </button>
+            )}
+          </div>
+
+          {/* Approve / Reject */}
+          {current.approvalState === "pending" && (
+            <div style={{ display: "flex", gap: 7 }}>
+              <button type="button" disabled={approvalBusy} onClick={() => void setApproval("approved")}
+                style={{
+                  flex: 1, padding: "9px 0", borderRadius: 7, border: "1px solid rgba(46,160,67,0.45)",
+                  background: "rgba(46,160,67,0.16)", color: "rgba(140,220,150,1)",
+                  fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                  opacity: approvalBusy ? 0.6 : 1,
+                }}>
+                ✓  Approve <span style={{ opacity: 0.5, fontWeight: 500 }}>Y</span>
+              </button>
+              <button type="button" disabled={approvalBusy} onClick={() => void setApproval("rejected")}
+                style={{
+                  flex: 1, padding: "9px 0", borderRadius: 7, border: "1px solid rgba(192,57,43,0.45)",
+                  background: "rgba(192,57,43,0.14)", color: "rgba(255,140,125,1)",
+                  fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                  opacity: approvalBusy ? 0.6 : 1,
+                }}>
+                ✕  Reject <span style={{ opacity: 0.5, fontWeight: 500 }}>N</span>
+              </button>
+            </div>
+          )}
+
+          {/* Quick actions row */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <a href={current.url} target="_blank" rel="noopener noreferrer" style={{ ...railBtn, flex: 1 }}>
+              Open ↗
+            </a>
+            <button type="button" onClick={() => {
+              void navigator.clipboard.writeText(current.url).then(() => {
+                setCopied(true); setTimeout(() => setCopied(false), 1600);
+              });
+            }} style={{ ...railBtn, flex: 1 }}>
+              {copied ? "Copied!" : "Copy URL"}
+            </button>
+          </div>
+
+          {/* Watermark preview toggle */}
+          {wsWatermarkEnabled && wsLogoUrl && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div style={sectionLabel as CSSProperties}>Watermark preview</div>
+              <div style={{ display: "flex", borderRadius: 7, overflow: "hidden", border: "1px solid rgba(255,255,255,0.16)" }}>
+                {(["Off", "On"] as const).map((label) => {
+                  const active = label === "On" ? showWm : !showWm;
+                  return (
+                    <button key={label} type="button" onClick={() => setShowWm(label === "On")}
+                      style={{
+                        padding: "4px 10px", border: "none", fontFamily: FONTS.body,
+                        fontSize: 11, fontWeight: 600, cursor: "pointer",
+                        background: active ? "rgba(255,255,255,0.18)" : "transparent",
+                        color: active ? "#fff" : "rgba(255,255,255,0.45)",
+                      }}>{label}</button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Metadata */}
+          <div>
+            <div style={sectionLabel as CSSProperties}>Details</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              <MetaRow label="Status" value={current.approvalState} />
+              <MetaRow label="Uploaded" value={fmtDate(current.createdAt)} />
+              <MetaRow label="Dimensions" value={formatDim(current.width, current.height)} />
+              <MetaRow label="Size" value={formatBytes(current.fileSizeBytes)} />
+              {current.originalFilename && <MetaRow label="Filename" value={current.originalFilename} />}
+              {current.mimeType && <MetaRow label="Type" value={current.mimeType} />}
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <div style={sectionLabel as CSSProperties}>Tags</div>
+            {tags.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                {tags.map((t) => (
+                  <span key={t} style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "3px 9px", borderRadius: 999,
+                    background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.12)",
+                    fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.9)",
+                  }}>
+                    {t}
+                    <button type="button" onClick={() => removeTag(t)} aria-label={`Remove ${t}`} style={{
+                      background: "none", border: "none", color: "rgba(255,255,255,0.55)",
+                      cursor: "pointer", fontSize: 12, lineHeight: 1, padding: 0,
+                    }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <input value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+              placeholder="Add tag and press Enter…"
+              style={railInput} />
+            {savingTags && <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>Saving…</div>}
+          </div>
+
+          {/* Folders */}
+          {folders.length > 0 && (
+            <div>
+              <div style={sectionLabel as CSSProperties}>Folders</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {folders.map((f) => {
+                  const checked = inFolder(f.id);
+                  return (
+                    <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
+                      <input type="checkbox" checked={checked} disabled={folderBusy}
+                        onChange={() => void toggleFolder(f.id)}
+                        style={{ accentColor: COLORS.fill, cursor: "pointer" }} />
+                      <DotSwatch color={f.color ?? FOLDER_PALETTE[0]!} />
+                      <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: "rgba(255,255,255,0.9)" }}>{f.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Note */}
+          <div>
+            <div style={sectionLabel as CSSProperties}>Note</div>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Add a note about this photo…" rows={3}
+              style={{ ...railInput, resize: "vertical", lineHeight: 1.5 }} />
+            <button type="button" onClick={() => void saveNote()} disabled={savingNote || note === (current.note ?? "")}
+              style={{
+                ...railBtn, marginTop: 6,
+                opacity: (savingNote || note === (current.note ?? "")) ? 0.5 : 1,
+              }}>
+              {savingNote ? "Saving…" : "Save note"}
+            </button>
+          </div>
+
+          {/* Activity */}
+          {activityLoaded && activity.length > 0 && (
+            <div>
+              <div style={sectionLabel as CSSProperties}>Activity</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {activity.slice(0, 8).map((a) => (
+                  <div key={a.id} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.25)", marginTop: 6, flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.88)" }}>{a.kind.replace(/_/g, " ")}</div>
+                      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>{fmtDate(a.createdAt)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Danger zone */}
+          <div style={{ marginTop: 8, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            <button type="button" disabled={deleteBusy} onClick={() => void deletePhoto()}
+              style={{ ...railBtnDanger, width: "100%", padding: "8px 12px", opacity: deleteBusy ? 0.5 : 1 }}>
+              {deleteBusy ? "Deleting…" : "Delete photo"}
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Cropper — opens on top of the lightbox when a Crop button is pressed.
+          Aspect mirrors the chosen target role (profile = 1:1, cover = 4:5,
+          free = unconstrained). On confirm we upload+register the crop. */}
+      <PhotoCropperDialog
+        open={cropMode !== null}
+        onOpenChange={(o) => { if (!o) setCropMode(null); }}
+        sourceUrl={current.url}
+        aspect={cropMode === "profile" ? 1 : cropMode === "cover" ? 16 / 9 : "free"}
+        onCropConfirm={handleCropConfirm}
+      />
     </div>
   );
 }
@@ -1105,7 +1276,7 @@ function AnalyticsView({ photos, folders }: { photos: MediaPhoto[]; folders: Med
 
 function PhotoCard({
   photo, selected, keyboardFocused, wsLogoUrl, wsWatermarkEnabled,
-  onToggle, onOpenLightbox, onOpenDetail,
+  onToggle, onOpen,
 }: {
   photo: MediaPhoto;
   selected: boolean;
@@ -1113,15 +1284,22 @@ function PhotoCard({
   wsLogoUrl: string | null;
   wsWatermarkEnabled: boolean;
   onToggle: () => void;
-  onOpenLightbox: () => void;
-  onOpenDetail: () => void;
+  onOpen: () => void;
 }) {
   const showWm = wsWatermarkEnabled && wsLogoUrl && !photo.hasOverride;
   const showWmOverride = photo.hasOverride && wsLogoUrl;
 
+  // Single-slot pill, priority: rejected > pending > profile (card) > cover (hero)
+  const pill =
+    photo.approvalState === "rejected" ? PILL_STYLES.rejected :
+    photo.approvalState === "pending"  ? PILL_STYLES.pending :
+    photo.variantKind === "card"       ? PILL_STYLES.profile :
+    photo.variantKind === "hero"       ? PILL_STYLES.cover :
+    null;
+
   return (
     <div
-      onClick={onToggle}
+      onClick={onOpen}
       style={{
         borderRadius: 11, overflow: "hidden", position: "relative",
         border: selected ? `2px solid ${COLORS.fill}` : keyboardFocused ? `2px solid ${COLORS.amber}` : `2px solid transparent`,
@@ -1136,7 +1314,7 @@ function PhotoCard({
         <img src={photo.thumbUrl} alt={photo.talentName} loading="lazy"
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
 
-        {/* WM overlay */}
+        {/* Workspace-default watermark overlay (preview only — gated by user toggle) */}
         {(showWm || showWmOverride) && wsLogoUrl && (
           <div style={{ position: "absolute", bottom: "5%", right: "5%", width: "24%", opacity: 0.75, pointerEvents: "none" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1144,66 +1322,84 @@ function PhotoCard({
           </div>
         )}
 
-        {/* Badges */}
+        {/* Single status/variant pill (top-left) */}
+        {pill && (
+          <div style={{
+            position: "absolute", top: 6, left: 6,
+            background: pill.bg, color: pill.fg, borderRadius: 5,
+            fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 700,
+            padding: "2px 7px", letterSpacing: 0.3,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+          }}>{pill.label}</div>
+        )}
+
+        {/* Per-image watermark override dot — subtle indicator next to pill */}
         {showWmOverride && (
-          <div style={{ position: "absolute", top: 5, left: 5, background: "rgba(46,107,82,0.92)", color: "#fff", borderRadius: 4, fontFamily: FONTS.body, fontSize: 8, fontWeight: 700, padding: "2px 5px" }}>WM</div>
+          <div title="Custom watermark" style={{
+            position: "absolute", top: pill ? 11 : 8, left: pill ? 78 : 8,
+            width: 8, height: 8, borderRadius: "50%",
+            background: "rgba(46,107,82,0.96)",
+            border: "1.5px solid #fff",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.3)",
+          }} />
         )}
-        {photo.approvalState === "pending" && (
-          <div style={{ position: "absolute", top: showWmOverride ? 22 : 5, left: 5, background: COLORS.amber, color: "#fff", borderRadius: 4, fontFamily: FONTS.body, fontSize: 8, fontWeight: 700, padding: "2px 5px" }}>PENDING</div>
-        )}
-        {photo.approvalState === "rejected" && (
-          <div style={{ position: "absolute", top: 5, left: 5, background: "rgba(192,57,43,0.92)", color: "#fff", borderRadius: 4, fontFamily: FONTS.body, fontSize: 8, fontWeight: 700, padding: "2px 5px" }}>REJECTED</div>
-        )}
+
+        {/* Tags chips */}
         {photo.tags.length > 0 && (
-          <div style={{ position: "absolute", bottom: 5, left: 5, display: "flex", gap: 3 }}>
+          <div style={{ position: "absolute", bottom: 6, left: 6, display: "flex", gap: 3, maxWidth: "70%" }}>
             {photo.tags.slice(0, 2).map((t) => (
-              <span key={t} style={{ padding: "1px 5px", borderRadius: 99, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", fontFamily: FONTS.body, fontSize: 7.5, fontWeight: 600, color: "#fff" }}>{t}</span>
+              <span key={t} style={{
+                padding: "1px 6px", borderRadius: 99,
+                background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
+                fontFamily: FONTS.body, fontSize: 8.5, fontWeight: 600, color: "#fff",
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              }}>{t}</span>
             ))}
           </div>
         )}
 
-        {/* Full-size preview button */}
-        <button type="button" onClick={(e) => { e.stopPropagation(); onOpenLightbox(); }}
+        {/* Hover zoom hint (bottom-right) — clicking the card already opens
+            it, but a visible affordance helps signal "this is previewable." */}
+        <div className="photo-zoom-hint" style={{
+          position: "absolute", bottom: 6, right: 6,
+          background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+          border: "1px solid rgba(255,255,255,0.18)",
+          color: "rgba(255,255,255,0.92)", borderRadius: 6,
+          fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 600,
+          padding: "2px 6px", opacity: 0, transition: "opacity 0.12s",
+          pointerEvents: "none",
+        }}>⤢ Open</div>
+
+        {/* Checkbox — always visible, isolated click target */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          aria-label={selected ? "Deselect photo" : "Select photo"}
           style={{
-            position: "absolute", bottom: 5, right: 5,
-            background: "rgba(0,0,0,0.42)", backdropFilter: "blur(4px)",
-            border: "none", color: "rgba(255,255,255,0.85)", borderRadius: 5,
-            fontFamily: FONTS.body, fontSize: 9, fontWeight: 600,
-            padding: "2px 5px", cursor: "pointer", opacity: 0, transition: "opacity 0.15s",
+            position: "absolute", top: 6, right: 6,
+            width: 22, height: 22, borderRadius: 6,
+            border: `2px solid ${selected ? COLORS.fill : "rgba(255,255,255,0.85)"}`,
+            background: selected ? COLORS.fill : "rgba(0,0,0,0.32)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            backdropFilter: "blur(4px)", transition: "all 0.1s",
+            padding: 0, cursor: "pointer",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0")}
-        >↗</button>
-
-        {/* Checkbox */}
-        <div style={{
-          position: "absolute", top: 5, right: 5, width: 17, height: 17, borderRadius: 5,
-          border: `2px solid ${selected ? COLORS.fill : "rgba(255,255,255,0.7)"}`,
-          background: selected ? COLORS.fill : "rgba(255,255,255,0.3)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          backdropFilter: "blur(4px)", transition: "all 0.1s",
-        }}>
-          {selected && <span style={{ color: "#fff", fontSize: 10, lineHeight: 1 }}>✓</span>}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div style={{ padding: "6px 8px 8px" }}>
-        <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {photo.talentName}
-        </div>
-        <div style={{ fontFamily: FONTS.body, fontSize: 10, color: COLORS.inkMuted, marginTop: 1 }}>
-          {VARIANT_LABELS[photo.variantKind] ?? photo.variantKind}
-        </div>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
-          style={{
-            marginTop: 5, width: "100%", padding: "3px 0", borderRadius: 5,
-            border: `1px solid ${COLORS.borderSoft}`, background: "transparent",
-            color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 9.5, cursor: "pointer",
-          }}>
-          Details
+        >
+          {selected && <span style={{ color: "#fff", fontSize: 12, lineHeight: 1, fontWeight: 700 }}>✓</span>}
         </button>
       </div>
+
+      {/* Footer — talent name only */}
+      <div style={{ padding: "7px 9px 9px" }}>
+        <div style={{
+          fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, color: COLORS.ink,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>{photo.talentName}</div>
+      </div>
+
+      <style jsx>{`
+        div:hover :global(.photo-zoom-hint) { opacity: 1; }
+      `}</style>
     </div>
   );
 }
@@ -1316,9 +1512,10 @@ export function WorkspaceMediaPage() {
     observerRef.current = obs;
   }, []);
 
-  // ── Lightbox + detail drawer ─────────────────────────────────────
+  // ── Unified lightbox+detail surface ──────────────────────────────
+  // One state for the open photo. The MediaLightbox component below is
+  // both viewer (image left) and editor (rail right).
   const [lightboxPhoto, setLightboxPhoto] = useState<MediaPhoto | null>(null);
-  const [detailPhoto, setDetailPhoto] = useState<MediaPhoto | null>(null);
 
   // ── Pending review: keyboard-driven focus ────────────────────────
   // focusedPendingIdx tracks which card is "active" in the pending view
@@ -1492,7 +1689,7 @@ export function WorkspaceMediaPage() {
     const h = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (lightboxPhoto || showAssignModal) return;
-      if (e.key === "Escape") { setSelected(new Set()); setDetailPhoto(null); setShowShortcutHelp(false); }
+      if (e.key === "Escape") { setSelected(new Set()); setShowShortcutHelp(false); }
       if (e.key === "?") { setShowShortcutHelp((v) => !v); }
       if ((e.metaKey || e.ctrlKey) && e.key === "a") { e.preventDefault(); setSelected(new Set(filtered.map((p) => p.id))); }
 
@@ -1536,14 +1733,6 @@ export function WorkspaceMediaPage() {
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, view, focusedPendingIdx, filtered, lightboxPhoto, showAssignModal]);
-
-  // ── Live-sync detail drawer ──────────────────────────────────────
-  // After queueRouterRefresh() updates bridge data, derive the current photo
-  // from the photos array so the drawer always shows fresh metadata.
-  const detailPhotoLive = useMemo(
-    () => detailPhoto ? (photos.find((p) => p.id === detailPhoto.id) ?? detailPhoto) : null,
-    [detailPhoto, photos],
-  );
 
   // Selection helpers
   const toggleOne = (id: string) => setSelected((prev) => {
@@ -1908,27 +2097,28 @@ export function WorkspaceMediaPage() {
               </span>
               <Sep />
 
-              {/* View / edit */}
-              <BulkBtn icon="🔍" label="Preview" disabled={!isSingle} onClick={() => { if (firstSelected) setLightboxPhoto(firstSelected); }} />
+              {/* Per-photo action — single select only. Bulk-only path: open
+                  the unified surface for the one selected photo (kept here so
+                  bulk-mode users can edit details without losing selection). */}
               <BulkBtn
                 icon="⭐"
-                label="Set as card"
+                label="Set as profile"
                 disabled={!isSingle || !firstSelected || firstSelected.variantKind === "card"}
                 onClick={() => { if (firstSelected) void setSelectedAsCardPhoto(firstSelected); }}
               />
               <Sep />
 
-              {/* Organise — Apply WM is gated on configuration, not on the
-                  preview-visibility toggle, so the user can still apply WM
-                  when they've hidden the on-page overlay. */}
-              {wsWatermarkConfigured && <BulkBtn icon="🔖" label="Apply WM" onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })} />}
-              <BulkBtn icon="📂" label="Move to…" onClick={() => void openReassignModal()} />
+              {/* Organise — Watermark is gated on configuration, not on the
+                  preview-visibility toggle, so the user can still apply
+                  watermarks when they've hidden the on-page overlay. */}
+              {wsWatermarkConfigured && <BulkBtn icon="🔖" label="Watermark…" onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })} />}
+              <BulkBtn icon="📂" label="Move to talent…" onClick={() => void openReassignModal()} />
               {folders.length > 0 && (
                 <select
                   onChange={(e) => { if (e.target.value) { void addSelectedToFolder(e.target.value); e.target.value = ""; } }}
                   style={{ background: "rgba(255,255,255,0.13)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "5px 10px", borderRadius: 7, cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600 }}
                 >
-                  <option value="">+ Folder…</option>
+                  <option value="">Add to folder…</option>
                   {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               )}
@@ -1999,8 +2189,7 @@ export function WorkspaceMediaPage() {
                         wsLogoUrl={wsLogoUrl}
                         wsWatermarkEnabled={wsWatermarkEnabled}
                         onToggle={() => toggleOne(photo.id)}
-                        onOpenLightbox={() => setLightboxPhoto(photo)}
-                        onOpenDetail={() => setDetailPhoto(photo)}
+                        onOpen={() => setLightboxPhoto(photo)}
                       />
                     ))}
                   </div>
@@ -2033,8 +2222,7 @@ export function WorkspaceMediaPage() {
                     wsLogoUrl={wsLogoUrl}
                     wsWatermarkEnabled={wsWatermarkEnabled}
                     onToggle={() => { toggleOne(photo.id); if (view.kind === "pending") setFocusedPendingIdx(photoIdx); }}
-                    onOpenLightbox={() => setLightboxPhoto(photo)}
-                    onOpenDetail={() => setDetailPhoto(photo)}
+                    onOpen={() => { if (view.kind === "pending") setFocusedPendingIdx(photoIdx); setLightboxPhoto(photo); }}
                   />
                 ))}
               </div>
@@ -2321,7 +2509,7 @@ export function WorkspaceMediaPage() {
       <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
         {/* Sidebar */}
         <MediaSidebar
-          view={view} setView={(v) => { setView(v); setSelected(new Set()); setDetailPhoto(null); setFocusedPendingIdx(0); }}
+          view={view} setView={(v) => { setView(v); setSelected(new Set()); setFocusedPendingIdx(0); }}
           photos={photos} folders={folders}
           onNewFolder={() => { setEditingFolder(undefined); setShowFolderModal(true); }}
           settings={mediaSettings}
@@ -2331,29 +2519,19 @@ export function WorkspaceMediaPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
           {renderGrid()}
         </div>
-
-        {/* Detail drawer */}
-        {detailPhotoLive && (
-          <PhotoDetailDrawer
-            photo={detailPhotoLive}
-            folders={folders}
-            wsLogoUrl={wsLogoUrl}
-            wsWatermarkEnabled={wsWatermarkEnabled}
-            onClose={() => setDetailPhoto(null)}
-            onRefresh={() => queueRouterRefresh()}
-          />
-        )}
       </div>
 
-      {/* Lightbox */}
+      {/* Unified detail-lightbox (image left, scrollable rail right) */}
       {lightboxPhoto && (
         <MediaLightbox
           photo={lightboxPhoto}
           allPhotos={filtered}
+          folders={folders}
           wsLogoUrl={wsLogoUrl}
           wsWatermarkEnabled={wsWatermarkEnabled}
           onClose={() => setLightboxPhoto(null)}
-          onSetCard={() => { toast("Set as card photo"); queueRouterRefresh(); }}
+          onRefresh={() => queueRouterRefresh()}
+          toast={toast}
         />
       )}
 
@@ -2409,6 +2587,7 @@ export function WorkspaceMediaPage() {
             </div>
             {[
               { label: "General", rows: [
+                ["Click", "Open photo (preview + edit)"],
                 ["Esc", "Clear selection / close"],
                 ["⌘A", "Select all visible"],
                 ["?", "Toggle this help"],
@@ -2418,9 +2597,10 @@ export function WorkspaceMediaPage() {
                 ["N", "Reject focused photo"],
                 ["← →", "Navigate between photos"],
               ]},
-              { label: "Lightbox", rows: [
+              { label: "When a photo is open", rows: [
                 ["← →", "Previous / next photo"],
-                ["Esc", "Close lightbox"],
+                ["Y / N", "Approve / Reject (if pending)"],
+                ["Esc", "Close"],
               ]},
             ].map(({ label, rows }) => (
               <div key={label} style={{ marginBottom: 18 }}>

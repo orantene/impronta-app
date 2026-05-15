@@ -23,6 +23,7 @@ export async function actionUploadAndAssignMedia(
   talentProfileId: string,
   variantKind: UploadVariant = "gallery",
   metadata: Record<string, unknown> = {},
+  sourceMediaAssetId: string | null = null,
 ): Promise<RegisterMediaResult> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -114,6 +115,7 @@ export async function actionUploadAndAssignMedia(
       mime_type: meta.mimeType,
       original_filename: meta.originalFilename,
       metadata,
+      source_media_asset_id: sourceMediaAssetId,
     })
     .select("id")
     .single();
@@ -389,6 +391,104 @@ export async function actionSetAsCardPhoto(
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { id: (inserted as { id: string }).id, publicUrl: urlData.publicUrl } };
+}
+
+// ─── Set a media asset as the talent's hero (cover) photo ────────────────────
+//
+// Promotes an existing media asset to variant_kind="hero" in-place.
+// Soft-deletes any existing hero for this talent first (singleton).
+// Mirrors the talent-side `setTalentHero` action so the admin Media page can
+// use this without depending on the roster route.
+
+export async function actionSetAsHeroPhoto(
+  mediaAssetId: string,
+  talentProfileId: string,
+): Promise<ActionResult<null>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const now = new Date().toISOString();
+
+  await admin
+    .from("media_assets")
+    .update({ deleted_at: now, updated_at: now })
+    .eq("owner_talent_profile_id", talentProfileId)
+    .eq("variant_kind", "hero")
+    .eq("tenant_id", tenantId)
+    .neq("id", mediaAssetId)
+    .is("deleted_at", null);
+
+  const { error } = await admin
+    .from("media_assets")
+    .update({ variant_kind: "hero", sort_order: 0, updated_at: now })
+    .eq("id", mediaAssetId)
+    .eq("tenant_id", tenantId)
+    .eq("owner_talent_profile_id", talentProfileId);
+
+  if (error) {
+    logServerError("media.actions.setHeroPhoto", error);
+    return { ok: false, error: "Could not set cover photo." };
+  }
+
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  return { ok: true, data: null };
+}
+
+// ─── Revert a cropped photo to its original ──────────────────────────────────
+//
+// When a photo is a crop derivative (source_media_asset_id is set), this
+// soft-deletes the crop and returns the source asset id so the UI can navigate
+// back to the original. If the photo has no source link, returns null.
+
+export async function actionRevertCropToSource(
+  croppedMediaAssetId: string,
+): Promise<ActionResult<{ sourceMediaAssetId: string | null }>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { data: crop } = await admin
+    .from("media_assets")
+    .select("source_media_asset_id")
+    .eq("id", croppedMediaAssetId)
+    .eq("tenant_id", tenantId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!crop) return { ok: false, error: "Photo not found." };
+  const sourceId = (crop as { source_media_asset_id: string | null }).source_media_asset_id;
+  if (!sourceId) return { ok: false, error: "This photo has no original on record." };
+
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("media_assets")
+    .update({ deleted_at: now, updated_at: now })
+    .eq("id", croppedMediaAssetId)
+    .eq("tenant_id", tenantId);
+
+  if (error) {
+    logServerError("media.actions.revertCrop", error);
+    return { ok: false, error: "Could not revert. Try again." };
+  }
+
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  return { ok: true, data: { sourceMediaAssetId: sourceId } };
 }
 
 // ─── Reorder media assets for a talent ───────────────────────────────────────

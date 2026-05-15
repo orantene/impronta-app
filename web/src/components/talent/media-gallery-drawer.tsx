@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -8,6 +8,7 @@ import {
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
+import { createTranslator } from "@/i18n/messages";
 import { PhotoCropperDialog } from "./photo-cropper-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ export interface MediaGalleryDrawerProps {
   onSetHero: (mediaAssetId: string) => Promise<{ ok: boolean; error?: string }>;
   onAddToPortfolio: (storagePath: string, width: number, height: number) => Promise<{ ok: boolean; error?: string; id?: string }>;
   onDeleteAsset: (mediaAssetId: string) => Promise<{ ok: boolean; error?: string }>;
-  onUploadFile: (file: File, variantKind: string) => Promise<{ ok: boolean; error?: string; asset?: MediaAsset }>;
+  onUploadFile: (file: File, variantKind: string, sourceMediaAssetId?: string | null) => Promise<{ ok: boolean; error?: string; asset?: MediaAsset }>;
   /** Optional — when provided, shows the Google Drive import UI (legacy single-shot). */
   onImportFromDrive?: (driveUrl: string) => Promise<{ ok: boolean; error?: string; assets?: Array<{ id: string; publicUrl: string }> }>;
   /** Progressive Drive import — list files first, then import one at a time for real progress. */
@@ -51,6 +52,7 @@ export interface MediaGalleryDrawerProps {
   currentAvatarAssetId?: string | null;
   /** Optional — ID of the asset currently set as hero/cover. Used to show badge. */
   currentHeroAssetId?: string | null;
+  locale?: string;
 }
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
@@ -78,9 +80,21 @@ const F = '"Inter", system-ui, sans-serif';
 
 type PhotoActionStatus =
   | { kind: "idle" }
-  | { kind: "busy"; action: string }
-  | { kind: "ok"; action: string }
-  | { kind: "error"; action: string; message: string };
+  | { kind: "busy"; action: PhotoActionKind }
+  | { kind: "ok"; action: PhotoActionKind }
+  | { kind: "error"; action: PhotoActionKind; message: string };
+
+type PhotoActionKind = "avatar" | "hero" | "portfolio" | "delete";
+
+function withCount(template: string, count: number): string {
+  return template
+    .replace("{count}", String(count))
+    .replaceAll("{plural}", count === 1 ? "" : "s");
+}
+
+function galleryActionLabel(t: (key: string) => string, action: PhotoActionKind): string {
+  return t(`admin.talent.edit.mediaGallery.actions.${action}`);
+}
 
 // ─── Injected styles ─────────────────────────────────────────────────────────
 
@@ -114,7 +128,7 @@ const INJECTED_STYLES = `
 }
 .mgd-drag-handle {
   position: absolute;
-  top: 5px;
+  bottom: 5px;
   left: 5px;
   z-index: 3;
   opacity: 0;
@@ -138,7 +152,7 @@ const INJECTED_STYLES = `
 .mgd-checkbox-wrap {
   position: absolute;
   top: 5px;
-  left: 5px;
+  right: 5px;
   z-index: 4;
   opacity: 0;
   transition: opacity 150ms ease;
@@ -212,7 +226,9 @@ export function MediaGalleryDrawer({
   onReorderAssets,
   currentAvatarAssetId,
   currentHeroAssetId,
+  locale = "en",
 }: MediaGalleryDrawerProps) {
+  const t = useMemo(() => createTranslator(locale), [locale]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
@@ -260,7 +276,7 @@ export function MediaGalleryDrawer({
 
   const handleBulkDelete = useCallback(async () => {
     if (!selectedIds.size) return;
-    if (!confirm(`Delete ${selectedIds.size} photo${selectedIds.size > 1 ? "s" : ""}? This can't be undone.`)) return;
+    if (!confirm(withCount(t("admin.talent.edit.mediaGallery.bulkDeleteConfirm"), selectedIds.size))) return;
     const ids = Array.from(selectedIds);
     // Delete one at a time using existing onDeleteAsset
     const results = await Promise.all(ids.map((id) => onDeleteAsset(id)));
@@ -270,7 +286,7 @@ export function MediaGalleryDrawer({
       onAssetsChange(assets.filter((a) => !succeeded.includes(a.id)));
     }
     setSelectedIds(new Set(failed));
-  }, [selectedIds, assets, onAssetsChange, onDeleteAsset]);
+  }, [selectedIds, assets, onAssetsChange, onDeleteAsset, t]);
 
   const setPhotoStatus = useCallback((id: string, s: PhotoActionStatus) => {
     setPhotoStatuses((prev) => ({ ...prev, [id]: s }));
@@ -297,7 +313,7 @@ export function MediaGalleryDrawer({
       if (res.ok && res.asset) {
         results.push(res.asset);
       } else {
-        errors.push(res.error ?? "Upload failed.");
+        errors.push(res.error ?? t("admin.talent.edit.mediaGallery.uploadFailed"));
       }
     }
 
@@ -311,7 +327,7 @@ export function MediaGalleryDrawer({
     if (results.length > 0) {
       onAssetsChange([...assets, ...results]);
     }
-  }, [assets, onAssetsChange, onUploadFile]);
+  }, [assets, onAssetsChange, onUploadFile, t]);
 
   // ── Per-photo actions ───────────────────────────────────────────────────────
 
@@ -322,9 +338,9 @@ export function MediaGalleryDrawer({
       setPhotoStatus(asset.id, { kind: "ok", action: "avatar" });
       clearPhotoStatusLater(asset.id);
     } else {
-      setPhotoStatus(asset.id, { kind: "error", action: "avatar", message: res.error ?? "Failed." });
+      setPhotoStatus(asset.id, { kind: "error", action: "avatar", message: res.error ?? t("admin.talent.edit.mediaGallery.actionFailed") });
     }
-  }, [onSetAvatar, setPhotoStatus, clearPhotoStatusLater]);
+  }, [onSetAvatar, setPhotoStatus, clearPhotoStatusLater, t]);
 
   const handleSetHero = useCallback(async (asset: MediaAsset) => {
     setPhotoStatus(asset.id, { kind: "busy", action: "hero" });
@@ -333,9 +349,9 @@ export function MediaGalleryDrawer({
       setPhotoStatus(asset.id, { kind: "ok", action: "hero" });
       clearPhotoStatusLater(asset.id);
     } else {
-      setPhotoStatus(asset.id, { kind: "error", action: "hero", message: res.error ?? "Failed." });
+      setPhotoStatus(asset.id, { kind: "error", action: "hero", message: res.error ?? t("admin.talent.edit.mediaGallery.actionFailed") });
     }
-  }, [onSetHero, setPhotoStatus, clearPhotoStatusLater]);
+  }, [onSetHero, setPhotoStatus, clearPhotoStatusLater, t]);
 
   const handleAddToPortfolio = useCallback(async (asset: MediaAsset) => {
     setPhotoStatus(asset.id, { kind: "busy", action: "portfolio" });
@@ -344,12 +360,12 @@ export function MediaGalleryDrawer({
       setPhotoStatus(asset.id, { kind: "ok", action: "portfolio" });
       clearPhotoStatusLater(asset.id);
     } else {
-      setPhotoStatus(asset.id, { kind: "error", action: "portfolio", message: res.error ?? "Failed." });
+      setPhotoStatus(asset.id, { kind: "error", action: "portfolio", message: res.error ?? t("admin.talent.edit.mediaGallery.actionFailed") });
     }
-  }, [onAddToPortfolio, setPhotoStatus, clearPhotoStatusLater]);
+  }, [onAddToPortfolio, setPhotoStatus, clearPhotoStatusLater, t]);
 
   const handleDelete = useCallback(async (asset: MediaAsset) => {
-    if (!confirm(`Delete this photo? This can't be undone.`)) return;
+    if (!confirm(t("admin.talent.edit.mediaGallery.deleteConfirm"))) return;
     setPhotoStatus(asset.id, { kind: "busy", action: "delete" });
     const res = await onDeleteAsset(asset.id);
     if (res.ok) {
@@ -361,9 +377,9 @@ export function MediaGalleryDrawer({
       });
       if (lightboxAsset?.id === asset.id) setLightboxAsset(null);
     } else {
-      setPhotoStatus(asset.id, { kind: "error", action: "delete", message: res.error ?? "Delete failed." });
+      setPhotoStatus(asset.id, { kind: "error", action: "delete", message: res.error ?? t("admin.talent.edit.mediaGallery.deleteFailed") });
     }
-  }, [assets, onAssetsChange, onDeleteAsset, lightboxAsset, setPhotoStatus]);
+  }, [assets, onAssetsChange, onDeleteAsset, lightboxAsset, setPhotoStatus, t]);
 
   // ── Crop confirm ────────────────────────────────────────────────────────────
 
@@ -372,23 +388,25 @@ export function MediaGalleryDrawer({
     const { asset, cropAspect } = cropTarget;
     const isAvatar = cropAspect === 1;
 
-    // Upload the cropped blob as a new asset.
+    // Upload the cropped blob as a new asset. Pass the source asset id so
+    // the new row records crop lineage — that's what enables "Revert to
+    // original" later.
     const file = new File([blob], `crop-${isAvatar ? "avatar" : "hero"}.webp`, { type: "image/webp" });
     const variantKind = isAvatar ? "card" : "hero";
-    const res = await onUploadFile(file, variantKind);
-    if (!res.ok || !res.asset) throw new Error(res.error ?? "Upload failed.");
+    const res = await onUploadFile(file, variantKind, asset.id);
+    if (!res.ok || !res.asset) throw new Error(res.error ?? t("admin.talent.edit.mediaGallery.uploadFailed"));
 
     // Then assign it as avatar or hero.
     if (isAvatar) {
       const r = await onSetAvatar(res.asset.id);
-      if (!r.ok) throw new Error(r.error ?? "Could not set as avatar.");
+      if (!r.ok) throw new Error(r.error ?? t("admin.talent.edit.mediaGallery.couldNotSetAvatar"));
     } else {
       const r = await onSetHero(res.asset.id);
-      if (!r.ok) throw new Error(r.error ?? "Could not set as hero.");
+      if (!r.ok) throw new Error(r.error ?? t("admin.talent.edit.mediaGallery.couldNotSetHero"));
     }
 
     onAssetsChange([...assets, res.asset]);
-  }, [cropTarget, onUploadFile, onSetAvatar, onSetHero, assets, onAssetsChange]);
+  }, [cropTarget, onUploadFile, onSetAvatar, onSetHero, assets, onAssetsChange, t]);
 
   // ── Change 5: handleDragEnd with reorder status ─────────────────────────────
 
@@ -424,7 +442,7 @@ export function MediaGalleryDrawer({
       setDriveStatus({ kind: "listing" });
       const listed = await onListDriveFiles(driveUrl.trim());
       if (!listed.ok || !listed.fileIds?.length) {
-        setDriveStatus({ kind: "error", message: listed.error ?? "No images found." });
+        setDriveStatus({ kind: "error", message: listed.error ?? t("admin.talent.edit.mediaGallery.noImagesFound") });
         return;
       }
       const total = listed.fileIds.length;
@@ -448,7 +466,10 @@ export function MediaGalleryDrawer({
 
       const imported = newAssets.length;
       if (imported === 0) {
-        setDriveStatus({ kind: "error", message: `Import failed — ${failCount} file${failCount > 1 ? "s" : ""} could not be downloaded.` });
+        setDriveStatus({
+          kind: "error",
+          message: withCount(t("admin.talent.edit.mediaGallery.importFailedFiles"), failCount),
+        });
         return;
       }
       setDriveStatus({ kind: "ok", count: imported });
@@ -463,7 +484,7 @@ export function MediaGalleryDrawer({
     setDriveStatus({ kind: "importing", completed: 0, total: 0 });
     const res = await onImportFromDrive(driveUrl.trim());
     if (!res.ok || !res.assets) {
-      setDriveStatus({ kind: "error", message: res.error ?? "Import failed." });
+      setDriveStatus({ kind: "error", message: res.error ?? t("admin.talent.edit.mediaGallery.importFailed") });
       return;
     }
     const newAssets: MediaAsset[] = res.assets.map((a, i) => ({
@@ -474,14 +495,14 @@ export function MediaGalleryDrawer({
     setDriveUrl("");
     setShowDriveInput(false);
     setTimeout(() => setDriveStatus({ kind: "idle" }), 3000);
-  }, [onListDriveFiles, onImportDriveFile, onImportFromDrive, driveUrl, assets, onAssetsChange]);
+  }, [onListDriveFiles, onImportDriveFile, onImportFromDrive, driveUrl, assets, onAssetsChange, t]);
 
   if (!open) return null;
 
   const focusLabel = focusSlot === "avatar"
-    ? "Select a photo to use as your avatar (1:1)"
+    ? t("admin.talent.edit.mediaGallery.focusAvatar")
     : focusSlot === "hero"
-      ? "Select a photo to use as your hero (4:5)"
+      ? t("admin.talent.edit.mediaGallery.focusHero")
       : null;
 
   return (
@@ -490,7 +511,7 @@ export function MediaGalleryDrawer({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Photo gallery"
+        aria-label={t("admin.talent.edit.mediaGallery.dialogLabel")}
         style={{
           position: "fixed",
           inset: 0,
@@ -528,7 +549,7 @@ export function MediaGalleryDrawer({
           >
             <div>
               <div style={{ fontFamily: F, fontSize: 16, fontWeight: 700, color: C.ink }}>
-                Photo gallery
+                {t("admin.talent.edit.mediaGallery.title")}
               </div>
               {focusLabel && (
                 <div style={{ fontFamily: F, fontSize: 12, color: C.accent, marginTop: 2, fontWeight: 500 }}>
@@ -541,16 +562,16 @@ export function MediaGalleryDrawer({
                   fontFamily: F, fontSize: 11, fontWeight: 500, marginTop: 3,
                   color: reorderStatus === "saved" ? C.success : reorderStatus === "error" ? C.error : C.inkMuted,
                 }}>
-                  {reorderStatus === "saving" && "Saving order…"}
-                  {reorderStatus === "saved" && "✓ Order saved"}
-                  {reorderStatus === "error" && "⚠ Reorder failed"}
+                  {reorderStatus === "saving" && t("admin.talent.edit.mediaGallery.savingOrder")}
+                  {reorderStatus === "saved" && t("admin.talent.edit.mediaGallery.orderSaved")}
+                  {reorderStatus === "error" && t("admin.talent.edit.mediaGallery.reorderFailed")}
                 </div>
               )}
             </div>
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              aria-label="Close"
+              aria-label={t("admin.talent.edit.mediaGallery.closeAria")}
               style={{
                 background: "none",
                 border: "none",
@@ -587,8 +608,8 @@ export function MediaGalleryDrawer({
               }}
             >
               {uploadStatus.kind === "uploading"
-                ? `Uploading ${uploadStatus.count} photo${uploadStatus.count > 1 ? "s" : ""}…`
-                : "+ Upload photos (select multiple)"}
+                ? withCount(t("admin.talent.edit.mediaGallery.uploadProgress"), uploadStatus.count)
+                : t("admin.talent.edit.mediaGallery.uploadButton")}
             </button>
             <input
               ref={fileInputRef}
@@ -606,7 +627,7 @@ export function MediaGalleryDrawer({
                 background: C.successSoft, border: `1px solid rgba(46,125,91,0.25)`,
                 borderRadius: 8, fontFamily: F, fontSize: 12, color: C.success,
               }}>
-                {uploadStatus.count} photo{uploadStatus.count > 1 ? "s" : ""} uploaded.
+                {withCount(t("admin.talent.edit.mediaGallery.uploaded"), uploadStatus.count)}
               </div>
             )}
             {uploadStatus.kind === "error" && (
@@ -636,7 +657,7 @@ export function MediaGalleryDrawer({
                       <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
                       <path d="M9 18c-4.51 2-5-2-7-2" />
                     </svg>
-                    Import from Google Drive
+                    {t("admin.talent.edit.mediaGallery.importDrive")}
                   </button>
                 ) : (
                   <div>
@@ -646,7 +667,7 @@ export function MediaGalleryDrawer({
                         value={driveUrl}
                         onChange={(e) => setDriveUrl(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") void handleDriveImport(); }}
-                        placeholder="Paste Drive file or folder link…"
+                        placeholder={t("admin.talent.edit.mediaGallery.drivePlaceholder")}
                         autoFocus
                         style={{
                           flex: 1, fontFamily: F, fontSize: 12,
@@ -666,7 +687,7 @@ export function MediaGalleryDrawer({
                           opacity: (driveStatus.kind === "importing" || driveStatus.kind === "listing" || !driveUrl.trim()) ? 0.5 : 1,
                         }}
                       >
-                        {driveStatus.kind === "listing" ? "Finding…" : driveStatus.kind === "importing" ? "Importing…" : "Import"}
+                        {driveStatus.kind === "listing" ? t("admin.talent.edit.mediaGallery.finding") : driveStatus.kind === "importing" ? t("admin.talent.edit.mediaGallery.importing") : t("admin.talent.edit.mediaGallery.import")}
                       </button>
                       <button
                         type="button"
@@ -678,12 +699,12 @@ export function MediaGalleryDrawer({
                       >×</button>
                     </div>
                     <div style={{ marginTop: 4, fontSize: 11, color: C.inkDim }}>
-                      Works with any file or folder shared as "Anyone with the link"
+                      {t("admin.talent.edit.mediaGallery.driveShareHint")}
                     </div>
                     {driveStatus.kind === "listing" && (
                       <div style={{ marginTop: 8 }}>
                         <div style={{ fontFamily: F, fontSize: 12, color: C.inkMuted, marginBottom: 5 }}>
-                          Finding photos in folder…
+                          {t("admin.talent.edit.mediaGallery.findingPhotos")}
                         </div>
                         <div style={{ height: 5, borderRadius: 3, background: C.border, overflow: "hidden" }}>
                           <div style={{ height: "100%", width: "40%", borderRadius: 3, background: C.accent, animation: "drive-shimmer 1.2s ease-in-out infinite alternate" }} />
@@ -695,8 +716,13 @@ export function MediaGalleryDrawer({
                         <div style={{ display: "flex", justifyContent: "space-between", fontFamily: F, fontSize: 12, color: C.inkMuted, marginBottom: 5 }}>
                           <span>
                             {driveStatus.total > 0
-                              ? `Uploading ${driveStatus.completed} of ${driveStatus.total} photo${driveStatus.total > 1 ? "s" : ""}…`
-                              : "Uploading…"}
+                              ? withCount(
+                                  t("admin.talent.edit.mediaGallery.driveUploadProgress")
+                                    .replace("{completed}", String(driveStatus.completed))
+                                    .replace("{total}", String(driveStatus.total)),
+                                  driveStatus.total,
+                                )
+                              : t("admin.talent.edit.mediaGallery.uploading")}
                           </span>
                           {driveStatus.total > 0 && (
                             <span style={{ color: C.accent, fontWeight: 600 }}>
@@ -719,7 +745,7 @@ export function MediaGalleryDrawer({
                     )}
                     {driveStatus.kind === "ok" && (
                       <div style={{ marginTop: 6, padding: "5px 10px", background: C.successSoft, border: `1px solid rgba(46,125,91,0.25)`, borderRadius: 6, fontFamily: F, fontSize: 12, color: C.success }}>
-                        {driveStatus.count} photo{driveStatus.count > 1 ? "s" : ""} imported successfully.
+                        {withCount(t("admin.talent.edit.mediaGallery.imported"), driveStatus.count)}
                       </div>
                     )}
                     {driveStatus.kind === "error" && (
@@ -749,7 +775,7 @@ export function MediaGalleryDrawer({
                 fontFamily: F, fontSize: 13, color: C.inkMuted, textAlign: "center",
               }}>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>📷</div>
-                No photos yet. Upload some above.
+                {t("admin.talent.edit.mediaGallery.empty")}
               </div>
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -783,6 +809,7 @@ export function MediaGalleryDrawer({
                           onSetHero={() => handleSetHero(asset)}
                           onAddToPortfolio={() => handleAddToPortfolio(asset)}
                           onDelete={() => handleDelete(asset)}
+                          t={t}
                         />
                       );
                     })}
@@ -809,7 +836,7 @@ export function MediaGalleryDrawer({
               zIndex: 10,
             }}>
               <span style={{ fontFamily: F, fontSize: 13, fontWeight: 600, color: C.ink, flex: 1 }}>
-                {selectedIds.size} selected
+                {withCount(t("admin.talent.edit.mediaGallery.selected"), selectedIds.size)}
               </span>
               <button
                 type="button"
@@ -821,7 +848,7 @@ export function MediaGalleryDrawer({
                   cursor: "pointer",
                 }}
               >
-                Delete selected
+                {t("admin.talent.edit.mediaGallery.deleteSelected")}
               </button>
               <button
                 type="button"
@@ -832,7 +859,7 @@ export function MediaGalleryDrawer({
                   textDecoration: "underline", padding: 0,
                 }}
               >
-                Deselect all
+                {t("admin.talent.edit.mediaGallery.deselectAll")}
               </button>
             </div>
           )}
@@ -849,9 +876,10 @@ export function MediaGalleryDrawer({
             setLightboxAsset(null);
           }}
           onCropForHero={() => {
-            setCropTarget({ asset: lightboxAsset, cropAspect: 4 / 5 });
+            setCropTarget({ asset: lightboxAsset, cropAspect: 16 / 9 });
             setLightboxAsset(null);
           }}
+          t={t}
         />
       )}
 
@@ -863,6 +891,7 @@ export function MediaGalleryDrawer({
           sourceUrl={cropTarget.asset.url}
           aspect={cropTarget.cropAspect}
           onCropConfirm={handleCropConfirm}
+          locale={locale}
         />
       )}
     </>
@@ -886,6 +915,7 @@ type PhotoCardProps = {
   onSetHero: () => void;
   onAddToPortfolio: () => void;
   onDelete: () => void;
+  t: (key: string) => string;
 };
 
 function SortablePhotoCard(props: PhotoCardProps) {
@@ -901,7 +931,7 @@ function SortablePhotoCard(props: PhotoCardProps) {
       {!props.isBulkMode && (
         <div
           {...listeners}
-          title="Drag to reorder"
+          title={props.t("admin.talent.edit.mediaGallery.dragToReorder")}
           className="mgd-drag-handle"
         >
           ⠿
@@ -914,7 +944,7 @@ function SortablePhotoCard(props: PhotoCardProps) {
           type="checkbox"
           checked={props.isSelected}
           onChange={props.onToggleSelect}
-          aria-label="Select photo"
+          aria-label={props.t("admin.talent.edit.mediaGallery.selectPhoto")}
           style={{
             width: 16,
             height: 16,
@@ -944,6 +974,7 @@ function PhotoCard({
   onSetHero,
   onAddToPortfolio,
   onDelete,
+  t,
 }: PhotoCardProps) {
   // Change 6: approval state border
   const approvalBorder = asset.approvalState === "pending"
@@ -981,7 +1012,7 @@ function PhotoCard({
             width: "100%",
             height: "100%",
           }}
-          aria-label="View photo"
+          aria-label={t("admin.talent.edit.mediaGallery.viewPhoto")}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -998,41 +1029,41 @@ function PhotoCard({
             className="mgd-overlay-btn"
             onClick={onSetAvatar}
             disabled={isBusy}
-            aria-label="Set as avatar"
+            aria-label={t("admin.talent.edit.mediaGallery.setAvatar")}
           >
             ★
-            <span className="mgd-tooltip">Set as avatar</span>
+            <span className="mgd-tooltip">{t("admin.talent.edit.mediaGallery.setAvatar")}</span>
           </button>
           <button
             type="button"
             className="mgd-overlay-btn"
             onClick={onSetHero}
             disabled={isBusy}
-            aria-label="Set as cover photo"
+            aria-label={t("admin.talent.edit.mediaGallery.setCover")}
           >
             ▦
-            <span className="mgd-tooltip">Set as cover photo</span>
+            <span className="mgd-tooltip">{t("admin.talent.edit.mediaGallery.setCover")}</span>
           </button>
           <button
             type="button"
             className="mgd-overlay-btn"
             onClick={onAddToPortfolio}
             disabled={isBusy}
-            aria-label="Add to portfolio"
+            aria-label={t("admin.talent.edit.mediaGallery.addPortfolio")}
           >
             ⊕
-            <span className="mgd-tooltip">Add to portfolio</span>
+            <span className="mgd-tooltip">{t("admin.talent.edit.mediaGallery.addPortfolio")}</span>
           </button>
           <button
             type="button"
             className="mgd-overlay-btn"
             onClick={onDelete}
             disabled={isBusy}
-            aria-label="Delete"
+            aria-label={t("admin.talent.edit.mediaGallery.delete")}
             style={{ background: "rgba(192,57,43,0.45)" }}
           >
             🗑
-            <span className="mgd-tooltip">Delete</span>
+            <span className="mgd-tooltip">{t("admin.talent.edit.mediaGallery.delete")}</span>
           </button>
         </div>
 
@@ -1063,59 +1094,34 @@ function PhotoCard({
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 11, fontWeight: 700, fontFamily: F,
           }}
-            title={asset.uploadError ?? "Upload failed"}
+            title={asset.uploadError ?? t("admin.talent.edit.mediaGallery.uploadFailed")}
           >
             ✕
           </div>
         )}
 
-        {/* Focus slot hint */}
-        {focusSlot && focusSlot !== "gallery" && (
-          <div style={{
-            position: "absolute", bottom: 4, left: 4,
-            background: "rgba(15,79,62,0.85)", color: "#fff",
-            fontFamily: F, fontSize: 9, fontWeight: 700,
-            padding: "2px 5px", borderRadius: 4, letterSpacing: 0.3,
-            pointerEvents: "none",
-          }}>
-            {focusSlot === "avatar" ? "Set as avatar" : "Set as hero"}
-          </div>
-        )}
-
-        {/* Change 3: role badges top-right */}
-        <div style={{
-          position: "absolute", top: 5, right: 5,
-          display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-end",
-          pointerEvents: "none",
-        }}>
-          {isAvatar && (
-            <span style={{
-              background: "#2E7D5B", color: "#fff",
-              fontFamily: F, fontSize: 9, fontWeight: 700,
-              padding: "2px 6px", borderRadius: 4, letterSpacing: 0.3,
-            }}>
-              Avatar
-            </span>
-          )}
-          {isHero && (
-            <span style={{
-              background: "#1A5E9E", color: "#fff",
-              fontFamily: F, fontSize: 9, fontWeight: 700,
-              padding: "2px 6px", borderRadius: 4, letterSpacing: 0.3,
-            }}>
-              Cover
-            </span>
-          )}
-          {asset.approvalState === "pending" && (
-            <span style={{
-              background: "#8A6F1A", color: "#fff",
-              fontFamily: F, fontSize: 9, fontWeight: 700,
-              padding: "2px 6px", borderRadius: 4, letterSpacing: 0.3,
-            }}>
-              Pending
-            </span>
-          )}
-        </div>
+        {/* Single-slot status/role pill (top-left) — matches admin Media page.
+            Priority: Rejected > Review > Profile > Cover. Avatar holds both
+            roles simultaneously rarely; when it does, Profile wins (most
+            prominent on talent cards in lists). */}
+        {(() => {
+          const pill =
+            asset.approvalState === "rejected" ? { bg: "rgba(192,57,43,0.94)", label: "Rejected" } :
+            asset.approvalState === "pending"  ? { bg: "rgba(212,151,12,0.94)", label: t("admin.talent.edit.mediaGallery.pendingBadge") } :
+            isAvatar                            ? { bg: "rgba(15,79,62,0.94)",  label: t("admin.talent.edit.mediaGallery.avatarBadge") } :
+            isHero                              ? { bg: "rgba(78,52,114,0.94)", label: t("admin.talent.edit.mediaGallery.coverBadge") } :
+            null;
+          return pill ? (
+            <div style={{
+              position: "absolute", top: 5, left: 5,
+              background: pill.bg, color: "#fff",
+              fontFamily: F, fontSize: 9.5, fontWeight: 700,
+              padding: "2px 7px", borderRadius: 5, letterSpacing: 0.3,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+              pointerEvents: "none",
+            }}>{pill.label}</div>
+          ) : null;
+        })()}
       </div>
 
       {/* Status strip (busy/ok/error feedback for avatar/hero/portfolio actions) */}
@@ -1139,8 +1145,8 @@ function PhotoCard({
               : "#0F4F3E",
           border: `1px solid ${status.kind === "error" ? "rgba(192,57,43,0.2)" : status.kind === "ok" ? "rgba(46,125,91,0.2)" : "rgba(15,79,62,0.15)"}`,
         }}>
-          {status.kind === "busy" && `${status.action}…`}
-          {status.kind === "ok" && `${status.action} ✓`}
+          {status.kind === "busy" && `${galleryActionLabel(t, status.action)}…`}
+          {status.kind === "ok" && `${galleryActionLabel(t, status.action)} ✓`}
           {status.kind === "error" && status.message}
         </div>
       )}
@@ -1155,17 +1161,19 @@ function Lightbox({
   onClose,
   onCropForAvatar,
   onCropForHero,
+  t,
 }: {
   asset: MediaAsset;
   onClose: () => void;
   onCropForAvatar: () => void;
   onCropForHero: () => void;
+  t: (key: string) => string;
 }) {
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Photo preview"
+      aria-label={t("admin.talent.edit.mediaGallery.previewLabel")}
       style={{
         position: "fixed",
         inset: 0,
@@ -1218,7 +1226,7 @@ function Lightbox({
             cursor: "pointer", color: C.ink,
           }}
         >
-          Crop for avatar (1:1)
+          {t("admin.talent.edit.mediaGallery.cropAvatar")}
         </button>
         <button
           type="button"
@@ -1230,7 +1238,7 @@ function Lightbox({
             cursor: "pointer", color: C.ink,
           }}
         >
-          Crop for hero (4:5)
+          {t("admin.talent.edit.mediaGallery.cropHero")}
         </button>
       </div>
     </div>
