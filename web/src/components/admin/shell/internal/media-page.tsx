@@ -100,7 +100,7 @@ const VARIANT_LABELS: Record<string, string> = {
 
 // Card pill colors per variant/status — single slot, priority order.
 // "Profile" = 1:1 headshot (variantKind=card)
-// "Cover"   = 4:5 banner   (variantKind=hero)
+// "Cover"   = 16:9 banner  (variantKind=hero)
 const PILL_STYLES = {
   rejected: { bg: "rgba(192,57,43,0.94)", fg: "#fff", label: "Rejected" },
   pending:  { bg: "rgba(212,151,12,0.94)", fg: "#fff", label: "Review" },
@@ -800,7 +800,7 @@ function MediaLightbox({
         {/* Scrollable body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Role assignment: Profile (1:1) and Cover (4:5) */}
+          {/* Role assignment: Profile (1:1) and Cover (16:9 banner) */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {current.variantKind !== "card" && (
               <button type="button" disabled={setCardBusy} onClick={() => void setAsProfile()}

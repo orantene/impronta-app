@@ -501,7 +501,8 @@
           "errorSize": "La imagen debe ser menor de 20 MB.",
           "stepPrepare": "Preparar imagen",
           "stepUpload": "Subir al almacenamiento",
-          "stepSave": "Guardar en base de datos"
+          "stepSave": "Guardar en base de datos",
+          "savedWithId": "Guardado ✓ (id {id})"
         },
         "status": {
           "draft": "Borrador",
@@ -527,9 +528,10 @@
         },
         "photos": {
           "sectionTitle": "Fotos",
-          "avatarLabel": "Avatar",
+          "avatarLabel": "Perfil",
           "coverLabel": "Portada",
-          "galleryBtn": "Galería"
+          "galleryBtn": "Galería",
+          "removeSlotAria": "Quitar {label}"
         },
         "form": {
           "title": "Detalles del perfil",
@@ -602,6 +604,7 @@
           "addBtn": "+ Agregar",
           "doneBtn": "Listo",
           "emptyState": "Ninguno configurado.",
+          "removeAria": "Quitar término",
           "searchPlaceholder": "Buscar {bucketLabel}…",
           "noMatches": "Sin coincidencias para \"{search}\"",
           "noMore": "No hay más términos disponibles."
@@ -614,6 +617,7 @@
           "emptyState": "Sin idiomas aún.",
           "nativeBadge": "Nativo",
           "nativeSpeaker": "Hablante nativo",
+          "removeAria": "Quitar idioma",
           "proficiency": {
             "beginner": "Principiante",
             "conversational": "Conversacional",
@@ -647,8 +651,11 @@
           "title": "Dónde trabajan",
           "subtitle": "Base de operaciones + ciudades a las que están dispuestos a viajar.",
           "addBtn": "+ Agregar área",
+          "submitBtn": "Agregar área",
           "cancelBtn": "Cancelar",
           "emptyState": "Sin áreas de servicio configuradas.",
+          "cityRequired": "Agrega una ciudad.",
+          "storageUnavailable": "El cliente de almacenamiento no está disponible.",
           "kinds": {
             "homeBase": "Base principal",
             "frequent": "Frecuente",
@@ -663,7 +670,8 @@
           "radiusPlaceholder": "Radio (km)",
           "travelFee": "Se aplica tarifa de viaje",
           "notesPlaceholder": "Notas (opcional)",
-          "feeBadge": "Tarifa"
+          "feeBadge": "Tarifa",
+          "removeAreaAria": "Quitar área"
         },
         "gallery": {
           "titleLabel": "Galería",
@@ -675,7 +683,78 @@
           "errorRegisterFailed": "{name}: error al registrar ({message}).",
           "emptyTitle": "Sin fotos de portafolio aún",
           "emptyMessage": "Arrastra imágenes aquí o haz clic en \"Subir fotos\" para comenzar.",
-          "deleteConfirm": "¿Eliminar esta foto? Esta acción no se puede deshacer."
+          "deleteConfirm": "¿Eliminar esta foto? Esta acción no se puede deshacer.",
+          "portfolioAlt": "Foto de portafolio",
+          "deletePhotoAria": "Eliminar foto"
+        },
+        "mediaGallery": {
+          "dialogLabel": "Galería de fotos",
+          "title": "Galería de fotos",
+          "focusAvatar": "Selecciona una foto para usar como perfil (1:1)",
+          "focusHero": "Selecciona una foto para usar como portada (banner 16:9)",
+          "savingOrder": "Guardando orden…",
+          "orderSaved": "✓ Orden guardado",
+          "reorderFailed": "⚠ No se pudo reordenar",
+          "closeAria": "Cerrar",
+          "uploadProgress": "Subiendo {count} foto{plural}…",
+          "uploadButton": "+ Subir fotos (selección múltiple)",
+          "uploaded": "{count} foto{plural} subida{plural}.",
+          "importDrive": "Importar desde Google Drive",
+          "drivePlaceholder": "Pega el enlace de archivo o carpeta de Drive…",
+          "finding": "Buscando…",
+          "importing": "Importando…",
+          "import": "Importar",
+          "driveShareHint": "Funciona con cualquier archivo o carpeta compartido como \"Cualquier persona con el enlace\"",
+          "findingPhotos": "Buscando fotos en la carpeta…",
+          "driveUploadProgress": "Subiendo {completed} de {total} foto{plural}…",
+          "uploading": "Subiendo…",
+          "imported": "{count} foto{plural} importada{plural} correctamente.",
+          "empty": "Aún no hay fotos. Sube algunas arriba.",
+          "selected": "{count} seleccionada{plural}",
+          "deleteSelected": "Eliminar selección",
+          "deselectAll": "Deseleccionar todo",
+          "bulkDeleteConfirm": "¿Eliminar {count} foto{plural}? Esta acción no se puede deshacer.",
+          "deleteConfirm": "¿Eliminar esta foto? Esta acción no se puede deshacer.",
+          "dragToReorder": "Arrastra para reordenar",
+          "selectPhoto": "Seleccionar foto",
+          "viewPhoto": "Ver foto",
+          "setAvatar": "Usar como perfil",
+          "setCover": "Usar como portada",
+          "setHero": "Usar como portada",
+          "addPortfolio": "Agregar al portafolio",
+          "delete": "Eliminar",
+          "avatarBadge": "Perfil",
+          "coverBadge": "Portada",
+          "pendingBadge": "Revisión",
+          "previewLabel": "Vista previa de foto",
+          "cropAvatar": "Recortar para perfil (1:1)",
+          "cropHero": "Recortar para portada (16:9 banner)",
+          "noImagesFound": "No se encontraron imágenes.",
+          "uploadFailed": "No se pudo subir.",
+          "actionFailed": "No se pudo completar.",
+          "deleteFailed": "No se pudo eliminar.",
+          "importFailed": "No se pudo importar.",
+          "importFailedFiles": "No se pudo importar: {count} archivo{plural} no se pudo descargar.",
+          "couldNotSetAvatar": "No se pudo usar como perfil.",
+          "couldNotSetHero": "No se pudo usar como portada.",
+          "actions": {
+            "avatar": "perfil",
+            "hero": "portada",
+            "portfolio": "portafolio",
+            "delete": "eliminar"
+          }
+        },
+        "cropper": {
+          "dialogLabel": "Recortar foto",
+          "title": "Recortar foto",
+          "squareAvatar": "Cuadrado — foto de perfil",
+          "freeCrop": "Recorte libre",
+          "portraitHero": "Banner — foto de portada",
+          "zoom": "Zoom",
+          "cancel": "Cancelar",
+          "applying": "Aplicando…",
+          "useCrop": "Usar recorte",
+          "cropFailed": "No se pudo recortar. Intenta de nuevo."
         },
         "delete": {
           "btn": "Quitar de la lista",
@@ -713,7 +792,8 @@
           "complete": "Perfil completamente lleno — listo para publicar.",
           "incomplete": "{count} más por completar antes de publicar.",
           "missingSectionHeader": "Faltante",
-          "doneSection": "Hecho ({count})"
+          "doneSection": "Hecho ({count})",
+          "sectionsLabel": "secciones"
         }
       }
     },

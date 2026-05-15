@@ -4467,6 +4467,8 @@ export function TalentPhotoEditDrawer() {
     ?? null;
 
   const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [currentAvatarAssetId, setCurrentAvatarAssetId] = useState<string | null>(null);
+  const [currentHeroAssetId, setCurrentHeroAssetId] = useState<string | null>(null);
   const loadedForRef = useRef<string | null>(null);
 
   // Load existing assets when drawer opens for a real talent.
@@ -4481,6 +4483,8 @@ export function TalentPhotoEditDrawer() {
     if (hero) all.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0, sourceMediaAssetId: hero.sourceMediaAssetId });
     for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder, sourceMediaAssetId: g.sourceMediaAssetId });
     setAssets(all);
+    setCurrentAvatarAssetId(card?.id ?? null);
+    setCurrentHeroAssetId(hero?.id ?? null);
   }, []);
 
   useEffect(() => {
@@ -4530,13 +4534,19 @@ export function TalentPhotoEditDrawer() {
       onAssetsChange={setAssets}
       focusSlot={focusSlot}
       locale={copy.locale}
+      currentAvatarAssetId={currentAvatarAssetId}
+      currentHeroAssetId={currentHeroAssetId}
       onSetAvatar={async (mediaAssetId) => {
         const { setTalentAvatar } = await import("@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions");
-        return setTalentAvatar(tenantSlug, talentId, mediaAssetId);
+        const r = await setTalentAvatar(tenantSlug, talentId, mediaAssetId);
+        if (r.ok) setCurrentAvatarAssetId(mediaAssetId);
+        return r;
       }}
       onSetHero={async (mediaAssetId) => {
         const { setTalentHero } = await import("@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions");
-        return setTalentHero(tenantSlug, talentId, mediaAssetId);
+        const r = await setTalentHero(tenantSlug, talentId, mediaAssetId);
+        if (r.ok) setCurrentHeroAssetId(mediaAssetId);
+        return r;
       }}
       onAddToPortfolio={async (storagePath) => {
         const { registerPortfolioPhoto } = await import("@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions");
@@ -4564,7 +4574,7 @@ export function TalentPhotoEditDrawer() {
         if (!res.ok) return { ok: false, error: res.error };
         return {
           ok: true,
-          asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0 },
+          asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0, sourceMediaAssetId: res.data.sourceMediaAssetId },
         };
       }}
       onRevertCrop={async (croppedId) => {

@@ -590,7 +590,7 @@ function ThreeSlotPhotoPanel({
             if (!res.ok) return { ok: false, error: res.error };
             return {
               ok: true,
-              asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0 },
+              asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0, sourceMediaAssetId: res.data.sourceMediaAssetId },
             };
           }}
           onRevertCrop={async (croppedId) => {

@@ -501,7 +501,8 @@
           "errorSize": "Image must be under 20 MB.",
           "stepPrepare": "Prepare image",
           "stepUpload": "Upload to storage",
-          "stepSave": "Save to database"
+          "stepSave": "Save to database",
+          "savedWithId": "Saved ✓ (id {id})"
         },
         "status": {
           "draft": "Draft",
@@ -527,9 +528,10 @@
         },
         "photos": {
           "sectionTitle": "Photos",
-          "avatarLabel": "Avatar",
+          "avatarLabel": "Profile",
           "coverLabel": "Cover",
-          "galleryBtn": "Gallery"
+          "galleryBtn": "Gallery",
+          "removeSlotAria": "Remove {label}"
         },
         "form": {
           "title": "Profile details",
@@ -602,6 +604,7 @@
           "addBtn": "+ Add",
           "doneBtn": "Done",
           "emptyState": "None set.",
+          "removeAria": "Remove term",
           "searchPlaceholder": "Search {bucketLabel}…",
           "noMatches": "No matches for \"{search}\"",
           "noMore": "No more terms available."
@@ -614,6 +617,7 @@
           "emptyState": "No languages yet.",
           "nativeBadge": "Native",
           "nativeSpeaker": "Native speaker",
+          "removeAria": "Remove language",
           "proficiency": {
             "beginner": "Beginner",
             "conversational": "Conversational",
@@ -647,8 +651,11 @@
           "title": "Where they work",
           "subtitle": "Home base + cities they're willing to travel for.",
           "addBtn": "+ Add area",
+          "submitBtn": "Add area",
           "cancelBtn": "Cancel",
           "emptyState": "No service areas set.",
+          "cityRequired": "Add a city name.",
+          "storageUnavailable": "Storage client unavailable.",
           "kinds": {
             "homeBase": "Home base",
             "frequent": "Frequent",
@@ -663,7 +670,8 @@
           "radiusPlaceholder": "Radius (km)",
           "travelFee": "Travel fee applies",
           "notesPlaceholder": "Notes (optional)",
-          "feeBadge": "Fee"
+          "feeBadge": "Fee",
+          "removeAreaAria": "Remove area"
         },
         "gallery": {
           "titleLabel": "Gallery",
@@ -675,7 +683,78 @@
           "errorRegisterFailed": "{name}: register failed ({message}).",
           "emptyTitle": "No portfolio photos yet",
           "emptyMessage": "Drop images here or click \"Upload photos\" to start.",
-          "deleteConfirm": "Delete this photo? This cannot be undone."
+          "deleteConfirm": "Delete this photo? This cannot be undone.",
+          "portfolioAlt": "Portfolio photo",
+          "deletePhotoAria": "Delete photo"
+        },
+        "mediaGallery": {
+          "dialogLabel": "Photo gallery",
+          "title": "Photo gallery",
+          "focusAvatar": "Select a photo to use as your profile (1:1)",
+          "focusHero": "Select a photo to use as your cover (16:9 banner)",
+          "savingOrder": "Saving order…",
+          "orderSaved": "✓ Order saved",
+          "reorderFailed": "⚠ Reorder failed",
+          "closeAria": "Close",
+          "uploadProgress": "Uploading {count} photo{plural}…",
+          "uploadButton": "+ Upload photos (select multiple)",
+          "uploaded": "{count} photo{plural} uploaded.",
+          "importDrive": "Import from Google Drive",
+          "drivePlaceholder": "Paste Drive file or folder link…",
+          "finding": "Finding…",
+          "importing": "Importing…",
+          "import": "Import",
+          "driveShareHint": "Works with any file or folder shared as \"Anyone with the link\"",
+          "findingPhotos": "Finding photos in folder…",
+          "driveUploadProgress": "Uploading {completed} of {total} photo{plural}…",
+          "uploading": "Uploading…",
+          "imported": "{count} photo{plural} imported successfully.",
+          "empty": "No photos yet. Upload some above.",
+          "selected": "{count} selected",
+          "deleteSelected": "Delete selected",
+          "deselectAll": "Deselect all",
+          "bulkDeleteConfirm": "Delete {count} photo{plural}? This can't be undone.",
+          "deleteConfirm": "Delete this photo? This can't be undone.",
+          "dragToReorder": "Drag to reorder",
+          "selectPhoto": "Select photo",
+          "viewPhoto": "View photo",
+          "setAvatar": "Use as profile",
+          "setCover": "Use as cover",
+          "setHero": "Use as cover",
+          "addPortfolio": "Add to portfolio",
+          "delete": "Delete",
+          "avatarBadge": "Profile",
+          "coverBadge": "Cover",
+          "pendingBadge": "Review",
+          "previewLabel": "Photo preview",
+          "cropAvatar": "Crop for profile (1:1)",
+          "cropHero": "Crop for cover (16:9 banner)",
+          "noImagesFound": "No images found.",
+          "uploadFailed": "Upload failed.",
+          "actionFailed": "Failed.",
+          "deleteFailed": "Delete failed.",
+          "importFailed": "Import failed.",
+          "importFailedFiles": "Import failed — {count} file{plural} could not be downloaded.",
+          "couldNotSetAvatar": "Could not set as profile.",
+          "couldNotSetHero": "Could not set as cover.",
+          "actions": {
+            "avatar": "profile",
+            "hero": "cover",
+            "portfolio": "portfolio",
+            "delete": "delete"
+          }
+        },
+        "cropper": {
+          "dialogLabel": "Crop photo",
+          "title": "Crop photo",
+          "squareAvatar": "Square — profile photo",
+          "freeCrop": "Free crop",
+          "portraitHero": "Banner — cover photo",
+          "zoom": "Zoom",
+          "cancel": "Cancel",
+          "applying": "Applying…",
+          "useCrop": "Use crop",
+          "cropFailed": "Crop failed. Try again."
         },
         "delete": {
           "btn": "Remove from roster",
@@ -713,7 +792,8 @@
           "complete": "Profile is fully filled — ready to publish.",
           "incomplete": "{count} more to fill before publish.",
           "missingSectionHeader": "Missing",
-          "doneSection": "Done ({count})"
+          "doneSection": "Done ({count})",
+          "sectionsLabel": "sections"
         }
       }
     },

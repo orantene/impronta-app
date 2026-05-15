@@ -218,31 +218,16 @@ export function DiscoverShell({
     setTotal(initialTotal);
   }, [initialItems, initialTotal]);
 
-  // Progressive enhancement — cards render immediately (no waiting on
-  // availability), then 14-day windows hydrate per visible talent.
-  // Browser concurrency limit (~6) keeps the network behaved with 24 cards.
-  useEffect(() => {
-    const missing = items.filter((t) => !availabilityByTalent.has(t.id)).map((t) => t.id);
-    if (missing.length === 0) return;
-    const controller = new AbortController();
-    Promise.all(
-      missing.map((id) =>
-        fetch(`/api/discover/talent/${id}/availability?days=14`, { signal: controller.signal })
-          .then((r) => (r.ok ? r.json() : { days: [] as DiscoverAvailabilityDay[] }))
-          .then((j: { days: DiscoverAvailabilityDay[] }) => [id, j.days] as const)
-          .catch(() => [id, [] as DiscoverAvailabilityDay[]] as const),
-      ),
-    ).then((results) => {
-      if (controller.signal.aborted) return;
-      setAvailabilityByTalent((prev) => {
-        const next = new Map(prev);
-        for (const [id, days] of results) next.set(id, days);
-        return next;
-      });
-    });
-    return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items]);
+  // D3: the per-card N+1 availability fetch was retired here. Cards now
+  // render immediately from item.availabilityDots14d (denormalized on
+  // the talent_discover_index materialized view) — one query for all
+  // cards instead of N. The granular per-day endpoint
+  // (/api/discover/talent/<id>/availability) is still called by the
+  // detail drawer for the open/tentative/booked/blocked distinction
+  // that the binary dots collapse. The `availabilityByTalent` map below
+  // stays untouched — anything that DOES populate it (e.g. an explicit
+  // hydration trigger) takes precedence over the inline dots inside
+  // AvailabilityStrip.
 
   // Update URL params and let SSR refetch the new initial list.
   const pushFilters = useCallback(
@@ -752,49 +737,130 @@ function DiscoverCard({
             {[item.homeCity, item.homeCountry].filter(Boolean).join(" · ")}
           </div>
         )}
-        <AvailabilityStrip days={availability} />
+        <AvailabilityStrip
+          days={availability}
+          inlineDots={item.availabilityDots14d}
+          availableDaysInNext30={item.availableDaysInNext30}
+          nextAvailableDate={item.nextAvailableDate}
+        />
       </div>
     </div>
   );
 }
 
-function AvailabilityStrip({ days }: { days: DiscoverAvailabilityDay[] | undefined }) {
-  // Placeholder before hydration — neutral dots so the card height doesn't jump.
-  const dots: Array<DiscoverAvailabilityDay | null> = days ?? Array.from({ length: 14 }, () => null);
-  const colorFor = (s: DiscoverAvailabilityDay["status"] | null): string => {
-    if (s === null) return "rgba(11,11,13,0.10)";
+/**
+ * D3: prefers the inline 14-char availability string from the
+ * talent_discover_index materialized view (one query for all cards,
+ * surfaces on first paint). Falls back to richer per-day data fetched
+ * from /api/discover/talent/<id>/availability when present — that
+ * surface carries the tentative / booked / blocked distinction the
+ * binary dots lose.
+ *
+ * Color mapping:
+ *   ·  → open (green)
+ *   ×  → blocked (grey)
+ *   open / tentative / booked / blocked → per-day legend (4 colors)
+ */
+function AvailabilityStrip({
+  days,
+  inlineDots,
+  availableDaysInNext30,
+  nextAvailableDate,
+}: {
+  days: DiscoverAvailabilityDay[] | undefined;
+  inlineDots: string | null;
+  availableDaysInNext30: number | null;
+  nextAvailableDate: string | null;
+}) {
+  type Cell = { color: string; title?: string };
+  const colorFor = (s: DiscoverAvailabilityDay["status"]): string => {
     if (s === "booked") return "#B0303A";
     if (s === "blocked") return "rgba(11,11,13,0.32)";
     if (s === "tentative") return "#D9A03A";
     return "#2E7D5B"; // open
   };
-  const openDays = days ? days.filter((d) => d.status === "open").length : null;
+
+  let cells: Cell[];
+  if (days && days.length > 0) {
+    // Granular path (richer status). Drops the loading placeholder.
+    cells = days.slice(0, 14).map((d) => ({
+      color: colorFor(d.status),
+      title: `${d.date}: ${d.status}`,
+    }));
+  } else if (inlineDots) {
+    // Fast path — view-driven binary dots.
+    const chars = inlineDots.split("");
+    cells = Array.from({ length: 14 }, (_, i) => ({
+      color: chars[i] === "·"
+        ? "#2E7D5B"
+        : chars[i] === "×"
+          ? "rgba(11,11,13,0.32)"
+          : "rgba(11,11,13,0.10)",
+    }));
+  } else {
+    // No data at all — neutral placeholder so card height doesn't jump.
+    cells = Array.from({ length: 14 }, () => ({ color: "rgba(11,11,13,0.10)" }));
+  }
+
+  // Footer label — prefer granular open-day count when available; fall
+  // back to the 30-day rollup from the view.
+  const granularOpenIn14 = days
+    ? days.filter((d) => d.status === "open").length
+    : null;
+  const footerLabel = (() => {
+    if (granularOpenIn14 !== null) {
+      return granularOpenIn14 === 0
+        ? "Fully booked next 14 days"
+        : `${granularOpenIn14} of next 14 days open`;
+    }
+    if (typeof availableDaysInNext30 === "number") {
+      if (availableDaysInNext30 === 0) return "Fully booked next 30 days";
+      return `${availableDaysInNext30} of next 30 days open`;
+    }
+    return null;
+  })();
+
+  // Optional 2nd-line "Available from …" — only when we have a concrete date.
+  const nextAvailLabel = (() => {
+    if (!nextAvailableDate) return null;
+    const d = new Date(nextAvailableDate);
+    if (Number.isNaN(d.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (d <= today) return null; // already available today — redundant
+    const month = d.toLocaleString("en-US", { month: "short" });
+    return `Next free ${month} ${d.getDate()}`;
+  })();
+
   return (
     <div style={{ marginTop: 10 }}>
       <div
         style={{ display: "flex", gap: 2, alignItems: "center" }}
-        aria-label={openDays !== null ? `${openDays} of next 14 days open` : "Availability loading"}
+        aria-label={footerLabel ?? "Availability"}
       >
-        {dots.slice(0, 14).map((d, i) => (
+        {cells.map((c, i) => (
           <span
             // eslint-disable-next-line react/no-array-index-key
             key={i}
-            title={d ? `${d.date}: ${d.status}` : undefined}
+            title={c.title}
             style={{
               width: 5, height: 5, borderRadius: 999,
-              background: colorFor(d ? d.status : null),
+              background: c.color,
               flexShrink: 0,
             }}
           />
         ))}
       </div>
-      <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 4, fontFamily: FONT }}>
-        {openDays === null
-          ? "Loading availability…"
-          : openDays === 0
-            ? "Fully booked next 14 days"
-            : `${openDays} of next 14 days open`}
-      </div>
+      {footerLabel && (
+        <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 4, fontFamily: FONT }}>
+          {footerLabel}
+        </div>
+      )}
+      {nextAvailLabel && (
+        <div style={{ fontSize: 10, color: C.inkDim, marginTop: 1, fontFamily: FONT }}>
+          {nextAvailLabel}
+        </div>
+      )}
     </div>
   );
 }

@@ -14,7 +14,7 @@ type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string
 
 // ─── Upload and immediately register under a talent ───────────────────────────
 
-export type RegisterMediaResult = ActionResult<{ id: string; publicUrl: string }>;
+export type RegisterMediaResult = ActionResult<{ id: string; publicUrl: string; sourceMediaAssetId: string | null }>;
 
 export type UploadVariant = "gallery" | "card" | "hero" | "lightbox" | "polaroid" | "reel";
 
@@ -131,7 +131,16 @@ export async function actionUploadAndAssignMedia(
   const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
-  return { ok: true, data: { id: (inserted as { id: string }).id, publicUrl: urlData.publicUrl } };
+  return {
+    ok: true,
+    data: {
+      id: (inserted as { id: string }).id,
+      publicUrl: urlData.publicUrl,
+      // Echo back so the caller can render Revert immediately on crops
+      // without waiting for a reload.
+      sourceMediaAssetId,
+    },
+  };
 }
 
 // ─── Assign existing storage path to a talent (bulk upload flow) ─────────────
