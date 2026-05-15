@@ -209,11 +209,37 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
                             {inq.company || inq.contact_name}
                             {inq.company && <span style={{ marginLeft: 8, color: C.inkMuted, fontWeight: 500 }}>· {inq.contact_name}</span>}
                           </div>
-                          <div style={{ marginTop: 2, fontSize: 12, color: C.inkMuted, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <div style={{ marginTop: 2, fontSize: 12, color: C.inkMuted, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                             <span>📅 {fmtEventDate(inq.event_date)}</span>
                             {inq.event_location && <span>📍 {inq.event_location}</span>}
                             {inq.quantity != null && <span>👥 {inq.quantity}</span>}
-                            {inq.source_channel && <span>· {humanize(inq.source_channel)}</span>}
+                            {(inq.source_channel === "discover_single_talent" ||
+                              inq.source_channel === "discover_shortlist") ? (
+                              <span
+                                title={
+                                  inq.source_channel === "discover_shortlist"
+                                    ? "Originated from a Discover shortlist (multi-talent fan-out — sibling agencies received their own copies)."
+                                    : "Originated from Tulala Discover."
+                                }
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 3,
+                                  fontSize: 9.5,
+                                  fontWeight: 700,
+                                  letterSpacing: 0.3,
+                                  textTransform: "uppercase",
+                                  padding: "1px 6px",
+                                  borderRadius: 4,
+                                  background: "rgba(29,78,216,0.08)",
+                                  color: "#1D4ED8",
+                                }}
+                              >
+                                ◎ {inq.source_channel === "discover_shortlist" ? "Shortlist" : "Discover"}
+                              </span>
+                            ) : (
+                              inq.source_channel && <span>· {humanize(inq.source_channel)}</span>
+                            )}
                           </div>
                         </div>
                         <span style={{ color: C.inkMuted, fontSize: 18 }}>›</span>
