@@ -215,6 +215,35 @@ function InquiryTable({
                       From a pitch
                     </span>
                   )}
+                  {(inq.source_channel === "discover_single_talent" ||
+                    inq.source_channel === "discover_shortlist") && (
+                    <span
+                      title={
+                        inq.source_channel === "discover_shortlist"
+                          ? "You sent this inquiry to multiple talents from a Discover shortlist"
+                          : "You sent this inquiry from Discover"
+                      }
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "1px 7px",
+                        borderRadius: 999,
+                        background: "rgba(29,78,216,0.08)",
+                        color: "#1D4ED8",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: 0.3,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                      {inq.source_channel === "discover_shortlist" ? "Shortlist" : "Discover"}
+                    </span>
+                  )}
                 </div>
 
                 {/* Primary line */}

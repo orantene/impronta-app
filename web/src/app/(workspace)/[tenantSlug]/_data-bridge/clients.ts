@@ -272,6 +272,14 @@ export type ClientInquiryRow = {
   unreadCount: number;
   /** Phase 9 — set when this inquiry was converted from a curated pitch. */
   source_pitch_id: string | null;
+  /**
+   * Discover unified plan §6 — value space includes
+   * 'discover_single_talent' and 'discover_shortlist' for inquiries
+   * that originated on the buyer-side Discover surface. Other channels:
+   * 'admin_manual', 'public_directory', 'talent_profile_request',
+   * 'pitch_conversion'. Used by the page to surface a source pill.
+   */
+  source_channel: string | null;
 };
 
 /**
@@ -288,7 +296,7 @@ export async function loadClientInquiries(
 
     const { data, error } = await supabase
       .from("inquiries")
-      .select("id, status, event_date, event_location, company, quantity, created_at, next_action_by, source_pitch_id")
+      .select("id, status, event_date, event_location, company, quantity, created_at, next_action_by, source_pitch_id, source_channel")
       .eq("tenant_id", tenantId)
       .eq("client_user_id", userId)
       .order("created_at", { ascending: false })
