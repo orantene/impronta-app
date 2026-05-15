@@ -109,10 +109,14 @@ export function PhotoLightbox({
   }, [current.id]);
 
   // Bubble the current asset back to the parent so its lightbox state tracks
-  // navigation (keeps the cropper source URL fresh too).
+  // navigation (keeps the cropper source URL fresh too). Depend on the id
+  // string instead of the object reference — when parent passes a freshly
+  // re-created allAssets array on every render, `current` is a new object
+  // each time, but its id is stable, so this only fires on real navigation.
   useEffect(() => {
     if (current.id !== asset.id) onNavigate(current);
-  }, [current, asset.id, onNavigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current.id, asset.id, onNavigate]);
 
   const go = useCallback((delta: number) => {
     setCurrentIdx((i) => Math.max(0, Math.min(allAssets.length - 1, i + delta)));
@@ -392,12 +396,21 @@ export function PhotoLightbox({
             </button>
           )}
 
-          {/* External actions — always shown (any asset can be opened/copied) */}
+          {/* External actions — Open/Copy only when we have a real URL.
+              Empty url happens on broken assets; an empty href would open
+              the current page in a new tab, which is worse than no-op. */}
           <div style={{ display: "flex", gap: 6 }}>
-            <a href={current.url} target="_blank" rel="noopener noreferrer" style={{ ...railBtn, flex: 1 }}>
-              Open ↗
-            </a>
-            <button type="button" onClick={copyUrl} style={{ ...railBtn, flex: 1 }}>
+            {current.url ? (
+              <a href={current.url} target="_blank" rel="noopener noreferrer" style={{ ...railBtn, flex: 1 }}>
+                Open ↗
+              </a>
+            ) : (
+              <span style={{ ...railBtn, flex: 1, opacity: 0.4, cursor: "not-allowed" }}>
+                Open ↗
+              </span>
+            )}
+            <button type="button" onClick={copyUrl} disabled={!current.url}
+              style={{ ...railBtn, flex: 1, opacity: current.url ? 1 : 0.4 }}>
               {copied ? "Copied!" : "Copy URL"}
             </button>
           </div>

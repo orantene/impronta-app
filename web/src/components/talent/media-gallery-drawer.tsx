@@ -410,17 +410,25 @@ export function MediaGalleryDrawer({
     if (!res.ok || !res.asset) throw new Error(res.error ?? t("admin.talent.edit.mediaGallery.uploadFailed"));
 
     // Profile/cover crops auto-promote so the new variant is visible in the
-    // slot immediately. Free crops just appear in the gallery.
+    // slot immediately. Free crops just appear in the gallery. If the
+    // promote fails after the upload succeeded, clean up the orphan so we
+    // don't leave a stray gallery photo the user didn't ask for.
     if (role === "profile") {
       const r = await onSetAvatar(res.asset.id);
-      if (!r.ok) throw new Error(r.error ?? t("admin.talent.edit.mediaGallery.couldNotSetAvatar"));
+      if (!r.ok) {
+        void onDeleteAsset(res.asset.id);
+        throw new Error(r.error ?? t("admin.talent.edit.mediaGallery.couldNotSetAvatar"));
+      }
     } else if (role === "cover") {
       const r = await onSetHero(res.asset.id);
-      if (!r.ok) throw new Error(r.error ?? t("admin.talent.edit.mediaGallery.couldNotSetHero"));
+      if (!r.ok) {
+        void onDeleteAsset(res.asset.id);
+        throw new Error(r.error ?? t("admin.talent.edit.mediaGallery.couldNotSetHero"));
+      }
     }
 
     onAssetsChange([...assets, res.asset]);
-  }, [cropTarget, onUploadFile, onSetAvatar, onSetHero, assets, onAssetsChange, t]);
+  }, [cropTarget, onUploadFile, onSetAvatar, onSetHero, onDeleteAsset, assets, onAssetsChange, t]);
 
   // ── Change 5: handleDragEnd with reorder status ─────────────────────────────
 

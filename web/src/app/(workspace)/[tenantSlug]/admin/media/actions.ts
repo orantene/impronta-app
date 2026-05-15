@@ -74,19 +74,13 @@ export async function actionUploadAndAssignMedia(
     return { ok: false, error: "Upload failed. Try again." };
   }
 
-  // Singletons: card and hero each have one row at a time. Soft-delete
-  // any existing rows for this talent + variant before inserting the new one.
+  // Singletons (card / hero): exactly one active row at a time. We insert
+  // the new row FIRST and only soft-delete previous ones if the insert
+  // succeeds — reversing the original order so a failed insert can't leave
+  // the talent with no profile/cover photo. Brief window (microseconds)
+  // where two rows of the same singleton variant are active; queries that
+  // expect one already handle the duplicate via order-by + limit.
   const isSingleton = variantKind === "card" || variantKind === "hero";
-  if (isSingleton) {
-    const now = new Date().toISOString();
-    await admin
-      .from("media_assets")
-      .update({ deleted_at: now, updated_at: now })
-      .eq("owner_talent_profile_id", talentProfileId)
-      .eq("variant_kind", variantKind)
-      .eq("tenant_id", tenantId)
-      .is("deleted_at", null);
-  }
 
   const { data: maxRow } = await admin
     .from("media_assets")
@@ -126,6 +120,19 @@ export async function actionUploadAndAssignMedia(
       logServerError("media.actions.uploadAssign.cleanup", err),
     );
     return { ok: false, error: "Could not save. Try again." };
+  }
+
+  // Insert succeeded — now safe to retire the previous singleton.
+  if (isSingleton) {
+    const now = new Date().toISOString();
+    await admin
+      .from("media_assets")
+      .update({ deleted_at: now, updated_at: now })
+      .eq("owner_talent_profile_id", talentProfileId)
+      .eq("variant_kind", variantKind)
+      .eq("tenant_id", tenantId)
+      .neq("id", (inserted as { id: string }).id)
+      .is("deleted_at", null);
   }
 
   const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
