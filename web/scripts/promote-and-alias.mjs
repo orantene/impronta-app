@@ -130,24 +130,34 @@ function promote(deploymentUrl) {
 function waitForReady(deploymentUrl) {
   console.log("Waiting for build to finish…");
   const id = deploymentUrl.replace(/^https?:\/\//, "");
+  // `vercel inspect` prints a `status` line like `status   ● Ready` or
+  // `status   ● Building` or `status   ● Error`. We match against the human-
+  // readable label, case-insensitively, since the marker glyph can vary by CLI
+  // version. Earlier versions of this script grepped for `state READY`, which
+  // never matched the actual output → script hung until the 10-minute cap.
+  const READY = /status\s+\S*\s*Ready\b/i;
+  const FAILED = /status\s+\S*\s*(Error|Canceled)\b/i;
   for (let i = 0; i < 60; i += 1) {
     const probe = tryRun(`vercel inspect ${id} --scope ${SCOPE} --timeout 5000ms`);
     const out = probe.stdout + probe.stderr;
-    if (out.includes("state\tREADY") || /state\s+READY/.test(out)) {
-      console.log("  ✓ READY");
+    if (READY.test(out)) {
+      console.log("  ✓ Ready");
       return;
     }
-    if (out.includes("ERROR") || out.includes("CANCELED")) {
+    if (FAILED.test(out)) {
       console.error("  ✗ build failed");
       console.error(out);
       process.exit(1);
     }
     process.stdout.write(".");
-    // 10s between probes; total cap 10 minutes.
+    // 10s between probes; total cap 10 minutes. Busy-wait is intentional —
+    // a setTimeout would require switching the whole script to async/await.
     const wait = Date.now() + 10_000;
-    while (Date.now() < wait) {}
+    while (Date.now() < wait) {
+      // eslint-disable-next-line no-empty
+    }
   }
-  console.error("\n  ✗ timed out waiting for READY");
+  console.error("\n  ✗ timed out waiting for Ready");
   process.exit(1);
 }
 
