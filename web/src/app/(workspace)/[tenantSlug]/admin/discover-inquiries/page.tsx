@@ -9,6 +9,7 @@
 // directly. Promotion to first-class nav can come with broader admin-side
 // Discover analytics (A3/A4/A5/A6/A8/A9 from the spec audit).
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -170,7 +171,13 @@ export default async function AdminDiscoverInquiriesPage({
           Inquiries routed to this workspace from Tulala Discover.
           Single-talent inquiries arrive direct; shortlist fan-outs
           arrive as one inquiry per workspace — your row covers only the
-          talents on this workspace&apos;s roster.
+          talents on this workspace&apos;s roster.{" "}
+          <Link
+            href={`/${tenantSlug}/admin/discover-performance`}
+            style={{ color: "#1D4ED8", fontWeight: 600 }}
+          >
+            See 30-day performance →
+          </Link>
         </p>
       </div>
 

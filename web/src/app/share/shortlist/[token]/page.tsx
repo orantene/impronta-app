@@ -11,6 +11,8 @@ import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { verifyShortlistToken } from "@/lib/discover/shortlist-share-token";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ token: string }>;
@@ -235,6 +237,8 @@ async function loadPublicShortlist(
 
 export default async function PublicShortlistPage({ params }: { params: PageParams }) {
   const { token } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   const verified = verifyShortlistToken(decodeURIComponent(token));
   if (!verified.ok) {
@@ -242,13 +246,13 @@ export default async function PublicShortlistPage({ params }: { params: PagePara
       <ShareError
         title={
           verified.reason === "expired"
-            ? "This link has expired"
-            : "This link isn't valid"
+            ? t("public.share.shortlist.expiredTitle")
+            : t("public.share.shortlist.invalidTitle")
         }
         body={
           verified.reason === "expired"
-            ? "Ask the person who sent it for a fresh link."
-            : "Double-check the URL or ask the sender to resend."
+            ? t("public.share.shortlist.expiredBody")
+            : t("public.share.shortlist.invalidBody")
         }
       />
     );
@@ -261,8 +265,8 @@ export default async function PublicShortlistPage({ params }: { params: PagePara
   if (!shortlist) {
     return (
       <ShareError
-        title="Shortlist not available"
-        body="It may have been deleted, or the owner may have removed it from sharing."
+        title={t("public.share.shortlist.notAvailableTitle")}
+        body={t("public.share.shortlist.notAvailableBody")}
       />
     );
   }

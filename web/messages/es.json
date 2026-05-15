@@ -83,6 +83,16 @@
     "common": {
       "brand": "Roster"
     },
+    "share": {
+      "shortlist": {
+        "expiredTitle": "Este enlace ha expirado",
+        "expiredBody": "Pide a quien te lo envió un enlace nuevo.",
+        "invalidTitle": "Este enlace no es válido",
+        "invalidBody": "Revisa la URL o pide al remitente que la reenvíe.",
+        "notAvailableTitle": "Shortlist no disponible",
+        "notAvailableBody": "Puede que haya sido eliminada, o el propietario haya retirado el enlace público."
+      }
+    },
     "home": {
       "hero": {
         "kicker": "Roster gestionado por la agencia",

@@ -83,6 +83,16 @@
     "common": {
       "brand": "Roster"
     },
+    "share": {
+      "shortlist": {
+        "expiredTitle": "This link has expired",
+        "expiredBody": "Ask the person who sent it for a fresh link.",
+        "invalidTitle": "This link isn't valid",
+        "invalidBody": "Double-check the URL or ask the sender to resend.",
+        "notAvailableTitle": "Shortlist not available",
+        "notAvailableBody": "It may have been deleted, or the owner may have removed it from sharing."
+      }
+    },
     "home": {
       "hero": {
         "kicker": "Agency-managed roster",
