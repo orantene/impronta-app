@@ -20,6 +20,22 @@ import { formatClientDate as fmtClientDate } from "../date-format";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
+type PageSearchParams = Promise<{ status?: string }>;
+
+/**
+ * Status filter buckets surfaced as chip row above the list. Server-side
+ * URL-param driven so the page stays a server component (no client
+ * island, no hydration cost). Picks the bucket that matches the
+ * `?status=` query, defaulting to "all".
+ */
+const STATUS_FILTERS = [
+  { key: "all",      label: "All",       matches: () => true },
+  { key: "open",     label: "Open",      matches: (s: string) => s === "sent" || s === "viewed" || s === "edited" },
+  { key: "approved", label: "Approved",  matches: (s: string) => s === "approved" },
+  { key: "done",     label: "Done",      matches: (s: string) => s === "converted" },
+  { key: "closed",   label: "Closed",    matches: (s: string) => s === "declined" || s === "expired" || s === "cancelled" },
+] as const;
+type FilterKey = (typeof STATUS_FILTERS)[number]["key"];
 
 const C = {
   ink:         "#0B0B0D",
@@ -83,8 +99,15 @@ function actionLabel(status: PitchStatus): string {
   return "View";
 }
 
-export default async function ClientPitchesPage({ params }: { params: PageParams }) {
+export default async function ClientPitchesPage({
+  params,
+  searchParams,
+}: {
+  params: PageParams;
+  searchParams: PageSearchParams;
+}) {
   const { tenantSlug } = await params;
+  const { status: rawStatus } = await searchParams;
 
   const session = await getCachedActorSession();
   if (!session.user) notFound();
@@ -97,7 +120,18 @@ export default async function ClientPitchesPage({ params }: { params: PageParams
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const pitches = await loadClientPitches(session.user.id);
+  const allPitches = await loadClientPitches(session.user.id);
+  const activeFilter: FilterKey =
+    STATUS_FILTERS.find((f) => f.key === rawStatus)?.key ?? "all";
+  const matcher = STATUS_FILTERS.find((f) => f.key === activeFilter)!.matches;
+  const pitches = allPitches.filter((p) => matcher(p.status));
+
+  // Per-bucket counts so the chips can show "Approved (3)" — recomputed
+  // server-side from the unfiltered list.
+  const counts = new Map<FilterKey, number>();
+  for (const f of STATUS_FILTERS) {
+    counts.set(f.key, allPitches.filter((p) => f.matches(p.status)).length);
+  }
 
   return (
     <div style={{ fontFamily: FONT, color: C.ink }}>
@@ -121,6 +155,61 @@ export default async function ClientPitchesPage({ params }: { params: PageParams
         </p>
       </header>
 
+      {/* Status filter chips — links so the page stays a server component */}
+      {allPitches.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            flexWrap: "wrap",
+            marginBottom: 16,
+          }}
+        >
+          {STATUS_FILTERS.map((f) => {
+            const isActive = f.key === activeFilter;
+            const count = counts.get(f.key) ?? 0;
+            const href =
+              f.key === "all"
+                ? `/${tenantSlug}/client/pitches`
+                : `/${tenantSlug}/client/pitches?status=${f.key}`;
+            return (
+              <a
+                key={f.key}
+                href={href}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  height: 30,
+                  padding: "0 12px",
+                  borderRadius: 999,
+                  textDecoration: "none",
+                  fontSize: 12.5,
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? "#fff" : C.inkMuted,
+                  background: isActive ? C.ink : "rgba(11,11,13,0.04)",
+                  border: `1px solid ${isActive ? C.ink : C.borderSoft}`,
+                  transition: "all 100ms",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {f.label}
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: isActive ? "rgba(255,255,255,0.65)" : C.inkDim,
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {count}
+                </span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+
       {pitches.length === 0 ? (
         <div
           style={{
@@ -135,11 +224,12 @@ export default async function ClientPitchesPage({ params }: { params: PageParams
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
-            No pitches yet
+            {allPitches.length === 0 ? "No pitches yet" : "Nothing in this view"}
           </div>
           <p style={{ margin: 0 }}>
-            When an agency sends you a pitch, it&apos;ll show up here so you can
-            track and revisit it any time.
+            {allPitches.length === 0
+              ? "When an agency sends you a pitch, it'll show up here so you can track and revisit it any time."
+              : "No pitches match this filter. Switch to another tab above to see the rest."}
           </p>
         </div>
       ) : (
