@@ -495,7 +495,7 @@ function ThreeSlotPhotoPanel({
           />
           {/* Cover slot */}
           <SlotButton
-            label={t("admin.talent.edit.photos.coverLabel")} hint="4:5"
+            label={t("admin.talent.edit.photos.coverLabel")} hint="16:9"
             imageUrl={heroUrl}
             squareSize={58}
             heightPx={72}
