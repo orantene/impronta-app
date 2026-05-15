@@ -16,9 +16,26 @@ This project deploys to **Vercel** (project `tulala`, team `oran-tenes-projects`
 | Command | What it does |
 |---|---|
 | `npm run deploy:check` | Read-only — shows which deployment each custom domain currently points to. |
-| `npm run deploy:promote` | Promotes the latest preview to production AND re-aliases both custom domains. Idempotent. |
+| `npm run deploy:promote` | Promotes the latest preview to production AND re-aliases both custom domains. **Refuses to run if local migrations aren't applied to remote Supabase.** Idempotent. |
 | `npm run deploy:promote -- https://tulala-xxx.vercel.app` | Promote a specific preview URL (rolls back, ships a hotfix, etc.). |
-| `npm run deploy:smoke` | HTTP-only health probe of the live site. Run after every promote and before declaring success. |
+| `npm run deploy:smoke` | HTTP-only health probe of the live site **plus** Supabase migration-drift check. Run after every promote and before declaring success. |
+| `npm run db:push` | Apply all local `supabase/migrations/*.sql` to the linked remote project. Run this after committing a new migration. |
+| `npm run db:check` | Read-only — list local migrations not yet applied to remote Supabase. |
+
+## Schema + code shipping protocol (DO NOT SKIP)
+
+Vercel auto-deploys code on every push. Supabase does **not** auto-apply migrations. The two pipelines are independent, and three separate multi-agent incidents have shipped code that referenced unapplied migrations (silent 500s on the feature that needed the new schema).
+
+The rule: **if your work includes a new migration, `npm run db:push` is part of the commit, not optional.**
+
+Per-agent workflow:
+1. Write code + migration locally
+2. `npm run db:push` — apply to remote Supabase
+3. `npx tsc --noEmit && npm run lint` — gate
+4. `git commit && git push`
+5. (Optional) `npm run deploy:promote` — promote the new build to production
+
+`deploy:promote` blocks if step 2 was skipped. `deploy:smoke` reports drift even when no promote is happening.
 
 ## QA caveat (important for any feature dev)
 

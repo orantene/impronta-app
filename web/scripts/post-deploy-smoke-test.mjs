@@ -162,6 +162,33 @@ async function check_alias_drift() {
   }
 }
 
+// 7) Migration drift — local files vs what Supabase has applied. Critical
+//    because the smoke test's HTTP probes can't see a missing DB table — code
+//    that depends on an unapplied migration only 500s when a user exercises
+//    that feature.
+async function check_migration_drift() {
+  console.log("\nSupabase migration drift");
+  const { spawnSync } = await import("node:child_process");
+  // Reuse the existing checker. It already loads env, handles the RPC, and
+  // exits 0/1 with a clear pending-list. We invoke it as a subprocess so its
+  // own behaviour (env loading, override flag) stays single-source-of-truth.
+  const r = spawnSync(
+    "node",
+    ["--env-file=.env.local", "scripts/check-migrations-applied.mjs"],
+    { encoding: "utf8" },
+  );
+  if (r.status === 0) {
+    pass("all local migrations applied to remote Supabase");
+  } else {
+    fail(
+      "migration drift",
+      // Pull the bulleted list out of the checker's stderr so it shows inline
+      // in the smoke output rather than buried behind a child-process boundary.
+      (r.stderr || r.stdout || "").trim().split("\n").slice(-8).join("\n     "),
+    );
+  }
+}
+
 console.log(`Smoke-testing ${HOST} (and ${PUBLIC_HOST})…`);
 for (const check of [
   check_root_reachable,
@@ -170,6 +197,7 @@ for (const check of [
   check_places_route,
   check_edge_region,
   check_alias_drift,
+  check_migration_drift,
 ]) {
   // eslint-disable-next-line no-await-in-loop
   await check();

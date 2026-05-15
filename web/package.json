@@ -25,6 +25,8 @@
     "deploy:promote": "node scripts/promote-and-alias.mjs",
     "deploy:check": "node scripts/promote-and-alias.mjs --check",
     "deploy:smoke": "node scripts/post-deploy-smoke-test.mjs",
+    "db:push": "npx -y supabase@latest db push --linked --include-all --yes",
+    "db:check": "node --env-file=.env.local scripts/check-migrations-applied.mjs",
     "ci": "npm run check:untracked-imports && npm run typecheck && npm run check:migrations-applied && npm run verify:server-actions && npm run test:phase1-i18n && npm run test:locale-precedence && npm run test:inquiry-workspace && npm run test:ai-guardrails && npm run test:tenant-isolation && npm run test:builder-capabilities && npm run test:builder-node-bindings && npm run test:node-presentation && npm run test:publish-preflight && npm run verify:ui-messages && npm run lint && npm run build",
     "test:auth-routing": "tsx --test src/lib/auth-routing.test.ts",
     "test:access": "tsx --test src/lib/access/parity.test.ts",

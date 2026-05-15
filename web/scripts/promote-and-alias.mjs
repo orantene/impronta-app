@@ -161,6 +161,36 @@ function waitForReady(deploymentUrl) {
   process.exit(1);
 }
 
+// ── Pre-flight: Supabase migration drift ──────────────────────────────────
+// Critical multi-agent safeguard. If you promote a code build that depends on
+// a migration which isn't yet applied to the remote DB, the live site will
+// 500 on features that touch the missing schema (a recent multi-agent
+// incident: three agents' migrations were committed but never pushed → Star
+// button + media v2 + sort-order RPC all silently broken in prod).
+//
+// We gate ON THE DEPLOY, not on the smoke test alone, so the agent who's
+// triggering the promotion can't ship without seeing this.
+function preflightMigrationDriftCheck() {
+  if (checkOnly) return; // --check is read-only; don't block.
+  console.log("Pre-flight: Supabase migration drift check…");
+  const r = spawnSync(
+    "node",
+    ["--env-file=.env.local", "scripts/check-migrations-applied.mjs"],
+    { encoding: "utf8", stdio: "inherit" },
+  );
+  if (r.status === 0) return;
+  console.error(
+    "\n⛔ Refusing to promote — see pending migrations above.\n" +
+      "   Apply them first:  npm run db:push\n" +
+      "   Then re-run:        npm run deploy:promote\n" +
+      "\nIf this is intentional drift (a code-ahead-of-schema release),\n" +
+      "set SKIP_MIGRATION_DRIFT_CHECK=1 to override. Always log the\n" +
+      "reason in the commit message so the next agent understands.",
+  );
+  process.exit(1);
+}
+preflightMigrationDriftCheck();
+
 // ── --check mode: just report ─────────────────────────────────────────────
 if (checkOnly) {
   console.log("Current production aliases:");
