@@ -52,6 +52,8 @@ type DiscoverMetrics = {
     convertedToBooked: number;
     talentsReached: number;
   };
+  /** Daily counts for the sparkline. Length === rangeDays. Index 0 = oldest. */
+  dailyCounts: number[];
   topTalents: Array<{ talentId: string; displayName: string; inquiryCount: number }>;
   topCountries: Array<{ country: string; inquiryCount: number }>;
 };
@@ -63,6 +65,7 @@ async function loadDiscoverMetrics(
   const admin = createServiceRoleClient();
   const empty: DiscoverMetrics = {
     window: { totalInquiries: 0, singleTalent: 0, shortlist: 0, convertedToBooked: 0, talentsReached: 0 },
+    dailyCounts: new Array(rangeDays).fill(0),
     topTalents: [],
     topCountries: [],
   };
@@ -121,12 +124,20 @@ async function loadDiscoverMetrics(
   const talentSet = new Set<string>();
   const talentCounts = new Map<string, { name: string; count: number }>();
   const countryCounts = new Map<string, number>();
+  // Daily bucket — index 0 = oldest day in range, index rangeDays-1 = today.
+  const dailyCounts = new Array(rangeDays).fill(0);
+  const windowStartMs = Date.now() - rangeDays * 24 * 60 * 60 * 1000;
 
   for (const inq of inquiries) {
     if (inq.source_channel === "discover_single_talent") singleTalent++;
     else if (inq.source_channel === "discover_shortlist") shortlist++;
 
     if (inq.status === "booked" || inq.status === "converted") convertedToBooked++;
+
+    // Daily bucket — offset from window start in days, clamped.
+    const createdMs = new Date(inq.created_at).getTime();
+    const dayIndex = Math.floor((createdMs - windowStartMs) / (24 * 60 * 60 * 1000));
+    if (dayIndex >= 0 && dayIndex < rangeDays) dailyCounts[dayIndex]++;
 
     const talentParts = (inq.inquiry_participants ?? []).filter((p) => p.role === "talent");
     for (const p of talentParts) {
@@ -171,9 +182,66 @@ async function loadDiscoverMetrics(
       convertedToBooked,
       talentsReached: talentSet.size,
     },
+    dailyCounts,
     topTalents,
     topCountries,
   };
+}
+
+/**
+ * Pure-SVG sparkline — daily inquiry counts. No external charting lib.
+ * Renders a tiny inline polyline + filled area, plus a label for the
+ * "today" datapoint. Designed for inline use inside a metric card.
+ */
+function Sparkline({
+  values,
+  width = 200,
+  height = 36,
+  stroke = "#1D4ED8",
+  fill = "rgba(29,78,216,0.12)",
+}: {
+  values: number[];
+  width?: number;
+  height?: number;
+  stroke?: string;
+  fill?: string;
+}) {
+  if (values.length === 0) return null;
+  const max = Math.max(1, ...values);
+  const stepX = width / Math.max(1, values.length - 1);
+  const padY = 3;
+  const points = values
+    .map((v, i) => {
+      const x = i * stepX;
+      const y = padY + (height - 2 * padY) * (1 - v / max);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  // Area path = polyline + back-to-bottom-left for fill.
+  const lastX = (values.length - 1) * stepX;
+  const areaPath = `M0,${height} L${points
+    .split(" ")
+    .map((p) => p)
+    .join(" L")} L${lastX.toFixed(1)},${height} Z`;
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      aria-hidden
+      style={{ display: "block" }}
+    >
+      <path d={areaPath} fill={fill} stroke="none" />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 function MetricCard({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
@@ -305,6 +373,36 @@ export default async function AdminDiscoverPerformancePage({
         </div>
       ) : (
         <>
+          {/* ── Daily trend sparkline ── */}
+          <div style={{
+            background: C.cardBg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}>
+            <div>
+              <div style={{
+                fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
+                textTransform: "uppercase", color: C.inkDim,
+              }}>
+                Daily trend
+              </div>
+              <div style={{
+                fontSize: 11.5, color: C.inkMuted, marginTop: 4,
+              }}>
+                {metrics.dailyCounts.length} day{metrics.dailyCounts.length === 1 ? "" : "s"} ·
+                {" "}peak {Math.max(0, ...metrics.dailyCounts)}/day
+              </div>
+            </div>
+            <Sparkline values={metrics.dailyCounts} width={Math.min(360, rangeMeta.days * 8)} height={42} />
+          </div>
+
           {/* ── Top-line metric cards ── */}
           <div style={{
             display: "grid",
