@@ -54,7 +54,12 @@ type DiscoverMetrics = {
   };
   /** Daily counts for the sparkline. Length === rangeDays. Index 0 = oldest. */
   dailyCounts: number[];
-  topTalents: Array<{ talentId: string; displayName: string; inquiryCount: number }>;
+  topTalents: Array<{
+    talentId: string;
+    displayName: string;
+    profileCode: string | null;
+    inquiryCount: number;
+  }>;
   topCountries: Array<{ country: string; inquiryCount: number }>;
 };
 
@@ -85,7 +90,7 @@ async function loadDiscoverMetrics(
       inquiry_participants!inquiry_id (
         role,
         talent_profile_id,
-        talent_profiles!talent_profile_id ( id, display_name, first_name, last_name )
+        talent_profiles!talent_profile_id ( id, display_name, first_name, last_name, profile_code )
       )
       `,
     )
@@ -112,6 +117,7 @@ async function loadDiscoverMetrics(
         display_name: string | null;
         first_name: string | null;
         last_name: string | null;
+        profile_code: string | null;
       } | null;
     }> | null;
   };
@@ -122,7 +128,10 @@ async function loadDiscoverMetrics(
   let shortlist = 0;
   let convertedToBooked = 0;
   const talentSet = new Set<string>();
-  const talentCounts = new Map<string, { name: string; count: number }>();
+  const talentCounts = new Map<
+    string,
+    { name: string; profileCode: string | null; count: number }
+  >();
   const countryCounts = new Map<string, number>();
   // Daily bucket — index 0 = oldest day in range, index rangeDays-1 = today.
   const dailyCounts = new Array(rangeDays).fill(0);
@@ -148,8 +157,8 @@ async function loadDiscoverMetrics(
         (t.display_name ?? "").trim() ||
         `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim() ||
         "Unnamed";
-      const cur = talentCounts.get(t.id) ?? { name, count: 0 };
-      talentCounts.set(t.id, { name, count: cur.count + 1 });
+      const cur = talentCounts.get(t.id) ?? { name, profileCode: t.profile_code, count: 0 };
+      talentCounts.set(t.id, { name, profileCode: t.profile_code, count: cur.count + 1 });
     }
 
     // Crude country derivation from event_location ("City, Country" → last segment).
@@ -165,7 +174,12 @@ async function loadDiscoverMetrics(
   }
 
   const topTalents = Array.from(talentCounts.entries())
-    .map(([id, v]) => ({ talentId: id, displayName: v.name, inquiryCount: v.count }))
+    .map(([id, v]) => ({
+      talentId: id,
+      displayName: v.name,
+      profileCode: v.profileCode,
+      inquiryCount: v.count,
+    }))
     .sort((a, b) => b.inquiryCount - a.inquiryCount)
     .slice(0, 5);
 
@@ -459,29 +473,54 @@ export default async function AdminDiscoverPerformancePage({
                 <div style={{ fontSize: 12.5, color: C.inkMuted }}>No data yet.</div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {topTalents.map((t, i) => (
-                    <div key={t.talentId} style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      fontSize: 13, color: C.ink,
-                    }}>
-                      <div style={{
-                        width: 22, height: 22, borderRadius: 6,
-                        background: C.accentSoft, color: C.accent,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 11.5, fontWeight: 700,
+                  {topTalents.map((t, i) => {
+                    const rowInner = (
+                      <>
+                        <div style={{
+                          width: 22, height: 22, borderRadius: 6,
+                          background: C.accentSoft, color: C.accent,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 11.5, fontWeight: 700, flexShrink: 0,
+                        }}>
+                          {i + 1}
+                        </div>
+                        <div style={{
+                          flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>
+                          {t.displayName}
+                        </div>
+                        <div style={{ fontSize: 12, color: C.inkMuted, fontVariantNumeric: "tabular-nums" }}>
+                          {t.inquiryCount} {t.inquiryCount === 1 ? "inquiry" : "inquiries"}
+                        </div>
+                      </>
+                    );
+                    return t.profileCode ? (
+                      <Link
+                        key={t.talentId}
+                        href={`/t/${t.profileCode}`}
+                        target="_blank"
+                        rel="noopener"
+                        style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          fontSize: 13, color: C.ink,
+                          textDecoration: "none",
+                          padding: "4px 6px",
+                          margin: "-4px -6px",
+                          borderRadius: 6,
+                          transition: "background 0.1s",
+                        }}
+                      >
+                        {rowInner}
+                      </Link>
+                    ) : (
+                      <div key={t.talentId} style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        fontSize: 13, color: C.ink,
                       }}>
-                        {i + 1}
+                        {rowInner}
                       </div>
-                      <div style={{
-                        flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>
-                        {t.displayName}
-                      </div>
-                      <div style={{ fontSize: 12, color: C.inkMuted, fontVariantNumeric: "tabular-nums" }}>
-                        {t.inquiryCount} {t.inquiryCount === 1 ? "inquiry" : "inquiries"}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
