@@ -21,7 +21,7 @@ import { AdminDiscoverInquiriesShell } from "./AdminDiscoverInquiriesShell";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
-type PageSearchParams = Promise<{ source?: string; status?: string }>;
+type PageSearchParams = Promise<{ source?: string; status?: string; trust?: string }>;
 
 const FONT = '"Inter", system-ui, sans-serif';
 
@@ -49,17 +49,30 @@ const STATUS_FILTERS = [
   { key: "closed",    label: "Closed",       matches: (i: AdminDiscoverInquiry) => ["rejected", "expired", "closed", "closed_lost", "archived"].includes(i.status) },
 ] as const;
 
+// Trust tier per project_client_trust_badges.md. Filter is for admin
+// triage — focus on Gold/Silver inquiries first when capacity is tight.
+const TRUST_FILTERS = [
+  { key: "all",      label: "All clients", matches: () => true },
+  { key: "gold",     label: "Gold",        matches: (i: AdminDiscoverInquiry) => i.clientTrustTier === "gold" },
+  { key: "silver",   label: "Silver",      matches: (i: AdminDiscoverInquiry) => i.clientTrustTier === "silver" },
+  { key: "verified", label: "Verified",    matches: (i: AdminDiscoverInquiry) => i.clientTrustTier === "verified" },
+  { key: "basic",    label: "Basic",       matches: (i: AdminDiscoverInquiry) => i.clientTrustTier === "basic" || i.clientTrustTier === null },
+] as const;
+
 type SourceKey = (typeof SOURCE_FILTERS)[number]["key"];
 type StatusKey = (typeof STATUS_FILTERS)[number]["key"];
+type TrustKey  = (typeof TRUST_FILTERS)[number]["key"];
 
 function chipHref(
   tenantSlug: string,
   source: SourceKey,
   status: StatusKey,
+  trust: TrustKey,
 ): string {
   const params = new URLSearchParams();
   if (source !== "all") params.set("source", source);
   if (status !== "all") params.set("status", status);
+  if (trust !== "all")  params.set("trust",  trust);
   const qs = params.toString();
   const base = `/${tenantSlug}/admin/discover-inquiries`;
   return qs ? `${base}?${qs}` : base;
@@ -118,7 +131,7 @@ export default async function AdminDiscoverInquiriesPage({
   searchParams: PageSearchParams;
 }) {
   const { tenantSlug } = await params;
-  const { source: rawSource, status: rawStatus } = await searchParams;
+  const { source: rawSource, status: rawStatus, trust: rawTrust } = await searchParams;
 
   const session = await getCachedActorSession();
   if (!session.user) notFound();
@@ -131,11 +144,14 @@ export default async function AdminDiscoverInquiriesPage({
     SOURCE_FILTERS.find((f) => f.key === rawSource)?.key ?? "all";
   const activeStatus: StatusKey =
     STATUS_FILTERS.find((f) => f.key === rawStatus)?.key ?? "all";
+  const activeTrust: TrustKey =
+    TRUST_FILTERS.find((f) => f.key === rawTrust)?.key ?? "all";
 
   const sourceMatch = SOURCE_FILTERS.find((f) => f.key === activeSource)!.matches;
   const statusMatch = STATUS_FILTERS.find((f) => f.key === activeStatus)!.matches;
+  const trustMatch  = TRUST_FILTERS.find((f)  => f.key === activeTrust )!.matches;
   const inquiries = allInquiries.filter(
-    (i) => sourceMatch(i) && statusMatch(i),
+    (i) => sourceMatch(i) && statusMatch(i) && trustMatch(i),
   );
 
   return (
@@ -187,9 +203,9 @@ export default async function AdminDiscoverInquiriesPage({
             {SOURCE_FILTERS.map((f) => (
               <FilterChip
                 key={f.key}
-                href={chipHref(tenantSlug, f.key, activeStatus)}
+                href={chipHref(tenantSlug, f.key, activeStatus, activeTrust)}
                 label={f.label}
-                count={allInquiries.filter((i) => f.matches(i) && statusMatch(i)).length}
+                count={allInquiries.filter((i) => f.matches(i) && statusMatch(i) && trustMatch(i)).length}
                 active={f.key === activeSource}
               />
             ))}
@@ -198,10 +214,21 @@ export default async function AdminDiscoverInquiriesPage({
             {STATUS_FILTERS.map((f) => (
               <FilterChip
                 key={f.key}
-                href={chipHref(tenantSlug, activeSource, f.key)}
+                href={chipHref(tenantSlug, activeSource, f.key, activeTrust)}
                 label={f.label}
-                count={allInquiries.filter((i) => f.matches(i) && sourceMatch(i)).length}
+                count={allInquiries.filter((i) => f.matches(i) && sourceMatch(i) && trustMatch(i)).length}
                 active={f.key === activeStatus}
+              />
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {TRUST_FILTERS.map((f) => (
+              <FilterChip
+                key={f.key}
+                href={chipHref(tenantSlug, activeSource, activeStatus, f.key)}
+                label={f.label}
+                count={allInquiries.filter((i) => f.matches(i) && sourceMatch(i) && statusMatch(i)).length}
+                active={f.key === activeTrust}
               />
             ))}
           </div>
