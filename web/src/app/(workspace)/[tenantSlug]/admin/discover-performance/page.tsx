@@ -109,10 +109,10 @@ async function loadDiscoverMetrics(
     enrolledTalents++;
   }
 
-  // Pull every Discover-channel inquiry for this tenant in the last 30 days
-  // with the participant + event metadata we need for the rollup. Single
-  // query rather than 4 small ones — the row count for a single workspace
-  // even on a busy month is hundreds, not thousands.
+  // Pull every Discover-channel inquiry for this tenant within the active
+  // time window (rangeDays) with the participant + event metadata we need
+  // for the rollup. Single query rather than 4 small ones — the row count
+  // for a single workspace even on a busy month is hundreds, not thousands.
   const { data: rows, error } = await admin
     .from("inquiries")
     .select(
@@ -611,7 +611,9 @@ export default async function AdminDiscoverPerformancePage({
           }}>
             Read-only snapshot. Numbers refresh on every page load — no caching.
             Source: <code>inquiries.source_channel ∈ {`{discover_single_talent, discover_shortlist}`}</code>
-            joined with <code>inquiry_participants</code>.
+            joined with <code>inquiry_participants</code>. Enrollment baseline
+            from <code>agency_talent_roster</code> ⋈{" "}
+            <code>talent_profiles.is_discoverable</code>.
           </p>
         </>
       )}
