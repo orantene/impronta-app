@@ -61,6 +61,33 @@ export function AdminDiscoverInquiriesShell({
   );
 }
 
+function ClientTrustPill({ tier }: { tier: "basic" | "verified" | "silver" | "gold" }) {
+  // Visual ladder per project_client_trust_badges.md. Drives risk
+  // signal on agency intake — gold = top trust, basic = unverified.
+  const styleMap: Record<typeof tier, { label: string; bg: string; color: string; emoji: string }> = {
+    basic:    { label: "Basic",    bg: "rgba(11,11,13,0.06)",     color: C.inkMuted, emoji: "○" },
+    verified: { label: "Verified", bg: "rgba(46,125,91,0.10)",    color: "#1B5C45",  emoji: "✓" },
+    silver:   { label: "Silver",   bg: "rgba(125,92,255,0.10)",   color: "#5C3FCC",  emoji: "✦" },
+    gold:     { label: "Gold",     bg: "rgba(217,160,58,0.14)",   color: "#8A6F1A",  emoji: "★" },
+  };
+  const s = styleMap[tier];
+  return (
+    <span
+      title={`Client trust tier: ${s.label}`}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 3,
+        fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+        textTransform: "uppercase",
+        padding: "2px 8px", borderRadius: 4,
+        background: s.bg, color: s.color,
+      }}
+    >
+      <span aria-hidden style={{ fontSize: 9 }}>{s.emoji}</span>
+      {s.label}
+    </span>
+  );
+}
+
 function Row({
   inquiry,
   tenantSlug,
@@ -113,6 +140,7 @@ function Row({
             }}>
               {inquiry.status.replace(/_/g, " ")}
             </span>
+            {inquiry.clientTrustTier && <ClientTrustPill tier={inquiry.clientTrustTier} />}
           </div>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 2 }}>
             {inquiry.contactName ?? "Unknown client"}

@@ -485,6 +485,11 @@ export type AdminDiscoverInquiry = {
   message: string | null;
   /** "discover_single_talent" | "discover_shortlist" */
   sourceChannel: string;
+  /** Client trust ladder — drives risk signal on agency intake.
+   *  Per project_client_trust_badges.md: basic / verified / silver / gold.
+   *  Computed from client_profiles.trust_tier on the client_user_id
+   *  who submitted the inquiry. Null when the inquiry was a guest. */
+  clientTrustTier: "basic" | "verified" | "silver" | "gold" | null;
   /** Total talents on this inquiry from this tenant. */
   talents: Array<{
     talentId: string;
@@ -517,6 +522,7 @@ export async function loadAdminDiscoverInquiries(
       id, status, created_at, event_date, event_location,
       contact_name, contact_email, message,
       source_channel, source_context,
+      client_user_id,
       inquiry_participants!inquiry_id (
         role,
         talent_profile_id,
@@ -545,6 +551,7 @@ export async function loadAdminDiscoverInquiries(
     message: string | null;
     source_channel: string;
     source_context: { shortlist_id?: string | null } | null;
+    client_user_id: string | null;
     inquiry_participants: Array<{
       role: string;
       talent_profile_id: string | null;
@@ -559,7 +566,25 @@ export async function loadAdminDiscoverInquiries(
 
   const rows = (data ?? []) as unknown as Row[];
 
-  // Batch-fetch card photos for all talents across all inquiries.
+  // Batch-fetch client trust tiers + photos for all participants.
+  const clientUserIds = new Set<string>();
+  for (const r of rows) {
+    if (r.client_user_id) clientUserIds.add(r.client_user_id);
+  }
+  const trustByClient = new Map<string, "basic" | "verified" | "silver" | "gold">();
+  if (clientUserIds.size > 0) {
+    const { data: clientRows } = await admin
+      .from("client_profiles")
+      .select("user_id, trust_tier")
+      .in("user_id", Array.from(clientUserIds));
+    for (const cr of (clientRows ?? []) as Array<{ user_id: string; trust_tier: string | null }>) {
+      const tier = cr.trust_tier;
+      if (tier === "basic" || tier === "verified" || tier === "silver" || tier === "gold") {
+        trustByClient.set(cr.user_id, tier);
+      }
+    }
+  }
+
   const talentIds = new Set<string>();
   for (const r of rows) {
     for (const p of r.inquiry_participants ?? []) {
@@ -619,6 +644,7 @@ export async function loadAdminDiscoverInquiries(
       contactEmail: r.contact_email,
       message: r.message,
       sourceChannel: r.source_channel,
+      clientTrustTier: r.client_user_id ? (trustByClient.get(r.client_user_id) ?? "basic") : null,
       talents,
       isPartOfFanout: r.source_channel === "discover_shortlist",
       sourceShortlistId: r.source_context?.shortlist_id ?? null,
