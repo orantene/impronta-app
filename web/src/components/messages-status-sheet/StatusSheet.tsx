@@ -95,6 +95,12 @@ export function StatusSheet({ open, data, onClose }: Props) {
           Status
         </h2>
 
+        {/* S0.14 — Workflow visualizer. Horizontal stepper showing where
+            this inquiry is in the canonical lifecycle. Past stages get a
+            ✓ check + dimmed line; current stage is filled + bold; future
+            stages are outlined + muted. */}
+        <WorkflowStepper currentStage={data.stage} />
+
         {/* What happens next — the operational nudge */}
         {data.nextStep && (
           <div style={{
@@ -180,6 +186,137 @@ export function StatusSheet({ open, data, onClose }: Props) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * WorkflowStepper — S0.14. Horizontal stage stepper showing where the
+ * inquiry is in the canonical lifecycle. Stages canonicalize down from
+ * the full status set in inquiry-lifecycle.ts to the 5 buckets that
+ * matter to a non-engineer reader.
+ */
+function WorkflowStepper({ currentStage }: { currentStage: StageStatus }) {
+  const STAGES: { key: StageStatus; label: string; icon: string }[] = [
+    { key: "Inquiry",    label: "Inquiry",   icon: "📥" },
+    { key: "Offer sent", label: "Offer",     icon: "💰" },
+    { key: "Booked",     label: "Booked",    icon: "✅" },
+    { key: "Today",      label: "Event day", icon: "🎬" },
+    { key: "Wrapped",    label: "Wrapped",   icon: "🎉" },
+  ];
+
+  // Map any unusual StageStatus value (e.g. "Cancelled" / "Paid") down
+  // to a sensible position in the 5-stage line.
+  const positionFor = (s: StageStatus): number => {
+    if (s === "Cancelled") return -1; // fall outside the line
+    if (s === "Paid") return 2;       // payments live within "Booked"
+    return STAGES.findIndex((x) => x.key === s);
+  };
+  const currentIdx = positionFor(currentStage);
+
+  if (currentStage === "Cancelled") {
+    return (
+      <div style={{
+        padding: "10px 12px", marginBottom: 16,
+        background: "rgba(11,11,13,0.04)",
+        border: "1px solid rgba(11,11,13,0.10)",
+        borderRadius: 10,
+        fontSize: 12, color: "rgba(11,11,13,0.55)",
+      }}>
+        This inquiry was cancelled.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label="Project lifecycle progress"
+      style={{
+        marginBottom: 16,
+        padding: "12px 8px",
+        background: "rgba(11,11,13,0.02)",
+        borderRadius: 10,
+        border: "1px solid rgba(24,24,27,0.06)",
+        display: "flex",
+        alignItems: "stretch",
+        gap: 0,
+        overflowX: "auto",
+      }}
+    >
+      {STAGES.map((s, i) => {
+        const past    = i < currentIdx;
+        const active  = i === currentIdx;
+        // Future stages aren't reached yet; muted.
+        const dotBg = past   ? "#0F4F3E"
+                    : active ? "#1D4ED8"
+                    :          "rgba(11,11,13,0.10)";
+        const dotFg = past || active ? "#fff" : "rgba(11,11,13,0.55)";
+        const labelColor = past
+          ? "rgba(11,11,13,0.55)"
+          : active
+            ? "#0B0B0D"
+            : "rgba(11,11,13,0.35)";
+        return (
+          <div
+            key={s.key}
+            style={{
+              flex: 1,
+              minWidth: 60,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              position: "relative",
+              gap: 6,
+            }}
+          >
+            {/* Connector line — drawn on every stage except the first */}
+            {i > 0 && (
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  top: 14,
+                  left: "-50%",
+                  right: "50%",
+                  height: 2,
+                  background: i <= currentIdx ? "#0F4F3E" : "rgba(11,11,13,0.10)",
+                  zIndex: 0,
+                }}
+              />
+            )}
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: dotBg,
+                color: dotFg,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 13,
+                fontWeight: 700,
+                position: "relative",
+                zIndex: 1,
+                boxShadow: active ? "0 0 0 3px rgba(29,78,216,0.15)" : "none",
+              }}
+            >
+              {past ? "✓" : s.icon}
+            </div>
+            <div style={{
+              fontSize: 10.5,
+              fontWeight: active ? 700 : 500,
+              color: labelColor,
+              letterSpacing: 0.2,
+              textTransform: "uppercase",
+              textAlign: "center",
+            }}>
+              {s.label}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
