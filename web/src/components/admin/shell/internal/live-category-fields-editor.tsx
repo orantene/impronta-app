@@ -83,6 +83,60 @@ const SUPPRESSION_DESTINATIONS: Record<string, string | null> = {
 
 const SUPPRESSED_FIELD_KEYS = new Set<string>(Object.keys(SUPPRESSION_DESTINATIONS));
 
+// Phase 1 — GROUP-level suppression. Whole profile_field_groups whose
+// concept already has a dedicated rail section. Without this, the editor
+// renders a "Rates / Booking Terms" / "Availability" / "Service Area /
+// Travel" card *next to* the dedicated Rates / Availability / Location
+// rail items — the same word in two places with two different UIs ("the
+// bleed"). Hiding the whole group (not just its individual fields) makes
+// the editor strictly "specialty details that have no dedicated home."
+// Maps group slug → the rail section that owns the concept (for the
+// footer jump-link), mirroring SUPPRESSION_DESTINATIONS at group grain.
+const SUPPRESSED_GROUP_SLUGS: Record<string, string> = {
+  "rates-booking":           "rates",
+  "availability":            "availability",
+  "service-area-travel":     "location",
+  "languages-communication": "languages",
+  "media-portfolio":         "media",
+  "trust-verification":      "verifications",
+  "certifications-documents": "files",
+  "experience":              "credits",
+};
+
+// Phase 1c — NAMESPACE-level suppression. The resolver does not always
+// populate field_group_slug (some service-area-travel / availability
+// fields come back with a null slug), so group-slug suppression alone
+// lets them fall into the editor's `_other` bucket where they re-render
+// as "Travel preferences" / "Service area" / "Availability extras" cards
+// next to the dedicated Location / Availability rail items — the same
+// bleed, one layer down. Suppress by field_key namespace prefix too, for
+// the namespaces that wholly belong to a dedicated section. Only includes
+// namespaces with NO legitimate type-specific fields (consent/emergency/
+// performer/ops/equipment are deliberately absent — they have no home).
+const SUPPRESSED_NAMESPACES: Record<string, string> = {
+  travel:       "location",
+  serviceArea:  "location",
+  service:      "location",
+  availability: "availability",
+};
+
+/** A field is suppressed if its key has a dedicated home OR its whole
+ *  group does OR its namespace wholly belongs to a dedicated section. */
+function isFieldSuppressed(f: { field_key: string; field_group_slug: string | null }): boolean {
+  if (SUPPRESSED_FIELD_KEYS.has(f.field_key)) return true;
+  if (f.field_group_slug && SUPPRESSED_GROUP_SLUGS[f.field_group_slug]) return true;
+  return !!SUPPRESSED_NAMESPACES[namespaceFor(f.field_key)];
+}
+
+/** Where a suppressed field is actually edited (rail section id). */
+function destinationFor(f: { field_key: string; field_group_slug: string | null }): string | null {
+  if (f.field_key in SUPPRESSION_DESTINATIONS) return SUPPRESSION_DESTINATIONS[f.field_key];
+  if (f.field_group_slug && SUPPRESSED_GROUP_SLUGS[f.field_group_slug]) {
+    return SUPPRESSED_GROUP_SLUGS[f.field_group_slug];
+  }
+  return SUPPRESSED_NAMESPACES[namespaceFor(f.field_key)] ?? null;
+}
+
 // Human label for each destination — what the editor should call the
 // section the user needs to jump to. Mirrors SECTION_META in drawers.tsx
 // but kept local so the editor doesn't have to import the drawer's huge
@@ -99,6 +153,8 @@ const DESTINATION_LABEL: Record<string, string> = {
   files:      "Files",
   rates:      "Rates",
   limits:     "Restrictions",
+  availability: "Availability",
+  verifications: "Trust",
 };
 
 // Friendly label for each field_key namespace prefix — used to sub-group
@@ -1008,11 +1064,11 @@ export function LiveCategoryFieldsEditor({
   // preserved on the row and remain readable via the legacy accordion or
   // by querying the table directly.
   const fields = useMemo(
-    () => (allFields ?? []).filter((f) => !SUPPRESSED_FIELD_KEYS.has(f.field_key)),
+    () => (allFields ?? []).filter((f) => !isFieldSuppressed(f)),
     [allFields],
   );
   const suppressedPresent = useMemo(
-    () => (allFields ?? []).filter((f) => SUPPRESSED_FIELD_KEYS.has(f.field_key)),
+    () => (allFields ?? []).filter((f) => isFieldSuppressed(f)),
     [allFields],
   );
 
@@ -1045,7 +1101,7 @@ export function LiveCategoryFieldsEditor({
         }
         const filledGroupSlugs = new Set<string>();
         for (const f of fieldsRes.fields) {
-          if (SUPPRESSED_FIELD_KEYS.has(f.field_key)) continue;
+          if (isFieldSuppressed(f)) continue;
           if (f.field_group_slug && isValueFilled(valuesMap.get(f.field_definition_id))) {
             filledGroupSlugs.add(f.field_group_slug);
           }
@@ -1239,7 +1295,7 @@ export function LiveCategoryFieldsEditor({
           fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4,
           textTransform: "uppercase", fontWeight: 600,
         }}>
-          Profile fields · {totalFilled} of {fields.length} filled · saves on blur
+          Specialty details · {totalFilled} of {fields.length} filled · saves on blur
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {requiredMissing > 0 && (
@@ -1373,7 +1429,7 @@ export function LiveCategoryFieldsEditor({
         // null (consent, reviews) are bundled under "System".
         const byDest = new Map<string, ResolvedField[]>();
         for (const f of suppressedPresent) {
-          const dest = SUPPRESSION_DESTINATIONS[f.field_key] ?? "_system";
+          const dest = destinationFor(f) ?? "_system";
           const list = byDest.get(dest) ?? [];
           list.push(f);
           byDest.set(dest, list);

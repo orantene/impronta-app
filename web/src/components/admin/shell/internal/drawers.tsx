@@ -4457,7 +4457,7 @@ const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string; emoji
   albums:        { label: "Albums",        emoji: "🗂" },
   polaroids:     { label: "Polaroids",     emoji: "🪪" },
   about:         { label: "About",         emoji: "✏️" },
-  profile_fields:{ label: "Profile fields", emoji: "🧬" },
+  profile_fields:{ label: "Specialty details", emoji: "🧬" },
   physical:      { label: "Physical",      emoji: "📐" },
   wardrobe:      { label: "Wardrobe",      emoji: "👗" },
   details:       { label: "Details",       emoji: "📋" },
@@ -6663,12 +6663,13 @@ function TalentProfileShellDrawer() {
             // for non-admins, details with no fields) are filtered out and
             // empty groups collapse so the rail stays tight.
             const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
-              { label: "Essentials", ids: ["identity", "services", "location", "about", "profile_fields"] },
-              { label: "Visual", ids: ["media", "albums", "polaroids"] },
-              { label: "Type-specific", ids: ["physical", "wardrobe", "details"] },
-              { label: "Booking", ids: ["availability", "rates", "languages"] },
-              { label: "Track record", ids: ["refinement", "credits", "limits", "social_proof"] },
-              { label: "Admin", ids: ["files", "verifications", "admin"] },
+              { label: "Profile", ids: ["identity", "about"] },
+              { label: "Craft", ids: ["services", "profile_fields", "physical", "wardrobe", "details", "languages"] },
+              { label: "Where & when", ids: ["location", "availability"] },
+              { label: "Portfolio", ids: ["media", "albums", "polaroids"] },
+              { label: "Terms", ids: ["rates", "limits"] },
+              { label: "Proof", ids: ["credits", "social_proof", "verifications", "refinement"] },
+              { label: "Back office", ids: ["files", "admin"] },
             ];
             const visible = (s: ProfileSectionId) => {
               if (!s) return false;
