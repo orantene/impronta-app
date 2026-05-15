@@ -13,6 +13,8 @@ import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +69,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     logServerError("api.discover.shortlists.items.add", error);
     return NextResponse.json({ error: "save_failed" }, { status: 500 });
   }
+
+  // Step 12 telemetry — talent → shortlist is the multi-talent
+  // analogue of the single-talent favorites flow. source = "shortlist"
+  // so we can split funnel by which collection the talent landed in.
+  await logAnalyticsEventServer({
+    name: PRODUCT_ANALYTICS_EVENTS.inquiry_talent_added,
+    payload: { talent_id: talentId, source: "shortlist", shortlist_id: id },
+    userId: session.user.id,
+    path: "/discover",
+  });
 
   return NextResponse.json({ ok: true });
 }

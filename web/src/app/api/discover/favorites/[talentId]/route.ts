@@ -14,6 +14,8 @@ import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +57,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ talent
     logServerError("api.discover.favorites.add", error);
     return NextResponse.json({ error: "save_failed" }, { status: 500 });
   }
+
+  // Step 12 telemetry — fire on add only. source = "discover" so we can
+  // split funnel by surface (Discover vs public directory). Fire-and-
+  // forget; never blocks the response.
+  await logAnalyticsEventServer({
+    name: PRODUCT_ANALYTICS_EVENTS.inquiry_talent_added,
+    payload: { talent_id: talentId, source: "discover" },
+    userId: session.user.id,
+    path: "/discover",
+  });
 
   return NextResponse.json({ ok: true, favorited: true });
 }

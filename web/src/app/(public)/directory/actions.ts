@@ -264,6 +264,19 @@ export async function setTalentSaved(
           return { ok: false, error: t("public.errors.saveTalent") };
         }
       }
+      // Step 12 telemetry — emit on add only (not unsave). source = "directory"
+      // so we can split later by surface (Discover vs public directory vs
+      // talent profile). Fire-and-forget; never blocks the action.
+      if (saved) {
+        const locale = await getRequestLocale();
+        await logAnalyticsEventServer({
+          name: PRODUCT_ANALYTICS_EVENTS.inquiry_talent_added,
+          payload: { locale, talent_id: talentProfileId, source: "directory" },
+          userId: user.id,
+          path: "/directory",
+          locale,
+        });
+      }
       revalidatePath("/directory");
       revalidatePath("/client");
       revalidatePath("/client/saved");
@@ -289,6 +302,20 @@ export async function setTalentSaved(
       const t = createTranslator(await getRequestLocale());
       return { ok: false, error: t("public.errors.saveTalent") };
     }
+    // Step 12 telemetry — guest variant. No userId since the actor is
+    // pre-account; the analytics row is keyed on the session-key path.
+    const locale = await getRequestLocale();
+    await logAnalyticsEventServer({
+      name: PRODUCT_ANALYTICS_EVENTS.inquiry_talent_added,
+      payload: {
+        locale,
+        talent_id: talentProfileId,
+        source: "directory",
+        is_guest: true,
+      },
+      path: "/directory",
+      locale,
+    });
   } else {
     const { error } = await pub.rpc("guest_remove_saved_talent", {
       p_session_key: guestKey,
