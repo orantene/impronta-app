@@ -290,6 +290,29 @@ export function InboxShell({
                         {inq.unreadCount} new
                       </span>
                     )}
+                    {(inq.sourceChannel === "discover_single_talent" ||
+                      inq.sourceChannel === "discover_shortlist") && (
+                      <span
+                        title={
+                          inq.sourceChannel === "discover_shortlist"
+                            ? "Client added you from a Discover shortlist alongside other talents."
+                            : "Client found you on Discover and reached out directly."
+                        }
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: C.blueDeep,
+                          background: C.blueSoft,
+                          padding: "1px 7px",
+                          borderRadius: 999,
+                          whiteSpace: "nowrap",
+                          letterSpacing: 0.3,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        ◎ via {inq.sourceChannel === "discover_shortlist" ? "Shortlist" : "Discover"}
+                      </span>
+                    )}
                   </div>
                   <div
                     style={{

@@ -202,6 +202,13 @@ export type TalentInquiryRow = {
   unreadCount: number;
   /** Client trust tier snapshot at inquiry submission. Null on historical rows. */
   trustLevel: "basic" | "verified" | "silver" | "gold" | null;
+  /**
+   * Audit T6 — Discover unified plan §6 source channels. Used by the
+   * inbox to render a "via Discover" / "via Shortlist" pill so the
+   * talent knows the inquiry originated cross-tenant rather than from
+   * the agency's existing direct funnel.
+   */
+  sourceChannel: string | null;
 };
 
 /**
@@ -276,7 +283,8 @@ export async function loadTalentInquiries(
           created_at,
           updated_at,
           tenant_id,
-          trust_level_at_submission
+          trust_level_at_submission,
+          source_channel
         )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -303,6 +311,7 @@ export async function loadTalentInquiries(
         created_at: string;
         updated_at: string;
         trust_level_at_submission: "basic" | "verified" | "silver" | "gold" | null;
+        source_channel: string | null;
       } | null;
     };
 
@@ -320,6 +329,7 @@ export async function loadTalentInquiries(
         participantStatus: r.status,
         unreadCount: 0,
         trustLevel: r.inquiries!.trust_level_at_submission ?? null,
+        sourceChannel: r.inquiries!.source_channel ?? null,
       }));
 
     if (!myUserId || rows.length === 0) return rows;
