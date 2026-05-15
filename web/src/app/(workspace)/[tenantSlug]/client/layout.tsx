@@ -22,6 +22,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../_data-bridge";
 import { signOut } from "@/app/auth/actions";
 import { ClientTopbar } from "./client-topbar";
+import { ClientKeyboardShortcuts } from "./_keyboard-shortcuts";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
@@ -318,6 +319,9 @@ export default async function ClientLayout({
 
         {/* ── Bar 2: Client nav topbar ── */}
         <ClientTopbar tenantSlug={tenantSlug} />
+
+        {/* D9 polish — global keyboard shortcuts (renders null unless help open) */}
+        <ClientKeyboardShortcuts tenantSlug={tenantSlug} />
 
         {/* ── Content area ── */}
         <main
