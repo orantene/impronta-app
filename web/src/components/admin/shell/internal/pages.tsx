@@ -10895,6 +10895,7 @@ function WorkspacePageView() {
             {[
               { title: "General",     desc: "Timezone · Locale · Default currency",  drawer: "workspace-settings" as const },
               { title: "Field catalog", desc: "Custom fields for talent, clients, bookings", drawer: "field-catalog" as const, plan: "agency" as const },
+              { title: "Field settings", desc: "Enable, require, rename catalog fields per workspace", drawer: "workspace-field-settings" as const, plan: "agency" as const },
               { title: "Taxonomy",    desc: "Tags, niches, segments for filtering",  drawer: "taxonomy" as const, plan: "agency" as const },
             ].map((row) => {
               const locked = row.plan && !meetsPlan(state.plan, row.plan);

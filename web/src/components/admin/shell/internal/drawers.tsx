@@ -250,6 +250,7 @@ import {
 } from "./primitives";
 import { InquiryWorkspaceDrawer } from "./workspace";
 import SkillOverridesPanel from "./skill-overrides-panel";
+import { LiveCategoryFieldsEditor } from "./live-category-fields-editor";
 import SkillHintsBanner from "./skill-hints-banner";
 import SkillFreshnessBanner from "./skill-freshness-banner";
 import dynamic from "next/dynamic";
@@ -4441,7 +4442,8 @@ const LANGUAGE_PRESETS: { id: string; label: string; langs: string[] }[] = [
 // Identity is the first section ever — name, pronouns, gender, DOB.
 const PROFILE_SECTIONS = [
   "identity", "services", "location", "media", "albums", "polaroids",
-  "about", "physical", "wardrobe", "details", "rates", "availability", "languages",
+  "about", "profile_fields",
+  "physical", "wardrobe", "details", "rates", "availability", "languages",
   "refinement", "credits", "limits", "files",
   "social_proof", "verifications", "admin",
 ] as const;
@@ -4455,6 +4457,7 @@ const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string; emoji
   albums:        { label: "Albums",        emoji: "🗂" },
   polaroids:     { label: "Polaroids",     emoji: "🪪" },
   about:         { label: "About",         emoji: "✏️" },
+  profile_fields:{ label: "Profile fields", emoji: "🧬" },
   physical:      { label: "Physical",      emoji: "📐" },
   wardrobe:      { label: "Wardrobe",      emoji: "👗" },
   details:       { label: "Details",       emoji: "📋" },
@@ -5697,6 +5700,12 @@ function TalentProfileShellDrawer() {
   };
 
   // ── UI state ───────────────────────────────────────────────────────
+  // Counts surfaced by LiveCategoryFieldsEditor — used by sectionComplete
+  // / sectionStarted to color the rail dot for the "Profile fields" entry.
+  // Updated via the editor's onCountsChange callback (initial load + saves).
+  const [profileFieldCounts, setProfileFieldCounts] = useState<{ filled: number; total: number }>(
+    { filled: 0, total: 0 },
+  );
   // #3 — Deep-link hydration. URL ?section=availability lands directly
   // on the Availability accordion, scrolled into view + expanded.
   // Falls back to "identity" for fresh edits, "services" for create mode.
@@ -5919,6 +5928,8 @@ function TalentProfileShellDrawer() {
     social_proof:  state.pastClients.length > 0,
     verifications: state.verifications.idSubmitted && state.verifications.payoutConnected,
     admin:         true,
+    profile_fields: profileFieldCounts.total > 0
+      && profileFieldCounts.filled >= profileFieldCounts.total,
   };
 
   // Tri-state companion: a section is "started" when it has SOME data but
@@ -5945,6 +5956,7 @@ function TalentProfileShellDrawer() {
     social_proof:  false,
     verifications: !sectionComplete.verifications && (state.verifications.idSubmitted || state.verifications.payoutConnected),
     admin:         false,
+    profile_fields: !sectionComplete.profile_fields && profileFieldCounts.filled > 0,
   };
 
   // Specialty options
@@ -6651,7 +6663,7 @@ function TalentProfileShellDrawer() {
             // for non-admins, details with no fields) are filtered out and
             // empty groups collapse so the rail stays tight.
             const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
-              { label: "Essentials", ids: ["identity", "services", "location", "about"] },
+              { label: "Essentials", ids: ["identity", "services", "location", "about", "profile_fields"] },
               { label: "Visual", ids: ["media", "albums", "polaroids"] },
               { label: "Type-specific", ids: ["physical", "wardrobe", "details"] },
               { label: "Booking", ids: ["availability", "rates", "languages"] },
@@ -6665,6 +6677,9 @@ function TalentProfileShellDrawer() {
               if (s === "physical" && !dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical"))) return false;
               if (s === "wardrobe" && !dynamicGroups.some(g => g.fields.some(f => f.subsection === "wardrobe"))) return false;
               if (s === "refinement" && bridgeTenantIdentity?.tenantId && payload.talentId) return false;
+              // Profile fields editor only mounts when there's a real talent
+              // + tenant context (bridge below the editor enforces the same).
+              if (s === "profile_fields" && !(payload.talentId && bridgeTenantIdentity?.tenantId)) return false;
               return true;
             };
             // Top-of-rail summary: how many sections are complete out of
@@ -7263,6 +7278,25 @@ function TalentProfileShellDrawer() {
               />
               <PersonalityEditor value={state.personality} onChange={patchPersonality} />
             </ProfileAccordionSection>
+
+            {/* PROFILE FIELDS — DB-driven, per-talent-type catalog editor.
+                Renders directly below About (the rail's "Profile fields"
+                entry scrolls here). Wraps in a div carrying the canonical
+                `pshell-${id}` anchor so the existing global scroll-into-view
+                effect handles it alongside the legacy accordions. */}
+            {payload.talentId && bridgeTenantIdentity?.tenantId && (
+              <section id="pshell-profile_fields">
+                <LiveCategoryFieldsEditor
+                  talentProfileId={payload.talentId}
+                  onCountsChange={setProfileFieldCounts}
+                  onJumpToSection={(s) => {
+                    if ((PROFILE_SECTIONS as readonly string[]).includes(s)) {
+                      setActiveSection(s as ProfileSectionId);
+                    }
+                  }}
+                />
+              </section>
+            )}
 
             {/* PHYSICAL & MEASUREMENTS — dedicated accordion mirroring
                 the talent surface's "Measurements & features" card.

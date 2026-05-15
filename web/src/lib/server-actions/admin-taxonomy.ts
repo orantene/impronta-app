@@ -641,11 +641,18 @@ export type ResolvedField = {
   field_definition_id: string;
   field_key: string;
   label: string;
+  /** Spanish label — null when not translated; editor falls back to EN. */
+  label_es: string | null;
   tier: "universal" | "global" | "type-specific";
   section: string;
   subsection: string | null;
   kind: string;
   placeholder: string | null;
+  /** For `select` and `multiselect` kinds: the choices list. */
+  options: string[] | null;
+  /** Default visibility channels — used as the fallback when a value
+   *  has no `visibility_override`. Empty array == effectively private. */
+  default_visibility: string[];
   is_required: boolean;
   is_recommended: boolean;
   display_order: number;
@@ -848,7 +855,7 @@ export async function getFieldsForTalent(input: {
   const { data: defs, error: defsErr } = await supabase
     .from("profile_field_definitions")
     .select(
-      "id, field_key, label, tier, section, subsection, kind, placeholder, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
+      "id, field_key, label, label_es, tier, section, subsection, kind, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
     )
     .is("deprecated_at", null);
 
@@ -995,11 +1002,16 @@ export async function getFieldsForTalent(input: {
       field_definition_id: d.id,
       field_key: d.field_key,
       label: o?.custom_label ?? d.label,
+      label_es: (d as { label_es?: string | null }).label_es ?? null,
       tier: d.tier as "universal" | "global" | "type-specific",
       section: d.section,
       subsection: d.subsection,
       kind: d.kind,
       placeholder: d.placeholder,
+      options: Array.isArray(d.options) ? (d.options as string[]) : null,
+      default_visibility: Array.isArray(d.default_visibility)
+        ? (d.default_visibility as string[])
+        : [],
       is_required: o?.required_override ?? catalogRequired,
       is_recommended: relationship === "recommended",
       display_order: o?.display_order_override ?? display_order,

@@ -341,22 +341,130 @@ async function fetchPublicFieldValues(
   talentProfileId: string,
 ): Promise<PublicFieldValueRow[]> {
   if (!supabase) return [];
+  // NEW catalog system. talent_profile_field_values + profile_field_definitions
+  // replaced the legacy field_values + field_definitions in 20260923010000.
+  // Project the new schema to the existing PublicFieldValueRow shape so the
+  // rendering code below stays unchanged. Filters:
+  //   - workflow_state = 'live' (drop pending/rejected) — P0 #3
+  //   - deprecated definitions excluded
+  //   - effective visibility (visibility_override || default_visibility) must
+  //     include 'public' OR the definition's show_in_public = true — P0 #2
+  type NewDefEmbed = {
+    field_key: string;
+    label: string;
+    kind: string;
+    options: string[] | null;
+    display_order: number | null;
+    field_group_id: string | null;
+    admin_only: boolean | null;
+    show_in_public: boolean | null;
+    default_visibility: string[] | null;
+    deprecated_at: string | null;
+    profile_field_groups:
+      | { sort_order: number | null; slug: string | null }
+      | { sort_order: number | null; slug: string | null }[]
+      | null;
+  };
+  type NewValueRow = {
+    id: string;
+    value: unknown;
+    visibility_override: string[] | null;
+    workflow_state: "live" | "pending" | "rejected";
+    profile_field_definitions: NewDefEmbed | NewDefEmbed[] | null;
+  };
+
   const { data, error } = await supabase
-    .from("field_values")
+    .from("talent_profile_field_values")
     .select(
       `
       id,
+      value,
+      visibility_override,
+      workflow_state,
+      profile_field_definitions (
+        field_key, label, kind, options, display_order, field_group_id,
+        admin_only, show_in_public, default_visibility, deprecated_at,
+        profile_field_groups ( sort_order, slug )
+      )
+    `,
+    )
+    .eq("talent_profile_id", talentProfileId)
+    .eq("workflow_state", "live");
+  if (error || !data) return [];
+
+  const projected: PublicFieldValueRow[] = [];
+  for (const row of data as NewValueRow[]) {
+    const def = Array.isArray(row.profile_field_definitions)
+      ? (row.profile_field_definitions[0] ?? null)
+      : row.profile_field_definitions;
+    if (!def) continue;
+    if (def.deprecated_at) continue;
+    if (def.admin_only) continue;
+
+    const effective =
+      row.visibility_override && row.visibility_override.length > 0
+        ? row.visibility_override
+        : (def.default_visibility ?? []);
+    const isPublic = effective.includes("public") || def.show_in_public === true;
+    if (!isPublic) continue;
+
+    // Split jsonb value into the typed columns the renderer expects.
+    const v = row.value;
+    let value_text: string | null = null;
+    let value_number: number | null = null;
+    let value_boolean: boolean | null = null;
+    let value_date: string | null = null;
+    switch (def.kind) {
+      case "number":
+        if (typeof v === "number") value_number = v;
+        else if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) value_number = Number(v);
+        break;
+      case "boolean":
+      case "toggle":
+        if (typeof v === "boolean") value_boolean = v;
+        break;
+      case "date":
+        if (typeof v === "string") value_date = v;
+        break;
+      case "multiselect":
+      case "chips":
+        if (Array.isArray(v)) value_text = (v as unknown[]).join(", ");
+        break;
+      default:
+        if (typeof v === "string") value_text = v;
+        else if (typeof v === "number" || typeof v === "boolean") value_text = String(v);
+        break;
+    }
+
+    const fg = Array.isArray(def.profile_field_groups)
+      ? (def.profile_field_groups[0] ?? null)
+      : def.profile_field_groups;
+
+    projected.push({
+      id: row.id,
       value_text,
       value_number,
       value_boolean,
       value_date,
-      field_definitions ( key, label_en, label_es, value_type, config, sort_order, field_group_id, internal_only, public_visible, profile_visible, field_groups(sort_order, slug) )
-    `,
-    )
-    .eq("talent_profile_id", talentProfileId)
-    .order("updated_at", { ascending: false });
-  if (error || !data) return [];
-  return data as PublicFieldValueRow[];
+      field_definitions: {
+        key: def.field_key,
+        label_en: def.label,
+        label_es: null,
+        value_type: def.kind,
+        config: null,
+        sort_order: def.display_order ?? 0,
+        field_group_id: def.field_group_id,
+        internal_only: false,
+        public_visible: true,
+        profile_visible: true,
+        field_groups: fg
+          ? { sort_order: fg.sort_order ?? 0, slug: fg.slug ?? undefined }
+          : null,
+      },
+    });
+  }
+
+  return projected;
 }
 
 // ── PR-A — structured languages + service areas ──────────────────────
