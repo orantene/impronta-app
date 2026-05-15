@@ -525,21 +525,35 @@ function FieldRow({
       break;
     }
 
-    case "number":
+    case "number": {
+      // B5 — show the unit suffix ("years", "guests") inside the field so
+      // the number reads as a quantity, not a bare integer.
+      const unit = field.unit?.trim();
       control = (
-        <input
-          type="number"
-          value={asNumber(draft)}
-          onChange={(e) => setDraftAndClearError(e.target.value)}
-          onBlur={() => {
-            const s = asNumber(draft);
-            commit(s === "" ? null : Number(s));
-          }}
-          placeholder={field.placeholder ?? ""}
-          style={inputStyle}
-        />
+        <div style={{ position: "relative" }}>
+          <input
+            type="number"
+            value={asNumber(draft)}
+            onChange={(e) => setDraftAndClearError(e.target.value)}
+            onBlur={() => {
+              const s = asNumber(draft);
+              commit(s === "" ? null : Number(s));
+            }}
+            placeholder={field.placeholder ?? ""}
+            style={unit ? { ...inputStyle, paddingRight: 56 } : inputStyle}
+          />
+          {unit && (
+            <span style={{
+              position: "absolute", right: 10, top: "50%",
+              transform: "translateY(-50%)",
+              fontSize: 11.5, color: T.inkMuted, fontFamily: F,
+              fontWeight: 600, pointerEvents: "none",
+            }}>{unit}</span>
+          )}
+        </div>
       );
       break;
+    }
 
     case "date":
       control = (
@@ -1187,6 +1201,33 @@ export function LiveCategoryFieldsEditor({
     });
   };
 
+  // B9 — Fill-required wizard. Resolve which collapsible card each field
+  // belongs to (DB group slug, or `_other:${ns}` for orphans), then walk
+  // them in render order and jump to the first card that still has an
+  // unfilled required field. Opening the card triggers B7's scroll-into-
+  // view so the user lands right on the work.
+  const slugForField = (f: ResolvedField): string =>
+    f.field_group_slug ?? `_other:${namespaceFor(f.field_key)}`;
+  const missingRequiredFields = fields.filter(
+    (f) => f.required_before_publish
+      && !isValueFilled(valuesByDefId.get(f.field_definition_id)),
+  );
+  const requiredMissing = missingRequiredFields.length;
+  const jumpToNextRequired = () => {
+    // Prefer a card that isn't already open (so the action visibly does
+    // something); fall back to the first missing one regardless.
+    const ordered = [
+      ...sortedGroups.map((g) => g.group_slug),
+      ...Array.from(otherNamespaces).map((ns) => `_other:${ns}`),
+    ];
+    const slugsWithMissing = new Set(missingRequiredFields.map(slugForField));
+    const target =
+      ordered.find((s) => slugsWithMissing.has(s) && !openGroups.has(s))
+      ?? ordered.find((s) => slugsWithMissing.has(s));
+    if (!target) return;
+    setOpenGroups((prev) => new Set(prev).add(target));
+  };
+
   return (
     <div style={{ marginBottom: 4 }}>
       <div style={{
@@ -1201,6 +1242,21 @@ export function LiveCategoryFieldsEditor({
           Profile fields · {totalFilled} of {fields.length} filled · saves on blur
         </div>
         <div style={{ display: "flex", gap: 6 }}>
+          {requiredMissing > 0 && (
+            <button
+              type="button"
+              onClick={jumpToNextRequired}
+              style={{
+                padding: "4px 12px", borderRadius: 999,
+                border: `1px solid ${T.red}`,
+                background: "rgba(200,40,40,0.08)",
+                fontFamily: F, fontSize: 10.5, fontWeight: 700, color: T.red,
+                cursor: "pointer", letterSpacing: 0.3,
+              }}
+            >
+              Fill {requiredMissing} required
+            </button>
+          )}
           {viewMode === "admin" && (
             <button
               type="button"

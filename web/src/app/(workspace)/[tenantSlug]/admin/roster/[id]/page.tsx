@@ -292,6 +292,14 @@ export default async function WorkspaceRosterTalentPage({
             >
               /t/{talent.profile_code} ↗
             </a>
+            {/* A8 — commission preview entry point. Standalone route so
+                the roster-drawer mega-area stays untouched. */}
+            <Link
+              href={`/${tenantSlug}/admin/roster/${talentId}/commission`}
+              style={{ color: "#7C3AED", textDecoration: "none", fontSize: 12, fontWeight: 600 }}
+            >
+              💰 Commission preview →
+            </Link>
             {talent.created_at && (
               <span style={{ color: "rgba(11,11,13,0.35)" }}>
                 {t("admin.talent.edit.nav.added")}{" "}

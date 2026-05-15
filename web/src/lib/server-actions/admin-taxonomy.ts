@@ -647,6 +647,8 @@ export type ResolvedField = {
   section: string;
   subsection: string | null;
   kind: string;
+  /** Unit suffix for number inputs (e.g. "years", "guests"). Null = none. */
+  unit: string | null;
   placeholder: string | null;
   /** For `select` and `multiselect` kinds: the choices list. */
   options: string[] | null;
@@ -855,7 +857,7 @@ export async function getFieldsForTalent(input: {
   const { data: defs, error: defsErr } = await supabase
     .from("profile_field_definitions")
     .select(
-      "id, field_key, label, label_es, tier, section, subsection, kind, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
+      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
     )
     .is("deprecated_at", null);
 
@@ -1007,6 +1009,7 @@ export async function getFieldsForTalent(input: {
       section: d.section,
       subsection: d.subsection,
       kind: d.kind,
+      unit: (d as { unit?: string | null }).unit ?? null,
       placeholder: d.placeholder,
       options: Array.isArray(d.options) ? (d.options as string[]) : null,
       default_visibility: Array.isArray(d.default_visibility)
