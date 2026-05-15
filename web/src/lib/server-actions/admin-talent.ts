@@ -16,6 +16,7 @@ import { requireStaff } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas/scope";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 import {
   readCanonicalLocationSelection,
   resolveCanonicalLocationSelection,
@@ -851,6 +852,16 @@ export async function createTalentProfile(
   const talentProfileId = inserted.id as string;
   const originDomain = (await headers()).get("host")?.toLowerCase() ?? null;
 
+  // Auto-exclusivity rule (project_agency_exclusivity_model.md):
+  // Studio/Agency/Network plans get is_primary=TRUE on admin-initiated
+  // roster adds — UNLESS the talent is already exclusive elsewhere.
+  // Free plans never auto-exclusive.
+  const exclusivity = await resolveExclusivityForRosterAdd(
+    admin,
+    scope.tenantId,
+    talentProfileId,
+  );
+
   const { error: rosterErr } = await admin.from("agency_talent_roster").insert({
     tenant_id: scope.tenantId,
     source_workspace_id: scope.tenantId,
@@ -860,6 +871,7 @@ export async function createTalentProfile(
     status: "active",
     agency_visibility: parsed.data.agency_visibility,
     added_by: user.id,
+    is_primary: exclusivity.shouldBeExclusive,
   });
   if (rosterErr) {
     logServerError("admin/createTalentProfile/roster", rosterErr);

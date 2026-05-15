@@ -3,6 +3,7 @@
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 import { revalidatePath } from "next/cache";
 import type { ServerActionResult } from "./result";
 
@@ -231,7 +232,20 @@ export async function processRosterImportRow(
     talentProfileId = (created as { id: string }).id;
   }
 
+  // Auto-exclusivity (project_agency_exclusivity_model.md): bulk import
+  // follows the same rule as manual admin add — paid plans get
+  // is_primary=TRUE unless the talent is already exclusive elsewhere.
+  // We only stamp is_primary on the initial insert (the upsert collides
+  // on tenant_id+talent_profile_id; re-import shouldn't toggle the flag
+  // off a row that's been manually adjusted).
+  const exclusivity = await resolveExclusivityForRosterAdd(
+    admin,
+    tenantId,
+    talentProfileId,
+  );
+
   // Upsert the agency_talent_roster row (idempotent on tenant + talent).
+  // is_primary is set on first insert; ignored on conflict.
   const { error: rosterErr } = await admin
     .from("agency_talent_roster")
     .upsert(
@@ -239,8 +253,9 @@ export async function processRosterImportRow(
         tenant_id: tenantId,
         talent_profile_id: talentProfileId,
         status: "active",
+        is_primary: exclusivity.shouldBeExclusive,
       },
-      { onConflict: "tenant_id,talent_profile_id" },
+      { onConflict: "tenant_id,talent_profile_id", ignoreDuplicates: false },
     );
   if (rosterErr) return { ok: false, error: rosterErr.message };
 

@@ -16,7 +16,10 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import {
   APIProvider,
-  Map,
+  // Aliased to avoid shadowing the global Map constructor (used below
+  // for country bucket grouping). Without the alias, `new Map<>()` was
+  // resolving to the Google Maps component and breaking the type check.
+  Map as GoogleMap,
   Marker,
 } from "@vis.gl/react-google-maps";
 
@@ -255,7 +258,7 @@ export function DiscoverMapShell({
         background: "#e8eaed",
       }}>
         <APIProvider apiKey={apiKey}>
-          <Map
+          <GoogleMap
             defaultCenter={center}
             defaultZoom={3}
             gestureHandling="cooperative"
@@ -294,7 +297,7 @@ export function DiscoverMapShell({
                     }}
                   />
                 ))}
-          </Map>
+          </GoogleMap>
 
           {selected && (
             <div
