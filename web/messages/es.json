@@ -772,7 +772,24 @@
             "hero": "portada",
             "portfolio": "portafolio",
             "delete": "eliminar"
-          }
+          },
+          "deleting": "Eliminando…",
+          "setting": "Aplicando…",
+          "reverting": "Revirtiendo…",
+          "cropSectionLabel": "Recortar y editar",
+          "cropProfile": "Perfil",
+          "cropCover": "Portada",
+          "cropFree": "Libre",
+          "cropLineage": "Recorte de un original anterior",
+          "revertButton": "Volver al original",
+          "revertConfirm": "¿Volver al original? La versión recortada se eliminará.",
+          "openInNewTab": "Abrir",
+          "copyUrl": "Copiar URL",
+          "copyUrlDone": "¡Copiado!",
+          "keyboardHint": "← → navegar · Esc cerrar",
+          "prevPhoto": "Foto anterior",
+          "nextPhoto": "Foto siguiente",
+          "rejectedBadge": "Rechazada"
         },
         "cropper": {
           "dialogLabel": "Recortar foto",

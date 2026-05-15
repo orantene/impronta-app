@@ -44,29 +44,36 @@ export interface PhotoLightboxProps {
   /** Translator. When omitted, English defaults are used. */
   t?: (key: string) => string;
   /** Optional explicit label overrides — useful for surfaces with no i18n hook. */
-  labels?: {
-    profile?: string;
-    cover?: string;
-    review?: string;
-    deletePhoto?: string;
-    setAsProfile?: string;
-    setAsCover?: string;
-    previewLabel?: string;
-    closeAria?: string;
-    deleteConfirm?: string;
-  };
+  labels?: Partial<Record<keyof typeof DEFAULT_LABELS, string>>;
 }
 
 const DEFAULT_LABELS = {
   profile: "Profile",
   cover: "Cover",
   review: "Review",
+  rejected: "Rejected",
   deletePhoto: "Delete photo",
+  deleting: "Deleting…",
+  setting: "Setting…",
+  reverting: "Reverting…",
   setAsProfile: "Use as profile",
   setAsCover: "Use as cover",
   previewLabel: "Photo",
   closeAria: "Close",
   deleteConfirm: "Delete this photo? This can't be undone.",
+  cropSectionLabel: "Crop & edit",
+  cropProfile: "Profile",
+  cropCover: "Cover",
+  cropFree: "Free",
+  cropLineage: "Crop of an earlier original",
+  revertButton: "Revert to original",
+  revertConfirm: "Revert to original? The cropped version will be removed.",
+  openInNewTab: "Open",
+  copyUrl: "Copy URL",
+  copyUrlDone: "Copied!",
+  keyboardHint: "← → navigate · Esc close",
+  prevPhoto: "Previous photo",
+  nextPhoto: "Next photo",
 } as const;
 
 export function PhotoLightbox({
@@ -191,7 +198,7 @@ export function PhotoLightbox({
   };
   const handleRevert = async () => {
     if (!onRevertCrop) return;
-    if (!confirm("Revert to original? The cropped version will be removed.")) return;
+    if (!confirm(L("revertConfirm", "admin.talent.edit.mediaGallery.revertConfirm"))) return;
     setRevertBusy(true);
     await onRevertCrop();
     setRevertBusy(false);
@@ -205,7 +212,7 @@ export function PhotoLightbox({
 
   // Status pill — priority Rejected › Review › Profile › Cover.
   const pill =
-    current.approvalState === "rejected" ? { bg: "rgba(192,57,43,0.94)", label: "Rejected" } :
+    current.approvalState === "rejected" ? { bg: "rgba(192,57,43,0.94)", label: L("rejected", "admin.talent.edit.mediaGallery.rejectedBadge") } :
     current.approvalState === "pending"  ? { bg: "rgba(212,151,12,0.94)", label: L("review", "admin.talent.edit.mediaGallery.pendingBadge") } :
     isAvatar                              ? { bg: "rgba(15,79,62,0.94)",  label: L("profile", "admin.talent.edit.mediaGallery.avatarBadge") } :
     isHero                                ? { bg: "rgba(78,52,114,0.94)", label: L("cover", "admin.talent.edit.mediaGallery.coverBadge") } :
@@ -250,13 +257,13 @@ export function PhotoLightbox({
           pointerEvents: "none",
         }}>
           <span>{safeIdx + 1} / {allAssets.length}</span>
-          <span style={{ opacity: 0.5 }}>← → navigate · Esc close</span>
+          <span style={{ opacity: 0.5 }}>{L("keyboardHint", "admin.talent.edit.mediaGallery.keyboardHint")}</span>
         </div>
 
         {/* Prev */}
         {safeIdx > 0 && (
           <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }}
-            aria-label="Previous photo"
+            aria-label={L("prevPhoto", "admin.talent.edit.mediaGallery.prevPhoto")}
             style={{
               position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
               width: 44, height: 44, borderRadius: "50%",
@@ -277,7 +284,7 @@ export function PhotoLightbox({
         {/* Next */}
         {safeIdx < allAssets.length - 1 && (
           <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }}
-            aria-label="Next photo"
+            aria-label={L("nextPhoto", "admin.talent.edit.mediaGallery.nextPhoto")}
             style={{
               position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)",
               width: 44, height: 44, borderRadius: "50%",
@@ -343,7 +350,7 @@ export function PhotoLightbox({
               fontFamily: F, fontSize: 11.5, color: "rgba(255,255,255,0.7)",
             }}>
               <span style={{ fontSize: 12 }}>✂</span>
-              <span>Crop of an earlier original</span>
+              <span>{L("cropLineage", "admin.talent.edit.mediaGallery.cropLineage")}</span>
             </div>
           )}
 
@@ -355,13 +362,17 @@ export function PhotoLightbox({
               {onSetAvatar && !isAvatar && (
                 <button type="button" disabled={setAvatarBusy} onClick={() => void handleSetAvatar()}
                   style={{ ...railBtnPrimary, width: "100%", padding: "9px 12px", fontSize: 12.5, opacity: setAvatarBusy ? 0.7 : 1 }}>
-                  {setAvatarBusy ? "Setting…" : `⭐  ${L("setAsProfile", "admin.talent.edit.mediaGallery.setAvatar")} (1:1)`}
+                  {setAvatarBusy
+                    ? L("setting", "admin.talent.edit.mediaGallery.setting")
+                    : `⭐  ${L("setAsProfile", "admin.talent.edit.mediaGallery.setAvatar")} (1:1)`}
                 </button>
               )}
               {onSetHero && !isHero && (
                 <button type="button" disabled={setHeroBusy} onClick={() => void handleSetHero()}
                   style={{ ...railBtn, width: "100%", padding: "8px 12px", fontSize: 12.5, opacity: setHeroBusy ? 0.7 : 1 }}>
-                  {setHeroBusy ? "Setting…" : `🖼  ${L("setAsCover", "admin.talent.edit.mediaGallery.setHero")} (16:9 banner)`}
+                  {setHeroBusy
+                    ? L("setting", "admin.talent.edit.mediaGallery.setting")
+                    : `🖼  ${L("setAsCover", "admin.talent.edit.mediaGallery.setHero")} (16:9 banner)`}
                 </button>
               )}
             </div>
@@ -370,19 +381,19 @@ export function PhotoLightbox({
           {/* Crop & edit */}
           {onCropAt && (
             <div>
-              <div style={sectionLabel}>Crop &amp; edit</div>
+              <div style={sectionLabel}>{L("cropSectionLabel", "admin.talent.edit.mediaGallery.cropSectionLabel")}</div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button type="button" onClick={() => onCropAt(1)}
                   style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
-                  ✂ Profile
+                  ✂ {L("cropProfile", "admin.talent.edit.mediaGallery.cropProfile")}
                 </button>
                 <button type="button" onClick={() => onCropAt(16 / 9)}
                   style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
-                  ✂ Cover
+                  ✂ {L("cropCover", "admin.talent.edit.mediaGallery.cropCover")}
                 </button>
                 <button type="button" onClick={() => onCropAt("free")}
                   style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
-                  ✂ Free
+                  ✂ {L("cropFree", "admin.talent.edit.mediaGallery.cropFree")}
                 </button>
               </div>
             </div>
@@ -392,7 +403,9 @@ export function PhotoLightbox({
           {onRevertCrop && current.sourceMediaAssetId && (
             <button type="button" disabled={revertBusy} onClick={() => void handleRevert()}
               style={{ ...railBtn, width: "100%", padding: "7px 12px", fontSize: 11.5, opacity: revertBusy ? 0.6 : 1 }}>
-              {revertBusy ? "Reverting…" : "↺  Revert to original"}
+              {revertBusy
+                ? L("reverting", "admin.talent.edit.mediaGallery.reverting")
+                : "↺  " + L("revertButton", "admin.talent.edit.mediaGallery.revertButton")}
             </button>
           )}
 
@@ -402,16 +415,18 @@ export function PhotoLightbox({
           <div style={{ display: "flex", gap: 6 }}>
             {current.url ? (
               <a href={current.url} target="_blank" rel="noopener noreferrer" style={{ ...railBtn, flex: 1 }}>
-                Open ↗
+                {L("openInNewTab", "admin.talent.edit.mediaGallery.openInNewTab")} ↗
               </a>
             ) : (
               <span style={{ ...railBtn, flex: 1, opacity: 0.4, cursor: "not-allowed" }}>
-                Open ↗
+                {L("openInNewTab", "admin.talent.edit.mediaGallery.openInNewTab")} ↗
               </span>
             )}
             <button type="button" onClick={copyUrl} disabled={!current.url}
               style={{ ...railBtn, flex: 1, opacity: current.url ? 1 : 0.4 }}>
-              {copied ? "Copied!" : "Copy URL"}
+              {copied
+                ? L("copyUrlDone", "admin.talent.edit.mediaGallery.copyUrlDone")
+                : L("copyUrl", "admin.talent.edit.mediaGallery.copyUrl")}
             </button>
           </div>
 
@@ -420,7 +435,9 @@ export function PhotoLightbox({
             <div style={{ marginTop: "auto", paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
               <button type="button" disabled={deleteBusy} onClick={() => void handleDelete()}
                 style={{ ...railBtnDanger, width: "100%", padding: "8px 12px", opacity: deleteBusy ? 0.5 : 1 }}>
-                {deleteBusy ? "Deleting…" : L("deletePhoto", "admin.talent.edit.mediaGallery.delete") + (hasAnyAction ? "" : "")}
+                {deleteBusy
+                  ? L("deleting", "admin.talent.edit.mediaGallery.deleting")
+                  : L("deletePhoto", "admin.talent.edit.mediaGallery.delete") + (hasAnyAction ? "" : "")}
               </button>
             </div>
           )}
