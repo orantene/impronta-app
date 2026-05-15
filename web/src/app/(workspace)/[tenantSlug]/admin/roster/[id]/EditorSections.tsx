@@ -961,7 +961,9 @@ export function GallerySection({
               position: "relative",
               borderRadius: 10, overflow: "hidden",
               background: C.surface, border: `1px solid ${C.borderSoft}`,
-              aspectRatio: "1 / 1",
+              // 3:4 matches the talent media drawer + admin Media page so
+              // users moving between surfaces see one card shape.
+              aspectRatio: "3 / 4",
               opacity: pendingId === p.id ? 0.4 : 1,
               transition: "opacity 120ms",
               cursor: "pointer",
