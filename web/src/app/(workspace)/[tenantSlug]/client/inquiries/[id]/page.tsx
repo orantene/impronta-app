@@ -107,7 +107,9 @@ export default async function ClientInquiryThreadPage({
   // ── Core inquiry row ──
   const { data: inquiry } = await supabase
     .from("inquiries")
-    .select("id, status, version, event_date, event_location, company, quantity, created_at")
+    .select(
+      "id, status, version, event_date, event_location, company, quantity, created_at, source_channel",
+    )
     .eq("id", inquiryId)
     .eq("tenant_id", scope.tenantId)
     .eq("client_user_id", session.user.id)
@@ -262,12 +264,58 @@ export default async function ClientInquiryThreadPage({
   // ── Project title — company > agency name ──
   const title = (inquiry.company as string | null) ?? client.agencyName;
 
+  // Source pill for Discover-originated inquiries — mirrors the row-level
+  // pill on /client/inquiries so the client has provenance signal in
+  // the detail view too.
+  const sourceChannel = (inquiry.source_channel as string | null) ?? null;
+  const discoverSource =
+    sourceChannel === "discover_single_talent"
+      ? { label: "From Discover", tooltip: "You sent this inquiry from Tulala Discover." }
+      : sourceChannel === "discover_shortlist"
+        ? {
+            label: "From a Discover shortlist",
+            tooltip:
+              "You sent this inquiry to multiple talents from a shortlist. Each agency receives its own copy with their slice of talents.",
+          }
+        : null;
+
   return (
     <div style={{
       display: "flex", flexDirection: "column",
       height: "calc(100vh - 64px)",
       minHeight: 480,
     }}>
+      {discoverSource && (
+        <div
+          style={{
+            padding: "8px 16px",
+            background: "rgba(29,78,216,0.05)",
+            borderBottom: "1px solid rgba(29,78,216,0.10)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span
+            title={discoverSource.tooltip}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: "#1D4ED8",
+              fontFamily: '"Inter", system-ui, sans-serif',
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            {discoverSource.label}
+          </span>
+        </div>
+      )}
       <ClientThreadAdapter
         tenantSlug={tenantSlug}
         tenantName={client.agencyName}
