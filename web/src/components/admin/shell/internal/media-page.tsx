@@ -811,7 +811,7 @@ function MediaLightbox({
             {current.variantKind !== "hero" && (
               <button type="button" disabled={setHeroBusy} onClick={() => void setAsCover()}
                 style={{ ...railBtn, width: "100%", padding: "8px 12px", fontSize: 12.5, opacity: setHeroBusy ? 0.7 : 1 }}>
-                {setHeroBusy ? "Setting…" : "🖼  Use as cover (4:5)"}
+                {setHeroBusy ? "Setting…" : "🖼  Use as cover (16:9 banner)"}
               </button>
             )}
 
@@ -1408,7 +1408,11 @@ function PhotoCard({
 
 const MEDIA_SETTINGS_DEFAULT = {
   showFolders: true,
-  showWatermark: true,
+  // Watermark UI is parked — the visual preview overlay confuses the grid
+  // more than it helps and the editor needs a rebuild. Forcing off until we
+  // come back to it; the toggle is also hidden from the Settings popup
+  // below so users can't accidentally turn it back on.
+  showWatermark: false,
   showPending: true,
   showAnalytics: true,
   showByTalent: true,
@@ -1446,15 +1450,19 @@ export function WorkspaceMediaPage() {
   // ── Media settings popup + upload menu ───────────────────────────
   const [showSettings, setShowSettings] = useState(false);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
+  const [folderMenuOpen, setFolderMenuOpen] = useState(false);
   const [mediaSettings, setMediaSettings] = useState<MediaSettingsShape>(MEDIA_SETTINGS_DEFAULT);
   // Hydrate once from localStorage on mount. SSR-safe.
+  // showWatermark is force-pinned to false regardless of stored value —
+  // the visual preview is parked. Remove this override when the feature
+  // gets rebuilt.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = window.localStorage.getItem(MEDIA_SETTINGS_STORAGE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as Partial<MediaSettingsShape>;
-      setMediaSettings({ ...MEDIA_SETTINGS_DEFAULT, ...parsed });
+      setMediaSettings({ ...MEDIA_SETTINGS_DEFAULT, ...parsed, showWatermark: false });
     } catch {
       // Ignore — fall back to defaults.
     }
@@ -2114,13 +2122,40 @@ export function WorkspaceMediaPage() {
               {wsWatermarkConfigured && <BulkBtn icon="🔖" label="Watermark…" onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })} />}
               <BulkBtn icon="📂" label="Move to talent…" onClick={() => void openReassignModal()} />
               {folders.length > 0 && (
-                <select
-                  onChange={(e) => { if (e.target.value) { void addSelectedToFolder(e.target.value); e.target.value = ""; } }}
-                  style={{ background: "rgba(255,255,255,0.13)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "5px 10px", borderRadius: 7, cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600 }}
-                >
-                  <option value="">Add to folder…</option>
-                  {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
+                <div style={{ position: "relative" }}>
+                  <BulkBtn icon="🗂" label="Add to folder…" onClick={() => setFolderMenuOpen((v) => !v)} />
+                  {folderMenuOpen && (
+                    <>
+                      <div onClick={() => setFolderMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 89 }} />
+                      <div style={{
+                        position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 90,
+                        background: "#1f2333", border: "1px solid rgba(255,255,255,0.12)",
+                        borderRadius: 10, boxShadow: "0 12px 32px -8px rgba(0,0,0,0.4)",
+                        minWidth: 200, maxHeight: 320, overflowY: "auto",
+                        padding: "5px 0", fontFamily: FONTS.body,
+                      }}>
+                        {folders.map((f) => (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => { void addSelectedToFolder(f.id); setFolderMenuOpen(false); }}
+                            style={{
+                              width: "100%", display: "flex", alignItems: "center", gap: 9,
+                              padding: "7px 14px", background: "transparent", border: "none",
+                              color: "#fff", fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 500,
+                              cursor: "pointer", textAlign: "left",
+                            }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.08)"; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                          >
+                            <DotSwatch color={f.color ?? FOLDER_PALETTE[0]!} />
+                            <span>{f.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
               <Sep />
 
@@ -2308,7 +2343,7 @@ export function WorkspaceMediaPage() {
                     </div>
                     {([
                       ["showFolders",    "Folders"],
-                      ["showWatermark",  "Watermark"],
+                      // Watermark toggle parked — see MEDIA_SETTINGS_DEFAULT.
                       ["showPending",    "Pending review"],
                       ["showAnalytics",  "Analytics"],
                       ["showByTalent",   "Group by talent"],

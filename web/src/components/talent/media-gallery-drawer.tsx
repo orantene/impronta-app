@@ -966,7 +966,6 @@ function PhotoCard({
   asset,
   status,
   isBusy,
-  focusSlot,
   isAvatar,
   isHero,
   onClickPhoto,
