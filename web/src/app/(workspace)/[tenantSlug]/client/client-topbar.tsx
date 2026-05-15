@@ -4,13 +4,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const C = {
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.55)",
+  inkDim:     "rgba(11,11,13,0.35)",
   borderSoft: "rgba(24,24,27,0.06)",
   fill:       "#1D4ED8",
+  pillBg:     "rgba(11,11,13,0.06)",
 } as const;
 
 const NAV_ITEMS = [
@@ -26,6 +29,35 @@ const NAV_ITEMS = [
 
 export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
   const pathname = usePathname();
+  const [counts, setCounts] = useState<{ favorites: number | null; shortlists: number | null }>({
+    favorites: null,
+    shortlists: null,
+  });
+
+  // Hydrate counts once on mount. Don't block render — pills appear when
+  // the fetch lands. Failure stays null (no pill renders).
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetch("/api/discover/favorites").then((r) => (r.ok ? r.json() : { favorites: [] })),
+      fetch("/api/discover/shortlists").then((r) => (r.ok ? r.json() : { shortlists: [] })),
+    ])
+      .then(([fav, sl]: [{ favorites?: unknown[] }, { shortlists?: unknown[] }]) => {
+        if (cancelled) return;
+        setCounts({
+          favorites: Array.isArray(fav.favorites) ? fav.favorites.length : 0,
+          shortlists: Array.isArray(sl.shortlists) ? sl.shortlists.length : 0,
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const countFor = (path: string): number | null => {
+    if (path === "favorites") return counts.favorites;
+    if (path === "shortlists") return counts.shortlists;
+    return null;
+  };
 
   return (
     <div
@@ -76,7 +108,27 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
                 whiteSpace: "nowrap",
               }}
             >
-              {label}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {label}
+                {(() => {
+                  const n = countFor(path);
+                  if (n === null || n === 0) return null;
+                  return (
+                    <span
+                      style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        minWidth: 18, height: 18, padding: "0 5px",
+                        borderRadius: 999,
+                        background: active ? C.fill : C.pillBg,
+                        color: active ? "#fff" : C.inkDim,
+                        fontSize: 10, fontWeight: 700, letterSpacing: 0.2,
+                      }}
+                    >
+                      {n}
+                    </span>
+                  );
+                })()}
+              </span>
               <span
                 aria-hidden
                 style={{
