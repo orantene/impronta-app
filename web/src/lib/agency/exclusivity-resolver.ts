@@ -34,6 +34,19 @@ export type ExclusivityResolution = {
   planTier: string | null;
   /** When false, the reason explains why exclusivity was not granted. */
   reason: "set_exclusive" | "free_plan" | "already_exclusive_elsewhere" | "unknown_plan";
+  /**
+   * exclusivity_status to stamp on the roster row insert.
+   * 'auto_assigned' when admin is auto-flagging (talent gets a prompt to
+   * confirm/decline). 'confirmed' otherwise (back-compat default). Maps
+   * to the public.exclusivity_status enum on the column.
+   */
+  exclusivityStatus: "confirmed" | "auto_assigned";
+  /**
+   * exclusivity_auto_assigned_at to stamp on the row insert. Only set
+   * when status='auto_assigned' so the talent UI can compute "N days
+   * remaining to decline" countdown copy.
+   */
+  autoAssignedAt: string | null;
 };
 
 /**
@@ -61,6 +74,8 @@ export async function resolveExclusivityForRosterAdd(
       shouldBeExclusive: false,
       planTier,
       reason: planTier === "free" ? "free_plan" : "unknown_plan",
+      exclusivityStatus: "confirmed",
+      autoAssignedAt: null,
     };
   }
 
@@ -78,12 +93,33 @@ export async function resolveExclusivityForRosterAdd(
 
   if (existingError) {
     // Read error → conservative: don't auto-exclusive.
-    return { shouldBeExclusive: false, planTier, reason: "already_exclusive_elsewhere" };
+    return {
+      shouldBeExclusive: false,
+      planTier,
+      reason: "already_exclusive_elsewhere",
+      exclusivityStatus: "confirmed",
+      autoAssignedAt: null,
+    };
   }
 
   if (existing && existing.length > 0) {
-    return { shouldBeExclusive: false, planTier, reason: "already_exclusive_elsewhere" };
+    return {
+      shouldBeExclusive: false,
+      planTier,
+      reason: "already_exclusive_elsewhere",
+      exclusivityStatus: "confirmed",
+      autoAssignedAt: null,
+    };
   }
 
-  return { shouldBeExclusive: true, planTier, reason: "set_exclusive" };
+  // Auto-exclusive: talent gets a confirmation prompt in their inbox.
+  // is_primary lands as TRUE immediately; the prompt lets them flip it
+  // back to FALSE within the N-day window via declineAgencyExclusivity.
+  return {
+    shouldBeExclusive: true,
+    planTier,
+    reason: "set_exclusive",
+    exclusivityStatus: "auto_assigned",
+    autoAssignedAt: new Date().toISOString(),
+  };
 }

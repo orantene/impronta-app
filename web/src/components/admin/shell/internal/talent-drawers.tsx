@@ -44,6 +44,8 @@ import {
   updateSelfContactPolicy,
   selfLeaveAgency,
   selfSetPrimaryAgency,
+  confirmAgencyExclusivity,
+  declineAgencyExclusivity,
 } from "@/lib/server-actions/talent-self-profile-sections";
 import {
   AVAILABILITY_BLOCKS,
@@ -2717,6 +2719,7 @@ export function TalentAgencyRelationshipDrawer() {
 
   const [settingPrimary, setSettingPrimary] = useState(false);
   const [primaryError, setPrimaryError] = useState<string | null>(null);
+  const [respondingExclusivity, setRespondingExclusivity] = useState(false);
 
   const handleSetPrimary = async () => {
     const talentProfileId = bridgeTalentSelfProfile?.id;
@@ -2728,6 +2731,32 @@ export function TalentAgencyRelationshipDrawer() {
     setSettingPrimary(false);
     if (!result.ok) { setPrimaryError(result.error); return; }
     toast("Primary agency updated");
+    closeDrawer();
+  };
+
+  const handleConfirmExclusivity = async () => {
+    const talentProfileId = bridgeTalentSelfProfile?.id;
+    const agencyId = bridgeAgency?.id ?? payloadAgencyId;
+    if (!talentProfileId || !agencyId) { setPrimaryError("Unable to identify profile or agency."); return; }
+    setRespondingExclusivity(true);
+    setPrimaryError(null);
+    const result = await confirmAgencyExclusivity({ talent_profile_id: talentProfileId, agency_id: agencyId });
+    setRespondingExclusivity(false);
+    if (!result.ok) { setPrimaryError(result.error); return; }
+    toast("Exclusivity confirmed");
+    closeDrawer();
+  };
+
+  const handleDeclineExclusivity = async () => {
+    const talentProfileId = bridgeTalentSelfProfile?.id;
+    const agencyId = bridgeAgency?.id ?? payloadAgencyId;
+    if (!talentProfileId || !agencyId) { setPrimaryError("Unable to identify profile or agency."); return; }
+    setRespondingExclusivity(true);
+    setPrimaryError(null);
+    const result = await declineAgencyExclusivity({ talent_profile_id: talentProfileId, agency_id: agencyId });
+    setRespondingExclusivity(false);
+    if (!result.ok) { setPrimaryError(result.error); return; }
+    toast("Exclusivity declined — relationship continues as non-exclusive");
     closeDrawer();
   };
 
@@ -2828,6 +2857,74 @@ export function TalentAgencyRelationshipDrawer() {
             {planLabel} · {commissionLabel}
           </span>
         </div>
+
+        {/* Exclusivity confirmation prompt — only when admin auto-flagged
+            this agency as primary and talent hasn't responded yet.
+            Per project_agency_exclusivity_model.md. */}
+        {bridgeAgency?.exclusivityStatus === "auto_assigned" && (
+          <div
+            style={{
+              padding: "12px 14px",
+              background: "rgba(214,158,46,0.08)",
+              border: "1px solid rgba(214,158,46,0.30)",
+              borderRadius: 10,
+              fontFamily: FONTS.body,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 14 }} aria-hidden>🔔</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#7C5A14" }}>
+                Exclusivity request pending
+              </span>
+            </div>
+            <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5, marginBottom: 10 }}>
+              <strong>{name}</strong> added you as their <strong>exclusive talent</strong>.
+              Confirm to keep them as your primary agency (they pitch you to
+              clients + take {commissionRate > 0 ? `${Math.round(commissionRate * 100)}%` : "their commission"} on bookings they bring),
+              or decline to continue the relationship as non-exclusive.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={handleConfirmExclusivity}
+                disabled={respondingExclusivity}
+                style={{
+                  padding: "7px 14px",
+                  background: COLORS.accent,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 7,
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: respondingExclusivity ? "wait" : "pointer",
+                  opacity: respondingExclusivity ? 0.7 : 1,
+                }}
+              >
+                {respondingExclusivity ? "Saving…" : "Confirm exclusivity"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDeclineExclusivity}
+                disabled={respondingExclusivity}
+                style={{
+                  padding: "7px 14px",
+                  background: "transparent",
+                  color: COLORS.ink,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 7,
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: respondingExclusivity ? "wait" : "pointer",
+                  opacity: respondingExclusivity ? 0.7 : 1,
+                }}
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <KvRow label="Status" value={status} />

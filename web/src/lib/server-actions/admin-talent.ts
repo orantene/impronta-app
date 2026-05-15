@@ -872,6 +872,10 @@ export async function createTalentProfile(
     agency_visibility: parsed.data.agency_visibility,
     added_by: user.id,
     is_primary: exclusivity.shouldBeExclusive,
+    // Exclusivity confirmation lifecycle — talent gets a prompt in
+    // their TalentAgencyRelationshipDrawer when status='auto_assigned'.
+    exclusivity_status: exclusivity.exclusivityStatus,
+    exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
   });
   if (rosterErr) {
     logServerError("admin/createTalentProfile/roster", rosterErr);

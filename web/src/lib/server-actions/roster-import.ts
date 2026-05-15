@@ -254,6 +254,8 @@ export async function processRosterImportRow(
         talent_profile_id: talentProfileId,
         status: "active",
         is_primary: exclusivity.shouldBeExclusive,
+        exclusivity_status: exclusivity.exclusivityStatus,
+        exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
       },
       { onConflict: "tenant_id,talent_profile_id", ignoreDuplicates: false },
     );

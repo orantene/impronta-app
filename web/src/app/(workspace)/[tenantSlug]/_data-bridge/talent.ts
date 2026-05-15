@@ -409,6 +409,16 @@ export type TalentAgencyRow = {
   isPrimary: boolean;
   /** Agency visibility tier on this roster: roster_only | site_visible | featured */
   agencyVisibility: string;
+  /**
+   * Exclusivity confirmation lifecycle (migration 20260515195642):
+   *   confirmed       — talent accepted or back-compat default
+   *   auto_assigned   — admin auto-flagged is_primary; talent prompt pending
+   *   declined        — talent declined; is_primary reverted
+   *   notice_period   — talent leaving (future use)
+   */
+  exclusivityStatus: "confirmed" | "auto_assigned" | "declined" | "notice_period";
+  /** ISO when admin auto-flagged (null otherwise). Drives the prompt countdown. */
+  exclusivityAutoAssignedAt: string | null;
 };
 
 /**
@@ -429,6 +439,8 @@ export async function loadTalentAgencies(
         created_at,
         is_primary,
         agency_visibility,
+        exclusivity_status,
+        exclusivity_auto_assigned_at,
         agencies!tenant_id ( id, display_name, slug, plan_tier )
       `)
       .eq("talent_profile_id", talentProfileId)
@@ -445,6 +457,8 @@ export async function loadTalentAgencies(
       created_at: string;
       is_primary: boolean;
       agency_visibility: string;
+      exclusivity_status: "confirmed" | "auto_assigned" | "declined" | "notice_period" | null;
+      exclusivity_auto_assigned_at: string | null;
       agencies: { id: string; display_name: string; slug: string; plan_tier: string | null } | { id: string; display_name: string; slug: string; plan_tier: string | null }[] | null;
     };
 
@@ -459,6 +473,8 @@ export async function loadTalentAgencies(
         addedAt: row.created_at,
         isPrimary: row.is_primary ?? false,
         agencyVisibility: row.agency_visibility ?? "roster_only",
+        exclusivityStatus: row.exclusivity_status ?? "confirmed",
+        exclusivityAutoAssignedAt: row.exclusivity_auto_assigned_at,
       };
     });
   } catch (err) {

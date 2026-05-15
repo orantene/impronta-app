@@ -682,6 +682,9 @@ export async function selfLeaveAgency(input: {
 // Marks one roster row as the talent's primary agency (is_primary = true) and
 // clears all other roster rows for this talent (is_primary = false).
 // The agency_id uniquely identifies the row via agencies.id FK.
+//
+// Talent IS the actor here, so exclusivity_status lands as 'confirmed'
+// immediately — no prompt round-trip needed.
 
 export async function selfSetPrimaryAgency(input: {
   talent_profile_id: string;
@@ -699,14 +702,83 @@ export async function selfSetPrimaryAgency(input: {
     .neq("status", "removed");
   if (clearErr) { logServerError("self-sections.set-primary.clear", clearErr); return { ok: false, error: CLIENT_ERROR.update }; }
 
-  // Set the chosen agency as primary.
+  // Set the chosen agency as primary + mark confirmed (talent is the actor).
   const { error: setErr } = await supabase
     .from("agency_talent_roster")
-    .update({ is_primary: true })
+    .update({
+      is_primary: true,
+      exclusivity_status: "confirmed",
+      exclusivity_confirmed_at: new Date().toISOString(),
+    })
     .eq("talent_profile_id", input.talent_profile_id)
     .eq("tenant_id", input.agency_id)
     .neq("status", "removed");
   if (setErr) { logServerError("self-sections.set-primary.set", setErr); return { ok: false, error: CLIENT_ERROR.update }; }
 
+  return { ok: true };
+}
+
+// ─── Agency exclusivity confirmation flow ─────────────────────────────────
+//
+// When admin auto-exclusives a talent (resolveExclusivityForRosterAdd sets
+// is_primary=TRUE + exclusivity_status='auto_assigned'), talent sees a
+// confirmation prompt in their TalentAgencyRelationshipDrawer. These two
+// actions are the accept/decline outcomes of that prompt.
+//
+// Accept: keep is_primary=TRUE, status='confirmed', stamp confirmed_at.
+// Decline: flip is_primary=FALSE, status='declined', stamp declined_at.
+//   Relationship continues as non-exclusive (agency keeps the talent on
+//   their roster but loses the commission lane + exclusive rights). The
+//   talent can later promote them to primary via selfSetPrimaryAgency
+//   if they change their mind.
+
+export async function confirmAgencyExclusivity(input: {
+  talent_profile_id: string;
+  agency_id: string;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth;
+
+  const { error } = await supabase
+    .from("agency_talent_roster")
+    .update({
+      exclusivity_status: "confirmed",
+      exclusivity_confirmed_at: new Date().toISOString(),
+    })
+    .eq("talent_profile_id", input.talent_profile_id)
+    .eq("tenant_id", input.agency_id)
+    .eq("exclusivity_status", "auto_assigned")
+    .neq("status", "removed");
+  if (error) {
+    logServerError("self-sections.confirm-exclusivity", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+  return { ok: true };
+}
+
+export async function declineAgencyExclusivity(input: {
+  talent_profile_id: string;
+  agency_id: string;
+}): Promise<Result> {
+  const auth = await requireTalentSelfAction(input.talent_profile_id);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase } = auth;
+
+  const { error } = await supabase
+    .from("agency_talent_roster")
+    .update({
+      is_primary: false,
+      exclusivity_status: "declined",
+      exclusivity_declined_at: new Date().toISOString(),
+    })
+    .eq("talent_profile_id", input.talent_profile_id)
+    .eq("tenant_id", input.agency_id)
+    .eq("exclusivity_status", "auto_assigned")
+    .neq("status", "removed");
+  if (error) {
+    logServerError("self-sections.decline-exclusivity", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
   return { ok: true };
 }
