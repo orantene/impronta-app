@@ -127,6 +127,37 @@ function ShortlistCard({
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [shareState, setShareState] = useState<
+    | { kind: "idle" }
+    | { kind: "pending" }
+    | { kind: "ok"; url: string }
+    | { kind: "err"; message: string }
+  >({ kind: "idle" });
+
+  async function handleShare() {
+    setShareState({ kind: "pending" });
+    try {
+      const res = await fetch(`/api/discover/shortlists/${shortlist.id}/share`, {
+        method: "POST",
+      });
+      const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || typeof json.url !== "string") {
+        setShareState({
+          kind: "err",
+          message: json.error === "forbidden" ? "Only the owner can share this list." : "Couldn't generate a share link.",
+        });
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(json.url);
+      } catch {
+        /* clipboard write may fail in restricted contexts; URL still shown */
+      }
+      setShareState({ kind: "ok", url: json.url });
+    } catch {
+      setShareState({ kind: "err", message: "Network error — try again." });
+    }
+  }
 
   // Per-tenant tally for the fan-out preview line. Uses routesToTenantId
   // (= the actual fallback ladder used by /api/discover/inquiry) so the
@@ -179,7 +210,28 @@ function ShortlistCard({
             )}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={handleShare}
+            disabled={shortlist.talents.length === 0 || shareState.kind === "pending"}
+            title="Generate a public link to share this shortlist (read-only)"
+            style={{
+              height: 36, padding: "0 12px", borderRadius: 8,
+              background: "transparent",
+              border: `1px solid ${shortlist.talents.length === 0 ? C.borderSoft : C.border}`,
+              color: shortlist.talents.length === 0 ? C.inkDim : C.ink,
+              fontFamily: FONT, fontSize: 12.5, fontWeight: 600,
+              cursor: shortlist.talents.length === 0 || shareState.kind === "pending" ? "not-allowed" : "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}
+          >
+            {shareState.kind === "pending"
+              ? "Generating…"
+              : shareState.kind === "ok"
+                ? "✓ Link copied"
+                : "↗ Share"}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -238,6 +290,48 @@ function ShortlistCard({
           </button>
         </div>
       </div>
+
+      {shareState.kind === "ok" && (
+        <div style={{
+          marginTop: 10,
+          padding: "8px 10px",
+          background: "rgba(26,115,72,0.08)",
+          border: "1px solid rgba(26,115,72,0.18)",
+          borderRadius: 8,
+          fontSize: 11.5,
+          color: "#1A7348",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+        }}>
+          <span style={{ fontWeight: 600 }}>Public link copied to clipboard.</span>
+          <code style={{
+            fontSize: 10.5,
+            background: "rgba(11,11,13,0.04)",
+            padding: "2px 6px",
+            borderRadius: 4,
+            color: C.ink,
+            wordBreak: "break-all",
+          }}>
+            {shareState.url}
+          </code>
+          <span style={{ color: C.inkMuted }}>Read-only · expires in 7 days.</span>
+        </div>
+      )}
+      {shareState.kind === "err" && (
+        <div style={{
+          marginTop: 10,
+          padding: "8px 10px",
+          background: "rgba(180,130,20,0.10)",
+          border: "1px solid rgba(180,130,20,0.20)",
+          borderRadius: 8,
+          fontSize: 11.5,
+          color: "#8A6F1A",
+        }}>
+          {shareState.message}
+        </div>
+      )}
 
       {shortlist.talents.length > 0 && (
         <div style={{
