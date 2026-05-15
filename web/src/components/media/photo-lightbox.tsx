@@ -14,6 +14,36 @@ import React, { useCallback, useEffect, useState } from "react";
 
 const F = '"Inter", system-ui, sans-serif';
 
+// ─── Keyboard handler stack ───────────────────────────────────────────────────
+//
+// Multiple PhotoLightbox instances could theoretically mount at once (rare —
+// modal UX usually prevents it, but e.g. crop-dialog-on-lightbox-on-drawer
+// could nest). Without coordination they'd all catch Esc/← →. We register
+// ONE window keydown listener and dispatch to the topmost handler on the
+// stack — last-mounted wins, matching how modal layering looks visually.
+
+type KbdHandler = (e: KeyboardEvent) => void;
+const kbdStack: KbdHandler[] = [];
+let kbdInstalled = false;
+
+function ensureKbdListener() {
+  if (kbdInstalled || typeof window === "undefined") return;
+  window.addEventListener("keydown", (e) => {
+    const top = kbdStack[kbdStack.length - 1];
+    if (top) top(e);
+  });
+  kbdInstalled = true;
+}
+
+function pushKbdHandler(handler: KbdHandler): () => void {
+  ensureKbdListener();
+  kbdStack.push(handler);
+  return () => {
+    const i = kbdStack.lastIndexOf(handler);
+    if (i >= 0) kbdStack.splice(i, 1);
+  };
+}
+
 export interface PhotoLightboxAsset {
   id: string;
   url: string;
@@ -141,14 +171,14 @@ export function PhotoLightbox({
   }, []);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => {
+    // Push our handler onto the singleton stack — only the topmost
+    // (most-recently-mounted) PhotoLightbox processes keys.
+    return pushKbdHandler((e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") go(-1);
       if (e.key === "ArrowRight") go(1);
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
+    });
   }, [onClose, go]);
 
   const railBtn: React.CSSProperties = {
