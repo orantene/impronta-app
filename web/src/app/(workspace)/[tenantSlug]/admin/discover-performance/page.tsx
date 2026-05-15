@@ -52,6 +52,12 @@ type DiscoverMetrics = {
     convertedToBooked: number;
     talentsReached: number;
   };
+  /**
+   * Tenant-wide enrollment baseline — how many talents on this workspace's
+   * roster are flagged is_discoverable. Compared against window.talentsReached
+   * to surface the gap ("12 enrolled but only 2 got an inquiry").
+   */
+  enrolledTalents: number;
   /** Daily counts for the sparkline. Length === rangeDays. Index 0 = oldest. */
   dailyCounts: number[];
   topTalents: Array<{
@@ -70,6 +76,7 @@ async function loadDiscoverMetrics(
   const admin = createServiceRoleClient();
   const empty: DiscoverMetrics = {
     window: { totalInquiries: 0, singleTalent: 0, shortlist: 0, convertedToBooked: 0, talentsReached: 0 },
+    enrolledTalents: 0,
     dailyCounts: new Array(rangeDays).fill(0),
     topTalents: [],
     topCountries: [],
@@ -77,6 +84,30 @@ async function loadDiscoverMetrics(
   if (!admin) return empty;
 
   const sinceIso = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString();
+
+  // ── Enrollment baseline ────────────────────────────────────────────────
+  // Count how many talents on this workspace's active roster have
+  // is_discoverable=true. Independent of the inquiry window — this is
+  // tenant-wide state. Surfaces the "enrolled but no inquiries" gap.
+  const { data: rosterRows } = await admin
+    .from("agency_talent_roster")
+    .select(`talent_profiles!talent_profile_id ( is_discoverable, workflow_status )`)
+    .eq("tenant_id", tenantId)
+    .in("status", ["active", "pending"]);
+  let enrolledTalents = 0;
+  for (const r of (rosterRows ?? []) as Array<{
+    talent_profiles:
+      | { is_discoverable: boolean | null; workflow_status: string | null }
+      | { is_discoverable: boolean | null; workflow_status: string | null }[]
+      | null;
+  }>) {
+    const tpRaw = r.talent_profiles;
+    const tp = Array.isArray(tpRaw) ? tpRaw[0] : tpRaw;
+    if (!tp) continue;
+    if (tp.is_discoverable !== true) continue;
+    if (tp.workflow_status !== "approved" && tp.workflow_status !== "published") continue;
+    enrolledTalents++;
+  }
 
   // Pull every Discover-channel inquiry for this tenant in the last 30 days
   // with the participant + event metadata we need for the rollup. Single
@@ -196,6 +227,7 @@ async function loadDiscoverMetrics(
       convertedToBooked,
       talentsReached: talentSet.size,
     },
+    enrolledTalents,
     dailyCounts,
     topTalents,
     topCountries,
@@ -440,9 +472,13 @@ export default async function AdminDiscoverPerformancePage({
                 : 0}% of total`}
             />
             <MetricCard
-              label="Talents reached"
-              value={w.talentsReached}
-              sub="Unique participants"
+              label="Reach"
+              value={`${w.talentsReached} / ${metrics.enrolledTalents}`}
+              sub={
+                metrics.enrolledTalents > 0
+                  ? `${Math.round((w.talentsReached / metrics.enrolledTalents) * 100)}% of enrolled`
+                  : "No enrolled talent yet"
+              }
             />
             <MetricCard
               label="Converted"
