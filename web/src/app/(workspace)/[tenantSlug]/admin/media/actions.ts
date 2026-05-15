@@ -14,7 +14,7 @@ type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string
 
 // ─── Upload and immediately register under a talent ───────────────────────────
 
-export type RegisterMediaResult = ActionResult<{ id: string; publicUrl: string; sourceMediaAssetId: string | null }>;
+export type RegisterMediaResult = ActionResult<{ id: string; publicUrl: string; sourceMediaAssetId: string | null; sortOrder: number }>;
 
 export type UploadVariant = "gallery" | "card" | "hero" | "lightbox" | "polaroid" | "reel";
 
@@ -146,6 +146,11 @@ export async function actionUploadAndAssignMedia(
       // Echo back so the caller can render Revert immediately on crops
       // without waiting for a reload.
       sourceMediaAssetId,
+      // Return the server-allocated sort_order so the caller's optimistic
+      // append matches the row's real position. Without this the local
+      // state shows sortOrder=0 (caller default) until next reload, which
+      // can fight drag-reorder if the user reorders right after a crop.
+      sortOrder: nextOrder,
     },
   };
 }

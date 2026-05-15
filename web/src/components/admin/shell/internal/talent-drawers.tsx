@@ -4574,7 +4574,7 @@ export function TalentPhotoEditDrawer() {
         if (!res.ok) return { ok: false, error: res.error };
         return {
           ok: true,
-          asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0, sourceMediaAssetId: res.data.sourceMediaAssetId },
+          asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: res.data.sortOrder, sourceMediaAssetId: res.data.sourceMediaAssetId },
         };
       }}
       onRevertCrop={async (croppedId) => {
