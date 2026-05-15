@@ -1203,16 +1203,28 @@ function ChatThreadBody({
           No messages yet. Your coordinator will reply here once they pick up your inquiry.
         </div>
       ) : (
-        messages.map((m) => (
-          <Bubble
-            key={m.id}
-            m={m}
-            tenantSlug={tenantSlug}
-            onJumpToOffer={onJumpToOffer}
-            onPayNow={onPayNow}
-            onMessagesChange={onMessagesChange}
-          />
-        ))
+        (() => {
+          // Find the latest is_mine message with a seen_at — only that one
+          // gets the "Seen" pill so the indicator doesn't repeat down the
+          // thread. Reading from the loader's seen_at field which already
+          // compares per-message created_at against the counterparty's
+          // last_read_at on this thread.
+          let lastSeenMineIdx = -1;
+          for (let i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].is_mine && messages[i].seen_at) { lastSeenMineIdx = i; break; }
+          }
+          return messages.map((m, i) => (
+            <Bubble
+              key={m.id}
+              m={m}
+              showSeen={i === lastSeenMineIdx}
+              tenantSlug={tenantSlug}
+              onJumpToOffer={onJumpToOffer}
+              onPayNow={onPayNow}
+              onMessagesChange={onMessagesChange}
+            />
+          ));
+        })()
       )}
     </div>
   );
@@ -1502,12 +1514,14 @@ function FilesTab({ details }: { details: ClientInquiryDetails | null }) {
 
 function Bubble({
   m,
+  showSeen,
   tenantSlug,
   onJumpToOffer,
   onPayNow,
   onMessagesChange,
 }: {
   m: WorkspaceMessage;
+  showSeen?: boolean;
   tenantSlug?: string;
   onJumpToOffer?: () => void;
   onPayNow?: (amountLabel: string) => void;
@@ -1881,6 +1895,9 @@ function Bubble({
         )}
         <div style={{ fontSize: 10, color: C.inkDim, marginTop: 3, textAlign: mine ? "right" : "left" }}>
           {formatTime(m.created_at)}
+          {mine && showSeen && (
+            <span style={{ marginLeft: 6, color: C.accent, fontWeight: 600 }}>· Seen</span>
+          )}
           {actionError && (
             <span style={{ color: "#991B1B", marginLeft: 6, fontWeight: 600 }}>· {actionError}</span>
           )}

@@ -34,6 +34,12 @@ export type WorkspaceMessage = {
   card_payload?: Record<string, unknown> | null;
   /** Aggregated emoji reactions on this message. */
   reactions?: Array<{ emoji: string; count: number; mine: boolean }>;
+  /** ISO timestamp when the most-recent counterparty (anyone other than
+   * `myUserId`) marked the thread read with last_read_at >= this row's
+   * created_at. Only populated when at least one other participant has
+   * seen up to or past this message. Render-side uses it to show a
+   * "Seen" indicator on the LAST is_mine message whose seen_at is set. */
+  seen_at?: string | null;
 };
 
 /**
@@ -655,6 +661,24 @@ export async function loadInquiryMessages(
       }
     }
 
+    // Read-receipt fetch — latest last_read_at on this thread by users
+    // OTHER than me. UI uses this to render "Seen" on my own messages
+    // whose created_at <= that timestamp.
+    let counterpartyLastRead: string | null = null;
+    if (myUserId) {
+      const { data: readsRows } = await readClient
+        .from("inquiry_message_reads")
+        .select("user_id, last_read_at")
+        .eq("inquiry_id", inquiryId)
+        .eq("thread_type", threadType)
+        .neq("user_id", myUserId);
+      for (const r of ((readsRows ?? []) as Array<{ user_id: string; last_read_at: string }>)) {
+        if (!counterpartyLastRead || r.last_read_at > counterpartyLastRead) {
+          counterpartyLastRead = r.last_read_at;
+        }
+      }
+    }
+
     return rows.map((row) => {
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
       // System events have sender_user_id = null (e.g. auto-ack on submit).
@@ -666,16 +690,22 @@ export async function loadInquiryMessages(
       const reactions = reactionAgg
         ? [...reactionAgg.entries()].map(([emoji, v]) => ({ emoji, count: v.count, mine: v.mine }))
         : [];
+      const is_mine = !!row.sender_user_id && row.sender_user_id === myUserId;
+      const seen_at =
+        is_mine && counterpartyLastRead && counterpartyLastRead >= row.created_at
+          ? counterpartyLastRead
+          : null;
       return {
         id: row.id,
         sender_user_id: row.sender_user_id ?? "",
         sender_name: senderName,
         body: row.body,
         created_at: row.created_at,
-        is_mine: !!row.sender_user_id && row.sender_user_id === myUserId,
+        is_mine,
         message_kind: row.message_kind ?? "text",
         card_payload: row.card_payload ?? null,
         reactions,
+        seen_at,
       };
     });
   } catch (err) {
