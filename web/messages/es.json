@@ -789,7 +789,10 @@
           "keyboardHint": "← → navegar · Esc cerrar",
           "prevPhoto": "Foto anterior",
           "nextPhoto": "Foto siguiente",
-          "rejectedBadge": "Rechazada"
+          "rejectedBadge": "Rechazada",
+          "confirmCancel": "Cancelar",
+          "confirmDelete": "Eliminar",
+          "confirmRevert": "Revertir"
         },
         "cropper": {
           "dialogLabel": "Recortar foto",

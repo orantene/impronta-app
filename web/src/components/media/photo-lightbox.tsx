@@ -112,6 +112,9 @@ const DEFAULT_LABELS = {
   previewLabel: "Photo",
   closeAria: "Close",
   deleteConfirm: "Delete this photo? This can't be undone.",
+  confirmCancel: "Cancel",
+  confirmDelete: "Delete",
+  confirmRevert: "Revert",
   cropSectionLabel: "Crop & edit",
   cropProfile: "Profile",
   cropCover: "Cover",
@@ -166,6 +169,9 @@ export function PhotoLightbox({
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [revertBusy, setRevertBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // In-app confirmation (replaces native confirm() — consistent, testable,
+  // doesn't freeze the surface). null = no dialog.
+  const [pendingConfirm, setPendingConfirm] = useState<"delete" | "revert" | null>(null);
   useEffect(() => {
     setSetAvatarBusy(false);
     setSetHeroBusy(false);
@@ -249,19 +255,23 @@ export function PhotoLightbox({
     await onSetHero();
     setSetHeroBusy(false);
   };
-  const handleDelete = async () => {
-    if (!onDelete) return;
-    if (!confirm(L("deleteConfirm", "admin.talent.edit.mediaGallery.deleteConfirm"))) return;
-    setDeleteBusy(true);
-    await onDelete();
-    setDeleteBusy(false);
-  };
-  const handleRevert = async () => {
-    if (!onRevertCrop) return;
-    if (!confirm(L("revertConfirm", "admin.talent.edit.mediaGallery.revertConfirm"))) return;
-    setRevertBusy(true);
-    await onRevertCrop();
-    setRevertBusy(false);
+  // Delete / Revert open the in-app confirm modal instead of native
+  // confirm(). The actual work runs in runConfirmedAction once the user
+  // confirms in-app.
+  const handleDelete = () => { if (onDelete) setPendingConfirm("delete"); };
+  const handleRevert = () => { if (onRevertCrop) setPendingConfirm("revert"); };
+  const runConfirmedAction = async () => {
+    const kind = pendingConfirm;
+    setPendingConfirm(null);
+    if (kind === "delete" && onDelete) {
+      setDeleteBusy(true);
+      await onDelete();
+      setDeleteBusy(false);
+    } else if (kind === "revert" && onRevertCrop) {
+      setRevertBusy(true);
+      await onRevertCrop();
+      setRevertBusy(false);
+    }
   };
   const copyUrl = () => {
     void navigator.clipboard.writeText(current.url).then(() => {
@@ -471,7 +481,7 @@ export function PhotoLightbox({
 
           {/* Revert — only when this asset is a crop AND caller wired it */}
           {onRevertCrop && current.sourceMediaAssetId && (
-            <button type="button" disabled={revertBusy} onClick={() => void handleRevert()}
+            <button type="button" disabled={revertBusy} onClick={handleRevert}
               style={{ ...railBtn, width: "100%", padding: "7px 12px", fontSize: 11.5, opacity: revertBusy ? 0.6 : 1 }}>
               {revertBusy
                 ? L("reverting", "admin.talent.edit.mediaGallery.reverting")
@@ -508,7 +518,7 @@ export function PhotoLightbox({
           {/* Danger zone — only when caller wired delete */}
           {onDelete && (
             <div style={{ marginTop: "auto", paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-              <button type="button" disabled={deleteBusy} onClick={() => void handleDelete()}
+              <button type="button" disabled={deleteBusy} onClick={handleDelete}
                 style={{ ...railBtnDanger, width: "100%", padding: "8px 12px", opacity: deleteBusy ? 0.5 : 1 }}>
                 {deleteBusy
                   ? L("deleting", "admin.talent.edit.mediaGallery.deleting")
@@ -518,6 +528,56 @@ export function PhotoLightbox({
           )}
         </div>
       </div>
+
+      {/* In-app confirm modal — replaces native confirm(). Sits above the
+          lightbox (z 9600 > 9500). stopPropagation so a click on the card
+          doesn't bubble to the root onClose. */}
+      {pendingConfirm && (
+        <div
+          onClick={(e) => { e.stopPropagation(); setPendingConfirm(null); }}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9600,
+            background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(380px, 100%)", background: "#1c1c20",
+              border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12,
+              padding: "20px 22px", color: "#fff",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div style={{ fontFamily: F, fontSize: 14, lineHeight: 1.5, color: "rgba(255,255,255,0.92)", marginBottom: 18 }}>
+              {pendingConfirm === "delete"
+                ? L("deleteConfirm", "admin.talent.edit.mediaGallery.deleteConfirm")
+                : L("revertConfirm", "admin.talent.edit.mediaGallery.revertConfirm")}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setPendingConfirm(null)}
+                style={{
+                  ...railBtn, padding: "7px 14px",
+                  background: "rgba(255,255,255,0.06)",
+                }}>
+                {L("confirmCancel", "admin.talent.edit.mediaGallery.confirmCancel")}
+              </button>
+              <button type="button" onClick={() => void runConfirmedAction()}
+                style={{
+                  ...railBtnDanger, padding: "7px 16px",
+                }}>
+                {pendingConfirm === "delete"
+                  ? L("confirmDelete", "admin.talent.edit.mediaGallery.confirmDelete")
+                  : L("confirmRevert", "admin.talent.edit.mediaGallery.confirmRevert")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

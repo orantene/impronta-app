@@ -626,7 +626,8 @@ function MediaLightbox({
   // clamp will land us on the next photo automatically.
   const revertToOriginal = async () => {
     if (!current.sourceMediaAssetId) return;
-    if (!confirm("Revert to original? The cropped version will be removed.")) return;
+    // Confirmation is owned by PhotoLightbox's in-app modal — no native
+    // confirm() here, or it'd double-prompt.
     setRevertBusy(true);
     const r = await actionRevertCropToSource(current.id);
     setRevertBusy(false);
@@ -637,7 +638,8 @@ function MediaLightbox({
   };
 
   const deletePhoto = async () => {
-    if (!confirm("Delete this photo? This cannot be undone.")) return;
+    // Confirmation is owned by PhotoLightbox's in-app modal — no native
+    // confirm() here, or it'd double-prompt.
     setDeleteBusy(true);
     const r = await actionDeleteMediaAssets([current.id]);
     setDeleteBusy(false);
