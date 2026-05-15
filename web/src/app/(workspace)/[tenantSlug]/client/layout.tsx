@@ -22,7 +22,9 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../_data-bridge";
 import { signOut } from "@/app/auth/actions";
 import { ClientTopbar } from "./client-topbar";
-import { ClientKeyboardShortcuts } from "./_keyboard-shortcuts";
+import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboard-shortcuts";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
@@ -66,6 +68,25 @@ export default async function ClientLayout({
   params: LayoutParams;
 }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+  const keyboardLabels: KeyboardShortcutLabels = {
+    title: t("public.keyboard.title"),
+    close: t("public.keyboard.close"),
+    rows: {
+      search: t("public.keyboard.rows.search"),
+      toggleHelp: t("public.keyboard.rows.toggleHelp"),
+      discover: t("public.keyboard.rows.discover"),
+      favorites: t("public.keyboard.rows.favorites"),
+      shortlists: t("public.keyboard.rows.shortlists"),
+      pitches: t("public.keyboard.rows.pitches"),
+      inquiries: t("public.keyboard.rows.inquiries"),
+      bookings: t("public.keyboard.rows.bookings"),
+      messages: t("public.keyboard.rows.messages"),
+      today: t("public.keyboard.rows.today"),
+      esc: t("public.keyboard.rows.esc"),
+    },
+  };
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   const session = await getCachedActorSession();
@@ -321,7 +342,7 @@ export default async function ClientLayout({
         <ClientTopbar tenantSlug={tenantSlug} />
 
         {/* D9 polish — global keyboard shortcuts (renders null unless help open) */}
-        <ClientKeyboardShortcuts tenantSlug={tenantSlug} />
+        <ClientKeyboardShortcuts tenantSlug={tenantSlug} labels={keyboardLabels} />
 
         {/* ── Content area ── */}
         <main

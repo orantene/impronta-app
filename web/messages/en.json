@@ -93,6 +93,23 @@
         "notAvailableBody": "It may have been deleted, or the owner may have removed it from sharing."
       }
     },
+    "keyboard": {
+      "title": "Keyboard shortcuts",
+      "close": "Close",
+      "rows": {
+        "search": "Focus search (or jump to Discover)",
+        "toggleHelp": "Toggle this help",
+        "discover": "Discover",
+        "favorites": "Favorites",
+        "shortlists": "Shortlists",
+        "pitches": "Pitches",
+        "inquiries": "Inquiries",
+        "bookings": "Bookings",
+        "messages": "Messages",
+        "today": "Today",
+        "esc": "Close this help"
+      }
+    },
     "home": {
       "hero": {
         "kicker": "Agency-managed roster",

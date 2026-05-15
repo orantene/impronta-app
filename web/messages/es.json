@@ -93,6 +93,23 @@
         "notAvailableBody": "Puede que haya sido eliminada, o el propietario haya retirado el enlace público."
       }
     },
+    "keyboard": {
+      "title": "Atajos de teclado",
+      "close": "Cerrar",
+      "rows": {
+        "search": "Buscar (o ir a Descubrir)",
+        "toggleHelp": "Mostrar / ocultar esta ayuda",
+        "discover": "Descubrir",
+        "favorites": "Favoritos",
+        "shortlists": "Shortlists",
+        "pitches": "Propuestas",
+        "inquiries": "Consultas",
+        "bookings": "Reservas",
+        "messages": "Mensajes",
+        "today": "Hoy",
+        "esc": "Cerrar esta ayuda"
+      }
+    },
     "home": {
       "hero": {
         "kicker": "Roster gestionado por la agencia",

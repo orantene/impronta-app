@@ -18,9 +18,40 @@
 //   g m          go to /client/messages
 //   g t          go to /client/today
 //   Esc          close help overlay (when open)
+//
+// Labels are passed from the (server) layout so locale-aware copy
+// renders without needing to load i18n on the client.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+export type KeyboardShortcutLabels = {
+  title: string;
+  close: string;
+  rows: Record<
+    "search" | "toggleHelp" | "discover" | "favorites" | "shortlists" |
+    "pitches" | "inquiries" | "bookings" | "messages" | "today" | "esc",
+    string
+  >;
+};
+
+const DEFAULT_LABELS: KeyboardShortcutLabels = {
+  title: "Keyboard shortcuts",
+  close: "Close",
+  rows: {
+    search: "Focus search (or jump to Discover)",
+    toggleHelp: "Toggle this help",
+    discover: "Discover",
+    favorites: "Favorites",
+    shortlists: "Shortlists",
+    pitches: "Pitches",
+    inquiries: "Inquiries",
+    bookings: "Bookings",
+    messages: "Messages",
+    today: "Today",
+    esc: "Close this help",
+  },
+};
 
 const NAV_MAP: Record<string, string> = {
   d: "discover",
@@ -41,7 +72,13 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return false;
 }
 
-export function ClientKeyboardShortcuts({ tenantSlug }: { tenantSlug: string }) {
+export function ClientKeyboardShortcuts({
+  tenantSlug,
+  labels = DEFAULT_LABELS,
+}: {
+  tenantSlug: string;
+  labels?: KeyboardShortcutLabels;
+}) {
   const router = useRouter();
   const [helpOpen, setHelpOpen] = useState(false);
   // `g` prefix mode — last keydown was an unmodified `g`. Cleared after
@@ -109,22 +146,28 @@ export function ClientKeyboardShortcuts({ tenantSlug }: { tenantSlug: string }) 
   }, [router, tenantSlug, gMode, helpOpen]);
 
   if (!helpOpen) return null;
-  return <HelpOverlay onClose={() => setHelpOpen(false)} />;
+  return <HelpOverlay onClose={() => setHelpOpen(false)} labels={labels} />;
 }
 
-function HelpOverlay({ onClose }: { onClose: () => void }) {
+function HelpOverlay({
+  onClose,
+  labels,
+}: {
+  onClose: () => void;
+  labels: KeyboardShortcutLabels;
+}) {
   const rows: Array<[string, string]> = [
-    ["/", "Focus search (or jump to Discover)"],
-    ["?", "Toggle this help"],
-    ["g d", "Discover"],
-    ["g f", "Favorites"],
-    ["g s", "Shortlists"],
-    ["g p", "Pitches"],
-    ["g i", "Inquiries"],
-    ["g b", "Bookings"],
-    ["g m", "Messages"],
-    ["g t", "Today"],
-    ["Esc", "Close this help"],
+    ["/", labels.rows.search],
+    ["?", labels.rows.toggleHelp],
+    ["g d", labels.rows.discover],
+    ["g f", labels.rows.favorites],
+    ["g s", labels.rows.shortlists],
+    ["g p", labels.rows.pitches],
+    ["g i", labels.rows.inquiries],
+    ["g b", labels.rows.bookings],
+    ["g m", labels.rows.messages],
+    ["g t", labels.rows.today],
+    ["Esc", labels.rows.esc],
   ];
 
   return (
@@ -157,12 +200,12 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0B0B0D" }}>
-            Keyboard shortcuts
+            {labels.title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={labels.close}
             style={{
               width: 28, height: 28, borderRadius: 7, border: "none",
               background: "rgba(11,11,13,0.06)", cursor: "pointer",
