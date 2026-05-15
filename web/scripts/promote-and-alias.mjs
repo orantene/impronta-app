@@ -100,15 +100,55 @@ function aliasSet(deploymentUrl, domain) {
 }
 
 function promote(deploymentUrl) {
-  console.log(`Promoting ${deploymentUrl} to production…`);
+  // `vercel promote <preview>` only re-points the production alias — it does
+  // NOT rebuild in the Production environment. Preview deployments stay
+  // gated by Vercel SSO, so the production domain ends up serving a 401.
+  //
+  // The UI's "Promote to Production" button actually creates a fresh
+  // Production-env build from the same git ref. `vercel redeploy --target
+  // production` is the CLI equivalent. We use that here.
+  console.log(`Re-deploying ${deploymentUrl} as a Production build…`);
   const out = tryRun(
-    `vercel promote ${deploymentUrl} --scope ${SCOPE} --yes`,
+    `vercel redeploy ${deploymentUrl} --target production --scope ${SCOPE}`,
   );
   if (!out.ok) {
-    console.error(`Promote failed: ${out.stderr || out.stdout}`);
+    console.error(`Redeploy failed: ${out.stderr || out.stdout}`);
     process.exit(1);
   }
-  console.log("  ✓ promote accepted");
+  // Output contains the new prod-env deployment URL — pull it out so the
+  // caller can alias to it (the original preview URL would still be SSO-gated).
+  const newDeployUrl = (out.stdout + out.stderr).match(/https:\/\/[^\s]+\.vercel\.app/)?.[0];
+  if (!newDeployUrl) {
+    console.error("Redeploy succeeded but couldn't parse new deployment URL.");
+    console.error(out.stdout || out.stderr);
+    process.exit(1);
+  }
+  console.log(`  ✓ new production deployment: ${newDeployUrl}`);
+  return newDeployUrl;
+}
+
+function waitForReady(deploymentUrl) {
+  console.log("Waiting for build to finish…");
+  const id = deploymentUrl.replace(/^https?:\/\//, "");
+  for (let i = 0; i < 60; i += 1) {
+    const probe = tryRun(`vercel inspect ${id} --scope ${SCOPE} --timeout 5000ms`);
+    const out = probe.stdout + probe.stderr;
+    if (out.includes("state\tREADY") || /state\s+READY/.test(out)) {
+      console.log("  ✓ READY");
+      return;
+    }
+    if (out.includes("ERROR") || out.includes("CANCELED")) {
+      console.error("  ✗ build failed");
+      console.error(out);
+      process.exit(1);
+    }
+    process.stdout.write(".");
+    // 10s between probes; total cap 10 minutes.
+    const wait = Date.now() + 10_000;
+    while (Date.now() < wait) {}
+  }
+  console.error("\n  ✗ timed out waiting for READY");
+  process.exit(1);
 }
 
 // ── --check mode: just report ─────────────────────────────────────────────
@@ -138,14 +178,17 @@ if (!target) {
   console.log(`Using latest deployment: ${target}`);
 }
 
-// ── Promote ──────────────────────────────────────────────────────────────
-promote(target);
+// ── Trigger a Production-env build of the same source ────────────────────
+const newProdUrl = promote(target);
+
+// ── Wait for the new build to be READY ────────────────────────────────────
+waitForReady(newProdUrl);
 
 // ── Re-alias both custom domains (the part Vercel's UI misses) ────────────
 console.log("\nRe-aliasing custom domains:");
 let allOk = true;
 for (const domain of PROD_DOMAINS) {
-  if (!aliasSet(target, domain)) allOk = false;
+  if (!aliasSet(newProdUrl, domain)) allOk = false;
 }
 
 // ── Quick verification probe ──────────────────────────────────────────────
@@ -160,4 +203,5 @@ if (!allOk) {
   process.exit(1);
 }
 
-console.log("\n✓ Production is on", target);
+console.log("\n✓ Production is on", newProdUrl);
+console.log("Next: run `npm run deploy:smoke` to verify the live site.");
