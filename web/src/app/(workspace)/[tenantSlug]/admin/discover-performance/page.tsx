@@ -173,7 +173,7 @@ async function loadDiscoverMetrics(
     }
   }
 
-  const topTalents = Array.from(talentCounts.entries())
+  const topTalents: DiscoverMetrics["topTalents"] = Array.from(talentCounts.entries())
     .map(([id, v]) => ({
       talentId: id,
       displayName: v.name,
