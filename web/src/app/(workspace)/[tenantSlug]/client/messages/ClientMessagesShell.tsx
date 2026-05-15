@@ -673,6 +673,14 @@ function ThreadPaneWithTabs({
           />
         </div>
 
+        {/* S0.10 — Next-action strip. Contextual one-liner about what's
+            happening now / what the client needs to do. */}
+        <NextActionStrip
+          inquiry={inq}
+          hasOffer={!!details?.offer?.exists}
+          onTabChange={onTabChange}
+        />
+
         {/* Tab strip */}
         <div role="tablist" style={{ display: "flex", gap: 0, marginTop: 12, overflowX: "auto" }}>
           {TAB_CONFIG.map((t) => {
@@ -1441,6 +1449,151 @@ function ChatLoadingSkeleton() {
           50% { opacity: 0.55; }
         }
       `}} />
+    </div>
+  );
+}
+
+// ─── Next-action strip (S0.10) ───────────────────────────────────────────
+
+function NextActionStrip({
+  inquiry,
+  hasOffer,
+  onTabChange,
+}: {
+  inquiry: ClientInquiryRow;
+  hasOffer: boolean;
+  onTabChange: (tab: ThreadTab) => void;
+}) {
+  // Map (status × next_action_by) → contextual message + optional CTA.
+  type StripState = {
+    icon: string;
+    label: string;
+    detail: string;
+    tone: "neutral" | "client" | "agency" | "success";
+    cta?: { label: string; onClick: () => void };
+  };
+
+  const state = ((): StripState | null => {
+    const by = inquiry.next_action_by;
+    switch (inquiry.status) {
+      case "submitted":
+        return {
+          icon: "📥",
+          label: by === "client" ? "Your turn" : "Coordinator reviewing",
+          detail: by === "client"
+            ? "Add anything else your coordinator should know."
+            : "Typical reply within one business day.",
+          tone: by === "client" ? "client" : "agency",
+        };
+      case "coordination":
+        return {
+          icon: "🎯",
+          label: by === "client" ? "Your turn" : "Sourcing talent",
+          detail: by === "client"
+            ? "Reply to your coordinator's question to keep things moving."
+            : "Coordinator is matching the right talent — proposals appear in Lineup.",
+          tone: by === "client" ? "client" : "agency",
+          cta: by === "client"
+            ? undefined
+            : { label: "View lineup", onClick: () => onTabChange("lineup") },
+        };
+      case "offer_pending":
+      case "offer_sent":
+        return {
+          icon: "💰",
+          label: hasOffer ? "Offer ready to review" : "Offer being drafted",
+          detail: hasOffer
+            ? "Open the Offer tab to approve or decline."
+            : "Coordinator is finalizing line items — you'll get notified when it's ready.",
+          tone: hasOffer ? "client" : "agency",
+          cta: hasOffer
+            ? { label: "Open offer", onClick: () => onTabChange("offer") }
+            : undefined,
+        };
+      case "approved":
+        return {
+          icon: "✅",
+          label: "Approved — booking soon",
+          detail: "Coordinator is converting your approval into a confirmed booking.",
+          tone: "agency",
+        };
+      case "booked":
+      case "converted":
+        return {
+          icon: "🎬",
+          label: "Booked",
+          detail: "Day-of details will surface in your Today page on event day.",
+          tone: "success",
+          cta: { label: "View call sheet", onClick: () => onTabChange("details") },
+        };
+      case "cancelled":
+      case "rejected":
+        return {
+          icon: "✖️",
+          label: "Cancelled",
+          detail: "This inquiry was cancelled. Start a new one anytime.",
+          tone: "neutral",
+        };
+      default:
+        return null;
+    }
+  })();
+
+  if (!state) return null;
+
+  const tonePalette: Record<StripState["tone"], { bg: string; border: string; ink: string }> = {
+    neutral: { bg: "rgba(11,11,13,0.03)", border: C.borderSoft, ink: C.inkMuted },
+    client:  { bg: C.accentSoft, border: "rgba(29,78,216,0.18)", ink: C.accent },
+    agency:  { bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.20)", ink: "#92400E" },
+    success: { bg: "rgba(15,81,50,0.06)", border: "rgba(15,81,50,0.18)", ink: "#0F5132" },
+  };
+  const p = tonePalette[state.tone];
+
+  return (
+    <div
+      role="status"
+      style={{
+        marginTop: 10,
+        padding: "8px 12px",
+        background: p.bg,
+        border: `1px solid ${p.border}`,
+        borderRadius: 10,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        fontFamily: FONT,
+      }}
+    >
+      <span style={{ fontSize: 16, flexShrink: 0 }}>{state.icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: p.ink, textTransform: "uppercase", letterSpacing: 0.4 }}>
+          {state.label}
+        </div>
+        <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 1, lineHeight: 1.4 }}>
+          {state.detail}
+        </div>
+      </div>
+      {state.cta && (
+        <button
+          type="button"
+          onClick={state.cta.onClick}
+          style={{
+            padding: "5px 10px",
+            borderRadius: 7,
+            background: "#fff",
+            border: `1px solid ${p.border}`,
+            color: p.ink,
+            fontFamily: FONT,
+            fontSize: 11.5,
+            fontWeight: 700,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          {state.cta.label}
+        </button>
+      )}
     </div>
   );
 }
