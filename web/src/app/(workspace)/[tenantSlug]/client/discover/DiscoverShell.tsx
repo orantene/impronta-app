@@ -586,6 +586,7 @@ function DiscoverCard({
             fill
             sizes="(max-width: 600px) 50vw, (max-width: 1100px) 25vw, 280px"
             style={{ objectFit: "cover" }}
+            unoptimized
           />
         )}
         {!item.headshotUrl && (
@@ -914,6 +915,7 @@ function DiscoverDetailDrawer({
                   sizes="(max-width: 600px) 100vw, 480px"
                   priority
                   style={{ objectFit: "cover" }}
+                  unoptimized
                 />
               )}
               {!detail.headshotUrl && (
@@ -1027,6 +1029,7 @@ function DiscoverDetailDrawer({
                           fill
                           sizes="(max-width: 600px) 33vw, 160px"
                           style={{ objectFit: "cover" }}
+                          unoptimized
                         />
                       </div>
                     ))}
