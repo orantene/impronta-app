@@ -1,0 +1,418 @@
+"use client";
+
+// ─── PhotoLightbox ────────────────────────────────────────────────────────────
+//
+// One unified photo surface used across the talent media drawer (admin per-
+// talent edit, admin shell talent drawer, talent self-edit) AND the per-
+// talent edit form's GallerySection. Image left, scrollable action rail
+// right (stacks as a bottom sheet on narrow viewports). Each rail section
+// renders conditionally based on which callbacks the caller wires up, so
+// the same component covers both the full-feature drawer use and the
+// lighter form-context preview use.
+
+import React, { useCallback, useEffect, useState } from "react";
+
+const F = '"Inter", system-ui, sans-serif';
+
+export interface PhotoLightboxAsset {
+  id: string;
+  url: string;
+  variantKind?: string;
+  approvalState?: "pending" | "approved" | "rejected";
+  sourceMediaAssetId?: string | null;
+}
+
+export interface PhotoLightboxProps {
+  asset: PhotoLightboxAsset;
+  allAssets: PhotoLightboxAsset[];
+  /** Is this asset currently set as the talent's profile photo (1:1)? */
+  isAvatar?: boolean;
+  /** Is this asset currently set as the talent's cover photo (16:9)? */
+  isHero?: boolean;
+  onClose: () => void;
+  onNavigate: (next: PhotoLightboxAsset) => void;
+  /** When omitted, the Crop & edit section is hidden. */
+  onCropAt?: (aspect: 1 | number | "free") => void;
+  /** When omitted, "Use as profile" is hidden. */
+  onSetAvatar?: () => Promise<void>;
+  /** When omitted, "Use as cover" is hidden. */
+  onSetHero?: () => Promise<void>;
+  /** When omitted, the Delete section is hidden. */
+  onDelete?: () => Promise<void>;
+  /** When omitted, "Revert to original" is hidden even if asset has sourceMediaAssetId. */
+  onRevertCrop?: () => Promise<void>;
+  /** Translator. When omitted, English defaults are used. */
+  t?: (key: string) => string;
+  /** Optional explicit label overrides — useful for surfaces with no i18n hook. */
+  labels?: {
+    profile?: string;
+    cover?: string;
+    review?: string;
+    deletePhoto?: string;
+    setAsProfile?: string;
+    setAsCover?: string;
+    previewLabel?: string;
+    closeAria?: string;
+    deleteConfirm?: string;
+  };
+}
+
+const DEFAULT_LABELS = {
+  profile: "Profile",
+  cover: "Cover",
+  review: "Review",
+  deletePhoto: "Delete photo",
+  setAsProfile: "Use as profile",
+  setAsCover: "Use as cover",
+  previewLabel: "Photo",
+  closeAria: "Close",
+  deleteConfirm: "Delete this photo? This can't be undone.",
+} as const;
+
+export function PhotoLightbox({
+  asset, allAssets, isAvatar = false, isHero = false,
+  onClose, onNavigate,
+  onCropAt, onSetAvatar, onSetHero, onDelete, onRevertCrop,
+  t, labels,
+}: PhotoLightboxProps) {
+  // Resolve copy: caller's `labels` override > translator > English default.
+  // `t` lookups that match a known key in the talent-side translations get
+  // used; otherwise fall back to English defaults.
+  const L = (key: keyof typeof DEFAULT_LABELS, tKey?: string): string => {
+    if (labels?.[key]) return labels[key]!;
+    if (t && tKey) {
+      const tr = t(tKey);
+      // createTranslator returns the key path on miss, so don't accept it.
+      if (tr && tr !== tKey) return tr;
+    }
+    return DEFAULT_LABELS[key];
+  };
+
+  const initialIdx = Math.max(0, allAssets.findIndex((a) => a.id === asset.id));
+  const [currentIdx, setCurrentIdx] = useState(initialIdx);
+  // Keep current index safe across allAssets shrinking (e.g. after delete).
+  const safeIdx = Math.max(0, Math.min(allAssets.length - 1, currentIdx));
+  const current = allAssets[safeIdx] ?? asset;
+
+  // Local per-photo busy flags — reset when the visible asset changes.
+  const [setAvatarBusy, setSetAvatarBusy] = useState(false);
+  const [setHeroBusy, setSetHeroBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [revertBusy, setRevertBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    setSetAvatarBusy(false);
+    setSetHeroBusy(false);
+    setDeleteBusy(false);
+    setRevertBusy(false);
+    setCopied(false);
+  }, [current.id]);
+
+  // Bubble the current asset back to the parent so its lightbox state tracks
+  // navigation (keeps the cropper source URL fresh too).
+  useEffect(() => {
+    if (current.id !== asset.id) onNavigate(current);
+  }, [current, asset.id, onNavigate]);
+
+  const go = useCallback((delta: number) => {
+    setCurrentIdx((i) => Math.max(0, Math.min(allAssets.length - 1, i + delta)));
+  }, [allAssets.length]);
+
+  // Track viewport — stack the rail under the image on narrow screens.
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 820px)");
+    const sync = () => setIsNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") go(-1);
+      if (e.key === "ArrowRight") go(1);
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose, go]);
+
+  const railBtn: React.CSSProperties = {
+    padding: "6px 10px", borderRadius: 7,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.06)", color: "#fff",
+    fontFamily: F, fontSize: 12, fontWeight: 600,
+    cursor: "pointer", textDecoration: "none",
+    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+  };
+  const railBtnPrimary: React.CSSProperties = {
+    ...railBtn,
+    background: "rgba(255,255,255,0.94)",
+    color: "#0f0f12",
+    border: "1px solid rgba(255,255,255,0.94)",
+  };
+  const railBtnDanger: React.CSSProperties = {
+    ...railBtn,
+    background: "rgba(192,57,43,0.16)",
+    color: "rgba(255,135,120,0.95)",
+    border: "1px solid rgba(192,57,43,0.4)",
+  };
+  const sectionLabel: React.CSSProperties = {
+    fontFamily: F, fontSize: 10.5, fontWeight: 700,
+    color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.7,
+    marginBottom: 8,
+  };
+
+  const handleSetAvatar = async () => {
+    if (!onSetAvatar) return;
+    setSetAvatarBusy(true);
+    await onSetAvatar();
+    setSetAvatarBusy(false);
+  };
+  const handleSetHero = async () => {
+    if (!onSetHero) return;
+    setSetHeroBusy(true);
+    await onSetHero();
+    setSetHeroBusy(false);
+  };
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    if (!confirm(L("deleteConfirm", "admin.talent.edit.mediaGallery.deleteConfirm"))) return;
+    setDeleteBusy(true);
+    await onDelete();
+    setDeleteBusy(false);
+  };
+  const handleRevert = async () => {
+    if (!onRevertCrop) return;
+    if (!confirm("Revert to original? The cropped version will be removed.")) return;
+    setRevertBusy(true);
+    await onRevertCrop();
+    setRevertBusy(false);
+  };
+  const copyUrl = () => {
+    void navigator.clipboard.writeText(current.url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    });
+  };
+
+  // Status pill — priority Rejected › Review › Profile › Cover.
+  const pill =
+    current.approvalState === "rejected" ? { bg: "rgba(192,57,43,0.94)", label: "Rejected" } :
+    current.approvalState === "pending"  ? { bg: "rgba(212,151,12,0.94)", label: L("review", "admin.talent.edit.mediaGallery.pendingBadge") } :
+    isAvatar                              ? { bg: "rgba(15,79,62,0.94)",  label: L("profile", "admin.talent.edit.mediaGallery.avatarBadge") } :
+    isHero                                ? { bg: "rgba(78,52,114,0.94)", label: L("cover", "admin.talent.edit.mediaGallery.coverBadge") } :
+    null;
+
+  // Decide whether to render the action rail at all. If no actions are wired
+  // AND no role pill applies, we'd render an empty box — better to just show
+  // a minimal rail with the close + URL actions.
+  const hasAnyAction = !!(onSetAvatar || onSetHero || onCropAt || onDelete || onRevertCrop);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={L("previewLabel", "admin.talent.edit.mediaGallery.previewLabel")}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9500,
+        background: "rgba(9,9,11,0.94)",
+        backdropFilter: "blur(10px)",
+        display: "flex",
+        flexDirection: isNarrow ? "column" : "row",
+      }}
+      onClick={onClose}
+    >
+      {/* Image area */}
+      <div
+        style={{
+          flex: 1, minWidth: 0, display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", position: "relative",
+          padding: isNarrow ? "44px 12px 12px" : "20px 60px",
+          minHeight: isNarrow ? "50vh" : undefined,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Counter + keyboard hint (top) */}
+        <div style={{
+          position: "absolute", top: 14, left: 18, right: 18,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          fontFamily: F, fontSize: 12, color: "rgba(255,255,255,0.55)",
+          pointerEvents: "none",
+        }}>
+          <span>{safeIdx + 1} / {allAssets.length}</span>
+          <span style={{ opacity: 0.5 }}>← → navigate · Esc close</span>
+        </div>
+
+        {/* Prev */}
+        {safeIdx > 0 && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }}
+            aria-label="Previous photo"
+            style={{
+              position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
+              width: 44, height: 44, borderRadius: "50%",
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.07)", color: "#fff",
+              fontSize: 22, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>‹</button>
+        )}
+
+        {/* Image */}
+        <div style={{ position: "relative", maxWidth: "100%", maxHeight: "calc(100vh - 64px)" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={current.url} alt=""
+            style={{ maxWidth: "100%", maxHeight: "calc(100vh - 64px)", objectFit: "contain", borderRadius: 10, display: "block" }} />
+        </div>
+
+        {/* Next */}
+        {safeIdx < allAssets.length - 1 && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }}
+            aria-label="Next photo"
+            style={{
+              position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)",
+              width: 44, height: 44, borderRadius: "50%",
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.07)", color: "#fff",
+              fontSize: 22, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>›</button>
+        )}
+      </div>
+
+      {/* Rail */}
+      <div
+        style={{
+          width: isNarrow ? "100%" : 360,
+          flexShrink: 0,
+          background: "rgba(20,20,24,0.96)",
+          borderLeft: isNarrow ? "none" : "1px solid rgba(255,255,255,0.08)",
+          borderTop:  isNarrow ? "1px solid rgba(255,255,255,0.08)" : "none",
+          display: "flex", flexDirection: "column",
+          color: "#fff",
+          maxHeight: isNarrow ? "50vh" : undefined,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.08)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+        }}>
+          <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+            {pill && (
+              <span style={{
+                background: pill.bg, color: "#fff",
+                fontFamily: F, fontSize: 10, fontWeight: 700,
+                padding: "2px 8px", borderRadius: 5, letterSpacing: 0.3,
+              }}>{pill.label}</span>
+            )}
+            <div style={{
+              fontFamily: F, fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>{L("previewLabel", "admin.talent.edit.mediaGallery.previewLabel")}</div>
+          </div>
+          <button type="button" onClick={onClose} aria-label={L("closeAria", "admin.talent.edit.mediaGallery.closeAria")}
+            style={{
+              width: 30, height: 30, borderRadius: 7, border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.75)",
+              cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+            }}>×</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Lineage label — when this asset is a crop derivative */}
+          {current.sourceMediaAssetId && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 7,
+              padding: "7px 10px", borderRadius: 7,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              fontFamily: F, fontSize: 11.5, color: "rgba(255,255,255,0.7)",
+            }}>
+              <span style={{ fontSize: 12 }}>✂</span>
+              <span>Crop of an earlier original</span>
+            </div>
+          )}
+
+          {/* Quick promote (no crop) — each button only shows if the caller
+              wired the corresponding setter AND the asset isn't already
+              filling that role. */}
+          {(onSetAvatar && !isAvatar) || (onSetHero && !isHero) ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {onSetAvatar && !isAvatar && (
+                <button type="button" disabled={setAvatarBusy} onClick={() => void handleSetAvatar()}
+                  style={{ ...railBtnPrimary, width: "100%", padding: "9px 12px", fontSize: 12.5, opacity: setAvatarBusy ? 0.7 : 1 }}>
+                  {setAvatarBusy ? "Setting…" : `⭐  ${L("setAsProfile", "admin.talent.edit.mediaGallery.setAvatar")} (1:1)`}
+                </button>
+              )}
+              {onSetHero && !isHero && (
+                <button type="button" disabled={setHeroBusy} onClick={() => void handleSetHero()}
+                  style={{ ...railBtn, width: "100%", padding: "8px 12px", fontSize: 12.5, opacity: setHeroBusy ? 0.7 : 1 }}>
+                  {setHeroBusy ? "Setting…" : `🖼  ${L("setAsCover", "admin.talent.edit.mediaGallery.setHero")} (16:9 banner)`}
+                </button>
+              )}
+            </div>
+          ) : null}
+
+          {/* Crop & edit */}
+          {onCropAt && (
+            <div>
+              <div style={sectionLabel}>Crop &amp; edit</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button type="button" onClick={() => onCropAt(1)}
+                  style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
+                  ✂ Profile
+                </button>
+                <button type="button" onClick={() => onCropAt(16 / 9)}
+                  style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
+                  ✂ Cover
+                </button>
+                <button type="button" onClick={() => onCropAt("free")}
+                  style={{ ...railBtn, flex: 1, padding: "7px 8px", fontSize: 11.5 }}>
+                  ✂ Free
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Revert — only when this asset is a crop AND caller wired it */}
+          {onRevertCrop && current.sourceMediaAssetId && (
+            <button type="button" disabled={revertBusy} onClick={() => void handleRevert()}
+              style={{ ...railBtn, width: "100%", padding: "7px 12px", fontSize: 11.5, opacity: revertBusy ? 0.6 : 1 }}>
+              {revertBusy ? "Reverting…" : "↺  Revert to original"}
+            </button>
+          )}
+
+          {/* External actions — always shown (any asset can be opened/copied) */}
+          <div style={{ display: "flex", gap: 6 }}>
+            <a href={current.url} target="_blank" rel="noopener noreferrer" style={{ ...railBtn, flex: 1 }}>
+              Open ↗
+            </a>
+            <button type="button" onClick={copyUrl} style={{ ...railBtn, flex: 1 }}>
+              {copied ? "Copied!" : "Copy URL"}
+            </button>
+          </div>
+
+          {/* Danger zone — only when caller wired delete */}
+          {onDelete && (
+            <div style={{ marginTop: "auto", paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+              <button type="button" disabled={deleteBusy} onClick={() => void handleDelete()}
+                style={{ ...railBtnDanger, width: "100%", padding: "8px 12px", opacity: deleteBusy ? 0.5 : 1 }}>
+                {deleteBusy ? "Deleting…" : L("deletePhoto", "admin.talent.edit.mediaGallery.delete") + (hasAnyAction ? "" : "")}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

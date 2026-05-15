@@ -29,6 +29,7 @@ import {
   removePortfolioPhoto,
   removeTalentFromRoster,
 } from "./extended-actions";
+import { PhotoLightbox } from "@/components/media/photo-lightbox";
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 
@@ -814,6 +815,7 @@ export function GallerySection({
   const [uploading, setUploading] = useState<number>(0); // count of in-flight uploads
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [viewerIdx, setViewerIdx] = useState<number | null>(null);
 
   // Filter to portfolio (gallery) variants only — card photo lives separately.
   const galleryItems = portfolio.filter((p) => p.variantKind === "portfolio" || p.variantKind === "gallery");
@@ -951,15 +953,20 @@ export function GallerySection({
               {t("admin.talent.edit.gallery.emptyMessage")}
             </div>
           </div>
-        ) : galleryItems.map((p) => (
-          <div key={p.id} style={{
-            position: "relative",
-            borderRadius: 10, overflow: "hidden",
-            background: C.surface, border: `1px solid ${C.borderSoft}`,
-            aspectRatio: "1 / 1",
-            opacity: pendingId === p.id ? 0.4 : 1,
-            transition: "opacity 120ms",
-          }}>
+        ) : galleryItems.map((p, idx) => (
+          <div
+            key={p.id}
+            onClick={() => setViewerIdx(idx)}
+            style={{
+              position: "relative",
+              borderRadius: 10, overflow: "hidden",
+              background: C.surface, border: `1px solid ${C.borderSoft}`,
+              aspectRatio: "1 / 1",
+              opacity: pendingId === p.id ? 0.4 : 1,
+              transition: "opacity 120ms",
+              cursor: "pointer",
+            }}
+          >
             <img
               src={p.publicUrl}
               alt="Portfolio"
@@ -967,7 +974,7 @@ export function GallerySection({
             />
             <button
               type="button"
-              onClick={() => handleRemove(p.id)}
+              onClick={(e) => { e.stopPropagation(); handleRemove(p.id); }}
               disabled={pendingId === p.id}
               aria-label="Delete photo"
               style={{
@@ -986,6 +993,37 @@ export function GallerySection({
           </div>
         ))}
       </div>
+
+      {viewerIdx !== null && galleryItems[viewerIdx] && (
+        // Same lightbox surface as the talent media drawer + admin Media
+        // page. Form-context use: only delete + navigate wired; rail hides
+        // promote/crop/revert sections accordingly.
+        <PhotoLightbox
+          asset={{
+            id: galleryItems[viewerIdx]!.id,
+            url: galleryItems[viewerIdx]!.publicUrl,
+            variantKind: galleryItems[viewerIdx]!.variantKind,
+          }}
+          allAssets={galleryItems.map((g) => ({
+            id: g.id,
+            url: g.publicUrl,
+            variantKind: g.variantKind,
+          }))}
+          onClose={() => setViewerIdx(null)}
+          onNavigate={(next) => {
+            const i = galleryItems.findIndex((g) => g.id === next.id);
+            if (i >= 0) setViewerIdx(i);
+          }}
+          onDelete={async () => {
+            const item = galleryItems[viewerIdx];
+            if (!item) return;
+            await removePortfolioPhoto(tenantSlug, talentId, item.id);
+            router.refresh();
+            setViewerIdx(null);
+          }}
+          t={t}
+        />
+      )}
     </SectionCard>
   );
 }
