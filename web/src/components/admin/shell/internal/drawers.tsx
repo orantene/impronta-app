@@ -38,7 +38,7 @@ import {
   type ShellLimitsEntry,
 } from "@/lib/talent/profile-shell-drawer-persist";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, loadAgencyBrandingSettings, loadWorkspaceAccountSettings, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
-import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive, actionListDriveFolder, actionImportSingleDriveFile } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive, actionListDriveFolder, actionImportSingleDriveFile, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero, registerPortfolioPhoto } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions";
 import { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
@@ -7992,19 +7992,24 @@ function TalentProfileShellDrawer() {
               const res = await actionReorderMediaAssets(orderedIds);
               return { ok: res.ok, error: res.ok ? undefined : (res as { error?: string }).error };
             }}
-            onUploadFile={async (file, variantKind) => {
+            onUploadFile={async (file, variantKind, sourceMediaAssetId) => {
               const fd = new FormData();
               fd.append("file", file);
               const allowed = ["gallery", "card", "hero", "lightbox"] as const;
               const kind = allowed.includes(variantKind as typeof allowed[number])
                 ? (variantKind as typeof allowed[number])
                 : "gallery";
-              const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind);
+              const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind, {}, sourceMediaAssetId ?? null);
               if (!res.ok) return { ok: false, error: res.error };
               return {
                 ok: true,
-                asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0 },
+                asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: res.data.sortOrder, sourceMediaAssetId: res.data.sourceMediaAssetId },
               };
+            }}
+            onRevertCrop={async (croppedId) => {
+              const res = await actionRevertCropToSource(croppedId);
+              if (!res.ok) return { ok: false, error: res.error };
+              return { ok: true, sourceMediaAssetId: res.data.sourceMediaAssetId };
             }}
           />
         )}
