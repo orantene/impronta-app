@@ -215,6 +215,13 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // source / status / trust filter chips. Real server component, not the
   // prototype SPA.
   (s) => s[0] === "admin" && s[1] === "discover-inquiries",
+  // /<tenant>/admin/settings/discover — A7 Discover benefits + enrollment
+  // panel. Standalone (no Settings shell extraction needed).
+  (s) => s[0] === "admin" && s[1] === "settings" && s[2] === "discover",
+  // /<tenant>/talent/trust — T7 Trust signals sub-page. Standalone
+  // server component (talent.tsx mega-shell stays untouched). The
+  // talent shell now uses ConditionalAdminShellRoot so this yields.
+  (s) => s[0] === "talent" && s[1] === "trust",
   // /<tenant>/admin/triage — focused queue (separate from Messages shell).
   (s) => s[0] === "admin" && s[1] === "triage",
   // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
@@ -330,7 +337,13 @@ export function TalentShellClient({
         >
           {children}
           <RealtimeBridge />
-          <AdminShellRoot />
+          {/* ConditionalAdminShellRoot (not AdminShellRoot directly) so
+              canonical talent routes — e.g. /talent/trust — render their
+              standalone Next.js page instead of the SPA shell. Every
+              existing /talent/* route is absent from
+              CANONICAL_ROUTE_MATCHERS, so they all still render the SPA
+              exactly as before (pathIsCanonical → false → AdminShellRoot). */}
+          <ConditionalAdminShellRoot />
         </AdminShellProvider>
       </Suspense>
     </ErrorBoundary>

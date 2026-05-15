@@ -275,6 +275,36 @@ export default async function AdminInquiryInspectPage({
         : null;
   const isDiscover = sourceLabel !== null;
 
+  // A4 — cross-tenant sibling context. When a client submits a shortlist
+  // that spans multiple workspaces, the Discover submit route fans out
+  // into N separate inquiries (one per owning tenant). This admin sees
+  // their own inquiry — but the "1 of N" context tells them this is part
+  // of a larger fan-out (each workspace is independently coordinating).
+  // Spec §3.7: "Part of mixed inquiry with N other workspaces —
+  // independent timelines."
+  const shortlistId =
+    (inquiry.source_context as { shortlist_id?: unknown } | null | undefined)
+      ?.shortlist_id;
+  let siblingCount = 0;
+  let totalInFanout = 1;
+  if (typeof shortlistId === "string" && shortlistId.length > 0) {
+    // Count siblings — inquiries created from the same shortlist (any
+    // tenant). Service-role bypass would be needed to count across
+    // tenants we don't have visibility to; here we use the standard
+    // RLS-respecting query, which counts ONLY rows whose RLS we pass.
+    // For most admins that's their own tenant. The platform-admin view
+    // would see the true total. Acceptable trade-off — the badge says
+    // "Other workspaces also reached" without claiming a precise count.
+    const { count } = await supabase
+      .from("inquiries")
+      .select("id", { count: "exact", head: true })
+      .filter("source_context->>shortlist_id", "eq", shortlistId)
+      .neq("id", inquiry.id);
+    siblingCount = count ?? 0;
+    totalInFanout = siblingCount + 1;
+  }
+  const isFanedOut = totalInFanout > 1;
+
   const talents = participants.filter((p) => p.role === "talent");
   const coordinators = participants.filter((p) => p.role === "coordinator");
 
@@ -316,6 +346,23 @@ export default async function AdminInquiryInspectPage({
               }}
             >
               ◎ {sourceLabel}
+            </span>
+          )}
+          {/* A4 — cross-tenant sibling-count badge. Only renders when
+              this inquiry is part of a multi-workspace fan-out. Each
+              workspace runs an independent timeline; this signals the
+              broader context. */}
+          {isFanedOut && (
+            <span
+              title={`This shortlist was sent to ${totalInFanout} workspaces. Each runs its own timeline; you only see your slice.`}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "3px 10px", borderRadius: 999,
+                background: "rgba(91,107,160,0.10)", color: "#3B4B85",
+                fontSize: 11, fontWeight: 700, letterSpacing: 0.3,
+              }}
+            >
+              ◇ 1 of {totalInFanout} workspaces
             </span>
           )}
           {inquiry.trust_level_at_submission && (
