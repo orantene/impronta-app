@@ -206,6 +206,9 @@ class ErrorBoundary extends Component<
 const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // /<tenant>/admin/work/<id> — canonical booking detail w/ payment state machine
   (s) => s[0] === "admin" && s[1] === "work" && typeof s[2] === "string" && s[2].length > 0,
+  // /<tenant>/admin/policy/<…> — workspace policy pages (auto-ack, etc.)
+  // rendered as standalone server components, not via the prototype SPA.
+  (s) => s[0] === "admin" && s[1] === "policy",
 ];
 
 function pathIsCanonical(pathname: string | null): boolean {
