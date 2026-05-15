@@ -9048,9 +9048,12 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
         <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8 }}>{msg.filename}</div>
         {!msg.resolved && (
           <div>
-            <div style={{ opacity: 0.5, cursor: "not-allowed", display: "inline-block" }}>
-              <PrimaryButton size="sm" disabled>Review & sign</PrimaryButton>
-            </div>
+            <PrimaryButton
+              size="sm"
+              onClick={() => toast("e-Signature is rolling out next sprint — your coordinator will share a signed PDF in the meantime.")}
+            >
+              Review & sign
+            </PrimaryButton>
             <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 5 }}>e-Signature coming soon</div>
           </div>
         )}

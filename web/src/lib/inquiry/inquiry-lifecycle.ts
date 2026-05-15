@@ -28,7 +28,8 @@ export type TransitionBlockReason =
   | "forbidden"
   | "requirement_groups_unfulfilled"
   | "override_not_allowed"
-  | "override_reason_too_short";
+  | "override_reason_too_short"
+  | "contact_policy_blocked";
 
 export type TransitionCheck =
   | { ok: true }

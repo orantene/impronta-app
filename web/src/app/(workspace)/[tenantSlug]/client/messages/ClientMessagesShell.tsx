@@ -18,6 +18,7 @@ import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/compo
 import { StatusSheet, type StatusSheetData, type StageStatus, type OfferStatus, type PaymentStatus, type TalentParticipationRow } from "@/components/messages-status-sheet/StatusSheet";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
 import { addReaction, removeReaction } from "@/lib/server-actions/message-reactions";
+import { StarButton } from "@/components/chat-interactions/StarButton";
 
 const DEFAULT_REACTION_SET = ["👍", "❤️", "🎉", "😂", "😮", "🙏"] as const;
 import { useRouter } from "next/navigation";
@@ -1410,6 +1411,7 @@ function ChatThreadBody({
               m={m}
               showSeen={i === lastSeenMineIdx}
               tenantSlug={tenantSlug}
+              inquiryId={inq.id}
               onJumpToOffer={onJumpToOffer}
               onPayNow={onPayNow}
               onMessagesChange={onMessagesChange}
@@ -1884,6 +1886,7 @@ function Bubble({
   m,
   showSeen,
   tenantSlug,
+  inquiryId,
   onJumpToOffer,
   onPayNow,
   onMessagesChange,
@@ -1891,6 +1894,7 @@ function Bubble({
   m: WorkspaceMessage;
   showSeen?: boolean;
   tenantSlug?: string;
+  inquiryId?: string;
   onJumpToOffer?: () => void;
   onPayNow?: (amountLabel: string) => void;
   onMessagesChange?: (next: WorkspaceMessage[] | ((prev: WorkspaceMessage[]) => WorkspaceMessage[])) => void;
@@ -2166,6 +2170,15 @@ function Bubble({
                 </div>
               )}
             </div>
+          )}
+          {!isOptimistic && inquiryId && !editing && (
+            <StarButton
+              messageId={m.id}
+              inquiryId={inquiryId}
+              starred={m.starred ?? false}
+              compact
+              onError={setActionError}
+            />
           )}
           {canEditOrDelete && !editing && (
             <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>

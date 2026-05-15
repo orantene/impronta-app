@@ -32,3 +32,5 @@ export {
   replyTargetFromMessage,
   type ReplyTarget,
 } from "./ReplyToMessage";
+
+export { StarButton } from "./StarButton";

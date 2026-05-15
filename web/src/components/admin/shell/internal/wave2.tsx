@@ -706,7 +706,7 @@ const timeInputStyle: React.CSSProperties = {
 // ════════════════════════════════════════════════════════════════════
 
 export function DataExportDrawer() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "data-export";
   const [include, setInclude] = useState({
     roster: true,
@@ -777,9 +777,9 @@ export function DataExportDrawer() {
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <span title="Export downloads are coming soon">
-            <PrimaryButton disabled>Request export</PrimaryButton>
-          </span>
+          <PrimaryButton onClick={() => toast("Export queue is rolling out next sprint — email your coordinator and they'll spin a one-off CSV in the meantime.")}>
+            Request export
+          </PrimaryButton>
         </div>
       </div>
     </DrawerShell>

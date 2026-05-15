@@ -51,6 +51,8 @@ import { MobileShellStyles } from "@/components/messages-mobile/MobileShellStyle
 import { PitchOriginCard } from "@/components/pitch-origin/PitchOriginCard";
 import { PayNowSheet } from "@/components/chat-cards/PayNowSheet";
 import { PayoutNudgeCard } from "@/components/talent-payouts/PayoutNudgeCard";
+import { DemoBadge } from "@/components/demo-badge";
+import { isFixtureInquiryId } from "@/lib/fixtures/is-fixture-id";
 import { loadCurrentTalentPayoutSnapshot, type TalentPayoutSnapshot } from "@/lib/server-actions/talent-self";
 import {
   MessageReactionMenu,
@@ -1808,6 +1810,7 @@ function AdminInquiryRow({
               boxShadow: `0 0 0 2px ${COLORS.coral}1f`,
             }}>NEW</span>
           )}
+          {isFixtureInquiryId(inquiry.id) && <DemoBadge />}
           <span style={{ flexShrink: 0, fontSize: 10.5, color: COLORS.inkMuted, fontVariantNumeric: "tabular-nums" }}>
             {ageLabel(inquiry.lastActivityHrs)}
           </span>
@@ -5227,8 +5230,11 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
   // strip AND the Details tab's "Who's on this job" trigger this same
   // drawer so we never have two divergent representations of the same
   // lineup data on screen.
-  const [lineupOpen, setLineupOpen] = useState(false);
-  const lineupInquiry = useMemo(() => convToInquiry(conv), [conv]);
+  //
+  // S0.3 RETIREMENT: lineup drawer no longer rendered. All open-triggers
+  // call setActiveTab("lineup") directly so the working LiveLineupPanel
+  // (DB-backed) is the single source of truth for lineup management.
+  const openLineupTab = () => setActiveTab("lineup");
   const fileCount = (MOCK_FILES_FOR_CONV[conv.id] ?? []).length;
   const messages = MOCK_THREAD[conv.id] ?? [];
   const talentGroupUnread = messages.filter(m => m.kind === "text").length > 0 ? Math.min(3, conv.unreadCount) : 0;
@@ -5389,7 +5395,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
             tab body is a thin fallback in case the drawer didn't open
             (e.g. legacy mock conv where the drawer effect is gated). */}
         {activeTab === "lineup" && (
-          <LineupTabPanel onOpen={() => setLineupOpen(true)} />
+          <LineupTabPanel onOpen={openLineupTab} />
         )}
         {/* Non-conversation tabs — each gets its own scrollable
             wrapper so the parent shell stays fixed (header + tab bar
@@ -5443,7 +5449,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
                     conv={conv}
                     inquiry={convToInquiry(conv)}
                     isCoordinator={isCoordinator}
-                    onOpenLineup={() => setLineupOpen(true)}
+                    onOpenLineup={openLineupTab}
                   />
                 )}
               </>
@@ -5452,7 +5458,7 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
                 conv={conv}
                 inquiry={convToInquiry(conv)}
                 isCoordinator={isCoordinator}
-                onOpenLineup={() => setLineupOpen(true)}
+                onOpenLineup={openLineupTab}
               />
             ) : (
               <DetailsPanel
@@ -5511,20 +5517,11 @@ function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => v
           } : baseAction.secondary,
         };
       })()} />
-      {/* Lineup drawer — rendered at the TalentJobDetail level (not
-          inside the booking tab) so the same drawer state survives
-          tab-switches and so the conversation tab's TeamStrip and the
-          booking tab's "Who's on this job" can both trigger it. */}
-      <LineupDrawer
-        open={lineupOpen}
-        onClose={() => setLineupOpen(false)}
-        conv={conv}
-        inquiry={lineupInquiry}
-        canEdit={isCoordinator}
-        povCanSeeOffers={isCoordinator}
-        povCanSeeCoordNote={true}
-        onJumpToLineupTab={() => setActiveTab("lineup")}
-      />
+      {/* LineupDrawer retired (S0.3). All open-triggers now route to
+          setActiveTab("lineup") so the canonical Lineup tab
+          (LiveLineupPanel) handles add/remove/swap. Drawer component
+          retained as dead code until follow-up purge confirms no
+          residual references. */}
       {/* Slice G (Messages consolidation v2): coordinator-request
           sheet. Opens when a plain talent taps the locked Client
           sub-toggle. Engine RPCs from Slice F do the work. */}
@@ -7589,11 +7586,10 @@ function ClientProjectViewTab({
   useOfferStashSubscription();
   useNotesSubscription();
   const canOpenOfferAction = !!action?.primary && /approve|review|counter/i.test(action.label);
-  // Lineup drawer — opens from the "Add talent" footer button or from
-  // the per-row swap button. Same drawer the coordinator uses, but
-  // with the client's pov so picker tabs read "Favorites / Recent /
-  // All Tulala" and edits are framed as "request changes".
-  const [lineupOpen, setLineupOpen] = useState(false);
+  // Lineup drawer RETIRED (S0.3). Add/Swap actions now toast the client
+  // toward the Lineup tab where the canonical LiveLineupPanel handles
+  // talent management with real DB-backed engine writes.
+  const openLineupTab = () => toast("Tap the Lineup tab above to manage talent");
 
   // Same compact card surface as the talent's TalentBookingTab so
   // the patterns look identical across roles.
@@ -7865,7 +7861,7 @@ function ClientProjectViewTab({
                     key={t.talentId} talent={t}
                     stagePast={inquiry.status === "wrapped"}
                     canEdit={inquiry.status !== "wrapped" && inquiry.status !== "cancelled"}
-                    onSwap={() => setLineupOpen(true)}
+                    onSwap={openLineupTab}
                   />
                 ))}
               {/* Add-talent footer — only when this lineup is still
@@ -7873,7 +7869,7 @@ function ClientProjectViewTab({
                   the coordinator uses, with the client's "Favorites /
                   Recent / All Tulala" tab labels via the picker pov. */}
               {inquiry.status !== "wrapped" && inquiry.status !== "cancelled" && (
-                <button type="button" onClick={() => setLineupOpen(true)} style={{
+                <button type="button" onClick={openLineupTab} style={{
                   marginTop: 4, width: "100%",
                   display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                   padding: "8px 10px", borderRadius: 8,
@@ -8050,16 +8046,8 @@ function ClientProjectViewTab({
       {/* Lineup drawer — same component the coordinator sees, but with
           the client's pov so picker tabs read "Favorites / Recent /
           All Tulala". Add / swap / remove all flow through here. */}
-      <LineupDrawer
-        open={lineupOpen}
-        onClose={() => setLineupOpen(false)}
-        conv={conv}
-        inquiry={inquiry}
-        canEdit={inquiry.status !== "wrapped" && inquiry.status !== "cancelled"}
-        povCanSeeOffers={true}
-        povCanSeeCoordNote={false}
-        pickerPov="client"
-      />
+      {/* LineupDrawer retired (S0.3). Swap + Add toasts above route the
+          client to the Lineup tab where LiveLineupPanel is canonical. */}
     </div>
   );
 }
@@ -8361,10 +8349,13 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
 }) {
   const { state, toast } = useAdminShell();
   const router = useRouter();
-  const [lineupOpen, setLineupOpen] = useState(false);
+  // S0.3 retirement: drawer retired. "View lineup" toasts the admin to
+  // the Lineup tab where LiveLineupPanel is the canonical surface.
+  const openLineupTab = () => toast("Open the Lineup tab in this conversation to manage talent");
   const [reassignOpen, setReassignOpen] = useState(false);
   const [reassignMode, setReassignMode] = useState<"swap" | "add_secondary">("swap");
   const conv = buildConvFromInquiry(inquiry);
+  void conv;
   const currentCoord = inquiry.coordinators[0];
   const canEdit = inquiry.status !== "wrapped" && inquiry.status !== "cancelled";
   // Phase 3 of System User direction — permission ladder:
@@ -8384,7 +8375,7 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
     <>
       <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
         {canViewLineup && (
-          <button type="button" onClick={() => setLineupOpen(true)} style={{
+          <button type="button" onClick={openLineupTab} style={{
             padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
             borderRadius: 999, border: "none",
             background: COLORS.fill, color: "#fff", cursor: "pointer",
@@ -8438,17 +8429,9 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
           </button>
         )}
       </div>
-      <LineupDrawer
-        open={lineupOpen}
-        onClose={() => setLineupOpen(false)}
-        conv={conv}
-        inquiry={inquiry}
-        canEdit={false}
-        povCanSeeOffers={true}
-        povCanSeeCoordNote={true}
-        pickerPov="admin"
-        planTier={planTier}
-      />
+      {/* LineupDrawer retired (S0.3). "View lineup" toasts user to the
+          Lineup tab where the canonical LiveLineupPanel handles add/
+          remove with real engine writes. */}
       {currentCoord && (
         <ReassignCoordinatorSheet
           open={reassignOpen}
@@ -15243,9 +15226,13 @@ function TeamStrip({
   );
 }
 
-// ── LineupDrawer — modal sheet for viewing + managing the lineup.
-// Mobile: bottom sheet · Desktop: centered modal. Reuses the
-// notifications-bell popover pattern but as a fixed-overlay dialog. ──
+// ── LineupDrawer — RETIRED 2026-05-15 (S0.3). All 4 render sites
+// (TalentJobDetail / ClientProjectViewTab / AdminParticipantsActions /
+// ConversationTab) now route open-triggers to the Lineup tab where the
+// DB-backed LiveLineupPanel is the canonical surface. The function body
+// stays as dead code so any external storybook/test reference still
+// resolves; a follow-up sweep can delete the entire definition (~500
+// LOC) once we've confirmed nothing imports it.
 function LineupDrawer({
   open, onClose, conv, inquiry, canEdit, povCanSeeOffers, povCanSeeCoordNote,
   pickerPov = "talent_coord", planTier, onJumpToLineupTab,
@@ -16013,7 +16000,9 @@ function ConversationTab({
   povCanSeeCoordNote?: boolean;
 }) {
   const { toast } = useAdminShell();
-  const [lineupOpen, setLineupOpen] = useState(false);
+  // S0.3 retirement: TeamStrip tap now nudges user to the Lineup tab
+  // (parent shell handles tab switching). The drawer is no longer rendered.
+  const openLineupTab = () => toast("Tap the Lineup tab above to manage talent");
   const inquiryForLineup = useMemo(() => convToInquiry(conv), [conv]);
   // Subscribe to message-stash updates so newly-sent messages appear
   // immediately. Without this, the composer pushes into the store but
@@ -16079,7 +16068,7 @@ function ConversationTab({
               lineup={inquiryForLineup.talent}
               canEdit={povCanEditLineup}
               povLabel={povCanEditLineup ? "edit" : "view"}
-              onOpen={() => setLineupOpen(true)}
+              onOpen={openLineupTab}
             />
           </div>
           {/* In-thread search toggle. Click reveals a compact search
@@ -16128,15 +16117,9 @@ function ConversationTab({
             )}
           </div>
         )}
-        <LineupDrawer
-          open={lineupOpen}
-          onClose={() => setLineupOpen(false)}
-          conv={conv}
-          inquiry={inquiryForLineup}
-          canEdit={povCanEditLineup}
-          povCanSeeOffers={povCanSeeOffers}
-          povCanSeeCoordNote={povCanSeeCoordNote}
-        />
+        {/* LineupDrawer retired (S0.3). TeamStrip tap toasts a nudge
+            to the Lineup tab; the canonical lineup surface is now the
+            LiveLineupPanel rendered there. */}
         {/* First-time conv context banner — surfaces only when this
             client is in our "first encounter" set. Audience defaults
             to talent (the most common ConversationTab consumer);

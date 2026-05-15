@@ -167,6 +167,47 @@ export async function submitInquiry(
       if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
     }
 
+    // Talent contact-policy gate. Each talent_profiles.contact_policy is a
+    // JSONB { basic, verified, silver, gold } of booleans. The talent sets
+    // these from talent-drawers ContactPolicy sheet; default is all-open.
+    // We only enforce this for client-initiated submissions — admin / talent
+    // / hub / free_agent paths bypass (admin can always create on behalf of
+    // a client; talent offering self is symmetrical; hub matchmaker is staff).
+    //
+    // The client's effective tier is taken from trust_level_at_submission
+    // (the caller already snapshots this from client_trust_state). Guests
+    // default to "basic". If a talent has gated their tier off, we reject
+    // with `contact_policy_blocked` and the gated talent id list so the form
+    // can render a clear "this talent isn't accepting inquiries from your
+    // tier" message instead of a generic failure.
+    if (input.initiator_role === "client" && input.talent_profile_ids.length > 0) {
+      const clientTier = (input.trust_level_at_submission ?? "basic") as
+        | "basic" | "verified" | "silver" | "gold";
+      const { data: policies } = await supabase
+        .from("talent_profiles")
+        .select("id, contact_policy")
+        .in("id", input.talent_profile_ids);
+      const blocked: string[] = [];
+      for (const p of (policies ?? []) as Array<{
+        id: string;
+        contact_policy: Record<string, boolean> | null;
+      }>) {
+        // Missing column or row → default to all-open (legacy talents).
+        const policy = p.contact_policy ?? {
+          basic: true, verified: true, silver: true, gold: true,
+        };
+        if (policy[clientTier] === false) blocked.push(p.id);
+      }
+      if (blocked.length > 0) {
+        return {
+          success: false,
+          forbidden: true,
+          reason: "contact_policy_blocked",
+          error: `One or more talents do not accept inquiries from ${clientTier} clients`,
+        };
+      }
+    }
+
     const assignment = await assignCoordinatorFromSettings(supabase, {
       source_type: "agency",
       tenant_id: input.tenant_id,

@@ -40,6 +40,9 @@ export type WorkspaceMessage = {
    * seen up to or past this message. Render-side uses it to show a
    * "Seen" indicator on the LAST is_mine message whose seen_at is set. */
   seen_at?: string | null;
+  /** True when the current user has starred this message (personal
+   * bookmark — only visible to them). Driven by inquiry_message_stars. */
+  starred?: boolean;
 };
 
 /**
@@ -685,6 +688,21 @@ export async function loadInquiryMessages(
       }
     }
 
+    // Per-user starred set. Use the user-scoped client (NOT admin) so
+    // RLS filters to just this user's stars even if admin escalation is
+    // active for the message read.
+    const starredSet = new Set<string>();
+    if (myUserId && messageIds.length > 0) {
+      const { data: starsRows } = await supabase
+        .from("inquiry_message_stars")
+        .select("message_id")
+        .eq("user_id", myUserId)
+        .in("message_id", messageIds);
+      for (const r of ((starsRows ?? []) as Array<{ message_id: string }>)) {
+        starredSet.add(r.message_id);
+      }
+    }
+
     return rows.map((row) => {
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
       // System events have sender_user_id = null (e.g. auto-ack on submit).
@@ -712,6 +730,7 @@ export async function loadInquiryMessages(
         card_payload: row.card_payload ?? null,
         reactions,
         seen_at,
+        starred: starredSet.has(row.id),
       };
     });
   } catch (err) {

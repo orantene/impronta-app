@@ -151,6 +151,8 @@ import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv, WorkspaceActiv
 import { WorkspaceMediaPage } from "./media-page";
 import { pinNextConversation as pinNextConversationP } from "./messages";
 import { NotificationsBell } from "./notifications-hub";
+import { DemoBadge as FixtureBadge } from "@/components/demo-badge";
+import { isFixtureInquiryId } from "@/lib/fixtures/is-fixture-id";
 // WS-13.1 — lazy-load non-workspace surfaces so the workspace JS bundle
 // doesn't ship talent / client / platform code unless the user actually
 // switches surface. Each surface is ~3–6 MB of inline styles + logic.
@@ -3908,6 +3910,7 @@ function UnifiedInboxPage() {
                         {inq.clientName}
                       </span>
                       <ClientTrustChip level={inq.clientTrust} compact />
+                      {isFixtureInquiryId(inq.id) && <FixtureBadge />}
                       {inq.unreadPrivate > 0 && (
                         <span
                           title="Unread in private thread"
@@ -4125,8 +4128,11 @@ function InboxPipelineView({
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.accent)}
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
                   >
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
-                      {inq.clientName}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+                        {inq.clientName}
+                      </span>
+                      {isFixtureInquiryId(inq.id) && <FixtureBadge compact />}
                     </div>
                     <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {inq.brief}
