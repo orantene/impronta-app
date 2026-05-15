@@ -1666,6 +1666,10 @@ function LineupTab({ details }: { details: ClientInquiryDetails | null }) {
   }
   const list = details.talent.selected;
   const mode = details.talent.selection_mode;
+  // D5.4 — rollup label from `lineup_status_summary` SQL fn.
+  // D5.5 — cross-tenant context label (null for single-tenant).
+  const statusLabel = details.lineup_status_label;
+  const crossTenantLabel = details.cross_tenant_label;
 
   return (
     <div style={{ padding: "16px 20px 28px", fontFamily: FONT, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1678,6 +1682,49 @@ function LineupTab({ details }: { details: ClientInquiryDetails | null }) {
             ? "Your coordinator will propose talent based on the brief. You'll see them appear here as they're added."
             : "Talent on this project. Status updates as coordinators confirm them."}
         </div>
+        {/* D5.4 — top-level rollup banner. Always present (DB returns
+            "No lineup yet" for empty inquiries). */}
+        {statusLabel && statusLabel !== "No lineup yet" && (
+          <div style={{
+            marginTop: 8,
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "rgba(15,79,62,0.06)",
+            border: "1px solid rgba(15,79,62,0.18)",
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: "#0F4F3E",
+            lineHeight: 1.4,
+          }}>
+            {statusLabel}
+          </div>
+        )}
+        {/* D5.5 — cross-tenant context badge. Only renders when the
+            inquiry's talents are routed to >1 owning party. Single-
+            tenant case (today's dominant) leaves this null. */}
+        {crossTenantLabel && (
+          <div style={{
+            marginTop: 6,
+            padding: "6px 10px",
+            borderRadius: 8,
+            background: "rgba(91,107,160,0.08)",
+            border: "1px solid rgba(91,107,160,0.20)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: "#3B4B85",
+          }}
+          title="Each workspace independently coordinates their own talent. You see one unified view; behind the scenes the workspaces don't share notes."
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M3 6h6M6 3v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+            </svg>
+            {crossTenantLabel}
+          </div>
+        )}
       </div>
 
       {list.length === 0 ? (

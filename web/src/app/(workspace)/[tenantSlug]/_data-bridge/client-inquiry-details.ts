@@ -24,6 +24,11 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  loadCrossTenantContext,
+  describeCrossTenantContext,
+} from "@/lib/inquiry/cross-tenant-context";
+import { loadLineupStatusSummary } from "@/lib/inquiry/acceptance-summary";
 
 // ─── Output shape ───────────────────────────────────────────────────────────
 
@@ -187,6 +192,24 @@ export type ClientInquiryDetails = {
     actor_role: string | null;
     created_at: string;
   }>;
+
+  /**
+   * D5.4 / D5.5 — derived rollup labels for the Lineup tab banner.
+   *
+   * `lineupStatusLabel` is the top-level "X of N confirmed" summary
+   * pre-formatted by `lineup_status_summary` SQL fn. Examples:
+   *   - "Offer sent · awaiting response"
+   *   - "All confirmed — ready to book"
+   *   - "2 of 3 confirmed · 1 declined"
+   *   - "No lineup yet"
+   *
+   * `crossTenantLabel` is null for single-tenant inquiries (today's
+   * dominant case — no badge shown). Populated for cross-tenant
+   * inquiries: "Routed to 2 workspaces" / "Routed to 1 workspace + 1
+   * independent". Spec §3.3 (multi-tenant fan-out).
+   */
+  lineup_status_label: string;
+  cross_tenant_label: string | null;
 };
 
 // ─── Client-visible activity event allow-list ───────────────────────────────
@@ -615,6 +638,15 @@ export async function loadClientInquiryDetails(
         actor_role: e.actor_role,
         created_at: e.created_at,
       })),
+
+      // D5.4 / D5.5 — rollup labels for the Lineup tab. Two extra
+      // round-trips against the SECURITY DEFINER SQL fns shipped in
+      // D5.3 + D5.1. Falls back gracefully on error inside each helper.
+      lineup_status_label:
+        (await loadLineupStatusSummary(supabase, inquiryId)).derivedLabel,
+      cross_tenant_label: describeCrossTenantContext(
+        await loadCrossTenantContext(supabase, inquiryId),
+      ),
     };
   } catch (err) {
     logServerError("client.inquiryDetails", err);

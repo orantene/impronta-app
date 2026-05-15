@@ -27,6 +27,10 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import type { DetailsTabData, DetailsTabPov } from "@/components/details-tab/DetailsTab";
+import {
+  loadCrossTenantContext,
+  describeCrossTenantContext,
+} from "@/lib/inquiry/cross-tenant-context";
 
 const ADMIN_SCOPES = new Set(["client_visible", "talent_visible", "coord_visible", "admin_only"]);
 const COORD_SCOPES = new Set(["client_visible", "talent_visible", "coord_visible"]);
@@ -398,6 +402,12 @@ export async function loadDetailsTabData(
       clientName: booking?.contact_name ?? inquiry.contact_name ?? undefined,
       coordinators,
       lineup,
+      // D5.5 — cross-tenant context badge. Returns null on single-
+      // tenant (no badge shows); pre-formatted human label on cross-
+      // tenant. Pure additive — never hides anything.
+      crossTenantLabel: describeCrossTenantContext(
+        await loadCrossTenantContext(supabase, inquiryId),
+      ),
 
       offerLabel,
       offerStatus,

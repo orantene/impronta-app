@@ -59,6 +59,14 @@ export type DetailsTabData = {
     declined: number;
     total: number;
   };
+  /**
+   * D5.5 — cross-tenant context badge. Renders in Section 5 (People)
+   * next to the lineup row when the inquiry's talents resolve to more
+   * than one owning party. Null for single-tenant (the dominant case)
+   * — no badge displayed. Wired by loadDetailsTabData via
+   * loadCrossTenantContext + describeCrossTenantContext helpers.
+   */
+  crossTenantLabel?: string | null;
   onSiteContact?: string;
   // Section 6: Offer & Payment (role-shaped — caller passes only what's appropriate)
   offerLabel?: string;
@@ -418,8 +426,8 @@ function LocationCard({
 /* ─── Section 5: People ─────────────────────────────────────────────── */
 
 function PeopleCard({
-  pov, clientName, coordinators, lineup, onSiteContact,
-}: Pick<DetailsTabData, "clientName" | "coordinators" | "lineup" | "onSiteContact"> & { pov: DetailsTabPov }) {
+  pov, clientName, coordinators, lineup, onSiteContact, crossTenantLabel,
+}: Pick<DetailsTabData, "clientName" | "coordinators" | "lineup" | "onSiteContact" | "crossTenantLabel"> & { pov: DetailsTabPov }) {
   const showClient = pov !== "client";
   const showLineupDetail = pov === "admin" || pov === "coord" || pov === "talent_coord";
 
@@ -487,6 +495,33 @@ function PeopleCard({
             {lineup.accepted < lineup.total && (
               <div style={{ marginTop: 8 }}>
                 <AmberChip label={`${lineup.total - lineup.accepted} spot${lineup.total - lineup.accepted !== 1 ? "s" : ""} still open`} />
+              </div>
+            )}
+            {/* D5.5 — cross-tenant context badge. Renders only when the
+                inquiry's talents resolve to more than one owning party.
+                Single-tenant world: this is always null, so nothing
+                surfaces. */}
+            {crossTenantLabel && (
+              <div style={{
+                marginTop: 8,
+                padding: "6px 10px",
+                background: "rgba(91,107,160,0.08)",
+                border: "1px solid rgba(91,107,160,0.20)",
+                borderRadius: 8,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 11.5,
+                fontWeight: 600,
+                color: "#3B4B85",
+              }}
+              title="This inquiry's talents are routed across multiple workspaces. Each workspace sees only their own slice."
+              >
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+                  <path d="M3 6h6M6 3v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+                </svg>
+                {crossTenantLabel}
               </div>
             )}
           </div>
@@ -806,6 +841,7 @@ export function DetailsTab({ pov, data }: { pov: DetailsTabPov; data: DetailsTab
         coordinators={data.coordinators}
         lineup={data.lineup}
         onSiteContact={data.onSiteContact}
+        crossTenantLabel={data.crossTenantLabel}
       />
       <OfferPaymentCard
         pov={pov}
