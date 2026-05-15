@@ -4441,7 +4441,7 @@ const LANGUAGE_PRESETS: { id: string; label: string; langs: string[] }[] = [
 // Section IDs — used by mobile tab nav and the active-section accordion.
 // Identity is the first section ever — name, pronouns, gender, DOB.
 const PROFILE_SECTIONS = [
-  "identity", "services", "location", "media", "albums", "polaroids",
+  "identity", "services", "location", "logistics", "media", "albums", "polaroids",
   "about", "profile_fields",
   "physical", "wardrobe", "details", "rates", "availability", "languages",
   "refinement", "credits", "limits", "files",
@@ -4453,6 +4453,7 @@ const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string; emoji
   identity:      { label: "Identity",      emoji: "👤" },
   services:      { label: "Services",      emoji: "🎯" },
   location:      { label: "Location",      emoji: "📍" },
+  logistics:     { label: "Logistics",     emoji: "🧳" },
   media:         { label: "Media",         emoji: "📷" },
   albums:        { label: "Albums",        emoji: "🗂" },
   polaroids:     { label: "Polaroids",     emoji: "🪪" },
@@ -5901,6 +5902,10 @@ function TalentProfileShellDrawer() {
   const sectionComplete: Record<Exclude<ProfileSectionId, "">, boolean> = {
     services:      !!state.primaryType,
     location:      !!state.serviceArea.homeBase.trim(),
+    logistics:     !!state.serviceArea.passport || !!state.serviceArea.driversLicense
+      || !!state.serviceArea.ownsVehicle
+      || (state.serviceArea.workEligibility?.length ?? 0) > 0
+      || (state.serviceArea.visaCountries?.length ?? 0) > 0,
     media:         totalPhotos >= 3,
     albums:        state.albumsPro.length > 1 || totalPhotos > 0,
     polaroids:     polaroidsFilledCount >= 4,
@@ -5938,6 +5943,7 @@ function TalentProfileShellDrawer() {
   const sectionStarted: Record<Exclude<ProfileSectionId, "">, boolean> = {
     services:      !sectionComplete.services && (state.specialties.length > 0 || state.secondaryTypes.length > 0),
     location:      !sectionComplete.location && (state.serviceArea.serviceCities.length > 0 || state.serviceArea.travelKm > 0),
+    logistics:     false,
     media:         !sectionComplete.media && totalPhotos > 0,
     albums:        !sectionComplete.albums && state.albumsPro.length > 0,
     polaroids:     !sectionComplete.polaroids && polaroidsFilledCount > 0,
@@ -6665,7 +6671,7 @@ function TalentProfileShellDrawer() {
             const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
               { label: "Profile", ids: ["identity", "about"] },
               { label: "Craft", ids: ["services", "profile_fields", "physical", "wardrobe", "details", "languages"] },
-              { label: "Where & when", ids: ["location", "availability"] },
+              { label: "Where & when", ids: ["location", "logistics", "availability"] },
               { label: "Portfolio", ids: ["media", "albums", "polaroids"] },
               { label: "Terms", ids: ["rates", "limits"] },
               { label: "Proof", ids: ["credits", "social_proof", "verifications", "refinement"] },
@@ -7059,6 +7065,27 @@ function TalentProfileShellDrawer() {
                   label="Talent works remotely / online only" />
               </FieldRow>
 
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                  Seasonal windows
+                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· "I'm here X months a year"</span>
+                </div>
+                <SeasonalEditor windows={state.seasonalWindows} onChange={(w) => patch({ seasonalWindows: w })} />
+              </div>
+            </ProfileAccordionSection>
+
+            {/* LOGISTICS — travel docs + work-eligibility, split out of
+                Location so "where the talent is based" and "what it takes
+                to fly them across a border" stay distinct mental models.
+                Same state.serviceArea.* slice — pure relocation, no data
+                migration. */}
+            <ProfileAccordionSection
+              id="logistics" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Logistics"
+              sub="Travel documents & work eligibility for cross-border bookings."
+              complete={sectionComplete.logistics} started={sectionStarted.logistics}
+              open={activeSection === "logistics"}
+              onToggle={() => setActiveSection(activeSection === "logistics" ? "" : "logistics")}
+            >
               {/* ── Travel & work eligibility ────────────────────
                   International booking pre-checks. Engine reads these
                   to filter out talents the client can't legally hire
@@ -7194,14 +7221,6 @@ function TalentProfileShellDrawer() {
                     onChange={patchVisaCountries}
                   />
                 </FieldRow>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
-                  Seasonal windows
-                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· "I'm here X months a year"</span>
-                </div>
-                <SeasonalEditor windows={state.seasonalWindows} onChange={(w) => patch({ seasonalWindows: w })} />
               </div>
             </ProfileAccordionSection>
 
