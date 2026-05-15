@@ -66,6 +66,10 @@ export async function cancelInquiryAsClient(
     });
 
     if (!result.success) {
+      if (result.rateLimited) {
+        const secs = Math.max(1, Math.ceil((result.retryAfterMs ?? 1000) / 1000));
+        return { ok: false, error: `Too many attempts — try again in ${secs}s.` };
+      }
       if (result.forbidden) return { ok: false, error: "Not authorised to cancel." };
       if (result.reason === "inquiry_frozen") return { ok: false, error: "Inquiry is frozen — message your coordinator." };
       if (result.reason === "invalid_status_transition") return { ok: false, error: "Cannot cancel from current status." };

@@ -83,6 +83,10 @@ export async function approveOfferAction(
   });
 
   if (!result.success) {
+    if (result.rateLimited) {
+      const secs = Math.max(1, Math.ceil((result.retryAfterMs ?? 1000) / 1000));
+      return { kind: "error", message: `Too many attempts — try again in ${secs}s.` };
+    }
     if (result.conflict) {
       return {
         kind: "error",
@@ -143,6 +147,10 @@ export async function rejectOfferAction(
   });
 
   if (!result.success) {
+    if (result.rateLimited) {
+      const secs = Math.max(1, Math.ceil((result.retryAfterMs ?? 1000) / 1000));
+      return { kind: "error", message: `Too many attempts — try again in ${secs}s.` };
+    }
     if (result.conflict) {
       return {
         kind: "error",
