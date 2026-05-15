@@ -474,6 +474,158 @@ export async function loadClientShortlistsForUser(
   }));
 }
 
+export type AdminDiscoverInquiry = {
+  inquiryId: string;
+  status: string;
+  createdAt: string;
+  eventDate: string | null;
+  eventLocation: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  message: string | null;
+  /** "discover_single_talent" | "discover_shortlist" */
+  sourceChannel: string;
+  /** Total talents on this inquiry from this tenant. */
+  talents: Array<{
+    talentId: string;
+    displayName: string;
+    headshotUrl: string | null;
+  }>;
+  /** True when source_channel = "discover_shortlist" — context for the
+   *  "This is 1-of-N in a fanned inquiry" hint. We can't easily count
+   *  sibling inquiries from other tenants without joining on
+   *  source_context.shortlist_id; flag the type here for now. */
+  isPartOfFanout: boolean;
+  /** When part of a shortlist fan-out, the shortlist UUID set on submit. */
+  sourceShortlistId: string | null;
+};
+
+/**
+ * Load the workspace's Discover-originated inquiries (single + shortlist
+ * sources) for the admin's dedicated Discover-inquiries view.
+ */
+export async function loadAdminDiscoverInquiries(
+  tenantId: string,
+): Promise<AdminDiscoverInquiry[]> {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+
+  const { data, error } = await admin
+    .from("inquiries")
+    .select(
+      `
+      id, status, created_at, event_date, event_location,
+      contact_name, contact_email, message,
+      source_channel, source_context,
+      inquiry_participants!inquiry_id (
+        role,
+        talent_profile_id,
+        talent_profiles!talent_profile_id ( id, display_name, first_name, last_name )
+      )
+      `,
+    )
+    .eq("tenant_id", tenantId)
+    .in("source_channel", ["discover_single_talent", "discover_shortlist"])
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    logServerError("workspace.loadAdminDiscoverInquiries", error);
+    return [];
+  }
+
+  type Row = {
+    id: string;
+    status: string;
+    created_at: string;
+    event_date: string | null;
+    event_location: string | null;
+    contact_name: string | null;
+    contact_email: string | null;
+    message: string | null;
+    source_channel: string;
+    source_context: { shortlist_id?: string | null } | null;
+    inquiry_participants: Array<{
+      role: string;
+      talent_profile_id: string | null;
+      talent_profiles: {
+        id: string;
+        display_name: string | null;
+        first_name: string | null;
+        last_name: string | null;
+      } | null;
+    }> | null;
+  };
+
+  const rows = (data ?? []) as unknown as Row[];
+
+  // Batch-fetch card photos for all talents across all inquiries.
+  const talentIds = new Set<string>();
+  for (const r of rows) {
+    for (const p of r.inquiry_participants ?? []) {
+      if (p.role === "talent" && p.talent_profile_id) talentIds.add(p.talent_profile_id);
+    }
+  }
+
+  const photoByTalent = new Map<string, string>();
+  if (talentIds.size > 0) {
+    const { data: photos } = await admin
+      .from("media_assets")
+      .select("owner_talent_profile_id, storage_path, variant_kind")
+      .in("owner_talent_profile_id", Array.from(talentIds))
+      .in("variant_kind", PHOTO_VARIANT_PRIORITY)
+      .is("deleted_at", null);
+    const bestRank = new Map<string, number>();
+    for (const m of (photos ?? []) as Array<{
+      owner_talent_profile_id: string;
+      storage_path: string;
+      variant_kind: string;
+    }>) {
+      const rank = PHOTO_VARIANT_PRIORITY.indexOf(m.variant_kind);
+      if (rank < 0) continue;
+      const current = bestRank.get(m.owner_talent_profile_id);
+      if (current === undefined || rank < current) {
+        bestRank.set(m.owner_talent_profile_id, rank);
+        const url = m.storage_path.startsWith("http")
+          ? m.storage_path
+          : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
+        photoByTalent.set(m.owner_talent_profile_id, url);
+      }
+    }
+  }
+
+  return rows.map((r) => {
+    const talents = (r.inquiry_participants ?? [])
+      .filter((p) => p.role === "talent" && p.talent_profiles)
+      .map((p) => {
+        const tp = p.talent_profiles!;
+        const displayName =
+          (tp.display_name ?? "").trim()
+          || `${tp.first_name ?? ""} ${tp.last_name ?? ""}`.trim()
+          || "Unnamed";
+        return {
+          talentId: tp.id,
+          displayName,
+          headshotUrl: photoByTalent.get(tp.id) ?? null,
+        };
+      });
+    return {
+      inquiryId: r.id,
+      status: r.status,
+      createdAt: r.created_at,
+      eventDate: r.event_date,
+      eventLocation: r.event_location,
+      contactName: r.contact_name,
+      contactEmail: r.contact_email,
+      message: r.message,
+      sourceChannel: r.source_channel,
+      talents,
+      isPartOfFanout: r.source_channel === "discover_shortlist",
+      sourceShortlistId: r.source_context?.shortlist_id ?? null,
+    };
+  });
+}
+
 /**
  * Load the signed-in client's favorited talents with card-level data
  * embedded. Used by the /client/favorites page. Mirror of GET

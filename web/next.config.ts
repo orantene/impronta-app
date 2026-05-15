@@ -46,6 +46,17 @@ if (supabaseUrl) {
   }
 }
 
+// Discover test seed — pravatar.cc serves placeholder talent photos for
+// is_discoverable=true talents that haven't uploaded a real card variant
+// yet. Production talents will use Supabase storage; allow-list this so
+// next/image renders the dev catalog without throwing
+// "hostname not configured" errors that crash the surface.
+remotePatterns.push({
+  protocol: "https",
+  hostname: "i.pravatar.cc",
+  pathname: "/**",
+});
+
 const isProd = process.env.NODE_ENV === "production";
 
 /**
