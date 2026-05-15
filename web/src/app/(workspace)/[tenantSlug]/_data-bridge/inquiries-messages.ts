@@ -137,6 +137,12 @@ function inferSourceKind(
 ): WorkspaceInquiryForMessages["sourceKind"] {
   const t = (sourceType ?? "").toLowerCase();
   const c = (sourceChannel ?? "").toLowerCase();
+  // Map Discover's two channels to "marketplace" — they're the
+  // cross-tenant catalog surface, which is what "marketplace" semantics
+  // express in the existing consumer (admin Messages shell). Adding a
+  // new "discover" enum value would require coordinated updates in the
+  // mega state.tsx mapping; reusing marketplace keeps the wire stable.
+  if (c.includes("discover")) return "marketplace";
   if (t.includes("hub") || c.includes("hub")) return "hub";
   if (t.includes("direct") || c.includes("direct")) return "direct";
   if (t.includes("manual") || c === "manual") return "manual";
