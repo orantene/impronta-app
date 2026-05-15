@@ -209,6 +209,8 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // /<tenant>/admin/policy/<…> — workspace policy pages (auto-ack, etc.)
   // rendered as standalone server components, not via the prototype SPA.
   (s) => s[0] === "admin" && s[1] === "policy",
+  // /<tenant>/admin/discover-performance — A9 Discover analytics dashboard.
+  (s) => s[0] === "admin" && s[1] === "discover-performance",
 ];
 
 function pathIsCanonical(pathname: string | null): boolean {
