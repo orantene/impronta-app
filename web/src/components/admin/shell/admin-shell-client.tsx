@@ -226,9 +226,12 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.
   (s) => s[0] === "talent" && s[1] === "discover",
-  // /<tenant>/admin/roster/<id>/commission — A8 commission preview.
-  // Standalone (roster-drawer mega-area untouched).
-  (s) => s[0] === "admin" && s[1] === "roster" && typeof s[2] === "string" && s[3] === "commission",
+  // /<tenant>/admin/roster/** — Phase 2.2: the entire Roster surface is
+  // now canonical. List (no id segment) is the new server-rendered grid;
+  // [id] edit page + [id]/commission (A8) + /new were already real pages
+  // the prototype SPA was overlaying. Blanket match retires roster from
+  // the mega shell.
+  (s) => s[0] === "admin" && s[1] === "roster",
   // /<tenant>/admin/triage — focused queue (separate from Messages shell).
   (s) => s[0] === "admin" && s[1] === "triage",
   // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
