@@ -771,6 +771,8 @@ function ThreadPaneWithTabs({
           inquiryId={inq.id}
           tenantSlug={tenantSlug}
           senderName={client.displayName}
+          inquiryStatus={inq.status}
+          hasOffer={!!details?.offer?.exists}
           onSent={(msg) => onMessagesChange((prev) => [...prev, msg])}
         />
       )}
@@ -930,11 +932,15 @@ function ChatComposer({
   inquiryId,
   tenantSlug,
   senderName,
+  inquiryStatus,
+  hasOffer,
   onSent,
 }: {
   inquiryId: string;
   tenantSlug: string;
   senderName: string;
+  inquiryStatus?: string;
+  hasOffer?: boolean;
   onSent: (msg: WorkspaceMessage) => void;
 }) {
   const [body, setBody] = useState("");
@@ -976,6 +982,46 @@ function ChatComposer({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [emojiOpen]);
+
+  // Smart-reply chips — contextual one-tap suggestions based on inquiry
+  // state. Each chip pre-fills the textarea (the user can edit before
+  // sending). Hidden once the user has typed something.
+  const smartReplies = useMemo(() => {
+    if (body.trim().length > 0) return [];
+    switch (inquiryStatus) {
+      case "submitted":
+        return [
+          "Thanks for picking this up!",
+          "Any update on talent?",
+          "Happy to hop on a quick call.",
+        ];
+      case "coordination":
+        return hasOffer
+          ? ["Looking at the offer now.", "Any flexibility on the date?"]
+          : [
+            "Looking forward to the proposal.",
+            "Any update on talent?",
+            "Should I adjust the budget?",
+          ];
+      case "offer_pending":
+      case "offer_sent":
+        return [
+          "I'll review and get back to you.",
+          "Can we adjust the rate?",
+          "Need to check with my team — back in 24h.",
+        ];
+      case "approved":
+      case "booked":
+      case "converted":
+        return [
+          "Looking forward to the day!",
+          "Any prep we should know about?",
+          "Who's the talent contact on the day?",
+        ];
+      default:
+        return [];
+    }
+  }, [body, inquiryStatus, hasOffer]);
 
   function submit() {
     const trimmed = body.trim();
@@ -1095,6 +1141,38 @@ function ChatComposer({
       {error && (
         <div style={{ fontSize: 11.5, color: "#991B1B", padding: "4px 8px", background: "rgba(239,68,68,0.06)", borderRadius: 6 }}>
           {error}
+        </div>
+      )}
+      {smartReplies.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+          {smartReplies.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => {
+                setBody(s);
+                requestAnimationFrame(() => {
+                  textareaRef.current?.focus();
+                  const len = s.length;
+                  textareaRef.current?.setSelectionRange(len, len);
+                });
+              }}
+              style={{
+                padding: "5px 10px",
+                borderRadius: 999,
+                background: "rgba(29,78,216,0.06)",
+                color: C.accent,
+                border: `1px solid rgba(29,78,216,0.18)`,
+                fontFamily: FONT,
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {s}
+            </button>
+          ))}
         </div>
       )}
       <input
