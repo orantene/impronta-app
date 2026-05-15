@@ -941,8 +941,25 @@ function ChatComposer({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function insertEmoji(emoji: string) {
+    const ta = textareaRef.current;
+    if (!ta) { setBody((b) => b + emoji); setEmojiOpen(false); return; }
+    const start = ta.selectionStart ?? body.length;
+    const end = ta.selectionEnd ?? body.length;
+    const next = body.slice(0, start) + emoji + body.slice(end);
+    setBody(next);
+    // Restore caret after the inserted emoji.
+    requestAnimationFrame(() => {
+      ta.focus();
+      const pos = start + emoji.length;
+      ta.setSelectionRange(pos, pos);
+    });
+    setEmojiOpen(false);
+  }
 
   // Auto-grow textarea up to ~6 lines.
   useEffect(() => {
@@ -951,6 +968,14 @@ function ChatComposer({
     ta.style.height = "auto";
     ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
   }, [body]);
+
+  // Close emoji picker on Escape.
+  useEffect(() => {
+    if (!emojiOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setEmojiOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [emojiOpen]);
 
   function submit() {
     const trimmed = body.trim();
@@ -1108,6 +1133,80 @@ function ChatComposer({
             </svg>
           )}
         </button>
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setEmojiOpen((v) => !v)}
+            disabled={pending}
+            aria-label="Insert emoji"
+            title="Insert emoji"
+            style={{
+              height: 38,
+              width: 38,
+              borderRadius: 10,
+              background: emojiOpen ? "rgba(11,11,13,0.05)" : "transparent",
+              color: C.inkMuted,
+              border: `1px solid ${C.borderSoft}`,
+              cursor: pending ? "not-allowed" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+              lineHeight: 1,
+            }}
+          >
+            ☺
+          </button>
+          {emojiOpen && (
+            <div
+              role="menu"
+              style={{
+                position: "absolute",
+                bottom: "calc(100% + 6px)",
+                left: 0,
+                background: "#fff",
+                border: `1px solid ${C.borderSoft}`,
+                borderRadius: 10,
+                boxShadow: "0 6px 24px rgba(0,0,0,0.10)",
+                padding: 6,
+                display: "grid",
+                gridTemplateColumns: "repeat(8, 28px)",
+                gap: 2,
+                zIndex: 60,
+                width: "max-content",
+              }}
+            >
+              {[
+                "😀","😂","🥲","😊","😍","🤔","😅","🙏",
+                "👍","👎","🙌","👏","💪","🔥","✨","🎉",
+                "❤️","💛","💚","💙","💜","🖤","🤍","💖",
+                "✅","✔️","☑️","⭐","📌","📎","📅","⏰",
+                "💬","📝","💡","🎯","📸","🎬","🎭","🎤",
+              ].map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => insertEmoji(e)}
+                  role="menuitem"
+                  aria-label={`Insert ${e}`}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    padding: 0,
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    fontSize: 16,
+                    lineHeight: 1,
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <textarea
           ref={textareaRef}
           value={body}
