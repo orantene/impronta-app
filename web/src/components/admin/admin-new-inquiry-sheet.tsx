@@ -21,8 +21,35 @@ import { useLiveTaxonomy } from "@/components/admin/shell/internal/use-taxonomy"
 type Contact = { id: string; client_account_id: string; label: string };
 type TalentOption = { id: string; profile_code: string; display_name: string | null };
 
+// Friendly labels for the source-channel select. Falls back to a
+// title-cased underscore-to-space transform for any value not in the
+// override map. The engine-set channels (Discover, hub site, etc.)
+// stay listed because they're valid enum values an admin might need
+// to backfill, but their labels are humanized so the dropdown reads
+// naturally.
+const CHANNEL_LABEL_OVERRIDES: Record<string, string> = {
+  phone: "Phone call",
+  whatsapp: "WhatsApp",
+  email: "Email",
+  admin: "Admin (legacy)",
+  other: "Other",
+  pitch: "Pitch conversion",
+  directory_guest: "Public directory · guest",
+  directory_client: "Public directory · client",
+  direct_client_dashboard: "Client dashboard",
+  discover_single_talent: "Discover · single talent",
+  discover_shortlist: "Discover · shortlist fan-out",
+  saved_talent: "Saved talent (cart)",
+  public_talent_profile: "Public talent profile",
+  agency_site: "Agency website",
+  hub_site: "Hub website",
+  admin_created: "Admin manual",
+  book_again: "Book again",
+};
 function channelLabel(ch: string) {
-  return ch.replace(/_/g, " ");
+  if (CHANNEL_LABEL_OVERRIDES[ch]) return CHANNEL_LABEL_OVERRIDES[ch];
+  const spaced = ch.replace(/_/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 function SectionCard({
