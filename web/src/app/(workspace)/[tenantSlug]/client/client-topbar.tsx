@@ -30,9 +30,14 @@ const NAV_ITEMS = [
 
 export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
   const pathname = usePathname();
-  const [counts, setCounts] = useState<{ favorites: number | null; shortlists: number | null }>({
+  const [counts, setCounts] = useState<{
+    favorites: number | null;
+    shortlists: number | null;
+    pitches: number | null;
+  }>({
     favorites: null,
     shortlists: null,
+    pitches: null,
   });
 
   // Hydrate counts once on mount. Don't block render — pills appear when
@@ -42,14 +47,22 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
     Promise.all([
       fetch("/api/discover/favorites").then((r) => (r.ok ? r.json() : { favorites: [] })),
       fetch("/api/discover/shortlists").then((r) => (r.ok ? r.json() : { shortlists: [] })),
+      fetch("/api/client/pitches/count").then((r) => (r.ok ? r.json() : { count: 0 })),
     ])
-      .then(([fav, sl]: [{ favorites?: unknown[] }, { shortlists?: unknown[] }]) => {
-        if (cancelled) return;
-        setCounts({
-          favorites: Array.isArray(fav.favorites) ? fav.favorites.length : 0,
-          shortlists: Array.isArray(sl.shortlists) ? sl.shortlists.length : 0,
-        });
-      })
+      .then(
+        ([fav, sl, pi]: [
+          { favorites?: unknown[] },
+          { shortlists?: unknown[] },
+          { count?: number },
+        ]) => {
+          if (cancelled) return;
+          setCounts({
+            favorites: Array.isArray(fav.favorites) ? fav.favorites.length : 0,
+            shortlists: Array.isArray(sl.shortlists) ? sl.shortlists.length : 0,
+            pitches: typeof pi.count === "number" ? pi.count : 0,
+          });
+        },
+      )
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
@@ -57,6 +70,7 @@ export function ClientTopbar({ tenantSlug }: { tenantSlug: string }) {
   const countFor = (path: string): number | null => {
     if (path === "favorites") return counts.favorites;
     if (path === "shortlists") return counts.shortlists;
+    if (path === "pitches") return counts.pitches;
     return null;
   };
 
