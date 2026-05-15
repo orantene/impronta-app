@@ -3,6 +3,7 @@ import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { assignCoordinatorFromSettings } from "./coordinator-assignment";
+import { resolveOwningPartiesForTalents } from "./owning-party-resolver";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
@@ -306,6 +307,23 @@ export async function submitInquiry(
       });
     }
 
+    // D0 (Discover funnel convergence): resolve per-row owning party at
+    // submit time. Each talent's owning party is FROZEN onto
+    // `inquiry_participants.owning_party_type/_id` so commission
+    // resolution + thread fan-out stay coherent even if the talent's
+    // exclusivity later changes. Single batch query for all talents.
+    //
+    // For the dominant single-tenant case (talent on this workspace's
+    // roster), the resolver returns `{ type: 'workspace', id: tenant_id }`
+    // which matches the trigger default — no behavior change.
+    // For Discover-originated inquiries (D5), exclusive-agency talents
+    // route to the agency tenant; independent talents route to the
+    // talent's own inbox.
+    const owningParties = await resolveOwningPartiesForTalents(
+      supabase,
+      input.talent_profile_ids,
+    );
+
     let sort = 0;
     for (const tid of input.talent_profile_ids) {
       const { data: tp } = await supabase
@@ -313,6 +331,12 @@ export async function submitInquiry(
         .select("user_id")
         .eq("id", tid)
         .maybeSingle();
+      // Resolver guarantees a value for every id; fall back to workspace
+      // + this inquiry's tenant_id (matches trigger default) on miss.
+      const owning = owningParties.get(tid) ?? {
+        type: "workspace" as const,
+        id: input.tenant_id,
+      };
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
         tenant_id: input.tenant_id,
@@ -323,6 +347,12 @@ export async function submitInquiry(
         sort_order: sort++,
         added_by_user_id: input.actorUserId ?? null,
         requirement_group_id: defaultGroupId ?? null,
+        // D0 — explicit override of the trigger default. For
+        // single-tenant inquiries this still ends up as
+        // ('workspace', tenant_id), matching the trigger. For Discover
+        // cross-tenant routing this carries the resolved party through.
+        owning_party_type: owning.type,
+        owning_party_id: owning.id,
       });
     }
 
