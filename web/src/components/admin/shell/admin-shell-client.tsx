@@ -222,6 +222,10 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // server component (talent.tsx mega-shell stays untouched). The
   // talent shell now uses ConditionalAdminShellRoot so this yields.
   (s) => s[0] === "talent" && s[1] === "trust",
+  // /<tenant>/talent/discover — T2+T4+T5 Discover control panel
+  // (card preview + travel reach + 30-day stats). Standalone server
+  // component; talent.tsx mega-shell untouched.
+  (s) => s[0] === "talent" && s[1] === "discover",
   // /<tenant>/admin/triage — focused queue (separate from Messages shell).
   (s) => s[0] === "admin" && s[1] === "triage",
   // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
