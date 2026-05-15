@@ -115,22 +115,26 @@ const INJECTED_STYLES = `
 .mgd-card {
   position: relative;
 }
-.mgd-overlay {
+.mgd-open-hint {
   position: absolute;
-  inset: 0;
+  bottom: 6px;
+  right: 6px;
+  z-index: 2;
   background: rgba(0,0,0,0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.92);
+  border-radius: 6px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 6px;
   opacity: 0;
-  transition: opacity 150ms ease;
-  border-radius: 8px;
+  transition: opacity 120ms ease;
   pointer-events: none;
 }
-.mgd-card:hover .mgd-overlay {
+.mgd-card:hover .mgd-open-hint {
   opacity: 1;
-  pointer-events: auto;
 }
 .mgd-drag-handle {
   position: absolute;
@@ -168,47 +172,6 @@ const INJECTED_STYLES = `
 }
 .mgd-card:hover .mgd-checkbox-wrap {
   opacity: 1;
-}
-.mgd-overlay-btn {
-  background: rgba(255,255,255,0.18);
-  border: none;
-  border-radius: 6px;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #fff;
-  font-size: 14px;
-  transition: background 120ms;
-  padding: 0;
-  position: relative;
-}
-.mgd-overlay-btn:hover {
-  background: rgba(255,255,255,0.30);
-}
-.mgd-overlay-btn:hover .mgd-tooltip {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: none;
-}
-.mgd-tooltip {
-  position: absolute;
-  bottom: calc(100% + 5px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
-  white-space: nowrap;
-  background: rgba(0,0,0,0.82);
-  color: #fff;
-  font-size: 10px;
-  font-family: "Inter", system-ui, sans-serif;
-  font-weight: 500;
-  padding: 3px 7px;
-  border-radius: 4px;
-  opacity: 0;
-  transition: opacity 120ms, transform 120ms;
-  pointer-events: none;
 }
 `;
 
@@ -1031,11 +994,12 @@ function PhotoCard({
   isAvatar,
   isHero,
   onClickPhoto,
-  onSetAvatar,
-  onSetHero,
-  onAddToPortfolio,
-  onDelete,
   t,
+  // onSetAvatar / onSetHero / onAddToPortfolio / onDelete are still in
+  // PhotoCardProps (the parent passes them, the lightbox + crop flow use
+  // them) but the card itself no longer renders the action overlay — every
+  // action moved to the unified PhotoLightbox rail. Intentionally not
+  // destructured here.
 }: PhotoCardProps) {
   // Change 6: approval state border
   const approvalBorder = asset.approvalState === "pending"
@@ -1083,50 +1047,11 @@ function PhotoCard({
           />
         </button>
 
-        {/* Change 2: hover overlay with icon buttons */}
-        <div className="mgd-overlay" aria-hidden="true">
-          <button
-            type="button"
-            className="mgd-overlay-btn"
-            onClick={onSetAvatar}
-            disabled={isBusy}
-            aria-label={t("admin.talent.edit.mediaGallery.setAvatar")}
-          >
-            ★
-            <span className="mgd-tooltip">{t("admin.talent.edit.mediaGallery.setAvatar")}</span>
-          </button>
-          <button
-            type="button"
-            className="mgd-overlay-btn"
-            onClick={onSetHero}
-            disabled={isBusy}
-            aria-label={t("admin.talent.edit.mediaGallery.setCover")}
-          >
-            ▦
-            <span className="mgd-tooltip">{t("admin.talent.edit.mediaGallery.setCover")}</span>
-          </button>
-          <button
-            type="button"
-            className="mgd-overlay-btn"
-            onClick={onAddToPortfolio}
-            disabled={isBusy}
-            aria-label={t("admin.talent.edit.mediaGallery.addPortfolio")}
-          >
-            ⊕
-            <span className="mgd-tooltip">{t("admin.talent.edit.mediaGallery.addPortfolio")}</span>
-          </button>
-          <button
-            type="button"
-            className="mgd-overlay-btn"
-            onClick={onDelete}
-            disabled={isBusy}
-            aria-label={t("admin.talent.edit.mediaGallery.delete")}
-            style={{ background: "rgba(192,57,43,0.45)" }}
-          >
-            🗑
-            <span className="mgd-tooltip">{t("admin.talent.edit.mediaGallery.delete")}</span>
-          </button>
-        </div>
+        {/* Hover "open" hint — matches the admin Media card. Every photo
+            action (set profile/cover, crop, revert, delete) now lives in
+            the unified PhotoLightbox rail, so the card stays clean and the
+            click target is the whole image. One frame across surfaces. */}
+        <div className="mgd-open-hint" aria-hidden="true">⤢ {t("admin.talent.edit.mediaGallery.viewPhoto")}</div>
 
         {/* Change 4: upload progress spinner */}
         {(asset.uploadState === "uploading" || isBusy) && (
