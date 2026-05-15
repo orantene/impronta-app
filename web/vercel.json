@@ -15,12 +15,16 @@
     "src/app/api/cron/cleanup-guest-cart/route.ts": {
       "maxDuration": 30
     },
+    "src/app/api/cron/refresh-discover-index/route.ts": {
+      "maxDuration": 30
+    },
     "src/app/api/stripe/webhook/route.ts": {
       "maxDuration": 30
     }
   },
   "crons": [
     { "path": "/api/cron/skill-metrics-refresh", "schedule": "0 4 * * *" },
-    { "path": "/api/cron/cleanup-guest-cart", "schedule": "0 5 * * *" }
+    { "path": "/api/cron/cleanup-guest-cart", "schedule": "0 5 * * *" },
+    { "path": "/api/cron/refresh-discover-index", "schedule": "*/15 * * * *" }
   ]
 }
