@@ -26,7 +26,12 @@ import type { PaymentMethod, BookingCommissionSnapshot } from "@/lib/billing/com
 import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
-import { assignCoordinator } from "@/lib/inquiry/inquiry-engine-coordinator";
+import {
+  assignCoordinator,
+  addSecondaryCoordinator,
+  removeSecondaryCoordinator,
+  promoteToPrimary,
+} from "@/lib/inquiry/inquiry-engine-coordinator";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine-booking";
 import {
   loadActiveBookingTransaction,
@@ -1902,6 +1907,110 @@ export async function reassignCoordinatorAction(
   } catch (err) {
     logServerError("admin._pipeline-actions.reassignCoordinatorAction", err);
     return { ok: false, error: `Unexpected error: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+// ─── S0.8 multi-tier coordinator actions ────────────────────────────────────
+
+/** Add a secondary coordinator to this inquiry (max 2 per inquiry,
+ *  enforced inside engine_add_secondary_coordinator). */
+export async function addSecondaryCoordinatorAction(
+  _tenantSlug: string,
+  inquiryId: string,
+  userId: string,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+    const result = await addSecondaryCoordinator(supabase, {
+      inquiryId,
+      tenantId,
+      userId,
+      actorUserId: user.id,
+    });
+    if (!result.success) {
+      const reason = (result as { reason?: string }).reason;
+      const errMsg = (result as { error?: string }).error;
+      const friendly =
+        reason === "forbidden" ? "You don't have permission to add coordinators."
+        : reason === "secondary_cap_reached" ? "An inquiry can have at most two secondary coordinators."
+        : reason === "already_assigned" ? "This user is already a coordinator on this inquiry."
+        : (reason ?? errMsg ?? "Could not add coordinator.");
+      return { ok: false, error: friendly };
+    }
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.addSecondaryCoordinatorAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/** Remove a secondary coordinator from this inquiry. */
+export async function removeSecondaryCoordinatorAction(
+  _tenantSlug: string,
+  inquiryId: string,
+  userId: string,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+    const result = await removeSecondaryCoordinator(supabase, {
+      inquiryId,
+      tenantId,
+      userId,
+      actorUserId: user.id,
+    });
+    if (!result.success) {
+      const reason = (result as { reason?: string }).reason;
+      const errMsg = (result as { error?: string }).error;
+      const friendly =
+        reason === "forbidden" ? "You don't have permission to remove coordinators."
+        : reason === "not_secondary" ? "That user isn't a secondary coordinator on this inquiry."
+        : (reason ?? errMsg ?? "Could not remove coordinator.");
+      return { ok: false, error: friendly };
+    }
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.removeSecondaryCoordinatorAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/** Promote a secondary coordinator to primary (swaps with current primary
+ *  who becomes secondary; primary is unique per inquiry by engine). */
+export async function promoteToPrimaryCoordinatorAction(
+  _tenantSlug: string,
+  inquiryId: string,
+  userId: string,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireStaffTenantAction();
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+    const result = await promoteToPrimary(supabase, {
+      inquiryId,
+      tenantId,
+      userId,
+      actorUserId: user.id,
+    });
+    if (!result.success) {
+      const reason = (result as { reason?: string }).reason;
+      const errMsg = (result as { error?: string }).error;
+      const friendly =
+        reason === "forbidden" ? "You don't have permission to change the primary coordinator."
+        : reason === "not_secondary" ? "Add this user as secondary first, then promote."
+        : (reason ?? errMsg ?? "Could not promote coordinator.");
+      return { ok: false, error: friendly };
+    }
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.promoteToPrimaryCoordinatorAction", err);
+    return { ok: false, error: "Unexpected error." };
   }
 }
 

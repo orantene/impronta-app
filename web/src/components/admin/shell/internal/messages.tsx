@@ -123,6 +123,7 @@ import {
   duplicateInquiryBooking,
   loadWorkspaceCoordinatorCandidates,
   reassignCoordinatorAction,
+  addSecondaryCoordinatorAction,
   type WorkspaceCoordinatorCandidate,
   type InquiryPaymentState,
   type InquiryAttachment,
@@ -8073,6 +8074,7 @@ function ClientProjectViewTab({
 // ──
 function ReassignCoordinatorSheet({
   open, onClose, inquiryId, currentCoordName, currentCoordUserId, onSuccess,
+  mode = "swap",
 }: {
   open: boolean;
   onClose: () => void;
@@ -8080,6 +8082,9 @@ function ReassignCoordinatorSheet({
   currentCoordName: string;
   currentCoordUserId: string | null;
   onSuccess: () => void;
+  /** "swap" replaces the current primary; "add_secondary" assigns the
+   *  picked user as a secondary coordinator (engine enforces max 2). */
+  mode?: "swap" | "add_secondary";
 }) {
   const { toast, effectiveTenant } = useAdminShell();
   const [picked, setPicked] = useState<string | null>(null);
@@ -8119,17 +8124,18 @@ function ReassignCoordinatorSheet({
   const handleClose = () => { reset(); onClose(); };
 
   const submit = async () => {
-    if (!picked || !note.trim() || submitting) return;
+    if (!picked || submitting) return;
+    if (mode === "swap" && !note.trim()) return;
     setSubmitting(true); setError(null);
-    const r = await reassignCoordinatorAction(
-      effectiveTenant.slug, inquiryId, picked, note.trim(),
-    );
+    const r = mode === "add_secondary"
+      ? await addSecondaryCoordinatorAction(effectiveTenant.slug, inquiryId, picked)
+      : await reassignCoordinatorAction(effectiveTenant.slug, inquiryId, picked, note.trim());
     setSubmitting(false);
     if (!r.ok) {
       setError(r.error);
       return;
     }
-    toast("Coordinator reassigned");
+    toast(mode === "add_secondary" ? "Secondary coordinator added" : "Coordinator reassigned");
     onSuccess();
     handleClose();
   };
@@ -8166,9 +8172,11 @@ function ReassignCoordinatorSheet({
             <h2 style={{
               margin: 0, fontFamily: FONTS.display, fontSize: 16, fontWeight: 700,
               color: COLORS.ink, letterSpacing: -0.2,
-            }}>Reassign coordinator</h2>
+            }}>{mode === "add_secondary" ? "Add coordinator" : "Reassign coordinator"}</h2>
             <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>
-              Move this project from {currentCoordName} to a teammate.
+              {mode === "add_secondary"
+                ? `Add a secondary coordinator alongside ${currentCoordName}.`
+                : `Move this project from ${currentCoordName} to a teammate.`}
             </div>
           </div>
           <button type="button" onClick={handleClose} aria-label="Close" style={{
@@ -8233,24 +8241,26 @@ function ReassignCoordinatorSheet({
               })}
             </div>
           </div>
-          <div>
-            <label style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
-              Handoff note (required)
-            </label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.currentTarget.value)}
-              placeholder="Where is this project? What does the new coordinator need to know?"
-              style={{
-                width: "100%", minHeight: 64, resize: "vertical",
-                padding: 10, borderRadius: 8,
-                border: `1px solid ${COLORS.borderSoft}`,
-                background: COLORS.surfaceAlt,
-                fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
-                outline: "none", boxSizing: "border-box",
-              }}
-            />
-          </div>
+          {mode === "swap" && (
+            <div>
+              <label style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "block" }}>
+                Handoff note (required)
+              </label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.currentTarget.value)}
+                placeholder="Where is this project? What does the new coordinator need to know?"
+                style={{
+                  width: "100%", minHeight: 64, resize: "vertical",
+                  padding: 10, borderRadius: 8,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  background: COLORS.surfaceAlt,
+                  fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+                  outline: "none", boxSizing: "border-box",
+                }}
+              />
+            </div>
+          )}
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: COLORS.ink, cursor: "pointer" }}>
             <input
               type="checkbox"
@@ -8281,18 +8291,20 @@ function ReassignCoordinatorSheet({
             fontFamily: FONTS.body,
           }}>Cancel</button>
           <button type="button"
-            disabled={!picked || !note.trim() || submitting}
+            disabled={!picked || (mode === "swap" && !note.trim()) || submitting}
             onClick={submit}
             style={{
               padding: "8px 16px", borderRadius: 999,
               border: "none",
-              background: (picked && note.trim() && !submitting) ? COLORS.fill : "rgba(11,11,13,0.12)",
+              background: (picked && (mode === "add_secondary" || note.trim()) && !submitting) ? COLORS.fill : "rgba(11,11,13,0.12)",
               color: "#fff",
               fontSize: 12.5, fontWeight: 700,
-              cursor: (picked && note.trim() && !submitting) ? "pointer" : "not-allowed",
+              cursor: (picked && (mode === "add_secondary" || note.trim()) && !submitting) ? "pointer" : "not-allowed",
               fontFamily: FONTS.body,
             }}>
-            {submitting ? "Reassigning…" : "Reassign"}
+            {submitting
+              ? (mode === "add_secondary" ? "Adding…" : "Reassigning…")
+              : (mode === "add_secondary" ? "Add coordinator" : "Reassign")}
           </button>
         </div>
       </aside>
@@ -8351,6 +8363,7 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
   const router = useRouter();
   const [lineupOpen, setLineupOpen] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignMode, setReassignMode] = useState<"swap" | "add_secondary">("swap");
   const conv = buildConvFromInquiry(inquiry);
   const currentCoord = inquiry.coordinators[0];
   const canEdit = inquiry.status !== "wrapped" && inquiry.status !== "cancelled";
@@ -8385,12 +8398,20 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
           </button>
         )}
         {canReassign && (
-          <button type="button" onClick={() => setReassignOpen(true)} style={{
-            padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
-            borderRadius: 999, border: `1px solid ${COLORS.border}`,
-            background: "transparent", color: COLORS.ink, cursor: "pointer",
-            fontFamily: FONTS.body,
-          }}>Reassign coordinator</button>
+          <>
+            <button type="button" onClick={() => { setReassignMode("swap"); setReassignOpen(true); }} style={{
+              padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
+              borderRadius: 999, border: `1px solid ${COLORS.border}`,
+              background: "transparent", color: COLORS.ink, cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}>Reassign coordinator</button>
+            <button type="button" onClick={() => { setReassignMode("add_secondary"); setReassignOpen(true); }} style={{
+              padding: "6px 12px", fontSize: 11.5, fontWeight: 600,
+              borderRadius: 999, border: `1px solid ${COLORS.border}`,
+              background: "transparent", color: COLORS.ink, cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}>+ Add coordinator</button>
+          </>
         )}
         {/* Free-tier upgrade nudge — Reassign hides on Free, but
             instead of leaving silence, surface a soft upsell so the
@@ -8436,6 +8457,7 @@ function AdminParticipantsActions({ inquiry, planTier = "agency" }: {
           currentCoordName={currentCoord.name}
           currentCoordUserId={currentCoord.id}
           onSuccess={() => router.refresh()}
+          mode={reassignMode}
         />
       )}
     </>
