@@ -225,16 +225,60 @@ export default async function AutoAckPolicyPage({
       <div style={{
         marginTop: 24,
         padding: 16,
-        background: C.accentSoft,
+        background: C.surface,
         borderRadius: 12,
-        fontSize: 12.5,
-        color: C.ink,
-        lineHeight: 1.55,
+        border: `1px solid ${C.borderSoft}`,
       }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>What the client sees</div>
-        <div style={{ color: C.inkMuted, fontStyle: "italic" }}>
-          {enabled ? `"${message}"` : "Nothing — auto-acknowledgement is off."}
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: C.inkDim, marginBottom: 10 }}>
+          What the client sees
         </div>
+        {enabled ? (
+          <div style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            maxWidth: 480,
+          }}>
+            <div style={{
+              flexShrink: 0,
+              width: 28, height: 28, borderRadius: "50%",
+              background: C.accent,
+              color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 11, fontWeight: 700, letterSpacing: 0.3,
+            }}>
+              ✶
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 4,
+              }}>
+                Workspace · just now
+              </div>
+              <div style={{
+                background: C.cardBg,
+                border: `1px solid ${C.border}`,
+                borderRadius: 12,
+                borderTopLeftRadius: 4,
+                padding: "10px 12px",
+                fontSize: 13.5,
+                color: C.ink,
+                lineHeight: 1.5,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}>
+                {message}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            fontSize: 12.5, color: C.inkMuted, fontStyle: "italic",
+          }}>
+            Nothing — auto-acknowledgement is off. The client&apos;s thread
+            stays empty until your team replies.
+          </div>
+        )}
       </div>
     </div>
   );
