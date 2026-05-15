@@ -936,6 +936,9 @@ export type TalentMediaItem = {
   variantKind: string;
   sortOrder: number;
   metadata: Record<string, unknown>;
+  /** Parent asset id when this row is a crop / baked-watermark derivative.
+   *  Drives "Revert to original" in the lightbox. */
+  sourceMediaAssetId: string | null;
 };
 
 export type TalentMediaBundle = {
@@ -984,7 +987,7 @@ export async function actionLoadTalentMediaBundle(
 
   const { data, error } = await admin
     .from("media_assets")
-    .select("id, bucket_id, storage_path, variant_kind, sort_order, metadata, created_at")
+    .select("id, bucket_id, storage_path, variant_kind, sort_order, metadata, source_media_asset_id, created_at")
     .eq("owner_talent_profile_id", talentProfileId)
     .is("deleted_at", null)
     .order("sort_order", { ascending: true });
@@ -1001,6 +1004,7 @@ export async function actionLoadTalentMediaBundle(
     variant_kind: string;
     sort_order: number | null;
     metadata: Record<string, unknown> | null;
+    source_media_asset_id: string | null;
     created_at: string;
   };
 
@@ -1013,6 +1017,7 @@ export async function actionLoadTalentMediaBundle(
       variantKind: r.variant_kind,
       sortOrder: r.sort_order ?? 0,
       metadata: r.metadata ?? {},
+      sourceMediaAssetId: r.source_media_asset_id,
     };
     if (r.variant_kind === "polaroid") {
       const slot = (item.metadata.polaroidSlot ?? item.metadata.slot ?? r.id) as string;

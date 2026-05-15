@@ -15,7 +15,7 @@ import {
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero } from "./extended-actions";
-import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive, actionReorderMediaAssets } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive, actionReorderMediaAssets, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 
 // ─── Design tokens (match workspace shell) ────────────────────────────────────
 
@@ -157,7 +157,7 @@ function PhotoUploader({
   displayName: string;
   locale: string;
 }) {
-  const t = createTranslator(locale);
+  const t = React.useMemo(() => createTranslator(locale), [locale]);
   type Stage =
     | { kind: "idle" }
     | { kind: "preparing" }
@@ -208,7 +208,7 @@ function PhotoUploader({
     } catch (err) {
       setStage({ kind: "error", message: err instanceof Error ? err.message : "Upload failed." });
     }
-  }, [talentId, tenantSlug, supabase]);
+  }, [talentId, tenantSlug, supabase, t]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
@@ -383,7 +383,7 @@ function UploadStatus({
       })}
       {stage.kind === "saved" && (
         <div style={{ marginTop: 4, color: "#228c50", fontWeight: 600 }}>
-          Saved ✓ <span style={{ color: C.inkDim, fontWeight: 400 }}>(id {stage.mediaId.slice(0, 8)}…)</span>
+          {t("admin.talent.edit.photo.savedWithId").replace("{id}", `${stage.mediaId.slice(0, 8)}…`)}
         </div>
       )}
       {stage.kind === "error" && (
@@ -460,15 +460,15 @@ function ThreeSlotPhotoPanel({
       const all: MediaAsset[] = [];
       const { card, hero, gallery } = res.data;
       if (card) {
-        all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
+        all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0, sourceMediaAssetId: card.sourceMediaAssetId });
         setAvatarUrl(card.url);
         setCurrentAvatarAssetId(card.id);
       }
       if (hero) {
-        all.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
+        all.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0, sourceMediaAssetId: hero.sourceMediaAssetId });
         setCurrentHeroAssetId(hero.id);
       }
-      for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder });
+      for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder, sourceMediaAssetId: g.sourceMediaAssetId });
       setAssets(all);
     });
   }, [talentId]);
@@ -491,6 +491,7 @@ function ThreeSlotPhotoPanel({
             squareSize={72}
             onClick={() => { setFocusSlot("avatar"); setGalleryOpen(true); }}
             onRemove={avatarUrl ? () => setAvatarUrl(null) : undefined}
+            removeAriaLabel={t("admin.talent.edit.photos.removeSlotAria").replace("{label}", t("admin.talent.edit.photos.avatarLabel"))}
           />
           {/* Cover slot */}
           <SlotButton
@@ -500,6 +501,7 @@ function ThreeSlotPhotoPanel({
             heightPx={72}
             onClick={() => { setFocusSlot("hero"); setGalleryOpen(true); }}
             onRemove={heroUrl ? () => setHeroUrl(null) : undefined}
+            removeAriaLabel={t("admin.talent.edit.photos.removeSlotAria").replace("{label}", t("admin.talent.edit.photos.coverLabel"))}
           />
           {/* Gallery */}
           <button
@@ -531,6 +533,7 @@ function ThreeSlotPhotoPanel({
           focusSlot={focusSlot}
           currentAvatarAssetId={currentAvatarAssetId}
           currentHeroAssetId={currentHeroAssetId}
+          locale={locale}
           onSetAvatar={async (mediaAssetId) => {
             const res = await setTalentAvatar(tenantSlug, talentId, mediaAssetId);
             if (res.ok) {
@@ -576,19 +579,24 @@ function ThreeSlotPhotoPanel({
             if (!res.ok) return { ok: false, error: res.error };
             return { ok: true };
           }}
-          onUploadFile={async (file, variantKind) => {
+          onUploadFile={async (file, variantKind, sourceMediaAssetId) => {
             const fd = new FormData();
             fd.append("file", file);
             const allowed = ["gallery", "card", "hero", "lightbox"] as const;
             const kind = allowed.includes(variantKind as typeof allowed[number])
               ? (variantKind as typeof allowed[number])
               : "gallery";
-            const res = await actionUploadAndAssignMedia(fd, talentId, kind);
+            const res = await actionUploadAndAssignMedia(fd, talentId, kind, {}, sourceMediaAssetId ?? null);
             if (!res.ok) return { ok: false, error: res.error };
             return {
               ok: true,
               asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0 },
             };
+          }}
+          onRevertCrop={async (croppedId) => {
+            const res = await actionRevertCropToSource(croppedId);
+            if (!res.ok) return { ok: false, error: res.error };
+            return { ok: true, sourceMediaAssetId: res.data.sourceMediaAssetId };
           }}
         />
       )}
@@ -597,7 +605,7 @@ function ThreeSlotPhotoPanel({
 }
 
 function SlotButton({
-  label, hint, imageUrl, squareSize, heightPx, onClick, onRemove,
+  label, hint, imageUrl, squareSize, heightPx, onClick, onRemove, removeAriaLabel,
 }: {
   label: string;
   hint: string;
@@ -606,6 +614,7 @@ function SlotButton({
   heightPx?: number;
   onClick: () => void;
   onRemove?: () => void;
+  removeAriaLabel?: string;
 }) {
   const h = heightPx ?? squareSize;
   return (
@@ -634,7 +643,7 @@ function SlotButton({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            aria-label={`Remove ${label}`}
+            aria-label={removeAriaLabel ?? `Remove ${label}`}
             style={{
               position: "absolute", top: 4, right: 4,
               width: 18, height: 18, borderRadius: "50%",
@@ -994,7 +1003,9 @@ export function TalentEditForm({
           <select name="talent_type_term_id" defaultValue={initial.primary_type_term_id ?? ""} style={inputStyle()}>
             <option value="">{t("admin.talent.edit.form.selectNone")}</option>
             {talentTypes.map((tt) => (
-              <option key={tt.id} value={tt.id}>{tt.name_en}</option>
+              <option key={tt.id} value={tt.id}>
+                {tt.name_en}
+              </option>
             ))}
           </select>
         </Field>

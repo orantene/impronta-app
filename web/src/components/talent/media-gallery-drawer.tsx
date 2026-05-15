@@ -24,6 +24,8 @@ export interface MediaAsset {
   uploadError?: string;
   /** Approval state from the server */
   approvalState?: "pending" | "approved" | "rejected";
+  /** Parent asset id when this row is a crop derivative. Enables Revert. */
+  sourceMediaAssetId?: string | null;
 }
 
 export interface MediaGalleryDrawerProps {
@@ -41,6 +43,9 @@ export interface MediaGalleryDrawerProps {
   onAddToPortfolio: (storagePath: string, width: number, height: number) => Promise<{ ok: boolean; error?: string; id?: string }>;
   onDeleteAsset: (mediaAssetId: string) => Promise<{ ok: boolean; error?: string }>;
   onUploadFile: (file: File, variantKind: string, sourceMediaAssetId?: string | null) => Promise<{ ok: boolean; error?: string; asset?: MediaAsset }>;
+  /** Optional — when provided, the lightbox shows a "Revert to original"
+   *  button on crop derivatives (assets with sourceMediaAssetId set). */
+  onRevertCrop?: (croppedMediaAssetId: string) => Promise<{ ok: boolean; error?: string; sourceMediaAssetId?: string | null }>;
   /** Optional — when provided, shows the Google Drive import UI (legacy single-shot). */
   onImportFromDrive?: (driveUrl: string) => Promise<{ ok: boolean; error?: string; assets?: Array<{ id: string; publicUrl: string }> }>;
   /** Progressive Drive import — list files first, then import one at a time for real progress. */
@@ -220,6 +225,7 @@ export function MediaGalleryDrawer({
   onAddToPortfolio,
   onDeleteAsset,
   onUploadFile,
+  onRevertCrop,
   onImportFromDrive,
   onListDriveFiles,
   onImportDriveFile,
@@ -907,6 +913,20 @@ export function MediaGalleryDrawer({
               setLightboxAsset(null);
             }
           }}
+          onRevertCrop={onRevertCrop ? async () => {
+            if (!lightboxAsset.sourceMediaAssetId) return;
+            const r = await onRevertCrop(lightboxAsset.id);
+            if (r.ok) {
+              // Soft-deleted on the server. Drop from local state and try to
+              // navigate to the source if it's in the list, otherwise close.
+              const next = assets.filter((a) => a.id !== lightboxAsset.id);
+              onAssetsChange(next);
+              const sourceId = r.sourceMediaAssetId ?? lightboxAsset.sourceMediaAssetId;
+              const source = sourceId ? next.find((a) => a.id === sourceId) : null;
+              if (source) setLightboxAsset(source);
+              else setLightboxAsset(null);
+            }
+          } : undefined}
           t={t}
         />
       )}
@@ -1192,7 +1212,7 @@ function PhotoCard({
 function Lightbox({
   asset, allAssets, isAvatar, isHero,
   onClose, onNavigate,
-  onCropAt, onSetAvatar, onSetHero, onDelete,
+  onCropAt, onSetAvatar, onSetHero, onDelete, onRevertCrop,
   t,
 }: {
   asset: MediaAsset;
@@ -1205,6 +1225,7 @@ function Lightbox({
   onSetAvatar: () => Promise<void>;
   onSetHero: () => Promise<void>;
   onDelete: () => Promise<void>;
+  onRevertCrop?: () => Promise<void>;
   t: (key: string) => string;
 }) {
   const initialIdx = Math.max(0, allAssets.findIndex((a) => a.id === asset.id));
@@ -1217,11 +1238,13 @@ function Lightbox({
   const [setAvatarBusy, setSetAvatarBusy] = useState(false);
   const [setHeroBusy, setSetHeroBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [revertBusy, setRevertBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     setSetAvatarBusy(false);
     setSetHeroBusy(false);
     setDeleteBusy(false);
+    setRevertBusy(false);
     setCopied(false);
   }, [current.id]);
 
@@ -1298,6 +1321,13 @@ function Lightbox({
     setDeleteBusy(true);
     await onDelete();
     setDeleteBusy(false);
+  };
+  const handleRevert = async () => {
+    if (!onRevertCrop) return;
+    if (!confirm("Revert to original? The cropped version will be removed.")) return;
+    setRevertBusy(true);
+    await onRevertCrop();
+    setRevertBusy(false);
   };
   const copyUrl = () => {
     void navigator.clipboard.writeText(current.url).then(() => {
@@ -1465,6 +1495,15 @@ function Lightbox({
               </button>
             </div>
           </div>
+
+          {/* Revert to original — only when this asset is a crop derivative
+              AND the caller wired up onRevertCrop. */}
+          {onRevertCrop && current.sourceMediaAssetId && (
+            <button type="button" disabled={revertBusy} onClick={() => void handleRevert()}
+              style={{ ...railBtn, width: "100%", padding: "7px 12px", fontSize: 11.5, opacity: revertBusy ? 0.6 : 1 }}>
+              {revertBusy ? "Reverting…" : "↺  Revert to original"}
+            </button>
+          )}
 
           {/* External actions */}
           <div style={{ display: "flex", gap: 6 }}>

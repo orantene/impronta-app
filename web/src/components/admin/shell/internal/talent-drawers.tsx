@@ -30,9 +30,10 @@
  */
 
 import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
-import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
+import { useDashboardText } from "./dashboard-i18n";
 import {
   updateSelfPrivacy,
   updateSelfEmergencyContact,
@@ -4456,6 +4457,7 @@ function netOf(gross: string): string {
 
 export function TalentPhotoEditDrawer() {
   const { state, closeDrawer, tenantSlug, bridgeTalentSelfProfile } = useAdminShell();
+  const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-photo-edit";
   const focusSlot = (state.drawer.payload?.focusSlot as "avatar" | "hero" | "gallery") ?? "gallery";
 
@@ -4475,9 +4477,9 @@ export function TalentPhotoEditDrawer() {
     if (!res.ok) return;
     const { gallery, card, hero } = res.data;
     const all: MediaAsset[] = [];
-    if (card) all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
-    if (hero) all.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
-    for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder });
+    if (card) all.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0, sourceMediaAssetId: card.sourceMediaAssetId });
+    if (hero) all.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0, sourceMediaAssetId: hero.sourceMediaAssetId });
+    for (const g of gallery) all.push({ id: g.id, url: g.url, variantKind: "gallery", sortOrder: g.sortOrder, sourceMediaAssetId: g.sourceMediaAssetId });
     setAssets(all);
   }, []);
 
@@ -4503,14 +4505,14 @@ export function TalentPhotoEditDrawer() {
           boxShadow: "0 12px 40px rgba(11,11,13,0.18)",
         }}>
           <div style={{ marginBottom: 10, fontSize: 24 }}>📷</div>
-          Photo editing requires a live talent profile.
+          {copy.t("Photo editing requires a live talent profile.")}
           <div style={{ marginTop: 16 }}>
             <button type="button" onClick={closeDrawer} style={{
               fontFamily: '"Inter", system-ui, sans-serif', fontSize: 13,
               padding: "8px 18px", borderRadius: 8, cursor: "pointer",
               background: "#0F4F3E", border: "none", color: "#fff",
             }}>
-              Close
+              {copy.t("Close")}
             </button>
           </div>
         </div>
@@ -4527,6 +4529,7 @@ export function TalentPhotoEditDrawer() {
       assets={assets}
       onAssetsChange={setAssets}
       focusSlot={focusSlot}
+      locale={copy.locale}
       onSetAvatar={async (mediaAssetId) => {
         const { setTalentAvatar } = await import("@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions");
         return setTalentAvatar(tenantSlug, talentId, mediaAssetId);
@@ -4550,19 +4553,24 @@ export function TalentPhotoEditDrawer() {
         if (!res.ok) return { ok: false, error: res.error };
         return { ok: true, assets: res.data.assets };
       }}
-      onUploadFile={async (file, variantKind) => {
+      onUploadFile={async (file, variantKind, sourceMediaAssetId) => {
         const fd = new FormData();
         fd.append("file", file);
         const allowed = ["gallery", "card", "hero", "lightbox"] as const;
         const kind = allowed.includes(variantKind as typeof allowed[number])
           ? (variantKind as typeof allowed[number])
           : "gallery";
-        const res = await actionUploadAndAssignMedia(fd, talentId, kind);
+        const res = await actionUploadAndAssignMedia(fd, talentId, kind, {}, sourceMediaAssetId ?? null);
         if (!res.ok) return { ok: false, error: res.error };
         return {
           ok: true,
           asset: { id: res.data.id, url: res.data.publicUrl, variantKind: kind, sortOrder: 0 },
         };
+      }}
+      onRevertCrop={async (croppedId) => {
+        const res = await actionRevertCropToSource(croppedId);
+        if (!res.ok) return { ok: false, error: res.error };
+        return { ok: true, sourceMediaAssetId: res.data.sourceMediaAssetId };
       }}
     />
   );
