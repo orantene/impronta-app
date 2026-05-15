@@ -60,6 +60,7 @@ type BookingRow = {
   transactionFeeCents: number | null;
   transactionNetCents: number | null;
   transactionCurrency: string | null;
+  sourceChannel: string | null;
 };
 
 function BookingListItem({
@@ -143,16 +144,48 @@ function BookingListItem({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: C.ink,
-            letterSpacing: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
             overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
           }}
         >
-          {booking.contact_name}
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: C.ink,
+              letterSpacing: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {booking.contact_name}
+          </span>
+          {(booking.sourceChannel === "discover_single_talent" ||
+            booking.sourceChannel === "discover_shortlist") && (
+            <span
+              title={
+                booking.sourceChannel === "discover_shortlist"
+                  ? "Originated from a Discover shortlist (multi-talent fan-out)"
+                  : "Originated from Tulala Discover"
+              }
+              style={{
+                flexShrink: 0,
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                textTransform: "uppercase",
+                padding: "1px 6px",
+                borderRadius: 4,
+                background: "rgba(29,78,216,0.08)",
+                color: "#1D4ED8",
+              }}
+            >
+              ◎ {booking.sourceChannel === "discover_shortlist" ? "Shortlist" : "Discover"}
+            </span>
+          )}
         </div>
         {(booking.company || booking.event_location) && (
           <div

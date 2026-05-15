@@ -37,6 +37,13 @@ export type WorkspaceBookingRow = {
   transactionFeeCents: number | null;
   transactionNetCents: number | null;
   transactionCurrency: string | null;
+  /**
+   * Audit A6 — Discover unified plan §6 source channel propagated from
+   * the source inquiry. Lets the bookings page surface a "via Discover"
+   * pill so workspace admin can see at a glance which jobs originated
+   * from the cross-tenant catalog vs. the direct funnel.
+   */
+  sourceChannel: string | null;
 };
 
 /**
@@ -59,7 +66,7 @@ export async function loadWorkspaceBookings(
     const { data, error } = await supabase
       .from("inquiries")
       .select(
-        `id, contact_name, company, event_date, event_location, quantity, created_at,
+        `id, contact_name, company, event_date, event_location, quantity, created_at, source_channel,
          agency_bookings!agency_bookings_source_inquiry_id_fkey(id, total_client_revenue, currency_code)`,
       )
       .eq("tenant_id", tenantId)
@@ -72,7 +79,7 @@ export async function loadWorkspaceBookings(
       logServerError("workspace.loadBookings", error);
       const { data: plain } = await supabase
         .from("inquiries")
-        .select("id, contact_name, company, event_date, event_location, quantity, created_at")
+        .select("id, contact_name, company, event_date, event_location, quantity, created_at, source_channel")
         .eq("tenant_id", tenantId)
         .in("status", ["booked", "converted"])
         .order("event_date", { ascending: true, nullsFirst: false })
@@ -88,7 +95,9 @@ export async function loadWorkspaceBookings(
           | "transactionFeeCents"
           | "transactionNetCents"
           | "transactionCurrency"
+          | "sourceChannel"
         >),
+        sourceChannel: (r["source_channel"] as string | null) ?? null,
         grossRevenueCents: null,
         currencyCode: null,
         transactionStatus: null,
@@ -127,6 +136,7 @@ export async function loadWorkspaceBookings(
         event_location: r.event_location as string | null,
         quantity: r.quantity as number | null,
         created_at: r.created_at as string,
+        sourceChannel: (r["source_channel"] as string | null) ?? null,
         grossRevenueCents,
         currencyCode: booking?.currency_code ?? null,
         transactionStatus: tx?.status ?? null,
