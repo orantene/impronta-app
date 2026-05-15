@@ -6,6 +6,7 @@
 //
 // See: web/docs/discover-and-unified-inquiry-2026-05-14.md §2.5.
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -49,6 +50,26 @@ export default async function ClientFavoritesPage({ params }: { params: PagePara
           icon="♡"
           title="No favorites yet"
           body="Browse Discover and tap the ♥ on any talent to save them here."
+          actions={
+            <Link
+              href={`/${tenantSlug}/client/discover`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                height: 36,
+                padding: "0 14px",
+                borderRadius: 9,
+                background: "#1D4ED8",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                letterSpacing: -0.1,
+              }}
+            >
+              Browse Discover →
+            </Link>
+          }
         />
       )}
     </div>

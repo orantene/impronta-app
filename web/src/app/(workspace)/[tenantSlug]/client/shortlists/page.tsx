@@ -6,6 +6,7 @@
 // (D5 slice 1 logic) so one shortlist can spawn N inquiries when talents
 // span multiple agencies.
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -59,6 +60,26 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
           icon="📑"
           title="No shortlists yet"
           body="Build a shortlist by browsing Discover and adding talent. Then send one inquiry that fans out to the right agency for each talent."
+          actions={
+            <Link
+              href={`/${tenantSlug}/client/discover`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                height: 36,
+                padding: "0 14px",
+                borderRadius: 9,
+                background: "#1D4ED8",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                letterSpacing: -0.1,
+              }}
+            >
+              Browse Discover →
+            </Link>
+          }
         />
       )}
     </div>
