@@ -109,6 +109,7 @@ export function DiscoverShell({
   const [availabilityByTalent, setAvailabilityByTalent] = useState<Map<string, DiscoverAvailabilityDay[]>>(() => new Map());
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(() => new Set());
   const [shortlists, setShortlists] = useState<DiscoverShortlist[]>([]);
+  const [autoOpenPicker, setAutoOpenPicker] = useState(false);
 
   // Hydrate favorites + shortlists once on mount. Optimistic mutations below.
   useEffect(() => {
@@ -380,7 +381,8 @@ export function DiscoverShell({
               availability={availabilityByTalent.get(t.id)}
               isFavorited={favoritedIds.has(t.id)}
               onToggleFavorite={() => handleToggleFavorite(t.id)}
-              onOpen={() => setOpenTalentId(t.id)}
+              onOpen={() => { setAutoOpenPicker(false); setOpenTalentId(t.id); }}
+              onAddToShortlist={() => { setAutoOpenPicker(true); setOpenTalentId(t.id); }}
             />
           ))}
         </div>
@@ -426,11 +428,12 @@ export function DiscoverShell({
           full DiscoverTalentDetail from /api/discover/talent/:id. */}
       <DiscoverDetailDrawer
         talentId={openTalentId}
-        onClose={() => setOpenTalentId(null)}
+        onClose={() => { setOpenTalentId(null); setAutoOpenPicker(false); }}
         shortlists={shortlists}
         onAddToShortlist={addTalentToShortlist}
         onRemoveFromShortlist={removeTalentFromShortlist}
         onCreateShortlist={createShortlist}
+        autoOpenPicker={autoOpenPicker}
       />
     </div>
   );
@@ -527,12 +530,14 @@ function DiscoverCard({
   availability,
   isFavorited,
   onToggleFavorite,
+  onAddToShortlist,
   onOpen,
 }: {
   item: DiscoverTalentListItem;
   availability: DiscoverAvailabilityDay[] | undefined;
   isFavorited: boolean;
   onToggleFavorite: () => void;
+  onAddToShortlist: () => void;
   onOpen: () => void;
 }) {
   const initials = item.displayName
@@ -648,6 +653,32 @@ function DiscoverCard({
         >
           {isFavorited ? "♥" : "♡"}
         </button>
+        {/* Add to shortlist — opens drawer with picker auto-expanded.
+            Sits beside the heart so the two save-affordances live together. */}
+        <button
+          type="button"
+          aria-label="Add to shortlist"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddToShortlist();
+          }}
+          onKeyDown={(e) => { e.stopPropagation(); }}
+          title="Add to shortlist"
+          style={{
+            position: "absolute", top: 8, right: 46,
+            width: 32, height: 32, borderRadius: "50%",
+            background: "rgba(255,255,255,0.88)",
+            color: "rgba(11,11,13,0.55)",
+            border: "none", padding: 0,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18, lineHeight: 1, fontWeight: 400, cursor: "pointer",
+            backdropFilter: "blur(6px)",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+            transition: "background 120ms",
+          }}
+        >
+          ＋
+        </button>
         {/* Ownership badge: agency vs independent */}
         {item.agencyName ? (
           <div
@@ -753,6 +784,7 @@ function DiscoverDetailDrawer({
   onAddToShortlist,
   onRemoveFromShortlist,
   onCreateShortlist,
+  autoOpenPicker = false,
 }: {
   talentId: string | null;
   onClose: () => void;
@@ -760,11 +792,19 @@ function DiscoverDetailDrawer({
   onAddToShortlist: (shortlistId: string, talentId: string) => Promise<boolean>;
   onRemoveFromShortlist: (shortlistId: string, talentId: string) => Promise<boolean>;
   onCreateShortlist: (name: string) => Promise<DiscoverShortlist | null>;
+  autoOpenPicker?: boolean;
 }) {
   const [detail, setDetail] = useState<DiscoverTalentDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Sync the picker-open intent each time a new card opens via the
+  // card "+" affordance — fires when talentId+autoOpenPicker change so
+  // the picker auto-expands without an extra click.
+  useEffect(() => {
+    if (talentId && autoOpenPicker) setPickerOpen(true);
+  }, [talentId, autoOpenPicker]);
   const [newListName, setNewListName] = useState("");
   const [creating, setCreating] = useState(false);
   const [inquireOpen, setInquireOpen] = useState(false);
