@@ -9878,7 +9878,7 @@ function ThreeSlotPhotoBlock({
       {/* Avatar + gallery strip in a row below */}
       <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
         <PhotoSlot
-          label="Avatar"
+          label="Profile"
           hint="1:1 square"
           imageUrl={avatarUrl}
           aspectRatio="1 / 1"
@@ -9957,7 +9957,7 @@ function CoverPhotoSlot({
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 2 }}>
         <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, color: COLORS.inkMuted }}>
-          Cover <span style={{ color: COLORS.inkDim }}>· 4:5 portrait</span>
+          Cover <span style={{ color: COLORS.inkDim }}>· 16:9 banner</span>
         </span>
         {imageUrl && (
           <button type="button" onClick={onClick} style={{
