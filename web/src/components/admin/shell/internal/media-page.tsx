@@ -800,6 +800,22 @@ function MediaLightbox({
         {/* Scrollable body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
 
+          {/* Lineage label — surfaces "this is a derivative" so the Revert
+              button below has context. Subtle so it doesn't compete with
+              the action chrome. */}
+          {current.sourceMediaAssetId && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 7,
+              padding: "7px 10px", borderRadius: 7,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.7)",
+            }}>
+              <span style={{ fontSize: 12 }}>✂</span>
+              <span>Crop of an earlier original</span>
+            </div>
+          )}
+
           {/* Role assignment: Profile (1:1) and Cover (16:9 banner) */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {current.variantKind !== "card" && (
