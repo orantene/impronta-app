@@ -1194,10 +1194,16 @@ function ChatThreadBody({
   }, [messages]);
   void inq;
   return (
-    <div ref={scrollRef} style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
+    <div
+      ref={scrollRef}
+      role="log"
+      aria-live="polite"
+      aria-label="Conversation messages"
+      style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}
+    >
       {pitch && <PitchOriginBlock pitch={pitch} />}
       {loading ? (
-        <div style={{ color: C.inkDim, fontSize: 12, textAlign: "center", padding: 20 }}>Loading messages…</div>
+        <ChatLoadingSkeleton />
       ) : messages.length === 0 ? (
         <div style={{ color: C.inkDim, fontSize: 12.5, textAlign: "center", padding: 30, fontStyle: "italic" }}>
           No messages yet. Your coordinator will reply here once they pick up your inquiry.
@@ -1226,6 +1232,38 @@ function ChatThreadBody({
           ));
         })()
       )}
+    </div>
+  );
+}
+
+function ChatLoadingSkeleton() {
+  return (
+    <div role="status" aria-label="Loading messages" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {[
+        { mine: false, w: "65%" },
+        { mine: true, w: "55%" },
+        { mine: false, w: "75%" },
+      ].map((p, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: p.mine ? "flex-end" : "flex-start" }}>
+          <div
+            style={{
+              width: p.w,
+              height: 38,
+              borderRadius: 14,
+              borderBottomRightRadius: p.mine ? 4 : 14,
+              borderBottomLeftRadius: p.mine ? 14 : 4,
+              background: p.mine ? "rgba(11,11,13,0.08)" : "rgba(11,11,13,0.04)",
+              animation: "client-msg-skel-pulse 1.4s ease-in-out infinite",
+            }}
+          />
+        </div>
+      ))}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes client-msg-skel-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.55; }
+        }
+      `}} />
     </div>
   );
 }
