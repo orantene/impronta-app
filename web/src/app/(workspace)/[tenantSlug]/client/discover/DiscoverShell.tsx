@@ -327,6 +327,33 @@ export function DiscoverShell({
               Clear filters
             </button>
           )}
+          <a
+            href={`/${tenantSlug}/client/discover/map`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              height: 32,
+              padding: "0 14px",
+              borderRadius: 999,
+              border: `1px solid ${C.borderSoft}`,
+              background: C.cardBg,
+              color: C.ink,
+              fontFamily: FONT,
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: "none",
+              marginLeft: "auto",
+            }}
+            title="See every talent on a world map"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z" />
+              <line x1="9" y1="2" x2="9" y2="19" />
+              <line x1="15" y1="5" x2="15" y2="22" />
+            </svg>
+            Map
+          </a>
         </div>
 
         {/* Country chip row */}
