@@ -231,7 +231,14 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // [id] edit page + [id]/commission (A8) + /new were already real pages
   // the prototype SPA was overlaying. Blanket match retires roster from
   // the mega shell.
-  (s) => s[0] === "admin" && s[1] === "roster",
+  // /<tenant>/admin/roster/** — NO canonical matcher. The entire
+  // Roster surface (list, [id], new) renders via the original
+  // prototype-SPA shell — that page was already completed + approved.
+  // Reverted 2026-05-15 per product owner: all canonical-migration
+  // routing for Roster removed. The Phase-2.2 server pages
+  // (admin/roster/page.tsx etc.) stay in the tree but are inert —
+  // the SPA overlays them. Do NOT re-add a roster matcher without
+  // explicit owner sign-off.
   // /<tenant>/admin/triage — focused queue (separate from Messages shell).
   (s) => s[0] === "admin" && s[1] === "triage",
   // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
