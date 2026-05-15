@@ -504,6 +504,9 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       draftError: t("public.forms.inquiry.formDraftError"),
       draftPolishNeedText: t("public.forms.inquiry.formDraftPolishNeedText"),
       draftHint: t("public.forms.inquiry.formDraftHint"),
+      sectionContactHeading: t("public.forms.inquiry.formSectionContactHeading"),
+      sectionProjectHeading: t("public.forms.inquiry.formSectionProjectHeading"),
+      sectionBriefHeading: t("public.forms.inquiry.formSectionBriefHeading"),
     },
   };
 }

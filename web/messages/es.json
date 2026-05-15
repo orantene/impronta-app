@@ -403,7 +403,10 @@
         "formDraftError": "No se pudo generar un borrador. Inténtalo de nuevo o escribe tu propio brief.",
         "formDraftPolishNeedText": "Añade texto en el brief antes de pulirlo.",
         "formDraftHint": "La IA sugiere texto que puedes editar antes de enviar. La agencia revisa cada consulta.",
-        "formPrivacyNotice": "Al enviar esto, contactas solo a la agencia. El talento no recibe una notificación directa ni tus datos."
+        "formPrivacyNotice": "Al enviar esto, contactas solo a la agencia. El talento no recibe una notificación directa ni tus datos.",
+        "formSectionContactHeading": "Tus datos de contacto",
+        "formSectionProjectHeading": "Detalles del proyecto",
+        "formSectionBriefHeading": "Tu brief"
       }
     },
     "errors": {

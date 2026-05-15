@@ -403,7 +403,10 @@
         "formDraftError": "Could not generate a draft. Try again or write your own brief.",
         "formDraftPolishNeedText": "Add some text in the brief first to polish it.",
         "formDraftHint": "AI suggests text you can edit before sending. The agency reviews every inquiry.",
-        "formPrivacyNotice": "By sending this, you contact the agency only. Talent is not notified directly and does not receive your details."
+        "formPrivacyNotice": "By sending this, you contact the agency only. Talent is not notified directly and does not receive your details.",
+        "formSectionContactHeading": "Your contact",
+        "formSectionProjectHeading": "Project details",
+        "formSectionBriefHeading": "Your brief"
       }
     },
     "errors": {
