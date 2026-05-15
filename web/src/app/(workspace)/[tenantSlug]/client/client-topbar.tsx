@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { label: "Discover",   path: "discover"   },
   { label: "Favorites",  path: "favorites"  },
   { label: "Shortlists", path: "shortlists" },
+  { label: "Pitches",    path: "pitches"    },
   { label: "Inquiries",  path: "inquiries"  },
   { label: "Bookings",   path: "bookings"   },
   { label: "Settings",   path: "settings"   },
