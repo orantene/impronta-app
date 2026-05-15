@@ -17,6 +17,17 @@ import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
+type PageSearchParams = Promise<{ range?: string }>;
+
+const TIME_RANGES = [
+  { key: "7d",  label: "Last 7 days",  days: 7 },
+  { key: "30d", label: "Last 30 days", days: 30 },
+  { key: "90d", label: "Last 90 days", days: 90 },
+] as const;
+type RangeKey = (typeof TIME_RANGES)[number]["key"];
+function resolveRange(raw: string | undefined): RangeKey {
+  return TIME_RANGES.find((r) => r.key === raw)?.key ?? "30d";
+}
 
 const FONT = '"Inter", system-ui, sans-serif';
 const C = {
@@ -34,7 +45,7 @@ const C = {
 } as const;
 
 type DiscoverMetrics = {
-  last30d: {
+  window: {
     totalInquiries: number;
     singleTalent: number;
     shortlist: number;
@@ -45,16 +56,19 @@ type DiscoverMetrics = {
   topCountries: Array<{ country: string; inquiryCount: number }>;
 };
 
-async function loadDiscoverMetrics(tenantId: string): Promise<DiscoverMetrics> {
+async function loadDiscoverMetrics(
+  tenantId: string,
+  rangeDays: number,
+): Promise<DiscoverMetrics> {
   const admin = createServiceRoleClient();
   const empty: DiscoverMetrics = {
-    last30d: { totalInquiries: 0, singleTalent: 0, shortlist: 0, convertedToBooked: 0, talentsReached: 0 },
+    window: { totalInquiries: 0, singleTalent: 0, shortlist: 0, convertedToBooked: 0, talentsReached: 0 },
     topTalents: [],
     topCountries: [],
   };
   if (!admin) return empty;
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const sinceIso = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString();
 
   // Pull every Discover-channel inquiry for this tenant in the last 30 days
   // with the participant + event metadata we need for the rollup. Single
@@ -74,7 +88,7 @@ async function loadDiscoverMetrics(tenantId: string): Promise<DiscoverMetrics> {
     )
     .eq("tenant_id", tenantId)
     .in("source_channel", ["discover_single_talent", "discover_shortlist"])
-    .gte("created_at", thirtyDaysAgo);
+    .gte("created_at", sinceIso);
 
   if (error) {
     logServerError("admin.discoverPerformance.load", error);
@@ -150,7 +164,7 @@ async function loadDiscoverMetrics(tenantId: string): Promise<DiscoverMetrics> {
     .slice(0, 5);
 
   return {
-    last30d: {
+    window: {
       totalInquiries: inquiries.length,
       singleTalent,
       shortlist,
@@ -189,19 +203,29 @@ function MetricCard({ label, value, sub }: { label: string; value: number | stri
   );
 }
 
-export default async function AdminDiscoverPerformancePage({ params }: { params: PageParams }) {
+export default async function AdminDiscoverPerformancePage({
+  params,
+  searchParams,
+}: {
+  params: PageParams;
+  searchParams: PageSearchParams;
+}) {
   const { tenantSlug } = await params;
+  const { range: rawRange } = await searchParams;
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const metrics = await loadDiscoverMetrics(scope.tenantId);
-  const { last30d, topTalents, topCountries } = metrics;
+  const activeRange: RangeKey = resolveRange(rawRange);
+  const rangeMeta = TIME_RANGES.find((r) => r.key === activeRange)!;
+
+  const metrics = await loadDiscoverMetrics(scope.tenantId, rangeMeta.days);
+  const { window: w, topTalents, topCountries } = metrics;
   const conversionPct =
-    last30d.totalInquiries > 0
-      ? Math.round((last30d.convertedToBooked / last30d.totalInquiries) * 100)
+    w.totalInquiries > 0
+      ? Math.round((w.convertedToBooked / w.totalInquiries) * 100)
       : 0;
 
   return (
@@ -223,7 +247,7 @@ export default async function AdminDiscoverPerformancePage({ params }: { params:
           fontSize: 13, color: C.inkMuted, margin: 0, lineHeight: 1.55,
           maxWidth: 640,
         }}>
-          Last 30 days of inquiries routed to this workspace from Tulala
+          {rangeMeta.label} of inquiries routed to this workspace from Tulala
           Discover.{" "}
           <Link href={`/${tenantSlug}/admin/discover-inquiries`} style={{ color: C.accent, fontWeight: 600 }}>
             See the row-level list →
@@ -231,14 +255,47 @@ export default async function AdminDiscoverPerformancePage({ params }: { params:
         </p>
       </div>
 
-      {last30d.totalInquiries === 0 ? (
+      {/* ── Time-range chip toggle ── */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
+        {TIME_RANGES.map((r) => {
+          const active = r.key === activeRange;
+          const href =
+            r.key === "30d"
+              ? `/${tenantSlug}/admin/discover-performance`
+              : `/${tenantSlug}/admin/discover-performance?range=${r.key}`;
+          return (
+            <a
+              key={r.key}
+              href={href}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                height: 28,
+                padding: "0 12px",
+                borderRadius: 999,
+                textDecoration: "none",
+                fontSize: 12,
+                fontWeight: active ? 700 : 500,
+                color: active ? "#fff" : C.inkMuted,
+                background: active ? C.ink : "rgba(11,11,13,0.04)",
+                border: `1px solid ${active ? C.ink : C.borderSoft}`,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {r.label}
+            </a>
+          );
+        })}
+      </div>
+
+      {w.totalInquiries === 0 ? (
         <div style={{
           padding: 32, textAlign: "center",
           background: C.surface, border: `1px dashed ${C.borderSoft}`,
           borderRadius: 14, color: C.inkMuted, fontSize: 13,
         }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
-            No Discover inquiries in the last 30 days
+            No Discover inquiries in the {rangeMeta.label.toLowerCase()}
           </div>
           <p style={{ fontSize: 12.5, margin: "0 auto", maxWidth: 380, lineHeight: 1.5 }}>
             Make sure talent on your roster are enrolled (per-talent toggle on
@@ -255,30 +312,30 @@ export default async function AdminDiscoverPerformancePage({ params }: { params:
             gap: 12,
             marginBottom: 24,
           }}>
-            <MetricCard label="Total inquiries" value={last30d.totalInquiries} sub="Last 30 days" />
+            <MetricCard label="Total inquiries" value={w.totalInquiries} sub={rangeMeta.label} />
             <MetricCard
               label="From direct"
-              value={last30d.singleTalent}
-              sub={`${last30d.totalInquiries > 0
-                ? Math.round((last30d.singleTalent / last30d.totalInquiries) * 100)
+              value={w.singleTalent}
+              sub={`${w.totalInquiries > 0
+                ? Math.round((w.singleTalent / w.totalInquiries) * 100)
                 : 0}% of total`}
             />
             <MetricCard
               label="From shortlist"
-              value={last30d.shortlist}
-              sub={`${last30d.totalInquiries > 0
-                ? Math.round((last30d.shortlist / last30d.totalInquiries) * 100)
+              value={w.shortlist}
+              sub={`${w.totalInquiries > 0
+                ? Math.round((w.shortlist / w.totalInquiries) * 100)
                 : 0}% of total`}
             />
             <MetricCard
               label="Talents reached"
-              value={last30d.talentsReached}
+              value={w.talentsReached}
               sub="Unique participants"
             />
             <MetricCard
               label="Converted"
               value={`${conversionPct}%`}
-              sub={`${last30d.convertedToBooked} of ${last30d.totalInquiries} booked`}
+              sub={`${w.convertedToBooked} of ${w.totalInquiries} booked`}
             />
           </div>
 
@@ -298,7 +355,7 @@ export default async function AdminDiscoverPerformancePage({ params }: { params:
                 fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
                 textTransform: "uppercase", color: C.inkDim, marginBottom: 10,
               }}>
-                Top talents — last 30 days
+                Top talents — {rangeMeta.label.toLowerCase()}
               </div>
               {topTalents.length === 0 ? (
                 <div style={{ fontSize: 12.5, color: C.inkMuted }}>No data yet.</div>
@@ -342,7 +399,7 @@ export default async function AdminDiscoverPerformancePage({ params }: { params:
                 fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
                 textTransform: "uppercase", color: C.inkDim, marginBottom: 10,
               }}>
-                Top event locations — last 30 days
+                Top event locations — {rangeMeta.label.toLowerCase()}
               </div>
               {topCountries.length === 0 ? (
                 <div style={{ fontSize: 12.5, color: C.inkMuted }}>No location data yet.</div>
