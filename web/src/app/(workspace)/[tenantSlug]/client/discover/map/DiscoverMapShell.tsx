@@ -47,6 +47,18 @@ export type DiscoverMapTalent = {
   homeLng: number;
 };
 
+type ViewMode = "talents" | "countries";
+
+type CountryCluster = {
+  country: string;
+  count: number;
+  lat: number;
+  lng: number;
+  /** Talents in this country — preserved so a click on the cluster can
+   *  reveal them. */
+  talents: DiscoverMapTalent[];
+};
+
 export function DiscoverMapShell({
   talents,
   apiKey,
@@ -60,11 +72,46 @@ export function DiscoverMapShell({
   unmappedCount: number;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // D9 polish — country-roll-up cluster mode. Useful when the catalog has
+  // dense pockets (10+ talents in one city) where individual pins overlap.
+  // Default to talents view; auto-suggest countries view via a hint when
+  // the talent count exceeds the readability threshold.
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    talents.length > 12 ? "countries" : "talents",
+  );
 
   const points = useMemo(
     () => talents.map((t) => ({ lat: t.homeLat, lng: t.homeLng })),
     [talents],
   );
+
+  // Country clusters — group by homeCountry text, compute centroid + count.
+  // Talents missing homeCountry get a synthetic "Unknown" bucket so they
+  // still appear; their centroid is just their own pin.
+  const countryClusters = useMemo<CountryCluster[]>(() => {
+    const buckets = new Map<string, DiscoverMapTalent[]>();
+    for (const t of talents) {
+      const key = (t.homeCountry ?? "Unknown").trim() || "Unknown";
+      const list = buckets.get(key) ?? [];
+      list.push(t);
+      buckets.set(key, list);
+    }
+    return Array.from(buckets.entries())
+      .map(([country, list]) => {
+        const sum = list.reduce(
+          (a, t) => ({ lat: a.lat + t.homeLat, lng: a.lng + t.homeLng }),
+          { lat: 0, lng: 0 },
+        );
+        return {
+          country,
+          count: list.length,
+          lat: sum.lat / list.length,
+          lng: sum.lng / list.length,
+          talents: list,
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+  }, [talents]);
 
   const center = useMemo(() => {
     if (points.length === 0) return { lat: 20, lng: 0 };
@@ -129,24 +176,73 @@ export function DiscoverMapShell({
         marginBottom: 14, gap: 12, flexWrap: "wrap",
       }}>
         <div style={{ fontSize: 12.5, color: C.inkMuted }}>
-          <strong style={{ color: C.ink }}>{talents.length}</strong> talent
-          {talents.length === 1 ? "" : "s"} on map
+          {viewMode === "countries" ? (
+            <>
+              <strong style={{ color: C.ink }}>{countryClusters.length}</strong>{" "}
+              {countryClusters.length === 1 ? "country" : "countries"}{" · "}
+              {talents.length} talents total
+            </>
+          ) : (
+            <>
+              <strong style={{ color: C.ink }}>{talents.length}</strong> talent
+              {talents.length === 1 ? "" : "s"} on map
+            </>
+          )}
           {unmappedCount > 0 && (
             <span style={{ marginLeft: 6, color: C.inkDim }}>
               · {unmappedCount} hidden (no geocoded city)
             </span>
           )}
         </div>
-        <Link
-          href={`/${tenantSlug}/client/discover`}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 4,
-            fontSize: 12.5, fontWeight: 600,
-            color: C.accent, textDecoration: "none",
-          }}
-        >
-          ← Back to grid
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div role="tablist" aria-label="Map view mode" style={{
+            display: "inline-flex",
+            gap: 2,
+            background: "rgba(11,11,13,0.04)",
+            border: `1px solid ${C.borderSoft}`,
+            borderRadius: 8,
+            padding: 2,
+          }}>
+            {(["talents", "countries"] as const).map((mode) => {
+              const active = mode === viewMode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    setViewMode(mode);
+                    setSelectedId(null);
+                  }}
+                  style={{
+                    height: 26, padding: "0 10px",
+                    border: "none",
+                    background: active ? "#fff" : "transparent",
+                    color: active ? C.ink : C.inkMuted,
+                    fontFamily: FONT, fontSize: 11.5,
+                    fontWeight: active ? 700 : 500,
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    boxShadow: active ? "0 1px 2px rgba(11,11,13,0.10)" : "none",
+                  }}
+                >
+                  {mode === "talents" ? "Talents" : "Countries"}
+                </button>
+              );
+            })}
+          </div>
+          <Link
+            href={`/${tenantSlug}/client/discover`}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              fontSize: 12.5, fontWeight: 600,
+              color: C.accent, textDecoration: "none",
+            }}
+          >
+            ← Back to grid
+          </Link>
+        </div>
       </div>
 
       <div style={{
@@ -170,14 +266,34 @@ export function DiscoverMapShell({
             clickableIcons={false}
             style={{ width: "100%", height: "100%" }}
           >
-            {talents.map((t) => (
-              <Marker
-                key={t.id}
-                position={{ lat: t.homeLat, lng: t.homeLng }}
-                title={t.displayName}
-                onClick={() => onMarkerClick(t.id)}
-              />
-            ))}
+            {viewMode === "talents"
+              ? talents.map((t) => (
+                  <Marker
+                    key={t.id}
+                    position={{ lat: t.homeLat, lng: t.homeLng }}
+                    title={t.displayName}
+                    onClick={() => onMarkerClick(t.id)}
+                  />
+                ))
+              : countryClusters.map((cluster) => (
+                  <Marker
+                    key={cluster.country}
+                    position={{ lat: cluster.lat, lng: cluster.lng }}
+                    title={`${cluster.country} · ${cluster.count} talent${cluster.count === 1 ? "" : "s"}`}
+                    label={{
+                      text: String(cluster.count),
+                      color: "#fff",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                    onClick={() => {
+                      // Clicking a country cluster switches to talents view —
+                      // the user wants to see who's there.
+                      setViewMode("talents");
+                      setSelectedId(null);
+                    }}
+                  />
+                ))}
           </Map>
 
           {selected && (
