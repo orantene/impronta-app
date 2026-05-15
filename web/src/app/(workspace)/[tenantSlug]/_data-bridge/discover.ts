@@ -28,10 +28,29 @@ export type DiscoverTalentListItem = {
   primaryTypeSlug: string | null;
   homeCity: string | null;
   homeCountry: string | null;
+  /**
+   * D9 — geocoded coordinates from the canonical locations table
+   * (talent_profiles.residence_city_id → locations). Either both set or
+   * both null. Map-view callers should filter out null pairs; the
+   * grid/list views ignore these and stay text-only.
+   */
+  homeLat: number | null;
+  homeLng: number | null;
   agencyName: string | null;
   agencyTenantId: string | null;
   isExclusive: boolean;
   headshotUrl: string | null;
+  /**
+   * D1 — availability snapshot from the talent_discover_index materialized
+   * view. All three fields refresh together on the view's 15-min cron +
+   * on-event triggers. nextAvailableDate is ISO yyyy-mm-dd or null when
+   * the talent is blocked for the full 30-day window.
+   * availabilityDots14d is a 14-char string of '·' (free) and '×' (blocked)
+   * for the next 14 days starting from refresh-time today.
+   */
+  nextAvailableDate: string | null;
+  availableDaysInNext30: number | null;
+  availabilityDots14d: string | null;
 };
 
 export type DiscoverFacets = {
@@ -101,45 +120,30 @@ export async function loadDiscoverTalents(
   const limit = Math.min(Math.max(opts.limit ?? 24, 1), 60);
   const offset = Math.max(opts.offset ?? 0, 0);
 
-  // Hub filter — two-step to keep the relation filter clean.
-  let hubFilterIds: string[] | null = null;
-  if (opts.hub) {
-    const { data: hubRoster } = await admin
-      .from("agency_talent_roster")
-      .select("talent_profile_id")
-      .eq("tenant_id", opts.hub)
-      .eq("is_primary", true)
-      .in("status", ["active", "pending"]);
-    hubFilterIds = (hubRoster ?? []).map((r) => r.talent_profile_id as string);
-    if (hubFilterIds.length === 0) return { items: [], total: 0 };
-  }
-
+  // D1 — query the talent_discover_index materialized view directly.
+  // The view denormalizes is_discoverable + workflow_status filtering,
+  // primary-agency join (with exclusivity), primary-category join, and
+  // the 30-day availability snapshot. The previous read-time JOIN-heavy
+  // query against talent_profiles is gone — its category-in-JS filter
+  // is replaced with an index lookup on `category_slug`. See
+  // supabase/migrations/20260515134903_talent_discover_index.sql.
   let query = admin
-    .from("talent_profiles")
+    .from("talent_discover_index")
     .select(
-      `
-      id, display_name, first_name, last_name, profile_code,
-      home_country_text, home_city_text,
-      workflow_status, is_discoverable,
-      talent_profile_taxonomy (
-        relationship_type,
-        taxonomy_terms ( name_en, slug )
-      ),
-      agency_talent_roster!talent_profile_id (
-        tenant_id, status, is_primary,
-        agencies!tenant_id ( display_name )
-      )
-      `,
+      `id, display_name, first_name, last_name, profile_code,
+       home_country_text, home_city_text, residence_city_id,
+       agency_tenant_id, agency_name, is_exclusive,
+       category_label, category_slug,
+       next_available_date, available_days_in_next_30, availability_dots_14d`,
       { count: "exact" },
     )
-    .eq("is_discoverable", true)
-    .in("workflow_status", ["approved", "published"])
     .order("display_name", { ascending: true, nullsFirst: false })
     .range(offset, offset + limit - 1);
 
-  if (opts.country) query = query.eq("home_country_text", opts.country);
-  if (opts.q) query = query.ilike("display_name", `%${opts.q}%`);
-  if (hubFilterIds) query = query.in("id", hubFilterIds);
+  if (opts.country)  query = query.eq("home_country_text", opts.country);
+  if (opts.category) query = query.eq("category_slug", opts.category);
+  if (opts.hub)      query = query.eq("agency_tenant_id", opts.hub);
+  if (opts.q)        query = query.ilike("display_name", `%${opts.q}%`);
 
   const { data, error, count } = await query;
   if (error) {
@@ -147,7 +151,7 @@ export async function loadDiscoverTalents(
     return { items: [], total: 0 };
   }
 
-  type Row = {
+  type IndexRow = {
     id: string;
     display_name: string | null;
     first_name: string | null;
@@ -155,31 +159,32 @@ export async function loadDiscoverTalents(
     profile_code: string | null;
     home_country_text: string | null;
     home_city_text: string | null;
-    talent_profile_taxonomy: Array<{
-      relationship_type: string | null;
-      taxonomy_terms: { name_en: string | null; slug: string | null } | null;
-    }> | null;
-    agency_talent_roster: Array<{
-      tenant_id: string;
-      status: string;
-      is_primary: boolean;
-      agencies: { display_name: string | null } | { display_name: string | null }[] | null;
-    }> | null;
+    residence_city_id: string | null;
+    agency_tenant_id: string | null;
+    agency_name: string | null;
+    is_exclusive: boolean;
+    category_label: string | null;
+    category_slug: string | null;
+    next_available_date: string | null;
+    available_days_in_next_30: number | null;
+    availability_dots_14d: string | null;
   };
 
-  const rows = (data ?? []) as unknown as Row[];
-  const filteredRows = opts.category
-    ? rows.filter((r) => {
-        const tax = r.talent_profile_taxonomy ?? [];
-        return tax.some(
-          (t) => t.relationship_type === "primary_role" && t.taxonomy_terms?.slug === opts.category,
-        );
-      })
-    : rows;
+  const rows = (data ?? []) as unknown as IndexRow[];
+  const ids = rows.map((r) => r.id);
 
-  const ids = filteredRows.map((r) => r.id);
+  // Supplementary lookups: photos + geo coords. Both are kept off the
+  // materialized view because:
+  //   - photos: storage_path requires the storage client to resolve to a
+  //     public URL; that's a runtime concern, not a denorm-able field.
+  //   - geo coords: live on locations.{latitude,longitude} via the
+  //     residence_city_id FK; can be added to the view later if map-view
+  //     callers become hot. For now we batch-fetch them in one go.
   const photoByTalent = new Map<string, string>();
+  const coordsByCityId = new Map<string, { lat: number | null; lng: number | null }>();
+
   if (ids.length > 0) {
+    // Photos.
     const { data: photos } = await admin
       .from("media_assets")
       .select("owner_talent_profile_id, storage_path, variant_kind")
@@ -198,43 +203,54 @@ export async function loadDiscoverTalents(
       const current = bestRank.get(m.owner_talent_profile_id);
       if (current === undefined || rank < current) {
         bestRank.set(m.owner_talent_profile_id, rank);
-        // Pass-through for already-public URLs (test seed data + future
-        // CDN-fronted assets). Prevents wrapping http(s) URLs into a
-        // broken Supabase storage URL.
         const url = m.storage_path.startsWith("http")
           ? m.storage_path
           : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
         photoByTalent.set(m.owner_talent_profile_id, url);
       }
     }
+
+    // Geo coords (batch-by-city-id to dedupe shared cities).
+    const cityIds = Array.from(
+      new Set(rows.map((r) => r.residence_city_id).filter((x): x is string => !!x)),
+    );
+    if (cityIds.length > 0) {
+      const { data: locs } = await admin
+        .from("locations")
+        .select("id, latitude, longitude")
+        .in("id", cityIds);
+      for (const l of (locs ?? []) as Array<{ id: string; latitude: number | null; longitude: number | null }>) {
+        coordsByCityId.set(l.id, {
+          lat: typeof l.latitude === "number" ? l.latitude : null,
+          lng: typeof l.longitude === "number" ? l.longitude : null,
+        });
+      }
+    }
   }
 
-  const items: DiscoverTalentListItem[] = filteredRows.map((row) => {
+  const items: DiscoverTalentListItem[] = rows.map((row) => {
     const displayName =
       (row.display_name ?? "").trim()
       || `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim()
       || "Unnamed";
-
-    const tax = row.talent_profile_taxonomy ?? [];
-    const primaryTerm = tax.find((t) => t.relationship_type === "primary_role");
-    const roster = row.agency_talent_roster ?? [];
-    const activeRoster = roster.filter((r) => r.status === "active" || r.status === "pending");
-    const primaryRoster = activeRoster.find((r) => r.is_primary) ?? null;
-    const agencyRowOrArr = primaryRoster?.agencies;
-    const agencyRow = Array.isArray(agencyRowOrArr) ? agencyRowOrArr[0] : agencyRowOrArr;
-
+    const coords = row.residence_city_id ? coordsByCityId.get(row.residence_city_id) : null;
     return {
       id: row.id,
       displayName,
       profileCode: row.profile_code,
-      primaryTypeLabel: primaryTerm?.taxonomy_terms?.name_en ?? null,
-      primaryTypeSlug: primaryTerm?.taxonomy_terms?.slug ?? null,
+      primaryTypeLabel: row.category_label,
+      primaryTypeSlug: row.category_slug,
       homeCity: row.home_city_text,
       homeCountry: row.home_country_text,
-      agencyName: agencyRow?.display_name ?? null,
-      agencyTenantId: primaryRoster?.tenant_id ?? null,
-      isExclusive: !!primaryRoster?.is_primary,
+      homeLat: coords?.lat ?? null,
+      homeLng: coords?.lng ?? null,
+      agencyName: row.agency_name,
+      agencyTenantId: row.agency_tenant_id,
+      isExclusive: row.is_exclusive,
       headshotUrl: photoByTalent.get(row.id) ?? null,
+      nextAvailableDate: row.next_available_date,
+      availableDaysInNext30: row.available_days_in_next_30,
+      availabilityDots14d: row.availability_dots_14d,
     };
   });
 
