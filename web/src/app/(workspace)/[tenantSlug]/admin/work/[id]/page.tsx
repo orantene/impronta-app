@@ -422,20 +422,45 @@ export default async function WorkspaceWorkDetailPage({
             <div style={{ fontSize: 12.5, color: C.inkMuted }}>
               {t("admin.work.detail.sourceLabel")}
               <div style={{ marginTop: 2 }}>
-                <span style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  padding: "2px 8px",
-                  borderRadius: 999,
-                  background: "rgba(11,11,13,0.05)",
-                  color: C.ink,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: 0.3,
-                  textTransform: "capitalize",
-                }}>
-                  {inquirySource}
-                </span>
+                {(inquirySource === "discover_single_talent" ||
+                  inquirySource === "discover_shortlist") ? (
+                  <span
+                    title={
+                      inquirySource === "discover_shortlist"
+                        ? "Inquiry came from a Discover shortlist (multi-talent fan-out)."
+                        : "Inquiry came from Tulala Discover."
+                    }
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      background: "rgba(29,78,216,0.08)",
+                      color: "#1D4ED8",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    ◎ Discover{inquirySource === "discover_shortlist" ? " · Shortlist" : ""}
+                  </span>
+                ) : (
+                  <span style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    background: "rgba(11,11,13,0.05)",
+                    color: C.ink,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: 0.3,
+                    textTransform: "capitalize",
+                  }}>
+                    {inquirySource.replace(/_/g, " ")}
+                  </span>
+                )}
               </div>
             </div>
           )}
