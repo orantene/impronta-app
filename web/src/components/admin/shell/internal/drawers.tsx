@@ -5712,6 +5712,10 @@ function TalentProfileShellDrawer() {
   const [profileFieldCounts, setProfileFieldCounts] = useState<{ filled: number; total: number }>(
     { filled: 0, total: 0 },
   );
+  // Bumped only AFTER a taxonomy assign/remove server action resolves, so
+  // Specialty details re-resolves exactly when the DB write is committed
+  // — no blind debounce, no read-stale race.
+  const [taxonomyVersion, setTaxonomyVersion] = useState(0);
   // #3 — Deep-link hydration. URL ?section=availability lands directly
   // on the Availability accordion, scrolled into view + expanded.
   // Falls back to "identity" for fresh edits, "services" for create mode.
@@ -6960,21 +6964,30 @@ function TalentProfileShellDrawer() {
                     specialties={state.specialties}
                     primaryRes={primaryRes}
                     specialtyOptions={specialtyOptions}
-                    onPickPrimary={(id) => {
+                    onPickPrimary={async (id) => {
                       patch({ primaryType: id });
-                      if (payload.talentId) assignTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id, relationship_type: "primary_role" });
-                    }}
-                    onClearPrimary={() => {
-                      if (payload.talentId && state.primaryType) removeTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: state.primaryType });
-                      patch({ primaryType: null });
-                    }}
-                    onToggleSecondary={(id) => {
-                      if (id === state.primaryType) return;
                       if (payload.talentId) {
-                        if (state.secondaryTypes.includes(id)) removeTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id });
-                        else assignTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id, relationship_type: "secondary_role" });
+                        await assignTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id, relationship_type: "primary_role" });
+                        setTaxonomyVersion((v) => v + 1);
                       }
+                    }}
+                    onClearPrimary={async () => {
+                      const prev = state.primaryType;
+                      patch({ primaryType: null });
+                      if (payload.talentId && prev) {
+                        await removeTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: prev });
+                        setTaxonomyVersion((v) => v + 1);
+                      }
+                    }}
+                    onToggleSecondary={async (id) => {
+                      if (id === state.primaryType) return;
+                      const removing = state.secondaryTypes.includes(id);
                       toggleSet("secondaryTypes")(id);
+                      if (payload.talentId) {
+                        if (removing) await removeTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id });
+                        else await assignTalentTaxonomyBySlug({ talent_profile_id: payload.talentId, slug: id, relationship_type: "secondary_role" });
+                        setTaxonomyVersion((v) => v + 1);
+                      }
                     }}
                     onToggleSpecialty={(s) => toggleSet("specialties")(s)}
                   />
@@ -7336,7 +7349,7 @@ function TalentProfileShellDrawer() {
                   <LiveCategoryFieldsEditor
                     talentProfileId={payload.talentId}
                     scope="general"
-                    refreshKey={[state.primaryType ?? "", ...state.secondaryTypes, ...state.specialties].join("|")}
+                    refreshKey={taxonomyVersion}
                   />
                 </div>
               )}
@@ -7351,7 +7364,7 @@ function TalentProfileShellDrawer() {
               <section id="pshell-profile_fields">
                 <LiveCategoryFieldsEditor
                   talentProfileId={payload.talentId}
-                  refreshKey={[state.primaryType ?? "", ...state.secondaryTypes, ...state.specialties].join("|")}
+                  refreshKey={taxonomyVersion}
                   onCountsChange={setProfileFieldCounts}
                   onJumpToSection={(s) => {
                     if ((PROFILE_SECTIONS as readonly string[]).includes(s)) {

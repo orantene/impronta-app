@@ -1175,10 +1175,11 @@ export function LiveCategoryFieldsEditor({
       initialLoadDoneRef.current = true;
       void load();
     } else {
-      // Taxonomy changed mid-session (refreshKey bumped). Debounce so
-      // the picker's assignTalentTaxonomyBySlug write has committed
-      // before we re-resolve, otherwise we'd read the stale field set.
-      timer = setTimeout(() => { void load(); }, 700);
+      // Taxonomy changed mid-session. refreshKey (taxonomyVersion) is
+      // bumped by the drawer ONLY after the assign/remove server action
+      // resolves, so the write is already committed — the short debounce
+      // just coalesces rapid multi-select clicks, no race to cover.
+      timer = setTimeout(() => { void load(); }, 150);
     }
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [talentProfileId, refreshKey]);
