@@ -53,8 +53,8 @@ const SUPPRESSION_DESTINATIONS: Record<string, string | null> = {
   // About accordion (BiosEditor)
   "bios":                    "about",
 
-  // Languages accordion
-  "languages":               "languages",
+  // Languages now lives inside the About accordion
+  "languages":               "about",
 
   // Location accordion
   "service.has_drivers_license": "location",
@@ -95,8 +95,8 @@ const SUPPRESSED_FIELD_KEYS = new Set<string>(Object.keys(SUPPRESSION_DESTINATIO
 const SUPPRESSED_GROUP_SLUGS: Record<string, string> = {
   "rates-booking":           "rates",
   "availability":            "availability",
-  "service-area-travel":     "location",
-  "languages-communication": "languages",
+  "service-area-travel":     "logistics",
+  "languages-communication": "about",
   "media-portfolio":         "media",
   "trust-verification":      "verifications",
   "certifications-documents": "files",
@@ -114,9 +114,9 @@ const SUPPRESSED_GROUP_SLUGS: Record<string, string> = {
 // namespaces with NO legitimate type-specific fields (consent/emergency/
 // performer/ops/equipment are deliberately absent — they have no home).
 const SUPPRESSED_NAMESPACES: Record<string, string> = {
-  travel:       "location",
-  serviceArea:  "location",
-  service:      "location",
+  travel:       "logistics",
+  serviceArea:  "logistics",
+  service:      "logistics",
   availability: "availability",
 };
 
@@ -144,6 +144,7 @@ function destinationFor(f: { field_key: string; field_group_slug: string | null 
 const DESTINATION_LABEL: Record<string, string> = {
   identity:   "Identity",
   location:   "Location",
+  logistics:  "Logistics",
   about:      "About",
   languages:  "Languages",
   media:      "Media",

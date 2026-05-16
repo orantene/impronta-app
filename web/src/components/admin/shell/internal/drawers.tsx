@@ -4443,7 +4443,7 @@ const LANGUAGE_PRESETS: { id: string; label: string; langs: string[] }[] = [
 const PROFILE_SECTIONS = [
   "identity", "services", "location", "logistics", "media", "albums", "polaroids",
   "about", "profile_fields",
-  "physical", "wardrobe", "details", "rates", "availability", "languages",
+  "physical", "wardrobe", "details", "rates", "availability",
   "refinement", "credits", "limits", "files",
   "social_proof", "verifications", "admin",
 ] as const;
@@ -4464,7 +4464,6 @@ const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string; emoji
   details:       { label: "Details",       emoji: "📋" },
   rates:         { label: "Rates",         emoji: "💶" },
   availability:  { label: "Availability",  emoji: "📅" },
-  languages:     { label: "Languages",     emoji: "🌐" },
   refinement:    { label: "Extra details",  emoji: "✦" },
   credits:       { label: "Credits",       emoji: "🏆" },
   limits:        { label: "Restrictions",  emoji: "⊘" },
@@ -5924,7 +5923,6 @@ function TalentProfileShellDrawer() {
     details:       Object.keys(state.dynFields).length > 0,
     rates:         state.rates.some(r => r.amount > 0),
     availability:  state.availability.length > 0,
-    languages:     state.languages.length > 0,
     identity:      !!state.identity.pronouns || !!state.identity.gender,
     refinement:    state.skillEntries.length + state.contexts.length > 0,
     credits:       state.credits.length > 0,
@@ -5953,7 +5951,6 @@ function TalentProfileShellDrawer() {
     details:       false,
     rates:         !sectionComplete.rates && (state.askForQuote || state.packageRates.length > 0),
     availability:  false,
-    languages:     false,
     identity:      !sectionComplete.identity && (!!state.identity.legalName || !!state.identity.dob || !!state.identity.nationality),
     refinement:    false,
     credits:       false,
@@ -6670,7 +6667,7 @@ function TalentProfileShellDrawer() {
             // empty groups collapse so the rail stays tight.
             const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
               { label: "Profile", ids: ["identity", "about"] },
-              { label: "Craft", ids: ["services", "profile_fields", "physical", "wardrobe", "details", "languages"] },
+              { label: "Craft", ids: ["services", "profile_fields", "physical", "wardrobe", "details"] },
               { label: "Where & when", ids: ["location", "logistics", "availability"] },
               { label: "Portfolio", ids: ["media", "albums", "polaroids"] },
               { label: "Terms", ids: ["rates", "limits"] },
@@ -7297,6 +7294,33 @@ function TalentProfileShellDrawer() {
                 primaryLabel={primaryRes?.child.label}
               />
               <PersonalityEditor value={state.personality} onChange={patchPersonality} />
+              {/* Languages folded in from the old standalone Languages
+                  section — it's factual profile metadata that belongs
+                  with the rest of "who this person is". */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                  Languages
+                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· what they speak, and what they can do in each</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                  {LANGUAGE_PRESETS.map(p => (
+                    <button key={p.id} type="button" onClick={() => {
+                      const existing = new Set(state.languages.map(l => l.language.toLowerCase()));
+                      const additions = p.langs
+                        .filter(l => !existing.has(l.toLowerCase()))
+                        .map<ProfileLanguage>((l, i) => ({ language: l, level: i === 0 ? "native" : "fluent" }));
+                      if (additions.length > 0) patch({ languages: [...state.languages, ...additions] });
+                    }} style={{
+                      padding: "5px 11px", borderRadius: 999,
+                      border: `1px dashed ${COLORS.border}`,
+                      background: "transparent", color: COLORS.inkMuted,
+                      fontSize: 11, fontWeight: 500, cursor: "pointer",
+                      fontFamily: FONTS.body,
+                    }}>{p.label}</button>
+                  ))}
+                </div>
+                <LanguagesEditor value={state.languages} onChange={patchLanguages} />
+              </div>
             </ProfileAccordionSection>
 
             {/* PROFILE FIELDS — DB-driven, per-talent-type catalog editor.
@@ -7596,39 +7620,6 @@ function TalentProfileShellDrawer() {
                   <FieldLockToggle path="rates" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
                 </div>
               )}
-            </ProfileAccordionSection>
-
-            {/* LANGUAGES */}
-            <ProfileAccordionSection
-              id="languages" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Languages"
-              sub="What languages they speak, and what they can do in each."
-              complete={sectionComplete.languages} started={sectionStarted.languages}
-              open={activeSection === "languages"}
-              onToggle={() => setActiveSection(activeSection === "languages" ? "" : "languages")}
-            >
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
-                  Quick add
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                  {LANGUAGE_PRESETS.map(p => (
-                    <button key={p.id} type="button" onClick={() => {
-                      const existing = new Set(state.languages.map(l => l.language.toLowerCase()));
-                      const additions = p.langs
-                        .filter(l => !existing.has(l.toLowerCase()))
-                        .map<ProfileLanguage>((l, i) => ({ language: l, level: i === 0 ? "native" : "fluent" }));
-                      if (additions.length > 0) patch({ languages: [...state.languages, ...additions] });
-                    }} style={{
-                      padding: "5px 11px", borderRadius: 999,
-                      border: `1px dashed ${COLORS.border}`,
-                      background: "transparent", color: COLORS.inkMuted,
-                      fontSize: 11, fontWeight: 500, cursor: "pointer",
-                      fontFamily: FONTS.body,
-                    }}>{p.label}</button>
-                  ))}
-                </div>
-              </div>
-              <LanguagesEditor value={state.languages} onChange={patchLanguages} />
             </ProfileAccordionSection>
 
             {/* REFINEMENT — prototype SkillsProEditor is not batch-saved; hide when DB-backed SkillSlotPanel is active. */}
