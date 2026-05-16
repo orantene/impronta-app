@@ -515,6 +515,38 @@ export function MediaGalleryDrawer({
       ? t("admin.talent.edit.mediaGallery.focusHero")
       : null;
 
+  // Current-state line. The cover / profile are stored as their own
+  // (often cropped) media rows, so the active role photo is frequently
+  // NOT one of the gallery cards below. Without this line a user opening
+  // the picker can't tell whether a cover already exists or where it is.
+  // Tells them: none yet / set & highlighted below / set from a crop
+  // that isn't shown here.
+  const roleState: { txt: string; ok: boolean } | null = (() => {
+    if (focusSlot === "hero") {
+      if (!currentHeroAssetId)
+        return { txt: t("admin.talent.edit.mediaGallery.coverStateNone"), ok: false };
+      const inList = assets.some((a) => a.id === currentHeroAssetId);
+      return {
+        txt: t(inList
+          ? "admin.talent.edit.mediaGallery.coverStateInList"
+          : "admin.talent.edit.mediaGallery.coverStateCrop"),
+        ok: true,
+      };
+    }
+    if (focusSlot === "avatar") {
+      if (!currentAvatarAssetId)
+        return { txt: t("admin.talent.edit.mediaGallery.profileStateNone"), ok: false };
+      const inList = assets.some((a) => a.id === currentAvatarAssetId);
+      return {
+        txt: t(inList
+          ? "admin.talent.edit.mediaGallery.profileStateInList"
+          : "admin.talent.edit.mediaGallery.profileStateCrop"),
+        ok: true,
+      };
+    }
+    return null;
+  })();
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: INJECTED_STYLES }} />
@@ -564,6 +596,19 @@ export function MediaGalleryDrawer({
               {focusLabel && (
                 <div style={{ fontFamily: F, fontSize: 12, color: C.accent, marginTop: 2, fontWeight: 500 }}>
                   {focusLabel}
+                </div>
+              )}
+              {roleState && (
+                <div style={{
+                  fontFamily: F, fontSize: 11.5, marginTop: 5, fontWeight: 500,
+                  color: roleState.ok ? C.success : C.inkMuted,
+                  display: "flex", alignItems: "center", gap: 6, maxWidth: 460,
+                }}>
+                  <span style={{
+                    width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                    background: roleState.ok ? C.success : "rgba(24,24,27,0.3)",
+                  }} />
+                  {roleState.txt}
                 </div>
               )}
               {/* Change 5: reorder status */}
