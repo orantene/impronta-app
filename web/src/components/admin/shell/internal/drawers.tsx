@@ -11619,18 +11619,40 @@ function SmartFooterCTA({ status, mode, canPublish, onAction }: {
 }
 
 function ToggleControl({ value, onChange, label, disabled }: { value: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
+  // Yes/No pill + mini switch — mirrors the engine editor's boolean
+  // control (live-category-fields-editor.tsx) so a toggle reads the
+  // same everywhere and the state is a literal word, not an inferred
+  // switch position.
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, opacity: disabled ? 0.55 : 1 }}>
-      <button type="button" onClick={() => { if (!disabled) onChange(!value); }} aria-pressed={value} disabled={disabled} style={{
-        width: 36, height: 22, borderRadius: 999, border: "none", cursor: disabled ? "not-allowed" : "pointer", padding: 0,
-        background: value ? COLORS.accent : "rgba(11,11,13,0.12)",
-        position: "relative", flexShrink: 0,
-      }}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value}
+        disabled={disabled}
+        onClick={() => { if (!disabled) onChange(!value); }}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "5px 5px 5px 12px", borderRadius: 999,
+          border: `1.5px solid ${value ? COLORS.accent : COLORS.border}`,
+          background: value ? "rgba(15,79,62,0.08)" : "#fff",
+          cursor: disabled ? "not-allowed" : "pointer",
+          fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+          color: value ? COLORS.ink : COLORS.inkMuted, flexShrink: 0,
+        }}
+      >
+        {value ? "Yes" : "No"}
         <span style={{
-          position: "absolute", top: 2, left: value ? 16 : 2,
-          width: 18, height: 18, borderRadius: "50%", background: "#fff",
-          transition: "left 0.15s",
-        }} />
+          width: 30, height: 18, borderRadius: 999,
+          background: value ? COLORS.accent : "rgba(11,11,13,0.18)",
+          position: "relative", transition: "background 0.15s", flexShrink: 0,
+        }}>
+          <span style={{
+            position: "absolute", top: 2, left: value ? 14 : 2,
+            width: 14, height: 14, borderRadius: "50%", background: "#fff",
+            transition: "left 0.15s",
+          }} />
+        </span>
       </button>
       <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>{label}</div>
     </div>
