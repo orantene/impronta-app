@@ -6959,6 +6959,7 @@ function TalentProfileShellDrawer() {
                 <>
                   <ServicesEditor
                     allowedParents={allowedParents}
+                    hydrating={hydratingMedia && !!payload.talentId && mode !== "create"}
                     primaryType={state.primaryType}
                     secondaryTypes={state.secondaryTypes}
                     specialties={state.specialties}
@@ -8102,7 +8103,7 @@ function TalentProfileShellDrawer() {
 
 function ServicesEditor({
   allowedParents, primaryType, secondaryTypes, specialties, primaryRes, specialtyOptions,
-  onPickPrimary, onClearPrimary, onToggleSecondary, onToggleSpecialty,
+  onPickPrimary, onClearPrimary, onToggleSecondary, onToggleSpecialty, hydrating,
 }: {
   allowedParents: TaxonomyParent[];
   primaryType: string | null;
@@ -8114,6 +8115,10 @@ function ServicesEditor({
   onClearPrimary: () => void;
   onToggleSecondary: (id: string) => void;
   onToggleSpecialty: (s: string) => void;
+  /** True while the talent profile is still hydrating from the server.
+   *  Prevents flashing the "pick a primary type" grid (false "Not set")
+   *  for a talent who actually has a persisted type still loading. */
+  hydrating?: boolean;
 }) {
   // 2026 — when a primary role is picked, default the "Also bookable as"
   // wall to siblings within the same parent_category. The cross-category
@@ -8172,6 +8177,20 @@ function ServicesEditor({
                 </div>
               </div>
             )}
+          </div>
+        ) : hydrating ? (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            padding: "8px 12px", borderRadius: 999,
+            background: "rgba(11,11,13,0.04)", color: COLORS.inkMuted,
+            border: `1px solid ${COLORS.borderSoft}`,
+            fontSize: 12.5, fontWeight: 500, fontFamily: FONTS.body,
+          }}>
+            <span aria-hidden style={{
+              width: 8, height: 8, borderRadius: "50%",
+              background: COLORS.inkDim, display: "inline-block", opacity: 0.5,
+            }} />
+            Loading current role…
           </div>
         ) : (
           <PrimaryTalentTypeGrid parents={allowedParents} selected={primaryType} onPick={onPickPrimary} />
