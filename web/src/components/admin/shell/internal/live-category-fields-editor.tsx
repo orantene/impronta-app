@@ -142,7 +142,7 @@ function destinationFor(f: { field_key: string; field_group_slug: string | null 
 // for an untyped talent). They render in a compact block inside About,
 // never in the type-driven Specialty switcher. The specialty mount
 // excludes them; the general mount shows only them.
-const GENERAL_NAMESPACES = new Set(["creator", "experience", "media"]);
+const GENERAL_NAMESPACES = new Set(["creator", "experience", "media", "skills"]);
 function isGeneralField(f: { field_key: string }): boolean {
   return GENERAL_NAMESPACES.has(namespaceFor(f.field_key));
 }
@@ -1022,6 +1022,7 @@ export function LiveCategoryFieldsEditor({
   serverActions,
   viewMode = "admin",
   scope = "specialty",
+  refreshKey = "",
 }: {
   talentProfileId: string;
   /** Fires whenever the visible field counts change (initial load + every
@@ -1044,6 +1045,11 @@ export function LiveCategoryFieldsEditor({
    *  ONLY those global groups (Creator / Experience / Media) — mounted
    *  inside About so Specialty stays purely type-driven. */
   scope?: "specialty" | "general";
+  /** Bump this when the talent's taxonomy/type assignment changes so the
+   *  editor re-resolves the field set in the same drawer session (the
+   *  fetch is keyed only to talentProfileId otherwise). Re-fetch is
+   *  debounced so the picker's assign write commits server-side first. */
+  refreshKey?: string | number;
 }) {
   const setValueAction = serverActions?.setValue
     ?? (((input) => setTalentFieldValue(input)) as EditorServerActions["setValue"]);
@@ -1102,9 +1108,11 @@ export function LiveCategoryFieldsEditor({
     [allFields, scope],
   );
 
+  const initialLoadDoneRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const load = async () => {
       try {
         const [fieldsRes, valuesRes] = await Promise.all([
           getFieldsAction({ talent_profile_id: talentProfileId }),
@@ -1161,9 +1169,19 @@ export function LiveCategoryFieldsEditor({
         setError(err instanceof Error ? err.message : "Failed to load.");
         setAllFields([]);
       }
-    })();
-    return () => { cancelled = true; };
-  }, [talentProfileId]);
+    };
+    if (!initialLoadDoneRef.current) {
+      // First mount — load immediately, no debounce lag.
+      initialLoadDoneRef.current = true;
+      void load();
+    } else {
+      // Taxonomy changed mid-session (refreshKey bumped). Debounce so
+      // the picker's assignTalentTaxonomyBySlug write has committed
+      // before we re-resolve, otherwise we'd read the stale field set.
+      timer = setTimeout(() => { void load(); }, 700);
+    }
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [talentProfileId, refreshKey]);
 
   // Surface the visible filled / total to the parent (rail dot, etc.).
   // Fires on initial load and after every save (because both `fields` and

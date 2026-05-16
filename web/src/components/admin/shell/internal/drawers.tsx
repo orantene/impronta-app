@@ -7336,6 +7336,7 @@ function TalentProfileShellDrawer() {
                   <LiveCategoryFieldsEditor
                     talentProfileId={payload.talentId}
                     scope="general"
+                    refreshKey={[state.primaryType ?? "", ...state.secondaryTypes, ...state.specialties].join("|")}
                   />
                 </div>
               )}
@@ -7350,6 +7351,7 @@ function TalentProfileShellDrawer() {
               <section id="pshell-profile_fields">
                 <LiveCategoryFieldsEditor
                   talentProfileId={payload.talentId}
+                  refreshKey={[state.primaryType ?? "", ...state.secondaryTypes, ...state.specialties].join("|")}
                   onCountsChange={setProfileFieldCounts}
                   onJumpToSection={(s) => {
                     if ((PROFILE_SECTIONS as readonly string[]).includes(s)) {
