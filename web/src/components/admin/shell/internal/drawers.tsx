@@ -4028,6 +4028,20 @@ function RequiredPill({ field, primaryType }: { field: RegField; primaryType?: s
   );
 }
 
+// Single source of truth for text / number / textarea field inputs
+// across every hardcoded section. Mirrors the engine editor's inputStyle
+// (live-category-fields-editor.tsx) — same padding, radius, border,
+// font — so Specialty details and the bespoke sections read as ONE
+// surface instead of three slightly-different ones. Callers spread +
+// extend (flex, paddingLeft for icons, error border, etc.).
+const SHARED_FIELD_INPUT_STYLE: React.CSSProperties = {
+  width: "100%", boxSizing: "border-box",
+  padding: "8px 10px", borderRadius: 8,
+  border: `1px solid ${COLORS.border}`,
+  fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+  background: "#fff", outline: "none",
+};
+
 function RegFieldInput({ field, value, onChange, visibility, onVisibilityChange, primaryType }: {
   field: RegField;
   value: string | string[];
@@ -4062,11 +4076,7 @@ function RegFieldInput({ field, value, onChange, visibility, onVisibilityChange,
           value={typeof value === "string" ? value : ""}
           onChange={e => onChange(e.target.value)}
           placeholder={field.placeholder}
-          style={{
-            width: "100%", boxSizing: "border-box", padding: "11px 13px",
-            borderRadius: 10, border: `1.5px solid ${COLORS.borderSoft}`,
-            fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, outline: "none",
-          }}
+          style={SHARED_FIELD_INPUT_STYLE}
         />
         {field.helper && (
           <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 4 }}>{field.helper}</div>
@@ -4297,11 +4307,7 @@ const ChipsInput = React.memo(({ label, placeholder, values, onChange }: ChipsIn
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
           placeholder={placeholder}
-          style={{
-            flex: 1, padding: "10px 12px",
-            borderRadius: 10, border: `1.5px solid ${COLORS.borderSoft}`,
-            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-          }}
+          style={{ ...SHARED_FIELD_INPUT_STYLE, flex: 1 }}
         />
         <button type="button" onClick={commit} disabled={!draft.trim()} style={{
           padding: "0 14px", borderRadius: 10, border: "none",
@@ -11144,11 +11150,7 @@ function CountryAutocompleteInput({
         autoComplete="off"
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => { if (suggestions.length > 0) setOpen(true); }}
-        style={{
-          width: "100%", boxSizing: "border-box", padding: "10px 12px",
-          borderRadius: 10, border: `1px solid ${COLORS.border}`,
-          fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-        }}
+        style={SHARED_FIELD_INPUT_STYLE}
       />
       {open && suggestions.length > 0 && (
         <div style={{
@@ -11247,11 +11249,7 @@ function CityAutocompleteInput({
         value={draft}
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => { if (predictions.length > 0) setOpen(true); }}
-        style={{
-          width: "100%", boxSizing: "border-box", padding: "10px 12px",
-          borderRadius: 10, border: `1px solid ${COLORS.border}`,
-          fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-        }}
+        style={SHARED_FIELD_INPUT_STYLE}
       />
       {!configured && (
         <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
@@ -12076,11 +12074,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
   const copy = useDashboardText();
   const age = deriveAge(identity.dob);
   const ageRange = ageRangeFor(age);
-  const inputStyle: React.CSSProperties = {
-    width: "100%", boxSizing: "border-box", padding: "10px 12px",
-    borderRadius: 10, border: `1px solid ${COLORS.border}`,
-    fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
-  };
+  const inputStyle: React.CSSProperties = { ...SHARED_FIELD_INPUT_STYLE };
   // Single-pick dropdown — used for Pronouns / Gender / Reply time / Age
   // display. Native <select> styled to match the rest of the form so the
   // editor reads as one calm surface instead of a wall of choice chips.
