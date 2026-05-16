@@ -761,6 +761,7 @@
           "cropHero": "Recortar para portada (16:9 banner)",
           "noImagesFound": "No se encontraron imágenes.",
           "uploadFailed": "No se pudo subir.",
+          "imageUnavailable": "Imagen no disponible",
           "actionFailed": "No se pudo completar.",
           "deleteFailed": "No se pudo eliminar.",
           "importFailed": "No se pudo importar.",

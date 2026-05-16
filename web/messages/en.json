@@ -761,6 +761,7 @@
           "cropHero": "Crop for cover (16:9 banner)",
           "noImagesFound": "No images found.",
           "uploadFailed": "Upload failed.",
+          "imageUnavailable": "Image unavailable",
           "actionFailed": "Failed.",
           "deleteFailed": "Delete failed.",
           "importFailed": "Import failed.",

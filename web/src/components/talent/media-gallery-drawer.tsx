@@ -173,6 +173,31 @@ const INJECTED_STYLES = `
 .mgd-card:hover .mgd-checkbox-wrap {
   opacity: 1;
 }
+/* Loading skeleton — a soft sweep shown until the photo finishes
+   decoding. Without it the full-res studio shots paint top-down and a
+   half-loaded card looks broken (cream backdrop over the grey box). */
+@keyframes mgd-skeleton-sweep {
+  0%   { background-position: -160% 0; }
+  100% { background-position:  160% 0; }
+}
+.mgd-skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, #eceae6 30%, #f6f5f1 50%, #eceae6 70%);
+  background-size: 220% 100%;
+  animation: mgd-skeleton-sweep 1.15s ease-in-out infinite;
+}
+.mgd-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.mgd-thumb-img.is-loaded {
+  opacity: 1;
+}
 `;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -1001,12 +1026,25 @@ function PhotoCard({
   // action moved to the unified PhotoLightbox rail. Intentionally not
   // destructured here.
 }: PhotoCardProps) {
-  // Change 6: approval state border
-  const approvalBorder = asset.approvalState === "pending"
-    ? "2px solid #D4A017"
-    : asset.approvalState === "rejected"
-      ? "2px solid #c0392b"
-      : `1px solid rgba(24,24,27,0.08)`;
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  // Card border priority mirrors the status pill: Rejected > Review >
+  // Profile > Cover > default. Profile/Cover get a coloured ring (not
+  // just the tiny corner pill) so "which photo is my profile / cover"
+  // is answerable at a glance — even while the image is still loading.
+  const roleBorder =
+    asset.approvalState === "rejected" ? "2px solid #c0392b" :
+    asset.approvalState === "pending"  ? "2px solid #D4A017" :
+    isAvatar                            ? "2px solid rgba(15,79,62,0.95)" :
+    isHero                              ? "2px solid rgba(78,52,114,0.95)" :
+    "1px solid rgba(24,24,27,0.08)";
+  const roleRing =
+    isAvatar && asset.approvalState !== "rejected" && asset.approvalState !== "pending"
+      ? "0 0 0 3px rgba(15,79,62,0.18)"
+      : isHero && asset.approvalState !== "rejected" && asset.approvalState !== "pending"
+        ? "0 0 0 3px rgba(78,52,114,0.18)"
+        : undefined;
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -1018,7 +1056,8 @@ function PhotoCard({
           aspectRatio: "3 / 4",
           borderRadius: 8,
           overflow: "hidden",
-          border: approvalBorder,
+          border: roleBorder,
+          boxShadow: roleRing,
           background: "#f0f0ee",
         }}
       >
@@ -1043,9 +1082,27 @@ function PhotoCard({
           <img
             src={asset.url}
             alt=""
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setImgLoaded(true)}
+            onError={() => setImgError(true)}
+            className={`mgd-thumb-img${imgLoaded ? " is-loaded" : ""}`}
           />
         </button>
+
+        {/* Skeleton sweep until the photo finishes decoding. The image
+            fades in on load (mgd-thumb-img opacity), so a card never
+            shows a half-painted streak — it's skeleton, then photo. */}
+        {!imgLoaded && !imgError && <div className="mgd-skeleton" aria-hidden="true" />}
+        {imgError && (
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: C.inkMuted, fontFamily: F, fontSize: 11,
+          }}>
+            {t("admin.talent.edit.mediaGallery.imageUnavailable")}
+          </div>
+        )}
 
         {/* Hover "open" hint — matches the admin Media card. Every photo
             action (set profile/cover, crop, revert, delete) now lives in
