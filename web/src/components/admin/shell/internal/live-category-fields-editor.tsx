@@ -137,6 +137,16 @@ function destinationFor(f: { field_key: string; field_group_slug: string | null 
   return SUPPRESSED_NAMESPACES[namespaceFor(f.field_key)] ?? null;
 }
 
+// "General" profile groups — global, always-on, NOT driven by talent
+// type (the "Creator extras / Experience / Media" the user saw show up
+// for an untyped talent). They render in a compact block inside About,
+// never in the type-driven Specialty switcher. The specialty mount
+// excludes them; the general mount shows only them.
+const GENERAL_NAMESPACES = new Set(["creator", "experience", "media"]);
+function isGeneralField(f: { field_key: string }): boolean {
+  return GENERAL_NAMESPACES.has(namespaceFor(f.field_key));
+}
+
 // Human label for each destination — what the editor should call the
 // section the user needs to jump to. Mirrors SECTION_META in drawers.tsx
 // but kept local so the editor doesn't have to import the drawer's huge
@@ -1011,6 +1021,7 @@ export function LiveCategoryFieldsEditor({
   onJumpToSection,
   serverActions,
   viewMode = "admin",
+  scope = "specialty",
 }: {
   talentProfileId: string;
   /** Fires whenever the visible field counts change (initial load + every
@@ -1028,6 +1039,11 @@ export function LiveCategoryFieldsEditor({
   /** Affects: hides the suppression-jump footer (talent has no access to
    *  legacy accordions) and the "history" button. */
   viewMode?: "admin" | "talent-self";
+  /** "specialty" (default): the type-driven switcher; excludes the
+   *  always-on general groups. "general": a compact block that shows
+   *  ONLY those global groups (Creator / Experience / Media) — mounted
+   *  inside About so Specialty stays purely type-driven. */
+  scope?: "specialty" | "general";
 }) {
   const setValueAction = serverActions?.setValue
     ?? (((input) => setTalentFieldValue(input)) as EditorServerActions["setValue"]);
@@ -1069,12 +1085,21 @@ export function LiveCategoryFieldsEditor({
   // preserved on the row and remain readable via the legacy accordion or
   // by querying the table directly.
   const fields = useMemo(
-    () => (allFields ?? []).filter((f) => !isFieldSuppressed(f)),
-    [allFields],
+    () => (allFields ?? []).filter((f) =>
+      scope === "general"
+        // General mount: only the always-on global groups (these have
+        // their own home here, so group-slug suppression doesn't apply).
+        ? isGeneralField(f)
+        // Specialty mount: type-driven only — drop suppressed AND the
+        // general groups (they live in About now).
+        : !isFieldSuppressed(f) && !isGeneralField(f)),
+    [allFields, scope],
   );
   const suppressedPresent = useMemo(
-    () => (allFields ?? []).filter((f) => isFieldSuppressed(f)),
-    [allFields],
+    () => scope === "general"
+      ? []
+      : (allFields ?? []).filter((f) => isFieldSuppressed(f) && !isGeneralField(f)),
+    [allFields, scope],
   );
 
   useEffect(() => {
@@ -1308,7 +1333,7 @@ export function LiveCategoryFieldsEditor({
           fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4,
           textTransform: "uppercase", fontWeight: 600,
         }}>
-          Specialty details · {totalFilled} of {fields.length} filled · saves on blur
+          {scope === "general" ? "General profile" : "Specialty details"} · {totalFilled} of {fields.length} filled · saves on blur
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {requiredMissing > 0 && (

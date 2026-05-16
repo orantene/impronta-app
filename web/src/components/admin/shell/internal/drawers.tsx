@@ -7327,6 +7327,18 @@ function TalentProfileShellDrawer() {
                 </div>
                 <LanguagesEditor value={state.languages} onChange={patchLanguages} />
               </div>
+              {/* General profile fields — the always-on global groups
+                  (Creator / Experience / Media). Moved out of the
+                  type-driven Specialty switcher into About so Specialty
+                  stays purely type-driven. Same engine, scope="general". */}
+              {payload.talentId && bridgeTenantIdentity?.tenantId && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${COLORS.borderSoft}` }}>
+                  <LiveCategoryFieldsEditor
+                    talentProfileId={payload.talentId}
+                    scope="general"
+                  />
+                </div>
+              )}
             </ProfileAccordionSection>
 
             {/* PROFILE FIELDS — DB-driven, per-talent-type catalog editor.
