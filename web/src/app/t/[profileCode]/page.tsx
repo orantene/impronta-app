@@ -615,6 +615,17 @@ function mediaUrl(
 }
 
 // ---------------------------------------------------------------------------
+// Route segment config — a public talent profile MUST reflect the agency's
+// latest edits. Without this, Next's Data Cache memoises the supabase-js
+// fetches (and persists across Vercel deploys), so newly-public fields
+// (e.g. physical casting attributes after show_in_public was flipped) never
+// appear. force-no-store makes every fetch in this route read fresh.
+// ---------------------------------------------------------------------------
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
+// ---------------------------------------------------------------------------
 // Metadata
 // ---------------------------------------------------------------------------
 
