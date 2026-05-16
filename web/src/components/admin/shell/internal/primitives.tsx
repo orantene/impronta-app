@@ -4724,11 +4724,11 @@ const CHANNEL_META: Record<FieldChannel, { label: string; emoji: string; tooltip
 };
 
 /**
- * Compact visibility control. Renders a single icon button (28×20px)
- * that summarises current state — 🌐 (public), 🏢 (agency), 🔒
- * (private), 👁 (mixed/multiple). Click opens a 3-row popover with
- * the actual toggles. Saves ~85% of the vertical footprint vs the
- * old wide chip strip.
+ * Compact visibility control. Renders a small pill — icon + readable
+ * word (🌐 Public · 🏢 Agency only · 🔒 Private · 👁 Not visible) —
+ * that summarises current state and opens a 3-row popover with the
+ * actual toggles on click. Stays dense like the old icon-only form
+ * but the state is legible without clicking.
  *
  * Pattern reference: Notion's "Who can see this", Linear's privacy
  * chips, Figma's permission popovers.
@@ -4803,17 +4803,20 @@ export function ChannelVisibilityStrip({
         aria-label={`${labelText}: ${summary.label}`}
         aria-expanded={open}
         style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          width: 22, height: 22, borderRadius: 6,
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "2px 8px", borderRadius: 999,
           border: `1px solid ${tone.border}`,
           background: tone.bg,
           color: tone.fg,
           cursor: onChange ? "pointer" : "default",
           opacity: onChange ? 1 : 0.65,
           flexShrink: 0,
+          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
+          whiteSpace: "nowrap", lineHeight: 1.4,
         }}
       >
-        <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>{summary.icon}</span>
+        <span aria-hidden style={{ fontSize: 11, lineHeight: 1 }}>{summary.icon}</span>
+        <span style={{ lineHeight: 1 }}>{summary.label}</span>
       </button>
       {open && onChange && (
         <div
