@@ -795,28 +795,26 @@ function FieldRow({
           <span style={{ fontSize: 10, color: T.inkMuted, marginLeft: 4 }}>· unsaved</span>
         )}
         <StatusPill status={status} error={error} />
-        {/* Compact visibility control, right-aligned on the label row —
-            replaces the full-width "Visible to" pill row that used to sit
-            under every field (the main source of scroll bloat). */}
-        <div style={{ marginLeft: "auto" }}>
-          <VisibilityChips
-            effective={(localOverride && localOverride.length > 0
-              ? localOverride
-              : (field.default_visibility ?? [])
-            ).filter((c): c is VisChannel =>
-              c === "public" || c === "agency" || c === "private",
-            )}
-            isOverride={Array.isArray(localOverride) && localOverride.length > 0}
-            onChange={async (next) => {
-              setLocalOverride(next);
-              const res = await onSaveVisibility(next);
-              if (!res.ok) {
-                setLocalOverride(initialVisibility);
-              }
-            }}
-          />
-        </div>
       </div>
+      {/* Visibility on its own line under the label — identical
+          placement to the hardcoded FieldRow so every section reads
+          the same and it never collides in 2-column layouts. */}
+      <VisibilityChips
+        effective={(localOverride && localOverride.length > 0
+          ? localOverride
+          : (field.default_visibility ?? [])
+        ).filter((c): c is VisChannel =>
+          c === "public" || c === "agency" || c === "private",
+        )}
+        isOverride={Array.isArray(localOverride) && localOverride.length > 0}
+        onChange={async (next) => {
+          setLocalOverride(next);
+          const res = await onSaveVisibility(next);
+          if (!res.ok) {
+            setLocalOverride(initialVisibility);
+          }
+        }}
+      />
       {control}
       {/* Error wins over hint when both are present, so users see the
           actionable message first. Pre-edit hints + post-edit errors

@@ -4881,16 +4881,11 @@ export function FieldRow({
             </span>
           )}
         </label>
-        {/* Top-right cluster: visibility chip + optional indicator.
-            Visibility chip moves here (was a wide row below the field)
-            so the field's vertical footprint stays compact. */}
+        {/* Top-right cluster: just the optional/recommended marker.
+            Visibility moved to its OWN line below the label row — in
+            2-column sections (Identity etc.) cramming the 3-chip strip
+            up here collided with the label + adjacent column. */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          {visibility && (
-            <ChannelVisibilityStrip
-              value={visibility}
-              onChange={onVisibilityChange}
-            />
-          )}
           {recommended && (
             <span
               aria-label="recommended"
@@ -4922,6 +4917,14 @@ export function FieldRow({
           )}
         </div>
       </div>
+      {visibility && (
+        <div style={{ marginTop: -2 }}>
+          <ChannelVisibilityStrip
+            value={visibility}
+            onChange={onVisibilityChange}
+          />
+        </div>
+      )}
       {children}
       {error ? (
         <>
