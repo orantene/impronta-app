@@ -99,8 +99,13 @@ export function SkillSlotPanel({
   isAdmin = true,
   viewMode = "admin",
   canChooseVerificationScope = false,
+  onSkillsChanged,
 }: {
   talentProfileId: string;
+  /** Fired after any skill mutation (add / remove / set-primary) so the
+   *  parent can re-resolve type-driven surfaces (Specialty details)
+   *  immediately instead of waiting for an incidental remount. */
+  onSkillsChanged?: () => void;
   /** Show admin-only controls (Verify, scope toggle). Defaults to true. */
   isAdmin?: boolean;
   /** Phase 7.3 — when 'talent-self', hide admin actions (verify, override). */
@@ -170,7 +175,14 @@ export function SkillSlotPanel({
     await promise;
   };
 
-  const reload = () => fetchData(false);
+  // reload() runs ONLY after a mutation (add/remove/set-primary);
+  // initial load uses fetchData(true). Notifying here fires
+  // onSkillsChanged exactly on taxonomy changes, never on first paint —
+  // so the parent can re-resolve Specialty immediately.
+  const reload = () => {
+    void fetchData(false);
+    onSkillsChanged?.();
+  };
 
   useEffect(() => {
     fetchData(true);
@@ -281,14 +293,35 @@ export function SkillSlotPanel({
       ? `¿Quitar "${copy.term(skill.skill_name_en, skill.skill_name_es)}" de este perfil?`
       : `Remove "${skill.skill_name_en}" from this profile?`
     )) return;
+    const previousSkills = skills;
+    const nextSkills = previousSkills
+      ? previousSkills.filter((s) => s.skill_term_id !== skill.skill_term_id)
+      : previousSkills;
     setSaving(skill.skill_term_id, true);
+    setSkills(nextSkills);
+    if (nextSkills) {
+      _skillsCache.set(talentProfileId, {
+        skills: nextSkills,
+        aspirations,
+        ts: Date.now(),
+      });
+    }
     const res = await removeSkill({
       talent_profile_id: talentProfileId,
       talent_type_term_id: skill.skill_term_id,
     });
     setSaving(skill.skill_term_id, false);
-    if (res.ok) reload();
-    else setError(res.error);
+    if (!res.ok) {
+      setSkills(previousSkills);
+      if (previousSkills) {
+        _skillsCache.set(talentProfileId, {
+          skills: previousSkills,
+          aspirations,
+          ts: Date.now(),
+        });
+      }
+      setError(res.error);
+    }
   };
 
   // Q5: Verification flow opens a confirmation modal capturing the admin's

@@ -5060,8 +5060,8 @@ function TalentProfileShellDrawer() {
   const [galleryDrawerFocus, setGalleryDrawerFocus] = useState<"avatar" | "hero" | "gallery">("gallery");
   const [galleryAssets, setGalleryAssets] = useState<import("@/components/talent/media-gallery-drawer").MediaAsset[]>([]);
 
-  // Editor row + media bundle load in parallel; one reducer patch keeps album
-  // metadata and gallery items consistent (no race between two hydrations).
+  // Editor row and media bundle load in parallel, but profile fields should
+  // not wait for photo/gallery hydration before appearing in the drawer.
   const profileShellHydratedForRef = useRef<string | null>(null);
   const [hydratingMedia, setHydratingMedia] = useState(false);
   // Stash the latest state in a ref so effects/callbacks below can read the
@@ -5078,68 +5078,77 @@ function TalentProfileShellDrawer() {
     profileShellHydratedForRef.current = tid;
     allowMarkDirtyRef.current = false;
     setHydratingMedia(true);
+    let cancelled = false;
 
-    void Promise.all([
-      getTalentProfileEditorData({ talent_profile_id: tid }),
-      actionLoadTalentMediaBundle(tid),
-      isSelf
-        ? getTalentProfileDynFieldValuesForSelf({ talent_profile_id: tid })
-        : getTalentProfileDynFieldValuesForShell({ talent_profile_id: tid }),
-    ])
-      .then(([edRes, mediaRes, dynRes]) => {
+    void actionLoadTalentMediaBundle(tid)
+      .then((mediaRes) => {
+        if (cancelled) return;
         setHydratingMedia(false);
+        if (!mediaRes.ok) return;
+
         const s = stateRef.current;
 
         let albumsPro = s.albumsPro;
         let polaroids = s.polaroids;
 
-        if (mediaRes.ok) {
-          const { gallery, hero, polaroids: polaroidsMap, card } = mediaRes.data;
+        const { gallery, hero, polaroids: polaroidsMap, card } = mediaRes.data;
 
-          if (card?.url) setAvatarPhotoUrl(card.url);
-          if (hero?.url) setHeroPhotoUrl(hero.url);
+        if (card?.url) setAvatarPhotoUrl(card.url);
+        if (hero?.url) setHeroPhotoUrl(hero.url);
 
-          type AssetWithMeta = import("@/components/talent/media-gallery-drawer").MediaAsset & {
-            metadata?: Record<string, unknown>;
-          };
-          const allAssets: AssetWithMeta[] = [];
-          if (card) allAssets.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
-          if (hero) allAssets.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
-          for (const g of gallery) {
-            allAssets.push({
-              id: g.id,
-              url: g.url,
-              variantKind: "gallery",
-              sortOrder: g.sortOrder,
-              metadata: g.metadata ?? {},
-            });
-          }
-          setGalleryAssets(allAssets);
-
-          const fallbackAlbumId = s.albumsPro[0]?.id ?? "main";
-          const knownIds = new Set(s.albumsPro.map(a => a.id));
-          const extraAlbumIds = new Set<string>();
-          for (const g of gallery) {
-            const aid = (g.metadata?.albumId as string | undefined) ?? fallbackAlbumId;
-            if (!knownIds.has(aid)) extraAlbumIds.add(aid);
-          }
-          const extraAlbums = [...extraAlbumIds].map(id => ({
-            id,
-            name: id.replace(/-[a-z0-9]{4,}$/, "").replace(/-/g, " ") || "Untitled",
-            items: [] as PhotoMeta[],
-          }));
-
-          albumsPro = extraAlbums.length > 0 ? [...s.albumsPro, ...extraAlbums] : s.albumsPro;
-          polaroids = s.polaroids.map(p => {
-            const hit = polaroidsMap[p.id];
-            return hit ? { ...p, url: hit.url, mediaAssetId: hit.id } : p;
+        type AssetWithMeta = import("@/components/talent/media-gallery-drawer").MediaAsset & {
+          metadata?: Record<string, unknown>;
+        };
+        const allAssets: AssetWithMeta[] = [];
+        if (card) allAssets.push({ id: card.id, url: card.url, variantKind: "card", sortOrder: 0 });
+        if (hero) allAssets.push({ id: hero.id, url: hero.url, variantKind: "hero", sortOrder: 0 });
+        for (const g of gallery) {
+          allAssets.push({
+            id: g.id,
+            url: g.url,
+            variantKind: "gallery",
+            sortOrder: g.sortOrder,
+            metadata: g.metadata ?? {},
           });
         }
+        setGalleryAssets(allAssets);
+
+        const fallbackAlbumId = s.albumsPro[0]?.id ?? "main";
+        const knownIds = new Set(s.albumsPro.map(a => a.id));
+        const extraAlbumIds = new Set<string>();
+        for (const g of gallery) {
+          const aid = (g.metadata?.albumId as string | undefined) ?? fallbackAlbumId;
+          if (!knownIds.has(aid)) extraAlbumIds.add(aid);
+        }
+        const extraAlbums = [...extraAlbumIds].map(id => ({
+          id,
+          name: id.replace(/-[a-z0-9]{4,}$/, "").replace(/-/g, " ") || "Untitled",
+          items: [] as PhotoMeta[],
+        }));
+
+        albumsPro = extraAlbums.length > 0 ? [...s.albumsPro, ...extraAlbums] : s.albumsPro;
+        polaroids = s.polaroids.map(p => {
+          const hit = polaroidsMap[p.id];
+          return hit ? { ...p, url: hit.url, mediaAssetId: hit.id } : p;
+        });
+
+        patch({ albumsPro, polaroids }, { silent: true });
+      })
+      .catch(() => {
+        if (!cancelled) setHydratingMedia(false);
+      });
+
+    void Promise.all([
+      getTalentProfileEditorData({ talent_profile_id: tid }),
+      isSelf
+        ? getTalentProfileDynFieldValuesForSelf({ talent_profile_id: tid })
+        : getTalentProfileDynFieldValuesForShell({ talent_profile_id: tid }),
+    ])
+      .then(([edRes, dynRes]) => {
+        if (cancelled) return;
+        const s = stateRef.current;
 
         if (!edRes.ok) {
-          if (mediaRes.ok) {
-            patch({ albumsPro, polaroids }, { silent: true });
-          }
           allowMarkDirtyRef.current = true;
           return;
         }
@@ -5260,18 +5269,12 @@ function TalentProfileShellDrawer() {
           const saved = (d.media_albums_data as { id: string; name: string; sortOrder?: number }[])
             .slice()
             .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-          const itemsByAlbum = new Map(albumsPro.map(a => [a.id, a.items]));
+          const itemsByAlbum = new Map(s.albumsPro.map(a => [a.id, a.items]));
           patchPayload.albumsPro = saved.map(sv => ({
             id: sv.id,
             name: sv.name,
             items: itemsByAlbum.get(sv.id) ?? [],
           }));
-        } else if (mediaRes.ok) {
-          patchPayload.albumsPro = albumsPro;
-        }
-
-        if (mediaRes.ok) {
-          patchPayload.polaroids = polaroids;
         }
 
         if (Array.isArray(d.documents_data) && d.documents_data.length > 0) {
@@ -5306,7 +5309,15 @@ function TalentProfileShellDrawer() {
         patch(patchPayload, { silent: true });
         allowMarkDirtyRef.current = true;
       })
-      .catch(() => setHydratingMedia(false));
+      .catch(() => {
+        if (!cancelled) allowMarkDirtyRef.current = true;
+      });
+    return () => {
+      cancelled = true;
+      if (profileShellHydratedForRef.current === tid) {
+        profileShellHydratedForRef.current = null;
+      }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerOpen, mode, payload.talentId, isSelf]);
 
@@ -6962,7 +6973,11 @@ function TalentProfileShellDrawer() {
                   once a primary skill is set. */}
               {bridgeTenantIdentity?.tenantId && payload.talentId ? (
                 <div style={{ marginTop: 6, marginBottom: 14 }}>
-                  <SkillSlotPanel talentProfileId={payload.talentId} isAdmin={adminVisible} />
+                  <SkillSlotPanel
+                    talentProfileId={payload.talentId}
+                    isAdmin={adminVisible}
+                    onSkillsChanged={() => setTaxonomyVersion((v) => v + 1)}
+                  />
                 </div>
               ) : (
                 <>
