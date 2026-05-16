@@ -1042,7 +1042,11 @@ export function LiveCategoryFieldsEditor({
   const [valuesByDefId, setValuesByDefId] = useState<Map<string, unknown>>(new Map());
   const [visibilityByDefId, setVisibilityByDefId] = useState<Map<string, string[] | null>>(new Map());
   const [error, setError] = useState<string | null>(null);
-  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  // Switcher model — Specialty details is a sticky top-nav of group
+  // pills (one group shown at a time) instead of a vertical stack of
+  // accordions. `activeTab` holds the selected group key; it's clamped
+  // to a real tab at render time so a taxonomy change can't strand it.
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   // B1 — Floating toast across the editor. Last save's outcome shows for
   // ~2.2s then auto-clears. Field-level pill covers per-field detail; the
@@ -1107,9 +1111,10 @@ export function LiveCategoryFieldsEditor({
             filledGroupSlugs.add(f.field_group_slug);
           }
         }
-        const initialOpen = new Set<string>(filledGroupSlugs);
-        if (sortedSlugs[0]) initialOpen.add(sortedSlugs[0]);
-        setOpenGroups(initialOpen);
+        // Default the switcher to the first group that already has data
+        // (so it opens on something meaningful), else the first group.
+        const firstFilled = sortedSlugs.find((s) => filledGroupSlugs.has(s));
+        setActiveTab(firstFilled ?? sortedSlugs[0] ?? null);
         if (valuesRes.ok) {
           const m = new Map<string, unknown>();
           const vm = new Map<string, string[] | null>();
@@ -1236,33 +1241,49 @@ export function LiveCategoryFieldsEditor({
     return isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n;
   }, 0);
 
-  // Expand-all needs to know every collapsible card's slug. The DB-driven
-  // groups use their own slug; the orphan "Other" bucket is sub-grouped
-  // by namespace prefix and uses `_other:${ns}` keys.
-  const otherNamespaces = new Set<string>();
-  for (const f of otherFields) otherNamespaces.add(namespaceFor(f.field_key));
-  const allSlugs = [
-    ...sortedGroups.map((g) => g.group_slug),
-    ...Array.from(otherNamespaces).map((ns) => `_other:${ns}`),
-  ];
-  const allOpen = allSlugs.length > 0 && allSlugs.every((s) => openGroups.has(s));
-  const toggleAll = () => {
-    setOpenGroups(allOpen ? new Set() : new Set(allSlugs));
-  };
-  const toggleOne = (slug: string) => {
-    setOpenGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(slug)) next.delete(slug);
-      else next.add(slug);
-      return next;
+  // ── Switcher tabs ────────────────────────────────────────────────
+  // One ordered list combining the DB-driven groups and the namespace
+  // sub-buckets of the orphan "Other" fields (same _misc-fold + sort
+  // the legacy accordions used). Each entry is one specialty group; the
+  // sticky pill switcher shows exactly one at a time.
+  const tabs: { key: string; label: string; fields: ResolvedField[] }[] = [];
+  for (const g of sortedGroups) {
+    const list = grouped.get(g.group_slug) ?? [];
+    if (list.length > 0) tabs.push({ key: g.group_slug, label: g.group_label_en, fields: list });
+  }
+  if (otherFields.length > 0) {
+    const byNs = new Map<string, ResolvedField[]>();
+    for (const f of otherFields) {
+      const ns = namespaceFor(f.field_key);
+      const l = byNs.get(ns) ?? [];
+      l.push(f);
+      byNs.set(ns, l);
+    }
+    // B10 — fold a singleton "_misc" into the largest real bucket.
+    if (byNs.size > 1 && (byNs.get("_misc")?.length ?? 0) <= 1) {
+      const misc = byNs.get("_misc") ?? [];
+      const targetNs = Array.from(byNs.keys())
+        .filter((n) => n !== "_misc")
+        .sort((a, b) => (byNs.get(b)?.length ?? 0) - (byNs.get(a)?.length ?? 0)
+          || namespaceLabel(a).localeCompare(namespaceLabel(b)))[0];
+      if (targetNs) { byNs.set(targetNs, [...(byNs.get(targetNs) ?? []), ...misc]); byNs.delete("_misc"); }
+    }
+    const sortedNs = Array.from(byNs.keys()).sort((a, b) => {
+      if (a === "_misc") return 1;
+      if (b === "_misc") return -1;
+      return namespaceLabel(a).localeCompare(namespaceLabel(b));
     });
-  };
+    for (const ns of sortedNs) {
+      tabs.push({ key: `_other:${ns}`, label: namespaceLabel(ns), fields: byNs.get(ns) ?? [] });
+    }
+  }
+  const activeKey = (activeTab && tabs.some((t) => t.key === activeTab))
+    ? activeTab
+    : (tabs[0]?.key ?? null);
+  const activeTabData = tabs.find((t) => t.key === activeKey) ?? null;
 
-  // B9 — Fill-required wizard. Resolve which collapsible card each field
-  // belongs to (DB group slug, or `_other:${ns}` for orphans), then walk
-  // them in render order and jump to the first card that still has an
-  // unfilled required field. Opening the card triggers B7's scroll-into-
-  // view so the user lands right on the work.
+  // B9 — Fill-required wizard. Switch the active tab to the first group
+  // that still has an unfilled required field.
   const slugForField = (f: ResolvedField): string =>
     f.field_group_slug ?? `_other:${namespaceFor(f.field_key)}`;
   const missingRequiredFields = fields.filter(
@@ -1271,18 +1292,9 @@ export function LiveCategoryFieldsEditor({
   );
   const requiredMissing = missingRequiredFields.length;
   const jumpToNextRequired = () => {
-    // Prefer a card that isn't already open (so the action visibly does
-    // something); fall back to the first missing one regardless.
-    const ordered = [
-      ...sortedGroups.map((g) => g.group_slug),
-      ...Array.from(otherNamespaces).map((ns) => `_other:${ns}`),
-    ];
-    const slugsWithMissing = new Set(missingRequiredFields.map(slugForField));
-    const target =
-      ordered.find((s) => slugsWithMissing.has(s) && !openGroups.has(s))
-      ?? ordered.find((s) => slugsWithMissing.has(s));
-    if (!target) return;
-    setOpenGroups((prev) => new Set(prev).add(target));
+    const keysWithMissing = new Set(missingRequiredFields.map(slugForField));
+    const target = tabs.find((t) => keysWithMissing.has(t.key));
+    if (target) setActiveTab(target.key);
   };
 
   return (
@@ -1328,18 +1340,6 @@ export function LiveCategoryFieldsEditor({
               History
             </button>
           )}
-          <button
-            type="button"
-            onClick={toggleAll}
-            style={{
-              padding: "4px 10px", borderRadius: 999,
-              border: `1px solid ${T.borderSoft}`, background: "transparent",
-              fontFamily: F, fontSize: 10.5, fontWeight: 600, color: T.inkMuted,
-              cursor: "pointer", letterSpacing: 0.3,
-            }}
-          >
-            {allOpen ? "Collapse all" : "Expand all"}
-          </button>
         </div>
       </div>
       <LiveCategoryFieldsHistoryModal
@@ -1348,78 +1348,60 @@ export function LiveCategoryFieldsEditor({
         onClose={() => setHistoryOpen(false)}
       />
       <SaveToast message={toast?.message ?? null} kind={toast?.kind ?? "saved"} />
-      {sortedGroups.map((g) => {
-        const list = grouped.get(g.group_slug) ?? [];
-        if (list.length === 0) return null;
-        return (
-          <GroupBlock
-            key={g.group_slug}
-            title={g.group_label_en}
-            weight={g.weight}
-            fields={list}
-            valuesByDefId={valuesByDefId}
-            visibilityByDefId={visibilityByDefId}
-            onSave={handleSave}
-            onSaveVisibility={handleSaveVisibility}
-            open={openGroups.has(g.group_slug)}
-            onToggle={() => toggleOne(g.group_slug)}
-          />
-        );
-      })}
-      {otherFields.length > 0 && (() => {
-        // Sub-group Other by field_key namespace (model./chef./performer./…)
-        // so the user sees per-talent-type sub-blocks instead of one giant
-        // alphabetized scroll. Each namespace gets its own collapsible card
-        // with its own open state (key = `_other:${ns}`).
-        const byNs = new Map<string, ResolvedField[]>();
-        for (const f of otherFields) {
-          const ns = namespaceFor(f.field_key);
-          const list = byNs.get(ns) ?? [];
-          list.push(f);
-          byNs.set(ns, list);
-        }
-        // B10 — fold any singleton "_misc" bucket into the closest non-misc
-        // bucket. A 1-field "Other" card adds visual clutter without value.
-        // If _misc is the ONLY bucket, leave it alone (the editor needs to
-        // surface those orphan fields somewhere).
-        if (byNs.size > 1 && (byNs.get("_misc")?.length ?? 0) <= 1) {
-          const misc = byNs.get("_misc") ?? [];
-          // Append to the largest non-misc bucket (most likely the user's
-          // primary type). Stable: we sort by count desc then alpha.
-          const targetNs = Array.from(byNs.keys())
-            .filter((n) => n !== "_misc")
-            .sort((a, b) => (byNs.get(b)?.length ?? 0) - (byNs.get(a)?.length ?? 0)
-              || namespaceLabel(a).localeCompare(namespaceLabel(b)))[0];
-          if (targetNs) {
-            byNs.set(targetNs, [...(byNs.get(targetNs) ?? []), ...misc]);
-            byNs.delete("_misc");
-          }
-        }
-        const sortedNamespaces = Array.from(byNs.keys()).sort((a, b) => {
-          // _misc last; rest alphabetically by friendly label.
-          if (a === "_misc") return 1;
-          if (b === "_misc") return -1;
-          return namespaceLabel(a).localeCompare(namespaceLabel(b));
-        });
-        return sortedNamespaces.map((ns) => {
-          const list = byNs.get(ns) ?? [];
-          const slug = `_other:${ns}`;
-          return (
-            <GroupBlock
-              key={slug}
-              title={namespaceLabel(ns)}
-              weight="default"
-              fields={list}
-              valuesByDefId={valuesByDefId}
-              visibilityByDefId={visibilityByDefId}
-              onSave={handleSave}
-              onSaveVisibility={handleSaveVisibility}
-              open={openGroups.has(slug)}
-              onToggle={() => toggleOne(slug)}
-            />
-          );
-        });
-      })()}
+      {/* Sticky top-nav switcher — one pill per specialty group; the
+          active group's fields render below. Replaces the old vertical
+          stack of collapsible accordions: the rail stays stable while
+          the deep type-driven content flexes behind a horizontal nav. */}
+      {tabs.length > 0 && (
+        <div style={{
+          position: "sticky", top: 0, zIndex: 6, background: "#fff",
+          display: "flex", gap: 6, overflowX: "auto",
+          padding: "4px 0 10px", marginBottom: 10,
+          borderBottom: `1px solid ${T.borderSoft}`,
+        }}>
+          {tabs.map((t) => {
+            const filled = t.fields.reduce(
+              (n, f) => (isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n),
+              0,
+            );
+            const on = t.key === activeKey;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setActiveTab(t.key)}
+                style={{
+                  flexShrink: 0, padding: "6px 12px", borderRadius: 999,
+                  border: `1.5px solid ${on ? T.accent : T.borderSoft}`,
+                  background: on ? "rgba(15,79,62,0.08)" : "#fff",
+                  color: on ? T.ink : T.inkMuted,
+                  fontFamily: F, fontSize: 12, fontWeight: 600,
+                  cursor: "pointer", whiteSpace: "nowrap",
+                }}
+              >
+                {t.label}{" "}
+                <span style={{ opacity: 0.6, fontWeight: 500 }}>
+                  {filled}/{t.fields.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {activeTabData && (
+        <GroupBlock
+          key={activeTabData.key}
+          title={activeTabData.label}
+          weight="default"
+          fields={activeTabData.fields}
+          valuesByDefId={valuesByDefId}
+          visibilityByDefId={visibilityByDefId}
+          onSave={handleSave}
+          onSaveVisibility={handleSaveVisibility}
+          open={true}
+          onToggle={() => {}}
+        />
+      )}
       {/* Suppression footer is admin-only — talent-self UI doesn't have
           access to the workspace's legacy accordions, so the jump links
           would land them on a 404. */}
