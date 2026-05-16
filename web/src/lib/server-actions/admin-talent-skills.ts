@@ -158,7 +158,12 @@ export async function addSkill(
       return { ok: false, error: error.message };
     }
     if (error.code === "23505") {
-      return { ok: false, error: "This skill is already on the talent's profile." };
+      // PK is (talent_profile_id, taxonomy_term_id): a term can only be
+      // linked once. A 23505 means it's ALREADY on this talent's
+      // profile — the caller's intent ("have this skill") is satisfied.
+      // Treat as an idempotent no-op instead of a hard red error that
+      // aborts a normal multi-select add (the Tina/Hosts & Promo bug).
+      return { ok: true };
     }
     logServerError("addSkill", error);
     return { ok: false, error: CLIENT_ERROR.generic };
