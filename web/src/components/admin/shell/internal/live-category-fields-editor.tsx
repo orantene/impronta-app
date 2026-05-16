@@ -433,18 +433,18 @@ function VisibilityChips({
         onClick={() => click(c)}
         title={`Visible to ${c}`}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 5,
-          padding: "2px 8px", borderRadius: 999,
-          border: `1px solid ${active ? T.accent : T.borderSoft}`,
+          display: "inline-flex", alignItems: "center", gap: 4,
+          padding: "1px 7px", borderRadius: 999,
+          border: `1px solid ${active ? T.accent : "transparent"}`,
           background: active ? T.accentSoft : "transparent",
-          color: active ? T.ink : T.inkMuted,
-          fontFamily: F, fontSize: 10.5, fontWeight: 600, cursor: "pointer",
-          letterSpacing: 0.2,
+          color: active ? T.ink : T.inkDim,
+          fontFamily: F, fontSize: 10, fontWeight: 600, cursor: "pointer",
+          letterSpacing: 0.1, opacity: active ? 1 : 0.6,
         }}
       >
         <span aria-hidden style={{
-          width: 6, height: 6, borderRadius: "50%",
-          background: active ? dotColor : "rgba(11,11,13,0.20)",
+          width: 5, height: 5, borderRadius: "50%",
+          background: active ? dotColor : "rgba(11,11,13,0.18)",
         }} />
         {label}
       </button>
@@ -452,10 +452,7 @@ function VisibilityChips({
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-      <span style={{ fontSize: 9.5, fontWeight: 700, color: T.inkDim, letterSpacing: 0.4, textTransform: "uppercase", marginRight: 2 }}>
-        Visible to
-      </span>
+    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
       {chip("public", "Public", "#2E7D5B")}
       {chip("agency", "Agency", "#5B6BA0")}
       {chip("private", "Private", "#C82828")}
@@ -782,7 +779,7 @@ function FieldRow({
   const locale = readLocale();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 9 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: F }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: T.ink }}>
           {fieldLabel(field, locale)}
@@ -792,17 +789,33 @@ function FieldRow({
             fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
             background: "rgba(200,40,40,0.10)", color: T.red,
             letterSpacing: 0.4, textTransform: "uppercase",
-          }}>Required to publish</span>
+          }}>Required</span>
         )}
-        <span style={{
-          fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 3,
-          background: T.surfaceAlt, color: T.inkMuted, letterSpacing: 0.4,
-          textTransform: "uppercase",
-        }}>{field.kind}</span>
         {!isUnchanged && status === "idle" && (
           <span style={{ fontSize: 10, color: T.inkMuted, marginLeft: 4 }}>· unsaved</span>
         )}
         <StatusPill status={status} error={error} />
+        {/* Compact visibility control, right-aligned on the label row —
+            replaces the full-width "Visible to" pill row that used to sit
+            under every field (the main source of scroll bloat). */}
+        <div style={{ marginLeft: "auto" }}>
+          <VisibilityChips
+            effective={(localOverride && localOverride.length > 0
+              ? localOverride
+              : (field.default_visibility ?? [])
+            ).filter((c): c is VisChannel =>
+              c === "public" || c === "agency" || c === "private",
+            )}
+            isOverride={Array.isArray(localOverride) && localOverride.length > 0}
+            onChange={async (next) => {
+              setLocalOverride(next);
+              const res = await onSaveVisibility(next);
+              if (!res.ok) {
+                setLocalOverride(initialVisibility);
+              }
+            }}
+          />
+        </div>
       </div>
       {control}
       {/* Error wins over hint when both are present, so users see the
@@ -817,25 +830,6 @@ function FieldRow({
       ) : hint ? (
         <div style={{ fontSize: 10.5, color: T.inkMuted, fontFamily: F }}>{hint}</div>
       ) : null}
-      {/* A3 — visibility chip strip. Always shown so the talent / admin
-          knows the default reach even when no value exists yet. The
-          strip writes via setTalentFieldVisibility on click. */}
-      <VisibilityChips
-        effective={(localOverride && localOverride.length > 0
-          ? localOverride
-          : (field.default_visibility ?? [])
-        ).filter((c): c is VisChannel =>
-          c === "public" || c === "agency" || c === "private",
-        )}
-        isOverride={Array.isArray(localOverride) && localOverride.length > 0}
-        onChange={async (next) => {
-          setLocalOverride(next);
-          const res = await onSaveVisibility(next);
-          if (!res.ok) {
-            setLocalOverride(initialVisibility);
-          }
-        }}
-      />
     </div>
   );
 }
