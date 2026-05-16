@@ -128,15 +128,6 @@ function isFieldSuppressed(f: { field_key: string; field_group_slug: string | nu
   return !!SUPPRESSED_NAMESPACES[namespaceFor(f.field_key)];
 }
 
-/** Where a suppressed field is actually edited (rail section id). */
-function destinationFor(f: { field_key: string; field_group_slug: string | null }): string | null {
-  if (f.field_key in SUPPRESSION_DESTINATIONS) return SUPPRESSION_DESTINATIONS[f.field_key];
-  if (f.field_group_slug && SUPPRESSED_GROUP_SLUGS[f.field_group_slug]) {
-    return SUPPRESSED_GROUP_SLUGS[f.field_group_slug];
-  }
-  return SUPPRESSED_NAMESPACES[namespaceFor(f.field_key)] ?? null;
-}
-
 // "General" profile groups — global, always-on, NOT driven by talent
 // type (the "Creator extras / Experience / Media" the user saw show up
 // for an untyped talent). They render in a compact block inside About,
@@ -146,27 +137,6 @@ const GENERAL_NAMESPACES = new Set(["creator", "experience", "media", "skills"])
 function isGeneralField(f: { field_key: string }): boolean {
   return GENERAL_NAMESPACES.has(namespaceFor(f.field_key));
 }
-
-// Human label for each destination — what the editor should call the
-// section the user needs to jump to. Mirrors SECTION_META in drawers.tsx
-// but kept local so the editor doesn't have to import the drawer's huge
-// shared module.
-const DESTINATION_LABEL: Record<string, string> = {
-  identity:   "Identity",
-  location:   "Location",
-  logistics:  "Logistics",
-  about:      "About",
-  languages:  "Languages",
-  media:      "Media",
-  albums:     "Albums",
-  polaroids:  "Polaroids",
-  credits:    "Credits",
-  files:      "Files",
-  rates:      "Rates",
-  limits:     "Restrictions",
-  availability: "Availability",
-  verifications: "Trust",
-};
 
 // Friendly label for each field_key namespace prefix — used to sub-group
 // the "Other" bucket into per-talent-type sub-blocks instead of one giant
@@ -1010,7 +980,6 @@ export type EditorServerActions = {
 export function LiveCategoryFieldsEditor({
   talentProfileId,
   onCountsChange,
-  onJumpToSection,
   serverActions,
   viewMode = "admin",
   scope = "specialty",
@@ -1021,10 +990,6 @@ export function LiveCategoryFieldsEditor({
    *  save). Lets the parent drawer surface a completeness dot in the rail
    *  without duplicating the data fetch. */
   onCountsChange?: (counts: { filled: number; total: number }) => void;
-  /** Called when the user clicks a "managed in [Section]" jump link in the
-   *  suppressed-fields footer. Drawer wires this to setActiveSection so the
-   *  appropriate accordion expands. */
-  onJumpToSection?: (sectionId: string) => void;
   /** Optional override for the value/visibility server actions. Defaults to
    *  the admin pair. Talent-self callers pass the talent pair so writes go
    *  through `requireTalent` + ownership + editable_by_talent gate. */
@@ -1091,12 +1056,6 @@ export function LiveCategoryFieldsEditor({
         // Specialty mount: type-driven only — drop suppressed AND the
         // general groups (they live in About now).
         : !isFieldSuppressed(f) && !isGeneralField(f)),
-    [allFields, scope],
-  );
-  const suppressedPresent = useMemo(
-    () => scope === "general"
-      ? []
-      : (allFields ?? []).filter((f) => isFieldSuppressed(f) && !isGeneralField(f)),
     [allFields, scope],
   );
 
@@ -1438,88 +1397,6 @@ export function LiveCategoryFieldsEditor({
           onToggle={() => {}}
         />
       )}
-      {/* Suppression footer is admin-only — talent-self UI doesn't have
-          access to the workspace's legacy accordions, so the jump links
-          would land them on a 404. */}
-      {viewMode === "admin" && suppressedPresent.length > 0 && (() => {
-        // Group suppressed fields by their destination section so the
-        // footer reads as a navigable map ("Identity → 6 fields …") rather
-        // than a flat undifferentiated note. Fields whose destination is
-        // null (consent, reviews) are bundled under "System".
-        const byDest = new Map<string, ResolvedField[]>();
-        for (const f of suppressedPresent) {
-          const dest = destinationFor(f) ?? "_system";
-          const list = byDest.get(dest) ?? [];
-          list.push(f);
-          byDest.set(dest, list);
-        }
-        const orderedDests = Array.from(byDest.keys()).sort((a, b) => {
-          if (a === "_system") return 1;
-          if (b === "_system") return -1;
-          return (DESTINATION_LABEL[a] ?? a).localeCompare(DESTINATION_LABEL[b] ?? b);
-        });
-        return (
-          <div style={{
-            marginTop: 14, padding: "12px 14px", borderRadius: 10,
-            background: T.surfaceAlt, border: `1px dashed ${T.border}`,
-            fontFamily: F,
-          }}>
-            <div style={{
-              fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4,
-              textTransform: "uppercase", fontWeight: 600, marginBottom: 8,
-            }}>
-              {suppressedPresent.length} fields managed in other sections
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {orderedDests.map((dest) => {
-                const list = byDest.get(dest) ?? [];
-                const label = dest === "_system" ? "System" : (DESTINATION_LABEL[dest] ?? dest);
-                // B6 — show the current value next to each label so the user
-                // can see at a glance what's set without jumping. Falls back
-                // to just the label when the field is empty.
-                const fmt = (v: unknown): string => {
-                  if (v === null || v === undefined || v === "") return "";
-                  if (Array.isArray(v)) return v.slice(0, 3).join(", ");
-                  const s = String(v);
-                  return s.length > 24 ? `${s.slice(0, 22)}…` : s;
-                };
-                const labels = list.slice(0, 4).map((f) => {
-                  const val = fmt(valuesByDefId.get(f.field_definition_id));
-                  return val ? `${f.label}: ${val}` : f.label;
-                });
-                const more = list.length - labels.length;
-                const clickable = dest !== "_system" && !!onJumpToSection;
-                return (
-                  <div key={dest} style={{
-                    display: "flex", alignItems: "baseline", gap: 8,
-                    fontSize: 11.5, color: T.ink, lineHeight: 1.5,
-                  }}>
-                    {clickable ? (
-                      <button
-                        type="button"
-                        onClick={() => onJumpToSection!(dest)}
-                        style={{
-                          background: "transparent", border: "none", padding: 0,
-                          cursor: "pointer", color: T.accent, fontWeight: 700,
-                          fontFamily: F, fontSize: 11.5, textDecoration: "underline",
-                          flexShrink: 0,
-                        }}
-                      >{label} →</button>
-                    ) : (
-                      <span style={{ fontWeight: 700, color: T.inkMuted, flexShrink: 0 }}>
-                        {label}
-                      </span>
-                    )}
-                    <span style={{ color: T.inkMuted }}>
-                      {labels.join(" · ")}{more > 0 ? ` · +${more} more` : ""}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }

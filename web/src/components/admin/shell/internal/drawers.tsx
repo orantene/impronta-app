@@ -7376,11 +7376,6 @@ function TalentProfileShellDrawer() {
                   talentProfileId={payload.talentId}
                   refreshKey={taxonomyVersion}
                   onCountsChange={setProfileFieldCounts}
-                  onJumpToSection={(s) => {
-                    if ((PROFILE_SECTIONS as readonly string[]).includes(s)) {
-                      setActiveSection(s as ProfileSectionId);
-                    }
-                  }}
                 />
               </section>
             )}
