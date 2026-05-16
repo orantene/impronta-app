@@ -534,20 +534,22 @@ function ThreeSlotPhotoPanel({
           currentAvatarAssetId={currentAvatarAssetId}
           currentHeroAssetId={currentHeroAssetId}
           locale={locale}
-          onSetAvatar={async (mediaAssetId) => {
+          onSetAvatar={async (mediaAssetId, assetUrl) => {
             const res = await setTalentAvatar(tenantSlug, talentId, mediaAssetId);
             if (res.ok) {
-              const hit = assets.find(a => a.id === mediaAssetId);
-              if (hit) setAvatarUrl(hit.url);
+              // assetUrl is passed for freshly-cropped assets that aren't in
+              // `assets` yet; fall back to the list for already-loaded photos.
+              const url = assetUrl ?? assets.find(a => a.id === mediaAssetId)?.url;
+              if (url) setAvatarUrl(url);
               setCurrentAvatarAssetId(mediaAssetId);
             }
             return res;
           }}
-          onSetHero={async (mediaAssetId) => {
+          onSetHero={async (mediaAssetId, assetUrl) => {
             const res = await setTalentHero(tenantSlug, talentId, mediaAssetId);
             if (res.ok) {
-              const hit = assets.find(a => a.id === mediaAssetId);
-              if (hit) setHeroUrl(hit.url);
+              const url = assetUrl ?? assets.find(a => a.id === mediaAssetId)?.url;
+              if (url) setHeroUrl(url);
               setCurrentHeroAssetId(mediaAssetId);
             }
             return res;

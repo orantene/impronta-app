@@ -39,8 +39,13 @@ export interface MediaGalleryDrawerProps {
   /** Which slot to highlight when opened. */
   focusSlot?: "avatar" | "hero" | "gallery";
   // Server action wrappers — caller provides these so we don't import server actions directly
-  onSetAvatar: (mediaAssetId: string) => Promise<{ ok: boolean; error?: string }>;
-  onSetHero: (mediaAssetId: string) => Promise<{ ok: boolean; error?: string }>;
+  // assetUrl is the resolved URL of the asset being promoted. The parent
+  // renders the slot thumbnail from a URL; for a freshly-cropped asset that
+  // URL is NOT yet in the parent's `assets` array (the crop handler adds it
+  // after promoting), so callers MUST pass it through here or the slot
+  // silently stays empty after a crop→set.
+  onSetAvatar: (mediaAssetId: string, assetUrl?: string) => Promise<{ ok: boolean; error?: string }>;
+  onSetHero: (mediaAssetId: string, assetUrl?: string) => Promise<{ ok: boolean; error?: string }>;
   onAddToPortfolio: (storagePath: string, width: number, height: number) => Promise<{ ok: boolean; error?: string; id?: string }>;
   onDeleteAsset: (mediaAssetId: string) => Promise<{ ok: boolean; error?: string }>;
   onUploadFile: (file: File, variantKind: string, sourceMediaAssetId?: string | null) => Promise<{ ok: boolean; error?: string; asset?: MediaAsset }>;
@@ -328,7 +333,7 @@ export function MediaGalleryDrawer({
 
   const handleSetAvatar = useCallback(async (asset: MediaAsset) => {
     setPhotoStatus(asset.id, { kind: "busy", action: "avatar" });
-    const res = await onSetAvatar(asset.id);
+    const res = await onSetAvatar(asset.id, asset.url);
     if (res.ok) {
       setPhotoStatus(asset.id, { kind: "ok", action: "avatar" });
       clearPhotoStatusLater(asset.id);
@@ -339,7 +344,7 @@ export function MediaGalleryDrawer({
 
   const handleSetHero = useCallback(async (asset: MediaAsset) => {
     setPhotoStatus(asset.id, { kind: "busy", action: "hero" });
-    const res = await onSetHero(asset.id);
+    const res = await onSetHero(asset.id, asset.url);
     if (res.ok) {
       setPhotoStatus(asset.id, { kind: "ok", action: "hero" });
       clearPhotoStatusLater(asset.id);
@@ -402,13 +407,13 @@ export function MediaGalleryDrawer({
     // promote fails after the upload succeeded, clean up the orphan so we
     // don't leave a stray gallery photo the user didn't ask for.
     if (role === "profile") {
-      const r = await onSetAvatar(res.asset.id);
+      const r = await onSetAvatar(res.asset.id, res.asset.url);
       if (!r.ok) {
         void onDeleteAsset(res.asset.id);
         throw new Error(r.error ?? t("admin.talent.edit.mediaGallery.couldNotSetAvatar"));
       }
     } else if (role === "cover") {
-      const r = await onSetHero(res.asset.id);
+      const r = await onSetHero(res.asset.id, res.asset.url);
       if (!r.ok) {
         void onDeleteAsset(res.asset.id);
         throw new Error(r.error ?? t("admin.talent.edit.mediaGallery.couldNotSetHero"));
@@ -859,7 +864,23 @@ export function MediaGalleryDrawer({
                           isBulkMode={isBulkMode}
                           isSelected={isSelected}
                           onToggleSelect={() => toggleSelect(asset.id)}
-                          onClickPhoto={() => setLightboxAsset(asset)}
+                          onClickPhoto={() => {
+                            // When the drawer was opened to fill a specific
+                            // slot, picking a photo should go STRAIGHT to the
+                            // cropper at that slot's aspect (the user expects
+                            // "open photo → choose the crop → save"), not the
+                            // generic multi-button preview. handleCropConfirm
+                            // already uploads + auto-promotes the result, so
+                            // saving the crop sets it as the cover/profile.
+                            // Gallery (browse/manage) mode keeps the preview.
+                            if (focusSlot === "hero") {
+                              setCropTarget({ asset, cropAspect: 16 / 9 });
+                            } else if (focusSlot === "avatar") {
+                              setCropTarget({ asset, cropAspect: 1 });
+                            } else {
+                              setLightboxAsset(asset);
+                            }
+                          }}
                           onSetAvatar={() => handleSetAvatar(asset)}
                           onSetHero={() => handleSetHero(asset)}
                           onAddToPortfolio={() => handleAddToPortfolio(asset)}
@@ -942,13 +963,13 @@ export function MediaGalleryDrawer({
           onSetAvatar={async () => {
             // Promote without recropping — uses the underlying server action
             // that flips variant_kind=card on the existing storage_path.
-            const r = await onSetAvatar(lightboxAsset.id);
+            const r = await onSetAvatar(lightboxAsset.id, lightboxAsset.url);
             if (r.ok) {
               setLightboxAsset(null);
             }
           }}
           onSetHero={async () => {
-            const r = await onSetHero(lightboxAsset.id);
+            const r = await onSetHero(lightboxAsset.id, lightboxAsset.url);
             if (r.ok) {
               setLightboxAsset(null);
             }

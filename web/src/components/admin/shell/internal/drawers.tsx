@@ -8125,19 +8125,21 @@ function TalentProfileShellDrawer() {
             assets={galleryAssets}
             onAssetsChange={setGalleryAssets}
             focusSlot={galleryDrawerFocus}
-            onSetAvatar={async (mediaAssetId) => {
+            onSetAvatar={async (mediaAssetId, assetUrl) => {
               const res = await setTalentAvatar(tenantSlug, payload.talentId!, mediaAssetId);
               if (res.ok) {
-                const hit = galleryAssets.find(a => a.id === mediaAssetId);
-                if (hit) setAvatarPhotoUrl(hit.url);
+                // assetUrl covers freshly-cropped assets not yet in
+                // galleryAssets; fall back to the list otherwise.
+                const url = assetUrl ?? galleryAssets.find(a => a.id === mediaAssetId)?.url;
+                if (url) setAvatarPhotoUrl(url);
               }
               return res;
             }}
-            onSetHero={async (mediaAssetId) => {
+            onSetHero={async (mediaAssetId, assetUrl) => {
               const res = await setTalentHero(tenantSlug, payload.talentId!, mediaAssetId);
               if (res.ok) {
-                const hit = galleryAssets.find(a => a.id === mediaAssetId);
-                if (hit) setHeroPhotoUrl(hit.url);
+                const url = assetUrl ?? galleryAssets.find(a => a.id === mediaAssetId)?.url;
+                if (url) setHeroPhotoUrl(url);
               }
               return res;
             }}
