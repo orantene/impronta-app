@@ -136,7 +136,16 @@ export function PhotoCropperDialog({
     }
   }, [open, aspect]);
 
-  const onCropComplete = useCallback((_: Area, pixels: Area) => {
+  // react-easy-crop v5 only fires `onCropComplete` on a clean drag-STOP
+  // (mouseup caught by its document listener) or on mount. When the
+  // controlled `crop` prop changes mid-drag it instead fires ONLY
+  // `onCropAreaChange` (see componentDidUpdate → emitCropAreaChange in
+  // react-easy-crop). Wiring this handler to BOTH callbacks guarantees
+  // `croppedAreaPixels` always tracks the live crop region — otherwise a
+  // missed stop event (release outside window, touch-cancel, programmatic
+  // pan) silently saves the default centered crop instead of what the
+  // user positioned. Do not remove the onCropAreaChange wiring.
+  const syncCroppedArea = useCallback((_: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels);
   }, []);
 
@@ -277,7 +286,8 @@ export function PhotoCropperDialog({
             aspect={resolvedAspect}
             onCropChange={setCrop}
             onZoomChange={setZoom}
-            onCropComplete={onCropComplete}
+            onCropComplete={syncCroppedArea}
+            onCropAreaChange={syncCroppedArea}
             objectFit="contain"
             showGrid={true}
             zoomSpeed={0.8}
