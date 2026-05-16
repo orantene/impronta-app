@@ -6684,16 +6684,25 @@ function TalentProfileShellDrawer() {
               { label: "Proof", ids: ["credits", "social_proof", "verifications", "refinement"] },
               { label: "Back office", ids: ["files", "admin"] },
             ];
+            // One source of truth: when the NEW DB-driven engine is
+            // mounted (real talent + tenant), it supersedes the legacy
+            // field_values/dynamicGroups editor. Collapse the OLD
+            // accordions (refinement / physical / wardrobe / details) so
+            // a tenant talent edits through exactly ONE engine. The
+            // underlying field_values data is untouched — Discover and
+            // the public profile still read it; this only stops the
+            // drawer double-rendering the same concepts.
+            const newEngineActive = !!(bridgeTenantIdentity?.tenantId && payload.talentId);
             const visible = (s: ProfileSectionId) => {
               if (!s) return false;
               if (s === "admin" && !adminVisible) return false;
+              if ((s === "refinement" || s === "physical" || s === "wardrobe" || s === "details") && newEngineActive) return false;
               if (s === "details" && dynamicGroups.length === 0) return false;
               if (s === "physical" && !dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical"))) return false;
               if (s === "wardrobe" && !dynamicGroups.some(g => g.fields.some(f => f.subsection === "wardrobe"))) return false;
-              if (s === "refinement" && bridgeTenantIdentity?.tenantId && payload.talentId) return false;
               // Profile fields editor only mounts when there's a real talent
               // + tenant context (bridge below the editor enforces the same).
-              if (s === "profile_fields" && !(payload.talentId && bridgeTenantIdentity?.tenantId)) return false;
+              if (s === "profile_fields" && !newEngineActive) return false;
               return true;
             };
             // Top-of-rail summary: how many sections are complete out of

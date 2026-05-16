@@ -57,12 +57,32 @@ On **https://app.tulala.digital** → Workspace → Roster → open a talent's
 
 If any step is off, that's the bug to fix next — report the step number.
 
-## 4. Honest gaps (Phase C/D, in progress)
+## 4. Phase C — one source of truth (DONE for the editing UX)
 
-- **One source of truth not yet complete**: the OLD `field_definitions` /
-  dynamicGroups path (legacy Physical/Wardrobe/Details) still co-exists —
-  Phase C retires it.
-- Some hardcoded slices remain bespoke (Logistics serviceArea) — Phase C
-  decides engine-driven vs intentionally-bespoke.
-- Design consistency pass on section/accordion chrome — Phase D1.
-- Talent dashboard parity — Phase D3.
+**C1 (shipped):** When the NEW DB-driven engine is mounted (real talent +
+tenant — the canonical case), the legacy `field_values`/dynamicGroups
+accordions (refinement / physical / wardrobe / details) are now hidden.
+A tenant talent edits through **exactly one engine** (the Specialty
+switcher). The legacy render code remains only for non-tenant/create
+contexts where the new engine isn't mounted.
+
+**C2 — architecture decision (deliberate, documented):**
+
+| Slice | Engine | Why |
+|---|---|---|
+| Type-driven specialty fields | **NEW** `profile_field_definitions` (one engine) | The whole point — dynamic per talent type |
+| Legacy physical/wardrobe/details | Hidden when NEW active; data in `field_values` retained | No destructive migration — Discover + public profile still read `field_values`. "Keep the data." |
+| Identity / About / Location / Logistics / Rates / Availability / Media / Albums / Polaroids | **Intentionally bespoke** (NOT migrated) | Each has a rich custom UI (Places map, photo upload, bio AI, seasonal grid) and feeds specific downstream consumers (Discover filters, booking pre-checks, public profile). Forcing them through the generic field engine would regress UX and risk those readers. They are *consistent* (shared input/toggle/visibility primitives) without being *the same engine*. |
+
+Net: "one source of truth" holds where it matters — the **variable,
+type-driven** field set is one engine. Fixed structural sections stay
+bespoke by design, not by omission. A future hard migration of
+`field_values` → `talent_profile_field_values` (and repointing Discover/
+public readers) is possible but is a separate, data-risk-managed project,
+deliberately not bundled here.
+
+## 5. Remaining (Phase D)
+
+- Design consistency pass on section/accordion chrome — D1.
+- Input-type UX pass (free-text → structured where it helps) — D2.
+- Talent dashboard parity (reuse the proven engine) — D3.
