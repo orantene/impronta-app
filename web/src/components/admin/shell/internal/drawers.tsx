@@ -4467,7 +4467,7 @@ const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string; emoji
   albums:        { label: "Albums",        emoji: "🗂" },
   polaroids:     { label: "Polaroids",     emoji: "🪪" },
   about:         { label: "About",         emoji: "✏️" },
-  profile_fields:{ label: "Specialty details", emoji: "🧬" },
+  profile_fields:{ label: "Details", emoji: "🧬" },
   physical:      { label: "Physical",      emoji: "📐" },
   wardrobe:      { label: "Wardrobe",      emoji: "👗" },
   details:       { label: "Details",       emoji: "📋" },
@@ -6769,8 +6769,8 @@ function TalentProfileShellDrawer() {
             // for non-admins, details with no fields) are filtered out and
             // empty groups collapse so the rail stays tight.
             const RAIL_GROUPS: { label: string; ids: ProfileSectionId[] }[] = [
-              { label: "Profile", ids: ["identity", "about", "services"] },
-              { label: "Craft", ids: ["profile_fields", "physical", "wardrobe", "details"] },
+              { label: "Profile", ids: ["identity", "about", "services", "profile_fields"] },
+              { label: "Craft", ids: ["physical", "wardrobe", "details"] },
               { label: "Where & when", ids: ["location", "logistics", "availability"] },
               { label: "Portfolio", ids: ["media", "albums", "polaroids"] },
               { label: "Terms", ids: ["rates", "limits"] },

@@ -1304,7 +1304,7 @@ export function LiveCategoryFieldsEditor({
           fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4,
           textTransform: "uppercase", fontWeight: 600,
         }}>
-          {scope === "general" ? "General profile" : "Specialty details"} · {totalFilled} of {fields.length} filled · saves on blur
+          {scope === "general" ? "General profile" : "Details"} · {totalFilled} of {fields.length} filled · saves on blur
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {requiredMissing > 0 && (
