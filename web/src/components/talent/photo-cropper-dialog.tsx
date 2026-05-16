@@ -35,6 +35,14 @@ async function getCroppedBlob(
   canvas.height = pixelCrop.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas context unavailable.");
+  // If the crop frame ever extends past the source edge (sub-pixel
+  // rounding, or an aspect combo the image can't fully cover) the
+  // uncovered region would stay transparent — and a transparent band in
+  // a hero/avatar shows the page background through it. Tulala photos sit
+  // on white studio backdrops, so paint white first; any uncovered pixels
+  // then match the backdrop instead of punching a hole.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(
     img,
     pixelCrop.x,
@@ -291,9 +299,14 @@ export function PhotoCropperDialog({
             objectFit="contain"
             showGrid={true}
             zoomSpeed={0.8}
-            minZoom={0.5}
+            // minZoom 1 (not 0.5): below 1× the image is smaller than the
+            // crop frame, so the saved cover/avatar would have empty bands —
+            // never desirable. restrictPosition true keeps the frame inside
+            // the photo while panning, so you still choose which part of the
+            // photo to save, but can't drag into off-image emptiness.
+            minZoom={1}
             maxZoom={4}
-            restrictPosition={false}
+            restrictPosition={true}
           />
         </div>
 
@@ -307,13 +320,24 @@ export function PhotoCropperDialog({
           </label>
           <input
             type="range"
-            min={0.5}
+            min={1}
             max={4}
             step={0.05}
             value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
             style={{ width: "100%", accentColor: C.accent }}
           />
+          <div
+            style={{
+              fontFamily: F,
+              fontSize: 11,
+              color: C.inkMuted,
+              marginTop: 8,
+              textAlign: "center",
+            }}
+          >
+            {t("admin.talent.edit.cropper.dragHint")}
+          </div>
         </div>
 
         {/* Error state */}

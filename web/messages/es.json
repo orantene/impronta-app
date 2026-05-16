@@ -804,7 +804,8 @@
           "cancel": "Cancelar",
           "applying": "Aplicando…",
           "useCrop": "Usar recorte",
-          "cropFailed": "No se pudo recortar. Intenta de nuevo."
+          "cropFailed": "No se pudo recortar. Intenta de nuevo.",
+          "dragHint": "Arrastra la foto para elegir el encuadre · desplázate o usa el control para acercar"
         },
         "delete": {
           "btn": "Quitar de la lista",

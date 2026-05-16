@@ -15,6 +15,13 @@ export async function getCroppedImageBlob(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas not supported");
 
+  // Paint white before drawing: if the crop frame extends past the source
+  // edge the uncovered region would otherwise be transparent, which shows
+  // the page background through a hero/avatar. Tulala photos are on white
+  // studio backdrops, so white-fill keeps any uncovered pixels seamless.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   ctx.drawImage(
     image,
     pixelCrop.x,

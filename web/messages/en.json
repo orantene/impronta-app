@@ -804,7 +804,8 @@
           "cancel": "Cancel",
           "applying": "Applying…",
           "useCrop": "Use crop",
-          "cropFailed": "Crop failed. Try again."
+          "cropFailed": "Crop failed. Try again.",
+          "dragHint": "Drag the photo to choose what's in frame · scroll or use the slider to zoom"
         },
         "delete": {
           "btn": "Remove from roster",
