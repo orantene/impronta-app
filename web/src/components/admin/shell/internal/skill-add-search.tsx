@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 
 import {
   addSkill,
+  addSkills,
   getEnabledParentCategoriesForPicker,
   getTalentTypesUnderParent,
   requestNewTaxonomyTerm,
@@ -151,18 +152,24 @@ export function AddSkillSearch({
     if (selected.size === 0) return;
     setSubmitting(true);
     setError(null);
-    for (const typeId of selected) {
-      const res = await addSkill({
-        talent_profile_id: talentProfileId,
-        talent_type_term_id: typeId,
-        role,
-        proficiency_level: "intermediate",
-      });
-      if (!res.ok) {
-        setError(res.error);
-        setSubmitting(false);
-        return;
-      }
+    const selectedIds = Array.from(selected);
+    const res = selectedIds.length === 1
+      ? await addSkill({
+          talent_profile_id: talentProfileId,
+          talent_type_term_id: selectedIds[0]!,
+          role,
+          proficiency_level: "intermediate",
+        })
+      : await addSkills({
+          talent_profile_id: talentProfileId,
+          talent_type_term_ids: selectedIds,
+          role,
+          proficiency_level: "intermediate",
+        });
+    if (!res.ok) {
+      setError(res.error);
+      setSubmitting(false);
+      return;
     }
     setSubmitting(false);
     onAdded();

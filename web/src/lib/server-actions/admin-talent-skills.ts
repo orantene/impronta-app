@@ -20,9 +20,9 @@ import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
-import type {
-  ProficiencyLevel,
-  ResolvedSkill,
+import {
+  MAX_TOTAL_SKILLS,
+  type ResolvedSkill,
 } from "./admin-talent-skills.types";
 
 // Types/constants live in admin-talent-skills.types.ts because Next.js
@@ -171,6 +171,124 @@ export async function addSkill(
 
   revalidatePath("/[tenantSlug]/admin/roster", "layout");
   return { ok: true };
+}
+
+const addSkillsSchema = z.object({
+  talent_profile_id: pgUuidSchema(),
+  talent_type_term_ids: z.array(pgUuidSchema()).min(1).max(MAX_TOTAL_SKILLS),
+  role: z.enum(["primary", "secondary"]),
+  proficiency_level: z
+    .enum(["beginner", "intermediate", "advanced", "expert", "master"])
+    .optional(),
+  years_experience: z.number().min(0).max(80).nullable().optional(),
+});
+
+export async function addSkills(
+  input: z.input<typeof addSkillsSchema>,
+): Promise<{ ok: true; insertedCount: number } | { ok: false; error: string }> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const parsed = addSkillsSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid request.",
+    };
+  }
+  const v = parsed.data;
+  const termIds = [...new Set(v.talent_type_term_ids)];
+
+  const { data: rosterRow } = await supabase
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", v.talent_profile_id)
+    .maybeSingle();
+  if (!rosterRow) {
+    return { ok: false, error: "Talent is not on this tenant's roster." };
+  }
+
+  const { data: terms, error: termsError } = await supabase
+    .from("taxonomy_terms")
+    .select("id, slug, term_type, level, is_active, is_generic_fallback")
+    .in("id", termIds);
+  if (termsError) {
+    logServerError("addSkills.terms", termsError);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+
+  const termsById = new Map((terms ?? []).map((term) => [term.id, term]));
+  for (const termId of termIds) {
+    const term = termsById.get(termId);
+    if (!term) return { ok: false, error: "Skill not found." };
+    if (term.term_type !== "talent_type") {
+      return { ok: false, error: "Only talent_type terms can be added as skills." };
+    }
+    if (!term.is_active) {
+      return { ok: false, error: "This skill is no longer available." };
+    }
+    if (term.is_generic_fallback) {
+      return {
+        ok: false,
+        error: "Pick a specific role — generic fallback types can't be selected.",
+      };
+    }
+  }
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from("talent_profile_taxonomy")
+    .select("taxonomy_term_id")
+    .eq("talent_profile_id", v.talent_profile_id)
+    .in("taxonomy_term_id", termIds);
+  if (existingError) {
+    logServerError("addSkills.existing", existingError);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+
+  const existingIds = new Set((existingRows ?? []).map((row) => row.taxonomy_term_id));
+  const idsToInsert = termIds.filter((termId) => !existingIds.has(termId));
+  if (idsToInsert.length === 0) return { ok: true, insertedCount: 0 };
+
+  const relationshipType = v.role === "primary" ? "primary_role" : "secondary_role";
+  const { data: existingOrder, error: orderError } = await supabase
+    .from("talent_profile_taxonomy")
+    .select("display_order")
+    .eq("talent_profile_id", v.talent_profile_id)
+    .eq("relationship_type", relationshipType)
+    .order("display_order", { ascending: false })
+    .limit(1);
+  if (orderError) {
+    logServerError("addSkills.order", orderError);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+
+  const startOrder = (existingOrder?.[0]?.display_order ?? 0) + 10;
+  const { error } = await supabase.from("talent_profile_taxonomy").insert(
+    idsToInsert.map((termId, index) => ({
+      talent_profile_id: v.talent_profile_id,
+      taxonomy_term_id: termId,
+      relationship_type: relationshipType,
+      proficiency_level: v.proficiency_level ?? null,
+      years_experience: v.years_experience ?? null,
+      display_order: startOrder + index * 10,
+      tenant_id: tenantId,
+      is_primary: v.role === "primary",
+    })),
+  );
+
+  if (error) {
+    if (error.message?.includes("9 skills") || error.message?.includes("primary skills") || error.message?.includes("secondary categories")) {
+      return { ok: false, error: error.message };
+    }
+    if (error.code === "23505") return { ok: true, insertedCount: 0 };
+    logServerError("addSkills", error);
+    return { ok: false, error: CLIENT_ERROR.generic };
+  }
+
+  revalidatePath("/[tenantSlug]/admin/roster", "layout");
+  return { ok: true, insertedCount: idsToInsert.length };
 }
 
 // ─── Update proficiency / years on an existing skill ───────────────────────
