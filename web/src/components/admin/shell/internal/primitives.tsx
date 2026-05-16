@@ -3950,7 +3950,7 @@ export function GhostButton({
 
 export type DrawerSize = "compact" | "half" | "full";
 
-const DRAWER_SIZE_PX: Record<DrawerSize, (vw: number) => number> = {
+export const DRAWER_SIZE_PX: Record<DrawerSize, (vw: number) => number> = {
   compact: () => 520,
   half: (vw) => Math.round(vw * 0.5),
   full: (vw) => Math.round(vw * 0.92),
@@ -4606,7 +4606,7 @@ export function DrawerShell({
   );
 }
 
-function SizeIcon({ variant }: { variant: DrawerSize }) {
+export function SizeIcon({ variant }: { variant: DrawerSize }) {
   // Each variant fills a different proportion of the right side of the
   // viewport rectangle — readable at a glance even at 14px. The empty
   // rectangle is the page; the filled portion is where the drawer lands.
@@ -4857,7 +4857,7 @@ export function FieldRow({
   }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
         <label
           style={{
             fontFamily: FONTS.body,
@@ -4881,50 +4881,37 @@ export function FieldRow({
             </span>
           )}
         </label>
-        {/* Top-right cluster: just the optional/recommended marker.
-            Visibility moved to its OWN line below the label row — in
-            2-column sections (Identity etc.) cramming the 3-chip strip
-            up here collided with the label + adjacent column. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {/* Right cluster, inline across from the label: small visibility
+            chips (+ recommended nudge). "Optional" removed — required is
+            the only marker now (the red * on the label). Label row
+            wraps so the chips drop below cleanly in narrow 2-col. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: "auto" }}>
           {recommended && (
             <span
               aria-label="recommended"
               style={{
                 fontFamily: FONTS.body,
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: 600,
-                letterSpacing: 0.4,
+                letterSpacing: 0.3,
                 textTransform: "uppercase",
-                padding: "2px 7px",
+                padding: "1px 6px",
                 borderRadius: 4,
                 background: COLORS.successSoft ?? "rgba(15,79,62,0.10)",
                 color: COLORS.successDeep ?? COLORS.success ?? "#0f4f3e",
               }}
             >
-              Recommended
+              Rec
             </span>
           )}
-          {optional && !recommended && (
-            <span
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 11,
-                color: COLORS.inkDim,
-              }}
-            >
-              Optional
-            </span>
+          {visibility && (
+            <ChannelVisibilityStrip
+              value={visibility}
+              onChange={onVisibilityChange}
+            />
           )}
         </div>
       </div>
-      {visibility && (
-        <div style={{ marginTop: -2 }}>
-          <ChannelVisibilityStrip
-            value={visibility}
-            onChange={onVisibilityChange}
-          />
-        </div>
-      )}
       {children}
       {error ? (
         <>

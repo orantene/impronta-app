@@ -245,6 +245,9 @@ import {
   TextInput,
   Toggle,
   DrawerShell,
+  SizeIcon,
+  DRAWER_SIZE_PX,
+  type DrawerSize,
   TrustBadgeGroup,
   RiskScorePill,
 } from "./primitives";
@@ -4940,6 +4943,43 @@ function TalentProfileShellDrawer() {
   /** Bumps when undo stack changes so header controls re-render (refs alone don't). */
   const [historyUiEpoch, setHistoryUiEpoch] = useState(0);
 
+  // Drawer sizing — same model as DrawerShell: 3 presets (compact /
+  // half / full) from a header toolbar + a draggable left edge for
+  // fine-tuning. compact = the original 720px side drawer.
+  const [pshellSize, setPshellSize] = useState<DrawerSize>("compact");
+  const [pshellCustomWidth, setPshellCustomWidth] = useState<number | null>(null);
+  const [pshellDragging, setPshellDragging] = useState(false);
+  useEffect(() => {
+    if (!pshellDragging) return;
+    const onMove = (e: MouseEvent) => {
+      setPshellCustomWidth(
+        Math.min(
+          Math.max(window.innerWidth - e.clientX, 420),
+          Math.round(window.innerWidth * 0.96),
+        ),
+      );
+    };
+    const onUp = () => setPshellDragging(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [pshellDragging]);
+  const pshellWidth =
+    typeof window === "undefined"
+      ? 720
+      : pshellCustomWidth
+        ? pshellCustomWidth
+        : pshellSize === "compact"
+          ? 720
+          : DRAWER_SIZE_PX[pshellSize](window.innerWidth);
+
   useEffect(() => {
     if (!drawerOpen) return;
     allowMarkDirtyRef.current = mode === "create" || !payload.talentId;
@@ -6212,12 +6252,29 @@ function TalentProfileShellDrawer() {
       fontFamily: FONTS.body,
     }}>
       <div onClick={e => e.stopPropagation()} data-tulala-pshell style={{
-        width: "100%", maxWidth: 720, height: "100vh",
+        width: "100%", maxWidth: pshellWidth, height: "100vh",
         background: "#fff",
         display: "flex", flexDirection: "column",
         overflow: "hidden",
+        position: "relative",
+        transition: pshellDragging ? "none" : "max-width .2s cubic-bezier(.4,0,.2,1)",
         boxShadow: "-12px 0 40px -12px rgba(11,11,13,0.18)",
       }}>
+        {/* Draggable left edge — drag to fine-tune the drawer width.
+            Sits inside the panel (its overflow:hidden clips a negative
+            offset) so width:6 at left:0 is the grab strip. */}
+        <div
+          onMouseDown={(e) => { e.preventDefault(); setPshellDragging(true); }}
+          role="separator"
+          aria-label={copy.t("Resize drawer")}
+          title={copy.t("Drag to resize")}
+          style={{
+            position: "absolute", top: 0, left: 0, width: 6, height: "100%",
+            cursor: "ew-resize", zIndex: 60, background: "transparent",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.06)"; }}
+          onMouseLeave={(e) => { if (!pshellDragging) e.currentTarget.style.background = "transparent"; }}
+        />
         <style>{`
           /* 2026 #3 — Container queries replace viewport-width media
              queries. The shell now responds to its OWN width, not the
@@ -6480,6 +6537,31 @@ function TalentProfileShellDrawer() {
 
           {/* Desktop-only toolbar — every secondary action lives here. */}
           <div data-pshell-header-extras style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            {/* Drawer size presets — compact / half / full (same control
+                as DrawerShell). Drag the left edge to fine-tune. */}
+            <div style={{ display: "inline-flex", background: "rgba(11,11,13,0.04)", borderRadius: 8, padding: 2 }}>
+              {(["compact", "half", "full"] as DrawerSize[]).map((sz) => {
+                const active = pshellCustomWidth === null && pshellSize === sz;
+                return (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => { setPshellCustomWidth(null); setPshellSize(sz); }}
+                    aria-label={`${sz} size`}
+                    title={sz === "compact" ? copy.t("Side drawer") : sz === "half" ? copy.t("Half-page") : copy.t("Full-page")}
+                    style={{
+                      background: active ? "#fff" : "transparent",
+                      boxShadow: active ? "0 1px 3px rgba(11,11,13,0.10)" : "none",
+                      border: "none", padding: "5px 8px", borderRadius: 6,
+                      cursor: "pointer", color: active ? COLORS.ink : COLORS.inkMuted,
+                      display: "inline-flex", alignItems: "center",
+                    }}
+                  >
+                    <SizeIcon variant={sz} />
+                  </button>
+                );
+              })}
+            </div>
             <button type="button" onClick={() => setViewAsClient(true)} title={copy.t("View as client")} aria-label={copy.t("View as client")} style={{
               padding: "5px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
               background: "#fff", color: COLORS.ink,

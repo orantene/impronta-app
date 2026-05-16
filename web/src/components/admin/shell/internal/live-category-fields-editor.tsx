@@ -750,7 +750,7 @@ function FieldRow({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 9 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: F }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: F, flexWrap: "wrap", rowGap: 4 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: T.ink }}>
           {fieldLabel(field, locale)}
         </label>
@@ -765,26 +765,27 @@ function FieldRow({
           <span style={{ fontSize: 10, color: T.inkMuted, marginLeft: 4 }}>· unsaved</span>
         )}
         <StatusPill status={status} error={error} />
+        {/* Visibility chips inline, right-aligned across from the label
+            (small). Row wraps so they drop below cleanly when narrow. */}
+        <div style={{ marginLeft: "auto" }}>
+          <VisibilityChips
+            effective={(localOverride && localOverride.length > 0
+              ? localOverride
+              : (field.default_visibility ?? [])
+            ).filter((c): c is VisChannel =>
+              c === "public" || c === "agency" || c === "private",
+            )}
+            isOverride={Array.isArray(localOverride) && localOverride.length > 0}
+            onChange={async (next) => {
+              setLocalOverride(next);
+              const res = await onSaveVisibility(next);
+              if (!res.ok) {
+                setLocalOverride(initialVisibility);
+              }
+            }}
+          />
+        </div>
       </div>
-      {/* Visibility on its own line under the label — identical
-          placement to the hardcoded FieldRow so every section reads
-          the same and it never collides in 2-column layouts. */}
-      <VisibilityChips
-        effective={(localOverride && localOverride.length > 0
-          ? localOverride
-          : (field.default_visibility ?? [])
-        ).filter((c): c is VisChannel =>
-          c === "public" || c === "agency" || c === "private",
-        )}
-        isOverride={Array.isArray(localOverride) && localOverride.length > 0}
-        onChange={async (next) => {
-          setLocalOverride(next);
-          const res = await onSaveVisibility(next);
-          if (!res.ok) {
-            setLocalOverride(initialVisibility);
-          }
-        }}
-      />
       {control}
       {/* Error wins over hint when both are present, so users see the
           actionable message first. Pre-edit hints + post-edit errors
