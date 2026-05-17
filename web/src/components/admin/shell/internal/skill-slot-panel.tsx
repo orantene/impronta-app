@@ -21,7 +21,7 @@
 // ProficiencyLabel re-exports for any downstream consumers.
 // ============================================================================
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getAspirations,
@@ -126,6 +126,31 @@ export function SkillSlotPanel({
   // Phase 7.3 — narrow isAdmin by viewMode. Talent-self mode hides admin
   // controls (Verify, scope toggle) regardless of caller's isAdmin.
   const adminControls = isAdmin && viewMode === "admin";
+
+  // ─── Race-safe mutation plumbing ─────────────────────────────────────────
+  // skillsRef always mirrors the latest applied skills. Mutation handlers
+  // build their desired set from THIS, never the render closure — so a rapid
+  // second remove sees the first removal already applied (else its setAll
+  // would re-include the just-removed term and the server faithfully
+  // restores it). mutationSeqRef monotonically tags every add/remove; only
+  // the newest in-flight call may write UI/cache, so an out-of-order older
+  // response can't overwrite newer truth. Safe because every call is a full
+  // setAll: the newest desired set already encodes all prior removals.
+  const skillsRef = useRef<ResolvedSkill[] | null>(null);
+  const mutationSeqRef = useRef(0);
+  useEffect(() => {
+    skillsRef.current = skills;
+  }, [skills]);
+
+  // Mount marker — proves THIS component (the real setAll-wired panel) is
+  // what's on screen for the tested talent. If QA never sees this line,
+  // the Services UI is rendering a different/legacy/display-only surface.
+  useEffect(() => {
+    console.info(
+      `[skills-ui] SkillSlotPanel mounted talent=${talentProfileId} ` +
+        `mode=${viewMode} admin=${adminControls}`,
+    );
+  }, [talentProfileId, viewMode, adminControls]);
 
   const fetchData = async (useCache: boolean) => {
     if (useCache) {
@@ -289,57 +314,97 @@ export function SkillSlotPanel({
   };
 
   const handleRemove = async (skill: ResolvedSkill) => {
-    if (!confirm(copy.isSpanish
-      ? `¿Quitar "${copy.term(skill.skill_name_en, skill.skill_name_es)}" de este perfil?`
-      : `Remove "${skill.skill_name_en}" from this profile?`
-    )) return;
-    const previousSkills = skills;
-    const nextSkills = previousSkills
-      ? previousSkills.filter((s) => s.skill_term_id !== skill.skill_term_id)
-      : previousSkills;
+    // Click marker BEFORE any gate/async — if this never logs, the click
+    // isn't reaching handleRemove (wrong surface / display-only chip).
+    console.info(
+      `[skills-ui] remove clicked label="${skill.skill_name_en}" ` +
+        `id=${skill.skill_term_id} role=${skill.relationship_type}`,
+    );
+    // No native window.confirm() gate: it BLOCKS and is auto-dismissed by
+    // agent/automated browsers (returns false), which silently aborted the
+    // whole mutation before any log/state/server call — the reported QA
+    // failure. Removal is optimistic, server-validated, and rolls back on
+    // error, so a per-chip modal is both the QA blocker and redundant.
+    const seq = ++mutationSeqRef.current;
+    const reqId = `rm-${seq}`;
+    // Desired final state is computed from the LATEST applied skills (ref),
+    // never the render closure: a rapid 2nd remove must see the 1st removal
+    // already applied or its setAll re-includes that term and the server
+    // restores it (the reported "removed roles come back" bug).
+    const base = skillsRef.current ?? [];
+    const rollbackSnapshot = base;
+    console.info(
+      `[skills-ui] ${reqId} seq=${seq} desired-before-remove=[` +
+        `${base.map((s) => s.skill_term_id).join(",")}]`,
+    );
+    const nextSkills = base.filter(
+      (s) => s.skill_term_id !== skill.skill_term_id,
+    );
+    const desired = nextSkills.map((s) => ({
+      taxonomy_term_id: s.skill_term_id,
+      role: (s.relationship_type === "primary_role"
+        ? "primary"
+        : "secondary") as "primary" | "secondary",
+    }));
     setSaving(skill.skill_term_id, true);
-    // Optimistic: drop the chip immediately.
+    // Optimistic: drop the chip immediately AND advance the ref synchronously
+    // so a same-tick next remove (or a pending add) builds its desired set
+    // off this result.
+    skillsRef.current = nextSkills;
     setSkills(nextSkills);
-    // P5 — remove goes through the SAME setAll source of truth as add.
-    // Desired final state = current skills minus the removed one (roles
-    // preserved). The server diffs/deletes and returns the authoritative
-    // final list; we reconcile UI + cache to THAT (not an optimistic-only
-    // write that desyncs on reopen — the prior bug). onSkillsChanged()
-    // because removing a role re-resolves the field catalog (single
-    // shared LCFE fetch via P3-phase-2). No reload cascade.
-    const desired = (previousSkills ?? [])
-      .filter((s) => s.skill_term_id !== skill.skill_term_id)
-      .map((s) => ({
-        taxonomy_term_id: s.skill_term_id,
-        role: (s.relationship_type === "primary_role"
-          ? "primary"
-          : "secondary") as "primary" | "secondary",
-      }));
+    console.info(
+      `[skills-ui] ${reqId} seq=${seq} remove="${skill.skill_name_en}" ` +
+        `desired-after-optimistic-remove=[` +
+        `${nextSkills.map((s) => s.skill_term_id).join(",")}] ` +
+        `payload-sent=${desired.length}`,
+    );
     const res = await setTalentProfileSkills({
       talent_profile_id: talentProfileId,
       skills: desired,
     });
     setSaving(skill.skill_term_id, false);
-    if (!res.ok) {
-      // Rollback the optimistic removal; show the specific error.
-      setSkills(previousSkills);
-      if (previousSkills) {
-        _skillsCache.set(talentProfileId, {
-          skills: previousSkills,
-          aspirations,
-          ts: Date.now(),
-        });
-      }
-      setError(res.error);
+    // Sequence guard: only the newest in-flight mutation may touch UI/cache.
+    // A superseded response is dropped — the newer setAll already encodes
+    // this removal, so discarding it loses nothing and can't resurrect a
+    // role via an out-of-order older payload.
+    if (seq !== mutationSeqRef.current) {
+      console.info(
+        `[skills-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
+          `${mutationSeqRef.current}) serverOk=${res.ok}` +
+          (res.ok
+            ? ` serverReturned=[${res.skills.map((s) => s.skill_term_id).join(",")}]`
+            : ""),
+      );
       return;
     }
-    // Trust server result.
+    if (!res.ok) {
+      skillsRef.current = rollbackSnapshot;
+      setSkills(rollbackSnapshot);
+      _skillsCache.set(talentProfileId, {
+        skills: rollbackSnapshot,
+        aspirations,
+        ts: Date.now(),
+      });
+      setError(res.error);
+      console.info(
+        `[skills-ui] ${reqId} seq=${seq} APPLIED rollback (server error: ` +
+          `${res.error}) finalUI=${rollbackSnapshot.length}`,
+      );
+      return;
+    }
+    // Trust server result (authoritative final list).
+    skillsRef.current = res.skills;
     setSkills(res.skills);
     _skillsCache.set(talentProfileId, {
       skills: res.skills,
       aspirations,
       ts: Date.now(),
     });
+    console.info(
+      `[skills-ui] ${reqId} seq=${seq} APPLIED server truth ` +
+        `serverReturned=[${res.skills.map((s) => s.skill_term_id).join(",")}] ` +
+        `finalUI=${res.skills.length}`,
+    );
     onSkillsChanged?.();
   };
 
@@ -569,29 +634,105 @@ export function SkillSlotPanel({
           }
           totalSkills={totalSkills}
           onClose={() => setAddingForRole(null)}
-          onAdded={async ({ ids, role }) => {
-            // P5 — setAll: desired final state = current skills (with
-            // their roles preserved) + the newly picked ids in this
-            // role. One server action; the returned resolved list
-            // updates the drawer directly (no fetchData re-fetch / no
-            // reload cascade). Fallback-safe: on failure we return the
-            // error so the dialog shows it and keeps the user's draft.
-            const desired = [
-              ...(skills ?? []).map((s) => ({
-                taxonomy_term_id: s.skill_term_id,
-                role: (s.relationship_type === "primary_role"
-                  ? "primary"
-                  : "secondary") as "primary" | "secondary",
-              })),
-              ...ids.map((id) => ({ taxonomy_term_id: id, role })),
-            ];
+          onAdded={async ({ ids, role, items, parentId, parentName }) => {
+            console.info(
+              `[skills-ui] add submitted ids=[${ids.join(",")}] role=${role}`,
+            );
+            const seq = ++mutationSeqRef.current;
+            const reqId = `add-${seq}`;
+            const base = skillsRef.current ?? [];
+            const rollbackSnapshot = base;
+            console.info(
+              `[skills-ui] ${reqId} seq=${seq} desired-before-add=[` +
+                `${base.map((s) => s.skill_term_id).join(",")}]`,
+            );
+            // OPTIMISTIC: merge provisional chips into the authoritative ref
+            // BEFORE awaiting. This is the add+remove race fix — a remove
+            // fired during this await reads skillsRef and MUST see the
+            // pending add, or its setAll (newer seq) drops it. Provisional
+            // rows carry just enough for correct grouping + label; the
+            // governing server response replaces them with real rows.
+            const metaById = new Map(items.map((it) => [it.id, it]));
+            const provisional: ResolvedSkill[] = ids
+              .filter((id) => !base.some((s) => s.skill_term_id === id))
+              .map((id, i) => ({
+                skill_term_id: id,
+                skill_slug: "",
+                skill_name_en: metaById.get(id)?.name_en ?? "…",
+                skill_name_es: metaById.get(id)?.name_es ?? null,
+                is_generic_fallback: false,
+                parent_category_id: parentId,
+                parent_category_slug: null,
+                parent_category_name_en: parentName,
+                relationship_type:
+                  role === "primary" ? "primary_role" : "secondary_role",
+                proficiency_level: null,
+                years_experience: null,
+                display_order: 100000 + i,
+                is_verified: false,
+                verified_at: null,
+                verified_by_tenant_id: null,
+                verification_note: null,
+                created_at: new Date().toISOString(),
+                booking_count: 0,
+                last_booked_at: null,
+              }));
+            const optimistic = [...base, ...provisional];
+            skillsRef.current = optimistic;
+            setSkills(optimistic);
+            const desired = optimistic.map((s) => ({
+              taxonomy_term_id: s.skill_term_id,
+              role: (s.relationship_type === "primary_role"
+                ? "primary"
+                : "secondary") as "primary" | "secondary",
+            }));
+            console.info(
+              `[skills-ui] ${reqId} seq=${seq} desired-after-optimistic-add=[` +
+                `${optimistic.map((s) => s.skill_term_id).join(",")}] ` +
+                `payload-sent=${desired.length}`,
+            );
             const res = await setTalentProfileSkills({
               talent_profile_id: talentProfileId,
               skills: desired,
             });
+            const isLatest = seq === mutationSeqRef.current;
             if (!res.ok) {
+              if (isLatest) {
+                // Only the newest request rolls back the UI + shows error.
+                skillsRef.current = rollbackSnapshot;
+                setSkills(rollbackSnapshot);
+                _skillsCache.set(talentProfileId, {
+                  skills: rollbackSnapshot,
+                  aspirations,
+                  ts: Date.now(),
+                });
+                setError(res.error);
+                console.info(
+                  `[skills-ui] ${reqId} seq=${seq} APPLIED rollback ` +
+                    `(add-failure: ${res.error}) finalUI=${rollbackSnapshot.length}`,
+                );
+              } else {
+                // Superseded: the latest mutation's setAll already carries
+                // this add (built from the ref we just updated); it owns
+                // truth. Don't rollback — that would fight the newer state.
+                console.info(
+                  `[skills-ui] ${reqId} seq=${seq} IGNORED stale add-failure ` +
+                    `(latest=${mutationSeqRef.current}: ${res.error})`,
+                );
+              }
               return { ok: false, error: res.error };
             }
+            if (!isLatest) {
+              console.info(
+                `[skills-ui] ${reqId} seq=${seq} IGNORED stale (latest=` +
+                  `${mutationSeqRef.current}) serverReturned=` +
+                  `[${res.skills.map((s) => s.skill_term_id).join(",")}] — ` +
+                  `latest setAll carries this add`,
+              );
+              setAddingForRole(null);
+              return { ok: true };
+            }
+            skillsRef.current = res.skills;
             setSkills(res.skills);
             _skillsCache.set(talentProfileId, {
               skills: res.skills,
@@ -599,6 +740,11 @@ export function SkillSlotPanel({
               ts: Date.now(),
             });
             setAddingForRole(null);
+            console.info(
+              `[skills-ui] ${reqId} seq=${seq} APPLIED server truth ` +
+                `serverReturned=[${res.skills.map((s) => s.skill_term_id).join(",")}] ` +
+                `finalUI=${res.skills.length}`,
+            );
             // Roles changed → the field catalog must re-resolve. ONE
             // taxonomyVersion bump (P3-phase-2 makes that a single
             // shared LiveCategoryFieldsEditor fetch). NOT fetchData().

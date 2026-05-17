@@ -9,7 +9,7 @@
 // via "Add N skill(s)". The remaining-capacity counter updates live.
 // ============================================================================
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   getEnabledParentCategoriesForPicker,
@@ -51,12 +51,17 @@ export function AddSkillSearch({
   totalSkills: number;
   onClose: () => void;
   /** P5 — parent owns the write (one setAll server action). We hand up
-   *  the picked term ids + the role; the parent commits the new desired
-   *  state and returns ok/error. On error we keep the dialog open with
-   *  the selection intact (fallback-safe). */
+   *  the picked term ids + role, PLUS each item's display metadata and the
+   *  parent category, so the parent can render the add OPTIMISTICALLY (an
+   *  add issued right before a remove must already be in the authoritative
+   *  desired-state ref or the remove's setAll drops it). On error we keep
+   *  the dialog open with the selection intact (fallback-safe). */
   onAdded: (picked: {
     ids: string[];
     role: "primary" | "secondary";
+    items: Array<{ id: string; name_en: string; name_es: string | null }>;
+    parentId: string | null;
+    parentName: string | null;
   }) => Promise<{ ok: boolean; error?: string }>;
   talentProfileId: string;
 }) {
@@ -75,6 +80,12 @@ export function AddSkillSearch({
   const [error, setError] = useState<string | null>(null);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // Accumulates display metadata for every type seen, so a selection made
+  // before a search-filter change still resolves its name at submit time
+  // (the optimistic chip the parent renders needs the label).
+  const typeMetaRef = useRef<
+    Map<string, { name_en: string; name_es: string | null }>
+  >(new Map());
 
   const remainingSlots = MAX_TOTAL_SKILLS - totalSkills - selected.size;
 
@@ -105,8 +116,15 @@ export function AddSkillSearch({
       query: searchQuery || undefined,
     })
       .then((res) => {
-        if (res.ok) setTypes(res.types);
-        else setError(res.error);
+        if (res.ok) {
+          setTypes(res.types);
+          for (const t of res.types) {
+            typeMetaRef.current.set(t.id, {
+              name_en: t.name_en,
+              name_es: t.name_es,
+            });
+          }
+        } else setError(res.error);
       })
       .finally(() => setLoadingTypes(false));
   }, [selectedParentId, searchQuery]);
@@ -159,8 +177,23 @@ export function AddSkillSearch({
     setError(null);
     const selectedIds = Array.from(selected);
     // P5 — single setAll write owned by the parent. No append-only
-    // addSkill/addSkills + reload cascade.
-    const res = await onAdded({ ids: selectedIds, role });
+    // addSkill/addSkills + reload cascade. Pass display metadata + parent
+    // so the parent can optimistically merge into its desired-state ref.
+    const items = selectedIds.map((id) => {
+      const meta = typeMetaRef.current.get(id);
+      return {
+        id,
+        name_en: meta?.name_en ?? "…",
+        name_es: meta?.name_es ?? null,
+      };
+    });
+    const res = await onAdded({
+      ids: selectedIds,
+      role,
+      items,
+      parentId: selectedParentId,
+      parentName: selectedParentLabel,
+    });
     if (!res.ok) {
       setError(res.error ?? "Couldn't save. Try again.");
       setSubmitting(false);
