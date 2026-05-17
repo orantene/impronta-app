@@ -291,6 +291,340 @@ export async function addSkills(
   return { ok: true, insertedCount: idsToInsert.length };
 }
 
+// ─── P5: set-style batched skills mutation (setAll) ────────────────────────
+// The editor's selected chips are the DESIRED FINAL STATE. One action:
+// auth once · roster check once · validate all terms in one query · diff
+// current vs desired · delete removed · bulk-insert added · role-change
+// update · respect caps · revalidate once · RETURN the final resolved
+// list (so the drawer updates from the payload — no reload() cascade).
+//
+// Caps safety without a DB transaction: total-count cap pre-checked in
+// app; deletes run BEFORE inserts so the per-row count trigger never
+// transiently overflows; kept rows are left untouched so proficiency /
+// years / display_order are preserved; the parent_category sub-caps are
+// enforced by the trigger on INSERT — if it rejects, we compensating-
+// restore the deleted rows and return the friendly trigger message
+// (the caller keeps its local draft).
+
+const setSkillsSchema = z.object({
+  talent_profile_id: pgUuidSchema(),
+  // 0..MAX desired (taxonomy_term_id, role) pairs. Empty = clear all.
+  skills: z
+    .array(
+      z.object({
+        taxonomy_term_id: pgUuidSchema(),
+        role: z.enum(["primary", "secondary"]),
+      }),
+    )
+    .max(MAX_TOTAL_SKILLS),
+});
+
+const SKILL_RELS = ["primary_role", "secondary_role"] as const;
+
+export async function setTalentProfileSkills(
+  input: z.input<typeof setSkillsSchema>,
+): Promise<
+  | { ok: true; skills: ResolvedSkill[] }
+  | { ok: false; error: string }
+> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const parsed = setSkillsSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid request.",
+    };
+  }
+  const tpid = parsed.data.talent_profile_id;
+  const LOG = "[setSkills]";
+  const t0 = Date.now();
+
+  // Dedupe by term (last role wins) — the desired set is a membership set.
+  const desiredByTerm = new Map<string, "primary" | "secondary">();
+  for (const s of parsed.data.skills) desiredByTerm.set(s.taxonomy_term_id, s.role);
+  const desiredIds = [...desiredByTerm.keys()];
+  console.info(
+    `${LOG} start talent=${tpid} tenant=${tenantId} desired=${desiredIds.length} ` +
+      `(primary=${[...desiredByTerm.values()].filter((r) => r === "primary").length})`,
+  );
+  if (desiredIds.length > MAX_TOTAL_SKILLS) {
+    return {
+      ok: false,
+      error: `Skill cap exceeded — a talent can have at most ${MAX_TOTAL_SKILLS} skills.`,
+    };
+  }
+
+  // Roster check (once).
+  const { data: rosterRow } = await supabase
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", tpid)
+    .maybeSingle();
+  if (!rosterRow) {
+    console.warn(`${LOG} FAIL roster-miss talent=${tpid}`);
+    return {
+      ok: false,
+      error: "Couldn't save: this profile isn't on your roster.",
+    };
+  }
+
+  // Validate ALL desired terms in one query.
+  if (desiredIds.length > 0) {
+    const { data: terms, error: termsErr } = await supabase
+      .from("taxonomy_terms")
+      .select("id, slug, term_type, is_active, is_generic_fallback")
+      .in("id", desiredIds);
+    if (termsErr) {
+      logServerError("setTalentProfileSkills.terms", termsErr);
+      return {
+        ok: false,
+        error: "Couldn't validate the selected skills. Try again.",
+      };
+    }
+    const byId = new Map((terms ?? []).map((t) => [t.id, t]));
+    const invalid: string[] = [];
+    for (const id of desiredIds) {
+      const t = byId.get(id);
+      if (!t || t.term_type !== "talent_type" || !t.is_active || t.is_generic_fallback) {
+        invalid.push(t?.slug ?? id);
+      }
+    }
+    if (invalid.length > 0) {
+      console.warn(`${LOG} FAIL invalid-terms talent=${tpid} invalid=${invalid.join(",")}`);
+      return {
+        ok: false,
+        error:
+          "Some selected skills are invalid for this profile (not a real skill, inactive, or a generic placeholder).",
+      };
+    }
+    console.info(`${LOG} validated terms=${desiredIds.length}`);
+  }
+
+  // Current skill rows (capture full data for a compensating restore).
+  const { data: currentRows, error: curErr } = await supabase
+    .from("talent_profile_taxonomy")
+    .select(
+      "taxonomy_term_id, relationship_type, proficiency_level, years_experience, display_order, is_primary",
+    )
+    .eq("talent_profile_id", tpid)
+    .in("relationship_type", SKILL_RELS as unknown as string[]);
+  if (curErr) {
+    logServerError("setTalentProfileSkills.current", curErr);
+    return {
+      ok: false,
+      error: "Couldn't read the current skills. No changes were saved.",
+    };
+  }
+  const current = currentRows ?? [];
+  const currentByTerm = new Map(current.map((r) => [r.taxonomy_term_id, r]));
+  const relOf = (role: "primary" | "secondary") =>
+    role === "primary" ? "primary_role" : "secondary_role";
+
+  // ── Schema invariant: AT MOST ONE primary_role per talent
+  // (partial unique index ux_talent_profile_taxonomy_one_primary —
+  // UNIQUE(talent_profile_id) WHERE relationship_type='primary_role').
+  // The editor can hand up several "primary" picks (e.g. multi-add under
+  // the primary category). Only one term can be THE primary: keep the
+  // existing DB primary if it's still desired, else the first desired
+  // primary; demote the rest to secondary. Without this the INSERT hits
+  // a 23505 on a constraint the PK onConflict doesn't cover (the P5 QA
+  // failure). The cap trigger then governs the secondary parents.
+  const desiredPrimaryIds = desiredIds.filter(
+    (id) => desiredByTerm.get(id) === "primary",
+  );
+  if (desiredPrimaryIds.length > 1) {
+    const currentPrimaryId = current.find(
+      (r) => r.relationship_type === "primary_role",
+    )?.taxonomy_term_id;
+    const keepPrimary =
+      currentPrimaryId && desiredByTerm.get(currentPrimaryId) === "primary"
+        ? currentPrimaryId
+        : desiredPrimaryIds[0]!;
+    for (const id of desiredPrimaryIds) {
+      if (id !== keepPrimary) desiredByTerm.set(id, "secondary");
+    }
+    console.info(
+      `${LOG} coerced extra-primary→secondary count=${desiredPrimaryIds.length - 1} keep=${keepPrimary}`,
+    );
+  }
+
+  const toDelete = current.filter((r) => !desiredByTerm.has(r.taxonomy_term_id));
+  const toInsert = desiredIds.filter((id) => !currentByTerm.has(id));
+  const toUpdate = desiredIds
+    .map((id) => ({ id, row: currentByTerm.get(id), role: desiredByTerm.get(id)! }))
+    .filter(
+      (x) => x.row && x.row.relationship_type !== relOf(x.role),
+    );
+  console.info(
+    `${LOG} diff talent=${tpid} current=${current.length} ` +
+      `toInsert=${toInsert.length} toDelete=${toDelete.length} ` +
+      `toUpdate=${toUpdate.length} kept=${desiredIds.length - toInsert.length}`,
+  );
+
+  if (toDelete.length === 0 && toInsert.length === 0 && toUpdate.length === 0) {
+    // No-op — return the current resolved list, no writes/revalidate.
+    const { data } = await supabase
+      .from("talent_skills_resolved")
+      .select("*")
+      .eq("talent_profile_id", tpid)
+      .order("relationship_type", { ascending: true })
+      .order("display_order", { ascending: true });
+    return { ok: true, skills: (data ?? []) as ResolvedSkill[] };
+  }
+
+  // 1. DELETE removed first (count never transiently overflows).
+  if (toDelete.length > 0) {
+    const { error: delErr } = await supabase
+      .from("talent_profile_taxonomy")
+      .delete()
+      .eq("talent_profile_id", tpid)
+      .in("taxonomy_term_id", toDelete.map((r) => r.taxonomy_term_id))
+      .in("relationship_type", SKILL_RELS as unknown as string[]);
+    if (delErr) {
+      logServerError("setTalentProfileSkills.delete", delErr);
+      console.warn(`${LOG} FAIL delete talent=${tpid} code=${delErr.code}`);
+      return {
+        ok: false,
+        error: "Couldn't update skills (remove step). No changes were saved.",
+      };
+    }
+    console.info(`${LOG} deleted=${toDelete.length}`);
+  }
+
+  // Best-effort compensating restore if a later write fails.
+  const restoreDeleted = async () => {
+    if (toDelete.length === 0) return;
+    await supabase.from("talent_profile_taxonomy").upsert(
+      toDelete.map((r) => ({
+        talent_profile_id: tpid,
+        taxonomy_term_id: r.taxonomy_term_id,
+        relationship_type: r.relationship_type,
+        proficiency_level: r.proficiency_level,
+        years_experience: r.years_experience,
+        display_order: r.display_order,
+        is_primary: r.is_primary,
+        tenant_id: tenantId,
+      })),
+      { onConflict: "talent_profile_id,taxonomy_term_id", ignoreDuplicates: true },
+    );
+  };
+  // Classify a Supabase write error into a specific, user-safe message.
+  const friendlyDbError = (
+    err: { code?: string; message?: string } | null,
+  ): string => {
+    const msg = err?.message ?? "";
+    // Cap trigger (ERRCODE 23514) — its RAISE messages are user-friendly.
+    if (
+      err?.code === "23514" ||
+      msg.includes("9 skills") ||
+      msg.includes("primary skills") ||
+      msg.includes("secondary categories")
+    ) {
+      return msg || "Skill cap exceeded.";
+    }
+    if (
+      err?.code === "23505" &&
+      msg.includes("ux_talent_profile_taxonomy_one_primary")
+    ) {
+      return "A talent can only have one primary skill — keep a single primary and add the rest as secondary.";
+    }
+    if (err?.code === "23505") {
+      return "That skill is already on this profile.";
+    }
+    return `Database rejected the skill change${msg ? `: ${msg.slice(0, 160)}` : "."}`;
+  };
+
+  // 2. INSERT added (append display_order per role after kept rows).
+  if (toInsert.length > 0) {
+    const keptMaxOrder = (rel: string) =>
+      current
+        .filter(
+          (r) =>
+            r.relationship_type === rel && desiredByTerm.has(r.taxonomy_term_id),
+        )
+        .reduce((m, r) => Math.max(m, r.display_order ?? 0), 0);
+    const nextOrder: Record<string, number> = {
+      primary_role: keptMaxOrder("primary_role"),
+      secondary_role: keptMaxOrder("secondary_role"),
+    };
+    const rows = toInsert.map((id) => {
+      const role = desiredByTerm.get(id)!;
+      const rel = relOf(role);
+      nextOrder[rel] += 10;
+      return {
+        talent_profile_id: tpid,
+        taxonomy_term_id: id,
+        relationship_type: rel,
+        proficiency_level: null,
+        years_experience: null,
+        display_order: nextOrder[rel],
+        tenant_id: tenantId,
+        is_primary: role === "primary",
+      };
+    });
+    const { error: insErr } = await supabase
+      .from("talent_profile_taxonomy")
+      .upsert(rows, {
+        onConflict: "talent_profile_id,taxonomy_term_id",
+        ignoreDuplicates: true,
+      });
+    if (insErr) {
+      await restoreDeleted();
+      logServerError("setTalentProfileSkills.insert", insErr);
+      console.warn(
+        `${LOG} FAIL insert talent=${tpid} code=${insErr.code} restored=${toDelete.length}`,
+      );
+      return { ok: false, error: friendlyDbError(insErr) };
+    }
+    console.info(`${LOG} inserted=${rows.length}`);
+  }
+
+  // 3. Role changes for kept terms (preserve proficiency/years/order).
+  for (const u of toUpdate) {
+    const rel = relOf(u.role);
+    const { error: updErr } = await supabase
+      .from("talent_profile_taxonomy")
+      .update({ relationship_type: rel, is_primary: u.role === "primary" })
+      .eq("talent_profile_id", tpid)
+      .eq("taxonomy_term_id", u.id);
+    if (updErr) {
+      await restoreDeleted();
+      logServerError("setTalentProfileSkills.update", updErr);
+      console.warn(`${LOG} FAIL role-update talent=${tpid} code=${updErr.code}`);
+      return { ok: false, error: friendlyDbError(updErr) };
+    }
+  }
+  if (toUpdate.length > 0) console.info(`${LOG} role-updated=${toUpdate.length}`);
+
+  revalidatePath("/[tenantSlug]/admin/roster", "layout");
+
+  // Return the FINAL resolved list (same shape as getResolvedSkills) so
+  // the drawer updates from the payload with no extra round trip.
+  const { data: finalData, error: finalErr } = await supabase
+    .from("talent_skills_resolved")
+    .select("*")
+    .eq("talent_profile_id", tpid)
+    .order("relationship_type", { ascending: true })
+    .order("display_order", { ascending: true });
+  if (finalErr) {
+    logServerError("setTalentProfileSkills.resolved", finalErr);
+    console.warn(`${LOG} FAIL final-fetch talent=${tpid} (writes applied)`);
+    // Writes succeeded; only the re-read failed.
+    return {
+      ok: false,
+      error: "Skills were saved, but the list couldn't be reloaded — reopen the profile to confirm.",
+    };
+  }
+  console.info(
+    `${LOG} done talent=${tpid} final=${(finalData ?? []).length} ms=${Date.now() - t0}`,
+  );
+  return { ok: true, skills: (finalData ?? []) as ResolvedSkill[] };
+}
+
 // ─── Update proficiency / years on an existing skill ───────────────────────
 
 const updateSkillSchema = z.object({

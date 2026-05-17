@@ -48,10 +48,142 @@
 //     is platform-curated; tenants get per-field overrides via
 //     workspace_profile_field_settings — handled elsewhere).
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+
+// ─── P3 — tenant-static field-catalog cache ──────────────────────────────────
+// The field catalog (definitions, groups, recommendations, parent→group
+// links, workspace overlays) is IDENTICAL for every talent in a tenant
+// and changes only when an admin edits the catalog/settings. Previously
+// `getFieldsForTalent` re-queried all 6 of these tables on every editor
+// open — and was called 2-3× per open (Details + General + preview),
+// each independently, with no cache: ~22 duplicate heavy queries / open.
+//
+// This caches the tenant-static slice (keyed by tenant) so every open —
+// and every concurrent mount — hits one shared cached value. Per-talent
+// data (roster, taxonomy assignments, parent walk) stays uncached.
+// Strictly additive: if the service client is unavailable or the load
+// fails, `getFieldsForTalent` falls back to its original inline queries
+// (zero behaviour change).
+// NOTE: not exported — this is a `"use server"` module, where every
+// export must be an async function. Kept module-internal; if cache
+// invalidation needs this tag elsewhere later, lift it into a plain
+// (non-"use server") constants module and import it here.
+const CACHE_TAG_FIELD_CATALOG = "field-catalog";
+
+type FieldDefRow = {
+  id: string; field_key: string; label: string; label_es: string | null;
+  tier: string; section: string | null; subsection: string | null;
+  kind: string; unit: string | null; placeholder: string | null;
+  options: unknown; default_visibility: unknown; is_optional: boolean | null;
+  display_order: number | null; field_group_id: string | null;
+  validation_rules: unknown; show_when: unknown; deprecated_at: string | null;
+};
+
+type TenantFieldCatalog = {
+  defs: FieldDefRow[];
+  groupRows: Array<{
+    id: string; slug: string; name_en: string; name_es: string | null;
+    sort_order: number; is_active: boolean;
+  }>;
+  allParentCategoryGroups: Array<{
+    parent_category_id: string; field_group_id: string; weight: string;
+    display_order: number; in_registration_wizard: boolean;
+  }>;
+  allRecs: Array<{
+    field_definition_id: string; taxonomy_term_id: string; relationship: string;
+    display_order: number; required_at_registration: boolean;
+    required_before_publish: boolean; required_before_verification: boolean;
+    is_admin_only: boolean; requires_verification: boolean;
+  }>;
+  groupOverrides: Array<{
+    field_group_id: string; is_enabled: boolean | null;
+    show_in_registration: boolean | null; show_in_profile_edit: boolean | null;
+    show_in_public_profile: boolean | null; display_order: number | null;
+    custom_label: string | null;
+  }>;
+  fieldOverrides: Array<{
+    field_definition_id: string; enabled_override: boolean | null;
+    required_override: boolean | null; custom_label: string | null;
+    display_order_override: number | null;
+  }>;
+};
+
+async function loadTenantFieldCatalogUncached(
+  tenantId: string,
+): Promise<TenantFieldCatalog | null> {
+  // TEMP QA instrumentation (P3 debug) — this only runs on a CACHE MISS
+  // (unstable_cache skips the body on a hit). Seeing this line means the
+  // 6 static queries actually ran; its ABSENCE after a `[field-catalog]
+  // request` line means the 120s cache served it. Remove once verified.
+  const t0 = Date.now();
+  console.info(`[field-catalog] MISS (querying db) tenant=${tenantId}`);
+  const svc = createServiceRoleClient();
+  if (!svc) {
+    console.warn(
+      `[field-catalog] no service client — FALLBACK to inline queries tenant=${tenantId}`,
+    );
+    return null; // unconfigured → caller falls back to inline queries
+  }
+  void t0;
+  const [defsR, groupsR, pcgR, recsR, gOvR, fOvR] = await Promise.all([
+    svc.from("profile_field_definitions").select(
+      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
+    ).is("deprecated_at", null),
+    svc.from("profile_field_groups").select(
+      "id, slug, name_en, name_es, sort_order, is_active",
+    ).eq("is_active", true),
+    svc.from("parent_category_field_groups").select(
+      "parent_category_id, field_group_id, weight, display_order, in_registration_wizard",
+    ),
+    svc.from("profile_field_recommendations").select(
+      "field_definition_id, taxonomy_term_id, relationship, display_order, required_at_registration, required_before_publish, required_before_verification, is_admin_only, requires_verification",
+    ),
+    svc.from("workspace_field_group_settings").select(
+      "field_group_id, is_enabled, show_in_registration, show_in_profile_edit, show_in_public_profile, display_order, custom_label",
+    ).eq("tenant_id", tenantId),
+    svc.from("workspace_profile_field_settings").select(
+      "field_definition_id, enabled_override, required_override, custom_label, display_order_override",
+    ).eq("tenant_id", tenantId),
+  ]);
+  if (defsR.error || groupsR.error || pcgR.error || recsR.error) {
+    // Hard catalog tables failed → signal fallback (don't cache a bad set).
+    return null;
+  }
+  console.info(
+    `[field-catalog] MISS resolved tenant=${tenantId} duration=${
+      Date.now() - t0
+    }ms defs=${defsR.data?.length ?? 0} recs=${recsR.data?.length ?? 0}`,
+  );
+  return {
+    defs: (defsR.data ?? []) as FieldDefRow[],
+    groupRows: (groupsR.data ?? []) as TenantFieldCatalog["groupRows"],
+    allParentCategoryGroups: (pcgR.data ?? []) as TenantFieldCatalog["allParentCategoryGroups"],
+    allRecs: (recsR.data ?? []) as TenantFieldCatalog["allRecs"],
+    groupOverrides: (gOvR.data ?? []) as TenantFieldCatalog["groupOverrides"],
+    fieldOverrides: (fOvR.data ?? []) as TenantFieldCatalog["fieldOverrides"],
+  };
+}
+
+/** Cached tenant-static field catalog. Shared across every talent + every
+ *  concurrent editor mount in the tenant. ~120s revalidate; bust via the
+ *  `field-catalog` tag when the catalog/settings change. */
+function getCachedTenantFieldCatalog(
+  tenantId: string,
+): Promise<TenantFieldCatalog | null> {
+  // TEMP QA instrumentation (P3 debug): a `request` with NO following
+  // `MISS` line = cache HIT (unstable_cache served it). Remove once
+  // verified.
+  console.info(`[field-catalog] request tenant=${tenantId}`);
+  return unstable_cache(
+    () => loadTenantFieldCatalogUncached(tenantId),
+    ["tenant-field-catalog", "v1", tenantId],
+    { tags: [CACHE_TAG_FIELD_CATALOG, `${CACHE_TAG_FIELD_CATALOG}:${tenantId}`], revalidate: 120 },
+  )();
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -771,7 +903,13 @@ export async function getFieldsForTalent(input: {
     }
   }
 
-  // 3. Pull groups auto-loaded for these parent_categories.
+  // 3-8 (P3). Tenant-static catalog. Prefer the per-tenant cached
+  // bundle (shared across every talent + every concurrent editor mount);
+  // fall back to the original inline per-call queries if the service
+  // client / cache is unavailable. Behaviour is identical either way —
+  // only the *source* of the static rows changes.
+  const cat = await getCachedTenantFieldCatalog(tenantId).catch(() => null);
+
   let parentGroupRows: Array<{
     parent_category_id: string;
     field_group_id: string;
@@ -779,43 +917,100 @@ export async function getFieldsForTalent(input: {
     display_order: number;
     in_registration_wizard: boolean;
   }> = [];
-  if (parentCategoryIds.size > 0) {
-    const { data, error: pgErr } = await supabase
-      .from("parent_category_field_groups")
-      .select(
-        "parent_category_id, field_group_id, weight, display_order, in_registration_wizard",
-      )
-      .in("parent_category_id", Array.from(parentCategoryIds));
-    if (pgErr) {
-      logServerError("getFieldsForTalent.parent_groups", pgErr);
+  let groupRows: TenantFieldCatalog["groupRows"] = [];
+  let groupOverrides: TenantFieldCatalog["groupOverrides"] = [];
+  let defs: FieldDefRow[] = [];
+  let recs: TenantFieldCatalog["allRecs"] = [];
+  let overrides: TenantFieldCatalog["fieldOverrides"] = [];
+
+  if (cat) {
+    // ── Cached path: filter the global slices per-talent in memory
+    // (exactly what the SQL `.in(...)` filters did).
+    parentGroupRows =
+      parentCategoryIds.size > 0
+        ? cat.allParentCategoryGroups.filter((g) =>
+            parentCategoryIds.has(g.parent_category_id),
+          )
+        : [];
+    groupRows = cat.groupRows;
+    groupOverrides = cat.groupOverrides;
+    defs = cat.defs;
+    recs =
+      allTermIds.size > 0
+        ? cat.allRecs.filter((r) => allTermIds.has(r.taxonomy_term_id))
+        : [];
+    overrides = cat.fieldOverrides;
+  } else {
+    // ── Fallback path: original inline queries, verbatim behaviour.
+    if (parentCategoryIds.size > 0) {
+      const { data, error: pgErr } = await supabase
+        .from("parent_category_field_groups")
+        .select(
+          "parent_category_id, field_group_id, weight, display_order, in_registration_wizard",
+        )
+        .in("parent_category_id", Array.from(parentCategoryIds));
+      if (pgErr) {
+        logServerError("getFieldsForTalent.parent_groups", pgErr);
+        return { ok: false, error: CLIENT_ERROR.generic };
+      }
+      parentGroupRows = data ?? [];
+    }
+
+    const { data: gRows, error: groupErr } = await supabase
+      .from("profile_field_groups")
+      .select("id, slug, name_en, name_es, sort_order, is_active")
+      .eq("is_active", true);
+    if (groupErr) {
+      logServerError("getFieldsForTalent.groups", groupErr);
       return { ok: false, error: CLIENT_ERROR.generic };
     }
-    parentGroupRows = data ?? [];
+    groupRows = (gRows ?? []) as TenantFieldCatalog["groupRows"];
+
+    const { data: gOv } = await supabase
+      .from("workspace_field_group_settings")
+      .select(
+        "field_group_id, is_enabled, show_in_registration, show_in_profile_edit, show_in_public_profile, display_order, custom_label",
+      )
+      .eq("tenant_id", tenantId);
+    groupOverrides = (gOv ?? []) as TenantFieldCatalog["groupOverrides"];
+
+    const { data: dRows, error: defsErr } = await supabase
+      .from("profile_field_definitions")
+      .select(
+        "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
+      )
+      .is("deprecated_at", null);
+    if (defsErr) {
+      logServerError("getFieldsForTalent.defs", defsErr);
+      return { ok: false, error: CLIENT_ERROR.generic };
+    }
+    defs = (dRows ?? []) as FieldDefRow[];
+
+    if (allTermIds.size > 0) {
+      const { data: recRows, error: recErr } = await supabase
+        .from("profile_field_recommendations")
+        .select(
+          "field_definition_id, taxonomy_term_id, relationship, display_order, required_at_registration, required_before_publish, required_before_verification, is_admin_only, requires_verification",
+        )
+        .in("taxonomy_term_id", Array.from(allTermIds));
+      if (recErr) {
+        logServerError("getFieldsForTalent.recs", recErr);
+        return { ok: false, error: CLIENT_ERROR.generic };
+      }
+      recs = (recRows ?? []) as TenantFieldCatalog["allRecs"];
+    }
+
+    const { data: fOv } = await supabase
+      .from("workspace_profile_field_settings")
+      .select(
+        "field_definition_id, enabled_override, required_override, custom_label, display_order_override",
+      )
+      .eq("tenant_id", tenantId);
+    overrides = (fOv ?? []) as TenantFieldCatalog["fieldOverrides"];
   }
 
   const activeGroupIds = new Set(parentGroupRows.map((g) => g.field_group_id));
-
-  // 4. Pull all field group metadata.
-  const { data: groupRows, error: groupErr } = await supabase
-    .from("profile_field_groups")
-    .select("id, slug, name_en, name_es, sort_order, is_active")
-    .eq("is_active", true);
-
-  if (groupErr) {
-    logServerError("getFieldsForTalent.groups", groupErr);
-    return { ok: false, error: CLIENT_ERROR.generic };
-  }
-
   const groupById = new Map((groupRows ?? []).map((g) => [g.id, g] as const));
-
-  // 5. Pull tenant group overrides.
-  const { data: groupOverrides } = await supabase
-    .from("workspace_field_group_settings")
-    .select(
-      "field_group_id, is_enabled, show_in_registration, show_in_profile_edit, show_in_public_profile, display_order, custom_label",
-    )
-    .eq("tenant_id", tenantId);
-
   const groupOverrideById = new Map(
     (groupOverrides ?? []).map((o) => [o.field_group_id, o] as const),
   );
@@ -852,53 +1047,6 @@ export async function getFieldsForTalent(input: {
       in_wizard: pg.in_registration_wizard,
     });
   }
-
-  // 6. Pull definitions (active only).
-  const { data: defs, error: defsErr } = await supabase
-    .from("profile_field_definitions")
-    .select(
-      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
-    )
-    .is("deprecated_at", null);
-
-  if (defsErr) {
-    logServerError("getFieldsForTalent.defs", defsErr);
-    return { ok: false, error: CLIENT_ERROR.generic };
-  }
-
-  // 7. Pull recommendations for all relevant terms.
-  let recs: Array<{
-    field_definition_id: string;
-    taxonomy_term_id: string;
-    relationship: string;
-    display_order: number;
-    required_at_registration: boolean;
-    required_before_publish: boolean;
-    required_before_verification: boolean;
-    is_admin_only: boolean;
-    requires_verification: boolean;
-  }> = [];
-  if (allTermIds.size > 0) {
-    const { data: recRows, error: recErr } = await supabase
-      .from("profile_field_recommendations")
-      .select(
-        "field_definition_id, taxonomy_term_id, relationship, display_order, required_at_registration, required_before_publish, required_before_verification, is_admin_only, requires_verification",
-      )
-      .in("taxonomy_term_id", Array.from(allTermIds));
-    if (recErr) {
-      logServerError("getFieldsForTalent.recs", recErr);
-      return { ok: false, error: CLIENT_ERROR.generic };
-    }
-    recs = recRows ?? [];
-  }
-
-  // 8. Tenant field-level overrides.
-  const { data: overrides } = await supabase
-    .from("workspace_profile_field_settings")
-    .select(
-      "field_definition_id, enabled_override, required_override, custom_label, display_order_override",
-    )
-    .eq("tenant_id", tenantId);
 
   const overrideByField = new Map(
     (overrides ?? []).map((o) => [o.field_definition_id, o] as const),
@@ -1006,7 +1154,7 @@ export async function getFieldsForTalent(input: {
       label: o?.custom_label ?? d.label,
       label_es: (d as { label_es?: string | null }).label_es ?? null,
       tier: d.tier as "universal" | "global" | "type-specific",
-      section: d.section,
+      section: d.section as string,
       subsection: d.subsection,
       kind: d.kind,
       unit: (d as { unit?: string | null }).unit ?? null,

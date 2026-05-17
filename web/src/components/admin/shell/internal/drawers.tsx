@@ -10,8 +10,6 @@ import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 import {
   commitTalentProfileShellAdmin,
   getTalentProfileActivity,
-  getTalentProfileDynFieldValuesForShell,
-  getTalentProfileEditorData,
   sendTalentClaimInvite,
   assignTalentTaxonomyBySlug,
   removeTalentTaxonomyBySlug,
@@ -21,13 +19,13 @@ import {
   updateSelfAbout, updateSelfLocation, updateSelfRates, updateSelfAvailability,
   updateSelfCredits, updateSelfLimits, updateSelfSocialProof, saveSelfLanguages, updateSelfIdentity,
   updateSelfProfileDrawerExtras,
-  getTalentProfileDynFieldValuesForSelf,
   syncSelfTalentTypeTaxonomyFromShell,
   updateSelfProfileWorkflowFromShell,
   updateSelfProfileShellDynFields,
   updateSelfMediaAlbums,
   updateSelfTalentDocuments,
 } from "@/lib/server-actions/talent-self-profile-sections";
+import { loadTalentProfileEditorData } from "@/lib/server-actions/load-talent-profile-editor-data";
 import { dbToUiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import {
   extractShellVideoUrls,
@@ -250,6 +248,7 @@ import {
   type DrawerSize,
   TrustBadgeGroup,
   RiskScorePill,
+  DrawerDetailSkeleton,
 } from "./primitives";
 import { InquiryWorkspaceDrawer } from "./workspace";
 import SkillOverridesPanel from "./skill-overrides-panel";
@@ -4278,10 +4277,16 @@ type ChipsInputProps = {
 };
 const ChipsInput = React.memo(({ label, placeholder, values, onChange }: ChipsInputProps) => {
   const [draft, setDraft] = useState("");
+  // Component-boundary normalization: never trust the caller to pass a
+  // real array. A model profile (e.g. Sofía) hydrates `personality` from
+  // a seeded `personality_traits` whose shape lacks `loves`/`avoids`, so
+  // `values` arrives `undefined` here — `.map`/`.includes`/spread on that
+  // is the "Cannot read properties of undefined (reading 'map')" crash.
+  const safeValues = values ?? [];
   const commit = () => {
     const v = draft.trim();
     if (!v) return;
-    if (!values.includes(v)) onChange([...values, v]);
+    if (!safeValues.includes(v)) onChange([...safeValues, v]);
     setDraft("");
   };
   return (
@@ -4290,7 +4295,7 @@ const ChipsInput = React.memo(({ label, placeholder, values, onChange }: ChipsIn
         {label}
       </label>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-        {values.map(v => (
+        {safeValues.map(v => (
           <span key={v} style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: "5px 10px", borderRadius: 999,
@@ -4298,7 +4303,7 @@ const ChipsInput = React.memo(({ label, placeholder, values, onChange }: ChipsIn
             fontSize: 12, fontWeight: 600, fontFamily: FONTS.body,
           }}>
             {v}
-            <button type="button" onClick={() => onChange(values.filter(x => x !== v))} style={{
+            <button type="button" onClick={() => onChange(safeValues.filter(x => x !== v))} style={{
               background: "transparent", border: "none", padding: 0, cursor: "pointer",
               color: COLORS.accentDeep, fontSize: 14, lineHeight: 1, fontWeight: 700,
             }}>×</button>
@@ -4902,6 +4907,113 @@ function makeInitialProfileState(
 // Profile shell — main drawer
 // ════════════════════════════════════════════════════════════════════
 
+// P3 fix — StrictMode-proof hydration dedupe.
+// React StrictMode (dev) double-invokes effects: mount→effect→cleanup
+// →effect. The old `profileShellHydratedForRef` guard was nulled by the
+// cleanup between the two invocations, so the loader fired TWICE per
+// open. This module-level in-flight cache makes the 2nd invocation
+// REUSE the first in-flight fetch (zero duplicate network calls) while
+// the per-run `cancelled` flag still ensures the data is applied once.
+// Entry is auto-evicted when both promises settle, so a genuine reopen
+// after load refetches normally.
+type _HydrationInFlight = {
+  media: ReturnType<typeof actionLoadTalentMediaBundle>;
+  editor: ReturnType<typeof loadTalentProfileEditorData>;
+};
+const _editorHydrationInFlight = new Map<string, _HydrationInFlight>();
+function _getEditorHydration(
+  tid: string,
+  isSelf: boolean,
+): { entry: _HydrationInFlight; reused: boolean } {
+  const existing = _editorHydrationInFlight.get(tid);
+  if (existing) return { entry: existing, reused: true };
+  const entry: _HydrationInFlight = {
+    media: actionLoadTalentMediaBundle(tid),
+    editor: loadTalentProfileEditorData({ talentProfileId: tid, isSelf }),
+  };
+  _editorHydrationInFlight.set(tid, entry);
+  void Promise.allSettled([entry.media, entry.editor]).finally(() => {
+    _editorHydrationInFlight.delete(tid);
+  });
+  return { entry, reused: false };
+}
+
+// P3-phase-2 — defer per-agency overrides behind a collapsed section.
+// `SkillOverridesPanel` fetches getResolvedSkills + getAgencySkillOverrides
+// ON MOUNT and shows "Loading skill overrides…". Mounting it inline on
+// every Services/overview open made the Services view feel slow/technical
+// and duplicated getResolvedSkills (SkillSlotPanel already fetches it).
+// This wrapper keeps it OUT of the default Services view: collapsed by
+// default, the panel only mounts (and only then fetches) when expanded.
+// Behaviour is unchanged once opened. Narrow scope — no relabeling/
+// restructuring of the rest of Services.
+function AdvancedAgencySettingsSection({
+  talentProfileId,
+}: {
+  talentProfileId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ padding: "0 24px", marginTop: 4 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: `1px solid ${COLORS.borderSoft}`,
+          background: open ? COLORS.surfaceAlt : "transparent",
+          cursor: "pointer",
+          textAlign: "left",
+          fontFamily: FONTS.body,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{ fontSize: 11, color: COLORS.inkMuted, width: 10 }}
+        >
+          {open ? "▾" : "▸"}
+        </span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span
+            style={{
+              display: "block",
+              fontSize: 12,
+              fontWeight: 600,
+              color: COLORS.ink,
+            }}
+          >
+            Advanced agency settings
+          </span>
+          <span
+            style={{
+              display: "block",
+              fontSize: 11,
+              color: COLORS.inkMuted,
+              marginTop: 1,
+            }}
+          >
+            Per-agency visibility, featured, display order & internal notes
+          </span>
+        </span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 8 }}>
+          <SkillOverridesPanel
+            talentProfileId={talentProfileId}
+            viewMode="admin"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TalentProfileShellDrawer() {
   const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant } = useAdminShell();
   const copy = useDashboardText();
@@ -5102,8 +5214,23 @@ function TalentProfileShellDrawer() {
 
   // Editor row and media bundle load in parallel, but profile fields should
   // not wait for photo/gallery hydration before appearing in the drawer.
-  const profileShellHydratedForRef = useRef<string | null>(null);
+  // (Dedupe moved to the module-level in-flight cache — see
+  // `_getEditorHydration`. The old per-ref guard was StrictMode-unsafe.)
   const [hydratingMedia, setHydratingMedia] = useState(false);
+  // P2 — honest hydration status for the editor's saved data. The drawer
+  // paints from a 3-field seed; the real values arrive async. This makes
+  // the loading/loaded/failed state explicit so empty defaults never
+  // masquerade as real saved values.
+  const [editorHydration, setEditorHydration] =
+    useState<"idle" | "loading" | "loaded" | "error">("idle");
+  const [hydrationNonce, setHydrationNonce] = useState(0);
+  const retryHydration = useCallback(() => {
+    // The in-flight cache self-evicts on settle, so by the time the
+    // error overlay's Retry is visible there's no entry — bumping the
+    // nonce re-runs the effect and triggers a fresh fetch.
+    setEditorHydration("loading");
+    setHydrationNonce((n) => n + 1);
+  }, []);
   // Stash the latest state in a ref so effects/callbacks below can read the
   // current value without forcing a `state` dep (which would re-fire on every
   // keystroke). Declared up here because the gallery→albums sync useEffect
@@ -5114,13 +5241,27 @@ function TalentProfileShellDrawer() {
     if (!drawerOpen || mode === "create") return;
     const tid = payload.talentId;
     if (!tid) return;
-    if (profileShellHydratedForRef.current === tid) return;
-    profileShellHydratedForRef.current = tid;
     allowMarkDirtyRef.current = false;
     setHydratingMedia(true);
+    setEditorHydration("loading");
     let cancelled = false;
 
-    void actionLoadTalentMediaBundle(tid)
+    // StrictMode-proof: reuse the in-flight fetch on the 2nd invocation
+    // instead of refiring. Exactly-once application is still guaranteed
+    // by `cancelled` (the first run's cleanup sets it true; the reusing
+    // run's stays false and applies the data).
+    const { entry: _hy, reused: _reused } = _getEditorHydration(tid, isSelf);
+    if (_reused) {
+      console.info(
+        `[editor-loader] duplicate prevented (in-flight reuse) talent=${tid}`,
+      );
+    } else {
+      console.info(
+        `[hydration] effect start talent=${tid} ts=${Date.now()}`,
+      );
+    }
+
+    void _hy.media
       .then((mediaRes) => {
         if (cancelled) return;
         setHydratingMedia(false);
@@ -5178,18 +5319,17 @@ function TalentProfileShellDrawer() {
         if (!cancelled) setHydratingMedia(false);
       });
 
-    void Promise.all([
-      getTalentProfileEditorData({ talent_profile_id: tid }),
-      isSelf
-        ? getTalentProfileDynFieldValuesForSelf({ talent_profile_id: tid })
-        : getTalentProfileDynFieldValuesForShell({ talent_profile_id: tid }),
-    ])
+    // P3 — one coordinated server round trip instead of two independent
+    // ones. Returns the identical [edRes, dynRes] tuple so the hydration
+    // body below is unchanged; the P2 error/Retry path is the fallback.
+    void _hy.editor
       .then(([edRes, dynRes]) => {
         if (cancelled) return;
         const s = stateRef.current;
 
         if (!edRes.ok) {
           allowMarkDirtyRef.current = true;
+          setEditorHydration("error");
           return;
         }
 
@@ -5244,8 +5384,21 @@ function TalentProfileShellDrawer() {
         if (d.bios && d.bios.length > 0) patchPayload.bios = d.bios as LocaleBio[];
         if (d.bio_tone) patchPayload.bioTone = d.bio_tone as BioTone;
         if (d.tagline) patchPayload.tagline = d.tagline;
-        if (d.personality_traits && typeof d.personality_traits === "object") {
-          patchPayload.personality = d.personality_traits as Personality;
+        if (
+          d.personality_traits &&
+          typeof d.personality_traits === "object" &&
+          !Array.isArray(d.personality_traits)
+        ) {
+          // Seeded/legacy rows store `personality_traits` as `[]` or an
+          // object lacking loves/avoids; `typeof [] === "object"` so the
+          // old check let that clobber the safe { loves:[], avoids:[] }
+          // default → ChipsInput crash. Normalize: keep arrays, default
+          // missing sides to [].
+          const pt = d.personality_traits as Partial<Personality>;
+          patchPayload.personality = {
+            loves: Array.isArray(pt.loves) ? pt.loves : [],
+            avoids: Array.isArray(pt.avoids) ? pt.avoids : [],
+          };
         }
         if (d.home_city_text || d.upcoming_visits) {
           patchPayload.serviceArea = {
@@ -5348,18 +5501,23 @@ function TalentProfileShellDrawer() {
 
         patch(patchPayload, { silent: true });
         allowMarkDirtyRef.current = true;
+        setEditorHydration("loaded");
       })
       .catch(() => {
-        if (!cancelled) allowMarkDirtyRef.current = true;
+        if (!cancelled) {
+          allowMarkDirtyRef.current = true;
+          setEditorHydration("error");
+        }
       });
     return () => {
       cancelled = true;
-      if (profileShellHydratedForRef.current === tid) {
-        profileShellHydratedForRef.current = null;
-      }
+      console.info(`[hydration] effect cleanup talent=${tid}`);
+      // No ref-nulling here: dedupe is the module in-flight cache, not
+      // this ref (nulling it here is exactly what let StrictMode double
+      // fire). The in-flight entry self-evicts on settle.
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawerOpen, mode, payload.talentId, isSelf]);
+  }, [drawerOpen, mode, payload.talentId, isSelf, hydrationNonce]);
 
   // Keep albumsPro photo lists in sync with galleryAssets. Without this,
   // photos uploaded/deleted via MediaGalleryDrawer after the drawer opens
@@ -6886,6 +7044,70 @@ function TalentProfileShellDrawer() {
             );
           })()}
           <div data-pshell-form>
+            {/* P2 — honest hydration overlay. The drawer paints from a
+                3-field seed; real saved values arrive async. While that's
+                in flight we cover the form with a skeleton (never let
+                empty defaults read as real saved data); on failure we
+                show an explicit error + Retry. Cleared once loaded.
+                Only for real talents (create mode has nothing to load). */}
+            {mode !== "create" && !!payload.talentId && editorHydration === "loading" && (
+              <div
+                aria-busy="true"
+                aria-label={copy.t("Loading saved profile")}
+                style={{
+                  position: "absolute", inset: 0, zIndex: 7,
+                  background: "#fff", overflow: "hidden",
+                }}
+              >
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "14px 24px 4px", fontFamily: FONTS.body,
+                  fontSize: 12, fontWeight: 600, color: COLORS.inkMuted,
+                  letterSpacing: 0.2,
+                }}>
+                  <span aria-hidden style={{
+                    width: 12, height: 12, borderRadius: "50%",
+                    border: `2px solid ${COLORS.borderSoft}`,
+                    borderTopColor: COLORS.accent,
+                    animation: "tulalaSpin .7s linear infinite",
+                  }} />
+                  {copy.t("Loading saved profile…")}
+                  <style>{`@keyframes tulalaSpin{to{transform:rotate(360deg)}}`}</style>
+                </div>
+                <DrawerDetailSkeleton />
+              </div>
+            )}
+            {mode !== "create" && !!payload.talentId && editorHydration === "error" && (
+              <div
+                role="alert"
+                style={{
+                  position: "absolute", inset: 0, zIndex: 7,
+                  background: "#fff", display: "flex",
+                  flexDirection: "column", alignItems: "center",
+                  justifyContent: "center", gap: 12, padding: 32,
+                  fontFamily: FONTS.body, textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
+                  {copy.t("Couldn't load this profile's saved data")}
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, maxWidth: 320 }}>
+                  {copy.t("Editing is paused so you don't overwrite real data with blanks. Retry to load it.")}
+                </div>
+                <button
+                  type="button"
+                  onClick={retryHydration}
+                  style={{
+                    padding: "8px 18px", borderRadius: 999,
+                    border: "none", background: COLORS.accent, color: "#fff",
+                    fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {copy.t("Retry")}
+                </button>
+              </div>
+            )}
             {/* Inline banners — replaces the old left-pane chrome.
                 Render only when there's something to say so the form
                 starts close to the top edge on healthy profiles. */}
@@ -7028,17 +7250,34 @@ function TalentProfileShellDrawer() {
                 </div>
               )}
               {adminVisible && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                  <FieldLockToggle path="identity.legalName" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
-                  <FieldLockToggle path="identity.stageName" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
+                <div style={{
+                  marginTop: 10, paddingTop: 10,
+                  borderTop: `1px solid ${COLORS.borderSoft}`,
+                  display: "flex", flexDirection: "column", gap: 6,
+                }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: 0.4,
+                    textTransform: "uppercase", color: COLORS.inkDim,
+                    fontFamily: FONTS.body,
+                  }}>
+                    {copy.t("Admin: lock from talent editing")}
+                  </span>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <FieldLockToggle path="identity.stageName" fieldLabel="Stage name" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
+                    <FieldLockToggle path="identity.legalName" fieldLabel="Legal name" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
+                  </div>
                 </div>
               )}
             </ProfileAccordionSection>
 
-            {/* LIVE CATEGORY FIELDS — only show in Services or overview */}
+            {/* LIVE CATEGORY FIELDS — only show in Services or overview.
+                Wrapped in the same 24px horizontal frame as every section
+                so it doesn't sit flush-left against the panel edge. */}
             {payload.talentId && bridgeTenantIdentity?.tenantId &&
               (activeSection === "" || activeSection === "services") && (
-              <LiveCategoryFieldsPanelStateful talentProfileId={payload.talentId} />
+              <div style={{ padding: "0 24px" }}>
+                <LiveCategoryFieldsPanelStateful talentProfileId={payload.talentId} />
+              </div>
             )}
 
             {/* SERVICES */}
@@ -7361,7 +7600,7 @@ function TalentProfileShellDrawer() {
                 talentProfileId={payload.talentId}
               />
               <FieldRow label="Video / social links" optional catalogId="links">
-                <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks} onChange={patchVideoLinks} />
+                <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks ?? []} onChange={patchVideoLinks} />
               </FieldRow>
             </ProfileAccordionSection>
 
@@ -7463,17 +7702,48 @@ function TalentProfileShellDrawer() {
             </ProfileAccordionSection>
 
             {/* PROFILE FIELDS — DB-driven, per-talent-type catalog editor.
-                Renders directly below About (the rail's "Profile fields"
-                entry scrolls here). Wraps in a div carrying the canonical
-                `pshell-${id}` anchor so the existing global scroll-into-view
-                effect handles it alongside the legacy accordions. */}
+                The rail's "Details" entry (id `profile_fields`) activates
+                this. Single-section pattern: like every ProfileAccordion-
+                Section, it must ONLY be visible when it is the active rail
+                section — otherwise the entire type-specific Details engine
+                bleeds into the bottom of every other section (Location,
+                Identity, Rates …). We gate with `display` rather than
+                unmounting so the `onCountsChange` side-effect keeps the
+                rail's Details completion dot live and the editor doesn't
+                re-fetch on every visit. */}
             {payload.talentId && bridgeTenantIdentity?.tenantId && (
-              <section id="pshell-profile_fields">
-                <LiveCategoryFieldsEditor
-                  talentProfileId={payload.talentId}
-                  refreshKey={taxonomyVersion}
-                  onCountsChange={setProfileFieldCounts}
-                />
+              <section
+                id="pshell-profile_fields"
+                style={{
+                  display: activeSection === "profile_fields" ? "block" : "none",
+                  background: "#fff",
+                }}
+              >
+                {/* Identical title + padding frame to ProfileAccordion-
+                    Section so Details aligns with Location / Availability /
+                    Rates etc. — consistent look & feel, not a flush-left
+                    raw mount. */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "16px 24px 6px", textAlign: "left",
+                  fontFamily: FONTS.body,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1 }}>
+                      {copy.t("Details")}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                      {copy.t("Type-specific fields for this talent's categories.")}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ padding: "0 24px 20px 24px" }}>
+                  <LiveCategoryFieldsEditor
+                    talentProfileId={payload.talentId}
+                    refreshKey={taxonomyVersion}
+                    onCountsChange={setProfileFieldCounts}
+                  />
+                </div>
               </section>
             )}
 
@@ -7811,38 +8081,33 @@ function TalentProfileShellDrawer() {
             {/* PROFICIENCY HINTS BANNER — Phase 6.3. Services section only. */}
             {(adminVisible || isSelf) && payload.talentId &&
               (activeSection === "" || activeSection === "services") && (
-              <SkillHintsBanner
-                talentProfileId={payload.talentId}
-                viewMode={adminVisible ? "admin" : "talent-self"}
-              />
-            )}
-
-            {/* PER-AGENCY SKILL OVERRIDES (admin only) — Services section only. */}
-            {adminVisible && payload.talentId &&
-              (activeSection === "" || activeSection === "services") && (
-              <div style={{ marginTop: 4 }}>
-                <div style={{
-                  fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
-                  textTransform: "uppercase", color: COLORS.inkMuted,
-                  marginBottom: 8,
-                  fontFamily: FONTS.body,
-                }}>
-                  Per-agency overrides
-                </div>
-                <SkillOverridesPanel
+              <div style={{ padding: "0 24px" }}>
+                <SkillHintsBanner
                   talentProfileId={payload.talentId}
-                  viewMode="admin"
+                  viewMode={adminVisible ? "admin" : "talent-self"}
                 />
               </div>
+            )}
+
+            {/* PER-AGENCY SKILL OVERRIDES (admin only) — Services section
+                only. P3-phase-2: collapsed by default; SkillOverridesPanel
+                (and its getResolvedSkills + getAgencySkillOverrides fetch /
+                "Loading skill overrides…" state) does not mount until the
+                user expands "Advanced agency settings". */}
+            {adminVisible && payload.talentId &&
+              (activeSection === "" || activeSection === "services") && (
+              <AdvancedAgencySettingsSection talentProfileId={payload.talentId} />
             )}
 
             {/* SKILL FRESHNESS + VERIFICATION-EXPIRY PROMPTS — Phase 6.4. Services section only. */}
             {(adminVisible || isSelf) && payload.talentId &&
               (activeSection === "" || activeSection === "services") && (
-              <SkillFreshnessBanner
-                talentProfileId={payload.talentId}
-                viewMode={adminVisible ? "admin" : "talent-self"}
-              />
+              <div style={{ padding: "0 24px" }}>
+                <SkillFreshnessBanner
+                  talentProfileId={payload.talentId}
+                  viewMode={adminVisible ? "admin" : "talent-self"}
+                />
+              </div>
             )}
 
             {/* CREDITS — past work / campaigns / editorials */}
@@ -12288,7 +12553,7 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
       fontFamily: FONTS.body,
     }}>
       <style>{`
-        @container pshell (max-width: 480px) {
+        @container pshell (max-width: 620px) {
           [data-pshell-identity-grid] { grid-template-columns: 1fr !important; }
         }
         [data-pshell-identity-grid] [data-pshell-identity-full] {
@@ -12339,18 +12604,22 @@ function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons
         const showLegal = !!(identity.legalName || (identity as { _showLegal?: boolean })._showLegal);
         return showLegal ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {/* Custom label row — inline KYC pill instead of "Optional" badge */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Custom label row — inline KYC pill instead of "Optional"
+                badge. flexWrap + rowGap so the label, ADMIN-ONLY pill and
+                compact visibility chip never collide / overflow on narrow
+                widths (audit #2). */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", rowGap: 4 }}>
               <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, color: COLORS.ink }}>
                 {copy.t("Legal name")}
               </span>
               <span style={{
-                fontSize: 10, fontWeight: 600, letterSpacing: 0.4,
+                fontSize: 9.5, fontWeight: 600, letterSpacing: 0.4,
+                textTransform: "uppercase",
                 color: COLORS.inkMuted, background: "rgba(11,11,13,0.06)",
                 border: `1px solid rgba(11,11,13,0.1)`,
                 borderRadius: 5, padding: "1px 6px",
               }}>
-                {copy.t("ADMIN ONLY")}
+                {copy.t("Admin only")}
               </span>
               <div style={{ marginLeft: "auto" }}>
                 <ChannelVisibilityStrip
@@ -13980,10 +14249,14 @@ function NextTierCoach({ tier, verifications }: {
 
 
 // ── Field-lock toggle (admin) ────────────────────────────────────────
-function FieldLockToggle({ path, locks, onChange }: {
+function FieldLockToggle({ path, locks, onChange, fieldLabel }: {
   path: FieldLockPath;
   locks: FieldLockPath[];
   onChange: (next: FieldLockPath[]) => void;
+  /** Audit #5 — when the toggle is rendered away from its field (e.g.
+   *  the admin lock cluster), pass the field's friendly name so the
+   *  pill says WHICH field it controls instead of being an orphan. */
+  fieldLabel?: string;
 }) {
   const copy = useDashboardText();
   const isLocked = locks.includes(path);
@@ -14001,7 +14274,14 @@ function FieldLockToggle({ path, locks, onChange }: {
         fontFamily: FONTS.body,
         display: "inline-flex", alignItems: "center", gap: 4,
       }}
-    >{isLocked ? `🔒 ${copy.t("Talent can't edit")}` : `🔓 ${copy.t("Talent can edit")}`}</button>
+    >
+      {fieldLabel && (
+        <span style={{ fontWeight: 700, color: COLORS.ink }}>
+          {copy.t(fieldLabel)} ·
+        </span>
+      )}
+      {isLocked ? `🔒 ${copy.t("Talent can't edit")}` : `🔓 ${copy.t("Talent can edit")}`}
+    </button>
   );
 }
 

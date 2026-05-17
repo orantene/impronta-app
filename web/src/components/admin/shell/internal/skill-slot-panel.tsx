@@ -26,8 +26,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getAspirations,
   getResolvedSkills,
-  removeSkill,
   setFeaturedSkill,
+  setTalentProfileSkills,
   unverifySkill,
   updateSkill,
   verifySkill,
@@ -298,20 +298,30 @@ export function SkillSlotPanel({
       ? previousSkills.filter((s) => s.skill_term_id !== skill.skill_term_id)
       : previousSkills;
     setSaving(skill.skill_term_id, true);
+    // Optimistic: drop the chip immediately.
     setSkills(nextSkills);
-    if (nextSkills) {
-      _skillsCache.set(talentProfileId, {
-        skills: nextSkills,
-        aspirations,
-        ts: Date.now(),
-      });
-    }
-    const res = await removeSkill({
+    // P5 — remove goes through the SAME setAll source of truth as add.
+    // Desired final state = current skills minus the removed one (roles
+    // preserved). The server diffs/deletes and returns the authoritative
+    // final list; we reconcile UI + cache to THAT (not an optimistic-only
+    // write that desyncs on reopen — the prior bug). onSkillsChanged()
+    // because removing a role re-resolves the field catalog (single
+    // shared LCFE fetch via P3-phase-2). No reload cascade.
+    const desired = (previousSkills ?? [])
+      .filter((s) => s.skill_term_id !== skill.skill_term_id)
+      .map((s) => ({
+        taxonomy_term_id: s.skill_term_id,
+        role: (s.relationship_type === "primary_role"
+          ? "primary"
+          : "secondary") as "primary" | "secondary",
+      }));
+    const res = await setTalentProfileSkills({
       talent_profile_id: talentProfileId,
-      talent_type_term_id: skill.skill_term_id,
+      skills: desired,
     });
     setSaving(skill.skill_term_id, false);
     if (!res.ok) {
+      // Rollback the optimistic removal; show the specific error.
       setSkills(previousSkills);
       if (previousSkills) {
         _skillsCache.set(talentProfileId, {
@@ -321,7 +331,16 @@ export function SkillSlotPanel({
         });
       }
       setError(res.error);
+      return;
     }
+    // Trust server result.
+    setSkills(res.skills);
+    _skillsCache.set(talentProfileId, {
+      skills: res.skills,
+      aspirations,
+      ts: Date.now(),
+    });
+    onSkillsChanged?.();
   };
 
   // Q5: Verification flow opens a confirmation modal capturing the admin's
@@ -550,9 +569,41 @@ export function SkillSlotPanel({
           }
           totalSkills={totalSkills}
           onClose={() => setAddingForRole(null)}
-          onAdded={() => {
+          onAdded={async ({ ids, role }) => {
+            // P5 — setAll: desired final state = current skills (with
+            // their roles preserved) + the newly picked ids in this
+            // role. One server action; the returned resolved list
+            // updates the drawer directly (no fetchData re-fetch / no
+            // reload cascade). Fallback-safe: on failure we return the
+            // error so the dialog shows it and keeps the user's draft.
+            const desired = [
+              ...(skills ?? []).map((s) => ({
+                taxonomy_term_id: s.skill_term_id,
+                role: (s.relationship_type === "primary_role"
+                  ? "primary"
+                  : "secondary") as "primary" | "secondary",
+              })),
+              ...ids.map((id) => ({ taxonomy_term_id: id, role })),
+            ];
+            const res = await setTalentProfileSkills({
+              talent_profile_id: talentProfileId,
+              skills: desired,
+            });
+            if (!res.ok) {
+              return { ok: false, error: res.error };
+            }
+            setSkills(res.skills);
+            _skillsCache.set(talentProfileId, {
+              skills: res.skills,
+              aspirations,
+              ts: Date.now(),
+            });
             setAddingForRole(null);
-            reload();
+            // Roles changed → the field catalog must re-resolve. ONE
+            // taxonomyVersion bump (P3-phase-2 makes that a single
+            // shared LiveCategoryFieldsEditor fetch). NOT fetchData().
+            onSkillsChanged?.();
+            return { ok: true };
           }}
           talentProfileId={talentProfileId}
         />

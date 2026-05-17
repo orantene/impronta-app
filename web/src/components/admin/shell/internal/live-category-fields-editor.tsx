@@ -391,52 +391,148 @@ function VisibilityChips({
     }
     onChange(next);
   };
-
   const reset = () => onChange([]);
 
-  const chip = (c: VisChannel, label: string, dotColor: string) => {
-    const active = has(c);
-    return (
+  // Mirrors primitives.tsx ChannelVisibilityStrip exactly — one compact
+  // summary pill that expands to a labelled picker. Same dot colours,
+  // descriptions, sizing, so the whole editor reads as one design.
+  const DESC: Record<VisChannel, string> = {
+    public:  "Discovery + your public profile page",
+    agency:  "Coordinators at agencies that represent you",
+    private: "Only you (admins for compliance)",
+  };
+  const DOT: Record<VisChannel, string> = {
+    public: "#2E7D5B", agency: "#5B6BA0", private: "#C82828",
+  };
+  const LABEL: Record<VisChannel, string> = {
+    public: "Public", agency: "Agency", private: "Private",
+  };
+  const channels: VisChannel[] = ["public", "agency", "private"];
+  const summary = has("public")
+    ? { word: "Public",  dot: DOT.public }
+    : has("agency")
+      ? { word: "Agency",  dot: DOT.agency }
+      : has("private")
+        ? { word: "Private", dot: DOT.private }
+        : { word: "Hidden", dot: "rgba(11,11,13,0.28)" };
+
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", display: "inline-flex" }}>
       <button
-        key={c}
         type="button"
-        onClick={() => click(c)}
-        title={`Visible to ${c}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="true"
+        aria-expanded={open}
+        title={`Visible to: ${summary.word}${isOverride ? " (custom)" : ""}`}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 4,
-          padding: "1px 7px", borderRadius: 999,
-          border: `1px solid ${active ? T.accent : "transparent"}`,
-          background: active ? T.accentSoft : "transparent",
-          color: active ? T.ink : T.inkDim,
-          fontFamily: F, fontSize: 10, fontWeight: 600, cursor: "pointer",
-          letterSpacing: 0.1, opacity: active ? 1 : 0.6,
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "2px 8px", borderRadius: 999,
+          border: `1px solid ${open ? T.accent : T.borderSoft}`,
+          background: open ? "rgba(15,79,62,0.06)" : "transparent",
+          color: T.inkMuted,
+          fontFamily: F, fontSize: 10.5, fontWeight: 600, cursor: "pointer",
+          letterSpacing: 0.1, whiteSpace: "nowrap",
         }}
       >
         <span aria-hidden style={{
-          width: 5, height: 5, borderRadius: "50%",
-          background: active ? dotColor : "rgba(11,11,13,0.18)",
+          width: 6, height: 6, borderRadius: "50%", background: summary.dot,
         }} />
-        {label}
+        {summary.word}
+        {isOverride && (
+          <span aria-hidden title="Custom (differs from default)" style={{
+            width: 4, height: 4, borderRadius: "50%", background: T.accent,
+          }} />
+        )}
+        <span aria-hidden style={{ fontSize: 8, opacity: 0.55, marginLeft: 1 }}>▾</span>
       </button>
-    );
-  };
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-      {chip("public", "Public", "#2E7D5B")}
-      {chip("agency", "Agency", "#5B6BA0")}
-      {chip("private", "Private", "#C82828")}
-      {isOverride && (
-        <button
-          type="button"
-          onClick={reset}
-          title="Clear override and inherit default visibility"
+      {open && (
+        <div
+          role="menu"
           style={{
-            background: "transparent", border: "none", padding: "2px 4px",
-            color: T.inkMuted, fontSize: 10, cursor: "pointer",
-            fontFamily: F, textDecoration: "underline",
+            position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 60,
+            minWidth: 244, padding: 6, borderRadius: 12,
+            background: "#fff", border: `1px solid ${T.borderSoft}`,
+            boxShadow: "0 8px 28px rgba(11,11,13,0.16)", fontFamily: F,
           }}
-        >reset</button>
+        >
+          <div style={{
+            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
+            textTransform: "uppercase", color: T.inkDim, padding: "4px 8px 6px",
+          }}>
+            Visible to
+          </div>
+          {channels.map((c) => {
+            const active = has(c);
+            return (
+              <button
+                key={c}
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={active}
+                onClick={() => click(c)}
+                style={{
+                  width: "100%", display: "flex", alignItems: "flex-start", gap: 9,
+                  padding: "7px 8px", borderRadius: 8, textAlign: "left",
+                  border: "none", cursor: "pointer",
+                  background: active ? "rgba(15,79,62,0.06)" : "transparent",
+                }}
+              >
+                <span aria-hidden style={{
+                  width: 8, height: 8, borderRadius: "50%", marginTop: 3, flexShrink: 0,
+                  background: active ? DOT[c] : "rgba(11,11,13,0.16)",
+                }} />
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{
+                    display: "block", fontSize: 12, fontWeight: 600,
+                    color: active ? T.ink : T.inkMuted,
+                  }}>
+                    {LABEL[c]}
+                  </span>
+                  <span style={{
+                    display: "block", fontSize: 10.5, color: T.inkDim,
+                    lineHeight: 1.35, marginTop: 1,
+                  }}>
+                    {DESC[c]}
+                  </span>
+                </span>
+                <span aria-hidden style={{
+                  fontSize: 11, color: T.accent, marginTop: 1, opacity: active ? 1 : 0,
+                }}>✓</span>
+              </button>
+            );
+          })}
+          {isOverride && (
+            <button
+              type="button"
+              onClick={() => { reset(); setOpen(false); }}
+              style={{
+                width: "100%", marginTop: 4, padding: "7px 8px",
+                borderTop: `1px solid ${T.borderSoft}`, background: "transparent",
+                border: "none", borderTopWidth: 1, cursor: "pointer",
+                fontFamily: F, fontSize: 10.5, fontWeight: 600, color: T.inkMuted,
+                textAlign: "left",
+              }}
+            >
+              ↺ Reset to default visibility
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -826,7 +922,8 @@ function buildValidationHint(field: ResolvedField): string | null {
       const maxL = num("maxLength") ?? num("max_length");
       if (maxL !== null) parts.push(`max ${maxL} chars`);
       if (minL !== null) parts.push(`min ${minL} chars`);
-      if (typeof r.pattern === "string") parts.push("pattern enforced");
+      // "pattern enforced" was jargon with no actionable info (audit #4)
+      // — dropped.
       break;
     }
     case "chips": {
@@ -834,16 +931,9 @@ function buildValidationHint(field: ResolvedField): string | null {
       if (maxItems !== null) parts.push(`up to ${maxItems} entries`);
       break;
     }
-    case "multiselect": {
-      const opts = field.options ?? [];
-      if (opts.length > 0) parts.push(`pick from ${opts.length}`);
-      break;
-    }
-    case "select": {
-      const opts = field.options ?? [];
-      if (opts.length > 0) parts.push(`${opts.length} options`);
-      break;
-    }
+    // multiselect / select: the option count ("8 options", "pick from
+    // 8") was pure noise — the options are rendered right there (audit
+    // #4). No hint needed.
   }
   return parts.length === 0 ? null : parts.join(" · ");
 }
@@ -858,6 +948,12 @@ type GroupBlockProps = {
   onSaveVisibility: (fieldDefId: string, next: VisChannel[]) => Promise<{ ok: boolean; error?: string }>;
   open: boolean;
   onToggle: () => void;
+  /** Audit #6 — when the parent renders a single always-open group
+   *  behind the sticky pill switcher, the pill already shows the group
+   *  name + count. Drawing the accordion header again is a redundant
+   *  double header. `chromeless` drops the header button + card border
+   *  and just renders the fields. */
+  chromeless?: boolean;
 };
 
 function isValueFilled(v: unknown): boolean {
@@ -869,7 +965,7 @@ function isValueFilled(v: unknown): boolean {
 
 function GroupBlock({
   title, weight, fields, valuesByDefId, visibilityByDefId,
-  onSave, onSaveVisibility, open, onToggle,
+  onSave, onSaveVisibility, open, onToggle, chromeless,
 }: GroupBlockProps) {
   const filled = fields.reduce((n, f) => {
     return isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n;
@@ -903,6 +999,25 @@ function GroupBlock({
     }
     if (!open) wasOpen.current = false;
   }, [open]);
+
+  if (chromeless) {
+    // Audit #6 — no header, no card border. The sticky pill switcher
+    // above is the single source of the group name + fill count.
+    return (
+      <div ref={cardRef} style={{ fontFamily: F }}>
+        {fields.map((f) => (
+          <FieldRow
+            key={f.field_definition_id}
+            field={f}
+            initialValue={valuesByDefId.get(f.field_definition_id)}
+            initialVisibility={visibilityByDefId.get(f.field_definition_id) ?? null}
+            onSave={(v) => onSave(f.field_definition_id, v)}
+            onSaveVisibility={(next) => onSaveVisibility(f.field_definition_id, next)}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div ref={cardRef} style={{
@@ -977,6 +1092,68 @@ export type EditorServerActions = {
   setVisibility: (input: { talent_profile_id: string; field_definition_id: string; visibility: VisChannel[] }) =>
     Promise<{ ok: true } | { ok: false; error: string }>;
 };
+
+// P3-phase-2 — shared per-talent field/value resolver.
+// Details and General both mount LiveCategoryFieldsEditor; `scope` is only
+// a CLIENT-SIDE render filter, so getFieldsForTalent + getTalentFieldValues
+// return the SAME payload for both mounts. Previously each mount fetched
+// independently → 2× getFieldsForTalent + 2× getTalentFieldValues per open
+// (the warm-open slowness). This memoizes one in-flight/result promise per
+// (talentProfileId, refreshKey): the two mounts (and StrictMode's double
+// invoke) share a single fetch. The key busts ONLY when refreshKey
+// (taxonomyVersion) changes — i.e. the role/type actually changed — so
+// section navigation never refetches. A failed/throwing fetch evicts the
+// key so the next mount/refresh re-attempts (the un-memoized fetch is the
+// fallback path; no sticky failures, old behaviour preserved).
+// Generic over the fields/values result types so it accepts whatever the
+// caller's action functions return (the `getFieldsForTalent` /
+// `getTalentFieldValues` defaults OR an `EditorServerActions` override —
+// these have structurally-equivalent but nominally-different value row
+// types, which a fixed `_Lcfe*` signature rejected in the parameter
+// position). Behaviour is unchanged: still one memoized/deduped fetch
+// per (talentProfileId, refreshKey) with the un-memoized fetch as the
+// fallback. The module cache is type-erased; each call site recovers its
+// exact types via the inferred `F`/`V`.
+const _lcfeShared = new Map<string, Promise<[unknown, unknown]>>();
+
+function resolveTalentFieldsShared<F, V>(
+  talentProfileId: string,
+  refreshKey: string | number,
+  getFieldsAction: (i: { talent_profile_id: string }) => Promise<F>,
+  getValuesAction: (i: { talent_profile_id: string }) => Promise<V>,
+): Promise<[F, V]> {
+  const key = `${talentProfileId}::${String(refreshKey)}`;
+  const existing = _lcfeShared.get(key);
+  if (existing) {
+    console.info(`[lcfe] reuse shared payload key=${key}`);
+    return existing as Promise<[F, V]>;
+  }
+  // refreshKey changed → any older cached set for this talent is stale.
+  for (const k of [..._lcfeShared.keys()]) {
+    if (k.startsWith(`${talentProfileId}::`) && k !== key) _lcfeShared.delete(k);
+  }
+  const t0 = Date.now();
+  console.info(`[lcfe] fetch start key=${key}`);
+  const p = Promise.all([
+    getFieldsAction({ talent_profile_id: talentProfileId }),
+    getValuesAction({ talent_profile_id: talentProfileId }),
+  ]) as Promise<[F, V]>;
+  _lcfeShared.set(key, p as Promise<[unknown, unknown]>);
+  void p.then(
+    ([f]) => {
+      const ok = (f as { ok?: boolean })?.ok !== false;
+      console.info(
+        `[lcfe] fetch done key=${key} ms=${Date.now() - t0} ok=${ok}`,
+      );
+      if (!ok) _lcfeShared.delete(key); // don't cache a failure
+    },
+    (e) => {
+      console.warn(`[lcfe] fetch threw key=${key}: ${String(e)}`);
+      _lcfeShared.delete(key);
+    },
+  );
+  return p;
+}
 
 export function LiveCategoryFieldsEditor({
   talentProfileId,
@@ -1066,10 +1243,12 @@ export function LiveCategoryFieldsEditor({
     let timer: ReturnType<typeof setTimeout> | null = null;
     const load = async () => {
       try {
-        const [fieldsRes, valuesRes] = await Promise.all([
-          getFieldsAction({ talent_profile_id: talentProfileId }),
-          getValuesAction({ talent_profile_id: talentProfileId }),
-        ]);
+        const [fieldsRes, valuesRes] = await resolveTalentFieldsShared(
+          talentProfileId,
+          refreshKey,
+          getFieldsAction,
+          getValuesAction,
+        );
         if (cancelled) return;
         if (!fieldsRes.ok) {
           setError(fieldsRes.error);
@@ -1295,6 +1474,10 @@ export function LiveCategoryFieldsEditor({
 
   return (
     <div style={{ marginBottom: 4 }}>
+      {/* Audit #9 — progress/History bar + the group switcher stay
+          pinned together while you scroll a long section, so you never
+          lose where you are or the way out. */}
+      <div style={{ position: "sticky", top: 0, zIndex: 7, background: "#fff" }}>
       <div style={{
         padding: "8px 4px 10px", fontFamily: F,
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1304,7 +1487,7 @@ export function LiveCategoryFieldsEditor({
           fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4,
           textTransform: "uppercase", fontWeight: 600,
         }}>
-          {scope === "general" ? "General profile" : "Details"} · {totalFilled} of {fields.length} filled · saves on blur
+          {scope === "general" ? "General profile · " : ""}{totalFilled} of {fields.length} complete · saves automatically
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {requiredMissing > 0 && (
@@ -1350,9 +1533,9 @@ export function LiveCategoryFieldsEditor({
           the deep type-driven content flexes behind a horizontal nav. */}
       {tabs.length > 0 && (
         <div style={{
-          position: "sticky", top: 0, zIndex: 6, background: "#fff",
+          background: "#fff",
           display: "flex", gap: 6, overflowX: "auto",
-          padding: "4px 0 10px", marginBottom: 10,
+          padding: "4px 0 10px",
           borderBottom: `1px solid ${T.borderSoft}`,
         }}>
           {tabs.map((t) => {
@@ -1384,6 +1567,8 @@ export function LiveCategoryFieldsEditor({
           })}
         </div>
       )}
+      </div>{/* /sticky progress + switcher (audit #9) */}
+      <div style={{ height: 10 }} />
       {activeTabData && (
         <GroupBlock
           key={activeTabData.key}
@@ -1396,6 +1581,7 @@ export function LiveCategoryFieldsEditor({
           onSaveVisibility={handleSaveVisibility}
           open={true}
           onToggle={() => {}}
+          chromeless
         />
       )}
     </div>

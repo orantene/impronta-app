@@ -4723,19 +4723,35 @@ const CHANNEL_META: Record<FieldChannel, { label: string; emoji: string; tooltip
   private: { label: "Private", emoji: "🔒", tooltip: "Only you (and admins for compliance)" },
 };
 
+// Per-channel descriptions reused in the picker popover so the meaning
+// of each audience is explained inline (audit #10 — no unexplained dots).
+const CHANNEL_DESC: Record<FieldChannel, string> = {
+  public:  "Discovery + your public profile page",
+  agency:  "Coordinators at agencies that represent you",
+  private: "Only you (admins for compliance)",
+};
+const CHANNEL_DOT: Record<FieldChannel, string> = {
+  public:  "#2E7D5B",
+  agency:  "#5B6BA0",
+  private: "#C82828",
+};
+
 /**
- * Compact visibility control. Renders a small pill — icon + readable
- * word (🌐 Public · 🏢 Agency only · 🔒 Private · 👁 Not visible) —
- * that summarises current state and opens a 3-row popover with the
- * actual toggles on click. Stays dense like the old icon-only form
- * but the state is legible without clicking.
+ * Compact visibility control — ONE design across the whole editor
+ * (every hardcoded section + the Specialty engine mirror this).
  *
- * Pattern reference: Notion's "Who can see this", Linear's privacy
- * chips, Figma's permission popovers.
+ * Collapsed: a single small pill — coloured dot + one word
+ * (Public / Agency / Private / Hidden) + caret — that summarises the
+ * current audience. ~64px wide instead of the old ~170px triad, so it
+ * fits inline-right of the label even in a 2-column grid cell and stops
+ * wrapping below the field (audit #1/#2/#3). Repeated on every field
+ * without becoming visual noise (audit #8).
  *
- * Same `value` + `onChange` API as before — callers don't need to
- * change. The legacy strip is preserved as ChannelVisibilityStripLegacy
- * for any surface that still wants the wide form.
+ * Expanded (on click): a labelled popover with the three audiences,
+ * each with a plain-language description and a check — so the meaning
+ * is never a mystery (audit #10).
+ *
+ * Same `value` + `onChange` API as before — callers don't change.
  */
 export function ChannelVisibilityStrip({
   value, onChange, label = "Visible to",
@@ -4757,46 +4773,124 @@ export function ChannelVisibilityStrip({
     else onChange([...without.filter(x => x !== c), c] as FieldChannel[]);
   };
 
-  // ONE visibility design across the whole drawer — identical to the
-  // Specialty engine's VisibilityChips (3 inline chips, same sizing,
-  // dot colours, active/inactive states). No popover, no summary pill.
-  const META: Record<FieldChannel, { label: string; dot: string }> = {
-    public:  { label: "Public",  dot: "#2E7D5B" },
-    agency:  { label: "Agency",  dot: "#5B6BA0" },
-    private: { label: "Private", dot: "#C82828" },
-  };
+  // Collapsed summary: broadest audience wins the label/colour.
+  const summary = has("public")
+    ? { word: "Public",  dot: CHANNEL_DOT.public }
+    : has("agency")
+      ? { word: "Agency",  dot: CHANNEL_DOT.agency }
+      : has("private")
+        ? { word: "Private", dot: CHANNEL_DOT.private }
+        : { word: "Hidden", dot: "rgba(11,11,13,0.28)" };
+
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
-      {channels.map((c) => {
-        const active = has(c);
-        return (
-          <button
-            key={c}
-            type="button"
-            onClick={() => toggle(c)}
-            disabled={!onChange}
-            aria-pressed={active}
-            title={`${copy.t(label)} ${copy.t(META[c].label)}`}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 4,
-              padding: "1px 7px", borderRadius: 999,
-              border: `1px solid ${active ? COLORS.accent : "transparent"}`,
-              background: active ? "rgba(15,79,62,0.08)" : "transparent",
-              color: active ? COLORS.ink : COLORS.inkDim,
-              fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
-              cursor: onChange ? "pointer" : "default",
-              letterSpacing: 0.1, opacity: active ? 1 : 0.6,
-            }}
-          >
-            <span aria-hidden style={{
-              width: 5, height: 5, borderRadius: "50%",
-              background: active ? META[c].dot : "rgba(11,11,13,0.18)",
-            }} />
-            {copy.t(META[c].label)}
-          </button>
-        );
-      })}
+    <div ref={wrapRef} style={{ position: "relative", display: "inline-flex" }}>
+      <button
+        type="button"
+        onClick={() => onChange && setOpen(o => !o)}
+        disabled={!onChange}
+        aria-haspopup="true"
+        aria-expanded={open}
+        title={`${copy.t(label)}: ${copy.t(summary.word)}`}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "2px 8px", borderRadius: 999,
+          border: `1px solid ${open ? COLORS.accent : COLORS.borderSoft}`,
+          background: open ? "rgba(15,79,62,0.06)" : "transparent",
+          color: COLORS.inkMuted,
+          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
+          cursor: onChange ? "pointer" : "default",
+          letterSpacing: 0.1, whiteSpace: "nowrap",
+        }}
+      >
+        <span aria-hidden style={{
+          width: 6, height: 6, borderRadius: "50%", background: summary.dot,
+        }} />
+        {copy.t(summary.word)}
+        {onChange && (
+          <span aria-hidden style={{ fontSize: 8, opacity: 0.55, marginLeft: 1 }}>
+            ▾
+          </span>
+        )}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 60,
+            minWidth: 244, padding: 6, borderRadius: 12,
+            background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+            boxShadow: "0 8px 28px rgba(11,11,13,0.16)",
+            fontFamily: FONTS.body,
+          }}
+        >
+          <div style={{
+            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
+            textTransform: "uppercase", color: COLORS.inkDim,
+            padding: "4px 8px 6px",
+          }}>
+            {copy.t(label)}
+          </div>
+          {channels.map((c) => {
+            const active = has(c);
+            return (
+              <button
+                key={c}
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={active}
+                onClick={() => toggle(c)}
+                style={{
+                  width: "100%", display: "flex", alignItems: "flex-start", gap: 9,
+                  padding: "7px 8px", borderRadius: 8, textAlign: "left",
+                  border: "none", cursor: "pointer",
+                  background: active ? "rgba(15,79,62,0.06)" : "transparent",
+                }}
+              >
+                <span aria-hidden style={{
+                  width: 8, height: 8, borderRadius: "50%", marginTop: 3, flexShrink: 0,
+                  background: active ? CHANNEL_DOT[c] : "rgba(11,11,13,0.16)",
+                }} />
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{
+                    display: "block", fontSize: 12, fontWeight: 600,
+                    color: active ? COLORS.ink : COLORS.inkMuted,
+                  }}>
+                    {copy.t({ public: "Public", agency: "Agency", private: "Private" }[c])}
+                  </span>
+                  <span style={{
+                    display: "block", fontSize: 10.5, color: COLORS.inkDim,
+                    lineHeight: 1.35, marginTop: 1,
+                  }}>
+                    {copy.t(CHANNEL_DESC[c])}
+                  </span>
+                </span>
+                <span aria-hidden style={{
+                  fontSize: 11, color: COLORS.accent, marginTop: 1,
+                  opacity: active ? 1 : 0,
+                }}>
+                  ✓
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

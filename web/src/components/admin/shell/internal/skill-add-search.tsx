@@ -12,8 +12,6 @@
 import { useEffect, useState } from "react";
 
 import {
-  addSkill,
-  addSkills,
   getEnabledParentCategoriesForPicker,
   getTalentTypesUnderParent,
   requestNewTaxonomyTerm,
@@ -52,7 +50,14 @@ export function AddSkillSearch({
   existingSkillIds: Set<string>;
   totalSkills: number;
   onClose: () => void;
-  onAdded: () => void;
+  /** P5 — parent owns the write (one setAll server action). We hand up
+   *  the picked term ids + the role; the parent commits the new desired
+   *  state and returns ok/error. On error we keep the dialog open with
+   *  the selection intact (fallback-safe). */
+  onAdded: (picked: {
+    ids: string[];
+    role: "primary" | "secondary";
+  }) => Promise<{ ok: boolean; error?: string }>;
   talentProfileId: string;
 }) {
   const copy = useDashboardText();
@@ -153,26 +158,16 @@ export function AddSkillSearch({
     setSubmitting(true);
     setError(null);
     const selectedIds = Array.from(selected);
-    const res = selectedIds.length === 1
-      ? await addSkill({
-          talent_profile_id: talentProfileId,
-          talent_type_term_id: selectedIds[0]!,
-          role,
-          proficiency_level: "intermediate",
-        })
-      : await addSkills({
-          talent_profile_id: talentProfileId,
-          talent_type_term_ids: selectedIds,
-          role,
-          proficiency_level: "intermediate",
-        });
+    // P5 — single setAll write owned by the parent. No append-only
+    // addSkill/addSkills + reload cascade.
+    const res = await onAdded({ ids: selectedIds, role });
     if (!res.ok) {
-      setError(res.error);
+      setError(res.error ?? "Couldn't save. Try again.");
       setSubmitting(false);
       return;
     }
     setSubmitting(false);
-    onAdded();
+    // Parent closes the dialog (setAddingForRole(null)) on success.
   };
 
   // ── Subview: category grid ──────────────────────────────────────────
