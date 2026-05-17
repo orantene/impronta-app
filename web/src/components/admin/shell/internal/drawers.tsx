@@ -64,6 +64,7 @@ import {
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./use-taxonomy";
 import { prefetchSkillsData, SkillSlotPanel } from "./skill-slot-panel";
+import { ContextSlotPanel, prefetchContextsData } from "./context-slot-panel";
 import { useDashboardText } from "./dashboard-i18n";
 import { MetricsRibbon } from "./metrics-ribbon";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./profile-store";
@@ -5553,6 +5554,7 @@ function TalentProfileShellDrawer() {
     const tid = payload.talentId;
     if (!tid || !bridgeTenantIdentity?.tenantId) return;
     prefetchSkillsData(tid);
+    prefetchContextsData(tid);
   }, [payload.talentId, bridgeTenantIdentity?.tenantId]);
 
   // ── Save-button architecture ─────────────────────────────────────────────
@@ -7298,6 +7300,11 @@ function TalentProfileShellDrawer() {
                     talentProfileId={payload.talentId}
                     isAdmin={adminVisible}
                     onSkillsChanged={() => setTaxonomyVersion((v) => v + 1)}
+                  />
+                  <ContextSlotPanel
+                    talentProfileId={payload.talentId}
+                    talentName={state.stageName}
+                    onContextsChanged={() => setTaxonomyVersion((v) => v + 1)}
                   />
                 </div>
               ) : (
