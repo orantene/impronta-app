@@ -90,6 +90,16 @@ export interface SiteHeaderPatch {
     tagline?: string | null;
     primaryCtaLabel?: string | null;
     primaryCtaHref?: string | null;
+    // Phase 6B — social/contact (canonical identity store).
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    whatsapp?: string | null;
+    socialInstagram?: string | null;
+    socialTiktok?: string | null;
+    socialFacebook?: string | null;
+    socialYoutube?: string | null;
+    socialLinkedin?: string | null;
+    socialX?: string | null;
   }) => void;
   /** Patch branding (logo, brand mark, colors, font). Renderer-driven; triggers refresh. */
   patchBranding: (input: {
@@ -233,6 +243,15 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
                 tagline?: string | null;
                 primaryCtaLabel?: string | null;
                 primaryCtaHref?: string | null;
+                contactEmail?: string | null;
+                contactPhone?: string | null;
+                whatsapp?: string | null;
+                socialInstagram?: string | null;
+                socialTiktok?: string | null;
+                socialFacebook?: string | null;
+                socialYoutube?: string | null;
+                socialLinkedin?: string | null;
+                socialX?: string | null;
               }),
             });
             if (!res.ok) throw new Error(res.error);
@@ -696,6 +715,15 @@ function mapIdentityInput(input: {
   tagline?: string | null;
   primaryCtaLabel?: string | null;
   primaryCtaHref?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  whatsapp?: string | null;
+  socialInstagram?: string | null;
+  socialTiktok?: string | null;
+  socialFacebook?: string | null;
+  socialYoutube?: string | null;
+  socialLinkedin?: string | null;
+  socialX?: string | null;
 }): Partial<SiteHeaderConfig["identity"]> {
   const out: Partial<SiteHeaderConfig["identity"]> = {};
   if (input.publicName !== undefined) out.publicName = input.publicName;
@@ -704,6 +732,19 @@ function mapIdentityInput(input: {
     out.primaryCtaLabel = input.primaryCtaLabel;
   if (input.primaryCtaHref !== undefined)
     out.primaryCtaHref = input.primaryCtaHref;
+  if (input.contactEmail !== undefined) out.contactEmail = input.contactEmail;
+  if (input.contactPhone !== undefined) out.contactPhone = input.contactPhone;
+  if (input.whatsapp !== undefined) out.whatsapp = input.whatsapp;
+  if (input.socialInstagram !== undefined)
+    out.socialInstagram = input.socialInstagram;
+  if (input.socialTiktok !== undefined) out.socialTiktok = input.socialTiktok;
+  if (input.socialFacebook !== undefined)
+    out.socialFacebook = input.socialFacebook;
+  if (input.socialYoutube !== undefined)
+    out.socialYoutube = input.socialYoutube;
+  if (input.socialLinkedin !== undefined)
+    out.socialLinkedin = input.socialLinkedin;
+  if (input.socialX !== undefined) out.socialX = input.socialX;
   return out;
 }
 
