@@ -1261,3 +1261,34 @@ raw key leak), **0 legacy body markers**, no Impronta content, shell
 header/footer guard still present (smaller 95 KB vs old marketing bloat).
 
 Deploy + prod QA: see next entry.
+
+### Phase 5 Deploy + Production QA — PASS (2026-05-18)
+
+Commit `5b600f61f` (scoped: storefront refactor + 4 deletions + en/es
+i18n + tracker) → push (FF `9d305bc9f..5b600f61f`) →
+`npm run deploy:promote` → fresh Production-env build `tulala-bk8ewrgan`
+→ re-aliased tulala/app/improntamodels/www/impronta.tulala →
+`deploy:smoke` all checks passed.
+
+Production QA:
+- **improntamodels.com** (CMS canonical) — HTTP 200, modern site_header
+  (1), logo renders (1), 9 CMS body sections (✓✓✓✓), editorial-noir live,
+  0 "Curated", **0 legacy body markers**, neutral msg absent (it has a
+  composition → CMS path). Unchanged by Phase 5 ✓.
+- **tulala.digital/nova-crew** (un-composed) — HTTP 200, neutral
+  no-composition message renders, i18n key resolved (no raw-key leak),
+  **0 legacy body markers**, shell header/footer guard still present.
+- **tulala.digital/qa-agency** — HTTP 200, **0 legacy body markers**
+  (renders CMS or neutral; either way the deprecated fallback is gone).
+
+**Result:** the deprecated Impronta-flavored hardcoded homepage body no
+longer renders for ANY tenant. CMS / Page Builder composition is the
+canonical and only body path; un-composed tenants get a neutral
+public-safe state (starter picker in edit mode); the modern-shell
+fallback guard is intact. **Phases 0–5 COMPLETE and live.**
+
+Residual non-blocking follow-ups (unchanged, owner-reserved): builder
+`platform-auth` link kind; `agency_business_identity.footer_tagline`
+legacy debug string (legacy-footer-only); featured_talent roster
+visibility; dynamic `tenant_talent_count`; talent_collection DTO
+extension; visual taxonomy picker.
