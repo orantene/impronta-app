@@ -19,6 +19,9 @@ export function EditorialSplitHeroComponent({
     mediaUrl,
     mediaAlt,
     mediaRatio,
+    mediaStyle,
+    mediaStackUrls,
+    mediaStackCaptions,
     overlayColor,
     overlayOpacity,
     overlayStrength,
@@ -31,6 +34,8 @@ export function EditorialSplitHeroComponent({
   // Only static media renders today; selected/dynamic are documented
   // follow-ons (would couple to the cache-trimmed featured DTO).
   const resolvedMedia = mediaMode === "static" ? (mediaUrl ?? null) : null;
+  const stackUrls = (mediaStackUrls ?? []).filter(Boolean).slice(0, 3);
+  const useStack = mediaStyle === "card-stack" && stackUrls.length > 0;
 
   return (
     <section
@@ -77,16 +82,50 @@ export function EditorialSplitHeroComponent({
               </div>
             ) : null}
           </div>
-          <div className="site-esh__media">
-            <MediaFrame
-              src={resolvedMedia}
-              alt={mediaAlt ?? headline ?? ""}
-              ratio={mediaRatio ?? "4/3"}
-              overlayColor={overlayColor}
-              overlayOpacity={overlayOpacity}
-              overlayStrength={overlayStrength ?? "none"}
-              fallback={mediaAlt ?? "Media"}
-            />
+          <div className="site-esh__media" data-esh-media-style={useStack ? "card-stack" : "single"}>
+            {useStack ? (
+              <div className="site-esh__stack">
+                {stackUrls[1] ? (
+                  <div className="site-esh__stack-card site-esh__stack-card--b">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={stackUrls[1]} alt="" loading="lazy" decoding="async" />
+                  </div>
+                ) : null}
+                {stackUrls[2] ? (
+                  <div className="site-esh__stack-card site-esh__stack-card--c">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={stackUrls[2]} alt="" loading="lazy" decoding="async" />
+                  </div>
+                ) : null}
+                <div className="site-esh__stack-card site-esh__stack-card--main">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={stackUrls[0]}
+                    alt={mediaAlt ?? headline ?? ""}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  {mediaStackCaptions?.[0] ? (
+                    <div className="site-esh__stack-cap">
+                      <b>{mediaStackCaptions[0].name}</b>
+                      {mediaStackCaptions[0].sub ? (
+                        <span>{mediaStackCaptions[0].sub}</span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <MediaFrame
+                src={resolvedMedia}
+                alt={mediaAlt ?? headline ?? ""}
+                ratio={mediaRatio ?? "4/3"}
+                overlayColor={overlayColor}
+                overlayOpacity={overlayOpacity}
+                overlayStrength={overlayStrength ?? "none"}
+                fallback={mediaAlt ?? "Media"}
+              />
+            )}
           </div>
         </div>
       </Container>

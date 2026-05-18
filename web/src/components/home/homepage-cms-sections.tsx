@@ -176,9 +176,18 @@ export async function HomepageCmsSections({
     getPublicPathPrefix(),
   ]);
 
-  const entries = onlySlot
-    ? snapshot.slots.filter((s) => s.slotKey === onlySlot)
-    : snapshot.slots;
+  // Filter by slot AND/OR section id. The storefront mounts one
+  // `<HomepageCmsSections onlySectionId=… />` per non-hero section without
+  // `onlySlot`; without an `onlySectionId` branch every such mount iterated
+  // ALL slots, emitting a section shell per entry → ~65 shells for a
+  // 9-section page. A predicate that honors both (and both-present) keeps
+  // `onlySlot="hero"` rendering every hero-slot section while making
+  // `onlySectionId` render exactly one.
+  const entries = snapshot.slots.filter((s) => {
+    if (onlySlot && s.slotKey !== onlySlot) return false;
+    if (onlySectionId && s.sectionId !== onlySectionId) return false;
+    return true;
+  });
 
   if (entries.length === 0) {
     if (!editMode && !previewActive) return null;

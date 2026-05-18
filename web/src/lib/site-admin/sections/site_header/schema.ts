@@ -56,8 +56,18 @@ export const siteHeaderSchemaV1 = z.object({
    * tenant's surface-raised colour explicitly.
    */
   tone: z.enum(["transparent", "surface", "solid"]).default("surface"),
-  /** Layout — minimal (centered brand + nav under) vs standard (left brand, right nav). */
-  variant: z.enum(["standard", "minimal", "split"]).default("standard"),
+  /**
+   * Layout. `standard` = left brand / right nav. `minimal` = centered
+   * brand + nav under. `split` = 3-col grid. `editorial` = premium
+   * centered editorial shell (scaled wordmark, uppercase letter-spaced
+   * nav on its own centered row, refined translucent sticky) — reusable
+   * and theme-token-driven: the gold accent only resolves on tenants
+   * whose theme defines one; neutral themes get the same structure in
+   * their own tokens.
+   */
+  variant: z
+    .enum(["standard", "minimal", "split", "editorial"])
+    .default("standard"),
   /**
    * Auth-area toggles. Each flag controls whether the matching widget
    * renders inside the snapshot-shell header. Widgets are rendered by

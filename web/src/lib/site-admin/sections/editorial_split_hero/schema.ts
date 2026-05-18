@@ -33,6 +33,25 @@ export const editorialSplitHeroSchemaV1 = z.object({
   /** Static media image URL (mediaMode = static). */
   mediaUrl: z.string().url().max(2048).optional(),
   mediaAlt: z.string().max(160).optional(),
+  /**
+   * Media presentation. `single` = one framed image (default — every
+   * existing usage is unchanged). `card-stack` = a layered/rotated 3-card
+   * editorial stack (reusable, theme-token-driven). Falls back to the
+   * single `mediaUrl` frame when `card-stack` has no `mediaStackUrls`.
+   */
+  mediaStyle: z.enum(["single", "card-stack"]).default("single"),
+  /** Up to 3 image URLs for `mediaStyle: card-stack` (front, left, right). */
+  mediaStackUrls: z.array(z.string().url().max(2048)).max(3).optional(),
+  /** Optional captions aligned to `mediaStackUrls` (front card shows its caption). */
+  mediaStackCaptions: z
+    .array(
+      z.object({
+        name: z.string().max(80),
+        sub: z.string().max(80).optional(),
+      }),
+    )
+    .max(3)
+    .optional(),
   mediaRatio: z.enum(["1/1", "3/4", "4/3", "16/9"]).default("4/3"),
   overlayColor: z.string().max(32).optional(),
   overlayOpacity: z.number().min(0).max(1).optional(),
