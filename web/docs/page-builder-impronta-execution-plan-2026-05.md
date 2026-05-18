@@ -1621,3 +1621,101 @@ Remaining content backlog (non-blocking, owner/content): complete the 22
 draft/hidden roster profiles (bio/city/approval/media) to grow Featured
 Talent toward 8–15 and re-enable trimmed categories/Cancún as real
 coverage exists; pixel-perfect human design pass (Workstream 1).
+
+---
+
+## Workstream 1 — Live Impronta Design / UX Polish (AUDIT + PLAN — no code) 2026-05-18
+
+Read-only audit of the live homepage (`improntamodels.com`) via prod
+HTML + authoritative DB composition + local responsive structural
+metrics. **Honest scope limit:** pixel-perfect aesthetic judgment
+(typography weight, micro-spacing, "premium feel") needs a human visual
+pass — screenshots are denied in the agent env; the preview DOM is
+hydration-bloated. Findings below are the structurally/asset-verifiable
+ones; subjective polish is flagged as human-review.
+
+### Audit findings
+
+- **Section order: CORRECT** (authoritative slot-sorted): hero_search →
+  editorial_split_hero → talent_type_grid → featured_talent →
+  location_discovery → process_steps → values_trio → cta_banner(talent)
+  → cta_banner(client). Logical flow; not an issue. (An earlier
+  grep-order looked scrambled — that was the multi-render server-HTML
+  artifact, not the real order.)
+- **Featured Talent: PASS / premium.** 6 real profiles, 100% have real
+  card images (`aspect-3/4`, editorial variant, link to `/t/<code>`).
+  This is the strong part of the page now.
+- **CRITICAL — imageless category grid.** `talent_type_grid` has 4
+  manual items (Models, Hosts & Promo, Performers, Creators &
+  Influencers) with **0 `imageUrl`** → every card renders the
+  `site-prim-media__fallback` (text label on a dark placeholder frame).
+  Abstract placeholder boxes are this project's documented #1
+  "looks-unfinished" signal. Half the "browse" experience reads as
+  builder template.
+- **HIGH — editorial_split_hero has no media.** `mediaMode=static`,
+  `mediaUrl=NONE` → neutral MediaFrame fallback in a hero-area section
+  (high visibility). Reads unfinished next to the real Featured cards.
+- **MEDIUM/HIGH — hero_search has no imagery.** Search-first text hero on
+  near-black; functional but low first-impression impact for a premium
+  agency (no hero visual/backdrop).
+- **PASS — responsive.** No horizontal overflow at 390 (and 834/1440 per
+  the earlier `min(),100%` + `flex-wrap` fixes). Structurally sound.
+- **PASS — integrity.** editorial-noir live, 0 "Curated", 0 Cancún, no
+  public edit chrome.
+- **Human-review (cannot verify in-env):** type scale/rhythm, section
+  vertical spacing cadence, CTA visual hierarchy, card hover states,
+  editorial-noir gold accent tastefulness (`color.accent #d4af37` — the
+  owner has historically disliked heavy gold/rust; worth a deliberate
+  call), header/footer refinement.
+
+### Polish backlog (prioritized)
+
+| Pri | Problem | Section | Recommendation | Path | Risk |
+|---|---|---|---|---|---|
+| Critical | Category cards imageless (placeholder frames) | talent_type_grid | Add real editorial imagery per category (4 images), set `imageUrl` per item | content (assets) + config | low (config) / owner-gated (assets) |
+| High | Editorial split hero has no media | editorial_split_hero | Supply a real editorial hero image, set `mediaUrl` | content + config | low (config) / owner-gated (asset) |
+| High | Hero first-impression flat (no imagery) | hero_search | Decide: keep search-first text hero vs add a tasteful backdrop/визуal; if backdrop, it's a section/presentation setting | owner decision → config/CSS | med |
+| Medium | Gold accent (#d4af37) heaviness | theme tokens | Owner call: keep editorial-noir gold vs dial accent toward restrained metal/ivory | config (theme token) | low |
+| Medium | Type scale / vertical rhythm / CTA hierarchy | all | Human visual pass → targeted token/CSS tweaks | CSS/token | med |
+| Medium | Featured `limit:12` vs 6 codes; copy tightening | featured_talent | Set `limit:6`; tighten section copy | config | low |
+| Later | Category/Cancún re-enable as roster grows | recipe | Re-add per real coverage (content backlog) | config | low |
+| Later | Page-kit/template extraction | platform | Deferred (explicitly not now) | code | n/a |
+
+### Implementation plan (proposed — not yet executed)
+
+- **A. Builder composition/config (no code):** set `imageUrl` on the 4
+  talent_type_grid items; set editorial_split_hero `mediaUrl`; tighten
+  featured_talent `limit`→6 + copy; (optional) hero backdrop setting;
+  (optional) theme accent token. All via the canonical recipe re-apply +
+  publish (proven flow). **Blocked on owner-provided real images.**
+- **B. CSS/token polish:** only after a human visual pass identifies
+  concrete spacing/type/hover issues — token-driven, tenant-agnostic, no
+  Impronta hardcode. Small scoped pass.
+- **C. Component changes:** none anticipated — existing sections support
+  imagery + the needed presentation. Do NOT add components.
+
+### QA targets
+1440 / 834 / 390: no horizontal overflow; hero/search/CTAs usable;
+category + featured cards premium (real imagery); readable type; clear
+button hierarchy; no empty/accidental section; editorial-noir intact.
+
+### Owner decisions needed
+1. Provide/approve **4 category images** + **1 editorial-hero image**
+   (real photography vs curated stock vs commissioned) — the marquee
+   blocker; without real assets the page keeps placeholder frames.
+2. hero_search: keep clean search-first text hero, or add a hero
+   backdrop/visual?
+3. editorial-noir **gold accent**: keep as-is or dial back (owner has
+   historically disliked heavy gold/rust)?
+4. Sequence: implement config polish now with interim imagery, or wait
+   for final real assets and do one grouped premium pass?
+
+### Recommendation
+**Wait for owner decisions (esp. imagery/assets) before implementing.**
+The highest-impact items (category + hero imagery) are content/asset
+decisions, not CSS — and this project explicitly rejects placeholder
+boxes, so CSS polish alone won't make it "premium." Recommend: owner
+supplies/approves the 5 images + answers the 3 design calls, then ONE
+grouped config(+small CSS) polish pass via the canonical re-apply, then
+1440/834/390 QA. No code planned beyond optional small token/CSS tweaks
+identified by a human visual pass.
