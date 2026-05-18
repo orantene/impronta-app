@@ -497,7 +497,6 @@ export async function SiteHeaderComponent({
       data-section-id={SITE_HEADER_SELECTION_ID}
       data-section-type-key="site_header"
       data-slot-key="header"
-      data-builder-node-id={builderNodeBindings?.sectionNodeId ?? undefined}
       style={{ display: "contents" }}
     >
       {headerEl}
