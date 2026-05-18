@@ -1867,3 +1867,359 @@ contained, chips + "28 represented talent" render, split-hero
 - Per-section rhythm fine-tuning beyond the uniform P7 `standard`.
 - Featured Talent media crop/treatment consistency (Lanco/Annher/Asia
   use IMPRONTA-watermarked agency media — real, correctly attributed).
+
+---
+
+# Page Builder Reusability Plan — Prototype Parity to Builder System
+
+*Planning artifact (2026-05-18). No code/DB/deploy. Source of truth for the
+next execution phases (Phase 6A–6G). Supersedes ad-hoc polish: from here,
+every prototype-mimic gain ships as a reusable primitive / section variant /
+card variant / layout option / editor control / data binding / token —
+never Impronta-only CSS.*
+
+## 1. Executive Summary
+
+**Can do today:** modern snapshot shell; editorial-noir theme; real CMS
+composition (9 sections, no legacy fallback, renderer-dedup fixed);
+manual_pick Featured Talent with real profiles; honest 4-category
+discipline grid; honest 3-location grid; reusable `sectionPresentationSchema`
+(bg/pad/container/divider/designPreset/cardStyle/overlay/animation/pixel);
+new reusable `site_header.variant:editorial` + `brandDisplay`,
+`editorial_split_hero.mediaStyle:card-stack`, scoped hero presence CSS.
+
+**Still Impronta-specific / developer-dependent:** hero scale, stack
+rotation/overlap, header thinness — live as **hard-coded scoped CSS**, not
+operator settings. Featured Talent chrome (save/availability/languages/
+verified) is **DTO-blocked**. Header social cluster + Saved/Inquiry +
+3-col + drawer are **missing schema/structure**. Links are **raw hrefs**
+(route-safety Finding B). Editor exposes a fraction of the schema; no
+visual pickers/variant previews. Location map/preview = unbuilt.
+
+**Must become reusable:** card chrome (→ `talent_collection` primitive +
+DTO), header shell clusters, link-kind system, editor pickers/previews,
+section layout variants (rail/pod/stage), and the data models (save /
+inquiry-basket / counts) that all of the above + page kits depend on.
+
+**Why not page kits yet:** kits would ship broken without the DTO, link
+system, image-fallback strategy, and no-data empty states. Kits are
+Phase 6G — *after* the primitives exist.
+
+**Why Featured-Talent + Header next:** the talent cards are the
+credibility surface (client/talent decide if the agency is real) and the
+foundational reusable collection primitive every future kit needs; the
+header is the first impression and a reusable shell capability already
+half-built (`editorial`/`brandDisplay`). They sequence the data models
+(DTO → save → inquiry) the rest is blocked on.
+
+**Trajectory:** Phase 6A–6D → ~85% parity / ~80% usability. Phase 6E–6F
+→ ~92%. Phase 6G + Phase D items → ~95% and kit-ready.
+
+## 2. Target Builder Capability ("complete enough")
+
+An agency owner, with **no developer**, can: pick a homepage kit or start
+blank → edit header/footer (brand, nav, social, utilities, variants) →
+choose a hero layout + configure search → add a category grid/rail with
+images or dynamic catalog → feature talent (manual or dynamic) showing
+real metadata (type/city/languages/availability/verified) → let visitors
+save + add-to-inquiry → add location discovery → configure process/trust/
+CTA with variants → choose desktop/mobile layouts independently → select
+imagery via picker → control spacing/density via presets → see
+publish-readiness warnings → publish. **Definition of done = each bullet
+is achievable through editor UI on a fresh tenant without code.**
+
+## 3. Reusable Primitive Inventory
+
+| Primitive | Exists? | Needed by | Type | Effort | Dependencies | Notes |
+|---|---|---|---|---|---|---|
+| SectionHead | ✅ | all | — | — | — | shared head; hero uses H2 scale (lift to H1 via setting) |
+| Container | ✅ | all | — | — | — | `min(container,100%)` — overflow-safe |
+| Cta | ✅ | all | — | — | LinkKind | currently raw href; must adopt LinkKind |
+| SearchInput | ✅ | hero_search | — | — | — | OK; sizing not operator-controlled |
+| StatLine | ✅ | hero_search | — | — | tenant_talent_count | count semantics narrow |
+| Badge | ✅ | featured/trust | partial | S | — | exists; not used for availability/verified |
+| ChipList | ✅ | hero/discipline | — | — | — | OK |
+| MediaFrame | ✅ | split/cards | partial | S | focal-point | no crop/focal control |
+| card-stack media variant | ✅(new) | editorial_split | — | — | — | fixed rotation/overlap (no settings) |
+| editorial header variant | ✅(new) | site_header | — | — | — | thin/centered; no clusters |
+| brandDisplay | ✅(new) | site_header | — | — | — | image/text/both |
+| sectionPresentationSchema | ✅ | all | — | — | — | strong; underused in editors |
+| SocialLinks cluster | ❌ | header/footer/contact | new primitive | M | LinkKind(tel/wa) | reusable platform-enum list |
+| Contact action cluster | ❌ | header | new primitive | S/M | LinkKind | phone/WhatsApp |
+| Save/shortlist button | ❌ | cards/header | primitive+data | L | save model | needs persistence |
+| Inquiry basket button/badge | ❌ | cards/header | primitive+data | L | basket model | Add-to-inquiry is a link today |
+| LanguageTag list | ❌ | talent cards | primitive | S | DTO | trivial render once DTO has data |
+| AvailabilityPill | ❌ | talent cards | primitive | S | DTO+derivation | derivation logic non-trivial |
+| Verified/AgencyApproved badge | ❌ | cards/profile | primitive+product | M | trust model decision | product decision required |
+| TalentCard metadata row | partial | featured/collection | component | M | DTO | exists via directory card; not variant-controlled |
+| IconPicker / IconGlyph | ❌ | trust/discipline/process | primitive+editor | M | icon set decision | curated SVG set, not arbitrary |
+| MapPreviewPanel | ❌ | location | primitive | M(static)/XL(real) | location data | static first |
+| LocationPin | ❌ | location | primitive | S | map | static decorative ok |
+| CategoryIcon slot | ❌ | discipline | schema+primitive | S/M | IconGlyph | per-item glyph |
+| LinkKind picker/renderer | ❌ | every CTA/nav | system | M/L | route model | **critical pre-kit** |
+| ImagePicker / media selector | ❌ | every media section | editor primitive | M/L | media library | reuses existing media-public |
+| LayoutVariant preview tile | ❌ | every variant enum | editor primitive | M | thumbnails | unblocks operator self-serve |
+| Mobile layout control | partial | all | editor + presentation | S/M | — | presentation has mobileLayout; not exposed |
+| Publish readiness warning | partial | editor | editor primitive | S/M | preflight | preflight exists; not in-editor |
+
+## 4. Section-by-Section Reusability Plan
+
+Legend for classification: **C**=config exists · **S**=schema ext · **CMP**=component ext · **E**=editor UI · **D**=data dependency · **P**=product/route decision.
+
+### A. `site_header`
+- **Current:** brand+brandDisplay, navItems≤8, primaryCta, sticky, tone, variant[standard|minimal|split|editorial], authArea toggles. **Prototype:** social-left / brand-center / utilities-right 3-col + nav row + drawer + shrink-on-scroll + Saved/Inquiry badges.
+- **Options needed:** socialCluster `socialLinks[]`+contact (**S+CMP+primitive**) · 3-col `variant:editorial-split` or `headerLayout` (**CMP**) · `logoScale`/`navDensity`/`verticalPadding` settings (**S**, lift from CSS) · utility cluster Saved/Inquiry slots (**CMP+D**) · Account/Menu+language (**C** via authArea) · mobile drawer (**CMP+E+client JS**) · sticky/shrink (**CSS+small JS**) · transparent/surface/solid over full-bleed (**C**, test).
+- **Editor:** social rows picker; utility toggles; layout-variant preview tiles; density select.
+- **Data:** Saved/Inquiry counts → save & basket models (Phase 6F).
+- **Phases:** 6B (clusters+3-col+density, render-only) → 6F (live counts).
+- **Acceptance:** a tenant can configure social+contact+utilities+nav+layout+density entirely in-editor; neutral theme valid; no Impronta strings.
+
+### B. `site_footer`
+- **Current (strong):** brand/tagline, columns≤5{heading,links≤8}, social≤6(platform enum), legal{copyright,links≤4}, variant[standard|compact|rich], tone[follow|light|deep]. **Gap is config, not capability.**
+- **Options needed:** 4th column (Account) = **C**; populate `social` = **C**; `columnRatio`/footer density = **S(small)+CSS**; mobile collapse = **CSS** (verify); newsletter/contact CTA = **S(optional)**.
+- **Phase:** 6A (config) + tiny CSS. **Acceptance:** prototype 4-col + social row reproducible via config on any tenant.
+
+### C. `hero_search`
+- **Current:** layout[centered|split|minimal|editorial], search modes, chips/stat sources; this session's H1 scale/maxWidth/airy are **CSS-hardcoded**.
+- **Options needed:** `heroScale[compact|standard|cinematic]`, `headingScale`, `heroMaxWidth`, `searchSize[sm|md|lg]`, `searchLayout`, `ctaLayout`, `chipDensity`, `statStyle` (**S**, lift CSS→schema) · backdrop image/media + overlay/texture (**C** via presentation `videoBackground`/`imageOverlay`, just wire to editor — **E**) · AI search affordance (**future D**) · multi-city chips (**D**) · trust-badge row (**S+primitive**) · mobile hero layout (**S/CSS**).
+- **Phase:** 6A (lift scale/maxWidth to settings) · 6D (backdrop picker) · later (AI/multi-city).
+- **Acceptance:** operator sets hero scale/search size/backdrop without code; split/minimal untouched.
+
+### D. `editorial_split_hero`
+- **Current:** mediaStyle[single|card-stack], stackUrls≤3, captions≤3, ratio/overlay/side/mobileOrder. card-stack rotation/overlap **fixed in CSS**.
+- **Options needed:** `mediaStyle` extend → `classic-stage` (2-col copy+select mini-form+stage) and `media-cascade` (**CMP+S**) · `stackCount`/`rotationIntensity`/`overlapDepth`/`captionStyle`/`mediaFrameStyle` (**S+CSS tokens**) · image focal-point/crop (**primitive+S**) · CTA cluster (**C**) · real-talent media source (`mediaMode:selected/dynamic`) (**D**, DTO) · lifestyle media source = `static` (**C**).
+- **Phase:** 6A (expose stack params as settings) · 6E (classic-stage variant) · 6F (real-talent media via DTO).
+- **Acceptance:** stack params operator-tunable; ≥2 reusable media variants; neutral-safe.
+
+### E. `talent_type_grid`
+- **Current:** mode[manual|dynamic], items≤18, selectedTermIds, parentCategoryMode, desktopLayout[editorial-asymmetric|equal-grid|compact-grid], mobileLayout, ratio/overlay/textPosition, seeAll, per-item imageUrl.
+- **Options needed:** desktopLayout += `featured-pod-rail` (3-row snap rail + `cat--lg` pod) (**CMP+S**) · `horizontal-rail` (**CMP**) · per-item `icon` slot (**S+IconGlyph**) · count badge from real category counts (**D**) · per-card CTA (**S**) · active-tenant-catalog source mode (**D**) · visual taxonomy picker (**E**, replace advanced-paste) · desktop/mobile split (**C**, exists; expose **E**) · hide-unsupported (**C**, manual already does) · editor preview thumbnails (**E**).
+- **Phase:** 6E (rail/pod + icon slot) · 6D (taxonomy picker) · 6E/6F (counts).
+- **Acceptance:** rail/pod selectable; 4 honest cats still valid; icons + counts optional & dynamic-capable.
+
+### F. `featured_talent` / `talent_collection` — **highest value**
+- **Current:** sourceMode[manual_pick|auto_*], manualProfileCodes, limit, columnsDesktop, variant[grid|carousel], cardVariant[editorial|compact|minimal|profile], show* toggles — **but** cards render via directory card-family fed by a **cache-trimmed DTO** lacking availability/languages/verified, so the toggles have no data; carousel unverified.
+- **Split into 5 deliverables:**
+  1. **Render-only/card polish (6A):** consistent image crop, hover, footer rhythm within `cardVariant:editorial` — **CSS/CMP, S effort, low risk.**
+  2. **DTO extension (6A→6B):** add `secondaryType, parentCategory, languages[], availability, verified/agencyApproved, city, imageMeta/crop, profileRoute` to FeaturedTalentDTO — **D, M, medium risk** (cache key + RLS).
+  3. **Save/shortlist (6F):** model+RLS+heart+header badge — **D+CMP, L, high.**
+  4. **Inquiry basket (6F):** model+Add-to-inquiry real+badge+handoff — **D+CMP, L, high.**
+  5. **Editor controls (6D):** per-metadata toggles wired to DTO; eligibility warnings; profile-route safety (LinkKind) — **E, M.**
+- **Acceptance:** cards show save/availability/languages/verified driven by data + operator toggles; manual+dynamic; reusable as `talent_collection` on any tenant.
+
+### G. `location_discovery`
+- **Current:** source[manual|roster_cities|service_areas], items≤24{label,region,href,count}, showMap(flag, unbuilt), layout[grid|list|compact].
+- **Near-term (6E):** `layout:map-inspired` static panel + decorative pins + active-location preview card (**CMP+primitive**, no real map).
+- **Medium (6E/6F):** per-location real talent count binding (**D**); service-area / roster-city binding surfaced (**C/D**).
+- **Long-term (Phase D):** real map system (**XL, deferred Decision D**).
+- **Acceptance:** premium map-inspired panel reproducible via config; counts optional/dynamic; honest locations preserved.
+
+### H. `process_steps`
+- **Current:** variant[numbered-column|horizontal-timeline|alternating-image], numberStyle.
+- **Options:** `iconed` steps variant + IconGlyph slot (**S+primitive**) · connector-line + compact density (**CSS**) · step CTA (**S**) · mobile stacked (**C**).
+- **Phase:** 6E (icon variant) + 6A (compact CSS). **Acceptance:** icon/number/compact variants selectable.
+
+### I. `values_trio` / trust
+- **Current:** variant[numbered-cards|iconed], numberStyle — renders numbered; `iconed` has no per-item icon picker.
+- **Options:** circular-icon pillar CSS for `iconed` (**CSS, 6A**) · IconPicker per item (**primitive+E, 6D**) · trust-badge/verified-claims (**S+product**) · 3/4-col + compact/rich (**C/CSS**) · mobile density (**C**).
+- **Acceptance:** circular gold icon pillars reproducible; per-item icons pickable.
+
+### J. `cta_banner`
+- **Current:** variant[centered-overlay|split-image|minimal-band], bandTone, bg media, inset.
+- **Options:** audience variants `talent-cta`/`client-final` presets (**S/preset**) · split CTA (**C** via split-image) · final-hero CTA style (**CSS variant**) · CTA hierarchy (primary/secondary/tertiary) controls (**S**) · mobile stacking (**C**).
+- **Phase:** 6A (final-hero CSS + presets). **Acceptance:** audience-specific premium variants selectable; hierarchy explicit.
+
+## 5. Editor UX Plan
+
+Principle: **progressive disclosure** — common controls visible, power
+controls under "Advanced", every variant has a preview tile, every
+media/talent/category/link field has a picker (no raw strings), every
+section shows data/empty warnings.
+
+| Section | Visible controls | Advanced | Needs picker | Needs preview tiles | Warnings |
+|---|---|---|---|---|---|
+| site_header | brand, brandDisplay, nav, primaryCta, variant, social | density, tone, sticky, padding | image, link-kind, social | layout variants | missing logo; broken links |
+| site_footer | columns, social, legal | tone, columnRatio | link-kind | variant | empty columns |
+| hero_search | headline/highlight, search, chips, stat, heroScale | maxWidth, ctaLayout, backdrop | image(backdrop), link | layout, heroScale | no chips/stat source |
+| editorial_split | headline, media, CTAs, mediaStyle | stackCount, rotation, caption | image(×3), link | mediaStyle variants | <required images |
+| talent_type_grid | headline, items/source, desktopLayout | mobileLayout, overlay, icon | image/cat, taxonomy, link | desktopLayout | unsupported cats; 0 items |
+| featured_talent | headline, source, codes/filters, columns, cardVariant, show* | variant, parentCatDisplay | talent, link | cardVariant, grid/carousel | ineligible codes; <limit |
+| location_discovery | headline, source, items, layout | showMap, ctaHref | location, link | layout (incl map-inspired) | 0 locations |
+| process/values/cta | headline, items/steps, variant, numberStyle/icon | density, bandTone | icon, image, link | variant | <min items |
+
+Cross-cutting editor primitives (Phase 6D): **ImagePicker** (media-public
+library + URL fallback), **TalentPicker** (eligibility-aware), **TaxonomyPicker**
+(replace advanced-paste), **LinkKindPicker** (§7), **LayoutVariantTiles**,
+**Mobile/Desktop split toggle**, **in-editor empty/readiness warnings**,
+**SectionPresetPicker**.
+
+## 6. Data / DTO / Backend Plan (plan only)
+
+**FeaturedTalentDTO extension** — add: `secondaryType`, `parentCategory`,
+`languages[]`, `availability` (enum/derived), `verified` &
+`agencyApproved` (trust model), `city`, `imageMeta{focalX,focalY,crop}`,
+`profileRoute` (LinkKind), optional `responseTime`/`bookingReady`. Risks:
+unstable_cache key bump + 5-min TTL (documented cache-resilience class);
+RLS — fields must be public-safe; availability derivation source TBD
+(talentCalendarEntries exists per binding docs).
+
+**Save / shortlist model** — `saved_talent` (tenant_id, talent_profile_id,
+client/session scope, created_at). Anonymous = session/cookie; logged-in
+= row. RLS: public-safe write/read scoped to session/owner. Powers header
+Saved badge + card heart. Effort L, risk high (anon strategy + RLS).
+
+**Inquiry basket model** — `inquiry_basket` (tenant_id, session/client,
+talent_profile_ids[], created_at) OR reuse `saved_talent.in_cart` (a
+prior funnel column exists — verify, prefer reuse). Add-to-inquiry mutates
+basket; header badge counts; handoff seeds the inquiry form
+(`createInquiryFromIntent`/`submitInquiry` already accept multi-talent +
+source attribution). Effort L, risk medium (reuse path lowers it).
+
+**Location/category counts** — derive category counts (talent_profile_taxonomy
+∩ roster ∩ visibility) and location counts (service_areas / roster cities).
+Tenant-scoped query layer (never RLS-only). Cache with tags + TTL.
+Effort M.
+
+All above: **plan only — no schema/migration now.**
+
+## 7. Link / Route System Plan (critical pre-kit)
+
+Replace raw `href` strings with a `LinkRef` config object across all
+section CTAs/nav.
+
+`LinkRef = { kind, value?, label?, external?, openInNew? }`
+
+| kind | stored value | render behavior |
+|---|---|---|
+| tenant-page | slug | path-prefix-aware (`/impronta/…` vs host root) |
+| tenant-directory | optional filter | resolves to directory route |
+| talent-profile | profile_code/slug | resolves to public profile route |
+| inquiry-start | optional prefill | `/contact` / inquiry intent |
+| platform-auth-login | — | app-host login (root `(auth)` route — fixes Finding B) |
+| platform-auth-register | role | register route |
+| app-dashboard | path | app-host absolute |
+| external-url | url | new tab + rel safe |
+| mailto / tel / whatsapp | address/number | scheme link |
+| anchor | #id | same-page |
+| media/download | asset id/url | download |
+
+Deliverables: shared `resolveLinkRef(linkRef, {tenantId, pathPrefix, host})`
+renderer (one source of truth, replaces ad-hoc `prefixPublicHref` per
+section) · `LinkKindPicker` editor primitive · zod schema · **migration
+path**: accept legacy string href (coerce to `{kind:external-url|tenant-page}`)
+so existing compositions don't break; new edits write `LinkRef`. Phase 6C.
+**This must precede page kits** (kits ship many links across hosts/domains).
+
+## 8. Global Design System / Token Plan
+
+| Control | Home | Notes |
+|---|---|---|
+| page density / section rhythm presets | sectionPresentationSchema + a page-level preset | P7 used uniform `standard`; add named presets (compact/standard/editorial) |
+| mobile density | presentation.breakpoints | exists; expose in editor |
+| heroScale | hero_search schema | lift from CSS |
+| card style presets | presentation.cardStyle[flat|outlined|elevated|glass|editorial] | exists; underused |
+| icon style presets | new IconGlyph + token | curated set |
+| gold/accent intensity | theme token (`--token-color-accent` + intensity var) | editorial-noir tuned; add intensity |
+| overlay presets | presentation.overlayStrength | exists |
+| image treatment presets | new (grayscale→color, grade) | reusable class set |
+| hover/motion presets | presentation.animation.hover | exists; standardize |
+| border/elevation presets | presentation.borderStyle/elevation/radiusScale | exists |
+| button hierarchy standards | Cta variants doc + token | define primary/secondary/tertiary/ghost |
+| noir↔neutral parity | test matrix | every new variant validated on both |
+
+Routing of new controls: **token-level** (accent intensity, image grade) ·
+**sectionPresentationSchema** (density presets) · **section schema**
+(heroScale, stack params) · **CSS reusable classes** (image treatment,
+final-CTA) · **editor UI** (preset pickers).
+
+## 9. Page Kit Readiness Plan (do not build now)
+
+**Prerequisites before kits:** LinkRef system (6C) · FeaturedTalent DTO
+(6A/B) · ImagePicker + fallback strategy · no-talent/no-image empty
+states · plan-gating model · editor variant pickers (6D).
+
+Kit needs: recipe system (`RECIPES`+`applyStarterComposition` exists) ·
+page-bundle installer = the Template gallery (extend) · default theme
+assignment · header/footer/nav/route defaults · **image-fallback
+strategy** (kit-safe neutral placeholders, never broken) · Free/Studio/
+Agency gating (recipe→plan map) · industry adaptation (neutral tokens +
+swappable copy/taxonomy) · tenant data preflight (warn if 0 talent) · kit
+preview screen · apply/replace confirmation (exists, harden) · rollback
+(snapshot/revision exists).
+
+Future kits (post-foundation): Premium Talent Agency · Studio Minimal ·
+Event Talent · Creator/Influencer · Hub/Network · Professional Services ·
+People-Directory (dentist/lawyer/office) — all reuse the same primitives;
+verticalization = copy + taxonomy + theme, **not** new components.
+
+## 10. Phased Execution Roadmap
+
+| Phase | Goal | Scope | Files/systems likely | Effort | Risk | Deps | Acceptance |
+|---|---|---|---|---|---|---|---|
+| **6A** Featured Card System (render + DTO start) | cards match prototype, reusable | card CSS polish; FeaturedTalentDTO +languages/availability/secondaryType/verified/city/route; wire show* toggles; footer/hero/trust CSS quick wins | featured_talent fetch/DTO, card-family, token-presets.css, schemas | M | med | trust-badge product decision; cache key | toggles render real data; cards prototype-grade; reusable |
+| **6B** Header Parity System | header matches prototype, reusable | socialLinks+contact primitive; 3-col header layout/variant; logoScale/navDensity/verticalPadding settings; Saved/Inquiry render-only slots; mobile drawer; sticky-shrink | site_header schema/Component/Editor, token-presets.css, new primitives | M/L | med | 6F for live counts | tenant builds full header in-editor; neutral-safe |
+| **6C** Link-Kind / Route Safety | kill raw-href risk | LinkRef schema; resolveLinkRef renderer; LinkKindPicker; legacy coercion | shared link lib, all section Components/Editors, schemas | M/L | med | none | all CTAs/nav route correctly across host/path/domain/auth |
+| **6D** Editor Control Upgrade | usable without dev | ImagePicker, TalentPicker, TaxonomyPicker, LinkKindPicker, LayoutVariant tiles, mobile/desktop split, in-editor warnings, preset picker | editor-chrome, all Editor.tsx, shared editor primitives | L | med | 6C (link picker) | operator builds premium page w/o raw strings/broken layout |
+| **6E** Category / Location Advanced Layouts | richer prototype layouts | talent_type_grid rail/featured-pod + icon slot; location map-inspired panel + preview; category/location counts (dynamic) | talent_type_grid, location_discovery, primitives, count data | M/L | med | 6D pickers; counts data | rail/pod + map-inspired selectable; counts optional |
+| **6F** Save / Inquiry Basket | hearts & badges real | saved_talent + inquiry_basket models+RLS; save button; basket+badge; header counts; handoff | new tables/migrations, RLS, header/card Components, inquiry intake | L | high | 6A DTO; product decisions | save persists; inquiry basket → form; header badges live |
+| **6G** Page Kit Foundation | reusable kits | extend recipe/installer; kit preview/apply/rollback; default theme/nav/footer/route; image-fallback; plan gating | starter-action RECIPES, Template gallery, plan-catalog, fallback assets | XL | med | 6A–6D (esp links/DTO/editor) | a fresh tenant installs a premium kit that renders safely |
+
+## 11. Prioritization
+
+Ranking (impact × reusability × dependency-order × risk × kit-unlock):
+
+1. **6A Featured Card System** — top credibility surface; foundational
+   `talent_collection` primitive; starts the DTO every kit needs.
+2. **6B Header Parity** — first impression; reusable shell; half-built.
+3. **6C Link-Kind/Route Safety** — correctness; **hard prerequisite for
+   6D and 6G**; medium effort, broad payoff.
+4. **6D Editor Control Upgrade** — converts "dev adjusts" → "owner
+   builds"; the core of the stated objective.
+5. **6E Category/Location Advanced Layouts** — visible parity; depends on
+   6D pickers + counts.
+6. **6F Save/Inquiry Basket** — high product value but heaviest/riskiest
+   (data models, anon, RLS); unblocks header badges + card actions.
+7. **6G Page Kit Foundation** — last; everything else is its prerequisite.
+
+**Challenge to the expected order:** the user's order matches except note
+**6C should not slip behind 6D** — the link picker (6D) depends on the
+LinkRef model (6C); keep 6C before/with 6D. Otherwise order stands.
+
+## 12. Acceptance Criteria
+
+**85% prototype parity** (after 6A–6C + 6A footer/trust/CTA CSS):
+Featured cards show real type/city/languages/availability/verified via
+toggles; header has social cluster + utilities + 3-col + drawer; footer
+4-col+social; trust circular-icon pillars; CTAs audience-variant; all
+links route correctly. No Impronta-only CSS for any of it.
+
+**90% builder usability** (after 6D): an agency owner builds the whole
+homepage (header→footer, all sections, variants, media, talent,
+categories, links, mobile) entirely through editor UI with pickers +
+previews + warnings, no developer, no raw strings, no broken layout/route.
+
+**Page-kit readiness** (after 6E–6F + 6G prereqs): LinkRef shipped; DTO
+complete; save+inquiry models live; image-fallback strategy; no-data
+empty states for every section; plan gating; kit preview/apply/rollback;
+neutral-theme parity validated → a fresh tenant on Free/Studio/Agency can
+install a premium kit that renders safe and credible with zero or partial
+data.
+
+## 13. What NOT To Do
+
+- ❌ Page kits before DTO/link/editor (6G is last).
+- ❌ More one-off Impronta CSS — lift existing hard-coded scoped CSS into
+  reusable schema settings instead.
+- ❌ Real map system before card/header/link/editor (Decision D).
+- ❌ Raw URL fields anywhere new — LinkRef only.
+- ❌ A second homepage renderer or a second shell system.
+- ❌ Hide missing data with fake placeholders — build empty states +
+  fallbacks, keep honesty constraints (no fake talent, no Cancún,
+  no "Curated").
+- ❌ Dentist/lawyer verticals before the people-directory primitives are
+  solid (verticalize via copy/taxonomy/theme, not new components).
+- ❌ Touch parked admin-shell files / stashes / other-agent work.
+- ❌ Change roster visibility/content to chase parity.
+
+*End of Page Builder Reusability Plan. Planning only — no code, DB,
+deploy, or page changes.*
