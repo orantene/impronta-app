@@ -270,10 +270,13 @@ const RECIPES: Record<string, Recipe> = {
           primaryCta: { label: "Start Inquiry", href: "/contact" },
           secondaryCta: { label: "Explore Talent", href: "/directory" },
           chipsSource: "manual",
+          // Locations trimmed to where the roster has ready talent
+          // (Tulum + Playa del Carmen, both in the Riviera Maya region).
+          // Cancún removed — no ready roster coverage there yet; do not
+          // over-promise. Re-add when Cancún talent are site-visible.
           chips: [
             { label: "Playa del Carmen", href: "/directory" },
             { label: "Tulum", href: "/directory" },
-            { label: "Cancún", href: "/directory" },
             { label: "Riviera Maya", href: "/directory" },
           ],
           // Manual stat for launch. The dynamic `tenant_talent_count`
@@ -295,7 +298,7 @@ const RECIPES: Record<string, Recipe> = {
           eyebrow: "Impronta",
           headline: "Premium talent for events, shoots, and",
           highlight: "brand experiences.",
-          body: "Impronta helps clients discover and request agency-managed talent across Playa del Carmen, Tulum, Cancún, and the Riviera Maya.",
+          body: "Impronta helps clients discover and request agency-managed talent across Playa del Carmen, Tulum, and the Riviera Maya.",
           primaryCta: { label: "Explore Talent", href: "/directory" },
           mediaMode: "static",
           mediaRatio: "4/3",
@@ -310,16 +313,20 @@ const RECIPES: Record<string, Recipe> = {
         propsOverride: {
           headline: "Talent, by Discipline",
           mode: "manual",
+          // Trimmed to disciplines the current public roster actually
+          // supports (Models, Hosts & Promo, Performers, Creators &
+          // Influencers — backed by the 6 featured profiles incl. Carmen
+          // Díaz / Influencer). Chefs & Culinary, Wellness & Beauty,
+          // Music & DJs, Photo/Video & Creative removed for now — no
+          // ready public roster; do not over-promise. Re-add per category
+          // as real site-visible talent exist.
           items: [
             { label: "Models", href: "/directory" },
             { label: "Hosts & Promo", href: "/directory" },
-            { label: "Chefs & Culinary", href: "/directory" },
             { label: "Performers", href: "/directory" },
-            { label: "Wellness & Beauty", href: "/directory" },
-            { label: "Music & DJs", href: "/directory" },
-            { label: "Photo, Video & Creative", href: "/directory" },
+            { label: "Creators & Influencers", href: "/directory" },
           ],
-          maxItems: 7,
+          maxItems: 4,
           showCount: false,
           showCta: true,
           seeAllLabel: "Browse all talent",
@@ -337,7 +344,21 @@ const RECIPES: Record<string, Recipe> = {
         propsOverride: {
           headline: "Featured Talent",
           copy: "Selected profiles available for events, productions, campaigns, and private experiences.",
-          sourceMode: "auto_featured_flag",
+          // Manual selection (verified-supported by fetch.ts
+          // `manual_pick`): deterministic, premium control while the
+          // roster matures — avoids accidentally surfacing draft/hidden/
+          // incomplete profiles. These 6 are approved + public + have
+          // approved card media; roster `agency_visibility=featured`.
+          // Order = display order.
+          sourceMode: "manual_pick",
+          manualProfileCodes: [
+            "TAL-92001",
+            "TAL-92003",
+            "TAL-92004",
+            "TAL-92002",
+            "TAL-00033",
+            "TAL-00034",
+          ],
           limit: 12,
           columnsDesktop: 3,
           variant: "grid",
@@ -358,10 +379,12 @@ const RECIPES: Record<string, Recipe> = {
           subheadline:
             "Explore talent availability across key destinations in the Riviera Maya.",
           source: "manual",
+          // Cancún removed — no ready public roster coverage there yet
+          // (do not over-promise). Tulum + Playa del Carmen have the
+          // ready talent; Riviera Maya is the region umbrella.
           items: [
             { label: "Playa del Carmen", region: "Riviera Maya", href: "/directory" },
             { label: "Tulum", region: "Riviera Maya", href: "/directory" },
-            { label: "Cancún", region: "Riviera Maya", href: "/directory" },
             { label: "Riviera Maya", region: "Quintana Roo", href: "/directory" },
           ],
           maxItems: 8,
@@ -419,7 +442,7 @@ const RECIPES: Record<string, Recipe> = {
             {
               title: "Local Coordination",
               detail:
-                "On-the-ground support across Playa del Carmen, Tulum, Cancún, and the Riviera Maya.",
+                "On-the-ground support across Playa del Carmen, Tulum, and the Riviera Maya.",
             },
             {
               title: "Booking Support",

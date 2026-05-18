@@ -1292,3 +1292,239 @@ Residual non-blocking follow-ups (unchanged, owner-reserved): builder
 legacy debug string (legacy-footer-only); featured_talent roster
 visibility; dynamic `tenant_talent_count`; talent_collection DTO
 extension; visual taxonomy picker.
+
+---
+
+# Final Handoff — Page Builder 2.0 / Impronta Homepage
+
+> Single source of truth for the COMPLETED Phases 0–5 workstream. A future
+> agent/dev/designer/PO should be able to understand current state from
+> this section alone. Created 2026-05-18. No competing plan file — this
+> tracker is canonical.
+
+## 1. Final Production State
+
+- Impronta homepage is **live through the CMS / Page Builder path**
+  (`improntamodels.com`) — 9-section composition rendered by the shared
+  snapshot renderer, not static HTML, not a per-tenant React page.
+- The **modern site shell is live for Impronta** (`site_header` +
+  `site_footer` sections, snapshot-rendered).
+- Header, footer, and **logo render** (logo via the resilient resolver
+  reading the public `agency_branding.theme_json.logo_url` mirror).
+- **editorial-noir is live** purely through theme tokens
+  (`data-token-background-mode="editorial-noir"`); no component-level
+  hardcoded Impronta colors.
+- The **deprecated hardcoded fallback body was removed** (Phase 5).
+- Tenants **without** a published composition now get a **neutral
+  no-composition state** (public) or the starter picker (edit mode).
+- The old Impronta-flavored fallback **no longer renders for any tenant**
+  (verified across Impronta, nova-crew, qa-agency).
+- Known visible gap (not a regression): Featured Talent / talent cards
+  show placeholder silhouettes because only 1 of 28 roster rows is
+  `site_visible` (27 `roster_only`) and profiles lack real imagery —
+  owner/content decision, see §6/§8.
+
+## 2. Live URLs Checked (production)
+
+| URL | Status | Shell | Body | Routes | Notes |
+|---|---|---|---|---|---|
+| `https://improntamodels.com/` | 200 | modern site_header+footer, logo renders | 9 CMS sections, editorial-noir, 0 "Curated", 0 legacy, 0 edit-chrome | `/login` `/register` `/contact` `/directory` 200 on this primary host | Fully QA'd; canonical path; talent cards placeholder (roster visibility) |
+| `https://tulala.digital/nova-crew` | 200 | shell guard present | neutral no-composition message (i18n resolved), 0 legacy body | n/a | Confirms Phase-5 neutral state for un-composed tenant |
+| `https://tulala.digital/qa-agency` | 200 | shell guard present | 0 legacy body (CMS or neutral) | n/a | Confirms legacy fallback gone everywhere |
+| `https://tulala.digital/` , `https://app.tulala.digital/` | 200 | n/a (platform) | n/a | CSP + alias parity | `deploy:smoke` all checks passed |
+| `https://www.improntamodels.com/` , `https://impronta.tulala.digital/` | aliased to prod build | same deployment as improntamodels.com | (by alias) | — | Aliased to `tulala-bk8ewrgan…`; not separately content-QA'd (same build/content) |
+
+Path-based secondary pattern (`tulala.digital/impronta/login` etc.) 404s
+for auth routes — documented limitation, see §7.
+
+## 3. Final Commit History (branch `phase-1`, all pushed; origin == local == `1a50c9658`)
+
+| # | Hash | Message | Purpose |
+|---|---|---|---|
+| 1 | `a3521ae0a` | refactor(builder): rename legacy-section-tree to snapshot-slot-bridge | P0-7 mechanical rename + 13 import-only updates |
+| 2 | `be4e51074` | feat(page-builder): build Impronta homepage foundation and modern shell | Phases 0–4 program code (presets, primitives, 4 smart sections, recipe, hero-slot widening, shell + logo resolver, token CSS, fallback banner, deleted dead files, archived docs) |
+| 3 | `629330cc7` | docs(page-builder): add Impronta execution tracker | Canonical tracker doc |
+| 4 | `6f0d23ac4` | fix(page-builder): make shell logo resolver resilient to stale branding cache | Option-2 resilient resolver (distinct key + 300s TTL + branding tag) |
+| 5 | `9d305bc9f` | docs(page-builder): record Option-2 logo fix + production QA pass | Logo-fix + prod-QA record |
+| 6 | `5b600f61f` | refactor(page-builder): remove deprecated hardcoded homepage body fallback | Phase 5 — legacy body removed, neutral state, 4 components deleted, i18n keys |
+| 7 | `1a50c9658` | docs(page-builder): record Phase 5 deploy + production QA pass | Phase 5 deploy/QA record |
+
+Production deployments: `tulala-mqftakab4` (Phase 4) → `tulala-8yeuxdkq7`
+(logo fix) → `tulala-bk8ewrgan` (Phase 5, current live). Prod env:
+`ENABLE_SITE_SHELL=tenants`, `SITE_SHELL_TENANT_IDS=…0001`.
+
+## 4. What Is Now Canonical
+
+**The Page Builder / CMS path is the product path.** There is one body
+render path and one shell render path:
+
+- **CMS / Page Builder homepage** = system `cms_pages` homepage row +
+  `cms_page_sections` + published snapshot, rendered by the shared
+  `HomepageCmsSections` renderer (hero full-bleed + non-hero slots in
+  `homepageMeta` slot order).
+- **Section registry** (`sections/registry.ts`) — single source of
+  section types; locked 5-file pattern (schema/migrations/meta/Component/
+  Editor [+fetch]).
+- **Modern shell** = system `site_shell` cms_pages row, `site_header` +
+  `site_footer` slots, `loadPublishedShell` → `PublishedShellHeader/
+  Footer`, gated by `ENABLE_SITE_SHELL` + `SITE_SHELL_TENANT_IDS`.
+- **Theme preset system** — `agency_branding.theme_json(_draft)` →
+  tokens; `editorial-noir` preset; published via `publishDesign`.
+- **Logo resolver** — `resolveShellBrandLogoUrl`: section
+  `brand.logoUrl` → public `agency_branding.theme_json.logo_url` mirror
+  → text wordmark (own short-TTL+tag cache).
+- **Impronta homepage recipe** — `impronta-home` in `starter-action.ts`
+  `RECIPES`; applied via the canonical one-click starter
+  (`applyStarterComposition`, tenant from `requireTenantScope()`).
+- **No-composition behavior** — edit → `EmptyCanvasStarter`; public →
+  neutral `public.home.noComposition`. No hardcoded marketing fallback.
+
+## 5. What Was Removed (and intentionally kept)
+
+**Removed:** the hardcoded Impronta-flavored fallback body (legacy
+`--impronta-gold` hero `<section>` + the
+TalentTypeShortcuts/FeaturedTalentSection/BestForSection/LocationSection/
+HowItWorks/CtaSection stack), the legacy-only imports/data plumbing in
+`agency-home-storefront.tsx`, old "house of curated talent" / "Curated"
+copy, the dead `home-public.tsx` + `editorial-talent-strip.tsx`.
+**Deleted files (verified 0 other importers):**
+`components/home/{talent-type-shortcuts,how-it-works,cta-section,
+lifestyle-backdrop}.tsx`. Stale milestone `.md` docs archived to
+`web/docs/archive/page-builder-milestones/`.
+
+**Intentionally kept:** the modern-shell-vs-legacy-shell guard
+(header/footer mutex — Phase 5 removed the *body* fallback only);
+`components/home/{featured-talent-section,best-for-section,
+location-section}.tsx` (export types `lib/home-data.ts` → the CMS
+renderer depends on); `components/home/hero-search.tsx` (used by
+`(public)/directory/page.tsx`).
+
+## 6. Remaining Follow-Ups (non-blocking, deferred)
+
+- Builder **`platform-auth` link kind** — so tenant storefronts can link
+  to platform/app/auth without absolute hardcoding or tenant-prefix
+  breakage (current: `/login`,`/register` correct on prod primary host;
+  path-based secondary 404s).
+- `agency_business_identity.footer_tagline` still holds the legacy debug
+  string "Builder live-edit…" — affects the **legacy footer only**; the
+  modern shell uses the section prop (clean). Separate cleanup.
+- **Featured-talent roster visibility:** Impronta `…0001` = 1
+  `site_visible` / 27 `roster_only` → cards/Featured Talent show
+  placeholders. Owner/product decision.
+- Dynamic `tenant_talent_count` — hero stat is manual "28 represented
+  talent" until roster visibility is resolved.
+- `talent_collection` DTO extension (secondary type / languages /
+  availability / true parent).
+- Visual taxonomy picker for `talent_type_grid` dynamic mode (manual
+  interim shipped).
+- Service-area chips + location map embed (manual interim shipped).
+- **Pixel-perfect human design review** — agent env can't screenshot;
+  structural QA only; needs a human visual pass.
+- Page-kit / template-bundle system (later — see §8 W3).
+
+## 7. Risk Register
+
+| Risk | Impact | Status | Recommendation |
+|---|---|---|---|
+| Auth links 404 on path-based secondary pattern (`tulala.digital/<slug>/login`) | Low — prod primary is the custom domain where they 200 | Known/documented | Build `platform-auth` link kind (deferred) |
+| Featured Talent shows placeholders (roster 1 site_visible/27 roster_only, no real images) | High perceived-quality — page looks unfinished | Open, owner-gated | Workstream 2 (visibility + imagery) before design polish |
+| Future tenants have no default homepage | Medium — neutral state is correct but bare | By design | Page-kit/default-starter strategy (W3) |
+| Modern shell enabled for Impronta only, not global | None (intentional staged rollout) | Stable | Widen `SITE_SHELL_TENANT_IDS` per tenant after each is composed |
+| Unrelated parked work accumulating in working tree + 22 stashes (incl. `stash@{0}`) | Medium — clutter, merge risk for other agents | Untouched (out of scope) | Owner/multi-agent triage of stashes + parked files separately |
+| Logo depends on `theme_json.logo_url` mirror staying in sync | Low — canonical save mirrors it; resolver self-heals 300s | Mitigated | None needed; revisit if branding model consolidates |
+
+## 8. Recommended Next 3 Workstreams (priority order)
+
+### Workstream 1 — Live Impronta Design / UX Polish
+Make the live homepage feel premium, not just technically correct.
+Design pass first (spacing, type scale, section rhythm, mobile, CTA
+hierarchy, header/footer refinement, hero balance, category-grid polish,
+empty states, real image/media strategy), then implementation. Gated
+work, theme-token-driven (no hardcoded Impronta).
+
+### Workstream 2 — Content + Talent Visibility Pass
+Make the homepage show real talent + real business content. Owner
+decides which profiles are `site_visible` / `featured`; surface 8–15
+strong profiles; validate card imagery; tighten location/category copy;
+verify client + talent CTA journeys. Mostly an owner/content decision +
+small config, not heavy code.
+
+### Workstream 3 — Page Kit / Template System
+Turn the proven Impronta composition into reusable kits (homepage,
+agency/studio starters, talent landing, contact/inquiry, about, bundle
+installer, default nav/footer/theme/section configs). **Do not start
+until the live Impronta homepage is polished AND content-real.**
+
+## 9. Recommended Immediate Next Action
+
+**Start Workstream 2 (Content + Talent Visibility) now, in parallel with
+a no-code Workstream 1 design audit.**
+
+Rationale: the single biggest perceived-quality problem on the live page
+is not spacing or typography — it is that the talent cards and Featured
+Talent render **placeholder silhouettes** (only 1 of 28 roster
+`site_visible`, no real imagery). No amount of CSS polish makes a
+homepage feel premium while its talent grid is empty boxes — and abstract
+placeholder imagery is this project's documented #1 "looks unfinished"
+signal. W2's core lever (which profiles are `site_visible`/`featured` +
+real images) is an **owner/product decision**, so kick it off
+immediately. While that decision is pending, run the W1 **design audit**
+(analysis only — spacing/type/rhythm/mobile/hero/CTA) so implementation
+can start the moment the page shows real people. Then execute W1
+implementation on a content-real page. **W3 (page kits) stays gated**
+until W1+W2 land — codifying kits from an unpolished, placeholder
+composition would bake in the wrong defaults.
+
+One-line answer to "1 polish / 2 content-visibility / 3 page-kits?":
+**→ 2 first (owner decision + config), with the 1 design audit running in
+parallel; then 1 implementation; then 3.**
+
+---
+
+## Content + Talent Visibility Execution Pass — 2026-05-18
+
+**WS-A (DB, tenant-scoped, reversible — no schema change).** Confirmed
+the live `featured_talent` fetch first: all modes gate on roster
+`agency_visibility ∈ {site_visible,featured}` + `talent_profiles
+.workflow_status='approved'` + `visibility='public'`; `manual_pick`
+(verified-supported in `fetch.ts`) selects by `profile_code IN codes`,
+order = codes array; `is_featured` only affects `auto_featured_flag`
+ordering. Changes:
+- 6 approved profiles → roster `agency_visibility='featured'` +
+  `talent_profiles.is_featured=true, featured_level=1,
+  featured_position=1..6`: TAL-92001 Sofía Herrera (1), TAL-92003 Luis
+  Ortega (2), TAL-92004 Marco Sánchez (3), TAL-92002 Carmen Díaz (4),
+  TAL-00033 Tina (5), TAL-00034 Nalea (6). All already approved+public;
+  all have approved card/gallery media → real thumbnails.
+- QA fixture `TAL-AUDIT-0512` → roster `agency_visibility='roster_only'`,
+  `is_featured=false` (removed from public).
+- Before-state (revert target): all 6 were `roster_only`,
+  is_featured=false, level/pos 0; QA fixture was `site_visible`.
+- 22 unfinished draft/hidden profiles untouched (no bulk publish).
+
+**WS-B (recipe `impronta-home`, gated tsc 0/eslint 0).**
+- featured_talent → `sourceMode:"manual_pick"`,
+  `manualProfileCodes:[TAL-92001,TAL-92003,TAL-92004,TAL-92002,
+  TAL-00033,TAL-00034]` (deterministic premium control).
+- talent_type_grid items trimmed 7→4: Models, Hosts & Promo,
+  Performers, Creators & Influencers (Carmen = Influencer, now public).
+  Removed Chefs & Culinary, Wellness & Beauty, Music & DJs, Photo/Video
+  & Creative (no public roster — do not over-promise).
+- Cancún removed from hero_search chips, location_discovery items,
+  editorial_split_hero body, values_trio detail. Kept Tulum, Playa del
+  Carmen, Riviera Maya. "28 represented talent" kept.
+
+**WS-C (canonical flow).** Re-applied `impronta-home` to `…0001` via the
+editor Template gallery → review → Apply 9 → "Publish now" (publishes
+homepage composition + republishes shell). LIVE `cms_sections` props
+verified: featured_talent manual_pick + 6 codes; talent_type_grid 4
+items; location_discovery 3 items; hero chips 3; 0 Cancún; 0 "curated".
+Page published v860, 9 live sections.
+
+**Cache note:** publish ran via the local dev runtime → busts local
+Next cache only. Prod (`improntamodels.com`) served stale until the
+grouped deploy below refreshed the Production Data Cache (same class as
+the earlier logo-cache fix; the canonical resolution is a fresh
+Production-env build via `deploy:promote`).
+
+Deploy + post-deploy prod QA: see next entry.
