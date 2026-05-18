@@ -1219,3 +1219,45 @@ allowlist (`SITE_SHELL_TENANT_IDS=…0001`, `tenants` mode) in prod env.
 **Phase 5 gate: UNBLOCKED** — "logo renders in production + full shell QA
 passes" is now satisfied. Phase 5 (deprecated hardcoded fallback removal)
 may begin on explicit go-ahead (not started here per instruction).
+
+---
+
+## Phase 5 — Legacy Body Fallback Removed (2026-05-18)
+
+**Objective met:** the deprecated hardcoded Impronta-flavored homepage
+**body** fallback is gone; the CMS / Page Builder composition is the
+canonical and only body render path. The modern-shell-vs-legacy-shell
+guard (header/footer mutex) is deliberately preserved.
+
+**Refactor — `src/components/home/agency-home-storefront.tsx`:** removed
+both legacy body branches (the hardcoded `--impronta-gold` hero
+`<section>` + the `TalentTypeShortcuts / FeaturedTalentSection /
+BestForSection / LocationSection / HowItWorks / CtaSection` stack) and all
+legacy-only imports/data (`getHomepageData` destructure, lifestyle reel,
+AI-hero/maps/path-prefix plumbing, the 6 copy objects). Body logic now:
+edit + 0 sections → `EmptyCanvasStarter`; ≥1 CMS section → CMS via
+`HomepageCmsSections` (hero full-bleed + non-hero in snapshot order);
+else → a minimal neutral no-composition state
+(`t("public.home.noComposition")`, added to `messages/en.json` +
+`es.json`). No "Curated", no Impronta copy, no second static page.
+
+**Component deletions (verified truly fallback-only — 0 other importers):**
+`talent-type-shortcuts.tsx`, `how-it-works.tsx`, `cta-section.tsx`,
+`lifestyle-backdrop.tsx`. **Kept (NOT fallback-only):**
+`featured-talent-section.tsx` / `best-for-section.tsx` /
+`location-section.tsx` (export types `lib/home-data.ts` → the **CMS
+renderer** `homepage-cms-sections.tsx` depends on) and `hero-search.tsx`
+(used by `(public)/directory/page.tsx`). Their storefront usage was
+removed; the files remain because deleting them would break the canonical
+CMS path / directory.
+
+**Gates:** `tsc --noEmit` 0 project-wide · eslint 0 (storefront) ·
+en/es JSON valid.
+
+**Local QA (no-cookie):** Impronta `/impronta` — CMS path unchanged
+(9 body sections, 0 legacy classes, 0 "Curated", not the neutral state).
+`nova-crew` (un-composed) — neutral message renders (i18n resolved, no
+raw key leak), **0 legacy body markers**, no Impronta content, shell
+header/footer guard still present (smaller 95 KB vs old marketing bloat).
+
+Deploy + prod QA: see next entry.
