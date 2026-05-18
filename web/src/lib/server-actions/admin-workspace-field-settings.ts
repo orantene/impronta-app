@@ -280,3 +280,195 @@ export async function resetWorkspaceFieldVisibility(
   bustFieldCatalog(tenantId);
   return { ok: true };
 }
+
+// ── Phase 2 — Field Catalog MVP (fully resolver-connected subset) ──────
+// Only controls the resolver already honors today: per-field
+// enabled/required/relabel (workspace_profile_field_settings) and
+// per-group enable/relabel (workspace_field_group_settings). Custom NEW
+// field definitions are deferred (platform-governed) — the drawer locks
+// that honestly, no fake buttons.
+
+type FieldCatalogField = {
+  field_definition_id: string;
+  field_key: string;
+  label: string;
+  field_group_id: string | null;
+  /** effective: false only when enabled_override === false. */
+  enabled: boolean;
+  /** tenant override: null = inherit platform, true/false = forced. */
+  required_override: boolean | null;
+  custom_label: string | null;
+};
+type FieldCatalogGroupRow = {
+  id: string;
+  name: string;
+  sort_order: number;
+  enabled: boolean;
+  custom_label: string | null;
+};
+
+const catalogFieldSchema = z.object({
+  field_definition_id: z.string().uuid(),
+  enabled: z.boolean().nullable().optional(),
+  required: z.boolean().nullable().optional(),
+  custom_label: z.string().max(120).nullable().optional(),
+});
+const catalogGroupSchema = z.object({
+  field_group_id: z.string().uuid(),
+  is_enabled: z.boolean().optional(),
+  custom_label: z.string().max(120).nullable().optional(),
+});
+
+/** Field Catalog drawer data: every active field + its tenant catalog
+ *  state (enabled/required/relabel) + groups (enabled/relabel). */
+export async function getWorkspaceFieldCatalog(): Promise<
+  Result<{ groups: FieldCatalogGroupRow[]; fields: FieldCatalogField[] }>
+> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const [defsR, groupsR, fOvR, gOvR] = await Promise.all([
+    supabase
+      .from("profile_field_definitions")
+      .select("id, field_key, label, field_group_id")
+      .is("deprecated_at", null),
+    supabase
+      .from("profile_field_groups")
+      .select("id, name_en, slug, sort_order")
+      .eq("is_active", true),
+    supabase
+      .from("workspace_profile_field_settings")
+      .select("field_definition_id, enabled_override, required_override, custom_label")
+      .eq("tenant_id", tenantId),
+    supabase
+      .from("workspace_field_group_settings")
+      .select("field_group_id, is_enabled, custom_label")
+      .eq("tenant_id", tenantId),
+  ]);
+
+  if (defsR.error || groupsR.error || fOvR.error || gOvR.error) {
+    console.error(
+      "[field-catalog] load failed:",
+      defsR.error?.message || groupsR.error?.message ||
+        fOvR.error?.message || gOvR.error?.message,
+    );
+    return { ok: false, error: "Couldn't load the field catalog." };
+  }
+
+  const fOv = new Map(
+    (fOvR.data ?? []).map((o) => [o.field_definition_id as string, o]),
+  );
+  const gOv = new Map(
+    (gOvR.data ?? []).map((o) => [o.field_group_id as string, o]),
+  );
+
+  const fields: FieldCatalogField[] = (defsR.data ?? []).map((d) => {
+    const def = d as {
+      id: string; field_key: string; label: string;
+      field_group_id: string | null;
+    };
+    const o = fOv.get(def.id) as
+      | { enabled_override: boolean | null; required_override: boolean | null; custom_label: string | null }
+      | undefined;
+    return {
+      field_definition_id: def.id,
+      field_key: def.field_key,
+      label: def.label,
+      field_group_id: def.field_group_id,
+      enabled: o?.enabled_override !== false,
+      required_override: o?.required_override ?? null,
+      custom_label: o?.custom_label ?? null,
+    };
+  });
+
+  const groups: FieldCatalogGroupRow[] = (groupsR.data ?? [])
+    .map((g) => {
+      const gg = g as {
+        id: string; name_en: string | null; slug: string;
+        sort_order: number | null;
+      };
+      const o = gOv.get(gg.id) as
+        | { is_enabled: boolean | null; custom_label: string | null }
+        | undefined;
+      return {
+        id: gg.id,
+        name: gg.name_en ?? gg.slug,
+        sort_order: gg.sort_order ?? 0,
+        enabled: o?.is_enabled !== false,
+        custom_label: o?.custom_label ?? null,
+      };
+    })
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  return { ok: true, groups, fields };
+}
+
+/** Set tenant catalog overrides for a field (enable / require / relabel).
+ *  Only the provided keys are written; omit a key to leave it unchanged. */
+export async function setWorkspaceFieldCatalog(
+  input: z.infer<typeof catalogFieldSchema>,
+): Promise<OkResult> {
+  const parsed = catalogFieldSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid request." };
+  const { field_definition_id, enabled, required, custom_label } = parsed.data;
+
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId, user } = auth;
+
+  const row: Record<string, unknown> = {
+    tenant_id: tenantId,
+    field_definition_id,
+    last_changed_by_user_id: user?.id ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  if (enabled !== undefined) row.enabled_override = enabled;
+  if (required !== undefined) row.required_override = required;
+  if (custom_label !== undefined) {
+    row.custom_label = custom_label && custom_label.trim() ? custom_label.trim() : null;
+  }
+
+  const { error } = await supabase
+    .from("workspace_profile_field_settings")
+    .upsert(row, { onConflict: "tenant_id,field_definition_id" });
+  if (error) {
+    console.error("[field-catalog] set field failed:", error.message);
+    return { ok: false, error: "Couldn't save the field." };
+  }
+  bustFieldCatalog(tenantId);
+  return { ok: true };
+}
+
+/** Set tenant overrides for a field GROUP (enable / relabel). */
+export async function setWorkspaceFieldGroup(
+  input: z.infer<typeof catalogGroupSchema>,
+): Promise<OkResult> {
+  const parsed = catalogGroupSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid request." };
+  const { field_group_id, is_enabled, custom_label } = parsed.data;
+
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const row: Record<string, unknown> = {
+    tenant_id: tenantId,
+    field_group_id,
+    updated_at: new Date().toISOString(),
+  };
+  if (is_enabled !== undefined) row.is_enabled = is_enabled;
+  if (custom_label !== undefined) {
+    row.custom_label = custom_label && custom_label.trim() ? custom_label.trim() : null;
+  }
+
+  const { error } = await supabase
+    .from("workspace_field_group_settings")
+    .upsert(row, { onConflict: "tenant_id,field_group_id" });
+  if (error) {
+    console.error("[field-catalog] set group failed:", error.message);
+    return { ok: false, error: "Couldn't save the group." };
+  }
+  bustFieldCatalog(tenantId);
+  return { ok: true };
+}
