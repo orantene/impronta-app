@@ -8,6 +8,11 @@ import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1 } from "./schema";
 import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
+import {
+  resolveShellSocialContact,
+  type ShellSocialLink,
+  type ShellContactLink,
+} from "@/lib/site-admin/server/shell-social-contact";
 import type { Locale } from "@/i18n/config";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
@@ -293,11 +298,22 @@ export async function SiteHeaderComponent({
     nodePresentation,
     presentation,
   } = props;
-  // Phase 6B — cluster renders only when the operator supplied real
-  // links. Empty (the default) = nothing rendered = existing tenants
-  // visually unchanged.
-  const social = socialLinks ?? [];
-  const contacts = contactLinks ?? [];
+  // Phase 6B — explicit section-prop links win; otherwise fall back to
+  // the canonical identity store (what the operator edits in the
+  // inspector's "Social & contact" area). Empty everywhere = nothing
+  // rendered = existing tenants visually unchanged.
+  const { socialLinks: social, contactLinks: contacts } =
+    await resolveShellSocialContact({
+      tenantId,
+      explicitSocial:
+        (socialLinks ?? []).length > 0
+          ? (socialLinks as { platform: ShellSocialLink["platform"]; href: string }[])
+          : null,
+      explicitContact:
+        (contactLinks ?? []).length > 0
+          ? (contactLinks as { type: ShellContactLink["type"]; value: string }[])
+          : null,
+    });
   const hasCluster = social.length > 0 || contacts.length > 0;
   // Density attrs are emitted ONLY when explicitly set, so a tenant that
   // never configured density keeps the verbatim existing CSS defaults.
