@@ -1013,7 +1013,7 @@ function Section({
   title,
   description,
   children,
-  framed = true,
+  framed = false,
   dense = false,
 }: {
   title?: string;
@@ -11579,6 +11579,10 @@ function ProfileAccordionSection({ id, title, sub, complete, started, open, onTo
   return (
     <section id={`pshell-${id}`} style={{
       background: "#fff",
+      border: `1px solid ${COLORS.borderSoft}`,
+      borderRadius: 14,
+      margin: 16,
+      boxShadow: "0 1px 2px rgba(11,11,13,0.05)",
     }}>
       {/* Compact section title row — replaces the bulky accordion button.
           The rail already shows section name + completion dot, so this is
