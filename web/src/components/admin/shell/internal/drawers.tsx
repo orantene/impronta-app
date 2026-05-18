@@ -4364,6 +4364,9 @@ type ProfileShellPayload = {
     stageName?: string;
     primaryType?: string;
     homeBase?: string;
+    /** Canonical talent code (TAL-NNNNN) — shown under the name in the
+     *  drawer header so admins can reference the talent by stable id. */
+    profileCode?: string;
     method?: "agency" | "invited" | "draft";
     contact?: string;
     // From approval queue (talent's submitted registration data):
@@ -6592,6 +6595,21 @@ function TalentProfileShellDrawer() {
             <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {mode === "create" ? copy.t("New profile") : isSelf ? copy.t("Edit your profile") : (state.stageName || copy.t("Profile"))}
             </div>
+            {mode !== "create" && payload.seed?.profileCode && (
+              <div
+                title={payload.seed.profileCode}
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: 0.3,
+                  color: COLORS.inkMuted,
+                  fontFamily: FONTS.mono,
+                  marginTop: 1,
+                }}
+              >
+                {payload.seed.profileCode}
+              </div>
+            )}
             <div
               style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1, display: "inline-flex", alignItems: "center", gap: 4 }}
               title={saveSubtitleTitle || undefined}

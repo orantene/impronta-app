@@ -5302,6 +5302,7 @@ function TalentPage() {
         stageName: p.name,
         primaryType: p.primaryType,
         homeBase: p.city,
+        profileCode: p.profileCode,
       },
     });
   };
@@ -6496,31 +6497,62 @@ function RosterCard({
           )}
         </div>
 
-        {/* Availability dot bottom-right (published only) */}
-        {profile.state === "published" && profile.availability && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 8,
-              right: 8,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 8px",
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(6px)",
-              boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
-              fontSize: 10,
-              fontWeight: 600,
-              color: COLORS.ink,
-              textTransform: "capitalize",
-            }}
-          >
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: availDot }} />
-            {profile.availability}
-          </div>
-        )}
+        {/* Bottom-right stack: availability pill (published only) +
+            the talent's canonical code (TAL-NNNNN). Stacked vertically
+            so the two never overlap. */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 8,
+            right: 8,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 4,
+          }}
+        >
+          {profile.state === "published" && profile.availability && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "3px 8px",
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.92)",
+                backdropFilter: "blur(6px)",
+                boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
+                fontSize: 10,
+                fontWeight: 600,
+                color: COLORS.ink,
+                textTransform: "capitalize",
+              }}
+            >
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: availDot }} />
+              {profile.availability}
+            </div>
+          )}
+          {profile.profileCode && (
+            <div
+              title={profile.profileCode}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "3px 8px",
+                borderRadius: 999,
+                background: "rgba(11,11,13,0.55)",
+                color: "#fff",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                fontFamily: FONTS.mono,
+                backdropFilter: "blur(6px)",
+              }}
+            >
+              {profile.profileCode}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Card body — name + type + city, hairlined */}

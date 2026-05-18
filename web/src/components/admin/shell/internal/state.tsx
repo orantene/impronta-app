@@ -2048,6 +2048,10 @@ export function getRichInquiry(id: string): RichInquiry | undefined {
 
 export type TalentProfile = {
   id: string;
+  /** Human-readable canonical talent code (`talent_profiles.profile_code`),
+   *  e.g. "TAL-00033". Surfaced on the roster card + profile drawer so
+   *  admins can reference a talent by a stable short id. */
+  profileCode?: string;
   name: string;
   state: "draft" | "invited" | "published" | "awaiting-approval" | "claimed";
   height?: string;

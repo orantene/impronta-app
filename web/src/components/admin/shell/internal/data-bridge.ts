@@ -305,6 +305,7 @@ type RosterRow = {
   created_at: string | null;
   talent_profiles: {
     id: string;
+    profile_code: string | null;
     display_name: string | null;
     first_name: string | null;
     last_name: string | null;
@@ -546,6 +547,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
         created_at,
         talent_profiles!talent_profile_id (
           id,
+          profile_code,
           display_name,
           first_name,
           last_name,
@@ -605,6 +607,7 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
       ).length;
       out.push({
         id: profile.id,
+        profileCode: profile.profile_code ?? undefined,
         name: deriveDisplayName(profile),
         state: deriveProfileState(row),
         height: deriveHeightLabel(profile),

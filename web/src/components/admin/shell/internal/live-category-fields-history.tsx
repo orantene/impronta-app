@@ -56,6 +56,17 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString();
 }
 
+// Exact date + time of the change (audit needs the precise stamp, not
+// just "3d ago").
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    year: "numeric", month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
+}
+
 function operationColor(op: TalentFieldHistoryRow["operation"]): string {
   if (op === "INSERT") return T.accent;
   if (op === "UPDATE") return T.amber;
@@ -211,8 +222,13 @@ export function LiveCategoryFieldsHistoryModal({
                     fontSize: 10.5, color: T.inkMuted, textAlign: "right",
                     whiteSpace: "nowrap",
                   }}>
-                    <div>{formatTime(r.changed_at)}</div>
-                    <div style={{ marginTop: 2 }}>{r.actor_role ?? "—"}</div>
+                    <div style={{ color: T.ink, fontWeight: 600 }}>
+                      {formatDateTime(r.changed_at)}
+                    </div>
+                    <div style={{ marginTop: 2 }}>{formatTime(r.changed_at)}</div>
+                    <div style={{ marginTop: 2, textTransform: "capitalize" }}>
+                      {r.actor_role ?? "—"}
+                    </div>
                   </div>
                 </div>
               ))}
