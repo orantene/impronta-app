@@ -2223,3 +2223,107 @@ data.
 
 *End of Page Builder Reusability Plan. Planning only — no code, DB,
 deploy, or page changes.*
+
+---
+
+# Phase 6A — Featured Card System — EXECUTION LOG (2026-05-18)
+
+First **code** execution against the Reusability Plan. Local-first,
+scoped, gated. No deploy. No Page Kit work. No admin-shell / stash /
+other-agent files touched.
+
+## Scope delivered
+
+**6A.1 — Render-only premium card polish (DONE)**
+- `FeaturedTalentCard.tsx` rebuilt: stronger 3:4 frame, springier media
+  reveal, premium hover lift, clearer name → kicker → meta hierarchy,
+  a real metadata line, a layout-ready availability slot, and a premium
+  `data-card-actions` footer (View profile + Request) with refined
+  rhythm. New reusable hooks: `data-card-meta`, `data-card-availability`,
+  `data-card-actions`. Initials fallback kept (no silhouette regression).
+- `featured-talent.css`: base, token-driven defaults that hold up on a
+  **neutral** tenant (no card-family override) — meta line, availability
+  chip, action-row divider, carousel snap. Nothing Impronta-specific.
+- `token-presets.css`: `editorial-bridal` family repaint for the new
+  hooks (scoped to `.site-featured-talent__card` so directory listing
+  cards are untouched) — ivory/noir register, stronger lift, premium
+  action footer. Token-driven; travels to any tenant on this family.
+
+**6A.2 — Safe partial DTO extension (DONE — direct path only)**
+- `FeaturedTalentCardDTO` extended (all new fields **optional** →
+  pre-6A constructors / test fixtures unchanged, zero churn):
+  `secondaryTalentTypeLabel`, `languages`, `availabilityLabel`,
+  `parentCategoryLabel`.
+- Direct-query path (`hydrateRows`) now populates **real** data:
+  - **secondary type** via `extractSecondaryRoleTerms()` on the taxonomy
+    rows *already joined* — no extra query.
+  - **languages** via the M8-editorial `talent_profiles.languages TEXT[]`
+    column (public-safe display names, trigger-synced) — one column add
+    to `FEATURED_TALENT_SELECT`, no join, no cache change.
+- Cached-directory path (`projectDirectoryCard`) deliberately leaves the
+  new fields empty — **the shared `DirectoryCardDTO` / directory cache
+  key is NOT widened** (bounded blast radius, per the plan). The card
+  degrades gracefully (omits) rather than rendering fake.
+- `availabilityLabel` / `parentCategoryLabel` are wired into the type +
+  card layout but **never populated** — no fabricated data.
+
+**6A.3 — Editor toggles made real (DONE)**
+- `Component.tsx` forwards `showSecondaryType` / `showLanguages` /
+  `showAvailability` to the card.
+- `Editor.tsx`: `Secondary type` + `Languages` moved out of the
+  disclaimed group (they now render real data). Disclaimer copy
+  rewritten — only `Availability *` + `Parent category *` remain
+  asterisked (no reliable source yet); honest "never renders
+  fabricated data" wording.
+
+## Decisions deferred (intentional, per owner direction)
+
+- **Save heart** → deferred to **6F** (persistence). No fake/disabled
+  heart added (kept the card clean rather than show a misleading
+  control).
+- **Availability pill** → no reliable public source (calendar-derived,
+  not a column). Card is layout-ready; pill never rendered.
+- **Verified / agency-approved badge** → every featured card is already
+  roster-gated + `workflow_status='approved'`, so an always-true badge
+  is non-informative noise and there is no real verification model.
+  Deferred. The real `isFeatured` "Featured" chip is kept.
+- **Parent category** → needs taxonomy-hierarchy plumbing (extra query /
+  risk); not prototype-critical (prototype shows the leaf). Toggle
+  persists, stays disclaimed.
+
+## Files changed (scoped)
+
+- `web/src/lib/site-admin/sections/featured_talent/fetch.ts`
+- `web/src/lib/site-admin/sections/featured_talent/FeaturedTalentCard.tsx`
+- `web/src/lib/site-admin/sections/featured_talent/Component.tsx`
+- `web/src/lib/site-admin/sections/featured_talent/Editor.tsx`
+- `web/src/lib/site-admin/sections/featured_talent/featured-talent.css`
+- `web/src/app/token-presets.css` (editorial-bridal family additions only)
+- `web/docs/page-builder-impronta-execution-plan-2026-05.md` (this log)
+
+## Data fields now supported on the card
+
+| Field | Source | Direct path | Cache path |
+|---|---|---|---|
+| name / primary type / city | existing | ✅ | ✅ |
+| featured badge | `is_featured` | ✅ | ✅ |
+| **secondary type** | taxonomy (already joined) | ✅ real | — (omits) |
+| **languages** | `talent_profiles.languages` | ✅ real | — (omits) |
+| availability | none yet | layout-ready, never rendered |
+| parent category | none yet | layout-ready, never rendered |
+
+## QA result
+
+(see final report — local QA on Impronta homepage)
+
+## Remaining dependencies for 6F (Save / Inquiry Basket)
+
+- DTO is now the right shape for cards; 6F still needs `saved_talent` +
+  `inquiry_basket` tables + RLS + header counts + persistence — none of
+  which is in 6A scope.
+- The card already exposes a clean `requestCta` slot (routes today; no
+  persistence) — 6F upgrades it to basket-backed.
+- A future `availabilityLabel` source + a verification model remain
+  product decisions before those slots light up.
+
+*End of Phase 6A execution log.*
