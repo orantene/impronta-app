@@ -11584,11 +11584,11 @@ function ProfileAccordionSection({ id, title, sub, complete, started, open, onTo
   if (!open) return null;
   return (
     <section id={`pshell-${id}`} style={{
-      // Match New Inquiry SectionCard exactly: low-contrast warm card
-      // (≈ bg-muted/10, NOT stark white) + the real --border token
-      // rgba(35,29,16,0.08) + rounded-2xl; fills height (no void).
-      background: "#FBF9F3",
-      border: "1px solid rgba(35,29,16,0.08)",
+      // Crisp WHITE card on the warm #F2EDE2 page with a clearly visible
+      // hairline border + rounded-2xl — the actual New Inquiry effect
+      // (the low-contrast token-literal version was imperceptible).
+      background: "#FFFFFF",
+      border: "1px solid rgba(35,29,16,0.16)",
       borderRadius: 16,
       minHeight: "100%",
       boxSizing: "border-box",
