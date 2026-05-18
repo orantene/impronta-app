@@ -66,6 +66,7 @@ import { useLiveTaxonomy, type LiveTaxonomyParent } from "./use-taxonomy";
 import { prefetchSkillsData, SkillSlotPanel } from "./skill-slot-panel";
 import { ContextSlotPanel, prefetchContextsData } from "./context-slot-panel";
 import { LanguageSlotPanel, prefetchLanguagesData } from "./language-slot-panel";
+import { LiveCategoryFieldsHistoryModal } from "./live-category-fields-history";
 import { LocationSlotPanel } from "./location-slot-panel";
 import { useDashboardText } from "./dashboard-i18n";
 import { MetricsRibbon } from "./metrics-ribbon";
@@ -2061,16 +2062,6 @@ function TeamDrawer() {
 // Plan tier limits how many parents can be enabled simultaneously.
 // ════════════════════════════════════════════════════════════════════
 
-function LiveCategoryFieldsPanelStateful({ talentProfileId }: { talentProfileId: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <LiveCategoryFieldsPanel
-      talentProfileId={talentProfileId}
-      open={open}
-      onToggle={() => setOpen((o) => !o)}
-    />
-  );
-}
 
 // ════════════════════════════════════════════════════════════════════
 // LiveCategoryFieldsPanel — read-only preview of the DB-resolved field
@@ -2254,7 +2245,7 @@ function LiveCategoryFieldsPanel({
         <span style={{ fontSize: 18 }}>🧬</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
-            {copy.t("Category fields (live)")}
+            {copy.t("Agency Fields")}
           </div>
           <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
             {fields
@@ -4465,7 +4456,7 @@ const PROFILE_SECTIONS = [
   "about", "profile_fields",
   "physical", "wardrobe", "details", "rates", "availability",
   "refinement", "credits", "limits", "files",
-  "social_proof", "verifications", "admin",
+  "social_proof", "verifications", "agency_fields", "admin",
 ] as const;
 type ProfileSectionId = typeof PROFILE_SECTIONS[number] | "";
 
@@ -4490,6 +4481,7 @@ const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string; emoji
   files:         { label: "Files",         emoji: "📎" },
   social_proof:  { label: "Past clients",  emoji: "⭐" },
   verifications: { label: "Trust",         emoji: "🛡" },
+  agency_fields: { label: "Agency Fields", emoji: "🧬" },
   admin:         { label: "Admin",         emoji: "🔒" },
 };
 
@@ -5959,6 +5951,7 @@ function TalentProfileShellDrawer() {
   // #3 — Deep-link hydration. URL ?section=availability lands directly
   // on the Availability accordion, scrolled into view + expanded.
   // Falls back to "identity" for fresh edits, "services" for create mode.
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<ProfileSectionId>(() => {
     // Resolution order: payload.section (drawer caller) → URL ?section=X
     // (deep-link / refresh) → mode default. The payload path is what the
@@ -6181,6 +6174,8 @@ function TalentProfileShellDrawer() {
     social_proof:  state.pastClients.length > 0,
     verifications: state.verifications.idSubmitted && state.verifications.payoutConnected,
     admin:         true,
+    // Back-office diagnostic, not a publish gate (mirrors `admin`).
+    agency_fields: true,
     profile_fields: profileFieldCounts.total > 0
       && profileFieldCounts.filled >= profileFieldCounts.total,
   };
@@ -6209,6 +6204,7 @@ function TalentProfileShellDrawer() {
     social_proof:  false,
     verifications: !sectionComplete.verifications && (state.verifications.idSubmitted || state.verifications.payoutConnected),
     admin:         false,
+    agency_fields: false,
     profile_fields: !sectionComplete.profile_fields && profileFieldCounts.filled > 0,
   };
 
@@ -6979,7 +6975,7 @@ function TalentProfileShellDrawer() {
               { label: "Portfolio", ids: ["media", "albums", "polaroids"] },
               { label: "Terms", ids: ["rates", "limits"] },
               { label: "Proof", ids: ["credits", "social_proof", "verifications", "refinement"] },
-              { label: "Back office", ids: ["files", "admin"] },
+              { label: "Back office", ids: ["files", "agency_fields", "admin"] },
             ];
             // One source of truth: when the NEW DB-driven engine is
             // mounted (real talent + tenant), it supersedes the legacy
@@ -7000,6 +6996,9 @@ function TalentProfileShellDrawer() {
               // Profile fields editor only mounts when there's a real talent
               // + tenant context (bridge below the editor enforces the same).
               if (s === "profile_fields" && !newEngineActive) return false;
+              // Agency Fields = the live DB-resolved field catalog; only
+              // meaningful with a real talent + tenant (same as the engine).
+              if (s === "agency_fields" && !newEngineActive) return false;
               return true;
             };
             // Top-of-rail summary: how many sections are complete out of
@@ -7086,9 +7085,47 @@ function TalentProfileShellDrawer() {
                     </div>
                   );
                 })}
+                {!!payload.talentId && (
+                  <div style={{ marginBottom: 4 }}>
+                    <div style={{
+                      padding: "6px 12px 4px",
+                      fontSize: 9.5, fontWeight: 700,
+                      letterSpacing: 0.7, textTransform: "uppercase",
+                      color: "rgba(11,11,13,0.42)",
+                      fontFamily: FONTS.body,
+                    }}>{copy.t("Audit")}</div>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryOpen(true)}
+                      style={{
+                        width: "100%",
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "7px 10px 7px 12px", borderRadius: 8,
+                        border: "none", background: "transparent",
+                        color: COLORS.ink, fontSize: 12.5, fontWeight: 500,
+                        textAlign: "left", cursor: "pointer",
+                        fontFamily: FONTS.body, letterSpacing: 0.1,
+                      }}
+                    >
+                      <span aria-hidden style={{
+                        width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                        background: "rgba(11,11,13,0.12)",
+                      }} />
+                      <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>🕓</span>
+                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.t("History")}</span>
+                    </button>
+                  </div>
+                )}
               </aside>
             );
           })()}
+          {!!payload.talentId && (
+            <LiveCategoryFieldsHistoryModal
+              talentProfileId={payload.talentId!}
+              open={historyOpen}
+              onClose={() => setHistoryOpen(false)}
+            />
+          )}
           <div data-pshell-form>
             {/* P2 — honest hydration overlay. The drawer paints from a
                 3-field seed; real saved values arrive async. While that's
@@ -7316,13 +7353,18 @@ function TalentProfileShellDrawer() {
               )}
             </ProfileAccordionSection>
 
-            {/* LIVE CATEGORY FIELDS — only show in Services or overview.
-                Wrapped in the same 24px horizontal frame as every section
-                so it doesn't sit flush-left against the panel edge. */}
+            {/* AGENCY FIELDS — the live DB-resolved field catalog for
+                this talent's primary + secondary types. Back-office
+                diagnostic; opens from the "Agency Fields" rail entry
+                under Back office. Real talent + tenant only. */}
             {payload.talentId && bridgeTenantIdentity?.tenantId &&
-              (activeSection === "" || activeSection === "services") && (
+              activeSection === "agency_fields" && (
               <div style={{ padding: "0 24px" }}>
-                <LiveCategoryFieldsPanelStateful talentProfileId={payload.talentId} />
+                <LiveCategoryFieldsPanel
+                  talentProfileId={payload.talentId}
+                  open
+                  onToggle={() => setActiveSection("")}
+                />
               </div>
             )}
 
