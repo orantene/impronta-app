@@ -60,6 +60,8 @@ type FieldPrivacyEntry = {
   label: string;
   field_group_id: string | null;
   effective: FieldVisibility;
+  /** platform default (no tenant override) — for the "changed" badge. */
+  platform_default: FieldVisibility;
   /** platform admin_only/is_sensitive — cannot be made Public by a tenant. */
   floored: boolean;
   has_override: boolean;
@@ -121,13 +123,15 @@ export async function getFieldPrivacyCatalog(): Promise<
       show_in_public: boolean | null;
     };
     const o = ovByField.get(def.id);
+    const defInput = {
+      default_visibility: def.default_visibility,
+      admin_only: def.admin_only,
+      is_sensitive: def.is_sensitive,
+      show_in_public: def.show_in_public,
+    };
+    const platform_default = effectiveFieldVisibility(defInput, null);
     const effective = effectiveFieldVisibility(
-      {
-        default_visibility: def.default_visibility,
-        admin_only: def.admin_only,
-        is_sensitive: def.is_sensitive,
-        show_in_public: def.show_in_public,
-      },
+      defInput,
       o
         ? {
             show_in_public_override: o.show_in_public_override as boolean | null,
@@ -143,6 +147,7 @@ export async function getFieldPrivacyCatalog(): Promise<
       label: def.label,
       field_group_id: def.field_group_id,
       effective,
+      platform_default,
       floored: !!(def.admin_only || def.is_sensitive),
       has_override: !!o,
     };

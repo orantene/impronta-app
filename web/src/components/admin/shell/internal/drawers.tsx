@@ -8,6 +8,11 @@ import { parseTalentCsv } from "./csv-parser";
 import { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 import { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 import {
+  getFieldPrivacyCatalog,
+  setWorkspaceFieldVisibility,
+  resetWorkspaceFieldVisibility,
+} from "@/lib/server-actions/admin-workspace-field-settings";
+import {
   commitTalentProfileShellAdmin,
   getTalentProfileActivity,
   sendTalentClaimInvite,
@@ -20257,63 +20262,110 @@ function FieldCatalogDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function FieldPrivacyDrawer() {
-  const {
-    state, closeDrawer, openDrawer, toast,
-    customFields, setCustomFieldVisibility,
-    setFieldVisibility, effectiveFieldVisibility,
-  } = useAdminShell();
+  type EngVis = "public" | "admin" | "hidden";
+  type Entry = {
+    field_definition_id: string; field_key: string; label: string;
+    field_group_id: string | null; effective: EngVis;
+    platform_default: EngVis; floored: boolean; has_override: boolean;
+  };
+  type Grp = { id: string; slug: string; name: string; sort_order: number };
+
+  const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
     ?? FIELD_PRIVACY_PLAN_RULES.free;
-  const isAgency = state.plan === "agency" || state.plan === "network";
 
-  // Group built-in fields by section.
-  const fieldsBySection: Record<string, ProfileFieldId[]> = {};
-  for (const id of Object.keys(PROFILE_FIELD_META) as ProfileFieldId[]) {
-    const sec = PROFILE_FIELD_META[id].section;
-    (fieldsBySection[sec] ??= []).push(id);
-  }
-  const sectionOrder = ["Identity", "Services", "Location", "Media", "About", "Languages", "Refinement", "Physical", "Contact", "Money", "Compliance", "Engagement", "Files"];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [groups, setGroups] = useState<Grp[]>([]);
+  const [fields, setFields] = useState<Entry[]>([]);
+  const [pending, setPending] = useState<Record<string, EngVis>>({});
 
-  const setBuiltIn = (id: ProfileFieldId, vis: FieldVisibility) => {
-    if (!rules.canFlipPublicInternal && vis !== DEFAULT_FIELD_VISIBILITY[id]) {
-      toast("Studio plan to change field visibility");
-      return;
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    const res = await getFieldPrivacyCatalog();
+    if (!res.ok) { setError(res.error); setLoading(false); return; }
+    setGroups(res.groups as Grp[]);
+    setFields(res.fields as Entry[]);
+    setPending({});
+    setLoading(false);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  // FieldPrivacyRow speaks the proto tri-state ("internal" = admin).
+  const toProto = (v: EngVis): FieldVisibility => (v === "admin" ? "internal" : v);
+  const toEng = (v: FieldVisibility): EngVis => (v === "internal" ? "admin" : v);
+  const effOf = (f: Entry): EngVis => pending[f.field_definition_id] ?? f.effective;
+
+  const onChange = async (f: Entry, protoVis: FieldVisibility) => {
+    const target = toEng(protoVis);
+    if (target === effOf(f)) return;
+    if (!rules.canFlipPublicInternal && target !== f.platform_default) {
+      toast("Upgrade to Studio to change field visibility"); return;
     }
-    if (vis === "hidden" && !rules.canHide) {
-      toast("Agency plan to hide fields entirely");
-      return;
+    if (target === "hidden" && !rules.canHide) {
+      toast("Upgrade to Agency to hide fields entirely"); return;
     }
-    setFieldVisibility(id, vis);
+    if (target === "public" && f.floored) {
+      toast("This field is platform-restricted and can't be public"); return;
+    }
+    setPending(p => ({ ...p, [f.field_definition_id]: target }));
+    const res = target === f.platform_default
+      ? await resetWorkspaceFieldVisibility({ field_definition_id: f.field_definition_id })
+      : await setWorkspaceFieldVisibility({ field_definition_id: f.field_definition_id, visibility: target });
+    if (!res.ok) {
+      setPending(p => { const n = { ...p }; delete n[f.field_definition_id]; return n; });
+      toast(res.error || "Couldn't save the field setting"); return;
+    }
+    setFields(fs => fs.map(x => x.field_definition_id === f.field_definition_id
+      ? { ...x, effective: target, has_override: target !== x.platform_default }
+      : x));
+    setPending(p => { const n = { ...p }; delete n[f.field_definition_id]; return n; });
+    toast("Saved");
   };
 
-  // Counts for the summary strip
-  const allBuiltIn = Object.keys(PROFILE_FIELD_META) as ProfileFieldId[];
   const counts = {
-    public:   allBuiltIn.filter(id => effectiveFieldVisibility(id) === "public").length,
-    internal: allBuiltIn.filter(id => effectiveFieldVisibility(id) === "internal").length,
-    hidden:   allBuiltIn.filter(id => effectiveFieldVisibility(id) === "hidden").length,
+    public: fields.filter(f => effOf(f) === "public").length,
+    internal: fields.filter(f => effOf(f) === "admin").length,
+    hidden: fields.filter(f => effOf(f) === "hidden").length,
   };
+
+  const order: { key: string; name: string; items: Entry[] }[] = [];
+  const byKey = new Map<string, { key: string; name: string; items: Entry[] }>();
+  for (const f of fields) {
+    const key = f.field_group_id ?? "__general__";
+    let b = byKey.get(key);
+    if (!b) {
+      const name = f.field_group_id
+        ? (groups.find(g => g.id === f.field_group_id)?.name ?? "Other")
+        : "General";
+      b = { key, name, items: [] }; byKey.set(key, b); order.push(b);
+    }
+    b.items.push(f);
+  }
+  order.sort((a, b) => {
+    const ai = a.key === "__general__" ? 1e9 : (groups.find(g => g.id === a.key)?.sort_order ?? 0);
+    const bi = b.key === "__general__" ? 1e9 : (groups.find(g => g.id === b.key)?.sort_order ?? 0);
+    return ai - bi;
+  });
 
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Field privacy"
-      description="What's public on your storefront, what admins can see, and what's hidden. Talent sees this list before they sign up."
+      description="What's public on your storefront, what admins can see, and what's hidden. Talent sees this before they sign up."
       width={680}
       footer={
         <>
           <SecondaryButton onClick={() => openDrawer("field-catalog")}>Field catalog</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Privacy settings saved"); closeDrawer(); }}>Done</PrimaryButton>
+          <PrimaryButton onClick={closeDrawer}>Done</PrimaryButton>
         </>
       }
     >
-      {/* Summary strip — shows what your storefront currently exposes */}
       <div style={{
-        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0,
+        display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
         background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 12, overflow: "hidden", marginBottom: 16,
-        fontFamily: FONTS.body,
+        borderRadius: 12, overflow: "hidden", marginBottom: 16, fontFamily: FONTS.body,
       }}>
         <FieldPrivacyCount label="On storefront" count={counts.public}
           icon="🌐" tone={COLORS.successDeep} bg={COLORS.successSoft} />
@@ -20323,16 +20375,14 @@ function FieldPrivacyDrawer() {
           icon="–" tone={COLORS.inkMuted} bg="rgba(11,11,13,0.04)" borderLeft />
       </div>
 
-      {/* Plan-tier hint */}
       {!rules.canFlipPublicInternal && (
         <div style={{
           padding: "12px 14px", borderRadius: 10,
-          background: "rgba(91,107,160,0.10)",
-          border: "1px solid rgba(91,107,160,0.18)",
+          background: "rgba(91,107,160,0.10)", border: "1px solid rgba(91,107,160,0.18)",
           fontFamily: FONTS.body, fontSize: 12.5, color: "#3B4A75",
           marginBottom: 16, lineHeight: 1.5,
         }}>
-          <strong>Free plan defaults are locked.</strong> Upgrade to Studio to flip fields between public and admin-only. Agency tier unlocks hiding fields entirely + custom field creation.
+          <strong>Free plan defaults are locked.</strong> Upgrade to Studio to flip fields between public and admin-only. Agency tier unlocks hiding fields entirely.
           <button type="button" onClick={() => openDrawer("plan-billing")} style={{
             marginLeft: 8, padding: "4px 10px", borderRadius: 999,
             background: "#3B4A75", color: "#fff", border: "none",
@@ -20341,80 +20391,59 @@ function FieldPrivacyDrawer() {
         </div>
       )}
 
-      {/* Built-in fields grouped by section */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {sectionOrder.filter(s => fieldsBySection[s]?.length > 0).map((section) => (
-          <div key={section}>
-            <div style={{
-              fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
-              color: COLORS.inkMuted, textTransform: "uppercase",
-              marginBottom: 6, paddingLeft: 4,
-            }}>{section}</div>
-            <div style={{
-              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 12, overflow: "hidden",
-            }}>
-              {fieldsBySection[section]!.map((fieldId, i) => (
-                <FieldPrivacyRow
-                  key={fieldId}
-                  isFirst={i === 0}
-                  label={PROFILE_FIELD_META[fieldId].label}
-                  description={PROFILE_FIELD_META[fieldId].description}
-                  defaultVis={DEFAULT_FIELD_VISIBILITY[fieldId]}
-                  current={effectiveFieldVisibility(fieldId)}
-                  onChange={(v) => setBuiltIn(fieldId, v)}
-                  canFlip={rules.canFlipPublicInternal}
-                  canHide={rules.canHide}
-                />
-              ))}
+      {loading && (
+        <div style={{ padding: 24, textAlign: "center", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
+          Loading the field catalog…
+        </div>
+      )}
+      {error && !loading && (
+        <div style={{
+          padding: "12px 14px", borderRadius: 10, background: COLORS.amberSoft,
+          border: `1px solid ${COLORS.amber}`, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+        }}>
+          {error}{" "}
+          <button type="button" onClick={() => void load()} style={{
+            marginLeft: 6, textDecoration: "underline", background: "none",
+            border: "none", cursor: "pointer", color: COLORS.ink, fontFamily: FONTS.body,
+          }}>Retry</button>
+        </div>
+      )}
+      {!loading && !error && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {order.map((bucket) => (
+            <div key={bucket.key}>
+              <div style={{
+                fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
+                color: COLORS.inkMuted, textTransform: "uppercase",
+                marginBottom: 6, paddingLeft: 4,
+              }}>{bucket.name}</div>
+              <div style={{
+                background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 12, overflow: "hidden",
+              }}>
+                {bucket.items.map((f, i) => (
+                  <FieldPrivacyRow
+                    key={f.field_definition_id}
+                    isFirst={i === 0}
+                    label={f.label}
+                    description={f.field_key + (f.floored ? " · platform-restricted" : "")}
+                    defaultVis={toProto(f.platform_default)}
+                    current={toProto(effOf(f))}
+                    onChange={(v) => void onChange(f, v)}
+                    canFlip={rules.canFlipPublicInternal}
+                    canHide={rules.canHide}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-
-        {/* Custom workspace fields */}
-        {customFields.length > 0 && (
-          <div>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 8,
-              fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
-              color: COLORS.inkMuted, textTransform: "uppercase",
-              marginBottom: 6, paddingLeft: 4,
-            }}>
-              ✦ Custom fields
-              <span style={{
-                fontSize: 9, padding: "1px 7px", borderRadius: 999,
-                background: "rgba(184,135,49,0.14)", color: "#7A5A1F",
-                letterSpacing: 0.5,
-              }}>AGENCY</span>
+          ))}
+          {fields.length === 0 && (
+            <div style={{ padding: 24, textAlign: "center", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
+              No catalog fields for this workspace yet.
             </div>
-            <div style={{
-              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 12, overflow: "hidden",
-            }}>
-              {customFields.map((cf, i) => (
-                <FieldPrivacyRow
-                  key={cf.id}
-                  isFirst={i === 0}
-                  label={cf.name}
-                  description={`${cf.kind} · on ${cf.appliesTo}` + (cf.helper ? ` · ${cf.helper}` : "")}
-                  defaultVis="internal"
-                  current={cf.visibility ?? "internal"}
-                  onChange={(v) => setCustomFieldVisibility(cf.id, v)}
-                  canFlip={isAgency}
-                  canHide={isAgency}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        <button type="button" onClick={() => openDrawer("field-catalog")} style={{
-          alignSelf: "flex-start", padding: "8px 14px", borderRadius: 999,
-          background: "transparent", border: `1px dashed ${COLORS.border}`,
-          color: COLORS.inkMuted,
-          fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
-        }}>+ Manage custom fields</button>
-      </div>
+          )}
+        </div>
+      )}
     </DrawerShell>
   );
 }
