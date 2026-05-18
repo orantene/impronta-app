@@ -1013,7 +1013,7 @@ function Section({
   title,
   description,
   children,
-  framed = false,
+  framed = true,
   dense = false,
 }: {
   title?: string;
@@ -6476,7 +6476,7 @@ function TalentProfileShellDrawer() {
              still render, but inline above the form so they participate
              in the same scroll. */
           [data-tulala-pshell] [data-pshell-body] { display: flex; flex-direction: row; flex: 1; min-height: 0; }
-          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0; position: relative; min-width: 0; }
+          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0; position: relative; min-width: 0; background: #F4F2EB; }
           [data-tulala-pshell] [data-pshell-form-banners] {
             display: flex; flex-direction: column; gap: 10px;
             padding: 14px 18px 0;
