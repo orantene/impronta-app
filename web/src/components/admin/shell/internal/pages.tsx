@@ -10648,7 +10648,7 @@ function WorkspacePageView() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
   const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
     { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "domain", "branding", "media-watermark"] },
-    { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types", "discover"] },
+    { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types", "roster-review", "discover"] },
     { id: "team",      label: "Team & legal",  emoji: "👥", sections: ["team", "compliance"] },
     { id: "billing",   label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
     { id: "advanced",  label: "Advanced",      emoji: "⚙",  sections: ["features", "danger"] },
@@ -11088,7 +11088,7 @@ function WorkspacePageView() {
           )}
 
           {visibleSections.has("talent-types") && (
-          <AccordionItem id="talent-types" label="Talent types" desc="Choose which talent categories your roster supports." supportLink="/help/settings/talent-types">
+          <AccordionItem id="talent-types" label="Talent types & Catalog Fields" desc="Categories, field privacy and the field catalog for your roster." supportLink="/help/settings/talent-types">
             <SettingsRow onClick={() => openDrawer("talent-types")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Categories on your site</div>
@@ -11116,6 +11116,11 @@ function WorkspacePageView() {
               </div>
               <Affordance label="Open" />
             </SettingsRow>
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("roster-review") && (
+          <AccordionItem id="roster-review" label="Roster review" desc="Verification requests, disputed claims, and self-registration approvals." supportLink="/help/settings/talent-types">
             <SettingsRow onClick={() => openDrawer("trust-verification-queue")}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                 <div>
