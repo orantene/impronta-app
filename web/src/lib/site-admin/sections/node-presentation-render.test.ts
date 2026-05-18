@@ -2193,6 +2193,8 @@ test("site header renderer applies brand/cta nodePresentation and child node ids
       showLanguageToggle: false,
       showDiscoveryTools: false,
     },
+    socialLinks: [],
+    contactLinks: [],
     presentation: {},
     nodePresentation: {
       headline: { align: "left", maxWidthPx: 320, size: "lg" },

@@ -33,6 +33,13 @@ export function SiteHeaderEditor({
       showLanguageToggle: true,
       showDiscoveryTools: true,
     },
+    // Phase 6B — reusable header cluster + density. Defaults keep every
+    // existing tenant visually unchanged (empty cluster, no density
+    // attrs). The auto-bound ZodSchemaForm renders these from the schema
+    // with humanized labels (Social Links, Contact Links, Density …).
+    socialLinks: initial.socialLinks ?? [],
+    contactLinks: initial.contactLinks ?? [],
+    density: initial.density,
     presentation: initial.presentation,
   };
   return (

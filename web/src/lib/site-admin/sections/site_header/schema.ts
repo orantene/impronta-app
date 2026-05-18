@@ -35,6 +35,43 @@ const linkSchema = z.object({
   external: z.boolean().optional(),
 });
 
+/**
+ * Phase 6B — reusable social/contact cluster for the premium agency
+ * header. Mirrors the proven `site_footer` social pattern (platform enum
+ * + href) so the two surfaces stay consistent and the auto-bound editor
+ * renders it the same way. WhatsApp is included here (it isn't a footer
+ * platform) because a header contact cluster commonly leads with it.
+ *
+ * No values are invented anywhere: an empty array simply hides the
+ * cluster. Real hrefs come from the tenant's own identity data.
+ */
+const HEADER_SOCIAL_PLATFORMS = [
+  "instagram",
+  "tiktok",
+  "facebook",
+  "youtube",
+  "linkedin",
+  "x",
+  "whatsapp",
+] as const;
+
+const socialLinkSchema = z.object({
+  platform: z.enum(HEADER_SOCIAL_PLATFORMS),
+  href: z.string().min(1).max(500),
+  /** Optional accessible label override (defaults to the platform name). */
+  label: z.string().max(40).optional(),
+});
+
+const CONTACT_TYPES = ["phone", "email", "whatsapp"] as const;
+
+const contactLinkSchema = z.object({
+  type: z.enum(CONTACT_TYPES),
+  /** The tel:/mailto:/wa.me value. Never synthesised — owner-provided. */
+  value: z.string().min(1).max(240),
+  /** Optional display label (defaults to the value). */
+  label: z.string().max(60).optional(),
+});
+
 export const siteHeaderSchemaV1 = z.object({
   /** Brand block. */
   brand: z.object({
@@ -70,14 +107,57 @@ export const siteHeaderSchemaV1 = z.object({
    * Layout. `standard` = left brand / right nav. `minimal` = centered
    * brand + nav under. `split` = 3-col grid. `editorial` = premium
    * centered editorial shell (scaled wordmark, uppercase letter-spaced
-   * nav on its own centered row, refined translucent sticky) — reusable
-   * and theme-token-driven: the gold accent only resolves on tenants
-   * whose theme defines one; neutral themes get the same structure in
-   * their own tokens.
+   * nav on its own centered row, refined translucent sticky).
+   * `editorial-split` (Phase 6B) = premium 3-zone agency header:
+   * social/contact cluster left · centered brand · utilities + CTA
+   * right, with the nav on its own centered row beneath. All variants
+   * are reusable and theme-token-driven (accent resolves to the tenant
+   * theme; neutral themes get the same structure in their own tokens).
+   * Default stays `standard` so existing tenants are unchanged.
    */
   variant: z
-    .enum(["standard", "minimal", "split", "editorial"])
+    .enum(["standard", "minimal", "split", "editorial", "editorial-split"])
     .default("standard"),
+  /**
+   * Phase 6B — social links rendered in the header cluster. Empty array
+   * (default) renders nothing, so every existing tenant is unchanged.
+   * Reusable across tenants; values are owner-provided, never invented.
+   */
+  socialLinks: z.array(socialLinkSchema).max(6).default([]),
+  /**
+   * Phase 6B — contact links (phone / email / WhatsApp) in the header
+   * cluster. Empty array (default) renders nothing. Never synthesised.
+   */
+  contactLinks: z.array(contactLinkSchema).max(4).default([]),
+  /**
+   * Phase 6B — reusable density controls. Entirely optional: when a
+   * field is unset the component emits NO density data-attribute and the
+   * existing CSS defaults apply verbatim (strict backward-compat — other
+   * tenants are not forced into any new sizing).
+   */
+  density: z
+    .object({
+      /** Brand mark / wordmark scale. `md` == current default. */
+      logoScale: z.enum(["sm", "md", "lg", "xl"]).optional(),
+      /** Nav link spacing. `comfortable` == current default. */
+      navDensity: z
+        .enum(["compact", "comfortable", "spacious"])
+        .optional(),
+      /** Header vertical padding. `standard` == current default. */
+      verticalPadding: z
+        .enum(["tight", "standard", "roomy"])
+        .optional(),
+      /**
+       * Small-screen nav behaviour. `wrap` == current default
+       * (nav wraps / stays visible). `compact` hides nav text to a
+       * tighter row; `drawer` is reserved for a future client drawer
+       * (renders the same as `compact` until that ships — never breaks).
+       */
+      mobileMenuStyle: z
+        .enum(["wrap", "compact", "drawer"])
+        .optional(),
+    })
+    .optional(),
   /**
    * Auth-area toggles. Each flag controls whether the matching widget
    * renders inside the snapshot-shell header. Widgets are rendered by
