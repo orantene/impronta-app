@@ -49,6 +49,7 @@
 //     workspace_profile_field_settings — handled elsewhere).
 
 import { revalidatePath, unstable_cache } from "next/cache";
+import { effectiveFieldVisibility } from "@/lib/field-engine/effective-visibility";
 import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -81,6 +82,8 @@ type FieldDefRow = {
   options: unknown; default_visibility: unknown; is_optional: boolean | null;
   display_order: number | null; field_group_id: string | null;
   validation_rules: unknown; show_when: unknown; deprecated_at: string | null;
+  admin_only: boolean | null; is_sensitive: boolean | null;
+  show_in_public: boolean | null;
 };
 
 type TenantFieldCatalog = {
@@ -109,6 +112,9 @@ type TenantFieldCatalog = {
     field_definition_id: string; enabled_override: boolean | null;
     required_override: boolean | null; custom_label: string | null;
     display_order_override: number | null;
+    show_in_public_override: boolean | null;
+    admin_only_override: boolean | null;
+    default_visibility_override: string[] | null;
   }>;
 };
 
@@ -131,7 +137,7 @@ async function loadTenantFieldCatalogUncached(
   void t0;
   const [defsR, groupsR, pcgR, recsR, gOvR, fOvR] = await Promise.all([
     svc.from("profile_field_definitions").select(
-      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
+      "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_public",
     ).is("deprecated_at", null),
     svc.from("profile_field_groups").select(
       "id, slug, name_en, name_es, sort_order, is_active",
@@ -146,7 +152,7 @@ async function loadTenantFieldCatalogUncached(
       "field_group_id, is_enabled, show_in_registration, show_in_profile_edit, show_in_public_profile, display_order, custom_label",
     ).eq("tenant_id", tenantId),
     svc.from("workspace_profile_field_settings").select(
-      "field_definition_id, enabled_override, required_override, custom_label, display_order_override",
+      "field_definition_id, enabled_override, required_override, custom_label, display_order_override, show_in_public_override, admin_only_override, default_visibility_override",
     ).eq("tenant_id", tenantId),
   ]);
   if (defsR.error || groupsR.error || pcgR.error || recsR.error) {
@@ -977,7 +983,7 @@ export async function getFieldsForTalent(input: {
     const { data: dRows, error: defsErr } = await supabase
       .from("profile_field_definitions")
       .select(
-        "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at",
+        "id, field_key, label, label_es, tier, section, subsection, kind, unit, placeholder, options, default_visibility, is_optional, display_order, field_group_id, validation_rules, show_when, deprecated_at, admin_only, is_sensitive, show_in_public",
       )
       .is("deprecated_at", null);
     if (defsErr) {
@@ -1003,7 +1009,7 @@ export async function getFieldsForTalent(input: {
     const { data: fOv } = await supabase
       .from("workspace_profile_field_settings")
       .select(
-        "field_definition_id, enabled_override, required_override, custom_label, display_order_override",
+        "field_definition_id, enabled_override, required_override, custom_label, display_order_override, show_in_public_override, admin_only_override, default_visibility_override",
       )
       .eq("tenant_id", tenantId);
     overrides = (fOv ?? []) as TenantFieldCatalog["fieldOverrides"];
@@ -1148,6 +1154,40 @@ export async function getFieldsForTalent(input: {
     // Group metadata (if any)
     const groupMeta = d.field_group_id ? groupMetaById.get(d.field_group_id) : null;
 
+    // Phase 1b — tenant field-visibility override. When (and ONLY when) a
+    // tenant has explicitly set a visibility override for this field,
+    // route it through the single shared primitive so editor / Agency
+    // Fields / public all agree. No override row (the default / empty
+    // table) → keep the exact prior values (byte-identical behaviour).
+    const rawVis = Array.isArray(d.default_visibility)
+      ? (d.default_visibility as string[])
+      : [];
+    let out_visibility = rawVis;
+    let out_admin_only = is_admin_only;
+    const hasVisOverride =
+      !!o &&
+      (o.show_in_public_override != null ||
+        o.admin_only_override != null ||
+        Array.isArray(o.default_visibility_override));
+    if (hasVisOverride) {
+      const eff = effectiveFieldVisibility(
+        {
+          default_visibility: rawVis,
+          admin_only: d.admin_only,
+          is_sensitive: d.is_sensitive,
+          show_in_public: d.show_in_public,
+        },
+        {
+          show_in_public_override: o!.show_in_public_override,
+          admin_only_override: o!.admin_only_override,
+          default_visibility_override: o!.default_visibility_override,
+        },
+      );
+      out_visibility =
+        eff === "public" ? ["public", "agency"] : eff === "admin" ? ["agency"] : [];
+      out_admin_only = is_admin_only || eff !== "public";
+    }
+
     resolved.push({
       field_definition_id: d.id,
       field_key: d.field_key,
@@ -1160,9 +1200,7 @@ export async function getFieldsForTalent(input: {
       unit: (d as { unit?: string | null }).unit ?? null,
       placeholder: d.placeholder,
       options: Array.isArray(d.options) ? (d.options as string[]) : null,
-      default_visibility: Array.isArray(d.default_visibility)
-        ? (d.default_visibility as string[])
-        : [],
+      default_visibility: out_visibility,
       is_required: o?.required_override ?? catalogRequired,
       is_recommended: relationship === "recommended",
       display_order: o?.display_order_override ?? display_order,
@@ -1172,7 +1210,7 @@ export async function getFieldsForTalent(input: {
       required_at_registration,
       required_before_publish,
       required_before_verification,
-      is_admin_only,
+      is_admin_only: out_admin_only,
       requires_verification,
       validation_rules: (d.validation_rules as Record<string, unknown> | null) ?? null,
       show_when:
