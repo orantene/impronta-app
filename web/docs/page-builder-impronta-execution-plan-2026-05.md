@@ -1114,3 +1114,108 @@ prod. Open follow-ups (non-blocking, owner-reserved): builder
 (legacy-footer-only; modern shell unaffected — separate cleanup).
 Talent_collection DTO extension parallel. `stash@{0}` untouched; nothing
 committed/pushed. This file is the source of truth, not chat history.
+
+---
+
+## Production Deploy + QA — 2026-05-18 (strategy: finish-and-clean)
+
+**Pushed:** `origin/phase-1` ← clean fast-forward `4e3f1045d..629330cc7`
+(7 commits: the 3 Page Builder commits + 4 pre-existing committed admin
+commits already in shared phase-1 history; no parked files, no force).
+
+**Prod env (Vercel `tulala`/`oran-tenes-projects`):** set
+`ENABLE_SITE_SHELL=tenants` + `SITE_SHELL_TENANT_IDS=…0001` for
+**Production** (SITE_SHELL_TENANT_IDS was previously MISSING for Production
+— only Preview/Dev had it; that gap is now closed).
+
+**Deploy:** `npm run deploy:promote` → fresh **Production-env** build
+`tulala-mqftakab4` (uses `vercel redeploy --target production`, so it
+picked up the new env). Re-aliased `tulala.digital`, `app.tulala.digital`,
+and (separately) `improntamodels.com`, `www.improntamodels.com`,
+`impronta.tulala.digital`. `npm run deploy:smoke` → **all checks passed**.
+
+**Production QA — `https://improntamodels.com/` (no-cookie, HTTP 200):**
+
+| item | result |
+|---|---|
+| modern `site_header` / `site_footer` render | ✅ 1 / 1 |
+| header nav (Discover/Talent/Locations/About/Contact/Apply as Talent) | ✅ all present |
+| Start Inquiry CTA | ✅ |
+| footer real tagline; **debug tagline gone**; Talent Login; © 2026 Impronta | ✅ / ✅ 0 / ✅ / ✅ |
+| 9 CMS body sections (each once) | ✅ |
+| editorial-noir live (`data-token-background-mode`) | ✅ |
+| no "Curated"; no `EDIT HEADER`; no legacy `public-header` rendered | ✅ 0 / 0 / 0 |
+| **header logo `<img>` (`site-header__brand-mark`)** | ❌ **0 — not rendering** |
+
+**Logo finding (root-caused, NOT a code bug, NOT missing data):**
+`agency_branding.theme_json.logo_url` for `…0001` IS present (verified via
+the anon client `loadPublicBranding` uses). The resolver works (proved
+locally). Prod doesn't render it because the Next Data Cache entry for the
+`tagFor(…0001,'branding')`-tagged `loadPublicBranding` read was populated
+by the **old prod site before the one-time logo alignment**, and the
+alignment was a direct DB write that did not bust that tag. Prod-safe
+cache busts: only the canonical `saveBranding`/`publishDesign`
+(`updateTag('branding')`) — admin-authed; `/api/admin/dev-revalidate` is
+404 in production by design.
+
+**Phase 5 gate:** STILL CLOSED. The owner QA checklist requires
+"logo renders" — open. Legacy fallback removal must NOT proceed until the
+logo is confirmed on prod. (Everything else on the checklist passes.)
+
+**Fix options (owner decision):**
+1. One-time prod canonical branding bust — log into prod as admin →
+   Impronta Design → "Publish theme" (`publishDesign` → `updateTag`).
+   Fixes immediately; no code change; future settings saves stay fresh.
+2. Resilient resolver — give the shell logo read its own short-TTL cached
+   path (self-heals in minutes, removes the "never-busts" fragility,
+   scoped to `resolveShellBrandLogoUrl`). Small reversible code change;
+   aligns with "architectural clarity / Page Builder path canonical".
+3. Bake the resolved logo into the shell snapshot at
+   `republishSiteShellSnapshot` (logo rides the `pages-all` tag the
+   canonical Page Builder publish already busts). Most "Page-Builder-
+   canonical" but changes the accepted Option-1 render-time design.
+
+---
+
+## Logo Fix (Option 2) + Production QA PASS — 2026-05-18
+
+**Decision:** Owner chose Option 2 (resilient resolver) over a one-time
+prod branding publish (fixes only one instance) or baking into the shell
+snapshot (weakens the accepted render-time Option-1 design).
+
+**Root cause:** `resolveShellBrandLogoUrl` read `theme_json.logo_url` via
+the shared `loadPublicBranding`, whose `unstable_cache` is tagged-only
+(`tagFor(tenant,'branding')`) with **no TTL** → a logo set outside the
+canonical `saveBranding`/`publishDesign` path (the one-time data
+alignment) stayed unresolved on prod indefinitely. Data was always
+correct; not a code/shell bug.
+
+**Fix (`6f0d23ac4`, `src/lib/site-admin/server/shell-brand-logo.ts`
+only):** resolver now does its OWN narrowly-scoped public read of just
+`agency_branding.theme_json` under a distinct cache key
+`["site-admin:shell-brand-logo", tenantId]`, `revalidate: 300` + the
+tenant `branding` tag. Cache behavior — before: tagged-only, no TTL,
+trapped until a canonical branding save. after: distinct key (fresh on
+first request post-deploy), 300s self-heal safety net, AND still
+instant-busts on the canonical save tag. Fallback order, tenant
+filtering, public-only read, no new logo source, no hardcoded URL, no
+migration — all preserved.
+
+**Deploy:** push `629330cc7..6f0d23ac4` (FF) → `npm run deploy:promote`
+→ fresh Production-env build `tulala-8yeuxdkq7` → re-aliased
+tulala/app/improntamodels/www/impronta.tulala → `deploy:smoke` all green.
+
+**Production QA — `https://improntamodels.com/` (no-cookie, 200):**
+✅ header logo `<img>` renders (the settings PNG via theme_json mirror) ·
+✅ modern site_header + site_footer (1/1) · ✅ header nav + Start Inquiry ·
+✅ footer real tagline · ✅ 9 CMS body sections (each once) ·
+✅ editorial-noir live · ✅ 0 "Curated" · ✅ 0 edit chrome ·
+✅ 0 legacy/​double header · ✅ 0 debug tagline. Responsive CSS fix
+(min(),100% + flex-wrap) is in the deployed build (verified locally at
+390/834/1440; prod pixel pass still needs a human — screenshots denied
+in agent env). Other-tenant safety enforced by the same single-id
+allowlist (`SITE_SHELL_TENANT_IDS=…0001`, `tenants` mode) in prod env.
+
+**Phase 5 gate: UNBLOCKED** — "logo renders in production + full shell QA
+passes" is now satisfied. Phase 5 (deprecated hardcoded fallback removal)
+may begin on explicit go-ahead (not started here per instruction).
