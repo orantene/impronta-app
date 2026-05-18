@@ -140,6 +140,41 @@ export function BrandTab({ config, patch, tenantId }: Props) {
       </InspectorGroup>
 
       <InspectorGroup
+        title="Social & contact"
+        info="Shown in the premium header cluster (and the footer — one source of truth). Leave a field blank to hide it. Nothing is auto-generated; only what you enter renders."
+      >
+        {(
+          [
+            ["socialInstagram", "Instagram", "https://instagram.com/yourhandle"],
+            ["socialTiktok", "TikTok", "https://tiktok.com/@yourhandle"],
+            ["socialFacebook", "Facebook", "https://facebook.com/yourpage"],
+            ["socialYoutube", "YouTube", "https://youtube.com/@yourchannel"],
+            ["socialLinkedin", "LinkedIn", "https://linkedin.com/company/…"],
+            ["socialX", "X (Twitter)", "https://x.com/yourhandle"],
+            ["whatsapp", "WhatsApp", "+52 998 000 0000 or wa.me link"],
+            ["contactPhone", "Phone", "+52 998 000 0000"],
+            ["contactEmail", "Email", "hello@youragency.com"],
+          ] as Array<[keyof typeof config.identity, string, string]>
+        ).map(([key, label, placeholder]) => (
+          <div className={KIT.field} key={key as string}>
+            <label className={KIT.label}>{label}</label>
+            <input
+              type="text"
+              className={KIT.input}
+              placeholder={placeholder}
+              maxLength={500}
+              value={(config.identity[key] as string | null) ?? ""}
+              onChange={(e) =>
+                patch.patchIdentity({
+                  [key]: e.target.value.trim() || null,
+                } as Parameters<typeof patch.patchIdentity>[0])
+              }
+            />
+          </div>
+        ))}
+      </InspectorGroup>
+
+      <InspectorGroup
         title="Logo"
         info="Square mark, 60×60 minimum. SVG preferred so it stays crisp on retina."
       >

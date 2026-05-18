@@ -16,6 +16,21 @@ export interface SiteHeaderConfig {
     tagline: string | null;
     primaryCtaLabel: string | null;
     primaryCtaHref: string | null;
+    /**
+     * Phase 6B — social/contact, the canonical store shared with the
+     * footer (`agency_business_identity`). The operator edits these in
+     * the inspector's Brand tab; the header cluster + footer both read
+     * them. No parallel store, no invented values (null = not provided).
+     */
+    contactEmail: string | null;
+    contactPhone: string | null;
+    whatsapp: string | null;
+    socialInstagram: string | null;
+    socialTiktok: string | null;
+    socialFacebook: string | null;
+    socialYoutube: string | null;
+    socialLinkedin: string | null;
+    socialX: string | null;
     version: number;
   };
   /** From agency_branding. theme tokens flatten the relevant shell.* keys. */

@@ -122,6 +122,17 @@ export async function loadHeaderConfigAction(): Promise<
         tagline: identity?.tagline ?? null,
         primaryCtaLabel: identity?.primary_cta_label ?? null,
         primaryCtaHref: identity?.primary_cta_href ?? null,
+        // Phase 6B — surface current social/contact so the Brand tab
+        // shows the operator what's already set (canonical store).
+        contactEmail: identity?.contact_email ?? null,
+        contactPhone: identity?.contact_phone ?? null,
+        whatsapp: identity?.whatsapp ?? null,
+        socialInstagram: identity?.social_instagram ?? null,
+        socialTiktok: identity?.social_tiktok ?? null,
+        socialFacebook: identity?.social_facebook ?? null,
+        socialYoutube: identity?.social_youtube ?? null,
+        socialLinkedin: identity?.social_linkedin ?? null,
+        socialX: identity?.social_x ?? null,
         version: identity?.version ?? 0,
       },
       branding: {
@@ -156,6 +167,17 @@ interface IdentityPatchInput {
   tagline?: string | null;
   primaryCtaLabel?: string | null;
   primaryCtaHref?: string | null;
+  // Phase 6B — operator-editable social/contact (canonical identity
+  // store, shared with the footer). Omitted key = preserve current.
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  whatsapp?: string | null;
+  socialInstagram?: string | null;
+  socialTiktok?: string | null;
+  socialFacebook?: string | null;
+  socialYoutube?: string | null;
+  socialLinkedin?: string | null;
+  socialX?: string | null;
 }
 
 /**
@@ -181,18 +203,45 @@ export async function saveHeaderIdentityAction(
     tagline:
       input.tagline !== undefined ? input.tagline : (current?.tagline ?? null),
     footerTagline: current?.footer_tagline ?? null,
-    contactEmail: current?.contact_email ?? null,
-    contactPhone: current?.contact_phone ?? null,
-    whatsapp: current?.whatsapp ?? null,
+    contactEmail:
+      input.contactEmail !== undefined
+        ? input.contactEmail
+        : (current?.contact_email ?? null),
+    contactPhone:
+      input.contactPhone !== undefined
+        ? input.contactPhone
+        : (current?.contact_phone ?? null),
+    whatsapp:
+      input.whatsapp !== undefined
+        ? input.whatsapp
+        : (current?.whatsapp ?? null),
     addressCity: current?.address_city ?? null,
     addressCountry: current?.address_country ?? null,
     serviceArea: current?.service_area ?? null,
-    socialInstagram: current?.social_instagram ?? null,
-    socialTiktok: current?.social_tiktok ?? null,
-    socialFacebook: current?.social_facebook ?? null,
-    socialLinkedin: current?.social_linkedin ?? null,
-    socialYoutube: current?.social_youtube ?? null,
-    socialX: current?.social_x ?? null,
+    socialInstagram:
+      input.socialInstagram !== undefined
+        ? input.socialInstagram
+        : (current?.social_instagram ?? null),
+    socialTiktok:
+      input.socialTiktok !== undefined
+        ? input.socialTiktok
+        : (current?.social_tiktok ?? null),
+    socialFacebook:
+      input.socialFacebook !== undefined
+        ? input.socialFacebook
+        : (current?.social_facebook ?? null),
+    socialLinkedin:
+      input.socialLinkedin !== undefined
+        ? input.socialLinkedin
+        : (current?.social_linkedin ?? null),
+    socialYoutube:
+      input.socialYoutube !== undefined
+        ? input.socialYoutube
+        : (current?.social_youtube ?? null),
+    socialX:
+      input.socialX !== undefined
+        ? input.socialX
+        : (current?.social_x ?? null),
     defaultLocale: current?.default_locale ?? "en",
     supportedLocales: current?.supported_locales ?? ["en"],
     seoDefaultTitle: current?.seo_default_title ?? null,
