@@ -1528,3 +1528,56 @@ the earlier logo-cache fix; the canonical resolution is a fresh
 Production-env build via `deploy:promote`).
 
 Deploy + post-deploy prod QA: see next entry.
+
+### Deploy + Post-Deploy Prod QA — PARTIAL (blocker: prod homepage Data Cache) 2026-05-18
+
+Commit `b6c6002c2` (scoped: starter-action.ts recipe + tracker) → push
+(FF `1a50c9658..b6c6002c2`) → `deploy:promote` → prod build
+`tulala-hjf9lu09i` → aliased improntamodels/www/impronta.tulala →
+`deploy:smoke` all passed.
+
+**Prod QA result:**
+- ✅ **Featured Talent now shows the 6 real profiles** (Sofía Herrera,
+  Luis Ortega, Marco Sánchez, Carmen Díaz, Tina, Nalea) with real
+  thumbnails; **QA fixture TAL-AUDIT-0512 absent**. This proves WS-A
+  (roster `agency_visibility=featured` + `is_featured`) is LIVE —
+  `featured_talent` resolves at request time from the roster DB.
+- ✅ shell + logo + editorial-noir + 9 sections + 0 "Curated" + 0 edit
+  chrome + "28 represented talent" intact.
+- ❌ **talent_type_grid still renders the OLD 7 categories** and Cancún
+  still appears in chips/editorial body/values detail.
+
+**Root cause (NOT a data bug — data is correct):** the LIVE DB
+composition is verified correct (9 live sections; exactly ONE
+talent_type_grid with items `[Models, Hosts & Promo, Performers,
+Creators & Influencers]`; no Cancún). But `loadHomepageForRender`
+(`server/homepage-reads.ts`) wraps the composition read in
+`unstable_cache` tagged `tagFor(tenantId,'homepage'|'pages-all')` **with
+no `revalidate` TTL**. `publishHomepage`'s `revalidateTag` only fires in
+the runtime that ran it — my "Publish now" ran on the **local dev
+server**, so **prod's Next Data Cache for `loadHomepageForRender(…0001,
+en)` stayed stale**, and `deploy:promote` does not clear the Vercel Data
+Cache (it persists across deployments). `featured_talent` escaped this
+because it re-fetches from the roster DB per request.
+
+**This is the same cache class as the logo-resolver issue (Option 2).**
+prod-safe busts: only the canonical `publishHomepage`/`revalidateTag`
+run **in prod's runtime** (admin on prod), since `/api/admin/
+dev-revalidate` is 404 in production by design.
+
+**Fix options (owner decision — mirrors the accepted logo Option 2):**
+1. Apply the same resilience pattern: add a short `revalidate` TTL to
+   `loadHomepageForRender`'s `unstable_cache` (keeps the tags for
+   instant canonical busts; adds a self-heal safety net so an
+   out-of-band/local publish converges on prod within minutes). Small,
+   scoped, reversible code change in one read; fixes this class
+   permanently for the homepage. Recommended.
+2. One-time prod-runtime canonical bust (admin logs into prod →
+   re-publish homepage so `revalidateTag` runs in prod runtime). Fixes
+   this instance only; the fragility remains.
+
+**Status:** WS-A/B/C data + recipe verified correct and committed/
+deployed; Featured-Talent content-realness is LIVE. talent_type_grid /
+location trims are correct in the DB but NOT yet visible on prod pending
+the cache-resilience decision above. Phase: content-real for Featured
+Talent; blocked on prod homepage cache for category/location trims.
