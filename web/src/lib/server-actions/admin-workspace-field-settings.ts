@@ -17,6 +17,7 @@ import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import {
   type FieldVisibility,
+  effectiveFieldVisibility,
   visibilityToOverrideColumns,
 } from "@/lib/field-engine/effective-visibility";
 
@@ -51,6 +52,121 @@ const visibilitySchema = z.object({
   visibility: z.enum(["public", "admin", "hidden"]),
 });
 const fieldIdSchema = z.object({ field_definition_id: z.string().uuid() });
+
+type FieldPrivacyGroup = { id: string; slug: string; name: string; sort_order: number };
+type FieldPrivacyEntry = {
+  field_definition_id: string;
+  field_key: string;
+  label: string;
+  field_group_id: string | null;
+  effective: FieldVisibility;
+  /** platform admin_only/is_sensitive — cannot be made Public by a tenant. */
+  floored: boolean;
+  has_override: boolean;
+};
+
+/**
+ * The Field Privacy catalog for this tenant: every active platform field
+ * definition + its EFFECTIVE visibility (platform default folded with
+ * this tenant's workspace_profile_field_settings override via the shared
+ * primitive) + grouping. Drives the real Field Privacy drawer.
+ */
+export async function getFieldPrivacyCatalog(): Promise<
+  Result<{ groups: FieldPrivacyGroup[]; fields: FieldPrivacyEntry[] }>
+> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const [defsR, groupsR, ovR] = await Promise.all([
+    supabase
+      .from("profile_field_definitions")
+      .select(
+        "id, field_key, label, field_group_id, admin_only, is_sensitive, default_visibility, show_in_public",
+      )
+      .is("deprecated_at", null),
+    supabase
+      .from("profile_field_groups")
+      .select("id, slug, name_en, sort_order")
+      .eq("is_active", true),
+    supabase
+      .from("workspace_profile_field_settings")
+      .select(
+        "field_definition_id, show_in_public_override, admin_only_override, default_visibility_override",
+      )
+      .eq("tenant_id", tenantId),
+  ]);
+
+  if (defsR.error || groupsR.error || ovR.error) {
+    console.error(
+      "[field-privacy-catalog] load failed:",
+      defsR.error?.message || groupsR.error?.message || ovR.error?.message,
+    );
+    return { ok: false, error: "Couldn't load the field catalog." };
+  }
+
+  const ovByField = new Map(
+    (ovR.data ?? []).map((o) => [o.field_definition_id as string, o]),
+  );
+
+  const fields: FieldPrivacyEntry[] = (defsR.data ?? []).map((d) => {
+    const def = d as {
+      id: string;
+      field_key: string;
+      label: string;
+      field_group_id: string | null;
+      admin_only: boolean | null;
+      is_sensitive: boolean | null;
+      default_visibility: string[] | null;
+      show_in_public: boolean | null;
+    };
+    const o = ovByField.get(def.id);
+    const effective = effectiveFieldVisibility(
+      {
+        default_visibility: def.default_visibility,
+        admin_only: def.admin_only,
+        is_sensitive: def.is_sensitive,
+        show_in_public: def.show_in_public,
+      },
+      o
+        ? {
+            show_in_public_override: o.show_in_public_override as boolean | null,
+            admin_only_override: o.admin_only_override as boolean | null,
+            default_visibility_override:
+              o.default_visibility_override as string[] | null,
+          }
+        : null,
+    );
+    return {
+      field_definition_id: def.id,
+      field_key: def.field_key,
+      label: def.label,
+      field_group_id: def.field_group_id,
+      effective,
+      floored: !!(def.admin_only || def.is_sensitive),
+      has_override: !!o,
+    };
+  });
+
+  const groups: FieldPrivacyGroup[] = (groupsR.data ?? [])
+    .map((g) => {
+      const gg = g as {
+        id: string;
+        slug: string;
+        name_en: string | null;
+        sort_order: number | null;
+      };
+      return {
+        id: gg.id,
+        slug: gg.slug,
+        name: gg.name_en ?? gg.slug,
+        sort_order: gg.sort_order ?? 0,
+      };
+    })
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  return { ok: true, groups, fields };
+}
 
 /** All of THIS tenant's per-field overrides (RLS: wpfs_select_tenant_or_platform). */
 export async function getWorkspaceFieldSettings(): Promise<
