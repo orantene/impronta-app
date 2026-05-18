@@ -453,6 +453,12 @@ export type CommitTalentProfileShellAdminInput = {
     whatsappPrefix?: string;
     businessLine?: string;
   };
+  /** When true, the LanguageSlotPanel owns languages and persists them
+   *  independently via setTalentLanguages — so this batched commit MUST
+   *  NOT run replace_talent_languages (doing so would wipe the panel's
+   *  edits with stale `state.languages`). The `languages` payload is
+   *  ignored in that case. */
+  skip_languages?: boolean;
   /** When true, shell owns talent_type assignments (SkillSlotPanel inactive). */
   shell_sync_taxonomy?: boolean;
   shell_primary_talent_slug?: string | null;
@@ -581,16 +587,21 @@ export async function commitTalentProfileShellAdmin(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  const langRows = buildTalentLanguageRpcRows(input.languages.languages);
-  const { error: rpcErr } = await supabase.rpc("replace_talent_languages", {
-    p_talent_profile_id: tid,
-    p_tenant_id: tenantId,
-    p_rows: langRows,
-  });
-  lap("replace_talent_languages.rpc");
-  if (rpcErr) {
-    logServerError("profile-sections.commit-shell.languages", rpcErr);
-    return { ok: false, error: CLIENT_ERROR.update };
+  // Skip when the LanguageSlotPanel owns languages — it persists them
+  // independently and this stale `state.languages` would otherwise wipe
+  // the panel's edits via the replace RPC (the dual-writer hazard).
+  if (!input.skip_languages) {
+    const langRows = buildTalentLanguageRpcRows(input.languages.languages);
+    const { error: rpcErr } = await supabase.rpc("replace_talent_languages", {
+      p_talent_profile_id: tid,
+      p_tenant_id: tenantId,
+      p_rows: langRows,
+    });
+    lap("replace_talent_languages.rpc");
+    if (rpcErr) {
+      logServerError("profile-sections.commit-shell.languages", rpcErr);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
   }
 
   if (input.shell_sync_taxonomy) {

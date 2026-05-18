@@ -65,6 +65,7 @@ import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "./use-taxonomy";
 import { prefetchSkillsData, SkillSlotPanel } from "./skill-slot-panel";
 import { ContextSlotPanel, prefetchContextsData } from "./context-slot-panel";
+import { LanguageSlotPanel, prefetchLanguagesData } from "./language-slot-panel";
 import { useDashboardText } from "./dashboard-i18n";
 import { MetricsRibbon } from "./metrics-ribbon";
 import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./profile-store";
@@ -5555,6 +5556,7 @@ function TalentProfileShellDrawer() {
     if (!tid || !bridgeTenantIdentity?.tenantId) return;
     prefetchSkillsData(tid);
     prefetchContextsData(tid);
+    prefetchLanguagesData(tid);
   }, [payload.talentId, bridgeTenantIdentity?.tenantId]);
 
   // ── Save-button architecture ─────────────────────────────────────────────
@@ -5590,6 +5592,11 @@ function TalentProfileShellDrawer() {
 
     const s = stateRef.current;
     const shellSyncTaxonomy = !(bridgeTenantIdentity?.tenantId && tid);
+    // Real-tenant talents edit languages through the immediate-setAll
+    // LanguageSlotPanel, which persists independently. The batched save
+    // (admin commit + self ops) MUST skip languages here or its stale
+    // `state.languages` would wipe the panel's edits via the replace RPC.
+    const languagesOwnedByPanel = !!(bridgeTenantIdentity?.tenantId && tid);
     const id = s.identity;
     const visibilityDraft = id.visibility;
     const visibilityPatch = visibilityDraft && (visibilityDraft.legalName || visibilityDraft.pronouns || visibilityDraft.gender || visibilityDraft.dob)
@@ -5768,6 +5775,7 @@ function TalentProfileShellDrawer() {
           lodging_included: ratesPayload.lodging_included,
         },
         shell_sync_taxonomy: shellSyncTaxonomy,
+        skip_languages: languagesOwnedByPanel,
         shell_primary_talent_slug: s.primaryType,
         shell_secondary_talent_slugs: s.secondaryTypes,
         shell_profile_status: s.profileStatus,
@@ -5830,7 +5838,7 @@ function TalentProfileShellDrawer() {
       updateSelfLocation(locationPayload),
       updateSelfRates(ratesPayload),
       updateSelfAvailability(availPayload),
-      saveSelfLanguages(langsPayload),
+      ...(languagesOwnedByPanel ? [] : [saveSelfLanguages(langsPayload)]),
       updateSelfCredits(creditsPayload),
       updateSelfLimits(limitsPayload),
       updateSelfSocialProof(socialPayload),
@@ -5847,7 +5855,7 @@ function TalentProfileShellDrawer() {
       "Location",
       "Rates",
       "Availability",
-      "Languages",
+      ...(languagesOwnedByPanel ? [] : ["Languages"]),
       "Credits",
       "Limits",
       "Social proof",
@@ -7672,26 +7680,35 @@ function TalentProfileShellDrawer() {
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
                   Languages
-                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· what they speak, and what they can do in each</span>
+                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· Languages this talent can use with clients.</span>
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-                  {LANGUAGE_PRESETS.map(p => (
-                    <button key={p.id} type="button" onClick={() => {
-                      const existing = new Set(state.languages.map(l => l.language.toLowerCase()));
-                      const additions = p.langs
-                        .filter(l => !existing.has(l.toLowerCase()))
-                        .map<ProfileLanguage>((l, i) => ({ language: l, level: i === 0 ? "native" : "fluent" }));
-                      if (additions.length > 0) patch({ languages: [...state.languages, ...additions] });
-                    }} style={{
-                      padding: "5px 11px", borderRadius: 999,
-                      border: `1px dashed ${COLORS.border}`,
-                      background: "transparent", color: COLORS.inkMuted,
-                      fontSize: 11, fontWeight: 500, cursor: "pointer",
-                      fontFamily: FONTS.body,
-                    }}>{p.label}</button>
-                  ))}
-                </div>
-                <LanguagesEditor value={state.languages} onChange={patchLanguages} />
+                {payload.talentId && bridgeTenantIdentity?.tenantId ? (
+                  // Real tenant: DB-backed immediate-setAll panel owns
+                  // languages (persists independently; batched save skips
+                  // languages — see languagesOwnedByPanel).
+                  <LanguageSlotPanel talentProfileId={payload.talentId} />
+                ) : (
+                  <>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                      {LANGUAGE_PRESETS.map(p => (
+                        <button key={p.id} type="button" onClick={() => {
+                          const existing = new Set(state.languages.map(l => l.language.toLowerCase()));
+                          const additions = p.langs
+                            .filter(l => !existing.has(l.toLowerCase()))
+                            .map<ProfileLanguage>((l, i) => ({ language: l, level: i === 0 ? "native" : "fluent" }));
+                          if (additions.length > 0) patch({ languages: [...state.languages, ...additions] });
+                        }} style={{
+                          padding: "5px 11px", borderRadius: 999,
+                          border: `1px dashed ${COLORS.border}`,
+                          background: "transparent", color: COLORS.inkMuted,
+                          fontSize: 11, fontWeight: 500, cursor: "pointer",
+                          fontFamily: FONTS.body,
+                        }}>{p.label}</button>
+                      ))}
+                    </div>
+                    <LanguagesEditor value={state.languages} onChange={patchLanguages} />
+                  </>
+                )}
               </div>
               {/* General profile fields — the always-on global groups
                   (Creator / Experience / Media). Moved out of the
