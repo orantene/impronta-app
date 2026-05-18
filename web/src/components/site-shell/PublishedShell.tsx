@@ -35,6 +35,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { isSiteShellEnabledForTenant } from "@/lib/site-admin/site-shell-flag";
+import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import type { Locale } from "@/i18n/config";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
@@ -236,11 +237,17 @@ async function renderShellSlot(
     <div
       key={slot.sectionId}
       data-cms-section=""
-      data-section-id={slot.sectionId}
+      data-section-id={
+        slot.sectionTypeKey === "site_header"
+          ? SITE_HEADER_SELECTION_ID
+          : slot.sectionId
+      }
       data-section-type-key={slot.sectionTypeKey}
       data-slot-key={slot.slotKey}
       data-sort-order={slot.sortOrder}
-      data-builder-node-id={builderNodeId}
+      data-builder-node-id={
+        slot.sectionTypeKey === "site_header" ? undefined : builderNodeId
+      }
     >
       <Comp
         sectionId={slot.sectionId}

@@ -14,8 +14,6 @@ import {
   type ShellContactLink,
 } from "@/lib/site-admin/server/shell-social-contact";
 import type { Locale } from "@/i18n/config";
-import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
-import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
   if (align === "left") return "left";
@@ -356,18 +354,12 @@ export async function SiteHeaderComponent({
       },
     ],
   });
-  // Phase 6B fix — make the snapshot-shell header SELECTABLE in the
-  // builder. Without this the navigator query
-  // `[data-cms-section][data-section-type-key="site_header"]` matches
-  // nothing (the snapshot Component only emitted data-section-type), so
-  // clicking "Site header" did nothing → Inspector "Nothing selected" →
-  // the Brand → "Social & contact" fields were unreachable. Mirrors the
-  // hard-coded PublicHeader's edit-mode wrapper: a layout-transparent
-  // (`display:contents`) shell carrying the synthetic selection id that
-  // inspector-dock routes to <SiteHeaderInspector>. Only in edit mode →
-  // public storefront DOM is byte-identical.
-  const editActive = await isEditModeActiveForTenant(tenantId);
-  const headerEl = (
+  // Phase 6B — selection wiring lives in the generic section wrapper
+  // (homepage-cms-sections.tsx), which special-cases site_header to emit
+  // the synthetic SITE_HEADER_SELECTION_ID + no builder-node-id so the
+  // navigator/canvas route to <SiteHeaderInspector>. The Component itself
+  // stays a clean <header> (no extra wrapper → no duplicate nav row).
+  return (
     <header
       className="site-header"
       data-section-id={sectionId}
@@ -489,17 +481,5 @@ export async function SiteHeaderComponent({
         </div>
       </div>
     </header>
-  );
-  if (!editActive) return headerEl;
-  return (
-    <div
-      data-cms-section=""
-      data-section-id={SITE_HEADER_SELECTION_ID}
-      data-section-type-key="site_header"
-      data-slot-key="header"
-      style={{ display: "contents" }}
-    >
-      {headerEl}
-    </div>
   );
 }
