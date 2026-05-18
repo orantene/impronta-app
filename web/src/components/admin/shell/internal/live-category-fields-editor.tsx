@@ -186,14 +186,18 @@ function namespaceLabel(ns: string): string {
     : ns;
 }
 
+// Palette aligned to the New Inquiry theme tokens so the Details editor
+// greys match it exactly: warm border family rgba(35,29,16,*) (= the
+// real --border) and the --muted #F2EDE2 surface, instead of the old
+// cool rgba(24,24,27,*) / #F4F2EB. Single source → consistent greys.
 const T = {
   ink: "#0B0B0D",
   inkMuted: "#5A5A60",
-  inkDim: "rgba(11,11,13,0.38)",
+  inkDim: "rgba(35,29,16,0.40)",
   surface: "#FFFFFF",
-  surfaceAlt: "#F4F2EB",
-  border: "rgba(24,24,27,0.10)",
-  borderSoft: "rgba(24,24,27,0.06)",
+  surfaceAlt: "#F2EDE2",
+  border: "rgba(35,29,16,0.14)",
+  borderSoft: "rgba(35,29,16,0.08)",
   accent: "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.10)",
   red: "#C82828",
@@ -602,7 +606,7 @@ function FieldRow({
 
   const inputStyle: React.CSSProperties = {
     width: "100%", boxSizing: "border-box",
-    padding: "8px 10px", borderRadius: 8,
+    padding: "9px 11px", borderRadius: 10,
     border: `1px solid ${status === "error" ? T.red : T.border}`,
     fontFamily: F, fontSize: 13, color: T.ink,
     background: "#fff", outline: "none",

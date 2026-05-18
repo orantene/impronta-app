@@ -1052,11 +1052,12 @@ function Section({
       {framed ? (
         <div
           style={{
-            background: COLORS.card,
-            border: `1px solid ${COLORS.borderSoft}`,
+            // Match New Inquiry nested sub-panel: rounded-xl,
+            // border-border/45, bg-background/70, p-3 — no heavy shadow.
+            background: "rgba(255,255,255,0.7)",
+            border: "1px solid rgba(35,29,16,0.08)",
             borderRadius: 12,
-            padding: 14,
-            boxShadow: COLORS.shadow,
+            padding: 12,
           }}
         >
           {inner}
@@ -6476,7 +6477,7 @@ function TalentProfileShellDrawer() {
              still render, but inline above the form so they participate
              in the same scroll. */
           [data-tulala-pshell] [data-pshell-body] { display: flex; flex-direction: row; flex: 1; min-height: 0; }
-          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; position: relative; min-width: 0; background: #F1EFE8; box-sizing: border-box; }
+          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; position: relative; min-width: 0; background: #F2EDE2; box-sizing: border-box; }
           [data-tulala-pshell] [data-pshell-form-banners] {
             display: flex; flex-direction: column; gap: 10px;
             padding: 14px 18px 0;
@@ -11578,27 +11579,29 @@ function ProfileAccordionSection({ id, title, sub, complete, started, open, onTo
   if (!open) return null;
   return (
     <section id={`pshell-${id}`} style={{
-      background: "#fff",
-      border: `1px solid ${COLORS.borderSoft}`,
+      // Match New Inquiry SectionCard exactly: low-contrast warm card
+      // (≈ bg-muted/10, NOT stark white) + the real --border token
+      // rgba(35,29,16,0.08) + rounded-2xl; fills height (no void).
+      background: "#FBF9F3",
+      border: "1px solid rgba(35,29,16,0.08)",
       borderRadius: 16,
       minHeight: "100%",
       boxSizing: "border-box",
     }}>
-      {/* Compact section title row — replaces the bulky accordion button.
-          The rail already shows section name + completion dot, so this is
-          just a slim heading + sub-text for in-body context. */}
+      {/* Compact section title row — slim heading + sub-text. Matches
+          New Inquiry: text-sm/500 title, text-xs muted description. */}
       <div style={{
         display: "flex", alignItems: "center", gap: 10,
-        padding: "16px 24px 6px", textAlign: "left",
+        padding: "16px 16px 6px", textAlign: "left",
         fontFamily: FONTS.body,
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: accent === "amber" ? COLORS.amberDeep : COLORS.ink, letterSpacing: -0.1 }}>{title}</div>
-          {sub && <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{sub}</div>}
+          <div style={{ fontSize: 13.5, fontWeight: 500, color: accent === "amber" ? COLORS.amberDeep : COLORS.ink, letterSpacing: -0.05 }}>{title}</div>
+          {sub && <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>{sub}</div>}
         </div>
       </div>
       {(
-        <div style={{ padding: "0 24px 20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ padding: "0 16px 16px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
           {children}
         </div>
       )}
